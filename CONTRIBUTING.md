@@ -28,7 +28,7 @@ Before submitting a PR:
 When we make a significant decision in how to write code, or how to maintain the project and
 what we can or cannot support, we will document it using
 [Architecture Decision Records (ADR)](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions).
-Take a look at the [doc/architecture/decisions](doc/architecture/decisions/) directory for
+Take a look at the [doc/architecture/decisions](docs/architecture/decisions/) directory for
 existings ADRs. If you have a question around how we do things, check to see if it is documented
 there. If it is *not* documented there, please ask us - chances are you're not the only one
 wondering. Of course, also feel free to challenge the decisions by starting a discussion on the
