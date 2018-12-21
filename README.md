@@ -410,7 +410,7 @@ You may also check the health status of the presence monitor by visiting http://
 
 ## Write your own microservices
 
-You may use the lambda-example and rest-example as templates to write your own application.
+You may use the lambda-example and rest-example as templates to write your own applications.
 
 Please update pom.xml and application.properties for application name accordingly.
 
