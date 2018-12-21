@@ -283,7 +283,7 @@ Try http://127.0.0.1:8083/api/hello/pojo/1 again. You will see response like thi
 }
 ```
 
-Congratulations! You can just create a network of microservices and consume the "hello.pojo" service thru a network event stream system.
+Congratulations! You have just created a network of microservices and consume the "hello.pojo" service thru a network event stream system.
 
 If you run another instance of the lambda-example in a different terminal and try the endpoint http://127.0.0.1:8083/api/hello/pojo/1 again, you will see the "origin" of the response changes. This illustrates that the system is load balancing your request to multiple containers.
 
