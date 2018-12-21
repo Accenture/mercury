@@ -16,7 +16,7 @@ Please report unacceptable behavior to Kevin Bader, who is the current project m
 ## What should I know before I get started?
 
 We follow the [standard GitHub workflow](https://guides.github.com/introduction/flow/).
-Before submitting a PR:
+Before submitting a Pull Request:
 
 - Please write tests.
 - Make sure you run all tests and check for warnings.

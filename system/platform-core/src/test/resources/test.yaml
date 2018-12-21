@@ -1,0 +1,15 @@
+hello:
+  world: some value
+  multiline: |
+    line one
+    line two
+  array:
+  - "hi"
+  - "this is great"
+  number: 12345
+  # demonstrate parameter value substitution using application.properties
+  name: ${application.name}
+  location:
+  - abcde
+  - ${application.work.location}
+
