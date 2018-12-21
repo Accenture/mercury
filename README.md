@@ -424,6 +424,6 @@ If there is a need for data persistence, use external databases or cloud storage
 
 ## Other consideration
 
-- Timestamp: the Mercury system uses UTC time and ISO-8061 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601
+- Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601
 
 - UTF8 text encoding: we recommend the use of UTF8 for text strings.
