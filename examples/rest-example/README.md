@@ -75,7 +75,7 @@ A sample POM configuration is shown in pom-for-spring.xml. Copy it to pom.xml an
 
 ## End to end test drive
 
-1, Compile and install the platform-core, rest-core and rest-spring projects as libraries locally using "mvn clean install" in the 3 projects.
+1. Compile and install the platform-core, rest-core and rest-spring projects as libraries locally using "mvn clean install" in the 3 projects.
 2. Compile and package the "Event Node" cloud emulator with "mvn clean package" for local test. Run it in a command terminal using "java -jar target\event-node-(version).jar"
 3. Compile and package this lambda-example project with "mvn clean package". Run it in a command terminal.
 4. Compile and package this rest-example project with "mvn clean package". Run it in a command terminal.
