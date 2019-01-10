@@ -167,23 +167,23 @@ This is an example project that may be used as a template to write microservices
 
 ## Before you start
 
+If you haven't already please start a terminal and clone the repository: 
+```
+git clone https://github.com/Accenture/mercury.git
+cd mercury
+```
+
 To get the system up and running, you should compile and build the foundation libraries from sources. This will install the libraries into your ".m2/repository/org/platformlambda" folder. For your convenience, we will be publishing these libraries into a public repository at a later time.
 
 ```
 # start a terminal and go to the mercury sandbox folder
-cd mercury/system
-cd platform-core
+cd system/platform-core
 mvn clean install
-cd ..
-cd rest-core
+cd ../rest-core
 mvn clean install
-cd ..
-cd rest-spring
+cd ../rest-spring
 mvn clean install
-cd ..
-cd ..
-cd connectors
-cd hazelcast/hazelcast-connector
+cd ../../connectors/hazelcast/hazelcast-connector
 mvn clean install
 # close the terminal
 ```
