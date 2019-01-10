@@ -170,7 +170,7 @@ This is an example project that may be used as a template to write microservices
 To get the system up and running, you should compile and build the foundation libraries from sources. This will install the libraries into your ".m2/repository/org/platformlambda" folder. For your convenience, we will be publishing these libraries into a public repository at a later time.
 
 ```
-# start a terminal and go the the mercury sandbox folder
+# start a terminal and go to the mercury sandbox folder
 cd mercury/system
 cd platform-core
 mvn clean install
