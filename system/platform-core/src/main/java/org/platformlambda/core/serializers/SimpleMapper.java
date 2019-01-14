@@ -64,6 +64,10 @@ public class SimpleMapper {
             mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
+        /*
+         * This avoids a security vulnerability that input JSON string may contain arbitrary Java class name
+         */
+        mapper.disableDefaultTyping();
     }
 
     public static SimpleMapper getInstance() {
