@@ -49,8 +49,9 @@ public class HealthServlet extends HttpServlet {
     private static boolean loadedInfo = false, listInfo = false;
 
     @SuppressWarnings("unchecked")
-    private void loadConfig() {
+    public static Map<String, Object> getBasicInfo() {
         if (!loadedInfo) {
+            loadedInfo = true;
             // get platform specific node information
             AppConfigReader reader = AppConfigReader.getInstance();
             String nodeInfo = reader.getProperty(NODE_INFO, "node.info");
@@ -59,14 +60,17 @@ public class HealthServlet extends HttpServlet {
                     EventEnvelope response = PostOffice.getInstance().request(nodeInfo, 5000, new Kv(TYPE, QUERY));
                     if (response.getBody() instanceof Map) {
                         basicInfo.putAll((Map<String, Object>) response.getBody());
-                        loadedInfo = true;
                     }
                 } catch (IOException | TimeoutException | AppException e) {
                     log.warn("Unable to obtain node info - {}", e.getMessage());
                 }
             }
-
         }
+        return basicInfo;
+    }
+
+    private void loadConfig() {
+        HealthServlet.getBasicInfo();
         if (!listInfo) {
             listInfo = true;
             AppConfigReader reader = AppConfigReader.getInstance();
