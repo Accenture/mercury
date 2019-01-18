@@ -46,16 +46,17 @@ public class HealthServlet extends HttpServlet {
     private static final Map<String, Object> basicInfo = new HashMap<>();
     private static List<String> requiredServices = new ArrayList<>();
     private static List<String> optionalServices = new ArrayList<>();
-    private static boolean loadedInfo = false, listInfo = false;
+    private static boolean loadInfo = false, listInfo = false;
 
     @SuppressWarnings("unchecked")
     public static Map<String, Object> getBasicInfo() {
-        if (!loadedInfo) {
-            loadedInfo = true;
+        if (!loadInfo) {
             // get platform specific node information
             AppConfigReader reader = AppConfigReader.getInstance();
             String nodeInfo = reader.getProperty(NODE_INFO, "node.info");
             if (Platform.getInstance().hasRoute(nodeInfo)) {
+                // do only once
+                loadInfo = true;
                 try {
                     EventEnvelope response = PostOffice.getInstance().request(nodeInfo, 5000, new Kv(TYPE, QUERY));
                     if (response.getBody() instanceof Map) {
