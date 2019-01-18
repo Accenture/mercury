@@ -42,7 +42,7 @@ public class CryptoTest {
     @Test
     public void rsaEncryptionTest() throws GeneralSecurityException {
         String input = "hello world ";
-        for (int i=0; i < 10; i++) {
+        for (int i=0; i < 5; i++) {
             input += "0123456789";
         }
         KeyPair kp = crypto.generateRsaKey();

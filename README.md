@@ -91,7 +91,7 @@ PostOffice po = PostOffice.getInstance();
 EventEnvelope response = po.request("v1.some.service", 1000, "hello world");
 System.out.println("I got response here..."+response.getBody());
 
-// the above is a RPC call. For async call, it would be something like this:
+// the above is an RPC call. For async call, it would be something like this:
 po.send("v1.some.service", "hello world");
 
 //-------------------------------------------------
@@ -144,7 +144,7 @@ This connector library is designed to work with Hazelcast version 3.11.1 out of 
 
 `hazelcast-presence`
 
-This project can be compiled into an executable JAR. This is the "presence monitor" for Hazelcast. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), the monitors use Hazelcast to cluster themselves. The Post Office in the platform-core will use the Hazelcast-connector to send events to other application instances thru the Hazelcast cluster.
+This project can be compiled into an executable JAR. This is the "presence monitor" for Hazelcast. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Hazelcast to cluster themselves. The Post Office in the platform-core will use the Hazelcast-connector to send events to other application instances thru the Hazelcast cluster.
 
 The hazelcast-connector and hazelcast-presence is fully scalable.
 
@@ -158,7 +158,7 @@ The Event Node is not designed for production purpose. It is a convenient tool f
 
 `lambda-example`
 
-This is an example project to illustrate writing microservices without using a HTTP application server.
+This is an example project to illustrate writing microservices without using an HTTP application server.
 
 `rest-example`
 
@@ -167,7 +167,7 @@ This is an example project that may be used as a template to write microservices
 
 ## Before you start
 
-If you haven't already please start a terminal and clone the repository: 
+If you haven't already, please start a terminal and clone the repository: 
 ```
 git clone https://github.com/Accenture/mercury.git
 cd mercury
@@ -263,7 +263,7 @@ java -jar target/lambda-example-1.11.28.jar
 # the lambda-example microservices module will run and connect to the event node
 
 # Go to the terminal that runs the rest-example earlier
-CTL-C to quit the rest-example application
+Ctrl-C to quit the rest-example application
 # Then run the rest-example again
 java -jar target/rest-example-1.11.28.jar
 # without the "-Dcloud.connector" parameter override, the rest-example will run and connect to the event node.
@@ -291,11 +291,11 @@ If you run another instance of the lambda-example in a different terminal and tr
 
 The Event Node is designed for rapid prototyping so the event stream system is emulated in one laptop.
 
-Now CTL-C all terminals to quit the demo. We are going to do it again with Hazelcast as the event stream system.
+Now Ctrl-C all terminals to quit the demo. We are going to do it again with Hazelcast as the event stream system.
 
 - Download Hazelcast from https://hazelcast.org/download/
 - Go to the "bin" folder of the unzipped folder.
-- start hazelcast with "start.bat" for windows or "./start.sh" for Mac and Linux. The Hazelcast system will start.
+- start hazelcast with "start.bat" for Windows or "./start.sh" for Mac and Linux. The Hazelcast system will start.
 
 You will see member list like this in the terminal.
 
@@ -416,9 +416,9 @@ Please update pom.xml and application.properties for application name accordingl
 
 ## Cloud Native
 
-The Mercury framework is Cloud Native. While it uses the local file system for buffering, it expects local storage to be transcient.
+The Mercury framework is Cloud Native. While it uses the local file system for buffering, it expects local storage to be transient.
 
-If your application needs to use the local file system, please consider it to be transcient too. i.e. you cannot rely on it to persist when your application restarts.
+If your application needs to use the local file system, please consider it to be transient too, i.e., you cannot rely on it to persist when your application restarts.
 
 If there is a need for data persistence, use external databases or cloud storage.
 
