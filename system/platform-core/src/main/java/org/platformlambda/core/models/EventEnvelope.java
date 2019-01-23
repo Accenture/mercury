@@ -21,13 +21,13 @@ package org.platformlambda.core.models;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class EventEnvelope {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
@@ -64,9 +64,23 @@ public class EventEnvelope {
     private Object body;
     private Float executionTime, roundTrip;
     private boolean endOfRoute = false, broadcast = false, binary = true;
+    private static Set<String> safeModels = new HashSet<>();
+    private static boolean loadSafeModels = false;
 
     public EventEnvelope() {
         this.id = Utility.getInstance().getUuid();
+        if (!loadSafeModels) {
+            loadSafeModels = true;
+            AppConfigReader reader = AppConfigReader.getInstance();
+            String models = reader.getProperty("safe.data.models");
+            if (models != null) {
+                List<String> list = Utility.getInstance().split(models, ", ");
+                for (String m: list) {
+                    safeModels.add(m);
+                }
+                log.info("Safe data models {}", safeModels);
+            }
+        }
     }
 
     public EventEnvelope(byte[] event) throws IOException {
@@ -293,7 +307,11 @@ public class EventEnvelope {
                     typed.setParametricType(parametricType);
                 }
                 try {
-                    body = converter.decode(typed);
+                    if (modelInWhiteList(typed.getType())) {
+                        body = converter.decode(typed);
+                    } else {
+                        throw new IllegalArgumentException("Class not authorized in safe.data.models white-list");
+                    }
                 } catch (Exception e) {
                     /*
                      * When the EventEnvelope is being relayed, the event node does not have the PoJo class
@@ -303,7 +321,7 @@ public class EventEnvelope {
                      * assuming source and target have the same PoJo class definition.
                      */
                     if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                        log.warn("Fall back to HashMap. Unable to reconstruct {} - {}", message.get(OBJ_TYPE), e.getMessage());
+                        log.warn("Fall back to HashMap. Unable to reconstruct {} - {}", typed.getType(), e.getMessage());
                     }
                     type = (String) message.get(OBJ_TYPE);
                     body = message.get(BODY);
@@ -316,6 +334,19 @@ public class EventEnvelope {
                 roundTrip = (Float) message.get(ROUND_TRIP);
             }
         }
+    }
+
+    private boolean modelInWhiteList(String model) {
+        if (safeModels.isEmpty()) {
+            // feature not enabled
+            return true;
+        }
+        for (String m: safeModels) {
+            if (model.startsWith(m)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

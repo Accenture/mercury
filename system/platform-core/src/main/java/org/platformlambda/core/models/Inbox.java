@@ -54,6 +54,8 @@ public class Inbox {
             total = new AtomicInteger(n);
             replies = new ConcurrentHashMap<>();
             this.n = n;
+        } else {
+            this.n = 1;
         }
         this.thread = Thread.currentThread();
         this.id = "r."+ Utility.getInstance().getUuid();
@@ -75,10 +77,12 @@ public class Inbox {
 
     public List<EventEnvelope> getReplies() {
         List<EventEnvelope> results = new ArrayList<>();
-        if (replies != null) {
+        if (n > 1) {
             for (String k: replies.keySet()) {
                 results.add(replies.get(k));
             }
+        } else if (reply != null) {
+            results.add(reply);
         }
         return results;
     }

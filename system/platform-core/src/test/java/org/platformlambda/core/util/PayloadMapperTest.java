@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.util.models.PoJo;
+import org.platformlambda.core.util.unsafe.models.UnauthorizedObj;
 
 import java.io.IOException;
 import java.util.*;
@@ -33,6 +34,25 @@ import static org.platformlambda.core.serializers.PayloadMapper.*;
 public class PayloadMapperTest {
 
     private static final PayloadMapper converter = PayloadMapper.getInstance();
+
+    @Test
+    public void rejectUnauthorizdClass() throws IOException {
+        UnauthorizedObj input = new UnauthorizedObj();
+        input.setName("hello world");
+        input.setNumber(12345);
+
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(input);
+        byte[] b = event1.toBytes();
+
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        /*
+         * Since the object is not in the safe.data.models white-list, the data is decoded as a simple HashMap.
+         * Deserialization to the UnauthorizedObj is not performed.
+         */
+        assertEquals(HashMap.class, event2.getBody().getClass());
+    }
 
     @Test
     public void pojoInEvent() throws IOException {
