@@ -100,9 +100,6 @@ public class GenericTypeTest {
 
         // when parametricType is incorrect, it will fall back to a Map
         Object o = result.getBody();
-
-        System.out.println(o);
-
         assertTrue(o instanceof HashMap);
         // and we can retrieve the correct key-values
         MultiLevelMap m = new MultiLevelMap((Map<String, Object>) o);

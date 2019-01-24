@@ -307,11 +307,10 @@ public class EventEnvelope {
                     typed.setParametricType(parametricType);
                 }
                 try {
-                    if (modelInWhiteList(typed.getType())) {
-                        body = converter.decode(typed);
-                    } else {
+                    if (!modelInWhiteList(typed.getType())) {
                         throw new IllegalArgumentException("Class not authorized in safe.data.models white-list");
                     }
+                    body = converter.decode(typed);
                 } catch (Exception e) {
                     /*
                      * When the EventEnvelope is being relayed, the event node does not have the PoJo class
@@ -336,13 +335,17 @@ public class EventEnvelope {
         }
     }
 
-    private boolean modelInWhiteList(String model) {
+    private boolean modelInWhiteList(String clsName) {
+        if (!clsName.contains(".")) {
+            // primitive types
+            return true;
+        }
         if (safeModels.isEmpty()) {
             // feature not enabled
             return true;
         }
         for (String m: safeModels) {
-            if (model.startsWith(m)) {
+            if (clsName.startsWith(m)) {
                 return true;
             }
         }

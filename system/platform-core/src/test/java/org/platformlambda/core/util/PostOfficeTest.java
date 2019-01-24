@@ -48,6 +48,16 @@ public class PostOfficeTest {
     }
 
     @Test
+    public void singleRequest() throws TimeoutException, IOException, AppException {
+        int input = 111;
+        PostOffice po = PostOffice.getInstance();
+        EventEnvelope response = po.request("hello.world", 500, input);
+        assertEquals(HashMap.class, response.getBody().getClass());
+        Map<String, Object> result = (Map<String, Object>) response.getBody();
+        assertEquals(input, result.get("body"));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void parallelRequests() throws IOException {
         PostOffice po = PostOffice.getInstance();

@@ -27,23 +27,21 @@ import org.platformlambda.core.util.Utility;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 public class Inbox {
 
     private static final ConcurrentMap<String, Inbox> inboxes = new ConcurrentHashMap<>();
 
-    private Thread thread;
     private ActorRef listener;
     private String id;
     private EventEnvelope reply;
     private ConcurrentMap<String, EventEnvelope> replies;
     private AtomicInteger total;
-    private int n = 0;
+    private int n;
     private long begin = System.nanoTime();
+    private BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
 
     /**
      * Inbox for one or more requests
@@ -57,7 +55,6 @@ public class Inbox {
         } else {
             this.n = 1;
         }
-        this.thread = Thread.currentThread();
         this.id = "r."+ Utility.getInstance().getUuid();
         this.listener = Platform.getInstance().getEventSystem().actorOf(InboxListener.props(), this.id);
         Inbox.inboxes.put(id, this);
@@ -68,7 +65,11 @@ public class Inbox {
     }
 
     public void waitForResponse(long timeout) {
-        LockSupport.parkUntil(System.currentTimeMillis()+timeout);
+        try {
+            bench.poll(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            // ok to ignore
+        }
     }
 
     public EventEnvelope getReply() {
@@ -85,10 +86,6 @@ public class Inbox {
             results.add(reply);
         }
         return results;
-    }
-
-    public Thread getThread() {
-        return thread;
     }
 
     public ActorRef getListener() {
@@ -118,12 +115,12 @@ public class Inbox {
                 holder.addReply(reply);
                 // all parallel responses have arrived
                 if (holder.total.decrementAndGet() == 0) {
-                    LockSupport.unpark(holder.getThread());
+                    holder.bench.offer(true);
                 }
             } else {
                 // response has arrived
                 holder.setReply(reply);
-                LockSupport.unpark(holder.getThread());
+                holder.bench.offer(true);
             }
         }
     }
