@@ -422,6 +422,23 @@ If your application needs to use the local file system, please consider it to be
 
 If there is a need for data persistence, use external databases or cloud storage.
 
+## Dockerfile
+
+Creating a docker image from the executable is very easy. First you need to build your application as an executable with the command `mvn clean package`. The executable JAR is then available in the target directory.
+
+The Dockerfile may look like this:
+
+```
+FROM openjdk:8-jre-slim
+EXPOSE 8083
+WORKDIR /app
+COPY target/your-app-name.jar .
+ENTRYPOINT ["java","-jar","your-app-name.jar"]
+```
+
+Change the exposed port numnber and application name accordingly. Then build the docker image and publish it to a docker registry so you can deploy from there using Kubernetes or alike.
+
+
 ## Other consideration
 
 - Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601

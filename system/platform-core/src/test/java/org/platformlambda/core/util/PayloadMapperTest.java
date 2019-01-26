@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018 Accenture Technology
+    Copyright 2018-2019 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -128,7 +128,6 @@ public class PayloadMapperTest {
         TypedPayload typed = converter.encode(input, false);
         assertEquals(input.getClass().getName(), typed.getType());
         assertTrue(typed.getPayload() instanceof byte[]);
-        byte[] b = (byte[]) typed.getPayload();
         Object converted = converter.decode(typed);
         assertTrue(converted instanceof PoJo);
         PoJo o = (PoJo) converted;
