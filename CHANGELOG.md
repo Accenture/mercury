@@ -46,7 +46,7 @@ N/A
 
 `platform-core`
 
-Use Java Future and a elastic cached thread pool for executing user functions.
+Use Java Future and an elastic cached thread pool for executing user functions.
 
 ### Fixed
 
