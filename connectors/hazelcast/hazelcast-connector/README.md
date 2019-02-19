@@ -1,8 +1,8 @@
 # Mercury - the Post Office for microservices
 
-## Cloud connector for IBM Bluemix
+## Cloud connector for Hazelcast
 
-This is a cloud connector module for connecting a microservice container to the IBM cloud.
+This is a cloud connector module for connecting a microservice container to Hazelcast.
 
 This library will be published and available from a public repository at a later time.
 
