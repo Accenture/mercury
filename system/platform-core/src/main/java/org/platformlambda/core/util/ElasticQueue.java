@@ -19,14 +19,18 @@
 package org.platformlambda.core.util;
 
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.system.QueueFileWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ElasticQueue {
+    private static final Logger log = LoggerFactory.getLogger(ElasticQueue.class);
+
     private static final Utility util = Utility.getInstance();
 
     public static final int MEMORY_BUFFER = 10;
@@ -96,10 +100,12 @@ public class ElasticQueue {
         }
     }
 
-    public void write(EventEnvelope event) throws IOException {
+    public void write(EventEnvelope event) {
         if (writeCounter < MEMORY_BUFFER) {
             // for highest performance, save to memory for the first few blocks
             memory.offer(event);
+            writeCounter++;
+            empty = false;
         } else {
             if (createDir) {
                 createDir = false;
@@ -107,24 +113,27 @@ public class ElasticQueue {
             }
             // otherwise, save to disk
             File f = new File(dir, QUEUE + writeFileNumber);
-            boolean append = f.exists();
-            long len = append ? f.length() : 0;
-            // serialize to bytes
-            byte[] b = event.toBytes();
-            FileOutputStream out = new FileOutputStream(f, append);
-            out.write(DATA);
-            out.write(util.int2bytes(b.length));
-            out.write(b);
-            len += b.length;
-            if (len >= MAX_FILE_SIZE) {
-                // write EOF indicator and increment file sequence
-                out.write(EOF);
-                writeFileNumber++;
+            long len = f.exists() ? f.length() : 0;
+            try (QueueFileWriter out = new QueueFileWriter(f)) {
+                // serialize to bytes
+                byte[] b = event.toBytes();
+                out.write(DATA);
+                out.write(util.int2bytes(b.length));
+                out.write(b);
+                len += b.length;
+                if (len >= MAX_FILE_SIZE) {
+                    // write EOF indicator and increment file sequence
+                    out.write(EOF);
+                    writeFileNumber++;
+                }
+                writeCounter++;
+                empty = false;
+            } catch (IOException e) {
+                // this should not happen
+                log.error("Event lost. Unable to persist {} to {} - {}", id, f.getPath(), e.getMessage());
             }
-            out.close();
         }
-        writeCounter++;
-        empty = false;
+
     }
 
     public EventEnvelope peek() throws IOException {

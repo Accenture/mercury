@@ -92,7 +92,7 @@ public class ServiceQueue extends AbstractActor {
                             }
                         }
                     } catch (IOException e) {
-                        // Normally not happen
+                        // this should not happen
                         log.error("Unable to read elastic queue " + elasticQueue.getId(), e);
                     }
                 }
