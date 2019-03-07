@@ -48,7 +48,7 @@ public class MainApp implements EntryPoint {
         Platform platform = Platform.getInstance();
         // you can write simple service using anonymous function
         LambdaFunction echo = (headers, body, instance) -> {
-            log.info("echo @"+instance+" received - "+headers+", "+body);
+            //log.info("echo @"+instance+" received - "+headers+", "+body);
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
@@ -60,7 +60,7 @@ public class MainApp implements EntryPoint {
         };
         // register the above echo service with 10 instances within a single execution/deployment unit.
         // Each deployment unit can be scaled horizontaly by the cloud.
-        platform.register("hello.world", echo, 10);
+        platform.register("hello.world", echo, 20);
         // Suppose DemoMath is more complex so we write it as a Java class implementing the LambdaFunction interface.
         platform.register("math.addition", new DemoMath(), 5);
 

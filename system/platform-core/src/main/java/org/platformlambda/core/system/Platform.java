@@ -59,7 +59,6 @@ public class Platform {
     private static boolean cloudSelected = false, cloudServicesStarted = false;
 
     private Platform() {
-        Runtime.getRuntime().addShutdownHook(new Cleanup());
         // initialize instance
         instance = this;
         // start built-in services

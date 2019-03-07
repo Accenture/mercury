@@ -46,6 +46,10 @@ public class EventNodeManager extends Thread {
     private static boolean normal = true;
     private long timer = 0;
 
+    public EventNodeManager() {
+        Runtime.getRuntime().addShutdownHook(new Cleanup());
+    }
+
     @Override
     public void run() {
         EventNodeConnector connector = EventNodeConnector.getInstance();
@@ -116,10 +120,6 @@ public class EventNodeManager extends Thread {
         lastActivity = System.currentTimeMillis();
     }
 
-    public static void close() {
-        normal = false;
-    }
-
     private void connect() {
         EventNodeConnector connector = EventNodeConnector.getInstance();
         connector.setState(EventNodeConnector.State.CONNECTING);
@@ -153,5 +153,14 @@ public class EventNodeManager extends Thread {
                 || message.contains("connection fail")? "Unreachable" : message;
     }
 
+    private class Cleanup extends Thread {
+
+        @Override
+        public void run() {
+            log.info("Stopping");
+            EventNodeManager.normal = false;
+        }
+
+    }
 
 }

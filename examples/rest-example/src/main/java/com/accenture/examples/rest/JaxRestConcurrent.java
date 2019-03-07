@@ -34,6 +34,8 @@ import java.util.*;
 @Path("/hello")
 public class JaxRestConcurrent {
 
+    private static final String ZEROES = "0000";
+
     @GET
     @Path("/concurrent")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
@@ -49,8 +51,7 @@ public class JaxRestConcurrent {
             String key = headers.nextElement();
             forwardHeaders.put(key, request.getHeader(key));
         }
-
-        int TOTAL = 4;
+        int TOTAL = 10;
         List<EventEnvelope> parallelEvents = new ArrayList<>();
         for (int i=0; i < TOTAL; i++) {
             EventEnvelope event = new EventEnvelope();
@@ -79,9 +80,14 @@ public class JaxRestConcurrent {
             singleResult.put("execution_time", evt.getExecutionTime());
             singleResult.put("round_trip", evt.getRoundTrip());
             n++;
-            results.put("result_"+n, singleResult);
+            results.put("result_"+zeroFill(n), singleResult);
         }
         return results;
+    }
+
+    private String zeroFill(int n) {
+        String number = String.valueOf(n);
+        return number.length() >= ZEROES.length() ? number : ZEROES.substring(0, ZEROES.length() - number.length()) + number;
     }
 
 }

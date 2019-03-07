@@ -9,12 +9,10 @@ Mercury provides the following benefits:
 You may also encapsulate platform components and databases with anonymous functions.
 2. Event driven programming - Each function is addressable with a unique route name and they communicate using events.
 You make request from one function to another by making a service call through some simple Mercury Post Office API.
-3. One or more functions can be packaged together as a microservice executable, usually deployed as a Docker image or similar container technology.
+3. One or more functions can be packaged together as a microservices executable, usually deployed as a Docker image or similar container technology.
 4. Cloud platform neutral - each microservice executable may import a cloud connector library so that functions can talk to each other over a network event stream system such as Kafka.
 5. You can write your own cloud connectors to adapt to different cloud environments.
 6. Support different programming languages - language connector will be available to support other programming languages such as Python, Node.js, etc.
-
-This library will be published and available from a public repository at a later time.
 
 ## Publish locally
 

@@ -135,13 +135,11 @@ public class InfoServlet extends HttpServlet {
             long maxMemory = runtime.maxMemory();
             long allocatedMemory = runtime.totalMemory();
             long freeMemory = runtime.freeMemory();
-            long total = freeMemory + (maxMemory - allocatedMemory);
             Map<String, Object> memory = new HashMap<>();
             result.put(MEMORY, memory);
             memory.put(MAX, number.format(maxMemory));
             memory.put(ALLOCATED, number.format(allocatedMemory));
             memory.put(FREE, number.format(freeMemory));
-            memory.put(TOTAL, number.format(total));
             /*
              * check streams resources if any
              */
