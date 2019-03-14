@@ -58,7 +58,7 @@ public class MainApp implements EntryPoint {
             result.put("origin", platform.getOrigin());
             return result;
         };
-        // register the above echo service with 10 instances within a single execution/deployment unit.
+        // register the above echo service with some concurrent workers in this execution unit
         // Each deployment unit can be scaled horizontaly by the cloud.
         platform.register("hello.world", echo, 20);
         // Suppose DemoMath is more complex so we write it as a Java class implementing the LambdaFunction interface.
