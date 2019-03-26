@@ -7,7 +7,7 @@
     <artifactId>rest-example</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.11.30</version>
+    <version>1.11.33</version>
     <name>REST example application</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -25,14 +25,14 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.11.30</version>
+            <version>1.11.33</version>
         </dependency>
 
         <!-- Optional cloud connector. Not necessary if testing using Event Node. -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.11.29</version>
+            <version>1.11.33</version>
         </dependency>
 
         <!-- Optional circuit breaker dependency - comment this out if you don't need it -->

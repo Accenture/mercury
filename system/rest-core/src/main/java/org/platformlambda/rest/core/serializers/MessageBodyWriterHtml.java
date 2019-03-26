@@ -57,7 +57,7 @@ public class MessageBodyWriterHtml<T> implements MessageBodyWriter<T> {
             entityStream.write((byte[]) t);
         } else {
             entityStream.write(util.getUTF("<html><body><pre>\n"
-                    + SimpleMapper.getInstance().getMapper().writeValueAsString(t) +"\n</pre></body></html>"));
+                    + SimpleMapper.getInstance().getWhiteListMapper(cls).writeValueAsString(t) +"\n</pre></body></html>"));
 
         }
 

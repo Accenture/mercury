@@ -18,6 +18,7 @@
 
 package org.platformlambda.rest.spring.serializers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
 import org.springframework.http.HttpInputMessage;
@@ -64,8 +65,10 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
         if (inputMessage != null) {
             try {
+                // validate class with white list before loading the input stream
+                ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
                 String input = util.stream2str(inputMessage.getBody());
-                return SimpleMapper.getInstance().getMapper().convertValue(input, clazz);
+                return mapper.convertValue(input, clazz);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }
@@ -77,13 +80,15 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
     @Override
     public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(JSON);
+        // this may be too late to validate because Spring RestController has already got the object
+        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));
         } else if (o instanceof byte[]) {
             out.write((byte[]) o);
         } else {
-            out.write(SimpleMapper.getInstance().getMapper().writeValueAsBytes(o));
+            out.write(mapper.writeValueAsBytes(o));
         }
     }
 

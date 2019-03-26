@@ -56,7 +56,7 @@ public class MessageBodyWriterText<T> implements MessageBodyWriter<T> {
         } else if (t instanceof byte[]) {
             entityStream.write((byte[]) t);
         } else {
-            entityStream.write(util.getUTF(SimpleMapper.getInstance().getMapper().writeValueAsString(t)));
+            entityStream.write(util.getUTF(SimpleMapper.getInstance().getWhiteListMapper(cls).writeValueAsString(t)));
         }
 
     }

@@ -26,8 +26,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class ElasticQueueTest {
 
@@ -50,8 +49,8 @@ public class ElasticQueueTest {
 
         EventEnvelope second = spooler.read();
         assertEquals(secondItem, second.getBody());
-        assertEquals(null, spooler.peek());
-        assertEquals(null, spooler.read());
+        assertNull(spooler.peek());
+        assertNull(spooler.read());
         // elastic queue should be automatically closed when all messages are consumed
         assertTrue(spooler.isClosed());
         // remove elastic queue folder
@@ -88,8 +87,8 @@ public class ElasticQueueTest {
             event.setBody(input);
             spooler.write(event);
             EventEnvelope data = spooler.read();
-            assertTrue(data != null);
-            assertTrue(input.equals(data.getBody()));
+            assertNotNull(data);
+            assertEquals(input, data.getBody());
         }
         /*
          * Test serialization of Java objects
@@ -108,14 +107,14 @@ public class ElasticQueueTest {
         for (int i = 0; i < ElasticQueue.MEMORY_BUFFER * 3; i++) {
             String input = baseText+i;
             EventEnvelope data = spooler.read();
-            assertTrue(data != null);
+            assertNotNull(data);
             assertTrue(data.getBody() instanceof PoJo);
             PoJo o = (PoJo) data.getBody();
-            assertTrue(input.equals(o.getName()));
+            assertEquals(input, o.getName());
         }
         // it should return null when there are no more messages to be read
         EventEnvelope nothing = spooler.read();
-        assertEquals(null, nothing);
+        assertNull(nothing);
         // elastic queue should be automatically closed when all messages are consumed
         assertTrue(spooler.isClosed());
         // closing again has no effect
@@ -128,7 +127,7 @@ public class ElasticQueueTest {
         }
         // finally, verify if the PoJo class name is cached
         ManagedCache cache = ManagedCache.getInstance(PayloadMapper.JAVA_CLASS_CACHE);
-        assertTrue(cache != null);
+        assertNotNull(cache);
         assertTrue(cache.exists(PoJo.class.getName()));
     }
 

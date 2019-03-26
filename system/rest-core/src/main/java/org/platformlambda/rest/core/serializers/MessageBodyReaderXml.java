@@ -49,7 +49,7 @@ public class MessageBodyReaderXml<T> implements MessageBodyReader<T> {
         if (entityStream != null) {
             try {
                 Map<String, Object> map = xml.parse(entityStream);
-                return SimpleMapper.getInstance().getMapper().convertValue(map, type);
+                return SimpleMapper.getInstance().getWhiteListMapper(type).convertValue(map, type);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }

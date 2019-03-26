@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-`The current stable release is version 1.11.30, 3/7/2019`
+`The current stable release is version 1.11.33, 3/25/2019`
+
+---
+
+## Version 1.11.33, 3/25/2019
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Move safe.data.models validation rules from EventEnvelope to SimpleMapper
+Apache fluent HTTP client downgraded to version 4.5.6 because the pom file in 4.5.7 is invalid
 
 ---
 

@@ -18,6 +18,7 @@
 
 package org.platformlambda.rest.spring.serializers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
@@ -65,6 +66,8 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
 
     @Override
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
+        // validate class with white list before loading the input stream
+        SimpleMapper.getInstance().getWhiteListMapper(clazz);
         if (inputMessage != null) {
             try {
                 SimpleXmlParser xml = new SimpleXmlParser();
@@ -88,6 +91,8 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
     @SuppressWarnings("unchecked")
     public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(XML);
+        // this may be too late to validate because Spring RestController has already got the object
+        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));
@@ -97,11 +102,11 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
             Map<String, Object> map;
             if (o instanceof List) {
                 map = new HashMap<>();
-                map.put("item", SimpleMapper.getInstance().getMapper().convertValue(o, List.class));
+                map.put("item", mapper.convertValue(o, List.class));
             } else if (o instanceof Map) {
                 map = (Map<String, Object>) o;
             } else {
-                map = SimpleMapper.getInstance().getMapper().convertValue(o, Map.class);
+                map = mapper.convertValue(o, Map.class);
             }
             String root = o.getClass().getSimpleName().toLowerCase();
             String result = map2xml.write(root, map);

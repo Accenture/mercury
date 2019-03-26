@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.models.PoJo;
 import org.platformlambda.core.util.unsafe.models.UnauthorizedObj;
 
@@ -36,7 +37,7 @@ public class PayloadMapperTest {
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
     @Test
-    public void rejectUnauthorizdClass() throws IOException {
+    public void rejectUnauthorizedClass() throws IOException {
         UnauthorizedObj input = new UnauthorizedObj();
         input.setName("hello world");
         input.setNumber(12345);
@@ -52,6 +53,24 @@ public class PayloadMapperTest {
          * Deserialization to the UnauthorizedObj is not performed.
          */
         assertEquals(HashMap.class, event2.getBody().getClass());
+    }
+
+    @Test
+    public void acceptSafeJavaDefaultClasses() {
+        SimpleMapper.getInstance().getWhiteListMapper(String.class);
+        SimpleMapper.getInstance().getWhiteListMapper(byte[].class);
+        SimpleMapper.getInstance().getWhiteListMapper(Date.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Integer.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Map.class);
+        SimpleMapper.getInstance().getWhiteListMapper(HashMap.class);
+        SimpleMapper.getInstance().getWhiteListMapper(List.class);
+        SimpleMapper.getInstance().getWhiteListMapper(ArrayList.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Number.class);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void rejectUnsafeClasses() {
+        SimpleMapper.getInstance().getWhiteListMapper(UnauthorizedObj.class);
     }
 
     @Test

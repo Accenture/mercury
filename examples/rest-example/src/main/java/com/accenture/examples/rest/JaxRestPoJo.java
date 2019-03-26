@@ -39,11 +39,6 @@ public class JaxRestPoJo {
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
     public Object getPoJo(@PathParam("id") Integer id) throws TimeoutException, AppException, IOException {
 
-        if (id == null) {
-            // this should not happen because the routing path ensures it is available
-            // exception is shown here to demonstrate how to return a standard error message
-            throw new IllegalArgumentException("Missing path parameter 'id'");
-        }
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("hello.pojo", 3000, new Kv("id", id.toString()));
         // demonstrate error handling
@@ -70,11 +65,6 @@ public class JaxRestPoJo {
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
     public Object getGeneric(@PathParam("id") Integer id) throws TimeoutException, AppException, IOException {
 
-        if (id == null) {
-            // this should not happen because the routing path ensures it is available
-            // exception is shown here to demonstrate how to return a standard error message
-            throw new IllegalArgumentException("Missing path parameter 'id'");
-        }
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("hello.generic", 3000, new Kv("id", id.toString()));
         // demonstrate error handling

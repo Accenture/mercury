@@ -81,6 +81,8 @@ public class ElasticQueue {
     }
 
     public void destroy() {
+        // guarantee that it is closed
+        close();
         if (isClosed()) {
             util.cleanupDir(dir);
         }
@@ -164,10 +166,11 @@ public class ElasticQueue {
         }
         if (in == null) {
             File f = new File(dir, QUEUE+ readFileNumber);
-            if (!f.exists()) {
+            if (f.exists()) {
+                in = new FileInputStream(f);
+            } else {
                 return null;
             }
-            in = new FileInputStream(new File(dir, QUEUE+ readFileNumber));
         }
         byte[] control = new byte[1];
         int count = in.read(control);

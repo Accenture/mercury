@@ -59,7 +59,7 @@ public class MainApp implements EntryPoint {
             return result;
         };
         // register the above echo service with some concurrent workers in this execution unit
-        // Each deployment unit can be scaled horizontaly by the cloud.
+        // Each deployment unit can be scaled horizontally by the cloud.
         platform.register("hello.world", echo, 20);
         // Suppose DemoMath is more complex so we write it as a Java class implementing the LambdaFunction interface.
         platform.register("math.addition", new DemoMath(), 5);

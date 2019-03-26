@@ -46,7 +46,7 @@ public class MessageBodyReaderJson<T> implements MessageBodyReader<T> {
         if (entityStream != null) {
             byte[] json = Utility.getInstance().stream2bytes(entityStream, false);
             try {
-                return SimpleMapper.getInstance().getMapper().readValue(json, type);
+                return SimpleMapper.getInstance().getWhiteListMapper(type).readValue(json, type);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }

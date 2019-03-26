@@ -23,16 +23,22 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class SimpleMapper {
     private static final Logger log = LoggerFactory.getLogger(SimpleMapper.class);
 
     private static final String SNAKE_CASE_SERIALIZATION = "snake.case.serialization";
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Set<String> safeModels = new HashSet<>();
+    private static final String[] SAFE_GROUPS = {"java.util.", "java.lang."};
     private static final SimpleMapper instance = new SimpleMapper();
 
     private SimpleMapper() {
@@ -68,6 +74,18 @@ public class SimpleMapper {
          * This avoids a security vulnerability that input JSON string may contain arbitrary Java class name
          */
         mapper.disableDefaultTyping();
+        /*
+         * load white list for authorized PoJo
+         */
+        AppConfigReader reader = AppConfigReader.getInstance();
+        String models = reader.getProperty("safe.data.models");
+        if (models != null) {
+            List<String> list = Utility.getInstance().split(models, ", ");
+            for (String m: list) {
+                safeModels.add(m.endsWith(".") ? m : m +".");
+            }
+            log.info("Safe data models {}", safeModels);
+        }
     }
 
     public static SimpleMapper getInstance() {
@@ -76,6 +94,43 @@ public class SimpleMapper {
 
     public ObjectMapper getMapper() {
         return mapper;
+    }
+
+    public ObjectMapper getWhiteListMapper(Class<?> cls) {
+        return getWhiteListMapper(cls.getTypeName());
+    }
+
+    public ObjectMapper getWhiteListMapper(String clsName) {
+        if (permittedDataModel(clsName)) {
+            return mapper;
+        } else {
+            throw new IllegalArgumentException("Class "+clsName+" not in safe.data.models");
+        }
+    }
+
+    private boolean permittedDataModel(String clsName) {
+        // accept all types if safe.data.models feature is not enabled
+        if (safeModels.isEmpty()) {
+            // feature not enabled
+            return true;
+        }
+        // always allow primitive types including byte[]
+        if (!clsName.contains(".")) {
+            return true;
+        }
+        // accept safe java.util and java.lang classes
+        for (String m: SAFE_GROUPS) {
+            if (clsName.startsWith(m)) {
+                return true;
+            }
+        }
+        // validate with white list
+        for (String m: safeModels) {
+            if (clsName.startsWith(m)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

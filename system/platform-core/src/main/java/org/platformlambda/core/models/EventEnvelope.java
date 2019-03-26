@@ -20,8 +20,8 @@ package org.platformlambda.core.models;
 
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,23 +64,9 @@ public class EventEnvelope {
     private Object body;
     private Float executionTime, roundTrip;
     private boolean endOfRoute = false, broadcast = false, binary = true;
-    private static Set<String> safeModels = new HashSet<>();
-    private static boolean loadSafeModels = false;
 
     public EventEnvelope() {
         this.id = Utility.getInstance().getUuid();
-        if (!loadSafeModels) {
-            loadSafeModels = true;
-            AppConfigReader reader = AppConfigReader.getInstance();
-            String models = reader.getProperty("safe.data.models");
-            if (models != null) {
-                List<String> list = Utility.getInstance().split(models, ", ");
-                for (String m: list) {
-                    safeModels.add(m);
-                }
-                log.info("Safe data models {}", safeModels);
-            }
-        }
     }
 
     public EventEnvelope(byte[] event) throws IOException {
@@ -307,9 +293,8 @@ public class EventEnvelope {
                     typed.setParametricType(parametricType);
                 }
                 try {
-                    if (!modelInWhiteList(typed.getType())) {
-                        throw new IllegalArgumentException("Class not authorized in safe.data.models white-list");
-                    }
+                    // validate class name in white list if any
+                    SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
                     body = converter.decode(typed);
                 } catch (Exception e) {
                     /*
@@ -320,7 +305,7 @@ public class EventEnvelope {
                      * assuming source and target have the same PoJo class definition.
                      */
                     if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                        log.warn("Fall back to HashMap. Unable to reconstruct {} - {}", typed.getType(), e.getMessage());
+                        log.warn("Fall back to HashMap - {}", e.getMessage());
                     }
                     type = (String) message.get(OBJ_TYPE);
                     body = message.get(BODY);
@@ -333,23 +318,6 @@ public class EventEnvelope {
                 roundTrip = (Float) message.get(ROUND_TRIP);
             }
         }
-    }
-
-    private boolean modelInWhiteList(String clsName) {
-        if (!clsName.contains(".")) {
-            // primitive types
-            return true;
-        }
-        if (safeModels.isEmpty()) {
-            // feature not enabled
-            return true;
-        }
-        for (String m: safeModels) {
-            if (clsName.startsWith(m)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

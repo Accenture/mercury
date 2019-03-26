@@ -18,6 +18,7 @@
 
 package org.platformlambda.rest.spring.serializers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
 import org.springframework.http.HttpInputMessage;
@@ -61,19 +62,23 @@ public class HttpConverterText implements HttpMessageConverter<Object> {
 
     @Override
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException, IOException {
+        // validate class with white list before loading the input stream
+        SimpleMapper.getInstance().getWhiteListMapper(clazz);
         return inputMessage != null? inputMessage.getBody() : null;
     }
 
     @Override
     public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(TEXT_CONTENT);
+        // this may be too late to validate because Spring RestController has already got the object
+        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));
         } else if (o instanceof byte[]) {
             out.write((byte[]) o);
         } else {
-            out.write(SimpleMapper.getInstance().getMapper().writeValueAsBytes(o));
+            out.write(mapper.writeValueAsBytes(o));
         }
     }
 

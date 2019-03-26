@@ -27,9 +27,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.IOException;
 import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.platformlambda.core.serializers.PayloadMapper.*;
 
 public class PayloadMapperTest {

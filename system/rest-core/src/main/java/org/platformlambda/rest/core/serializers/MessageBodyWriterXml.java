@@ -70,7 +70,7 @@ public class MessageBodyWriterXml<T> implements MessageBodyWriter<T> {
                 map = (Map<String, Object>) t;
             } else {
                 // it must be a class
-                map = SimpleMapper.getInstance().getMapper().convertValue(t, Map.class);
+                map = SimpleMapper.getInstance().getWhiteListMapper(cls).convertValue(t, Map.class);
             }
             String root = cls.getSimpleName().equals("HashMap") ? "root" : cls.getSimpleName().toLowerCase();
             entityStream.write(util.getUTF(xmlWriter.write(root, map)));
