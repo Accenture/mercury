@@ -21,8 +21,8 @@ N/A
 
 ### Changed
 
-Move safe.data.models validation rules from EventEnvelope to SimpleMapper
-Apache fluent HTTP client downgraded to version 4.5.6 because the pom file in 4.5.7 is invalid
+1. Move safe.data.models validation rules from EventEnvelope to SimpleMapper
+2. Apache fluent HTTP client downgraded to version 4.5.6 because the pom file in 4.5.7 is invalid
 
 ---
 
