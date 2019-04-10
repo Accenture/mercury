@@ -69,18 +69,19 @@ public class WsServer {
                         log.error("Unable to load {} ({}) because the path is not a valid service name",
                                 cls.getName(), annotation.value());
                     }
+                    String wsEndpoint = "/ws/"+annotation.value()+"/{handle}";
                     try {
                         Object o = cls.newInstance();
                         if (o instanceof LambdaFunction) {
                             lambdas.put(annotation.value(), (Class<LambdaFunction>) cls);
-                            log.info("{} ({}) loaded as a WebSocket server", cls.getName(), annotation.value());
+                            log.info("{} loaded as WEBSOCKET SERVER endpoint {}", cls.getName(), wsEndpoint);
                         } else {
                             log.error("Unable to load {} ({}) because it is not an instance of {}",
-                                    cls.getName(), annotation.value(), LambdaFunction.class.getName());
+                                    cls.getName(), wsEndpoint, LambdaFunction.class.getName());
                         }
 
                     } catch (InstantiationException  | IllegalAccessException e) {
-                        log.error("Unable to load {} ({}) - {}", cls.getName(), annotation.value(), e.getMessage());
+                        log.error("Unable to load {} ({}) - {}", cls.getName(), wsEndpoint, e.getMessage());
                     }
                 }
             }

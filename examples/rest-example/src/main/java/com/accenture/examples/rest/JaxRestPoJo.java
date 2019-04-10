@@ -40,7 +40,7 @@ public class JaxRestPoJo {
     public Object getPoJo(@PathParam("id") Integer id) throws TimeoutException, AppException, IOException {
 
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope response = po.request("hello.pojo", 3000, new Kv("id", id.toString()));
+        EventEnvelope response = po.request("hello.pojo", 3000, new Kv("id", id));
         // demonstrate error handling
         if (response.hasError()) {
             throw new AppException(response.getStatus(), response.getError());

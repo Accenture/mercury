@@ -20,6 +20,10 @@ package org.platformlambda.core.annotations;
 
 import java.lang.annotation.*;
 
+/**
+ * This indicates that the annotated class is the Main Application.
+ * Note that the main application class should also implement the EntryPoint interface.
+ */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

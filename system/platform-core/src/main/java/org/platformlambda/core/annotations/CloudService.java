@@ -21,6 +21,7 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
+ * This indicates the annotated class is a cloud service "plug-in" module.
  * The selection of cloud service modules is defined at run-time using application.properties "cloud.services"
  */
 @Target({ElementType.TYPE})

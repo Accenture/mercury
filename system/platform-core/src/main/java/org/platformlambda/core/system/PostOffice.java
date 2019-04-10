@@ -25,6 +25,7 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ public class PostOffice {
     private static final PostOffice instance = new PostOffice();
     private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
+    private static final ManagedCache cache = ManagedCache.createCache("sys.missing.broadcast", 5000);
     private boolean isEventNode;
 
     private PostOffice() {
@@ -120,7 +122,7 @@ public class PostOffice {
         throw new IOException("Route "+to+" not found");
     }
 
-    public TargetRoute getCloudRoute() throws IOException {
+    public TargetRoute getCloudRoute() {
         if (isEventNode) {
             // avoid loopback if it is the event node itself
             if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
@@ -216,7 +218,7 @@ public class PostOffice {
                 }
             }
         }
-        send(bc? event.setBroadcast() : event);
+        send(bc? event.setBroadcastLevel(1) : event);
     }
 
     private void deliver(boolean bc, String to, Object body) throws IOException {
@@ -228,7 +230,7 @@ public class PostOffice {
         } else {
             EventEnvelope event = new EventEnvelope();
             event.setTo(to).setBody(body);
-            send(bc? event.setBroadcast() : event);
+            send(bc? event.setBroadcastLevel(1) : event);
         }
     }
 
@@ -241,7 +243,7 @@ public class PostOffice {
                 }
             }
         }
-        send(bc? event.setBroadcast() : event);
+        send(bc? event.setBroadcastLevel(1) : event);
     }
 
     /**
@@ -348,7 +350,7 @@ public class PostOffice {
      * @throws IOException if invalid route or missing parameters
      */
     public void broadcast(EventEnvelope event) throws IOException {
-        send(event.setBroadcast());
+        send(event.setBroadcastLevel(1));
     }
 
     /**
@@ -373,52 +375,52 @@ public class PostOffice {
                 if (inbox != null) {
                     event.setReplyTo(cid);
                     ActorRef listener = inbox.getListener();
-                    listener.tell(event.stopBroadcast(), ActorRef.noSender());
+                    // It is a reply message to an inbox and broadcast level should be cleared
+                    listener.tell(event.setBroadcastLevel(0), ActorRef.noSender());
                     return;
                 }
             }
         }
         TargetRoute target = discover(to, event.isEndOfRoute());
-        if (target.isWebsocket()) {
-            /*
-             * The target is for an event node
-             */
-            if (!target.paths.isEmpty()) {
-                if (event.isBroadcast()) {
-                    // clear the broadcast flag because this is the event node
-                    for (String p: target.paths) {
-                        MultipartPayload.getInstance().outgoing(p, event.stopBroadcast().setEndOfRoute(), true);
+        if (target.isEventNode()) {
+            if (!target.getTxPaths().isEmpty()) {
+                if (event.getBroadcastLevel() == 1) {
+                    for (String p: target.getTxPaths()) {
+                        MultipartPayload.getInstance().outgoing(p, event.setBroadcastLevel(2));
                     }
                 } else {
-                    int selected = target.paths.size() > 1? crypto.nextInt(target.paths.size()) : 0;
-                    MultipartPayload.getInstance().outgoing(target.paths.get(selected), event.stopBroadcast().setEndOfRoute(), true);
+                    int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
+                    MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
                 }
             }
-        } else if (target.isRemote()) {
+        } else if (target.isCloud()) {
             /*
              * This target is for cloud connector
              */
-            MultipartPayload.getInstance().outgoing(target.actor, event, true);
+            MultipartPayload.getInstance().outgoing(target.getActor(), event);
         } else {
             /*
              * The target is the same memory space. We will route it to the event node or cloud connector if broadcast.
              */
-            if (Platform.isCloudSelected() && event.isBroadcast() && !to.equals(CLOUD_CONNECTOR) &&
+            if (Platform.isCloudSelected() && event.getBroadcastLevel() == 1 && !to.equals(CLOUD_CONNECTOR) &&
                     ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
                 TargetRoute cloud = getCloudRoute();
                 if (cloud != null) {
-                    if (cloud.isRemote()) {
-                        // this is a cloud connector so tell it to broadcast only once to avoid loopback
-                        MultipartPayload.getInstance().outgoing(cloud.actor, event, true);
-                    } else if (cloud.isWebsocket() && cloud.paths.size() == 1) {
-                        // routing to an event node so we keep the broadcast flag in the event
-                        MultipartPayload.getInstance().outgoing(cloud.paths.get(0), event, false);
+                    if (cloud.isCloud()) {
+                        MultipartPayload.getInstance().outgoing(cloud.getActor(), event);
+                    } else if (cloud.isEventNode() && cloud.getTxPaths().size() == 1) {
+                        MultipartPayload.getInstance().outgoing(cloud.getTxPaths().get(0), event);
                     }
                 } else {
-                    log.error("Event to {} dropped because cloud connection cannot be resolved", event.getTo());
+                    if (!cache.exists(event.getTo())) {
+                        cache.put(event.getTo(), true);
+                        log.warn("Broadcast event to {} delivered locally because cloud is not available", event.getTo());
+                    }
+                    target.getActor().tell(event.getBroadcastLevel() == 1? event.setBroadcastLevel(2) : event, ActorRef.noSender());
                 }
             } else {
-                target.actor.tell(event.stopBroadcast(), ActorRef.noSender());
+                // if broadcast, upgrade level to 2 for language pack to do 2nd level broadcast.
+                target.getActor().tell(event.getBroadcastLevel() == 1? event.setBroadcastLevel(2) : event, ActorRef.noSender());
             }
         }
     }
@@ -531,17 +533,17 @@ public class PostOffice {
         TargetRoute target = discover(to, event.isEndOfRoute());
         Inbox inbox = new Inbox(1);
         event.setReplyTo(inbox.getId()+"@"+platform.getOrigin());
-        event.stopBroadcast();
-        if (target.isWebsocket()) {
-            if (!target.paths.isEmpty()) {
-                int selected = target.paths.size() > 1? crypto.nextInt(target.paths.size()) : 0;
-                MultipartPayload.getInstance().outgoing(target.paths.get(selected), event, true);
+        // broadcast is not possible with RPC call
+        event.setBroadcastLevel(0);
+        if (target.isEventNode()) {
+            if (!target.getTxPaths().isEmpty()) {
+                int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
+                MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
             }
-        } else if (target.isRemote()) {
-            // set end of route to prevent loop-back
-            MultipartPayload.getInstance().outgoing(target.actor, event, true);
+        } else if (target.isCloud()) {
+            MultipartPayload.getInstance().outgoing(target.getActor(), event);
         } else {
-            target.actor.tell(event, ActorRef.noSender());
+            target.getActor().tell(event, ActorRef.noSender());
         }
         // wait for response
         inbox.waitForResponse(timeout < 10? 10 : timeout);
@@ -594,17 +596,17 @@ public class PostOffice {
         int n = 0;
         for (EventEnvelope event: events) {
             TargetRoute target = destinations.get(n);
-            event.stopBroadcast();
+            event.setBroadcastLevel(0);
             event.setReplyTo(replyTo);
-            if (target.isWebsocket()) {
-                if (!target.paths.isEmpty()) {
-                    int selected = target.paths.size() > 1? crypto.nextInt(target.paths.size()) : 0;
-                    MultipartPayload.getInstance().outgoing(target.paths.get(selected), event, true);
+            if (target.isEventNode()) {
+                if (!target.getTxPaths().isEmpty()) {
+                    int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
+                    MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
                 }
-            } else if (target.isRemote()) {
-                MultipartPayload.getInstance().outgoing(target.actor, event, true);
+            } else if (target.isCloud()) {
+                MultipartPayload.getInstance().outgoing(target.getActor(), event);
             } else {
-                target.actor.tell(event, ActorRef.noSender());
+                target.getActor().tell(event, ActorRef.noSender());
             }
             n++;
         }

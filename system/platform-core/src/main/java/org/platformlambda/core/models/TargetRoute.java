@@ -24,29 +24,37 @@ import java.util.List;
 
 public class TargetRoute {
 
-    public List<String> paths = null;
-    public ActorRef actor = null;
-    private boolean remote = false;
+    private List<String> txPaths = null;
+    private ActorRef actor = null;
+    private boolean cloud = false;
 
-    public TargetRoute(List<String> paths) {
-        this.paths = paths;
+    public TargetRoute(List<String> txPaths) {
+        this.txPaths = txPaths;
     }
 
-    public TargetRoute(ActorRef actor, boolean remote) {
+    public TargetRoute(ActorRef actor, boolean cloud) {
         this.actor = actor;
-        this.remote = remote;
+        this.cloud = cloud;
     }
 
-    public boolean isWebsocket() {
-        return paths != null;
+    public boolean isEventNode() {
+        return txPaths != null;
     }
 
-    public boolean isRemote() {
-        return remote;
+    public boolean isCloud() {
+        return cloud;
+    }
+
+    public ActorRef getActor() {
+        return actor;
+    }
+
+    public List<String> getTxPaths() {
+        return txPaths;
     }
 
     public String toString() {
-        return "TARGET ROUTE: paths="+paths+", actor="+actor+", remote?"+remote;
+        return "TARGET ROUTE: eventNode="+txPaths+", actor="+actor+", cloud?"+cloud;
     }
 
 }

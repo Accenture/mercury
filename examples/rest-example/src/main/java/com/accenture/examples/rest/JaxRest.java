@@ -57,10 +57,10 @@ public class JaxRest {
             String key = headers.nextElement();
             forward.put(key, request.getHeader(key));
         }
-
         // As a demo, just put the incoming HTTP headers as a payload and a parameter showing the sequence counter.
         // The eco service will return both.
-        EventEnvelope response = po.request("hello.world", 3000, forward, new Kv("seq", seq.incrementAndGet()));
+        int n = seq.incrementAndGet();
+        EventEnvelope response = po.request("hello.world", 3000, forward, new Kv("seq", n));
 
         Map<String, Object> result = new HashMap<>();
         result.put("status", response.getStatus());
@@ -68,7 +68,6 @@ public class JaxRest {
         result.put("body", response.getBody());
         result.put("execution_time", response.getExecutionTime());
         result.put("round_trip", response.getRoundTrip());
-
         return result;
     }
 

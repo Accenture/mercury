@@ -35,9 +35,9 @@ public class InboxListener extends AbstractActor {
     @Override
     public Receive createReceive() {
         return receiveBuilder().match(EventEnvelope.class, reply -> {
-            String cid = reply.getReplyTo();
-            if (cid != null) {
-                Inbox.saveResponse(cid, reply);
+            String inboxId = reply.getReplyTo();
+            if (inboxId != null) {
+                Inbox.saveResponse(inboxId, reply);
             }
         }).build();
     }

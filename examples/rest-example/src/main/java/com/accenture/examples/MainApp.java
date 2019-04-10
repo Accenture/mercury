@@ -48,7 +48,11 @@ public class MainApp implements EntryPoint {
         Platform platform = Platform.getInstance();
         // you can write simple service using anonymous function
         LambdaFunction echo = (headers, body, instance) -> {
-            //log.info("echo @"+instance+" received - "+headers+", "+body);
+            /*
+             * Uncomment the "log.info" statement if you want to see this service receiving the event.
+             * (Note that logging takes time so it will affect your function execution time.)
+             */
+            // log.info("echo @"+instance+" received - "+headers+", "+body);
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
@@ -73,23 +77,17 @@ public class MainApp implements EntryPoint {
          *
          * 2. platform.connectToCloud() - this will connect to event node
          *
-         * for deployment to IBM bluemix
-         *
-         * 1. set these parameters in application.properties
-         *    cloud.connector=message.hub
-         *    cloud.com.accenture.examples.services=bluemix.redis,bluemix.reporter
-         *
-         * 2. platform.startCloudServices() - this will start MessageHub, Redis and Service Reporter
-         *
-         * 3. platform.connectToCloud() - this will connect to Bluemix
-         *
          */
 
-//        platform.startCloudServices();
+        /*
+         * if you have your own custom cloud service modules
+         */
+        // platform.startCloudServices();
 
         // connect to the network event streams so it can automatically discover other services
         platform.connectToCloud();
 
+        log.info("Application started");
     }
 
 }

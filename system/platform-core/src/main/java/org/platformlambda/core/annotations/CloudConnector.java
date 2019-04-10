@@ -21,6 +21,7 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
+ * This indicates the annotated class is a cloud connector "plug-in" module.
  * The selection of cloud connector is defined at run-time using application.properties "cloud.connector"
  */
 @Target({ElementType.TYPE})

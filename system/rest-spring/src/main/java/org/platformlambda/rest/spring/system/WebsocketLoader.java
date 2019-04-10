@@ -61,7 +61,7 @@ public class WebsocketLoader implements ServletContextListener {
                         container.addEndpoint(cls);
                         ServerEndpoint ep = cls.getAnnotation(ServerEndpoint.class);
                         total++;
-                        log.info("{} registered as WEBSOCKET {}", cls.getName(), Arrays.asList(ep.value()));
+                        log.info("{} registered as WEBSOCKET DISPATCHER {}", cls.getName(), Arrays.asList(ep.value()));
                     } catch (DeploymentException e) {
                         log.error("Unable to deploy websocket endpoint {} - {}", cls, e.getMessage());
                     }

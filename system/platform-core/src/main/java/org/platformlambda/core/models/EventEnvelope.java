@@ -53,17 +53,19 @@ public class EventEnvelope {
     // object type for automatic serialization
     private static final String OBJ_TYPE = "O";
     private static final String PARA_TYPES = "P";
+    private static final String NOTES = "N";
     // final destination
     private static final String END_ROUTE = "E";
     // broadcast
-    private static final String BROADCAST = "A";
+    private static final String BROADCAST_LEVEL = "b";
 
-    private String id, to, replyTo, cid, type, parametricType;
+    private String id, to, replyTo, cid, notes, type, parametricType;
     private Integer status;
     private Map<String, String> headers = new HashMap<>();
     private Object body;
     private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, broadcast = false, binary = true;
+    private boolean endOfRoute = false, binary = true;
+    private int broadcastLevel = 0;
 
     public EventEnvelope() {
         this.id = Utility.getInstance().getUuid();
@@ -89,24 +91,28 @@ public class EventEnvelope {
         return cid;
     }
 
+    public String getNotes() {
+        return notes;
+    }
+
     public Integer getStatus() {
         return status == null? 200 : status;
     }
 
     public Float getExecutionTime() {
-        return executionTime == null? 0.0f : executionTime;
+        return executionTime == null? -1.0f : executionTime;
     }
 
     public Float getRoundTrip() {
         return roundTrip == null? 0.0f : roundTrip;
     }
 
-    public boolean isEndOfRoute() {
-        return endOfRoute;
+    public int getBroadcastLevel() {
+        return broadcastLevel;
     }
 
-    public boolean isBroadcast() {
-        return broadcast;
+    public boolean isEndOfRoute() {
+        return endOfRoute;
     }
 
     public boolean isBinary() {
@@ -158,6 +164,11 @@ public class EventEnvelope {
         return this;
     }
 
+    public EventEnvelope setNotes(String notes) {
+        this.notes = notes;
+        return this;
+    }
+
     public EventEnvelope setStatus(int status) {
         this.status = status;
         return this;
@@ -175,28 +186,25 @@ public class EventEnvelope {
         return this;
     }
 
-    public EventEnvelope setExecutionTime(float nanoSeconds) {
-        this.executionTime = nanoSeconds;
+    public EventEnvelope setExecutionTime(float milliseconds) {
+        String ms = String.format("%.3f", milliseconds);
+        this.executionTime = Float.parseFloat(ms);
         return this;
     }
 
-    public EventEnvelope setRoundTrip(float nanoSeconds) {
-        this.roundTrip = nanoSeconds;
+    public EventEnvelope setRoundTrip(float milliseconds) {
+        String ms = String.format("%.3f", milliseconds);
+        this.roundTrip = Float.parseFloat(ms);
+        return this;
+    }
+
+    public EventEnvelope setBroadcastLevel(int level) {
+        this.broadcastLevel = level;
         return this;
     }
 
     public EventEnvelope setEndOfRoute() {
         this.endOfRoute = true;
-        return this;
-    }
-
-    public EventEnvelope setBroadcast() {
-        this.broadcast = true;
-        return this;
-    }
-
-    public EventEnvelope stopBroadcast() {
-        this.broadcast = false;
         return this;
     }
 
@@ -265,6 +273,9 @@ public class EventEnvelope {
             if (message.containsKey(CID)) {
                 cid = (String) message.get(CID);
             }
+            if (message.containsKey(NOTES)) {
+                notes = (String) message.get(NOTES);
+            }
             if (message.containsKey(STATUS)) {
                 status = (Integer) message.get(STATUS);
             }
@@ -277,8 +288,8 @@ public class EventEnvelope {
             if (message.containsKey(END_ROUTE)) {
                 endOfRoute = (Boolean) message.get(END_ROUTE);
             }
-            if (message.containsKey(BROADCAST)) {
-                broadcast = (Boolean) message.get(BROADCAST);
+            if (message.containsKey(BROADCAST_LEVEL) && message.get(BROADCAST_LEVEL) instanceof Integer) {
+                broadcastLevel = (Integer) message.get(BROADCAST_LEVEL);
             }
             if (message.containsKey(PARA_TYPES)) {
                 parametricType = (String) message.get(PARA_TYPES);
@@ -340,6 +351,9 @@ public class EventEnvelope {
         if (cid != null) {
             message.put(CID, cid);
         }
+        if (notes != null) {
+            message.put(NOTES, notes);
+        }
         if (status != null) {
             message.put(STATUS, status);
         }
@@ -349,8 +363,8 @@ public class EventEnvelope {
         if (endOfRoute) {
             message.put(END_ROUTE, true);
         }
-        if (broadcast) {
-            message.put(BROADCAST, true);
+        if (broadcastLevel > 0) {
+            message.put(BROADCAST_LEVEL, broadcastLevel);
         }
         if (parametricType != null) {
             message.put(PARA_TYPES, parametricType);

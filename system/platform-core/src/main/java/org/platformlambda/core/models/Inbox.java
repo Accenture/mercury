@@ -102,12 +102,12 @@ public class Inbox {
         }
     }
 
-    public static Inbox getHolder(String cid) {
-        return Inbox.inboxes.get(cid);
+    public static Inbox getHolder(String inboxId) {
+        return Inbox.inboxes.get(inboxId);
     }
 
-    public static void saveResponse(String cid, EventEnvelope reply) {
-        Inbox holder = Inbox.inboxes.get(cid);
+    public static void saveResponse(String inboxId, EventEnvelope reply) {
+        Inbox holder = Inbox.inboxes.get(inboxId);
         if (holder != null) {
             float diff = System.nanoTime() - holder.begin;
             reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);

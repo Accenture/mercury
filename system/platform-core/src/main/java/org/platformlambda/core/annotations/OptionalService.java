@@ -20,6 +20,10 @@ package org.platformlambda.core.annotations;
 
 import java.lang.annotation.*;
 
+/**
+ * This indicates that the annotated class is optional.
+ * The value points to a parameter in application.properties
+ */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

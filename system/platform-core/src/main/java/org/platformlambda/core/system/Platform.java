@@ -341,7 +341,7 @@ public class Platform {
         TargetRoute cloud = PostOffice.getInstance().getCloudRoute();
         if (cloud != null) {
             boolean tell = false;
-            if (cloud.isWebsocket()) {
+            if (cloud.isEventNode()) {
                 // if platform connection is ready, register to the event node
                 EventNodeConnector connector = EventNodeConnector.getInstance();
                 if (connector.isConnected() && connector.isReady()) {
@@ -369,7 +369,7 @@ public class Platform {
                 TargetRoute cloud = PostOffice.getInstance().getCloudRoute();
                 if (cloud != null) {
                     boolean tell = false;
-                    if (cloud.isWebsocket()) {
+                    if (cloud.isEventNode()) {
                         EventNodeConnector connector = EventNodeConnector.getInstance();
                         if (connector.isConnected() && connector.isReady()) {
                             // event node does not have local buffering so we can only send when it is connected

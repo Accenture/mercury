@@ -22,6 +22,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +45,7 @@ public class WorkerQueue extends AbstractActor {
 
     private PostOffice po = PostOffice.getInstance();
     private ServiceDef def;
+    private boolean isInterceptor;
     private int instance;
     private ActorRef manager;
     private boolean stopped = false;
@@ -55,6 +58,7 @@ public class WorkerQueue extends AbstractActor {
         this.def = def;
         this.instance = instance;
         this.manager = manager;
+        this.isInterceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
         // tell manager that this worker is ready to process a new event
         manager.tell(READY, getSelf());
         log.debug("{} started", getSelf().path().name());
@@ -87,28 +91,43 @@ public class WorkerQueue extends AbstractActor {
         LambdaFunction f = def.getFunction();
         try {
             boolean ping = event.getHeaders().isEmpty() && event.getBody() == null;
-            long begin = System.nanoTime();
-            Object result = ping? null : f.handleEvent(event.getHeaders(), event.getBody(), instance);
+            long begin = ping? 0 : System.nanoTime();
+            /*
+             * If the service is an interceptor, we will pass the original event envelope instead of the message body.
+             */
+            Object result = ping? null : f.handleEvent(event.getHeaders(), isInterceptor? event : event.getBody(), instance);
             float diff = ping? 0 : System.nanoTime() - begin;
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
                 boolean reply = true;
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo);
+                /*
+                 * Preserve correlation ID and notes
+                 *
+                 * "Notes" is usually used by event interceptors. The system does not restrict the content of the notes.
+                 * For example, to save some metadata from the original sender.
+                 */
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
+                }
+                if (event.getNotes() != null) {
+                    response.setNotes(event.getNotes());
                 }
                 if (result instanceof EventEnvelope) {
                     EventEnvelope resultEnvelope = (EventEnvelope) result;
                     Map<String, String> headers = resultEnvelope.getHeaders();
-                    // is this a no-reply object?
                     if (headers.isEmpty() && resultEnvelope.getBody() == null) {
+                        /*
+                         * Is this a no-reply function?
+                         * Some lambda function is designed to be one-way. It never responds.
+                         */
                         reply = false;
                     } else {
                         /*
                          * When EventEnvelope is used as a return type, the system will transport
                          * 1. payload
-                         * 2. key-values (headers or parameters)
+                         * 2. key-values (as headers)
                          * 3. optional parametric types for Java class that uses generic types
                          */
                         response.setBody(resultEnvelope.getBody());
@@ -124,12 +143,14 @@ public class WorkerQueue extends AbstractActor {
                     response.setStatus(200).setBody(result);
                 }
                 if (ping) {
+                    // execution time is not set because there is no need to execute the lambda function
                     response.setHeader(ORIGIN, Platform.getInstance().getOrigin());
+                    po.send(response);
                 } else {
                     response.setExecutionTime(diff / PostOffice.ONE_MILLISECOND);
-                }
-                if (reply) {
-                    po.send(response);
+                    if (reply) {
+                        po.send(response);
+                    }
                 }
             }
 

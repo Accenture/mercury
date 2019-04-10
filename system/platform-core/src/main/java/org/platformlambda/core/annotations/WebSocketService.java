@@ -20,6 +20,10 @@ package org.platformlambda.core.annotations;
 
 import java.lang.annotation.*;
 
+/**
+ * This indicates the annotated class will be used as a websocket server handler.
+ * The annotation class should implement the LambdaFunction interface.
+ */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

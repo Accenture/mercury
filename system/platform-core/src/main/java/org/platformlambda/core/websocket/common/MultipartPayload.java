@@ -78,20 +78,15 @@ public class MultipartPayload {
         }
     }
 
-    public void outgoing(String dest, EventEnvelope event, boolean cancelBroadcast) throws IOException {
+    public void outgoing(String dest, EventEnvelope event) throws IOException {
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(dest)) {
-            outgoing(platform.getManager(dest), event, cancelBroadcast);
+            outgoing(platform.getManager(dest), event);
         }
     }
 
-    public void outgoing(ActorRef dest, EventEnvelope event, boolean cancelBroadcast) throws IOException {
+    public void outgoing(ActorRef dest, EventEnvelope event) throws IOException {
         if (dest != null && event != null) {
-            boolean broadcast = event.isBroadcast();
-            // avoid endless routing loops
-            if (cancelBroadcast) {
-                event.stopBroadcast();
-            }
             event.setEndOfRoute();
             int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload();
             byte[] payload = event.toBytes();
@@ -108,7 +103,8 @@ public class MultipartPayload {
                     int size = in.read(segment);
                     block.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
                     EventEnvelope out = new EventEnvelope().setHeader(TO, event.getTo()).setBody(block.toBytes());
-                    if (broadcast) {
+                    if (event.getBroadcastLevel() == 1) {
+                        event.setBroadcastLevel(2);
                         out.setHeader(BROADCAST, "1");
                     }
                     dest.tell(out, ActorRef.noSender());
@@ -117,7 +113,8 @@ public class MultipartPayload {
 
             } else {
                 EventEnvelope out = new EventEnvelope().setHeader(TO, event.getTo()).setBody(payload);
-                if (broadcast) {
+                if (event.getBroadcastLevel() == 1) {
+                    event.setBroadcastLevel(2);
                     out.setHeader(BROADCAST, "1");
                 }
                 dest.tell(out, ActorRef.noSender());
