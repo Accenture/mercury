@@ -8,17 +8,18 @@ Note that Kafka is a store-n-forward commit log system. The Mercury system is us
 
 ## Language Packs
 
-The initial list of language packs is Python, Node.js and Go. 
+The first language pack has been released with v1.11.34 for Python.
 
-To enable PolyGlot development, the platform-core library will be enhanced to function as a "side-car" so that language packs can use a very thin pipe to connect to the platform-core and let the side-car to do all the heavy lifting.
+Upcoming language packs are Node.js and Go. 
 
-The thin layer will provide the following functionality:
+To enable PolyGlot development, you can run the "language-support" service application as a "side-car" so that language packs can use a very thin pipe to connect to the platform-core and let the side-car to do all the heavy lifting.
+
+Each language pack would provide the following functionality:
 - In-memory event stream for private functions
-- Registration of public functions
+- Registration of public and private functions
+- Persistent socket connection to the "language-support" sidecar
 
-All the communication patterns (RPC, async, callback, pipeline, streaming and broadcast) will be encapsulated.
-
-A proof of concept has been conducted to validate technical viability.
+All the communication patterns (RPC, async, callback, pipeline, streaming and broadcast) are supported in language packs.
 
 ## REST automation and OpenAPI integration
 
