@@ -27,13 +27,17 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.websocket.common.MultipartPayload;
+import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.services.LanguageInbox;
 import org.platformlambda.lang.services.LanguageRelay;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.websocket.CloseReason;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +51,7 @@ public class LanguageConnector implements LambdaFunction {
     public static final String TYPE = "type";
     public static final String EVENT = "event";
     public static final String ROUTE = "route";
+    public static final String BLOCK = "block";
 
     private static final String ID = "id";
     private static final String TO = "to";
@@ -67,7 +72,12 @@ public class LanguageConnector implements LambdaFunction {
     private static final String LANGUAGE_REGISTRY = "language.pack.registry";
     private static final String LANGUAGE_INBOX = "language.pack.inbox";
     private static final String SYSTEM_ALERT = "system.alerts";
+    private static final String SYSTEM_CONFIG = "system.config";
+    private static final String MAX_PAYLOAD = "max.payload";
+    private static final String COUNT = MultipartPayload.COUNT;
+    private static final String TOTAL = MultipartPayload.TOTAL;
 
+    private static ManagedCache cache;
     private static String langApiKey, inboxRoute;
 
     private enum State {
@@ -103,8 +113,21 @@ public class LanguageConnector implements LambdaFunction {
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
+    private static void sendServerConfig(String txPath, Map<String, Object> config) throws IOException {
+        Map<String, Object> response = new HashMap<>();
+        response.put(TYPE, EVENT);
+        response.put(ROUTE, SYSTEM_CONFIG);
+        EventEnvelope alert = new EventEnvelope();
+        alert.setTo(SYSTEM_CONFIG);
+        alert.setHeader(TYPE, SYSTEM_CONFIG);
+        alert.setBody(config);
+        response.put(EVENT, LanguageConnector.mapFromEvent(alert));
+        PostOffice.getInstance().send(txPath, msgPack.pack(response));
+    }
+
     public static void initialize() throws IOException {
         if (langApiKey == null) {
+            cache = MultipartPayload.getInstance().getCache();
             /*
              * If no lang.api.key is given in application.properties,
              *  the API key will be random so it will not accept any connection.
@@ -227,6 +250,9 @@ public class LanguageConnector implements LambdaFunction {
                                     if (LOGIN.equals(type) && event.containsKey(API_KEY)
                                             && event.get(API_KEY).equals(langApiKey)) {
                                         client.setState(State.AUTHENTICATED);
+                                        Map<String, Object> config = new HashMap<>();
+                                        config.put(MAX_PAYLOAD, WsConfigurator.getInstance().getMaxBinaryPayload() - MultipartPayload.OVERHEAD);
+                                        sendServerConfig(txPath, config);
                                         log.info("{} authenticated", token);
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
@@ -242,23 +268,35 @@ public class LanguageConnector implements LambdaFunction {
                                         po.send(LANGUAGE_REGISTRY, new Kv(TYPE, REMOVE),
                                                 new Kv(TOKEN, token), new Kv(ROUTE, event.get(ROUTE)));
                                     }
-                                    if (EVENT.equals(type) && event.containsKey(EVENT)) {
-                                        EventEnvelope request = eventFromMap((Map<String, Object>) event.get(EVENT));
-                                        if (request.getReplyTo() != null) {
-                                            String replyTo = request.getReplyTo();
-                                            if (replyTo.startsWith("->")) {
-                                                /*
-                                                 * Encode the client token ID with reply to so the language inbox
-                                                 * can relay the service response correctly.
-                                                 *
-                                                 * Change the replyTo to the language inbox which will intercept
-                                                 * the service responses.
-                                                 */
-                                                request.setNotes(token+replyTo);
-                                                request.setReplyTo(LanguageConnector.inboxRoute);
+                                    if (BLOCK.equals(type) && event.containsKey(BLOCK)) {
+                                        EventEnvelope block = eventFromMap((Map<String, Object>) event.get(BLOCK));
+                                        Map<String, String> control = block.getHeaders();
+                                        if (control.size() == 3 && control.containsKey(ID)
+                                                && control.containsKey(COUNT) && control.containsKey(TOTAL)) {
+                                            Utility util = Utility.getInstance();
+                                            String id = control.get(ID);
+                                            int count = util.str2int(control.get(COUNT));
+                                            int total = util.str2int(control.get(TOTAL));
+                                            byte[] data = (byte[]) block.getBody();
+                                            if (data != null && count != -1 && total != -1) {
+                                                ByteArrayOutputStream buffer = (ByteArrayOutputStream) cache.get(id);
+                                                if (count == 1 || buffer == null) {
+                                                    buffer = new ByteArrayOutputStream();
+                                                    cache.put(id, buffer);
+                                                }
+                                                buffer.write(data);
+                                                if (count == total) {
+                                                    cache.remove(id);
+                                                    Map<String, Object> evt = (Map<String, Object>) msgPack.unpack(buffer.toByteArray());
+                                                    EventEnvelope request = eventFromMap((Map<String, Object>) evt.get(EVENT));
+                                                    po.send(mapReplyTo(token, request));
+                                                }
                                             }
                                         }
-                                        po.send(request);
+                                    }
+                                    if (EVENT.equals(type) && event.containsKey(EVENT)) {
+                                        EventEnvelope request = eventFromMap((Map<String, Object>) event.get(EVENT));
+                                        po.send(mapReplyTo(token, request));
                                     }
                                 }
                             }
@@ -281,6 +319,24 @@ public class LanguageConnector implements LambdaFunction {
         }
         // nothing to return because this is asynchronous
         return null;
+    }
+
+    private EventEnvelope mapReplyTo(String token, EventEnvelope request) {
+        if (request.getReplyTo() != null) {
+            String replyTo = request.getReplyTo();
+            if (replyTo.startsWith("->")) {
+                /*
+                 * Encode the client token ID with reply to so the language inbox
+                 * can relay the service response correctly.
+                 *
+                 * Change the replyTo to the language inbox which will intercept
+                 * the service responses.
+                 */
+                request.setNotes(token+replyTo);
+                request.setReplyTo(LanguageConnector.inboxRoute);
+            }
+        }
+        return request;
     }
 
     @SuppressWarnings("unchecked")

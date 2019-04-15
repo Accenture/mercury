@@ -23,6 +23,7 @@ import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public class MainApp implements EntryPoint {
              * Uncomment the "log.info" statement if you want to see this service receiving the event.
              * (Note that logging takes time so it will affect your function execution time.)
              */
-            // log.info("echo @"+instance+" received - "+headers+", "+body);
+//             log.info("echo @"+instance+" received - "+headers+", "+body);
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();

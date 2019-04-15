@@ -73,7 +73,6 @@ public class PostOffice {
      * @throws IOException in case route is not found
      */
     public TargetRoute discover(String to, boolean endOfRoute) throws IOException {
-
         Platform platform = Platform.getInstance();
         boolean eventNode = ServerPersonality.getInstance().getType() == ServerPersonality.Type.PLATFORM;
         if (to.contains("@")) {
@@ -360,7 +359,6 @@ public class PostOffice {
      * @throws IOException if invalid route or missing parameters
      */
     public void send(final EventEnvelope event) throws IOException {
-
         String to = event.getTo();
         if (to == null) {
             throw new IOException("Missing routing path");
@@ -384,9 +382,14 @@ public class PostOffice {
         TargetRoute target = discover(to, event.isEndOfRoute());
         if (target.isEventNode()) {
             if (!target.getTxPaths().isEmpty()) {
-                if (event.getBroadcastLevel() == 1) {
+                /*
+                 * Case 1 - An application instance sends a broadcast event thru the Event Node (broadcast level 1)
+                 * Case 2 - Event Node sends a broadcast event to target application instances (broadcast level 2)
+                 */
+                if (event.getBroadcastLevel() > 0) {
+                    event.setBroadcastLevel(event.getBroadcastLevel()+1);
                     for (String p: target.getTxPaths()) {
-                        MultipartPayload.getInstance().outgoing(p, event.setBroadcastLevel(2));
+                        MultipartPayload.getInstance().outgoing(p, event);
                     }
                 } else {
                     int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
@@ -395,9 +398,11 @@ public class PostOffice {
             }
         } else if (target.isCloud()) {
             /*
-             * This target is for cloud connector
+             * If broadcast, set broadcast level to 3 because the event will be sent
+             * to the target by the cloud connector directly
              */
-            MultipartPayload.getInstance().outgoing(target.getActor(), event);
+            MultipartPayload.getInstance().outgoing(target.getActor(),
+                    event.getBroadcastLevel() >  0? event.setBroadcastLevel(3) : event);
         } else {
             /*
              * The target is the same memory space. We will route it to the event node or cloud connector if broadcast.
@@ -407,20 +412,29 @@ public class PostOffice {
                 TargetRoute cloud = getCloudRoute();
                 if (cloud != null) {
                     if (cloud.isCloud()) {
-                        MultipartPayload.getInstance().outgoing(cloud.getActor(), event);
+                        /*
+                         * If broadcast, set broadcast level to 3 because the event will be sent
+                         * to the target by the cloud connector directly
+                         */
+                        MultipartPayload.getInstance().outgoing(cloud.getActor(), event.setBroadcastLevel(3));
                     } else if (cloud.isEventNode() && cloud.getTxPaths().size() == 1) {
-                        MultipartPayload.getInstance().outgoing(cloud.getTxPaths().get(0), event);
+                        /*
+                         * If broadcast, set broadcast level to 2 because the event will be sent
+                         * to an event node for further processing
+                         */
+                        MultipartPayload.getInstance().outgoing(cloud.getTxPaths().get(0), event.setBroadcastLevel(2));
                     }
                 } else {
                     if (!cache.exists(event.getTo())) {
                         cache.put(event.getTo(), true);
                         log.warn("Broadcast event to {} delivered locally because cloud is not available", event.getTo());
                     }
-                    target.getActor().tell(event.getBroadcastLevel() == 1? event.setBroadcastLevel(2) : event, ActorRef.noSender());
+                    // set broadcast level to 3 for language pack clients if any
+                    target.getActor().tell(event.setBroadcastLevel(3), ActorRef.noSender());
                 }
             } else {
-                // if broadcast, upgrade level to 2 for language pack to do 2nd level broadcast.
-                target.getActor().tell(event.getBroadcastLevel() == 1? event.setBroadcastLevel(2) : event, ActorRef.noSender());
+                // set broadcast level to 3 for language pack clients if any
+                target.getActor().tell(event.getBroadcastLevel() > 0? event.setBroadcastLevel(3) : event, ActorRef.noSender());
             }
         }
     }

@@ -53,8 +53,4 @@ public class TargetRoute {
         return txPaths;
     }
 
-    public String toString() {
-        return "TARGET ROUTE: eventNode="+txPaths+", actor="+actor+", cloud?"+cloud;
-    }
-
 }

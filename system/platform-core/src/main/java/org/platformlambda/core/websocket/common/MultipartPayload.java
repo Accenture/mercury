@@ -38,11 +38,13 @@ public class MultipartPayload {
 
     private static MultipartPayload instance = new MultipartPayload();
     private static final ManagedCache cache = ManagedCache.createCache("LargePayloads", 30000);
-    private static final String ID = "id";
     private static final String TO = "to";
-    private static final String COUNT = "count";
-    private static final String TOTAL = "total";
     private static final String BROADCAST = "broadcast";
+
+    public static final String ID = "id";
+    public static final String COUNT = "count";
+    public static final String TOTAL = "total";
+    public static final int OVERHEAD = 256;
 
     private MultipartPayload() {
         // singleton
@@ -50,6 +52,10 @@ public class MultipartPayload {
 
     public static MultipartPayload getInstance() {
         return instance;
+    }
+
+    public ManagedCache getCache() {
+        return cache;
     }
 
     public void incoming(EventEnvelope message) throws IOException {
@@ -88,7 +94,7 @@ public class MultipartPayload {
     public void outgoing(ActorRef dest, EventEnvelope event) throws IOException {
         if (dest != null && event != null) {
             event.setEndOfRoute();
-            int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload();
+            int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
             byte[] payload = event.toBytes();
             if (payload.length > maxPayload) {
                 int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
@@ -103,8 +109,8 @@ public class MultipartPayload {
                     int size = in.read(segment);
                     block.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
                     EventEnvelope out = new EventEnvelope().setHeader(TO, event.getTo()).setBody(block.toBytes());
-                    if (event.getBroadcastLevel() == 1) {
-                        event.setBroadcastLevel(2);
+                    if (event.getBroadcastLevel() > 1) {
+                        // tell a cloud connector that this event should be broadcast
                         out.setHeader(BROADCAST, "1");
                     }
                     dest.tell(out, ActorRef.noSender());
@@ -113,8 +119,8 @@ public class MultipartPayload {
 
             } else {
                 EventEnvelope out = new EventEnvelope().setHeader(TO, event.getTo()).setBody(payload);
-                if (event.getBroadcastLevel() == 1) {
-                    event.setBroadcastLevel(2);
+                if (event.getBroadcastLevel() > 1) {
+                    // tell a cloud connector that this event should be broadcast
                     out.setHeader(BROADCAST, "1");
                 }
                 dest.tell(out, ActorRef.noSender());

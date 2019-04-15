@@ -23,10 +23,14 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.websocket.common.MultipartPayload;
+import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,6 +41,11 @@ public class LanguageInbox implements LambdaFunction {
 
     private static final String TYPE = LanguageConnector.TYPE;
     private static final String EVENT = LanguageConnector.EVENT;
+    private static final String BLOCK = LanguageConnector.BLOCK;
+    private static final String ID = MultipartPayload.ID;
+    private static final String COUNT = MultipartPayload.COUNT;
+    private static final String TOTAL = MultipartPayload.TOTAL;
+    private static final int OVERHEAD = MultipartPayload.OVERHEAD;
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -68,8 +77,35 @@ public class LanguageInbox implements LambdaFunction {
                     if (event.getCorrelationId() != null) {
                         relay.setCorrelationId(event.getCorrelationId());
                     }
+                    if (event.getExecutionTime() > -1) {
+                        relay.setExecutionTime(event.getExecutionTime());
+                    }
                     response.put(EVENT, LanguageConnector.mapFromEvent(relay));
-                    PostOffice.getInstance().send(txPath, msgPack.pack(response));
+                    byte[] payload = msgPack.pack(response);
+                    int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+                    if (payload.length > maxPayload) {
+                        int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
+                        ByteArrayInputStream in = new ByteArrayInputStream(payload);
+                        for (int i = 0; i < total; i++) {
+                            // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
+                            Map<String, Object> block = new HashMap<>();
+                            block.put(TYPE, BLOCK);
+                            EventEnvelope inner = new EventEnvelope();
+                            inner.setId(event.getId());
+                            inner.setHeader(ID, event.getId());
+                            inner.setHeader(COUNT, i + 1);
+                            inner.setHeader(TOTAL, total);
+                            byte[] segment = new byte[maxPayload];
+                            int size = in.read(segment);
+                            inner.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
+                            block.put(BLOCK, LanguageConnector.mapFromEvent(inner));
+                            PostOffice.getInstance().send(txPath, msgPack.pack(block));
+                            log.debug("Sending block {} of {} to {} via {}", i + 1, total, event.getTo(), txPath);
+                        }
+                    } else {
+                        PostOffice.getInstance().send(txPath, payload);
+                    }
+
                 } else {
                     log.warn("Event dropped because {} not present", token);
                 }
