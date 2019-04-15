@@ -20,7 +20,6 @@ package org.platformlambda.lang;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
@@ -41,16 +40,6 @@ public class MainApp implements EntryPoint {
          * get ready to accept language pack client connections
          */
         LanguageConnector.initialize();
-
-        LambdaFunction f = (headers, body, instance) -> {
-            if (body instanceof String) {
-                String s = (String) body;
-                System.out.println("echo " +s.length()+" characters");
-            }
-            return body;
-        };
-
-        platform.register("hello.world", f, 1);
         /*
          * for local testing using event node:
          *
@@ -62,7 +51,7 @@ public class MainApp implements EntryPoint {
          *
          */
         // connect to the network event streams so it can automatically discover other services
-//         platform.connectToCloud();
+         platform.connectToCloud();
     }
 
 }
