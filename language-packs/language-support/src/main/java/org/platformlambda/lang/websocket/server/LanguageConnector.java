@@ -65,7 +65,6 @@ public class LanguageConnector implements LambdaFunction {
     private static final String ADD = "add";
     private static final String REMOVE = "remove";
     private static final String DISCONNECT = "disconnect";
-    private static final String API_KEY = "api_key";
     private static final String TOKEN = "token";
     private static final String BROADCAST = "broadcast";
     private static final String EXEC_TIME = "exec_time";
@@ -78,10 +77,10 @@ public class LanguageConnector implements LambdaFunction {
     private static final String TOTAL = MultipartPayload.TOTAL;
 
     private static ManagedCache cache;
-    private static String langApiKey, inboxRoute;
+    private static String apiKeyLabel, langApiKey, inboxRoute;
 
     private enum State {
-        OPEN, CLOSE, AUTHENTICATED
+        OPEN, AUTHENTICATED
     }
     // token -> ConnectionStatus
     private static final ConcurrentMap<String, ConnectionStatus> connections = new ConcurrentHashMap<>();
@@ -132,14 +131,15 @@ public class LanguageConnector implements LambdaFunction {
              * If no lang.api.key is given in application.properties,
              *  the API key will be random so it will not accept any connection.
              */
+            Utility util = Utility.getInstance();
             AppConfigReader reader = AppConfigReader.getInstance();
-            String apiKey = reader.getProperty("lang.api.key");
-            if (apiKey == null) {
+            apiKeyLabel = reader.getProperty("lang.api.key.label", "lang_api_key");
+            langApiKey = reader.getProperty("lang.api.key");
+            if (langApiKey == null) {
+                langApiKey = util.getUuid();
                 log.error("Language packs disabled because lang.api.key is missing in application.properties or LANG_API_KEY in environment");
-            } else {
-                langApiKey = apiKey;
-                log.info("Started");
             }
+            log.info("Started. {} loaded.", apiKeyLabel);
             LanguageRelay relay = new LanguageRelay();
             LambdaFunction registry = (headers, body, instance) -> {
                 if (headers.containsKey(TYPE)) {
@@ -247,8 +247,8 @@ public class LanguageConnector implements LambdaFunction {
                             ConnectionStatus client = connections.get(token);
                             if (client != null) {
                                 if (client.getState() == State.OPEN) {
-                                    if (LOGIN.equals(type) && event.containsKey(API_KEY)
-                                            && event.get(API_KEY).equals(langApiKey)) {
+                                    if (LOGIN.equals(type) && event.containsKey(apiKeyLabel)
+                                            && event.get(apiKeyLabel).equals(langApiKey)) {
                                         client.setState(State.AUTHENTICATED);
                                         Map<String, Object> config = new HashMap<>();
                                         config.put(MAX_PAYLOAD, WsConfigurator.getInstance().getMaxBinaryPayload() - MultipartPayload.OVERHEAD);
@@ -257,7 +257,7 @@ public class LanguageConnector implements LambdaFunction {
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
                                         Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
-                                                "Requires login with API key");
+                                                "Requires login with "+apiKeyLabel);
                                     }
                                 } else if (client.getState() == State.AUTHENTICATED) {
                                     if (ADD.equals(type) && event.containsKey(ROUTE)) {

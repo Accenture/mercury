@@ -134,7 +134,7 @@ public class WsServer {
                     String key = p.substring(0, eq);
                     String value = p.substring(eq + 1);
                     if (key.equals(WsEnvelope.IP) && ip.equals(value)) {
-                        // skip IP address that was inserted by the IpFilter
+                        // skip IP address that was inserted by the InfoFilter
                         continue;
                     }
                 }

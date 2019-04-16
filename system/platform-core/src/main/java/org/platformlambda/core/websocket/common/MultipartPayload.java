@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -47,7 +48,9 @@ public class MultipartPayload {
     public static final int OVERHEAD = 256;
 
     private MultipartPayload() {
-        // singleton
+        NumberFormat number = NumberFormat.getInstance();
+        int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+        log.info("Automatic segmentation when event payload exceeds {}", number.format(maxPayload));
     }
 
     public static MultipartPayload getInstance() {
