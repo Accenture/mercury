@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version 1.11.34, 4/10/2019
+## Version 1.11.35, 4/16/2019
 
 ### Added
 
@@ -20,7 +20,7 @@ N/A
 
 ### Changed
 
-N/A
+Replace Tomcat with Undertow for the Spring Boot component in the rest-spring subproject
 
 ---
 

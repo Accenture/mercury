@@ -130,7 +130,7 @@ public class WsRegistry {
                 registry.remove(route);
                 routeMap.remove(envelope.sessionId);
                 sessions.remove(route);
-                log.info("Session-{} ({}, {}) released", envelope.sessionId, envelope.route, envelope.txPath);
+                log.info("Session {} ({}, {}) released", envelope.sessionId, envelope.route, envelope.txPath);
             }
         }
     }

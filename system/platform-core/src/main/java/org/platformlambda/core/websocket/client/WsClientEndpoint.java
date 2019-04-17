@@ -74,10 +74,10 @@ public class WsClientEndpoint extends Endpoint {
             session.addMessageHandler(new BytesHandler());
 
             if (envelope.query == null) {
-                log.info("{} #{} connected to {} {}, {}", service.getClass().getSimpleName(), session.getId(),
+                log.info("{} {} connected to {} {}, {}", service.getClass().getSimpleName(), session.getId(),
                         route, envelope.ip, envelope.path);
             } else {
-                log.info("{} #{} connected to {} {}, {}, {}", service.getClass().getSimpleName(), session.getId(),
+                log.info("{} {} connected to {} {}, {}, {}", service.getClass().getSimpleName(), session.getId(),
                         route, envelope.ip, envelope.path, envelope.query);
             }
         } catch (IOException | TimeoutException e) {
@@ -96,7 +96,7 @@ public class WsClientEndpoint extends Endpoint {
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
             if (envelope != null) {
-                log.info("#{} {} closed ({}, {})", session.getId(), route,
+                log.info("{} {} closed ({}, {})", session.getId(), route,
                         reason.getCloseCode().getCode(), reason.getReasonPhrase());
                 try {
                     /*

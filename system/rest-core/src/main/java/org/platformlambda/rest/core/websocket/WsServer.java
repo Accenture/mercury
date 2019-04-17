@@ -116,7 +116,7 @@ public class WsServer {
                     new Kv(WsEnvelope.IP, envelope.ip), new Kv(WsEnvelope.PATH, envelope.path),
                     new Kv(WsEnvelope.QUERY, normalizeQuery(envelope.query, envelope.ip)),
                     new Kv(WsEnvelope.TOKEN, envelope.origin));
-            log.info("#{} {} {} connected to {} {}", session.getId(), route,
+            log.info("{} {} {} connected to {} {}", session.getId(), route,
                     cls.getSimpleName(), envelope.ip, envelope.path);
         } catch (InstantiationException | IllegalAccessException | AppException | IOException | TimeoutException e) {
             log.error("Unable to start {} ({}), {}", cls.getName(), name, e.getMessage());
@@ -186,7 +186,7 @@ public class WsServer {
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
             if (envelope != null) {
-                log.info("#{} {} closed ({}, {})", session.getId(), route,
+                log.info("{} {} closed ({}, {})", session.getId(), route,
                         reason.getCloseCode().getCode(), reason.getReasonPhrase());
                 try {
                     /*
@@ -211,7 +211,7 @@ public class WsServer {
     public void onError(Session session, Throwable error) {
         if (open) {
             String route = registry.getRoute(session.getId());
-            log.warn("#{} {} exception {}", session.getId(), route, error.getMessage());
+            log.warn("{} {} exception {}", session.getId(), route, error.getMessage());
         }
     }
 

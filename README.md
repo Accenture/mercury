@@ -28,7 +28,7 @@ Hope you enjoy this journey to improve the world.
 
 Best regards, the Mercury team
 
-March 2019
+April 2019
 
 p.s. This project is originated from the "platformlambda project" and contributed by Accenture.
 
@@ -140,7 +140,7 @@ The rest-spring library customizes and simplifies the use of Spring Boot as an a
 
 `hazelcast-connector`
 
-This connector library is designed to work with Hazelcast version 3.11.1 out of the box. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
+This connector library is designed to work with Hazelcast version 3.12 out of the box. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
 
 `hazelcast-presence`
 

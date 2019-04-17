@@ -7,7 +7,7 @@
     <artifactId>language-support</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.11.34</version>
+    <version>1.11.35</version>
     <name>Language Support or Sidecar for Python, Nodes.js and Go</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -25,14 +25,14 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.11.34</version>
+            <version>1.11.35</version>
         </dependency>
 
-        <!-- Optional cloud connector. Not necessary if testing using Event Node. -->
+        <!-- select your cloud connector. Not necessary if testing using Event Node. -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.11.34</version>
+            <version>1.11.35</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
