@@ -72,12 +72,11 @@
         </dependency>
 
         <!-- the Mercury system has been tested with Jetty, Tomcat and Undertow.
-             For simplicity, we are using Undertow here.
-             https://mvnrepository.com/artifact/io.undertow/undertow-websockets-jsr -->
+             We are using Jetty here -->
         <dependency>
-            <groupId>io.undertow</groupId>
-            <artifactId>undertow-websockets-jsr</artifactId>
-            <version>2.0.19.Final</version>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>javax-websocket-client-impl</artifactId>
+            <version>9.4.15.v20190215</version>
         </dependency>
 
         <dependency>

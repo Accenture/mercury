@@ -21,7 +21,7 @@ N/A
 ### Changed
 
 for the rest-spring subproject,
-1. replace Tomcat with Undertow for the Spring Boot component
+1. replace Tomcat with Jetty for the Spring Boot component
 2. replace Apache HttpClient with Google Http Client
 
 ---

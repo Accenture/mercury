@@ -40,10 +40,10 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- and replace it with Undertow -->
+        <!-- and replace it with Jetty -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-undertow</artifactId>
+            <artifactId>spring-boot-starter-jetty</artifactId>
             <version>2.1.4.RELEASE</version>
         </dependency>
 
