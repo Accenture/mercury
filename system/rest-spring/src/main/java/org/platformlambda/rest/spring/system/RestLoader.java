@@ -23,6 +23,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.rest.spring.util.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -32,10 +33,7 @@ import org.springframework.stereotype.Component;
 import javax.servlet.DispatcherType;
 import javax.ws.rs.Path;
 import javax.ws.rs.ext.Provider;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Component
 public class RestLoader extends ResourceConfig {
@@ -58,7 +56,7 @@ public class RestLoader extends ResourceConfig {
             for (String p : packages) {
                 List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, Provider.class);
                 for (Class<?> cls : endpoints) {
-                    if (!WebAppLoader.isRequired(cls)) {
+                    if (!Feature.isRequired(cls)) {
                         continue;
                     }
                     register(cls);
@@ -76,7 +74,7 @@ public class RestLoader extends ResourceConfig {
             for (String p : packages) {
                 List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, Path.class);
                 for (Class<?> cls : endpoints) {
-                    if (!WebAppLoader.isRequired(cls)) {
+                    if (!Feature.isRequired(cls)) {
                         continue;
                     }
                     register(cls);
@@ -97,7 +95,7 @@ public class RestLoader extends ResourceConfig {
         String url = config.getProperty(BASE_URL, "/api");
         FilterRegistrationBean<ServletContainer> registration = new FilterRegistrationBean<>();
         registration.setFilter(new ServletContainer(this));
-        registration.setUrlPatterns(Arrays.asList(normalizeUrl(url)+"/*"));
+        registration.setUrlPatterns(Collections.singletonList(normalizeUrl(url)+"/*"));
         registration.setAsyncSupported(true);
         registration.setOrder(1);
         registration.setName("jaxRsFilter");

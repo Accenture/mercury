@@ -43,7 +43,6 @@ public class PresenceManager extends Thread {
 
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
-    private static long lastActivity;
     private static boolean normal = true;
     private long timer = 0;
     private static final long WAIT_INTERVAL = 5000;
@@ -72,6 +71,7 @@ public class PresenceManager extends Thread {
             System.exit(-1);
         }
         // start reporting to presence monitor
+        long lastActivity = 0;
         PresenceConnector connector = PresenceConnector.getInstance();
         if (connector.isUnassigned()) {
             lastActivity = System.currentTimeMillis();
@@ -159,6 +159,10 @@ public class PresenceManager extends Thread {
         String message = error.contains(":") ? error.substring(error.lastIndexOf(':')+1).trim() : error;
         return message.equals("no further information") || message.contains("null")
                 || message.contains("connection fail")? "Unreachable" : message;
+    }
+
+    public static void shutdown() {
+        normal = false;
     }
 
 

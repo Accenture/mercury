@@ -79,7 +79,6 @@ public class MonitorService implements LambdaFunction {
         return new HashMap<>(connectionInfo.getMap());
     }
 
-    @SuppressWarnings("unchecked")
     public static void updateNodeInfo(String origin, Map<String, Object> info) {
 
         if (connectionInfo.exists(origin)) {
@@ -205,7 +204,7 @@ public class MonitorService implements LambdaFunction {
                                 event.setBody(info);
                                 po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
                                 if (isInfo) {
-                                    log.info("Application registered {} {}", info);
+                                    log.info("Application registered {}", info);
                                     po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
                                 } else {
                                     log.debug("{} is alive {}", token, info.get(SEQ));

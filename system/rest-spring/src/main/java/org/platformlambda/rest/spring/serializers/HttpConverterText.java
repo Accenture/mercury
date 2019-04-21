@@ -18,8 +18,8 @@
 
 package org.platformlambda.rest.spring.serializers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.util.Utility;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
@@ -28,6 +28,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
@@ -41,13 +42,13 @@ public class HttpConverterText implements HttpMessageConverter<Object> {
     private static List<MediaType> types = new ArrayList<>();
 
     @Override
-    public boolean canRead(Class<?> clazz, MediaType mediaType) {
+    public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
         return mediaType != null && TEXT_CONTENT.getType().equals(mediaType.getType())
                 && TEXT_CONTENT.getSubtype().equals(mediaType.getSubtype());
     }
 
     @Override
-    public boolean canWrite(Class<?> clazz, MediaType mediaType) {
+    public boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType) {
         return mediaType != null && TEXT_CONTENT.getType().equals(mediaType.getType())
                 && TEXT_CONTENT.getSubtype().equals(mediaType.getSubtype());
     }
@@ -68,10 +69,10 @@ public class HttpConverterText implements HttpMessageConverter<Object> {
     }
 
     @Override
-    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
+    public void write(Object o, @Nullable MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(TEXT_CONTENT);
         // this may be too late to validate because Spring RestController has already got the object
-        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));

@@ -18,9 +18,8 @@
 
 package org.platformlambda.rest.spring.system;
 
-import org.platformlambda.core.annotations.OptionalService;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleClassScanner;
+import org.platformlambda.rest.spring.util.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -53,7 +52,7 @@ public class WebAppLoader implements ServletContextInitializer {
             for (Class<?> cls : endpoints) {
                 log.info("Scanning {}", cls);
                 WebServlet servlet = cls.getAnnotation(WebServlet.class);
-                if (!WebAppLoader.isRequired(cls)) {
+                if (!Feature.isRequired(cls)) {
                     continue;
                 }
                 ServletRegistration.Dynamic dynamic = context.addServlet(cls.getSimpleName(), cls.getName());
@@ -79,7 +78,7 @@ public class WebAppLoader implements ServletContextInitializer {
             endpoints = scanner.getAnnotatedClasses(p, WebFilter.class);
             for (Class<?> cls : endpoints) {
                 WebFilter filter = cls.getAnnotation(WebFilter.class);
-                if (!WebAppLoader.isRequired(cls)) {
+                if (!Feature.isRequired(cls)) {
                     continue;
                 }
                 FilterRegistration.Dynamic dynamic = context.addFilter(cls.getSimpleName(), cls.getName());
@@ -94,7 +93,7 @@ public class WebAppLoader implements ServletContextInitializer {
             }
             endpoints = scanner.getAnnotatedClasses(p, WebListener.class);
             for (Class<?> cls : endpoints) {
-                if (!WebAppLoader.isRequired(cls)) {
+                if (!Feature.isRequired(cls)) {
                     continue;
                 }
                 context.addListener(cls.getName());
@@ -112,16 +111,6 @@ public class WebAppLoader implements ServletContextInitializer {
             log.info("Total {} WebListener{} registered", totalListeners, totalListeners == 1 ? "" : "s");
         }
 
-    }
-
-    public static boolean isRequired(Class<?> cls) {
-        OptionalService condition = cls.getAnnotation(OptionalService.class);
-        if (condition != null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            return "true".equals(reader.getProperty(condition.value()));
-        } else {
-            return true;
-        }
     }
 
 }

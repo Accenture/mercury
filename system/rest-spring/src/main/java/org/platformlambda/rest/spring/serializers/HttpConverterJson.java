@@ -18,8 +18,8 @@
 
 package org.platformlambda.rest.spring.serializers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.util.Utility;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
@@ -66,9 +66,9 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
         if (inputMessage != null) {
             try {
                 // validate class with white list before loading the input stream
-                ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
+                SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
                 String input = util.stream2str(inputMessage.getBody());
-                return mapper.convertValue(input, clazz);
+                return mapper.readValue(input, clazz);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }
@@ -78,10 +78,10 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
     }
 
     @Override
-    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
+    public void write(Object o, @Nullable MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(JSON);
         // this may be too late to validate because Spring RestController has already got the object
-        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));

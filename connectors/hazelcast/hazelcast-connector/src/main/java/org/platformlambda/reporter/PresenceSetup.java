@@ -46,6 +46,7 @@ public class PresenceSetup implements CloudSetup {
                 connection.start();
 
             } catch (Exception e) {
+                PresenceManager.shutdown();
                 log.error("Unable to start", e);
                 System.exit(-1);
             }

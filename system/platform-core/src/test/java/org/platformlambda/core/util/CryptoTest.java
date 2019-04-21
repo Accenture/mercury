@@ -69,6 +69,7 @@ public class CryptoTest {
         byte[] encrypted = crypto.rsaEncrypt(input, pub);
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
+        // cannot use assertEquals because we need to do byte-by-byte comparison
         assertTrue(Arrays.equals(input, decrypted));
     }
 

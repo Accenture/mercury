@@ -22,12 +22,14 @@ import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.models.PoJo;
 
 import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertNull;
 import static org.platformlambda.core.serializers.PayloadMapper.*;
 
 public class PayloadMapperTest {
@@ -35,9 +37,22 @@ public class PayloadMapperTest {
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
     @Test
+    public void acceptSafeJavaDefaultClasses() {
+        SimpleMapper.getInstance().getWhiteListMapper(String.class);
+        SimpleMapper.getInstance().getWhiteListMapper(byte[].class);
+        SimpleMapper.getInstance().getWhiteListMapper(Date.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Integer.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Map.class);
+        SimpleMapper.getInstance().getWhiteListMapper(HashMap.class);
+        SimpleMapper.getInstance().getWhiteListMapper(List.class);
+        SimpleMapper.getInstance().getWhiteListMapper(ArrayList.class);
+        SimpleMapper.getInstance().getWhiteListMapper(Number.class);
+    }
+
+    @Test
     public void pojoInEvent() throws IOException {
         int len1 = pojoInEventUsingMsgPack();
-        int len2 = pojoInEventUsingJackson();
+        int len2 = pojoInEventUsingGson();
         // transport size is larger when using JSON
         assertTrue(len2 > len1);
     }
@@ -62,7 +77,7 @@ public class PayloadMapperTest {
         return b.length;
     }
 
-    private int pojoInEventUsingJackson() throws IOException {
+    private int pojoInEventUsingGson() throws IOException {
         PoJo input = new PoJo();
         input.setName("hello world");
         input.setNumber(12345);
@@ -84,7 +99,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertPoJoUsingMsgPack() throws IOException, ClassNotFoundException {
+    public void convertPoJoUsingMsgPack() throws ClassNotFoundException {
         PoJo input = new PoJo();
         input.setName("hello world");
         input.setNumber(12345);
@@ -100,7 +115,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertPoJoUsingJackson() throws IOException, ClassNotFoundException {
+    public void convertPoJoUsingJackson() throws ClassNotFoundException {
         PoJo input = new PoJo();
         input.setName("hello world");
         input.setNumber(12345);
@@ -116,7 +131,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertMap() throws IOException, ClassNotFoundException {
+    public void convertMap() throws ClassNotFoundException {
         Map<String, Object> input = new HashMap<>();
         input.put("hello", "world");
         TypedPayload typed = converter.encode(input, true);
@@ -127,7 +142,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertString() throws IOException, ClassNotFoundException {
+    public void convertString() throws ClassNotFoundException {
         String input = "hello world";
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -137,7 +152,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertBytes() throws IOException, ClassNotFoundException {
+    public void convertBytes() throws ClassNotFoundException {
         byte[] input = "hello world".getBytes();
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -147,27 +162,25 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertNull() throws IOException, ClassNotFoundException {
-        Object input = null;
-        TypedPayload typed = converter.encode(input, true);
+    public void convertNull() throws ClassNotFoundException {
+        TypedPayload typed = converter.encode(null, true);
         assertEquals(NOTHING, typed.getType());
-        assertEquals(input, typed.getPayload());
+        assertNull(typed.getPayload());
         Object converted = converter.decode(typed);
-        assertEquals(input, converted);
+        assertNull(converted);
     }
 
     @Test
-    public void convertBoolean() throws IOException, ClassNotFoundException {
-        Boolean input = true;
-        TypedPayload typed = converter.encode(input, true);
+    public void convertBoolean() throws ClassNotFoundException {
+        TypedPayload typed = converter.encode(true, true);
         assertEquals(PRIMITIVE, typed.getType());
-        assertEquals(input, typed.getPayload());
+        assertEquals(true, typed.getPayload());
         Object converted = converter.decode(typed);
-        assertEquals(input, converted);
+        assertEquals(true, converted);
     }
 
     @Test
-    public void convertInteger() throws IOException, ClassNotFoundException {
+    public void convertInteger() throws ClassNotFoundException {
         Integer input = 12345;
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -177,7 +190,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertLong() throws IOException, ClassNotFoundException {
+    public void convertLong() throws ClassNotFoundException {
         Long input = 123456L;
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -187,7 +200,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertFloat() throws IOException, ClassNotFoundException {
+    public void convertFloat() throws ClassNotFoundException {
         Float input = 12.34f;
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -197,7 +210,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertDouble() throws IOException, ClassNotFoundException {
+    public void convertDouble() throws ClassNotFoundException {
         Double input = 12.34d;
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -207,7 +220,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertDate() throws IOException, ClassNotFoundException {
+    public void convertDate() throws ClassNotFoundException {
         Date input = new Date();
         TypedPayload typed = converter.encode(input, true);
         assertEquals(PRIMITIVE, typed.getType());
@@ -217,7 +230,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertList() throws IOException, ClassNotFoundException {
+    public void convertList() throws ClassNotFoundException {
         List<String> input = new ArrayList<>();
         input.add("hello");
         input.add("world");
@@ -229,7 +242,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertArray() throws IOException, ClassNotFoundException {
+    public void convertArray() throws ClassNotFoundException {
         String[] input = {"hello", "world"};
         TypedPayload typed = converter.encode(input, true);
         assertEquals(ARRAY, typed.getType());
@@ -238,7 +251,7 @@ public class PayloadMapperTest {
     }
 
     private boolean sameArrays(Object a, Object b) {
-        if (a != null && b != null && a instanceof Object[] && b instanceof Object[]) {
+        if (a instanceof Object[] && b instanceof Object[]) {
             Object[] o1 = (Object[]) a;
             Object[] o2 = (Object[]) b;
             if (o1.length == o2.length) {

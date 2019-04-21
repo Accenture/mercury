@@ -629,6 +629,10 @@ public class Utility {
     }
 
     public String date2str(Date date, boolean upToSeconds) {
+        // just in case input is SQL date or time
+        if (date instanceof java.sql.Date || date instanceof java.sql.Time) {
+            return date.toString();
+        }
         long time = upToSeconds? date.getTime() / 1000 * 1000 : date.getTime();
         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(time), UTC_TIME);
         return zdt.format(DateTimeFormatter.ISO_INSTANT);
@@ -644,6 +648,7 @@ public class Utility {
         }
         /*
          * Support multiple variance of ISO-8601
+         * (SQL time is not supported)
          *
          * 1. 2015-01-06
          * 2. 2015-01-06 01:02:03

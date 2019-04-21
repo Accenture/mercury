@@ -18,7 +18,6 @@
 
 package org.platformlambda.rest.core.system;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
@@ -37,20 +36,20 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
 
     private static final Utility util = Utility.getInstance();
 
-    public static final String TEMPLATE = "/errorPage.html";
-    public static final String HTTP_UNKNOWN_WARNING = "There may be a problem in processing your request";
-    public static final String HTTP_400_WARNING = "The system is unable to process your request";
-    public static final String HTTP_500_WARNING = "Something may be broken";
-    public static final String TYPE = "type";
-    public static final String ERROR = "error";
-    public static final String PATH = "path";
-    public static final String ACCEPT = "accept";
-    public static final String MESSAGE = "message";
-    public static final String STATUS = "status";
-    public static final String SET_MESSAGE = "${message}";
-    public static final String SET_PATH = "${path}";
-    public static final String SET_STATUS = "${status}";
-    public static final String SET_WARNING = "${warning}";
+    private static final String TEMPLATE = "/errorPage.html";
+    private static final String HTTP_UNKNOWN_WARNING = "There may be a problem in processing your request";
+    private static final String HTTP_400_WARNING = "The system is unable to process your request";
+    private static final String HTTP_500_WARNING = "Something may be broken";
+    private static final String TYPE = "type";
+    private static final String ERROR = "error";
+    private static final String PATH = "path";
+    private static final String ACCEPT = "accept";
+    private static final String MESSAGE = "message";
+    private static final String STATUS = "status";
+    private static final String SET_MESSAGE = "${message}";
+    private static final String SET_PATH = "${path}";
+    private static final String SET_STATUS = "${status}";
+    private static final String SET_WARNING = "${warning}";
 
     private static final String HTTP_PREFIX = "HTTP ";
     private static final String CHARSET_UTF = ";charset=utf-8";
@@ -167,7 +166,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
                     return Response.status(status)
                             .header(CONTENT_TYPE, MediaType.TEXT_PLAIN + CHARSET_UTF)
                             .entity(text).build();
-                } catch (JsonProcessingException e) {
+                } catch (Exception e) {
                     return Response.status(status)
                             .header(CONTENT_TYPE, MediaType.APPLICATION_JSON + CHARSET_UTF)
                             .entity(result).build();

@@ -18,64 +18,38 @@
 
 package org.platformlambda.core.serializers;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.google.gson.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.*;
 
 public class SimpleMapper {
     private static final Logger log = LoggerFactory.getLogger(SimpleMapper.class);
 
     private static final String SNAKE_CASE_SERIALIZATION = "snake.case.serialization";
-    private static final ObjectMapper mapper = new ObjectMapper();
     private static final Set<String> safeModels = new HashSet<>();
     private static final String[] SAFE_GROUPS = {"java.util.", "java.lang."};
     private static final SimpleMapper instance = new SimpleMapper();
+    private SimpleObjectMapper mapper;
 
     private SimpleMapper() {
-        // Setup features
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        mapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-        mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        mapper.configure(SerializationFeature.WRITE_ENUMS_USING_TO_STRING, true);
-        mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        // Ignore null values
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        // All 64 bit fields should be quoted. Use StringSerializer for them.
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(Long.class, new ToStringSerializer());
-        module.addSerializer(Double.class, new ToStringSerializer());
-        // ISO-8601 date serializer
-        mapper.setDateFormat(new FastDateFormatter());
-        // Special treatment for SQL date which normally truncate the HH:mm:ss portion instead of ISO 8601 format
-        module.addSerializer(java.sql.Date.class, new IsoDateSerializer());
-        // ISO-8601 date deSerializer
-        module.addDeserializer(Date.class, new IsoDateDeserializer());
-        // register the module
-        mapper.registerModule(module);
+        // Camel or snake case
         AppConfigReader config = AppConfigReader.getInstance();
         boolean snake = config.getProperty(SNAKE_CASE_SERIALIZATION, "true").equals("true");
         if (snake) {
-            mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
+        Gson regularEngine = getJson(true, snake);
+        Gson objectEngine = getJson(false, snake);
+        this.mapper = new SimpleObjectMapper(regularEngine, objectEngine);
         /*
-         * This avoids a security vulnerability that input JSON string may contain arbitrary Java class name
-         */
-        mapper.disableDefaultTyping();
-        /*
-         * load white list for authorized PoJo
+         * Optionally, load white list for authorized PoJo
          */
         AppConfigReader reader = AppConfigReader.getInstance();
         String models = reader.getProperty("safe.data.models");
@@ -88,19 +62,58 @@ public class SimpleMapper {
         }
     }
 
+    private Gson getJson(boolean numberAsString, boolean snake) {
+        GsonBuilder builder = new GsonBuilder();
+        // UTC date
+        builder.registerTypeAdapter(Date.class, new UtcSerializer());
+        builder.registerTypeAdapter(Date.class, new UtcDeserializer());
+        // SQL date
+        builder.registerTypeAdapter(java.sql.Date.class, new SqlDateSerializer());
+        builder.registerTypeAdapter(java.sql.Date.class, new SqlDateDeserializer());
+        builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeSerializer());
+        builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeDeserializer());
+        // Numbers
+        if (numberAsString) {
+            builder.registerTypeAdapter(Byte.class, new ByteSerializer());
+            builder.registerTypeAdapter(Byte.class, new ByteDeserializer());
+            builder.registerTypeAdapter(Short.class, new ShortSerializer());
+            builder.registerTypeAdapter(Short.class, new ShortDeserializer());
+            builder.registerTypeAdapter(Integer.class, new IntegerSerializer());
+            builder.registerTypeAdapter(Integer.class, new IntegerDeserializer());
+            builder.registerTypeAdapter(Float.class, new FloatSerializer());
+            builder.registerTypeAdapter(Float.class, new FloatDeserializer());
+        }
+        // 64-bit numbers, BigInteger and BigDecimal are serialized as Strings
+        builder.registerTypeAdapter(Long.class, new LongSerializer());
+        builder.registerTypeAdapter(Long.class, new LongDeserializer());
+        builder.registerTypeAdapter(Double.class, new DoubleSerializer());
+        builder.registerTypeAdapter(Double.class, new DoubleDeserializer());
+        builder.registerTypeAdapter(BigInteger.class, new BigIntegerSerializer());
+        builder.registerTypeAdapter(BigInteger.class, new BigIntegerDeserializer());
+        builder.registerTypeAdapter(BigDecimal.class, new BigDecimalSerializer());
+        builder.registerTypeAdapter(BigDecimal.class, new BigDecimalDeserializer());
+        // Indent JSON output
+        builder.setPrettyPrinting();
+        // Camel or snake case
+        if (snake) {
+            builder.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES);
+        }
+        return builder.create();
+    }
+
     public static SimpleMapper getInstance() {
         return instance;
     }
 
-    public ObjectMapper getMapper() {
+    public SimpleObjectMapper getMapper() {
         return mapper;
     }
 
-    public ObjectMapper getWhiteListMapper(Class<?> cls) {
+    public SimpleObjectMapper getWhiteListMapper(Class<?> cls) {
         return getWhiteListMapper(cls.getTypeName());
     }
 
-    public ObjectMapper getWhiteListMapper(String clsName) {
+    public SimpleObjectMapper getWhiteListMapper(String clsName) {
         if (permittedDataModel(clsName)) {
             return mapper;
         } else {
@@ -132,5 +145,190 @@ public class SimpleMapper {
         }
         return false;
     }
+
+    /// Custom serializers ///
+
+    private class UtcSerializer implements JsonSerializer<Date> {
+
+        @Override
+        public JsonElement serialize(Date date, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(Utility.getInstance().date2str(date));
+        }
+    }
+
+    private class UtcDeserializer implements JsonDeserializer<Date> {
+
+        @Override
+        public Date deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Utility.getInstance().str2date(json.getAsString());
+        }
+    }
+
+    private class SqlDateSerializer implements JsonSerializer<java.sql.Date> {
+
+        @Override
+        public JsonElement serialize(java.sql.Date date, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(date.toString());
+        }
+    }
+
+    private class SqlDateDeserializer implements JsonDeserializer<java.sql.Date> {
+
+        @Override
+        public java.sql.Date deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            try {
+                return java.sql.Date.valueOf(json.getAsString());
+            } catch (IllegalArgumentException e) {
+                // parse input as ISO-8601
+                Date date = Utility.getInstance().str2date(json.getAsString());
+                return new java.sql.Date(date.getTime());
+            }
+        }
+    }
+
+    private class SqlTimeSerializer implements JsonSerializer<java.sql.Time> {
+
+        @Override
+        public JsonElement serialize(java.sql.Time time, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(time.toString());
+        }
+    }
+
+    private class SqlTimeDeserializer implements JsonDeserializer<java.sql.Time> {
+
+        @Override
+        public java.sql.Time deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return java.sql.Time.valueOf(json.getAsString());
+        }
+    }
+
+    private class ByteSerializer implements JsonSerializer<Byte> {
+
+        @Override
+        public JsonElement serialize(Byte number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(String.valueOf(number));
+        }
+    }
+
+    private class ByteDeserializer implements JsonDeserializer<Byte> {
+
+        @Override
+        public Byte deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Byte.parseByte(json.getAsString());
+        }
+    }
+
+    private class ShortSerializer implements JsonSerializer<Short> {
+
+        @Override
+        public JsonElement serialize(Short number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(String.valueOf(number));
+        }
+    }
+
+    private class ShortDeserializer implements JsonDeserializer<Short> {
+
+        @Override
+        public Short deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Short.parseShort(json.getAsString());
+        }
+    }
+
+    private class IntegerSerializer implements JsonSerializer<Integer> {
+
+        @Override
+        public JsonElement serialize(Integer number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(String.valueOf(number));
+        }
+    }
+
+    private class IntegerDeserializer implements JsonDeserializer<Integer> {
+
+        @Override
+        public Integer deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Integer.parseInt(json.getAsString());
+        }
+    }
+
+    private class LongSerializer implements JsonSerializer<Long> {
+
+        @Override
+        public JsonElement serialize(Long number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(String.valueOf(number));
+        }
+    }
+
+    private class LongDeserializer implements JsonDeserializer<Long> {
+
+        @Override
+        public Long deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Long.parseLong(json.getAsString());
+        }
+    }
+
+    private class FloatSerializer implements JsonSerializer<Float> {
+
+        @Override
+        public JsonElement serialize(Float number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(number.toString());
+        }
+    }
+
+    private class FloatDeserializer implements JsonDeserializer<Float> {
+
+        @Override
+        public Float deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Float.parseFloat(json.getAsString());
+        }
+    }
+
+    private class DoubleSerializer implements JsonSerializer<Double> {
+
+        @Override
+        public JsonElement serialize(Double number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(number.toString());
+        }
+    }
+
+    private class DoubleDeserializer implements JsonDeserializer<Double> {
+
+        @Override
+        public Double deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Double.parseDouble(json.getAsString());
+        }
+    }
+
+    private class BigIntegerSerializer implements JsonSerializer<BigInteger> {
+
+        @Override
+        public JsonElement serialize(BigInteger number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(number.toString());
+        }
+    }
+
+    private class BigIntegerDeserializer implements JsonDeserializer<BigInteger> {
+
+        @Override
+        public BigInteger deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return new BigInteger(json.getAsString());
+        }
+    }
+
+    private class BigDecimalSerializer implements JsonSerializer<BigDecimal> {
+
+        @Override
+        public JsonElement serialize(BigDecimal number, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(number.toString());
+        }
+    }
+
+    private class BigDecimalDeserializer implements JsonDeserializer<BigDecimal> {
+
+        @Override
+        public BigDecimal deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return new BigDecimal(json.getAsString());
+        }
+    }
+
 
 }

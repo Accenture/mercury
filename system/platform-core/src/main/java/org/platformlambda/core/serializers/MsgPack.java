@@ -53,7 +53,7 @@ public class MsgPack {
                 if (map.size() == 2 && map.containsKey(DATA)) {
                     try {
                         return converter.decode(new TypedPayload((String) map.get(TYPE), map.get(DATA)));
-                    } catch (ClassNotFoundException | IOException e) {
+                    } catch (ClassNotFoundException e) {
                         return map.get(DATA);
                     }
                 }

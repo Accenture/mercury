@@ -20,17 +20,14 @@ package org.platformlambda.core.util;
 
 import org.junit.Test;
 
-import java.io.IOException;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ServiceNameTest {
 
     private static final Utility util = Utility.getInstance();
 
     @Test
-    public void filterName() throws IOException {
+    public void filterName() {
         String valid = "hello.world";
         String invalid = "hello.wor?ld";
         String dotted = "..."+invalid;
@@ -41,13 +38,14 @@ public class ServiceNameTest {
     }
 
     @Test
-    public void validName() throws IOException {
+    public void validName() {
         String windowsMetafile = "thumbs.db";
         String windowsExt = "hello.com";
         String valid = "com.hello";
         assertTrue(util.reservedFilename(windowsMetafile));
         assertTrue(util.reservedExtension(windowsExt));
-        assertEquals(false, util.reservedExtension(valid));
+        assertFalse(util.reservedExtension(valid));
+
     }
 
 }

@@ -18,13 +18,12 @@
 
 package org.platformlambda.core.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import javax.websocket.CloseReason;
 import javax.websocket.Session;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -40,6 +39,7 @@ public class WsTransmitter implements LambdaFunction {
     public static final String MESSAGE = "message";
     private Session session;
     private byte[] sessionKey;
+    private SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -76,7 +76,6 @@ public class WsTransmitter implements LambdaFunction {
             }
         } else {
             if (session != null && session.isOpen()) {
-                ObjectMapper mapper = SimpleMapper.getInstance().getMapper();
                 session.getBasicRemote().sendText(mapper.writeValueAsString(body));
             }
         }

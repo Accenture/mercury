@@ -24,12 +24,9 @@ import org.platformlambda.core.util.models.ObjectWithGenericType;
 import org.platformlambda.core.util.models.PoJo;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class GenericTypeTest {
 
@@ -100,10 +97,12 @@ public class GenericTypeTest {
     @Test
     @SuppressWarnings("unchecked")
     public void invalidParametricType() throws IOException {
-        int id = 100;
+        Utility util = Utility.getInstance();
+        int id = 123;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
         PoJo pojo = new PoJo();
+        pojo.setNumber(id);
         pojo.setName(name);
         genericObject.setContent(pojo);
         genericObject.setId(id);
@@ -116,13 +115,14 @@ public class GenericTypeTest {
         EventEnvelope result = new EventEnvelope();
         result.load(b);
 
-        // when parametricType is incorrect, it will fall back to a Map
+        // When parametricType is incorrect, it will fall back to a map.
         Object o = result.getBody();
-        assertTrue(o instanceof HashMap);
-        // and we can retrieve the correct key-values
-        MultiLevelMap m = new MultiLevelMap((Map<String, Object>) o);
-        assertEquals(id, m.getElement("id"));
-        assertEquals(name, m.getElement("content.name"));
+        assertTrue(o instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map) o);
+        assertEquals(name, map.getElement("content.name"));
+        // numbers are encoded as string in map
+        assertEquals(id, util.str2int(map.getElement("id").toString()));
+        assertEquals(id, util.str2int(map.getElement("content.number").toString()));
     }
 
 }

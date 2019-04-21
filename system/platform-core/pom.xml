@@ -7,7 +7,7 @@
     <artifactId>platform-core</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.11.35</version>
+    <version>1.11.36</version>
     <name>Mercury core library</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -59,16 +59,11 @@
             <version>1.24</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.9.8</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.9.8</version>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.5</version>
         </dependency>
 
         <!-- the Mercury system has been tested with Jetty, Tomcat and Undertow.

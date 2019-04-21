@@ -29,6 +29,7 @@ import java.security.KeyPair;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class CryptoTest {
     private static final Logger log = LoggerFactory.getLogger(CryptoTest.class);
@@ -68,7 +69,8 @@ public class CryptoTest {
         byte[] encrypted = crypto.rsaEncrypt(input, pub);
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
-        assertEquals(true, Arrays.equals(input, decrypted));
+        // cannot use assertEquals because we are comparing byte-by-byte
+        assertTrue(Arrays.equals(input, decrypted));
     }
 
     @Test
@@ -79,7 +81,7 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.dsaSign(data, pri);
         boolean result = crypto.dsaVerify(data, signature, pub);
-        assertEquals(true, result);
+        assertTrue(result);
     }
 
     @Test
@@ -90,7 +92,7 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.rsaSign(data, pri);
         boolean result = crypto.rsaVerify(data, signature, pub);
-        assertEquals(true, result);
+        assertTrue(result);
     }
 
     @Test

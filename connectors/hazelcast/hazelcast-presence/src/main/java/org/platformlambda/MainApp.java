@@ -76,11 +76,9 @@ public class MainApp implements EntryPoint {
 
     private void setupHazelcast() throws IOException {
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         String topic = HazelcastSetup.getNamespace()+"monitor";
         client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(topic));
-
         // setup producer
         platform.registerPrivate(PRESENCE_MONITOR, new PresenceProducer(client), 1);
         // setup presence handler

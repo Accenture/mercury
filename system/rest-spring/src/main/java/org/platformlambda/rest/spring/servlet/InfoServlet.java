@@ -77,7 +77,7 @@ public class InfoServlet extends HttpServlet {
     private static final String JAR = ".jar";
     private static final String ZEROS = "0000000000";
 
-    private static final Map<String, Object> libs = new HashMap<>();
+    private static final List<String> libs = new ArrayList<>();
     private static boolean scanLib = true;
 
     @Override
@@ -114,9 +114,9 @@ public class InfoServlet extends HttpServlet {
                 int size = list.size();
                 int n = 0;
                 for (String f: list) {
-                    libs.put(zeroFill(++n, size), f);
+                    libs.add(zeroFill(++n, size) + ". " + f);
                 }
-                libs.put(TOTAL, list.size());
+                libs.add(TOTAL + ": " + list.size());
             }
             result.put(LIBRARY, libs);
 
@@ -253,7 +253,7 @@ public class InfoServlet extends HttpServlet {
     }
 
     @SuppressWarnings("unchecked")
-    public void normalize(Map<String, Object> data) {
+    private void normalize(Map<String, Object> data) {
         List<String> keys = new ArrayList<>(data.keySet());
         for (String k: keys) {
             Object o = data.get(k);

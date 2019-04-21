@@ -18,13 +18,10 @@
 
 package org.platformlambda.core.serializers;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -52,7 +49,7 @@ public class PayloadMapper {
         return instance;
     }
 
-    public TypedPayload encode(Object obj, boolean binary) throws IOException {
+    public TypedPayload encode(Object obj, boolean binary) {
         if (obj == null) {
             return new TypedPayload(NOTHING, null);
         } else if (obj instanceof Map) {
@@ -82,17 +79,18 @@ public class PayloadMapper {
         } else if (isPrimitive(obj)) {
             return new TypedPayload(PRIMITIVE, obj);
         } else {
+            SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
             // convert PoJo to typed payload (type and encoded map)
             if (binary) {
-                return new TypedPayload(obj.getClass().getName(), SimpleMapper.getInstance().getMapper().convertValue(obj, Map.class));
+                return new TypedPayload(obj.getClass().getName(), mapper.readValue(obj, Map.class));
             } else {
-                return new TypedPayload(obj.getClass().getName(), SimpleMapper.getInstance().getMapper().writeValueAsBytes(obj));
+                return new TypedPayload(obj.getClass().getName(), mapper.writeValueAsBytes(obj));
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    public Object decode(TypedPayload typed) throws ClassNotFoundException, IOException {
+    public Object decode(TypedPayload typed) throws ClassNotFoundException {
         String type = typed.getType();
         if (NOTHING.equals(type)) {
             return null;
@@ -113,8 +111,9 @@ public class PayloadMapper {
             Class<?> cls = getClassByName(type);
             if (cls != null) {
                 List<String> paraClass = Utility.getInstance().split(typed.getParametricType(), ", ");
+                SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
                 if (paraClass.isEmpty()) {
-                    return decode(cls, typed.getPayload());
+                    return mapper.readValue(typed.getPayload(), cls);
                 } else {
                     Class<?>[] paraClsList = new Class<?>[paraClass.size()];
                     for (int i=0; i < paraClass.size(); i++) {
@@ -124,8 +123,7 @@ public class PayloadMapper {
                         }
                         paraClsList[i] = pc;
                     }
-                    TypeFactory factory = SimpleMapper.getInstance().getMapper().getTypeFactory();
-                    return decode(factory.constructParametricType(cls, paraClsList), typed.getPayload());
+                    return mapper.restoreGeneric(typed.getPayload(), cls, paraClsList);
                 }
             } else {
                 throw new ClassNotFoundException(type+" not found");
@@ -153,26 +151,6 @@ public class PayloadMapper {
         } catch (ClassNotFoundException e) {
             cache.put(name, false);
             return null;
-        }
-    }
-
-    private Object decode(Class<?> cls, Object payload) throws IOException {
-        if (payload instanceof Map) {
-            return SimpleMapper.getInstance().getMapper().convertValue(payload, cls);
-        } else if (payload instanceof byte[]) {
-            return SimpleMapper.getInstance().getMapper().readValue((byte[]) payload, cls);
-        } else {
-            throw new IOException("Unable to restore to "+cls.getName()+" because payload is not byte array or map");
-        }
-    }
-
-    private Object decode(JavaType type, Object payload) throws IOException {
-        if (payload instanceof Map) {
-            return SimpleMapper.getInstance().getMapper().convertValue(payload, type);
-        } else if (payload instanceof byte[]) {
-            return SimpleMapper.getInstance().getMapper().readValue((byte[]) payload, type);
-        } else {
-            throw new IOException("Unable to restore to "+type+" because payload is not byte array or map");
         }
     }
 

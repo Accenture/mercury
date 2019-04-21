@@ -20,8 +20,7 @@ package org.platformlambda.core.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ServiceNameTest {
 
@@ -45,7 +44,7 @@ public class ServiceNameTest {
         String valid = "com.hello";
         assertTrue(util.reservedFilename(windowsMetafile));
         assertTrue(util.reservedExtension(windowsExt));
-        assertEquals(false, util.reservedExtension(valid));
+        assertFalse(util.reservedExtension(valid));
     }
 
 }

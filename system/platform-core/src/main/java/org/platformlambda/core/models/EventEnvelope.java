@@ -316,7 +316,7 @@ public class EventEnvelope {
                      * assuming source and target have the same PoJo class definition.
                      */
                     if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                        log.warn("Fall back to HashMap - {}", e.getMessage());
+                        log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
                     }
                     type = (String) message.get(OBJ_TYPE);
                     body = message.get(BODY);
@@ -328,6 +328,16 @@ public class EventEnvelope {
             if (message.containsKey(ROUND_TRIP)) {
                 roundTrip = (Float) message.get(ROUND_TRIP);
             }
+        }
+    }
+
+    private String simpleError(String message) {
+        int sep = message.indexOf(": ");
+        if (sep > 3) {
+            String cls = message.substring(0, sep);
+            return cls.contains(".")? message.substring(sep+2) : message;
+        } else {
+            return message;
         }
     }
 

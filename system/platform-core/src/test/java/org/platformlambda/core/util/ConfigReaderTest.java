@@ -26,8 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ConfigReaderTest {
 
@@ -126,7 +125,7 @@ public class ConfigReaderTest {
         assertEquals(input, o);
         // confirm added only one key at the top level
         assertEquals(size+1, formatter.getMap().size());
-        assertEquals(null, formatter.getElement(goodArray+"[0]"));
+        assertNull(formatter.getElement(goodArray+"[0]"));
         assertEquals(message, formatter.getElement(goodArray+"[1]"));
 
         o = formatter.getElement(uuid);

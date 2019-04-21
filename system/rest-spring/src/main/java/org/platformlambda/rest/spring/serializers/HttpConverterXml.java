@@ -18,8 +18,8 @@
 
 package org.platformlambda.rest.spring.serializers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.util.Utility;
@@ -30,6 +30,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
@@ -45,7 +46,7 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
     private static List<MediaType> types = new ArrayList<>();
 
     @Override
-    public boolean canRead(Class<?> clazz, MediaType mediaType) {
+    public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
         return mediaType != null && XML.getType().equals(mediaType.getType())
                 && XML.getSubtype().equals(mediaType.getSubtype());
     }
@@ -92,7 +93,7 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
     public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(XML);
         // this may be too late to validate because Spring RestController has already got the object
-        ObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));
@@ -102,11 +103,11 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
             Map<String, Object> map;
             if (o instanceof List) {
                 map = new HashMap<>();
-                map.put("item", mapper.convertValue(o, List.class));
+                map.put("item", mapper.readValue(o, List.class));
             } else if (o instanceof Map) {
                 map = (Map<String, Object>) o;
             } else {
-                map = mapper.convertValue(o, Map.class);
+                map = mapper.readValue(o, Map.class);
             }
             String root = o.getClass().getSimpleName().toLowerCase();
             String result = map2xml.write(root, map);

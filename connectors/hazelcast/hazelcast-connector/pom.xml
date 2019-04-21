@@ -7,7 +7,7 @@
     <artifactId>hazelcast-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.11.35</version>
+    <version>1.11.36</version>
     <name>Cloud connector for Hazelcast cluster</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -24,8 +24,8 @@
 
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
-            <version>1.11.35</version>
+            <artifactId>platform-core</artifactId>
+            <version>1.11.36</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.hazelcast/hazelcast-client -->

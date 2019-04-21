@@ -21,7 +21,6 @@ package org.platformlambda.rest.spring.system;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.rest.core.system.RestExceptionHandler;
 import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,8 +42,22 @@ public class HttpErrorHandler implements ErrorController {
     private static final String ERROR_MESSAGE = "javax.servlet.error.message";
     private static final String ERROR_EXCEPTION = "javax.servlet.error.exception";
     private static final String STATUS_CODE = "javax.servlet.error.status_code";
-
     private static final String NOT_FOUND = "Not Found";
+
+    private static final String TEMPLATE = "/errorPage.html";
+    private static final String HTTP_UNKNOWN_WARNING = "There may be a problem in processing your request";
+    private static final String HTTP_400_WARNING = "The system is unable to process your request";
+    private static final String HTTP_500_WARNING = "Something may be broken";
+    private static final String TYPE = "type";
+    private static final String ERROR = "error";
+    private static final String PATH = "path";
+    private static final String ACCEPT = "accept";
+    private static final String MESSAGE = "message";
+    private static final String STATUS = "status";
+    private static final String SET_MESSAGE = "${message}";
+    private static final String SET_PATH = "${path}";
+    private static final String SET_STATUS = "${status}";
+    private static final String SET_WARNING = "${warning}";
     private static String template;
 
     @Override
@@ -70,7 +83,7 @@ public class HttpErrorHandler implements ErrorController {
         if (status == 404 && message.length() == 0) {
             message = NOT_FOUND;
         }
-        HttpErrorHandler.sendResponse(response, status, message, path, request.getHeader(RestExceptionHandler.ACCEPT));
+        HttpErrorHandler.sendResponse(response, status, message, path, request.getHeader(ACCEPT));
     }
 
     private String getError(HttpServletRequest request) {
@@ -87,13 +100,13 @@ public class HttpErrorHandler implements ErrorController {
 
     public static void sendResponse(HttpServletResponse response, int status, String message, String path, String accept) throws IOException {
         if (template == null) {
-            template = util.stream2str(HttpErrorHandler.class.getResourceAsStream(RestExceptionHandler.TEMPLATE));
+            template = util.stream2str(HttpErrorHandler.class.getResourceAsStream(TEMPLATE));
         }
         HashMap<String, Object> error = new HashMap<>();
-        error.put(RestExceptionHandler.TYPE, RestExceptionHandler.ERROR);
-        error.put(RestExceptionHandler.MESSAGE, message);
-        error.put(RestExceptionHandler.PATH, path);
-        error.put(RestExceptionHandler.STATUS, status);
+        error.put(TYPE, ERROR);
+        error.put(MESSAGE, message);
+        error.put(PATH, path);
+        error.put(STATUS, status);
 
         String contentType;
         if (accept == null) {
@@ -110,21 +123,21 @@ public class HttpErrorHandler implements ErrorController {
         response.setCharacterEncoding(UTF8);
         response.setContentType(contentType);
         if (contentType.equals(MediaType.TEXT_HTML)) {
-            String errorPage = template.replace(RestExceptionHandler.SET_STATUS, String.valueOf(status))
-                    .replace(RestExceptionHandler.SET_PATH, path)
-                    .replace(RestExceptionHandler.SET_MESSAGE, message);
+            String errorPage = template.replace(SET_STATUS, String.valueOf(status))
+                    .replace(SET_PATH, path)
+                    .replace(SET_MESSAGE, message);
             if (status >= 500) {
-                errorPage = errorPage.replace(RestExceptionHandler.SET_WARNING, RestExceptionHandler.HTTP_500_WARNING);
+                errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);
             } else if (status >= 400) {
-                errorPage = errorPage.replace(RestExceptionHandler.SET_WARNING, RestExceptionHandler.HTTP_400_WARNING);
+                errorPage = errorPage.replace(SET_WARNING, HTTP_400_WARNING);
             } else {
-                errorPage = errorPage.replace(RestExceptionHandler.SET_WARNING, RestExceptionHandler.HTTP_UNKNOWN_WARNING);
+                errorPage = errorPage.replace(SET_WARNING, HTTP_UNKNOWN_WARNING);
             }
             response.getOutputStream().write(util.getUTF(errorPage));
         } else if (contentType.equals(MediaType.APPLICATION_JSON) || contentType.equals(MediaType.TEXT_PLAIN)) {
             response.getOutputStream().write(util.getUTF(SimpleMapper.getInstance().getMapper().writeValueAsString(error)));
         } else {
-            response.getOutputStream().write(util.getUTF(xmlWriter.write(RestExceptionHandler.ERROR, error)));
+            response.getOutputStream().write(util.getUTF(xmlWriter.write(ERROR, error)));
         }
     }
 

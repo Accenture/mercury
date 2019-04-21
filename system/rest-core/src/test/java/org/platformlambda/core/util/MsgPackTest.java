@@ -62,18 +62,16 @@ public class MsgPackTest {
 
     @Test
     public void dataIsNull() throws IOException {
-        Object input = null;
-        byte[] b = msgPack.pack(input);
+        byte[] b = msgPack.pack(null);
         Object o = msgPack.unpack(b);
-        assertEquals(input, o);
+        assertNull(o);
     }
 
     @Test
     public void dataIsBoolean() throws IOException {
-        boolean input = true;
-        byte[] b = msgPack.pack(input);
+        byte[] b = msgPack.pack(true);
         Object o = msgPack.unpack(b);
-        assertEquals(input, o);
+        assertEquals(true, o);
     }
 
     @Test

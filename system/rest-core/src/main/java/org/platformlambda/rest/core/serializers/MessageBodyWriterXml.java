@@ -65,12 +65,12 @@ public class MessageBodyWriterXml<T> implements MessageBodyWriter<T> {
             Map<String, Object> map;
             if (t instanceof List) {
                 map = new HashMap<>();
-                map.put("item", SimpleMapper.getInstance().getMapper().convertValue(t, List.class));
+                map.put("item", SimpleMapper.getInstance().getMapper().readValue(t, List.class));
             } else if (t instanceof Map) {
                 map = (Map<String, Object>) t;
             } else {
                 // it must be a class
-                map = SimpleMapper.getInstance().getWhiteListMapper(cls).convertValue(t, Map.class);
+                map = SimpleMapper.getInstance().getWhiteListMapper(cls).readValue(t, HashMap.class);
             }
             String root = cls.getSimpleName().equals("HashMap") ? "root" : cls.getSimpleName().toLowerCase();
             entityStream.write(util.getUTF(xmlWriter.write(root, map)));
