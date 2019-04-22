@@ -55,6 +55,9 @@ public class Utility {
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
+    private static final String SPRING_BOOT_LIB_PATH = "/BOOT-INF/lib/*.jar";
+    private static final String LIB_PATH = "/lib/*.jar";
+    private static final String JAR = ".jar";
     private static final String POM_LOCATION = "pom.properties.location";
     private static final String POM_PROPERTIES = "/META-INF/maven/*/*/pom.properties";
     private static final String GROUP_ID = "groupId";
@@ -82,37 +85,77 @@ public class Utility {
             ".lpt1", ".lpt2", ".lpt3", ".lpt4", ".lpt5", ".lpt6", ".lpt7", ".lpt8", ".lpt9"};
     private static final String INVALID_HEX = "Invalid hex string";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
+    private static final String ZEROS = "0000000000";
+    private static final String TOTAL = "Total";
 
     private static final VersionInfo versionInfo = new VersionInfo();
+    private static final List<String> libs = new ArrayList<>();
 
     private static final Utility instance = new Utility();
 
     @SuppressWarnings("unchecked")
     private Utility() {
-        // resolve it from /META-INF/maven/*/*/pom.properties
-        AppConfigReader reader = AppConfigReader.getInstance();
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        // Get basic application info when the system starts
+        List<String> list = new ArrayList<>();
+        PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
+        // Search Spring Boot packager lib path for dependencies
+        Resource[] res1 = new Resource[0];
         try {
-            Resource[] res = resolver.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
-            if (res.length == 1) {
-                Properties p = new Properties();
-                p.load(new ByteArrayInputStream(stream2bytes(res[0].getInputStream())));
-                if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                    versionInfo.setArtifactId(p.getProperty(ARTIFACT_ID))
-                            .setGroupId(p.getProperty(GROUP_ID))
-                            .setVersion(p.getProperty(VERSION));
-                    return;
-                }
-            }
-
+            res1 = resolver1.getResources(SPRING_BOOT_LIB_PATH);
         } catch (IOException e) {
-            // nothing we can do
+            try {
+                res1 = resolver1.getResources(LIB_PATH);
+            } catch (IOException e1) {
+                // nothing we can do
+            }
         }
-        // application is not yet packaged. Get package name from application.properties
+        for (Resource r: res1) {
+            String filename = r.getFilename();
+            if (filename != null) {
+                list.add(filename.endsWith(JAR)? filename.substring(0, filename.length()-JAR.length()) : filename);
+            }
+        }
+        /*
+         * Sort the library names in ascending order.
+         * Library listing is usually used by the application's Info admin endpoint.
+         */
+        if (list.size() > 1) {
+            Collections.sort(list);
+        }
+        if (!list.isEmpty()) {
+            int size = list.size();
+            int n = 0;
+            for (String f : list) {
+                libs.add(zeroFillLibs(++n, size) + ". " + f);
+            }
+            libs.add(TOTAL + ": " + list.size());
+        }
+        // Get default version info from application.properties
+        AppConfigReader reader = AppConfigReader.getInstance();
         String name = filteredServiceName(reader.getProperty(SPRING_APPNAME, reader.getProperty(APPNAME, DEFAULT_APPNAME)));
         versionInfo.setGroupId("unknown");
         versionInfo.setArtifactId(name);
         versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
+        // if not running in IDE, get version information from JAR
+        if (!libs.isEmpty()) {
+            // resolve it from /META-INF/maven/*/*/pom.properties
+            PathMatchingResourcePatternResolver resolver2 = new PathMatchingResourcePatternResolver();
+            try {
+                Resource[] res2 = resolver2.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
+                if (res2.length == 1) {
+                    Properties p = new Properties();
+                    p.load(new ByteArrayInputStream(stream2bytes(res2[0].getInputStream())));
+                    if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
+                        versionInfo.setArtifactId(p.getProperty(ARTIFACT_ID))
+                                   .setGroupId(p.getProperty(GROUP_ID))
+                                   .setVersion(p.getProperty(VERSION));
+                    }
+                }
+
+            } catch (IOException e) {
+                // nothing we can do
+            }
+        }
     }
 
     public static Utility getInstance() {
@@ -123,8 +166,18 @@ public class Utility {
         return versionInfo;
     }
 
+    public List<String> getLibraryList() {
+        return libs;
+    }
+
     public String getPackageName() {
         return versionInfo.getArtifactId();
+    }
+
+    private String zeroFillLibs(int n, int total) {
+        int len = String.valueOf(total).length();
+        String value = String.valueOf(n);
+        return value.length() < len? ZEROS.substring(0, len - value.length()) + value : value;
     }
 
     public String normalizeFolder(String folder) {

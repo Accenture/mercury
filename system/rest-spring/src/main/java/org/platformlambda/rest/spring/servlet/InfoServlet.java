@@ -53,6 +53,9 @@ public class InfoServlet extends HttpServlet {
     private static final String JAVA_RUNTIME_VERSION = "java.runtime.version";
     private static final String TYPE = "type";
     private static final String QUERY = "query";
+    private static final String SPRING_APPNAME = "spring.application.name";
+    private static final String APPNAME = "application.name";
+    private static final String DEFAULT_APPNAME = "application";
     private static final String APP_DESCRIPTION = "info.app.description";
     private static final String APP = "app";
     private static final String NAME = "name";
@@ -63,7 +66,6 @@ public class InfoServlet extends HttpServlet {
     private static final String MAX = "max";
     private static final String ALLOCATED = "allocated";
     private static final String FREE = "free";
-    private static final String TOTAL = "total";
     private static final String ORIGIN = "origin";
     private static final String ROUTING = "routing";
     private static final String LIST_ROUTES = "/routes";
@@ -72,25 +74,22 @@ public class InfoServlet extends HttpServlet {
     private static final String CLOUD_CONNECTOR = "cloud.connector";
     private static final String TIME = "time";
     private static final String LIBRARY = "library";
-    private static final String SPRING_BOOT_LIB_PATH = "/BOOT-INF/lib/*.jar";
-    private static final String LIB_PATH = "/lib/*.jar";
-    private static final String JAR = ".jar";
-    private static final String ZEROS = "0000000000";
-
-    private static final List<String> libs = new ArrayList<>();
-    private static boolean scanLib = true;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-
         Platform platform = Platform.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
+        String name = config.getProperty(SPRING_APPNAME, config.getProperty(APPNAME, DEFAULT_APPNAME));
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
 
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> app = new HashMap<>();
         VersionInfo info = Utility.getInstance().getVersionInfo();
         result.put(APP, app);
+        /*
+         * When running inside IDE, there are no information about libraries
+         * so it is better to take the application name from the application.properties
+         */
         app.put(NAME, info.getArtifactId());
         app.put(VERSION, info.getVersion());
         app.put(DESCRIPTION, description);
@@ -108,17 +107,7 @@ public class InfoServlet extends HttpServlet {
                 return;
             }
         } else if (LIB.equals(request.getPathInfo())) {
-            if (scanLib) {
-                scanLib = false;
-                List<String> list = getLibs();
-                int size = list.size();
-                int n = 0;
-                for (String f: list) {
-                    libs.add(zeroFill(++n, size) + ". " + f);
-                }
-                libs.add(TOTAL + ": " + list.size());
-            }
-            result.put(LIBRARY, libs);
+            result.put(LIBRARY, Utility.getInstance().getLibraryList());
 
         } else if (request.getPathInfo() == null) {
             // java VM information
@@ -167,38 +156,6 @@ public class InfoServlet extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("utf-8");
         response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
-    }
-
-    private String zeroFill(int n, int total) {
-        int len = String.valueOf(total).length();
-        String value = String.valueOf(n);
-        return value.length() < len? ZEROS.substring(0, len - value.length()) + value : value;
-    }
-
-    private List<String> getLibs() {
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        // search Spring Boot packager lib path
-        Resource[] res = new Resource[0];
-        try {
-            res = resolver.getResources(SPRING_BOOT_LIB_PATH);
-        } catch (IOException e) {
-            try {
-                res = resolver.getResources(LIB_PATH);
-            } catch (IOException e1) {
-                // nothing we can do
-            }
-        }
-        List<String> result = new ArrayList<>();
-        for (Resource r: res) {
-            String filename = r.getFilename();
-            if (filename != null) {
-                result.add(filename.endsWith(JAR)? filename.substring(0, filename.length()-JAR.length()) : filename);
-            }
-        }
-        if (result.size() > 1) {
-            Collections.sort(result);
-        }
-        return result;
     }
 
     private void updateResult(String service, Map<String, Object> result) {
