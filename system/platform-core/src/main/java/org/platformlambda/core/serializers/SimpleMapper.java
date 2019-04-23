@@ -74,7 +74,7 @@ public class SimpleMapper {
         builder.registerTypeAdapter(java.sql.Date.class, new SqlDateDeserializer());
         builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeSerializer());
         builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeDeserializer());
-        // Numbers
+        // Numbers are converted to string otherwise Gson will turn them into double with a decimal point
         if (numberAsString) {
             builder.registerTypeAdapter(Byte.class, new ByteSerializer());
             builder.registerTypeAdapter(Byte.class, new ByteDeserializer());
@@ -85,7 +85,7 @@ public class SimpleMapper {
             builder.registerTypeAdapter(Float.class, new FloatSerializer());
             builder.registerTypeAdapter(Float.class, new FloatDeserializer());
         }
-        // 64-bit numbers, BigInteger and BigDecimal are serialized as Strings
+        // 64-bit numbers, BigInteger and BigDecimal are serialized as Strings so Javascript clients can parse them
         builder.registerTypeAdapter(Long.class, new LongSerializer());
         builder.registerTypeAdapter(Long.class, new LongDeserializer());
         builder.registerTypeAdapter(Double.class, new DoubleSerializer());
