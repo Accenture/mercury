@@ -45,9 +45,11 @@ public class SimpleMapper {
         if (snake) {
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
+        // regularEngine converts numbers into Strings to preserve math precision
         Gson regularEngine = getJson(true, snake);
-        Gson objectEngine = getJson(false, snake);
-        this.mapper = new SimpleObjectMapper(regularEngine, objectEngine);
+        Gson jsonReader = getJsonReader();
+        Gson jsonWriter = getJson(false, snake);
+        this.mapper = new SimpleObjectMapper(regularEngine, jsonReader, jsonWriter);
         /*
          * Optionally, load white list for authorized PoJo
          */
@@ -98,6 +100,14 @@ public class SimpleMapper {
         if (snake) {
             builder.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES);
         }
+        return builder.create();
+    }
+
+    private Gson getJsonReader() {
+        // this reader is used to parse a JSON string into Map or List
+        GsonBuilder builder = new GsonBuilder();
+        builder.registerTypeAdapter(Map.class, new MapDeserializer());
+        builder.registerTypeAdapter(List.class, new ListDeserializer());
         return builder.create();
     }
 
@@ -327,6 +337,107 @@ public class SimpleMapper {
         @Override
         public BigDecimal deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
             return new BigDecimal(json.getAsString());
+        }
+    }
+
+    private class MapDeserializer implements JsonDeserializer<Map> {
+
+        @Override
+        public Map deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            if (json.isJsonObject()) {
+                return scan(json.getAsJsonObject());
+            } else {
+                return new HashMap();
+            }
+        }
+    }
+
+    private class ListDeserializer implements JsonDeserializer<List> {
+
+        @Override
+        public List deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            if (json.isJsonArray()) {
+                return scan(json.getAsJsonArray());
+            } else {
+                return new ArrayList();
+            }
+        }
+    }
+
+    private Map scan(JsonObject o) {
+        Map<String, Object> result = new HashMap<>();
+        for (String k: o.keySet()) {
+            if (!o.get(k).isJsonNull()) {
+                if (o.get(k).isJsonObject()) {
+                    result.put(k, scan(o.get(k).getAsJsonObject()));
+                } else if (o.get(k).isJsonArray()) {
+                    result.put(k, scan(o.get(k).getAsJsonArray()));
+                } else if (o.get(k).isJsonPrimitive()) {
+                    JsonPrimitive p = o.get(k).getAsJsonPrimitive();
+                    if (p.isBoolean()) {
+                        result.put(k, p.getAsBoolean());
+                    }
+                    if (p.isString()) {
+                        result.put(k, p.getAsString());
+                    }
+                    if (p.isNumber()) {
+                        String number = p.getAsString();
+                        if (number.contains(".")) {
+                            result.put(k, floatOrDouble(p.getAsDouble()));
+                        } else {
+                            result.put(k, intOrLong(p.getAsLong()));
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List scan(JsonArray array) {
+        List result = new ArrayList();
+        for (JsonElement o: array) {
+            if (o.isJsonNull()) {
+                result.add(null);
+            } else if (o.isJsonObject()) {
+                result.add(scan(o.getAsJsonObject()));
+            } else if (o.isJsonArray()) {
+                result.add(scan(o.getAsJsonArray()));
+            } else if (o.isJsonPrimitive()) {
+                JsonPrimitive p = o.getAsJsonPrimitive();
+                if (p.isBoolean()) {
+                    result.add(p.getAsBoolean());
+                }
+                if (p.isString()) {
+                    result.add(p.getAsString());
+                }
+                if (p.isNumber()) {
+                    String number = p.getAsString();
+                    if (number.contains(".")) {
+                        result.add(floatOrDouble(p.getAsDouble()));
+                    } else {
+                        result.add(intOrLong(p.getAsLong()));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private Object intOrLong(long number) {
+        if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
+            return number;
+        } else {
+            return (int) number;
+        }
+    }
+
+    private Object floatOrDouble(double number) {
+        if (number < Float.MIN_VALUE || number > Float.MAX_VALUE) {
+            return number;
+        } else {
+            return (float) number;
         }
     }
 
