@@ -30,6 +30,7 @@ import javax.websocket.CloseReason;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -594,20 +595,12 @@ public class Utility {
 
     public byte[] getUTF(String str) {
         if (str == null || str.length() == 0) return new byte[0];
-        try {
-            return str.getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return str.getBytes();
-        }
+        return str.getBytes(StandardCharsets.UTF_8);
     }
 
     public String getUTF(byte[] b) {
         if (b == null || b.length == 0) return "";
-        try {
-            return new String(b, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return new String(b);
-        }
+        return new String(b, StandardCharsets.UTF_8);
     }
 
     /**
@@ -653,7 +646,6 @@ public class Utility {
             }
             if (str.charAt(i) == '.' || str.charAt(i) == '_' || str.charAt(i) == '-') {
                 sb.append(str.charAt(i));
-                continue;
             }
         }
         return sb.toString();
@@ -701,7 +693,6 @@ public class Utility {
         }
         /*
          * Support multiple variance of ISO-8601
-         * (SQL time is not supported)
          *
          * 1. 2015-01-06
          * 2. 2015-01-06 01:02:03
@@ -739,11 +730,9 @@ public class Utility {
                 sep = str.indexOf('-', 19);
             }
             String ms = get3digitMs(sep > 0? str.substring(dot, sep) : str.substring(dot));
-            str = sep == -1? str.substring(0, dot) + ms : str.substring(0, dot) + ms + str.substring(sep);
-        }
-        // normalize UTC offset 00:00 to 0000 (remove colon character)
-        if (str.length() == 25) {
-            str = str.substring(0, 22) + str.substring(23);
+            // remove colon from timezone
+            String timezone = sep == -1? "+0000" : str.substring(sep).replace(":", "");
+            str = str.substring(0, dot) + ms + timezone;
         }
         // parse the normalized time string
         try {
@@ -769,11 +758,10 @@ public class Utility {
     private String get3digitMs(String s) {
         if (s.length() == 4) {
             return s;
+        } else {
+            String ms = String.format("%.03f", Float.parseFloat(s));
+            return ms.substring(ms.indexOf('.'));
         }
-        if (s.length() > 4) {
-            return s.substring(0, 4);
-        }
-        return s + ZERO_MS.substring(0, 4 - s.length());
     }
 
     //////////////////////////////////////

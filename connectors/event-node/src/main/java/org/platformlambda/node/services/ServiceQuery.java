@@ -22,6 +22,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.system.Platform;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
@@ -37,7 +38,7 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
             }
             return routes.containsKey(route);
         } else if (DOWNLOAD.equals(headers.get(TYPE))) {
-            return routes;
+            return new HashMap(routes);
         } else {
             throw new IllegalArgumentException("Usage: headers (type: find), (route: route_name)");
         }

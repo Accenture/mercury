@@ -25,6 +25,7 @@ import org.platformlambda.core.system.EventNodeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,12 +48,12 @@ public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction 
                 origins.put(origin, originEntries);
             }
             originEntries.put(route, true);
-            ConcurrentMap<String, Boolean> routeEntries = routes.get(route);
+            ConcurrentMap<String, Date> routeEntries = routes.get(route);
             if (routeEntries == null) {
                 routeEntries = new ConcurrentHashMap<>();
                 routes.put(route, routeEntries);
             }
-            routeEntries.put(origin, true);
+            routeEntries.put(origin, new Date());
             log.info("{} {}.{} registered", route, personality, origin);
             return true;
         }
@@ -82,7 +83,7 @@ public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction 
     }
 
     private void removeEntry(String origin, String route) {
-        ConcurrentMap<String, Boolean> entries = routes.get(route);
+        ConcurrentMap<String, Date> entries = routes.get(route);
         if (entries != null) {
             if (entries.containsKey(origin)) {
                 entries.remove(origin);

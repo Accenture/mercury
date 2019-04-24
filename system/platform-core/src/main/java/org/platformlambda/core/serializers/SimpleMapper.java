@@ -45,11 +45,7 @@ public class SimpleMapper {
         if (snake) {
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
-        // regularEngine converts numbers into Strings to preserve math precision
-        Gson regularEngine = getJson(true, snake);
-        Gson jsonReader = getJsonReader();
-        Gson jsonWriter = getJson(false, snake);
-        this.mapper = new SimpleObjectMapper(regularEngine, jsonReader, jsonWriter);
+        this.mapper = new SimpleObjectMapper(getJson(snake));
         /*
          * Optionally, load white list for authorized PoJo
          */
@@ -64,50 +60,38 @@ public class SimpleMapper {
         }
     }
 
-    private Gson getJson(boolean numberAsString, boolean snake) {
+    private Gson getJson(boolean snake) {
+        // configure Gson engine
         GsonBuilder builder = new GsonBuilder();
         // UTC date
         builder.registerTypeAdapter(Date.class, new UtcSerializer());
         builder.registerTypeAdapter(Date.class, new UtcDeserializer());
-        // SQL date
+        // SQL date and time
         builder.registerTypeAdapter(java.sql.Date.class, new SqlDateSerializer());
         builder.registerTypeAdapter(java.sql.Date.class, new SqlDateDeserializer());
         builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeSerializer());
         builder.registerTypeAdapter(java.sql.Time.class, new SqlTimeDeserializer());
-        // Numbers are converted to string otherwise Gson will turn them into double with a decimal point
-        if (numberAsString) {
-            builder.registerTypeAdapter(Byte.class, new ByteSerializer());
-            builder.registerTypeAdapter(Byte.class, new ByteDeserializer());
-            builder.registerTypeAdapter(Short.class, new ShortSerializer());
-            builder.registerTypeAdapter(Short.class, new ShortDeserializer());
-            builder.registerTypeAdapter(Integer.class, new IntegerSerializer());
-            builder.registerTypeAdapter(Integer.class, new IntegerDeserializer());
-            builder.registerTypeAdapter(Float.class, new FloatSerializer());
-            builder.registerTypeAdapter(Float.class, new FloatDeserializer());
-        }
-        // 64-bit numbers, BigInteger and BigDecimal are serialized as Strings so Javascript clients can parse them
-        builder.registerTypeAdapter(Long.class, new LongSerializer());
-        builder.registerTypeAdapter(Long.class, new LongDeserializer());
-        builder.registerTypeAdapter(Double.class, new DoubleSerializer());
-        builder.registerTypeAdapter(Double.class, new DoubleDeserializer());
+        // Big integer and decimal
         builder.registerTypeAdapter(BigInteger.class, new BigIntegerSerializer());
         builder.registerTypeAdapter(BigInteger.class, new BigIntegerDeserializer());
         builder.registerTypeAdapter(BigDecimal.class, new BigDecimalSerializer());
         builder.registerTypeAdapter(BigDecimal.class, new BigDecimalDeserializer());
+        /*
+         * Gson stores all numbers as Double internally.
+         * For Map and List, we want to preserve int and float as numbers and long and double as string.
+         * Since typing information for numbers are lost in a map, this is a best effort for number conversion.
+         * ie. small number in long will be converted to integer and small number in double to float.
+         *
+         * For PoJo, Gson will do the conversion correctly because there are typing information in the class.
+         */
+        builder.registerTypeAdapter(Map.class, new MapDeserializer());
+        builder.registerTypeAdapter(List.class, new ListDeserializer());
         // Indent JSON output
         builder.setPrettyPrinting();
         // Camel or snake case
         if (snake) {
             builder.setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES);
         }
-        return builder.create();
-    }
-
-    private Gson getJsonReader() {
-        // this reader is used to parse a JSON string into Map or List
-        GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeAdapter(Map.class, new MapDeserializer());
-        builder.registerTypeAdapter(List.class, new ListDeserializer());
         return builder.create();
     }
 
@@ -209,102 +193,6 @@ public class SimpleMapper {
         @Override
         public java.sql.Time deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
             return java.sql.Time.valueOf(json.getAsString());
-        }
-    }
-
-    private class ByteSerializer implements JsonSerializer<Byte> {
-
-        @Override
-        public JsonElement serialize(Byte number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(String.valueOf(number));
-        }
-    }
-
-    private class ByteDeserializer implements JsonDeserializer<Byte> {
-
-        @Override
-        public Byte deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Byte.parseByte(json.getAsString());
-        }
-    }
-
-    private class ShortSerializer implements JsonSerializer<Short> {
-
-        @Override
-        public JsonElement serialize(Short number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(String.valueOf(number));
-        }
-    }
-
-    private class ShortDeserializer implements JsonDeserializer<Short> {
-
-        @Override
-        public Short deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Short.parseShort(json.getAsString());
-        }
-    }
-
-    private class IntegerSerializer implements JsonSerializer<Integer> {
-
-        @Override
-        public JsonElement serialize(Integer number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(String.valueOf(number));
-        }
-    }
-
-    private class IntegerDeserializer implements JsonDeserializer<Integer> {
-
-        @Override
-        public Integer deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Integer.parseInt(json.getAsString());
-        }
-    }
-
-    private class LongSerializer implements JsonSerializer<Long> {
-
-        @Override
-        public JsonElement serialize(Long number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(String.valueOf(number));
-        }
-    }
-
-    private class LongDeserializer implements JsonDeserializer<Long> {
-
-        @Override
-        public Long deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Long.parseLong(json.getAsString());
-        }
-    }
-
-    private class FloatSerializer implements JsonSerializer<Float> {
-
-        @Override
-        public JsonElement serialize(Float number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(number.toString());
-        }
-    }
-
-    private class FloatDeserializer implements JsonDeserializer<Float> {
-
-        @Override
-        public Float deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Float.parseFloat(json.getAsString());
-        }
-    }
-
-    private class DoubleSerializer implements JsonSerializer<Double> {
-
-        @Override
-        public JsonElement serialize(Double number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(number.toString());
-        }
-    }
-
-    private class DoubleDeserializer implements JsonDeserializer<Double> {
-
-        @Override
-        public Double deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
-            return Double.parseDouble(json.getAsString());
         }
     }
 

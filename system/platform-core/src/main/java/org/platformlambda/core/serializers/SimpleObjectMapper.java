@@ -12,18 +12,16 @@ import java.util.Map;
 
 public class SimpleObjectMapper {
 
-    private Gson regularEngine, jsonReader, jsonWriter;
+    private Gson engine;
     private Utility util;
 
-    public SimpleObjectMapper(Gson regularEngine, Gson jsonReader, Gson jsonWriter) {
-        this.regularEngine = regularEngine;
-        this.jsonReader = jsonReader;
-        this.jsonWriter = jsonWriter;
+    public SimpleObjectMapper(Gson engine) {
+        this.engine = engine;
         this.util = Utility.getInstance();
     }
 
     public String writeValueAsString(Object value) {
-        return jsonWriter.toJson(value);
+        return engine.toJson(value);
     }
 
     public byte[] writeValueAsBytes(Object value) {
@@ -51,16 +49,12 @@ public class SimpleObjectMapper {
             return readJsonString(util.getUTF((byte[]) fromValue), toValueType);
         } else {
             // input is an object
-            return regularEngine.fromJson(regularEngine.toJsonTree(fromValue), toValueType);
+            return engine.fromJson(engine.toJsonTree(fromValue), toValueType);
         }
     }
 
     private <T> T readJsonString(String fromValue, Class<T> toValueType) {
-        if (isMap(toValueType) || isList(toValueType)) {
-            return jsonReader.fromJson(fromValue, toValueType);
-        } else {
-            return regularEngine.fromJson(fromValue, toValueType);
-        }
+        return engine.fromJson(fromValue, toValueType);
     }
 
     private boolean isMap(Class<?> type) {
@@ -71,13 +65,11 @@ public class SimpleObjectMapper {
         return type.equals(ArrayList.class) || type.equals(List.class);
     }
 
-
-
     public <T> T restoreGeneric(Object fromValue, Class<T> toValueType, Class<?>... args) {
         if (fromValue instanceof Map) {
-            return regularEngine.fromJson(regularEngine.toJsonTree(fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return engine.fromJson(engine.toJsonTree(fromValue), TypeToken.getParameterized(toValueType, args).getType());
         } else if (fromValue instanceof byte[]) {
-            return regularEngine.fromJson(util.getUTF((byte[]) fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return engine.fromJson(util.getUTF((byte[]) fromValue), TypeToken.getParameterized(toValueType, args).getType());
         } else {
             throw new IllegalArgumentException("Unable to restore to "+fromValue.getClass().getName()+" because payload is not byte array or map");
         }

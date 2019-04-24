@@ -79,7 +79,6 @@ public class InfoServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Platform platform = Platform.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
-        String name = config.getProperty(SPRING_APPNAME, config.getProperty(APPNAME, DEFAULT_APPNAME));
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
 
         Map<String, Object> result = new HashMap<>();
@@ -190,23 +189,15 @@ public class InfoServlet extends HttpServlet {
     }
 
     private Map<String, Object> getLocalRouting() {
-        List<String> localRoutes = new ArrayList<>();
+        Map<String, Object> result = new HashMap<>();
         Map<String, ServiceDef> map = Platform.getInstance().getLocalRoutingTable();
         for (String route: map.keySet()) {
             ServiceDef service = map.get(route);
             if (!service.isPrivate()) {
-                localRoutes.add(route);
+                result.put(route, service.getCreated());
             }
         }
-        if (!localRoutes.isEmpty()) {
-            Map<String, Object> result = new HashMap<>();
-            for (String route: localRoutes) {
-                result.put(route, true);
-            }
-            return result;
-        } else {
-            return new HashMap<>();
-        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")

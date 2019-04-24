@@ -21,6 +21,7 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.models.LambdaClient;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -52,7 +53,7 @@ public class ServiceDiscovery {
      */
     protected static final ConcurrentMap<String, LambdaClient> clients = new ConcurrentHashMap<>();
     protected static final ConcurrentMap<String, ConcurrentMap<String, Boolean>> origins = new ConcurrentHashMap<>();
-    protected static final ConcurrentMap<String, ConcurrentMap<String, Boolean>> routes = new ConcurrentHashMap<>();
+    protected static final ConcurrentMap<String, ConcurrentMap<String, Date>> routes = new ConcurrentHashMap<>();
 
     public static void createLambdaClient(String origin, String txPath) {
         clients.put(origin, new LambdaClient(txPath));
@@ -118,7 +119,7 @@ public class ServiceDiscovery {
         if (route == null) {
             return null;
         }
-        ConcurrentMap<String, Boolean> entries = routes.get(route);
+        ConcurrentMap<String, Date> entries = routes.get(route);
         if (entries == null || entries.isEmpty()) {
             return null;
         }

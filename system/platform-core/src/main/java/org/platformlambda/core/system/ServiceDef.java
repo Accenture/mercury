@@ -22,10 +22,10 @@ import akka.actor.ActorRef;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.util.Utility;
 
+import java.util.Date;
+
 public class ServiceDef {
 
-    public static final String ROUTE = "route";
-    public static final String IS_PRIVATE = "private";
     private static final int MAX_INSTANCES = 1000;
 
     private String route;
@@ -34,6 +34,7 @@ public class ServiceDef {
     private boolean isPrivate = false;
     private int instances = 1;
     private ActorRef manager;
+    private Date created = new Date();
 
     public ServiceDef(String route, LambdaFunction lambda, ActorRef manager) {
         this.id = Utility.getInstance().getUuid();
@@ -44,6 +45,10 @@ public class ServiceDef {
 
     public String getId() {
         return id;
+    }
+
+    public Date getCreated() {
+        return created;
     }
 
     public String getRoute() {
