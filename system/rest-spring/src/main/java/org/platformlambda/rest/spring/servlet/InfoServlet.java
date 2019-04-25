@@ -29,8 +29,6 @@ import org.platformlambda.core.system.ServiceDef;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -53,9 +51,6 @@ public class InfoServlet extends HttpServlet {
     private static final String JAVA_RUNTIME_VERSION = "java.runtime.version";
     private static final String TYPE = "type";
     private static final String QUERY = "query";
-    private static final String SPRING_APPNAME = "spring.application.name";
-    private static final String APPNAME = "application.name";
-    private static final String DEFAULT_APPNAME = "application";
     private static final String APP_DESCRIPTION = "info.app.description";
     private static final String APP = "app";
     private static final String NAME = "name";
