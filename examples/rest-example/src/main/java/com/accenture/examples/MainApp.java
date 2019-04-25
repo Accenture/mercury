@@ -23,7 +23,6 @@ import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;

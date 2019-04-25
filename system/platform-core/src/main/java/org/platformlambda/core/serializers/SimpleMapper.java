@@ -269,12 +269,7 @@ public class SimpleMapper {
                         result.put(k, p.getAsString());
                     }
                     if (p.isNumber()) {
-                        String number = p.getAsString();
-                        if (number.contains(".")) {
-                            result.put(k, floatOrDouble(p.getAsDouble()));
-                        } else {
-                            result.put(k, intOrLong(p.getAsLong()));
-                        }
+                        result.put(k, TypedNumber(p));
                     }
                 }
             }
@@ -301,33 +296,34 @@ public class SimpleMapper {
                     result.add(p.getAsString());
                 }
                 if (p.isNumber()) {
-                    String number = p.getAsString();
-                    if (number.contains(".")) {
-                        result.add(floatOrDouble(p.getAsDouble()));
-                    } else {
-                        result.add(intOrLong(p.getAsLong()));
-                    }
+                    result.add(TypedNumber(p));
                 }
             }
         }
         return result;
     }
 
-    private Object intOrLong(long number) {
-        if (number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
-            return number;
+    private Object TypedNumber(JsonPrimitive p) {
+        /*
+         * For conversion to map or list, type information is lost for numbers.
+         * This is a best effort to keep the numbers as int, long, float or double.
+         */
+        String number = p.getAsString();
+        if (number.contains(".")) {
+            double n = p.getAsDouble();
+            if (n < Float.MIN_VALUE || n > Float.MAX_VALUE) {
+                return n;
+            } else {
+                return (float) n;
+            }
         } else {
-            return (int) number;
+            long n = p.getAsLong();
+            if (n < Integer.MIN_VALUE || n > Integer.MAX_VALUE) {
+                return n;
+            } else {
+                return (int) n;
+            }
         }
     }
-
-    private Object floatOrDouble(double number) {
-        if (number < Float.MIN_VALUE || number > Float.MAX_VALUE) {
-            return number;
-        } else {
-            return (float) number;
-        }
-    }
-
 
 }
