@@ -194,7 +194,7 @@ if (po.exists("hello.world")) {
     // do something
 }
 
-This service discovery process should be instantaneous.
+This service discovery process is instantaneous using distributed routing table.
 
 ```
 

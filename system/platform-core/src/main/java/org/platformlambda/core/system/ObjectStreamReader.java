@@ -26,6 +26,7 @@ import org.platformlambda.core.services.ObjectStreamService;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 public class ObjectStreamReader implements Iterable<Object> {
 
@@ -148,8 +149,9 @@ public class ObjectStreamReader implements Iterable<Object> {
                         block = event.getBody();
                     }
                 }
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage());
+            } catch (AppException | IOException | TimeoutException e) {
+                // translate to RunTimeException because this method is used by an iterator
+                throw new RuntimeException(e.getMessage());
             }
         }
     }

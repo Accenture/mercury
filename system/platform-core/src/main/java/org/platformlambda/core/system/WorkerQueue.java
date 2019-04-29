@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,7 +44,7 @@ public class WorkerQueue extends AbstractActor {
 
     private PostOffice po = PostOffice.getInstance();
     private ServiceDef def;
-    private boolean isInterceptor;
+    private boolean interceptor;
     private int instance;
     private ActorRef manager;
     private boolean stopped = false;
@@ -58,7 +57,7 @@ public class WorkerQueue extends AbstractActor {
         this.def = def;
         this.instance = instance;
         this.manager = manager;
-        this.isInterceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
+        this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
         // tell manager that this worker is ready to process a new event
         manager.tell(READY, getSelf());
         log.debug("{} started", getSelf().path().name());
@@ -95,11 +94,11 @@ public class WorkerQueue extends AbstractActor {
             /*
              * If the service is an interceptor, we will pass the original event envelope instead of the message body.
              */
-            Object result = ping? null : f.handleEvent(event.getHeaders(), isInterceptor? event : event.getBody(), instance);
+            Object result = ping? null : f.handleEvent(event.getHeaders(), interceptor ? event : event.getBody(), instance);
             float diff = ping? 0 : System.nanoTime() - begin;
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
-                boolean reply = true;
+                boolean needResponse = true;
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo);
                 /*
@@ -120,10 +119,13 @@ public class WorkerQueue extends AbstractActor {
                     if (headers.isEmpty() && resultEnvelope.getBody() == null) {
                         /*
                          * When an empty EventEnvelope is used as a return type.
-                         * This means that the lambda function is designed to be one-way.
-                         * It never responds.
+                         * Post Office will skip sending response.
+                         *
+                         * This allows the lambda function to create conditional responses.
+                         * One use case is the the ObjectStreamService that is using this behavior to
+                         * simulate a READ timeout.
                          */
-                        reply = false;
+                        needResponse = false;
                     } else {
                         /*
                          * When EventEnvelope is used as a return type, the system will transport
@@ -148,7 +150,7 @@ public class WorkerQueue extends AbstractActor {
                     response.setHeader(ORIGIN, Platform.getInstance().getOrigin());
                     po.send(response);
                 } else {
-                    if (!isInterceptor && reply) {
+                    if (!interceptor && needResponse) {
                         response.setExecutionTime(diff / PostOffice.ONE_MILLISECOND);
                         po.send(response);
                     }

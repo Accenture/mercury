@@ -55,8 +55,13 @@ public class ObjectStreamTest {
         ObjectStreamWriter out = new ObjectStreamWriter(fqPath);
         out.write(messageOne);
         out.write(messageTwo);
-        // do not close output stream to demonstrate that the iterator will timeout during read
-        // out.close();
+        /*
+         * If output stream is closed, it will send an EOF signal so that the input stream reader will detect it.
+         * Otherwise, input stream reader will see a RuntimeException of timeout.
+         *
+         * For this test, we do not close the output stream to demonstrate the timeout.
+         */
+//         out.close();
 
         /*
          * get a list of all open streams and verify that the new I/O stream exists
@@ -83,13 +88,15 @@ public class ObjectStreamTest {
                         assertEquals(messageTwo, data);
                     }
                 }
-            } catch (IllegalArgumentException e) {
+            } catch (RuntimeException e) {
                 // iterator will timeout since the stream was not closed
                 assertTrue(e.getMessage().contains("timeout"));
                 assertTrue(in.isPending());
                 break;
             }
         }
+        // ensure that it has read the two messages
+        assertEquals(2, i);
         // must close input stream to release resources
         in.close();
     }

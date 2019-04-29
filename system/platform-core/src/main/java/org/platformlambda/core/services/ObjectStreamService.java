@@ -120,7 +120,11 @@ public class ObjectStreamService implements LambdaFunction {
                 PostOffice.getInstance().send(STREAM_MANAGER, new Kv(TYPE, DESTROY), new Kv(NAME, path));
             }
         }
-        // an empty event envelope => asking the Post Office to skip sending a reply to the caller
+        /*
+         * Send response as an empty event envelope.
+         * This would ask the Post Office to skip the response to the caller,
+         * thus creating an artificial timeout condition.
+         */
         return new EventEnvelope();
     }
 

@@ -13,7 +13,7 @@ Mercury has a small set of API for declaring microservices functions and sending
 7. `MultiLevelMap` - a HashMap wrapper that allows you to retrieve item using the dot-bracket syntax. e.g. map.getElement("hello.world[3]")
 8. `Utility` - a convenient singleton object for commonly methods such as UTC time string, UTF, stream, file, etc.
 10. `SimpleMapper` - a preconfigured JSON serializer.
-11. `SimpleXmlParser` and `SimpleXmlWriter` - simple XML serializer.
+11. `SimpleXmlParser` and `SimpleXmlWriter` - efficient XML serializer.
 
 ## EventEnvelope
 
