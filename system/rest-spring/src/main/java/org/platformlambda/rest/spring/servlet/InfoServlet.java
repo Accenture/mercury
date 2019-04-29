@@ -169,7 +169,7 @@ public class InfoServlet extends HttpServlet {
         if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
             EventEnvelope response;
             try {
-                response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 10000, new Kv(TYPE, DOWNLOAD));
+                response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 8000, new Kv(TYPE, DOWNLOAD));
             } catch (IOException e) {
                 // event node is down - just return local routing table
                 return getLocalRouting();

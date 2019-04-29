@@ -33,10 +33,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -535,7 +532,7 @@ public class PostOffice {
      * @throws TimeoutException if target does not respond in time
      * @throws AppException if target throws exception
      */
-    public EventEnvelope request(EventEnvelope event, long timeout) throws IOException, TimeoutException, AppException {
+    public EventEnvelope request(final EventEnvelope event, long timeout) throws IOException, TimeoutException, AppException {
         if (event == null) {
             throw new IOException("Missing outgoing event");
         }
@@ -629,6 +626,45 @@ public class PostOffice {
         List<EventEnvelope> results = inbox.getReplies();
         inbox.close();
         return results;
+    }
+
+    /**
+     * Check if a route exists.
+     *
+     * Normally, the response should be instantaneous because the cloud connector
+     * is designed to maintain a distributed routing table.
+     *
+     * However, when using Event Node as the cloud emulator, it would make a network call
+     * to discover the route.
+     *
+     * @param route name of the target service
+     * @return true or false
+     */
+    public boolean exists(String route) {
+        Platform platform = Platform.getInstance();
+        if (platform.hasRoute(route)) {
+            return true;
+        } else {
+            try {
+                if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+                    EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                            new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
+                            new Kv(ServiceDiscovery.ROUTE, route));
+                    if (response.getBody() instanceof Boolean) {
+                        return (Boolean) response.getBody();
+                    }
+                }
+            } catch (IOException | TimeoutException e) {
+                /*
+                 * This happens when the network connection is not ready.
+                 * i.e. cloud.connector is available but system.service.query is not ready.
+                 */
+            } catch (AppException e) {
+                // this should not occur
+                log.error("Unable to check route {} - ({}) {}", route, e.getStatus(), e.getMessage());
+            }
+            return false;
+        }
     }
 
 }

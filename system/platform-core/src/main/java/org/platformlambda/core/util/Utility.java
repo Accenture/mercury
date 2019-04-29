@@ -52,7 +52,6 @@ public class Utility {
     private static final String SQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH.mm.ss.SSS";
     private static final DateTimeFormatter SQL_TIMESTAMP = DateTimeFormatter.ofPattern(SQL_TIMESTAMP_FORMAT);
     private static final ZoneId UTC_TIME = ZoneId.of("UTC");
-    private static final String ZERO_MS = "000";
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
@@ -575,6 +574,28 @@ public class Utility {
             return Long.parseLong(dot > 0 ? str.substring(0, dot) : str);
         } catch (NumberFormatException e) {
             return -1;
+        }
+    }
+
+    public float str2float(String str) {
+        if (str == null || str.length() == 0) {
+            return -1.0f;
+        }
+        try {
+            return Float.parseFloat(str);
+        } catch (NumberFormatException e) {
+            return -1.0f;
+        }
+    }
+
+    public double str2double(String str) {
+        if (str == null || str.length() == 0) {
+            return -1.0d;
+        }
+        try {
+            return Double.parseDouble(str);
+        } catch (NumberFormatException e) {
+            return -1.0d;
         }
     }
 

@@ -277,7 +277,11 @@ public class EventEnvelope {
                 notes = (String) message.get(NOTES);
             }
             if (message.containsKey(STATUS)) {
-                status = (Integer) message.get(STATUS);
+                if (message.get(STATUS) instanceof Integer) {
+                    status = (Integer) message.get(STATUS);
+                } else {
+                    status = Utility.getInstance().str2int(message.get(STATUS).toString());
+                }
             }
             if (message.containsKey(HEADERS)) {
                 Map<String, String> map = (Map<String, String>) message.get(HEADERS);
@@ -323,10 +327,18 @@ public class EventEnvelope {
                 }
             }
             if (message.containsKey(EXECUTION)) {
-                executionTime = (Float) message.get(EXECUTION);
+                if (message.get(EXECUTION) instanceof Float) {
+                    executionTime = (Float) message.get(EXECUTION);
+                } else {
+                    executionTime = Utility.getInstance().str2float((message.get(EXECUTION).toString()));
+                }
             }
             if (message.containsKey(ROUND_TRIP)) {
-                roundTrip = (Float) message.get(ROUND_TRIP);
+                if (message.get(ROUND_TRIP) instanceof Float) {
+                    roundTrip = (Float) message.get(ROUND_TRIP);
+                } else {
+                    roundTrip = Utility.getInstance().str2float((message.get(ROUND_TRIP).toString()));
+                }
             }
         }
     }

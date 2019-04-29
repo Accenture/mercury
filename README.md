@@ -65,9 +65,23 @@ This is a best practice in software development. Input is fed into an anonymous 
 
 This simplifies software development and unit tests.
 
+### Terminology
+
+1. `Microservices` - Generally, we use this term to refer to an architectural pattern where business logic is encapsulated in a bounded context, the unit of service is minimalist and services are consumed in an event driven manner.
+2. `Microservices function` or simply `function` - This refers to the smallest unit that encapsulates business logic or 3rd party library. For best practice, we advocate clear separation of business logic from proprietary libraries. By wrapping 3rd party libaries as functions, we can keep the event API intact when switching to an alternative library.
+3. `Microservices module` or `microservice` - This refers to a single unit of deployment that contains at least one public function and optionally some private functions. All functions communicate with each others through a memory based event stream system within the module. Each microservices module can be independently deployed and scaled.
+4. `Microservices application` - It is a collection of microservices modules running together as a single application.
+5. `User facing endpoints` - This refers to public API for REST, websocket or other communication protocols.
+6. `Event API` - Microservices functions expose event APIs internally for inter-service communications. For example, a user facing endpoint may use REST protocol. The HTTP request is then converted to a event in a request to a microservices module.
+7. `Real-time events` - Messages that are time sensitive. e.g. RPC requests and responses.
+8. `Store-n-forward events` - Events that are not time sensitive. First, a calling function can send an event without waiting for a response. Second, the called function may not even available when the event is delivered. e.g. data pipeline applications.
+9. `Streaming events` - This refers to continuous flow of events from one function to another. Note that streaming can be either real-time or store-n-forward.
+10. `public function` - This means the function is visible to all application containers and instances in the system.
+11. `private function` - This means the function is visible only to functions in the same memory space inside an application instance.
+
 ### Post Office
 
-The Mercury framework is a SDK with some cloud connectors and language packs. There are 2 small sets of API for the Platform and the Post Office systems. The Platform API allows you to programmatically register functions with "route names". The Post Office API is used to send events from one service to another.
+The Mercury framework is a SDK with some cloud connectors and language packs. There are two small sets of API for the Platform and the Post Office systems. The Platform API allows you to programmatically register functions with "route names". The Post Office API is used to send events from one service to another.
 
 For example, the following codelet sends the text "hello world" from the caller to the function registered as "v1.some.service".
 
@@ -156,6 +170,10 @@ For ease of software development, the Event Node project can be compiled into an
 
 The Event Node is not designed for production purpose. It is a convenient tool for software development in a single laptop.
 
+`language-support`
+
+The python language pack is available in https://github.com/Accenture/mercury-python
+
 `lambda-example`
 
 This is an example project to illustrate writing microservices without using an HTTP application server.
@@ -185,6 +203,15 @@ cd ../rest-spring
 mvn clean install
 cd ../../connectors/hazelcast/hazelcast-connector
 mvn clean install
+# close the terminal
+```
+
+To support Python and other programming languages, please build the language-support application.
+
+```
+# start a terminal and go to the mercury sandbox folder
+cd language-packs/language-support
+mvn clean package
 # close the terminal
 ```
 
@@ -226,9 +253,9 @@ It will respond with some sample output like this:
     "instance" : 4,
     "origin" : "2018122170c4d0e80ef94b459763636da74d6b5f"
   },
-  "execution_time" : 0.298636,
+  "execution_time" : 0.298,
   "headers" : { },
-  "round_trip" : 0.862446,
+  "round_trip" : 0.862,
   "status" : 200
 }
 ```

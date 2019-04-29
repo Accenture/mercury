@@ -45,7 +45,6 @@ public class EventProducer implements LambdaFunction {
     private static final String BROADCAST = "broadcast";
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
     private static final String TYPE = ServiceDiscovery.TYPE;
-    private static final String HELLO = "hello";
     private static final String LOOP_BACK = "loopback";
     private static final String PONG = "pong";
     private static final String REPLY_TO = "reply_to";
@@ -78,10 +77,6 @@ public class EventProducer implements LambdaFunction {
         String origin = platform.getOrigin();
         String type = headers.get(TYPE);
         if (type != null) {
-            if (HELLO.equals(type)) {
-                // simple protocol to confirm that this is a cloud connector
-                return PostOffice.CLOUD_CONNECTOR;
-            }
             if (LOOP_BACK.equals(type) && headers.containsKey(REPLY_TO) && headers.containsKey(ORIGIN)) {
                 sendLoopback(headers.get(REPLY_TO), headers.get(ORIGIN));
             }

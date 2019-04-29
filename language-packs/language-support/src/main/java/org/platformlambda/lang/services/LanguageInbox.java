@@ -81,6 +81,7 @@ public class LanguageInbox implements LambdaFunction {
                         relay.setExecutionTime(event.getExecutionTime());
                     }
                     response.put(EVENT, LanguageConnector.mapFromEvent(relay));
+
                     byte[] payload = msgPack.pack(response);
                     int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
                     if (payload.length > maxPayload) {

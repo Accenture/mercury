@@ -376,7 +376,11 @@ public class LanguageConnector implements LambdaFunction {
             event.setNotes((String) map.get(NOTES));
         }
         if (map.containsKey(EXEC_TIME)) {
-            event.setExecutionTime((Float) map.get(EXEC_TIME));
+            if (map.get(EXEC_TIME) instanceof Float) {
+                event.setExecutionTime((Float) map.get(EXEC_TIME));
+            } else {
+                event.setExecutionTime(Utility.getInstance().str2float(map.get(EXEC_TIME).toString()));
+            }
         }
         return event;
     }

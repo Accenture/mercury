@@ -119,8 +119,9 @@ public class WorkerQueue extends AbstractActor {
                     Map<String, String> headers = resultEnvelope.getHeaders();
                     if (headers.isEmpty() && resultEnvelope.getBody() == null) {
                         /*
-                         * Is this a no-reply function?
-                         * Some lambda function is designed to be one-way. It never responds.
+                         * When an empty EventEnvelope is used as a return type.
+                         * This means that the lambda function is designed to be one-way.
+                         * It never responds.
                          */
                         reply = false;
                     } else {
@@ -147,8 +148,8 @@ public class WorkerQueue extends AbstractActor {
                     response.setHeader(ORIGIN, Platform.getInstance().getOrigin());
                     po.send(response);
                 } else {
-                    response.setExecutionTime(diff / PostOffice.ONE_MILLISECOND);
-                    if (reply) {
+                    if (!isInterceptor && reply) {
+                        response.setExecutionTime(diff / PostOffice.ONE_MILLISECOND);
                         po.send(response);
                     }
                 }
