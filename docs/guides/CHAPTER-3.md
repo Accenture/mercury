@@ -131,7 +131,7 @@ while (!in.isEof()) {
                 assertEquals(messageTwo, data);
             }
         }
-    } catch (IllegalArgumentException e) {
+    } catch (RuntimeException e) {
         // iterator will timeout since the stream was not closed
         assertTrue(e.getMessage().contains("timeout"));
         assertTrue(in.isPending());
@@ -142,6 +142,7 @@ while (!in.isEof()) {
 in.close();
 
 ```
+For option 2 (event stream), please set `application.feature.streaming=true` in application.properties.
 
 ### Broadcast
 

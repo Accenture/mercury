@@ -471,3 +471,7 @@ Change the exposed port numnber and application name accordingly. Then build the
 - Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601
 
 - UTF8 text encoding: we recommend the use of UTF8 for text strings.
+
+## Developer guide
+
+For more details, please refer to the [Developer Guide](docs/guides/TABLE-OF-CONTENTS.md)

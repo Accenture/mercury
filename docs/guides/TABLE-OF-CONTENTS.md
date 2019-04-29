@@ -12,3 +12,5 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 4 - REST and websocket](CHAPTER-4.md)
 
+[Chapter 5 - Upcoming features](CHAPTER-5.md)
+
