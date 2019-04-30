@@ -2,7 +2,7 @@
 
 ## Gson
 
-We are using Gson for its minimalist design. Gson is opinionated in the conversion of numbers. Integer and long values are converted to decimal values.
+We are using Gson for its minimalist design.
 
 We have customized its serialization behavior to be in line with Jackson and other serializers. i.e. Integer and long values are kept without decimal points.
 
