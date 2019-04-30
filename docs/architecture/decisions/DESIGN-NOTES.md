@@ -30,8 +30,8 @@ The simplest reactive design is to use the temporary file system as an overflow 
 
 # Akka
 
-We are using Akka actor as the in-memory event bus. We may migrate to Java 1.9 Flow API at a later time.
+We are using Akka actor as the in-memory event bus. We may migrate to Java 1.9 Flow API or reactive stream at a later time.
 
 # Java Futures
 
-We use Java Future for managing thread pool when executing functions.
+We use Java Future for managing thread pool that is used to execute concurrent service functions.
