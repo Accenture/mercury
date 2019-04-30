@@ -8,7 +8,7 @@ Note that Kafka is a store-n-forward commit log system. The Mercury system is us
 
 ## Language Packs
 
-The first language pack has been released with v1.11.34 for Python.
+The first language pack has been released with v1.11.38 for Python.
 
 Upcoming language packs are Node.js and Go. 
 
@@ -70,6 +70,10 @@ In the above pipeline example, output from v1.hello.world will be piped as input
 
 Mapping is useful for service versioning. When both caller and called services are version aware, they can use the versioned route name. When the caller is not version aware, we can map the generic route to a versioned route name.
 
+
+## Versioning and circuit breaker
+
+This will be available soon.
 
 ## metrics gathering and consolidation
 

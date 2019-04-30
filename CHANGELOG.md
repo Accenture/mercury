@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version 1.11.37, 4/25/2019
+## Version 1.11.38, 4/29/2019
 
 ### Added
 
@@ -20,13 +20,10 @@ N/A
 
 ### Changed
 
-for the platform-core subproject,
-1. replace Jackson serialization engine with Gson
-
-for the rest-spring subproject,
-1. replace Tomcat with Jetty for the Spring Boot component
-2. replace Apache HttpClient with Google Http Client
-3. remove Jackson dependencies from Spring Boot
+1. replace Jackson serialization engine with Gson (`platform-core` project)
+2. replace Apache HttpClient with Google Http Client (`rest-spring`)
+3. remove Jackson dependencies from Spring Boot (`rest-spring`)
+4. interceptor improvement
 
 ---
 

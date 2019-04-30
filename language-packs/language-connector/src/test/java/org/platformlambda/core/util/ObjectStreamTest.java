@@ -85,7 +85,7 @@ public class ObjectStreamTest {
                         assertEquals(messageTwo, data);
                     }
                 }
-            } catch (IllegalArgumentException e) {
+            } catch (RuntimeException e) {
                 // iterator will timeout since the stream was not closed
                 assertTrue(e.getMessage().contains("timeout"));
                 assertTrue(in.isPending());

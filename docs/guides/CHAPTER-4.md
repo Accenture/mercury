@@ -82,7 +82,7 @@ Unless you have a reason to use proprietary features of Spring Boot or Spring fr
 
 If you know what you are doing, you can use Spring Boot feature directly with the exception of the `@SpringApplication` annotation because we use the `@MainApplication` to hide the complexity of the application server. You can change the behavior of Spring Boot including auto-config classes using the `application.properties` file in the resources folder in the maven project.
 
-For security reason, we are currently using Jetty. If your organization prefers Tomcat or Undertow, please adjust the pom.xml file in the `rest-spring` and `platform-core` projects.
+We are currently using Tomcat. If your organization prefers Jetty or Undertow, please adjust the pom.xml file in the `rest-spring` and `platform-core` projects.
 
 ## application.properties
 
