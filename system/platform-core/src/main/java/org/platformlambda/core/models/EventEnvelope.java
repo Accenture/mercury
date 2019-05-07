@@ -43,6 +43,7 @@ public class EventEnvelope {
     // route paths
     private static final String TO = "T";
     private static final String REPLY_TO = "R";
+    private static final String FROM = "F";
     // status
     private static final String STATUS = "S";
     // message headers and body
@@ -59,7 +60,7 @@ public class EventEnvelope {
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
 
-    private String id, to, replyTo, cid, notes, type, parametricType;
+    private String id, from, to, replyTo, cid, notes, type, parametricType;
     private Integer status;
     private Map<String, String> headers = new HashMap<>();
     private Object body;
@@ -81,6 +82,10 @@ public class EventEnvelope {
 
     public String getTo() {
         return to;
+    }
+
+    public String getFrom() {
+        return from;
     }
 
     public String getReplyTo() {
@@ -151,6 +156,11 @@ public class EventEnvelope {
 
     public EventEnvelope setTo(String to) {
         this.to = to;
+        return this;
+    }
+
+    public EventEnvelope setFrom(String from) {
+        this.from = from;
         return this;
     }
 
@@ -267,6 +277,9 @@ public class EventEnvelope {
             if (message.containsKey(TO)) {
                 to = (String) message.get(TO);
             }
+            if (message.containsKey(FROM)) {
+                from = (String) message.get(FROM);
+            }
             if (message.containsKey(REPLY_TO)) {
                 replyTo = (String) message.get(REPLY_TO);
             }
@@ -366,6 +379,9 @@ public class EventEnvelope {
         }
         if (to != null) {
             message.put(TO, to);
+        }
+        if (from != null) {
+            message.put(FROM, from);
         }
         if (replyTo != null) {
             message.put(REPLY_TO, replyTo);

@@ -55,6 +55,7 @@ public class LanguageConnector implements LambdaFunction {
 
     private static final String ID = "id";
     private static final String TO = "to";
+    private static final String FROM = "from";
     private static final String HEADERS = "headers";
     private static final String BODY = "body";
     private static final String STATUS = "status";
@@ -348,6 +349,9 @@ public class LanguageConnector implements LambdaFunction {
         if (map.containsKey(TO)) {
             event.setTo((String) map.get(TO));
         }
+        if (map.containsKey(FROM)) {
+            event.setFrom((String) map.get(FROM));
+        }
         if (map.containsKey(STATUS)) {
             event.setStatus((Integer) map.get(STATUS));
         }
@@ -390,6 +394,9 @@ public class LanguageConnector implements LambdaFunction {
         result.put(ID, event.getId());
         if (event.getTo() != null) {
             result.put(TO, event.getTo());
+        }
+        if (event.getFrom() != null) {
+            result.put(FROM, event.getFrom());
         }
         if (event.hasError()) {
             result.put(STATUS, event.getStatus());

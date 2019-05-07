@@ -101,6 +101,7 @@ public class WorkerQueue extends AbstractActor {
                 boolean needResponse = true;
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo);
+                response.setFrom(def.getRoute());
                 /*
                  * Preserve correlation ID and notes
                  *
@@ -170,9 +171,10 @@ public class WorkerQueue extends AbstractActor {
                 status = 500;
             }
             String replyTo = event.getReplyTo();
-            if (replyTo != null) {
+            if (!interceptor && replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
+                response.setFrom(def.getRoute());
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
                 }
