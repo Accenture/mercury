@@ -99,4 +99,4 @@ In additon to the parameters defined by Spring Boot, the Mercury framework uses 
 
 | Chapter-5                                | Home                                     |
 | :---------------------------------------:|:----------------------------------------:|
-| [Upcoming features](CHAPTER-5.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| [application.properties](CHAPTER-5.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|

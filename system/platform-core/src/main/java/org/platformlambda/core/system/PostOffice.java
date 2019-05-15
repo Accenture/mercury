@@ -46,15 +46,33 @@ public class PostOffice {
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String EVENT_NODE = "event.node";
-    private static final PostOffice instance = new PostOffice();
+    private static final String ROUTE_SUBSTITUTION = "route.substitution";
+    private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ManagedCache cache = ManagedCache.createCache("sys.missing.broadcast", 5000);
-    private boolean isEventNode;
+    private boolean isEventNode, substituteRoutes;
+    private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
         AppConfigReader config = AppConfigReader.getInstance();
         isEventNode = config.getProperty(CLOUD_CONNECTOR, "event.node").equals("event.node");
+        substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
+        if (substituteRoutes) {
+            // load route substitution list from application.properties
+            List<String> substitutionList = Utility.getInstance().split(config.getProperty(ROUTE_SUBSTITUTION, ""), ", ");
+            for (String entry : substitutionList) {
+                int colon = entry.indexOf(':');
+                String route = entry.substring(0, colon).trim();
+                String replacement = entry.substring(colon + 1).trim();
+                try {
+                    addRouteSubstitution(route, replacement);
+                } catch (IllegalArgumentException e) {
+                    log.error("Unable to add route substitution {} - {}", entry, e.getMessage());
+                }
+            }
+        }
     }
 
     public static PostOffice getInstance() {
@@ -251,10 +269,12 @@ public class PostOffice {
      * @throws IOException if route not found or invalid parameters
      */
     public String sendLater(final EventEnvelope event, Date future) throws IOException {
-        String to = event.getTo();
-        if (to == null) {
+        String dest = event.getTo();
+        if (dest == null) {
             throw new IOException("Missing routing path");
         }
+        String to = substituteRouteIfNeeded(dest);
+        event.setTo(to);
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
         long interval = futureMs - now;
@@ -349,6 +369,57 @@ public class PostOffice {
         send(event.setBroadcastLevel(1));
     }
 
+    public void addRouteSubstitution(String original, String replacement) {
+        if (substituteRoutes) {
+            Utility util = Utility.getInstance();
+            if (util.validServiceName(original) && util.validServiceName(replacement)
+                    && original.contains(".") && replacement.contains(".")) {
+                if (!original.equals(replacement) && !replacement.equals(reRoutes.get(original))) {
+                    if (reRoutes.containsKey(replacement)) {
+                        throw new IllegalArgumentException("Nested route substitution not supported");
+                    } else {
+                        reRoutes.put(original, replacement);
+                        log.info("Route substitution: {} -> {}", original, replacement);
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid route names");
+            }
+        } else {
+            throw new IllegalArgumentException("application.feature.route.substitution is not enabled");
+        }
+    }
+
+    public void removeRouteSubstitution(String original) {
+        if (substituteRoutes) {
+            if (reRoutes.containsKey(original)) {
+                log.info("Route substitution {} cleared", original);
+                reRoutes.remove(original);
+            }
+        } else {
+            throw new IllegalArgumentException("application.feature.route.substitution is not enabled");
+        }
+    }
+
+    public Map<String, String> getRouteSubstitutionList() {
+        return reRoutes;
+    }
+
+    private String substituteRouteIfNeeded(String to) {
+        if (to != null) {
+            int slash = to.indexOf('@');
+            if (slash > 0) {
+                String replacement = reRoutes.get(to.substring(0, slash));
+                return replacement != null? replacement+to.substring(slash) : to;
+            } else {
+                String replacement = reRoutes.get(to);
+                return replacement != null? replacement : to;
+            }
+        } else {
+            throw new IllegalArgumentException("Missing to");
+        }
+    }
+
     /**
      * Send an event to a target service
      *
@@ -356,10 +427,12 @@ public class PostOffice {
      * @throws IOException if invalid route or missing parameters
      */
     public void send(final EventEnvelope event) throws IOException {
-        String to = event.getTo();
-        if (to == null) {
+        String dest = event.getTo();
+        if (dest == null) {
             throw new IOException("Missing routing path");
         }
+        String to = substituteRouteIfNeeded(dest);
+        event.setTo(to);
         // is this a reply message?
         int slash = to.indexOf('@');
         if (slash > 0) {
@@ -536,10 +609,12 @@ public class PostOffice {
         if (event == null) {
             throw new IOException("Missing outgoing event");
         }
-        String to = event.getTo();
-        if (to == null) {
+        String dest = event.getTo();
+        if (dest == null) {
             throw new IOException("Missing routing path");
         }
+        String to = substituteRouteIfNeeded(dest);
+        event.setTo(to);
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());
         Inbox inbox = new Inbox(1);
@@ -590,10 +665,12 @@ public class PostOffice {
         int seq = 0;
         for (EventEnvelope event: events) {
             seq++;
-            String to = event.getTo();
-            if (to == null) {
+            String dest = event.getTo();
+            if (dest == null) {
                 throw new IOException("Missing routing path");
             }
+            String to = substituteRouteIfNeeded(dest);
+            event.setTo(to);
             // insert sequence number as correlation ID if not present
             // so that the caller can correlate the service responses
             if (event.getCorrelationId() == null) {

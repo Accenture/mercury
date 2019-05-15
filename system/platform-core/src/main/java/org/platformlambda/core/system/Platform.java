@@ -27,6 +27,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.services.ObjectStreamManager;
+import org.platformlambda.core.services.RouteManager;
 import org.platformlambda.core.services.SystemLog;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleClassScanner;
@@ -47,27 +48,33 @@ public class Platform {
     private static final Logger log = LoggerFactory.getLogger(Platform.class);
 
     public static final String STREAM_MANAGER = "system.streams.manager";
+    private static final String ROUTE_MAPPER = ".route.mapper";
     private static final String SYSTEM_LOG = "system.log";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
     private static final String STREAMING_FEATURE = "application.feature.streaming";
+    private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String LAMBDA = "lambda";
     private static final String NODE_ID = "id";
-    private static Platform instance = new Platform();
     private static ActorSystem system;
     private static String nodeId, lambdaId;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
+    private static Platform instance = new Platform();
 
     private Platform() {
-        // initialize instance
+        // initialize instance because the registration methods need it
         instance = this;
         // start built-in services
         AppConfigReader config = AppConfigReader.getInstance();
         boolean streaming = config.getProperty(STREAMING_FEATURE, "false").equals("true");
+        boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
             registerPrivate(SYSTEM_LOG, new SystemLog(), 1);
             if (streaming) {
                 registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
+            }
+            if (substitute) {
+                register(getRouteManagerName(), new RouteManager(), 1);
             }
         } catch (IOException e) {
             log.error("Unable to create {} - {}", STREAM_MANAGER, e.getMessage());
@@ -87,6 +94,10 @@ public class Platform {
 
     public String getName() {
         return Utility.getInstance().getPackageName();
+    }
+
+    public String getRouteManagerName() {
+        return getName()+ ROUTE_MAPPER;
     }
 
     /**

@@ -69,6 +69,7 @@ public class InfoServlet extends HttpServlet {
     private static final String CLOUD_CONNECTOR = "cloud.connector";
     private static final String TIME = "time";
     private static final String LIBRARY = "library";
+    private static final String ROUTE_SUBSTITUTION = "route_substitution";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -93,6 +94,12 @@ public class InfoServlet extends HttpServlet {
         if (LIST_ROUTES.equals(request.getPathInfo())) {
             try {
                 result.put(ROUTING, getRoutingTable());
+                // add route substitution list if any
+                Map<String, String> substitutions = PostOffice.getInstance().getRouteSubstitutionList();
+                if (!substitutions.isEmpty()) {
+                    result.put(ROUTE_SUBSTITUTION, substitutions);
+                }
+
             } catch (TimeoutException e) {
                 sendError(response, request.getRequestURI(), 408, e.getMessage());
                 return;

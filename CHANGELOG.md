@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## Version 1.11.40, 5/15/2019
+
+### Added
+
+1. Route substitution for simple versioning use case
+2. Add "Strict Transport Security" header if HTTPS (https://tools.ietf.org/html/rfc6797)
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
+
 ## Version 1.11.39, 4/30/2019
 
 ### Added

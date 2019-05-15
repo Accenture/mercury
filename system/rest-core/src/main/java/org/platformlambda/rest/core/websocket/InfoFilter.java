@@ -36,8 +36,12 @@ import java.util.List;
 public class InfoFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(InfoFilter.class);
 
-    private static final String UPGRADE = "upgrade";
     private static final String IP = "ip";
+    private static final String PROTOCOL = "x-forwarded-proto";
+    private static final String HTTPS = "https";
+    private static final String UPGRADE = "upgrade";
+    private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
+    private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
 
     private static boolean loaded = false;
     private static List<String> protectedRestEndpoints = new ArrayList<>();
@@ -67,14 +71,14 @@ public class InfoFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest req = (HttpServletRequest) request;
+            HttpServletResponse res = (HttpServletResponse) response;
             if (req.getHeader(UPGRADE) != null) {
                 /*
                  * update query string with caller IP address so that the websocket server endpoint can retrieve it.
                  */
-                chain.doFilter(new IpWrapper(req), response);
+                chain.doFilter(new IpWrapper(req), res);
             } else {
                 if (isProtected(req)) {
-                    HttpServletResponse res = (HttpServletResponse) response;
                     String apiKey = req.getHeader(apiKeyLabel);
                     if (apiKey == null) {
                         res.sendError(404, "Not found");
@@ -86,7 +90,16 @@ public class InfoFilter implements Filter {
                         }
                     }
                 }
-                chain.doFilter(request, response);
+                /*
+                 * HTTP Strict Transport Security (HSTS)
+                 * https://tools.ietf.org/html/rfc6797
+                 *
+                 * If HTTPS, add "Strict Transport Security" header.
+                 */
+                if (HTTPS.equals(req.getHeader(PROTOCOL))) {
+                    res.setHeader(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
+                }
+                chain.doFilter(req, res);
             }
         } else {
             chain.doFilter(request, response);

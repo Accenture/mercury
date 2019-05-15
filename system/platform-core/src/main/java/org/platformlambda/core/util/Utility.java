@@ -90,7 +90,6 @@ public class Utility {
 
     private static final VersionInfo versionInfo = new VersionInfo();
     private static final List<String> libs = new ArrayList<>();
-
     private static final Utility instance = new Utility();
 
     @SuppressWarnings("unchecked")
@@ -146,7 +145,7 @@ public class Utility {
                     Properties p = new Properties();
                     p.load(new ByteArrayInputStream(stream2bytes(res2[0].getInputStream())));
                     if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                        versionInfo.setArtifactId(p.getProperty(ARTIFACT_ID))
+                        versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
                                    .setGroupId(p.getProperty(GROUP_ID))
                                    .setVersion(p.getProperty(VERSION));
                     }
