@@ -1,7 +1,7 @@
 # application.properties
 
 | Key                                         | Value                                     | Required |
-| :------------------------------------------:|:-----------------------------------------:|:--------:|
+| :-------------------------------------------|:------------------------------------------|:--------:|
 | application.name or spring.application.name | Application name                          | Yes      |
 | info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes      |
 | info.app.description                        | Something about application               | Yes      |
@@ -71,5 +71,7 @@ This allows us to use any REST application server when technology evolves.
 
 If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
 
-[Table of Contents](TABLE-OF-CONTENTS.md)
+| Chapter-6                                | Home                                     |
+| :---------------------------------------:|:----------------------------------------:|
+| [Upcoming features](CHAPTER-6.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
 
