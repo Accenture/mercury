@@ -24,6 +24,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,20 +50,19 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String LEAVE = "leave";
     private static final String PING = "ping";
     private static final long APP_EXPIRY = 60 * 1000;
-
-    private boolean isServiceMonitor = false;
+    // static because this is a shared lambda function
+    private static boolean isServiceMonitor;
     /*
      * routes: route_name -> (origin, personality)
      * origins: origin -> last seen
      */
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> origins = new ConcurrentHashMap<>();
+    private static final ManagedCache cache = ManagedCache.createCache("discovery.log.cache", 2000);
 
     public ServiceRegistry() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        if ("true".equals(reader.getProperty("service.monitor", "false"))) {
-            isServiceMonitor = true;
-        }
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     public static Map<String, Map<String, String>> getAllRoutes() {
@@ -83,7 +83,6 @@ public class ServiceRegistry implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         if (isServiceMonitor) {
             // service monitor does not use global routing table
             return false;
@@ -97,7 +96,6 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     private Object processEvent(Map<String, String> headers) throws IOException, TimeoutException, AppException {
-
         PostOffice po = PostOffice.getInstance();
         String type = headers.get(TYPE);
         // when a node joins
@@ -110,7 +108,11 @@ public class ServiceRegistry implements LambdaFunction {
                 broadcast(origin, null, null, JOIN);
             } else {
                 // send routing table of this node to the newly joined node
-                log.info("Peer {} joined", origin);
+                String key = "join/"+origin;
+                if (!cache.exists(key)) {
+                    cache.put(key, true);
+                    log.info("Peer {} joined", origin);
+                }
                 for (String r : routes.keySet()) {
                     ConcurrentMap<String, String> originMap = routes.get(r);
                     if (originMap.containsKey(myOrigin)) {
@@ -139,7 +141,11 @@ public class ServiceRegistry implements LambdaFunction {
                     }
                 }
             } else {
-                log.info("Peer {} left", origin);
+                String key = "leave/"+origin;
+                if (!cache.exists(key)) {
+                    cache.put(key, true);
+                    log.info("Peer {} left", origin);
+                }
                 removeRoutesFromOrigin(origin);
             }
         }
@@ -165,7 +171,6 @@ public class ServiceRegistry implements LambdaFunction {
             // remove from routing table
             removeRoute(origin, route);
         }
-
         return true;
     }
 

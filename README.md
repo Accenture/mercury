@@ -158,11 +158,19 @@ This connector library is designed to work with Hazelcast version 3.12 out of th
 
 `hazelcast-presence`
 
-This project can be compiled into an executable JAR. This is the "presence monitor" for Hazelcast. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Hazelcast to cluster themselves. The Post Office in the platform-core will use the Hazelcast-connector to send events to other application instances thru the Hazelcast cluster.
+This project can be compiled into an executable JAR. This is the "presence monitor" for Hazelcast. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Hazelcast to cluster themselves. With the hazelcast-connector library, your application can send events to other application instances thru a Hazelcast cluster.
 
 The hazelcast-connector and hazelcast-presence is fully scalable.
 
-`kafka-connector` and `kafka-presence` - these are upcoming cloud connection modules for higher performance needs.
+`kafka-connector`
+
+This connector library is designed to work with Kafka version 2.12-2.2.0 out of the box. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory.
+
+`kafka-presence`
+
+This project can be compiled into an executable JAR. This is the "presence monitor" for Kafka. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Kafka to cluster themselves. With the kafka-connector library, your application can send events to other application instances thru a Kafka cluster.
+
+The kafka-connector and kafka-presence is fully scalable.
 
 `event-node`
 

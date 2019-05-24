@@ -1,11 +1,5 @@
 # Technology roadmap for 2019
 
-## Kafka connector
-
-In addition to Hazelcast, we will be providing a Kafka connector so that you can use a Kafka cluster as your event stream.
-
-Note that Kafka is a store-n-forward commit log system. The Mercury system is using Kafka for connecting services in a real-time basis. In addition to real-time event streaming, the Kafka connector will have additional API to support traditional pub/sub if your application needs such a use case.
-
 ## Language Packs
 
 The first language pack has been released with v1.11.38 for Python.

@@ -49,17 +49,15 @@ public class EventProducer implements LambdaFunction {
     private static final String PONG = "pong";
     private static final String REPLY_TO = "reply_to";
     private static final String ORIGIN = "origin";
-
-    private HazelcastInstance client;
-    private boolean isServiceMonitor, ready = false, abort = false;
-    private String forMe;
+    // static because this is a shared lambda function
+    private static HazelcastInstance client;
+    private static boolean isServiceMonitor, ready = false, abort = false;
+    private static String forMe;
 
     public EventProducer(HazelcastInstance client) {
         this.client = client;
         AppConfigReader reader = AppConfigReader.getInstance();
-        if ("true".equals(reader.getProperty("service.monitor", "false"))) {
-            isServiceMonitor = true;
-        }
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         forMe = "@"+Platform.getInstance().getOrigin();
     }
 

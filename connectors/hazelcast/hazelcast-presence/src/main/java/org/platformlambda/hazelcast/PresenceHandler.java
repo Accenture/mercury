@@ -28,15 +28,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class PresenceHandler implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceHandler.class);
 
-    private static final String INIT_MESSAGE = UUID.randomUUID().toString();
+    public static final String INIT_TOKEN = UUID.randomUUID().toString();
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String DOWNLOAD = "download";
@@ -44,26 +42,8 @@ public class PresenceHandler implements LambdaFunction {
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
 
-    private static final int INITIAL_DELAY = 1;
-    private static final int MAX_DELAY = 5;
-    private static final AtomicInteger delay = new AtomicInteger(INITIAL_DELAY);
-
     private static boolean ready = false;
     private int ignored = 0;
-
-    public static void initialize() throws IOException {
-        EventEnvelope event = new EventEnvelope();
-        event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
-        event.setHeader(INIT, INIT_MESSAGE);
-        EventEnvelope wrapper = new EventEnvelope();
-        wrapper.setTo(org.platformlambda.MainApp.PRESENCE_MONITOR);
-        wrapper.setBody(event.toBytes());
-        // Give Kafka time to start stream listener
-        PostOffice.getInstance().sendLater(wrapper, new Date(System.currentTimeMillis() + (delay.getAndIncrement() * 3000)));
-        if (delay.get() > MAX_DELAY) {
-            delay.set(INITIAL_DELAY);
-        }
-    }
 
     public static boolean isReady() {
         return PresenceHandler.ready;
@@ -80,11 +60,11 @@ public class PresenceHandler implements LambdaFunction {
              * Ignore all incoming event until the correct initialization message is created.
              */
             if (PresenceHandler.ready) {
-                if (INIT_MESSAGE.equals(headers.get(INIT))) {
+                if (INIT_TOKEN.equals(headers.get(INIT))) {
                     log.info("System is healthy");
                 }
             } else {
-                if (INIT_MESSAGE.equals(headers.get(INIT))) {
+                if (INIT_TOKEN.equals(headers.get(INIT))) {
                     PresenceHandler.ready = true;
                     if (ignored > 0) {
                         log.warn("Skipping {} outdated events", ignored);

@@ -52,6 +52,7 @@ public class InfoService implements LambdaFunction {
                 connections.put(k, filterInfo((Map<String, Object>) connections.get(k)));
             }
             result.put("connections", connections);
+            result.put("monitors", HouseKeeper.getMonitors());
             // topic list
             List<String> topics = getTopics();
             result.put("topics", topics);

@@ -30,7 +30,6 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.hazelcast.PresenceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +45,7 @@ import java.util.concurrent.TimeoutException;
 public class MonitorService implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
 
-    private static final String MANAGER = HazelcastSetup.MANAGER;
+    private static final String MANAGER = MainApp.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String READY = "ready";
 
@@ -204,10 +203,10 @@ public class MonitorService implements LambdaFunction {
                                 event.setBody(info);
                                 po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
                                 if (isInfo) {
-                                    log.info("Application registered {}", info);
+                                    log.info("Member registered {}", info);
                                     po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
                                 } else {
-                                    log.debug("{} is alive {}", token, info.get(SEQ));
+                                    log.debug("Member {} is alive {}", token, info.get(SEQ));
                                     po.send(txPath, ALIVE + " " + info.get(SEQ));
                                 }
                             }

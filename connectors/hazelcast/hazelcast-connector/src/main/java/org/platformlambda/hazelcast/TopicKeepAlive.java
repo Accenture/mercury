@@ -33,7 +33,7 @@ public class TopicKeepAlive extends Thread {
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final long TOPIC_ALIVE_INTERVAL = 15 * 1000;
 
-    private static boolean normal = true;
+    private boolean normal = true;
 
     @Override
     public void run() {

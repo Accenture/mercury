@@ -36,9 +36,9 @@ public class PresenceProducer implements LambdaFunction {
     private boolean ready = false, abort = false;
     private String topic;
 
-    public PresenceProducer(HazelcastInstance client) {
+    public PresenceProducer(HazelcastInstance client, String topic) {
         this.client = client;
-        topic = HazelcastSetup.getNamespace()+"monitor";
+        this.topic = topic;
     }
 
     private boolean validRegistry() {

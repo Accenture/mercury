@@ -42,15 +42,14 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String JOIN = "join";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
+    private static boolean connected = true;
     private String realTopic;
-    private boolean connected = true, isServiceMonitor = false;
+    private boolean isServiceMonitor;
 
     public TopicLifecycleListener(String realTopic) {
         this.realTopic = realTopic;
         AppConfigReader reader = AppConfigReader.getInstance();
-        if ("true".equals(reader.getProperty("service.monitor", "false"))) {
-            isServiceMonitor = true;
-        }
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         // create a function to setup consumer asynchronously
         LambdaFunction f = (headers, body, instance) -> {
             setupConsumer(RESTORE.equals(headers.get(TYPE)));
@@ -62,6 +61,10 @@ public class TopicLifecycleListener implements LifecycleListener {
         } catch (IOException e) {
             // this should not occur
         }
+    }
+
+    public static boolean isReady() {
+        return connected;
     }
 
     private void setupConsumer(boolean restore) {
@@ -106,6 +109,5 @@ public class TopicLifecycleListener implements LifecycleListener {
             connected = true;
         }
     }
-
 
 }

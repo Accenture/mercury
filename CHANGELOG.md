@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version 1.11.40, 5/15/2019
+## Version 1.11.40, 5/24/2019, pending release
 
 ### Added
 
 1. Route substitution for simple versioning use case
 2. Add "Strict Transport Security" header if HTTPS (https://tools.ietf.org/html/rfc6797)
+3. Event stream connector for Kafka
+4. Distributed housekeeper feature for Hazelcast connector
 
 ### Removed
 
@@ -20,7 +22,7 @@ N/A
 
 ### Changed
 
-N/A
+Refactoring of Hazelcast event stream connector library to sync up with the new Kafka connector.
 
 ---
 

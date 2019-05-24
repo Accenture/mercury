@@ -45,6 +45,7 @@ public class PingScheduler extends Thread {
 
     @SuppressWarnings("unchecked")
     public void run() {
+
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
