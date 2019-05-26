@@ -1,5 +1,3 @@
-# Platform event node
+# Event node
 
-This event node application is used to emulate an event stream system when access to cloud is not available.
-
-This is a convenient setup for software development offline.
+Event Node is a "platform-in-a-box". It is a convenient setup to enable software development in a single laptop.
