@@ -28,7 +28,7 @@
             <version>1.11.40</version>
         </dependency>
 
-        <!-- select your cloud connector. Not necessary if testing using Event Node. -->
+        <!-- select your cloud connector (hazelcast-connector or kafka-connector). Not necessary if testing using Event Node. -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>

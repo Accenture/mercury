@@ -28,10 +28,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.services.RouteManager;
-import org.platformlambda.core.services.SystemLog;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.SimpleClassScanner;
-import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +43,11 @@ import java.util.concurrent.TimeoutException;
 
 public class Platform {
     private static final Logger log = LoggerFactory.getLogger(Platform.class);
+    private static final ManagedCache cache = ManagedCache.createCache("system.log.cache", 30000);
+    private static final CryptoApi crypto = new CryptoApi();
 
     public static final String STREAM_MANAGER = "system.streams.manager";
     private static final String ROUTE_MAPPER = ".route.mapper";
-    private static final String SYSTEM_LOG = "system.log";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
     private static final String STREAMING_FEATURE = "application.feature.streaming";
@@ -69,7 +67,6 @@ public class Platform {
         boolean streaming = config.getProperty(STREAMING_FEATURE, "false").equals("true");
         boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
-            registerPrivate(SYSTEM_LOG, new SystemLog(), 1);
             if (streaming) {
                 registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             }
@@ -418,27 +415,38 @@ public class Platform {
     }
 
     public void waitForProvider(String provider, int seconds) throws TimeoutException {
-        try {
-            Platform platform = Platform.getInstance();
-            PostOffice po = PostOffice.getInstance();
-            int count = 1;
-            while (!platform.hasRoute(provider)) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-                po.send(SYSTEM_LOG, "Waiting for " + provider + " to get ready... " + count, new Kv(SystemLog.LEVEL, SystemLog.INFO));
-                // taking too much time?
-                if (++count >= seconds) {
-                    String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
-                    po.send(SYSTEM_LOG, message, new Kv(SystemLog.LEVEL, SystemLog.ERROR));
-                    throw new TimeoutException(message);
-                }
+        int count = 1;
+        while (!hasRoute(provider)) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // ok to ignore
             }
-            po.send(SYSTEM_LOG, provider + " is ready", new Kv(SystemLog.LEVEL, SystemLog.INFO), new Kv(SystemLog.FINISH, true));
-        } catch (IOException e) {
-            log.error("Unable to check {} because {} not available", provider, SYSTEM_LOG);
+            logRecent("info", "Waiting for " + provider + " to get ready... " + count);
+            // taking too much time?
+            if (++count >= seconds) {
+                String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
+                logRecent("error", message);
+                throw new TimeoutException(message);
+            }
+        }
+        logRecent("info", provider + " is ready");
+    }
+
+    private void logRecent(String level, String message) {
+        Utility util = Utility.getInstance();
+        String hash = util.getUTF(crypto.getMd5(util.getUTF(message)));
+        if (!cache.exists(hash)) {
+            cache.put(hash, true);
+            if (level.equals("error")) {
+                log.warn(message);
+            }
+            if (level.equals("warn")) {
+                log.warn(message);
+            }
+            if (level.equals("info")) {
+                log.info(message);
+            }
         }
     }
 

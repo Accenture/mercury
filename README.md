@@ -211,6 +211,8 @@ cd ../rest-spring
 mvn clean install
 cd ../../connectors/hazelcast/hazelcast-connector
 mvn clean install
+cd ../../../connectors/kafka/kafka-connector
+mvn clean install
 # close the terminal
 ```
 

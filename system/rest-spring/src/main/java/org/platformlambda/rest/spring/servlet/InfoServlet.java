@@ -63,8 +63,8 @@ public class InfoServlet extends HttpServlet {
     private static final String FREE = "free";
     private static final String ORIGIN = "origin";
     private static final String ROUTING = "routing";
-    private static final String LIST_ROUTES = "/routes";
-    private static final String LIB = "/lib";
+    private static final String LIST_ROUTES = "routes";
+    private static final String LIB = "lib";
     private static final String DOWNLOAD = "download";
     private static final String CLOUD_CONNECTOR = "cloud.connector";
     private static final String TIME = "time";
@@ -88,10 +88,12 @@ public class InfoServlet extends HttpServlet {
         app.put(NAME, info.getArtifactId());
         app.put(VERSION, info.getVersion());
         app.put(DESCRIPTION, description);
+
+        List<String> pathElements = Utility.getInstance().split(request.getPathInfo(), "/");
         /*
          * add routing table information if any
          */
-        if (LIST_ROUTES.equals(request.getPathInfo())) {
+        if (pathElements.size() == 1 && LIST_ROUTES.equals(pathElements.get(0))) {
             try {
                 result.put(ROUTING, getRoutingTable());
                 // add route substitution list if any
@@ -107,10 +109,10 @@ public class InfoServlet extends HttpServlet {
                 sendError(response, request.getRequestURI(), e.getStatus(), e.getMessage());
                 return;
             }
-        } else if (LIB.equals(request.getPathInfo())) {
+        } else if (pathElements.size() == 1 && LIB.equals(pathElements.get(0))) {
             result.put(LIBRARY, Utility.getInstance().getLibraryList());
 
-        } else if (request.getPathInfo() == null) {
+        } else if (pathElements.isEmpty()) {
             // java VM information
             Map<String, Object> jvm = new HashMap<>();
             result.put(JVM, jvm);
