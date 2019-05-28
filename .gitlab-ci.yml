@@ -1,2 +1,32 @@
+image: maven:3.6.1-jdk-11
+
+variables:
+    MAVEN_CLI_OPTS: "--show-version"
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Djava.awt.headless=true"
+
+cache:
+    key: $CI_PIPELINE_ID
+    policy: pull
+    paths:
+    - $CI_PROJECT_DIR/.m2/repository # cache maven repository across all jobs
+
 include:
-  - template: Code-Quality.gitlab-ci.yml
+    - template: Code-Quality.gitlab-ci.yml
+  
+ 
+stages:
+    - build
+    - test
+    - package
+    - deploy
+    
+build:
+    stage: build
+    script:
+        - mvn clean install -f system/platform-core
+        - mvn clean install -f system/rest-core
+        - mvn clean install -f system/rest-spring
+        - mvn clean install -f system/rest-spring
+        - mvn clean install -f connectors/hazelcast/hazelcast-connector
+        - mvn clean install -f connectors/kafka/kafka-connector
+ 
