@@ -6,12 +6,12 @@ The first language pack has been released with v1.11.38 for Python.
 
 Upcoming language packs are Node.js and Go. 
 
-To enable PolyGlot development, you can run the "language-support" service application as a "side-car" so that language packs can use a very thin pipe to connect to the platform-core and let the side-car to do all the heavy lifting.
+To enable PolyGlot development, you can run the "language-connector" service application as a "side-car" so that language packs can use a very thin pipe to connect to the platform-core and let the side-car to do the heavy lifting.
 
 Each language pack would provide the following functionality:
 - In-memory event stream for private functions
 - Registration of public and private functions
-- Persistent socket connection to the "language-support" sidecar
+- Persistent socket connection to the "language-connector" sidecar
 
 All the communication patterns (RPC, async, callback, pipeline, streaming and broadcast) are supported in language packs.
 
@@ -39,41 +39,12 @@ or
 rest.automation=file:/config/rest.yaml
 ```
 
-The REST automation add-on would be handy when we want to test the API contract for a service. For REST endpoint, you can use OpenAPI to define the exact interface contract. For a microservice, you can use a POST request to test it. You can also restrict the IP address so that you only expose microservices for testing behind the firewall.
+The REST automation add-on would be handy when we want to test the API contract for a service. For REST endpoint, you can use OpenAPI to define the API contract. For a microservice, you can use a POST request to test it. You can also restrict the IP address so that you only expose microservices for testing behind the firewall.
 
-In this way, the OpenAPI YAML files can be used to present the services as a service catalog in addition to describe user facing REST endpoint.
+In this way, the OpenAPI YAML files can be used to present the services as a service catalog.
 
-Note that circular routing for pipeline is not allowed because it does not make sense to force your services into an infinite loop.
+## Versioning, circuit breaker and service metrics
 
-## Declarative service routing
-
-Similar to REST automation, we can add declarative service routing in addition to programmatic routing. Currently, one service can request another service by specifying a route name like "v1.hello.world".
-
-With declarative service routing, you can externalize the routing like this:
-
-```
-pipeline:
-  v1.hello.world -> [v1.hello.backend, v1.hello.audit]
-mapping:
-  hello.world -> v1.hello.world
-```
-
-The declarative service routing is designed to address two use cases: (1) pipeline and (2) target route name mapping
-
-In the above pipeline example, output from v1.hello.world will be piped as input to v1.hello.backend and v1.hello.audit concurrently.
-
-Mapping is useful for service versioning. When both caller and called services are version aware, they can use the versioned route name. When the caller is not version aware, we can map the generic route to a versioned route name.
-
-
-## Versioning and circuit breaker
-
-This will be available soon.
-
-## metrics gathering and consolidation
+These 3 features are closely related and thus they will be released together.
 
 Currently all RPC call returns execution time and round trip latency values. We intend to add a metrics add-on so that performance metrics for all kind of usage patterns (RPC, async, pipeline, callback, streaming and broadcast) will be available for submission to an external metrics visualization system.
-
-This is currently in design phase.
-
-
-
