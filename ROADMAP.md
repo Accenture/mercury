@@ -39,12 +39,10 @@ or
 rest.automation=file:/config/rest.yaml
 ```
 
-The REST automation add-on would be handy when we want to document and test a service. For REST endpoint, you can use OpenAPI to define the API contract.
-
-In this way, the OpenAPI YAML files can be used to present the services as a service catalog.
+The REST automation add-on would be handy when we want to document and test a service. In this way, the OpenAPI YAML files can be used to present the services in a service catalog.
 
 ## Versioning, circuit breaker and service metrics
 
 These 3 features are closely related and thus they will be released together.
 
-Currently RPC call returns execution time and round trip latency values. We intend to add a metrics add-on so that performance metrics for all kind of usage patterns (RPC, async, pipeline, callback, streaming and broadcast) will be available for submission to an external metrics visualization system.
+Currently RPC call returns execution time and round trip latency values. We intend to add a metrics feature so that performance metrics for all kind of usage patterns (RPC, async, pipeline, callback, streaming and broadcast) will be available for submission to an external metrics visualization system.
