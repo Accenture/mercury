@@ -49,7 +49,7 @@ test_and_coverage:
     artifacts:
         reports:
             junit:
-                - target/surefire-reports/TEST-*.xml
+                - system/platform-core/target/surefire-reports/TEST-*.xml
         paths:
             - target/jacoco
         expire_in: 30 days
