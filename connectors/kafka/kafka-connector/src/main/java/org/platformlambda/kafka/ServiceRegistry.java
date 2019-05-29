@@ -128,7 +128,7 @@ public class ServiceRegistry implements LambdaFunction {
             log.info("{} from presence monitor", PING);
             return true;
         }
-        // peer events from presence connector
+        // peer events from kafka presence monitor
         if (PEERS.equals(type) && body instanceof List) {
             PostOffice po = PostOffice.getInstance();
             String me = Platform.getInstance().getOrigin();

@@ -159,7 +159,6 @@ public class MonitorService implements LambdaFunction {
                     route2token.remove(route);
                     token2info.remove(token);
                     log.info("Stopped {}, node={}", route, token);
-
                     if (connectionInfo.exists(token)) {
                         Object o = connectionInfo.get(token);
                         if (o instanceof Map) {

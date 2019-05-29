@@ -88,7 +88,7 @@ public class KeepAlive extends Thread {
                 try {
                     po.send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
                 } catch (IOException e) {
-                    log.error("Unable to send keep-alive to other presence monitors");
+                    log.error("Unable to send keep-alive to other presence monitors - {}", e.getMessage());
                 }
             }
             try {

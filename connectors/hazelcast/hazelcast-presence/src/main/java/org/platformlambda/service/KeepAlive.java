@@ -88,7 +88,7 @@ public class KeepAlive extends Thread {
                 try {
                     po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
                 } catch (IOException e) {
-                    log.error("Unable to send keep-alive to other presence monitors");
+                    log.error("Unable to send keep-alive to other presence monitors - {}", e.getMessage());
                 }
             }
             try {

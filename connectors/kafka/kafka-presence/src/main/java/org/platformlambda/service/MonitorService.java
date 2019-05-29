@@ -109,6 +109,7 @@ public class MonitorService implements LambdaFunction {
     }
 
     private static void notifyConnectedApps() {
+        // this feature is specific to Kafka presence monitor only
         if (!token2txPath.isEmpty()) {
             PostOffice po = PostOffice.getInstance();
             Map<String, Object> connections = connectionInfo.getMap();
@@ -184,7 +185,6 @@ public class MonitorService implements LambdaFunction {
                     token2info.remove(token);
                     token2txPath.remove(token);
                     log.info("Stopped {}, node={}", route, token);
-
                     if (connectionInfo.exists(token)) {
                         Object o = connectionInfo.get(token);
                         if (o instanceof Map) {
