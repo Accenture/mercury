@@ -5,7 +5,7 @@ variables:
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Djava.awt.headless=true"
 
 cache:
-    key: $CI_PIPELINE_ID
+    key: $CI_PIPELINE_IID
     policy: pull
     paths:
     - $CI_PROJECT_DIR/.m2/repository # cache maven repository across all jobs
@@ -23,10 +23,34 @@ stages:
 build:
     stage: build
     script:
-        - mvn clean install -f system/platform-core
-        - mvn clean install -f system/rest-core
-        - mvn clean install -f system/rest-spring
-        - mvn clean install -f system/rest-spring
-        - mvn clean install -f connectors/hazelcast/hazelcast-connector
-        - mvn clean install -f connectors/kafka/kafka-connector
+        - mvn $MAVEN_CLI_OPTS clean compile -f system/platform-core
+        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-core
+        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-spring
+        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-spring
+        - mvn $MAVEN_CLI_OPTS clean compile -f connectors/hazelcast/hazelcast-connector
+        - mvn $MAVEN_CLI_OPTS clean compile -f connectors/kafka/kafka-connector
+    cache:
+        key: $CI_PIPELINE_IID
+        policy: push # this is the only job that needs to publish to the cache, therefore it is overriding the policy
+        paths:
+            - $CI_PROJECT_DIR/.m2/repository
+            
+test_and_coverage:
+    stage: test
+    script:
+        - mvn $MAVEN_CLI_OPTS test
+        - ls -la
+        - ls -la target
+        - ls -la target/site
+        - ls -la target/site/jacoco
+        - cat target/site/jacoco/index.html
+        - mv target/site/jacoco target/jacoco/
+    coverage: '/Total.*?([0-9]{1,3})%/'
+    artifacts:
+        reports:
+            junit:
+                - target/surefire-reports/TEST-*.xml
+        paths:
+            - target/jacoco
+        expire_in: 30 days
  
