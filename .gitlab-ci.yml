@@ -23,12 +23,12 @@ stages:
 build:
     stage: build
     script:
-        - mvn $MAVEN_CLI_OPTS clean compile -f system/platform-core
-        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-core
-        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-spring
-        - mvn $MAVEN_CLI_OPTS clean compile -f system/rest-spring
-        - mvn $MAVEN_CLI_OPTS clean compile -f connectors/hazelcast/hazelcast-connector
-        - mvn $MAVEN_CLI_OPTS clean compile -f connectors/kafka/kafka-connector
+        - mvn $MAVEN_CLI_OPTS clean compile install -f system/platform-core
+        - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-core
+        - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
+        - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-connector
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-connector
     cache:
         key: $CI_PIPELINE_IID
         policy: push # this is the only job that needs to publish to the cache, therefore it is overriding the policy
