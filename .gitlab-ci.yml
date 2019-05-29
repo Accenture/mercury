@@ -38,7 +38,7 @@ build:
 test_and_coverage:
     stage: test
     script:
-        - mvn $MAVEN_CLI_OPTS test
+        - mvn $MAVEN_CLI_OPTS test -f system/platform-core
         - ls -la
         - ls -la target
         - ls -la target/site
