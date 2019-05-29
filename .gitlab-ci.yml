@@ -50,16 +50,7 @@ test_and_coverage:
         paths:
             - jacoco
         expire_in: 30 days
- 
-project_info:
-    stage: package
-    script:
-        - mvn $MAVEN_CLI_OPTS site -f system/platform-core
-        - mv system/platform-core/target/site project_info
-    artifacts:
-        paths:
-            - project_info
-        expire_in: 30 days
+
  
 javadoc: 
     stage: package
@@ -75,12 +66,10 @@ pages:
     stage: deploy
     dependencies:
         - test_and_coverage
-        - project_info
         - javadoc
     script:
-        - mkdir -p public/coverage public/projectinfo public/docs
+        - mkdir -p public/coverage public/docs
         - mv jacoco/* public/coverage
-        - mv project_info/* public/projectinfo
         - mv apidocs/* public/docs
     artifacts:
         paths:
