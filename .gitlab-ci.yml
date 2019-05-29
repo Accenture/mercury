@@ -54,7 +54,7 @@ test_and_coverage:
 project_info:
     stage: package
     script:
-        - mvn $MAVEN_CLI_OPTS site
+        - mvn $MAVEN_CLI_OPTS site -f system/platform-core
         - mv system/platform-core/target/site project_info
     artifacts:
         paths:
@@ -64,7 +64,7 @@ project_info:
 javadoc: 
     stage: package
     script: 
-        - mvn $MAVEN_CLI_OPTS javadoc:javadoc
+        - mvn $MAVEN_CLI_OPTS javadoc:javadoc -f system/platform-core
         - mv system/platform-core/target/site/apidocs apidocs
     artifacts:
         paths:
