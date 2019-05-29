@@ -41,13 +41,49 @@ test_and_coverage:
         - mvn $MAVEN_CLI_OPTS test -f system/platform-core
         - ls -la system/platform-core/target/surefire-reports
         - cat system/platform-core/target/site/jacoco/index.html
-        - mv system/platform-core/target/site/jacoco target/jacoco/
+        - mv system/platform-core/target/site/jacoco jacoco
     coverage: '/Total.*?([0-9]{1,3})%/'
     artifacts:
         reports:
             junit:
                 - system/platform-core/target/surefire-reports/TEST-*.xml
         paths:
-            - target/jacoco
+            - jacoco
         expire_in: 30 days
+ 
+project_info:
+    stage: package
+    script:
+        - mvn $MAVEN_CLI_OPTS site
+        - mv system/platform-core/target/site project_info
+    artifacts:
+        paths:
+            - project_info
+        expire_in: 30 days
+ 
+javadoc: 
+    stage: package
+    script: 
+        - mvn $MAVEN_CLI_OPTS javadoc:javadoc
+        - mv system/platform-core/target/site/apidocs apidocs
+    artifacts:
+        paths:
+            - apidocs
+        expire_in: 30 days
+        
+pages:
+    stage: deploy
+    dependencies:
+        - test_and_coverage
+        - project_info
+        - javadoc
+    script:
+        - mkdir -p public/coverage public/projectinfo public/docs
+        - mv jacoco/* public/coverage
+        - mv project_info/* public/projectinfo
+        - mv apidocs/* public/docs
+    artifacts:
+        paths:
+        - public
+        expire_in: 90 days
  
