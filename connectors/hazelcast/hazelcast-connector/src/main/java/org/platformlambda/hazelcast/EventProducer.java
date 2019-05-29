@@ -63,7 +63,6 @@ public class EventProducer implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         // check for critical resource
         if (!validRegistry()) {
             log.error("abort because {} is not available", SERVICE_REGISTRY);

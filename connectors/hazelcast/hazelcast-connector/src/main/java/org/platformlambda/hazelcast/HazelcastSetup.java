@@ -118,7 +118,6 @@ public class HazelcastSetup implements CloudSetup {
             platform.registerPrivate(MANAGER, new TopicManager(), 1);
             if (!isServiceMonitor) {
                 po.request(MANAGER, 10000, new Kv(TYPE, TopicManager.CREATE_TOPIC));
-                HazelcastInstance client = HazelcastSetup.getHazelcastClient();
                 String realTopic = HazelcastSetup.getNamespace()+origin;
                 client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(realTopic));
                 // start topic keep alive
@@ -137,6 +136,6 @@ public class HazelcastSetup implements CloudSetup {
             System.exit(-1);
         }
 
-
     }
+
 }

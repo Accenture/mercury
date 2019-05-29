@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import org.platformlambda.core.annotations.CloudConnector;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -40,6 +41,18 @@ public class SimpleClassScanner {
 
     public static SimpleClassScanner getInstance() {
         return instance;
+    }
+
+    public List<Class<?>> getAnnotatedClasses(Class<? extends Annotation> type, boolean includeBasePackage) {
+        List<Class<?>> result = new ArrayList<>();
+        Set<String> packages = getPackages(includeBasePackage);
+        for (String p : packages) {
+            List<Class<?>> services = getAnnotatedClasses(p, type);
+            for (Class<?> c: services) {
+                result.add(c);
+            }
+        }
+        return result;
     }
 
     public List<Class<?>> getAnnotatedClasses(String scanPath, Class<? extends Annotation> type) {

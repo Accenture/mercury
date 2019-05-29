@@ -58,7 +58,7 @@ public class PresenceProducer implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
         // check for critical resource
         if (!validRegistry()) {
             log.error("abort because {} is not available", ServiceDiscovery.SERVICE_REGISTRY);

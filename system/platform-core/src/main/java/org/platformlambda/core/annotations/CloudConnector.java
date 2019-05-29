@@ -28,6 +28,14 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface CloudConnector {
-
+    /*
+     * Name of cloud connector that implements the CloudSetup interface
+     */
     String value();
+    /*
+     * You may create a cloud connector as a wrapper of another cloud connector.
+     * In this case, the "original" cloud connector will be executed
+     * after the initialize() method of the wrapper is completed.
+     */
+    String original() default "none";
 }

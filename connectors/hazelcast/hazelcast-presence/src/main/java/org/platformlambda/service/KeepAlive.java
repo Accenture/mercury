@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Map;
 
 public class KeepAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(KeepAlive.class);
@@ -43,8 +45,9 @@ public class KeepAlive extends Thread {
     private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
     private static final long TOKEN_LIFE = 5 * 60 * 1000;
+    private static final int TOKEN_BOUND = 10000;
 
-    private int token = random.nextInt(100000);
+    private int token = random.nextInt(TOKEN_BOUND);
     private long updated = System.currentTimeMillis();
     private static boolean normal = true;
 
@@ -59,7 +62,8 @@ public class KeepAlive extends Thread {
         Utility util = Utility.getInstance();
         String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
-        long t0 = System.currentTimeMillis();
+        // first cycle starts in 10 seconds
+        long t0 = System.currentTimeMillis() - INTERVAL + 10000;
         while(normal) {
             long now = System.currentTimeMillis();
             if (now - t0 > INTERVAL) {
@@ -70,6 +74,7 @@ public class KeepAlive extends Thread {
                 if (now - updated > TOKEN_LIFE) {
                     generateToken();
                 }
+                // send keep-alive
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
                 event.setHeader(ORIGIN, origin);
@@ -78,6 +83,8 @@ public class KeepAlive extends Thread {
                 event.setHeader(TOKEN, token);
                 // use sortable timestamp yyyymmddhhmmss
                 event.setHeader(TIMESTAMP, util.getTimestamp());
+                // send my connection list
+                event.setBody(new ArrayList<>(MonitorService.getConnections().keySet()));
                 try {
                     po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
                 } catch (IOException e) {
@@ -94,7 +101,7 @@ public class KeepAlive extends Thread {
     }
 
     private void generateToken() {
-        token = random.nextInt(100000);
+        token = random.nextInt(TOKEN_BOUND);
         updated = System.currentTimeMillis();
     }
 

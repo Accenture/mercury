@@ -28,6 +28,14 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface CloudService {
-
+    /*
+     * name of the cloud service
+     */
     String value();
+    /*
+     * You may create a cloud service as a wrapper of another cloud service.
+     * In this case, the "original" cloud service will be executed
+     * after the initialize() method of the wrapper is completed.
+     */
+    String original() default "none";
 }

@@ -24,9 +24,15 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.hazelcast.*;
+import org.platformlambda.hazelcast.HazelcastSetup;
+import org.platformlambda.hazelcast.PresenceHandler;
+import org.platformlambda.hazelcast.PresenceProducer;
+import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.service.*;
+import org.platformlambda.service.HouseKeeper;
+import org.platformlambda.service.InfoService;
+import org.platformlambda.service.KeepAlive;
+import org.platformlambda.service.PingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +48,7 @@ public class MainApp implements EntryPoint {
     public static final String PRESENCE_MONITOR = "presence.monitor";
     public static final String PRESENCE_HANDLER = "presence.service";
 
+    private static final String MONITOR = "monitor";
     private static final String INFO_SERVICE = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
 
@@ -50,7 +57,7 @@ public class MainApp implements EntryPoint {
     }
 
     @Override
-    public void start(String[] args) throws TimeoutException, IOException {
+    public void start(String[] args) throws TimeoutException, IOException, InterruptedException {
         ServerPersonality.getInstance().setType(ServerPersonality.Type.RESOURCES);
 
         Platform platform = Platform.getInstance();
@@ -63,7 +70,7 @@ public class MainApp implements EntryPoint {
          * setup presence.monitor topic producer and consumer
          */
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
-        String topic = HazelcastSetup.getNamespace()+".monitor";
+        String topic = HazelcastSetup.getNamespace()+MONITOR;
         client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(topic));
         // setup producer
         platform.registerPrivate(PRESENCE_MONITOR, new PresenceProducer(client, topic), 1);

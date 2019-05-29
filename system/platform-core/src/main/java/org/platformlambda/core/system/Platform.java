@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -142,42 +143,29 @@ public class Platform {
      * @return unique origin ID
      */
     public String getOrigin() {
-        return ServerPersonality.getInstance().getType() == ServerPersonality.Type.PLATFORM?
-                getNodeId() : getLambdaId();
+        return ServerPersonality.getInstance().getType() == ServerPersonality.Type.PLATFORM? getNodeId() : getLambdaId();
     }
 
     public synchronized void startCloudServices() {
         if (!Platform.cloudServicesStarted) {
+            // guarantee to execute once
             Platform.cloudServicesStarted = true;
             AppConfigReader reader = AppConfigReader.getInstance();
-            String serviceList = reader.getProperty(PostOffice.CLOUD_SERVICES);
-            if (serviceList != null) {
-                List<String> list = Utility.getInstance().split(serviceList, ", ");
+            String cloudServices = reader.getProperty(PostOffice.CLOUD_SERVICES);
+            if (cloudServices != null) {
+                List<String> list = Utility.getInstance().split(cloudServices, ", ");
                 if (!list.isEmpty()) {
                     List<String> loaded = new ArrayList<>();
                     SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-                    Set<String> packages = scanner.getPackages(true);
-                    for (String p : packages) {
-                        List<Class<?>> services = scanner.getAnnotatedClasses(p, CloudService.class);
-                        for (Class<?> cls : services) {
-                            CloudService connector = cls.getAnnotation(CloudService.class);
-                            if (list.contains(connector.value())) {
-                                try {
-                                    Object o = cls.newInstance();
-                                    if (o instanceof CloudSetup) {
-                                        log.info("Starting cloud service ({})", cls.getName());
-                                        loaded.add(connector.value());
-                                        CloudSetup cloud = (CloudSetup) o;
-                                        new Thread(cloud::initialize).start();
-
-                                    } else {
-                                        log.error("Unable start cloud service ({}) because it does not inherit {}",
-                                                cls.getName(), CloudSetup.class.getName());
-                                    }
-
-                                } catch (InstantiationException  | IllegalAccessException e) {
-                                    log.error("Unable start cloud service ({}) - {}", cls.getName(), e.getMessage());
-                                }
+                    List<Class<?>> services = scanner.getAnnotatedClasses(CloudService.class, true);
+                    for (String name: list) {
+                        if (loaded.contains(name)) {
+                            log.error("CLoud service ({}) already loaded", name);
+                        } else {
+                            if (startService(name, services, false)) {
+                                loaded.add(name);
+                            } else {
+                                log.error("CLoud service ({}) not found", name);
                             }
                         }
                     }
@@ -185,9 +173,6 @@ public class Platform {
                         log.warn("No Cloud services are loaded");
                     } else {
                         log.info("Cloud services {} started", loaded);
-                    }
-                    if (loaded.size() != list.size()) {
-                        log.warn("Incomplete cloud services - requested {}, found {}", list, loaded);
                     }
                 }
             }
@@ -203,51 +188,70 @@ public class Platform {
      */
     public synchronized void connectToCloud() {
         if (!Platform.cloudSelected) {
+            // guarantee to execute once
+            Platform.cloudSelected = true;
             // set personality to APP automatically
             ServerPersonality personality = ServerPersonality.getInstance();
             if (personality.getType() == ServerPersonality.Type.UNDEFINED) {
                 personality.setType(ServerPersonality.Type.APP);
             }
             AppConfigReader reader = AppConfigReader.getInstance();
-            String path = reader.getProperty(PostOffice.CLOUD_CONNECTOR, PostOffice.EVENT_NODE);
-            boolean found = false;
+            String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, PostOffice.EVENT_NODE);
             SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-            Set<String> packages = scanner.getPackages(true);
-            for (String p : packages) {
-                List<Class<?>> services = scanner.getAnnotatedClasses(p, CloudConnector.class);
-                for (Class<?> cls : services) {
-                    CloudConnector connector = cls.getAnnotation(CloudConnector.class);
-                    if (connector.value().equals(path)) {
-                        try {
-                            Object o = cls.newInstance();
-                            if (o instanceof CloudSetup) {
-                                found = true;
-                                CloudSetup cloud = (CloudSetup) o;
-                                new Thread(()->{
-                                    log.info("Starting cloud connector ({})", cls.getName());
-                                    cloud.initialize();
-                                    Platform.cloudSelected = true;
-
-                                }).start();
-
-                            } else {
-                                log.error("Unable to start cloud connector ({}) because it does not inherit {}",
-                                        cls.getName(), CloudSetup.class.getName());
-                            }
-
-                        } catch (InstantiationException  | IllegalAccessException e) {
-                            log.error("Unable to start cloud connector ({}) - {}", cls.getName(), e.getMessage());
-                        }
-                        break;
-                    }
-                }
+            List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
+            if (!startService(name, services, true)) {
+                log.error("CLoud connector ({}) not found", name);
             }
-            if (!found) {
-                log.error("CLoud connector ({}) not found", path);
-            }
-        } else {
-            log.error("Duplicated cloud connection request");
         }
+    }
+
+    private boolean startService(String name, List<Class<?>> services, boolean isConnector) {
+        if (name == null) {
+            return false;
+        }
+        for (Class<?> cls : services) {
+            final String serviceName;
+            final String original;
+            if (isConnector) {
+                CloudConnector connector = cls.getAnnotation(CloudConnector.class);
+                serviceName = connector.value();
+                original = connector.original();
+            } else {
+                CloudService connector = cls.getAnnotation(CloudService.class);
+                serviceName = connector.value();
+                original = connector.original();
+            }
+            if (serviceName.equals(name)) {
+                try {
+                    Object o = cls.newInstance();
+                    if (o instanceof CloudSetup) {
+                        CloudSetup cloud = (CloudSetup) o;
+                        new Thread(()-> {
+                            log.info("Starting cloud {} {} using {}", isConnector? "connector" : "service", name, cls.getName());
+                            cloud.initialize();
+                            /*
+                             * If the module is a wrapper,
+                             * the system will execute original connector or service after initialization.
+                             */
+                            if (!"none".equals(original)) {
+                                startService(original, services, isConnector);
+                            }
+                        }).start();
+                        return true;
+                    } else {
+                        log.error("Unable to start cloud {} ({}) because it does not inherit {}",
+                                isConnector? "connector" : "service",
+                                cls.getName(), CloudSetup.class.getName());
+                    }
+
+                } catch (InstantiationException  | IllegalAccessException e) {
+                    log.error("Unable to start cloud {} ({}) - {}",
+                            isConnector? "connector" : "service", cls.getName(), e.getMessage());
+                }
+                break;
+            }
+        }
+        return false;
     }
 
     public ConcurrentMap<String, ServiceDef> getLocalRoutingTable() {
@@ -255,7 +259,7 @@ public class Platform {
     }
 
     /**
-     * Stateless service is public lambda function with one or more concurrent instances.
+     * Register a public lambda function with one or more concurrent instances.
      * Its routing path will be published to the global service registry.
      *
      * @param route path
@@ -422,18 +426,18 @@ public class Platform {
             } catch (InterruptedException e) {
                 // ok to ignore
             }
-            logRecent("info", "Waiting for " + provider + " to get ready... " + count);
+            logRecently("info", "Waiting for " + provider + " to get ready... " + count);
             // taking too much time?
             if (++count >= seconds) {
                 String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
-                logRecent("error", message);
+                logRecently("error", message);
                 throw new TimeoutException(message);
             }
         }
-        logRecent("info", provider + " is ready");
+        logRecently("info", provider + " is ready");
     }
 
-    private void logRecent(String level, String message) {
+    private void logRecently(String level, String message) {
         Utility util = Utility.getInstance();
         String hash = util.getUTF(crypto.getMd5(util.getUTF(message)));
         if (!cache.exists(hash)) {

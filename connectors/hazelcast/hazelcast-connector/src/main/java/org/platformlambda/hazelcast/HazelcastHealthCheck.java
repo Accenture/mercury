@@ -28,14 +28,17 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class HazelcastHealthCheck implements LambdaFunction {
 
+    private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String HEALTH = "health";
     private static final String INFO = "info";
+    private static final String LIST = "list";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
     private static final String ORIGIN = "origin";
@@ -61,35 +64,54 @@ public class HazelcastHealthCheck implements LambdaFunction {
             result.put("cluster", HazelcastSetup.getClusterList());
             return result;
         }
-
         if (HEALTH.equals(headers.get(TYPE))) {
-            long begin = System.currentTimeMillis();
-            // wait for reply
-            String me = Platform.getInstance().getOrigin();
-            Inbox inbox = new Inbox(1);
-            // in case of service monitor, the origin of "monitor" is predefined
-            String origin = isServiceMonitor? "monitor" : me;
-            PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(REPLY_TO, inbox.getId() + "@" + me), new Kv(ORIGIN, origin), new Kv(TYPE, LOOP_BACK));
-            inbox.waitForResponse(TIMEOUT);
-            EventEnvelope pong = inbox.getReply();
-            inbox.close();
-            if (pong == null) {
-                throw new AppException(408, "Loopback test timeout for " + TIMEOUT + " ms");
-            }
-            if (pong.hasError()) {
-                throw new AppException(pong.getStatus(), pong.getError());
-            }
-            if (pong.getBody() instanceof Boolean) {
-                Boolean pingOk = (Boolean) pong.getBody();
-                if (pingOk) {
-                    long diff = System.currentTimeMillis() - begin;
-                    return "Loopback test took " + diff + " ms";
+            if (isServiceMonitor) {
+                List<String> topics = getTopics();
+                if (topics.isEmpty()) {
+                    return "Hazelcast is healthy";
+                } else {
+                    return "Hazelcast is running with "+topics.size()+" topic"+(topics.size() == 1? "s" :"");
                 }
+            } else {
+                long begin = System.currentTimeMillis();
+                // wait for reply
+                String me = Platform.getInstance().getOrigin();
+                Inbox inbox = new Inbox(1);
+                PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(REPLY_TO, inbox.getId() + "@" + me),
+                        new Kv(ORIGIN, me), new Kv(TYPE, LOOP_BACK));
+                inbox.waitForResponse(TIMEOUT);
+                EventEnvelope pong = inbox.getReply();
+                inbox.close();
+                if (pong == null) {
+                    throw new AppException(408, "Loopback test timeout for " + TIMEOUT + " ms");
+                }
+                if (pong.hasError()) {
+                    throw new AppException(pong.getStatus(), pong.getError());
+                }
+                if (pong.getBody() instanceof Boolean) {
+                    Boolean pingOk = (Boolean) pong.getBody();
+                    if (pingOk) {
+                        long diff = System.currentTimeMillis() - begin;
+                        return "Loopback test took " + diff + " ms";
+                    }
+                }
+                throw new AppException(500, "Loopback test failed");
             }
-            throw new AppException(500, "Loopback test failed");
 
         } else {
             throw new IllegalArgumentException("Usage: type=health");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> getTopics() throws IOException, TimeoutException, AppException {
+        PostOffice po = PostOffice.getInstance();
+        EventEnvelope response = po.request(MANAGER, 10000, new Kv(TYPE, LIST));
+        if (response.getBody() instanceof Map) {
+            Map<String, String> peers = (Map<String, String>) response.getBody();
+            return new ArrayList<>(peers.keySet());
+        } else {
+            return Collections.EMPTY_LIST;
         }
     }
 }

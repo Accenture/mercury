@@ -42,6 +42,8 @@ public class HouseKeeper implements LambdaFunction {
     private static final String MANAGER = MainApp.MANAGER;
     private static final String TYPE = "type";
     private static final String LIST = "list";
+    private static final String DOWNLOAD = "download";
+    private static final String TO = "to";
     private static final String ORIGIN = "origin";
     private static final String ALIVE = "alive";
     private static final String LEAVE = "leave";
@@ -75,6 +77,7 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (ALIVE.equals(headers.get(TYPE)) && headers.containsKey(TIMESTAMP) && headers.containsKey(TOKEN)
                 && headers.containsKey(ORIGIN)) {
@@ -116,9 +119,33 @@ public class HouseKeeper implements LambdaFunction {
                     // remove from memory
                     topics.remove(e);
                 }
+            } else if (body instanceof List) {
+                // compare connection list of myself with a peer
+                Map<String, Object> connections = MonitorService.getConnections();
+                List<String> myConnections = new ArrayList<>(connections.keySet());
+                List<String> peerConnections = (List<String>) body;
+                if (!sameList(myConnections, peerConnections)) {
+                    log.warn("Sync up connection list with peers");
+                    // download current connections from peers
+                    EventEnvelope event = new EventEnvelope();
+                    event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
+                    event.setHeader(TYPE, DOWNLOAD);
+                    event.setHeader(ORIGIN, me);
+                    PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
+                }
             }
         }
         return null;
+    }
+
+    private boolean sameList(List<String> a, List<String> b) {
+        if (a.size() > 1) {
+            Collections.sort(a);
+        }
+        if (b.size() > 1) {
+            Collections.sort(b);
+        }
+        return a.toString().equals(b.toString());
     }
 
     private List<String> findExpiredTopics() {

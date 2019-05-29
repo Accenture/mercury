@@ -180,7 +180,7 @@ public class TopicManager implements LambdaFunction {
         IMap<String, byte[]> map = client.getMap(nodes);
         Map<String, String> result = new HashMap<>();
         for (String k: map.keySet()) {
-            Map<String, String> metadata = (Map<String, String>)  msgPack.unpack(map.get(k));
+            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(k));
             if (metadata.containsKey("updated")) {
                 result.put(k, metadata.get("updated"));
             }

@@ -75,7 +75,7 @@ public class PresenceHandler implements LambdaFunction {
                     event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
                     event.setHeader(TYPE, DOWNLOAD);
                     event.setHeader(ORIGIN, myOrigin);
-                    PostOffice.getInstance().send(org.platformlambda.MainApp.PRESENCE_MONITOR, event.toBytes());
+                    PostOffice.getInstance().send(MainApp.PRESENCE_MONITOR, event.toBytes());
                     return true;
                 }
             }

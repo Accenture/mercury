@@ -42,7 +42,7 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String JOIN = "join";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
-    private static boolean connected = true;
+    private static boolean ready = true;
     private String realTopic;
     private boolean isServiceMonitor;
 
@@ -64,7 +64,7 @@ public class TopicLifecycleListener implements LifecycleListener {
     }
 
     public static boolean isReady() {
-        return connected;
+        return ready;
     }
 
     private void setupConsumer(boolean restore) {
@@ -94,19 +94,19 @@ public class TopicLifecycleListener implements LifecycleListener {
     @Override
     public void stateChanged(LifecycleEvent event) {
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_DISCONNECTED) {
-            connected = false;
-            log.error("Hazelcast disconnected");
+            ready = false;
+            log.error("Standing by");
         }
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_CONNECTED) {
-            if (!connected) {
-                log.info("Hazelcast reconnected");
+            if (!ready) {
+                log.info("Ready");
                 try {
                     PostOffice.getInstance().send(SETUP_CONSUMER, new Kv(TYPE, RESTORE));
                 } catch (IOException e) {
                     log.error("Unable to setup event consumer - {}", e.getMessage());
                 }
             }
-            connected = true;
+            ready = true;
         }
     }
 

@@ -34,7 +34,6 @@ public class EventConsumer implements MessageListener<byte[]> {
 
     @Override
     public void onMessage(Message<byte[]> event) {
-
         EventEnvelope message = new EventEnvelope();
         try {
             message.load(event.getMessageObject());

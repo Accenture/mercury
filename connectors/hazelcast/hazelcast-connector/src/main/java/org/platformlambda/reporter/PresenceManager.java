@@ -134,7 +134,7 @@ public class PresenceManager extends Thread {
                     WebSocketContainer container = ContainerProvider.getWebSocketContainer();
                     ClientEndpointConfig config = ClientEndpointConfig.Builder.create().build();
                     container.connectToServer(endpoint, config, uri);
-
+                    log.info("Reporting to {}", uri);
                     break; // exit after successful connection
                 } catch (DeploymentException | IOException e) {
                     log.warn("{} {}", simpleError(e.getMessage()), uri);
