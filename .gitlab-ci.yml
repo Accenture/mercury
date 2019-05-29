@@ -39,10 +39,7 @@ test_and_coverage:
     stage: test
     script:
         - mvn $MAVEN_CLI_OPTS test -f system/platform-core
-        - ls -la
-        - ls -la system/platform-core/target
-        - ls -la system/platform-core/target/site
-        - ls -la system/platform-core/target/site/jacoco
+        - ls -la system/platform-core/target/surefire-reports
         - cat system/platform-core/target/site/jacoco/index.html
         - mv system/platform-core/target/site/jacoco target/jacoco/
     coverage: '/Total.*?([0-9]{1,3})%/'
