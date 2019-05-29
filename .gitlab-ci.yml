@@ -1,4 +1,4 @@
-image: maven:3.6.1-jdk-11
+image: maven:3.6.1-jdk-8
 
 variables:
     MAVEN_CLI_OPTS: "--show-version"
