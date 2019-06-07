@@ -85,7 +85,7 @@ The Mercury framework is a SDK with some cloud connectors and language packs. Th
 
 For example, the following codelet sends the text "hello world" from the caller to the function registered as "v1.some.service".
 
-```
+```java
 //-------------------------------------------------
 
 // SERVICE in one container
@@ -201,7 +201,7 @@ cd mercury
 
 To get the system up and running, you should compile and build the foundation libraries from sources. This will install the libraries into your ".m2/repository/org/platformlambda" folder. For your convenience, we will be publishing these libraries into a public repository at a later time.
 
-```
+```bash
 # start a terminal and go to the mercury sandbox folder
 cd system/platform-core
 mvn clean install
@@ -218,7 +218,7 @@ mvn clean install
 
 To support Python and other programming languages, please build the language-connector application.
 
-```
+```bash
 # start a terminal and go to the mercury sandbox folder
 cd language-packs/language-connector
 mvn clean package
@@ -230,7 +230,7 @@ mvn clean package
 
 You can compile the rest-example as a microservices executable like this:
 
-```
+```bash
 cd mercury/examples
 cd rest-example
 mvn clean package
@@ -242,7 +242,7 @@ Try http://127.0.0.1:8083/api/hello/world with a browser.
 
 It will respond with some sample output like this:
 
-```
+```json
 {
   "body" : {
     "body" : {
@@ -285,7 +285,7 @@ This will return a HTTP-500 "Route hello.pojo not found" error. This is expected
 Now it is time to build a scalable application using an event stream system. 
 For simplicity, we are going to use the Event Node system to emulate a cloud environment.
 
-```
+```bash
 cd mercury/connectors
 cd event-node
 mvn clean package
@@ -309,7 +309,7 @@ java -jar target/rest-example-1.12.0.jar
 
 Try http://127.0.0.1:8083/api/hello/pojo/1 again. You will see response like this:
 
-```
+```json
 {
   "address" : "100 World Blvd, Planet Earth",
   "date" : "2018-12-21T16:56:29.774Z",
@@ -347,7 +347,7 @@ Members {size:1, ver:1} [
 
 - Build the hazelcast-presence project
 
-```
+```bash
 cd mercury/connectors
 cd hazelcast/hazelcast-presence
 mvn clean package
@@ -357,7 +357,7 @@ java -jar target/hazelcast-presence-1.12.0.jar
 
 - Run the lambda-example and rest-example again
 
-```
+```bash
 # go to the lambda-example project folder in one terminal
 java -Dcloud.connector=hazelcast -jar target/lambda-example-1.12.0.jar
 # the lambda-example will connect to the hazelcast cluster and the "presence monitor"
@@ -377,7 +377,7 @@ The "cloud.connector=hazelcast" parameter overrides the application.properties i
 You may visit http://127.0.0.1:8080/info to see connection info. It may look like this:
 
 
-```
+```json
 {
   "additional.info" : {
     "connections" : {
@@ -429,7 +429,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
 
 You may also check the health status of the presence monitor by visiting http://127.0.0.1:8080/health
 
-```
+```json
 {
   "status" : "UP",
   "upstream" : [ {
@@ -465,7 +465,7 @@ Creating a docker image from the executable is very easy. First you need to buil
 
 The Dockerfile may look like this:
 
-```
+```bash
 FROM openjdk:8-jre-slim
 EXPOSE 8083
 WORKDIR /app
