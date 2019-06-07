@@ -23,12 +23,12 @@ The Mercury framework is 100% event-driven and all communications are asynchrono
 
 To make a RPC call, you can use the `request` method.
 
-```
+```java
 EventEnvelope request(String to, long timeout, Object body) throws IOException, TimeoutException, AppException;
 EventEnvelope request(String to, long timeout, Object body, Kv... parameters) throws IOException, TimeoutException, AppException;
 EventEnvelope request(EventEnvelope event, long timeout) throws IOException, TimeoutException, AppException;
 
-e.g.
+// example
 EventEnvelope response = po.request("hello.world", 1000, somePayload);
 System.out.println("I got response..."+response.getBody());
 
@@ -40,7 +40,7 @@ Note that Mercury supports Java primitive, Map and PoJo in the message body. If 
 
 To make an asynchronous call, use the `send` method.
 
-```
+```java
 void send(String to, Kv... parameters) throws IOException;
 void send(String to, Object body) throws IOException;
 void send(String to, Object body, Kv... parameters) throws IOException;
@@ -53,10 +53,10 @@ Kv is a key-value pair for holding one parameter.
 
 You can register a call back function and uses its route name as the "reply-to" address in the send method. To set a reply-to address, you need to use the EventEnvelope directly.
 
-```
+```java
 void send(final EventEnvelope event) throws IOException;
 
-e.g.
+// example
 EventEnvelope event = new EventEnvelope();
 event.setTo("hello.world").setBody(somePayload);
 po.send(event);
@@ -68,9 +68,10 @@ In a pipeline operation, there is stepwise event propagation. e.g. Function A se
 
 To pass a list of stepwise targets, you may send the list as a parameter. Each function of the pipeline should forward the pipeline list to the next function.
 
-```
+```java
 EventEnvelope event = new EventEnvelope();
-event.setTo("function.b").setBody(somePayload).setReplyTo("function.c").setHeader("pipeline", "function.a->function.b->function.c->function.d");
+event.setTo("function.b").setBody(somePayload).setReplyTo("function.c")
+     .setHeader("pipeline",  "function.a->function.b->function.c->function.d");
 po.send(event);
 ```
 
@@ -98,7 +99,7 @@ I/O stream consumes resources and thus you must close the input stream at the en
 
 The following unit test demonstrates this use case.
 
-```
+```java
 String messageOne = "hello world";
 String messageTwo = "it is great";
 
@@ -156,7 +157,7 @@ in.close();
 
 Broadcast is the easiest way to do "pub/sub". To broadcast an event to multiple application instances, use the `broadcast` method.
 
-```
+```java
 void broadcast(String to, Kv... parameters) throws IOException;
 void broadcast(String to, Object body) throws IOException;
 void broadcast(String to, Object body, Kv... parameters) throws IOException;
@@ -170,7 +171,7 @@ po.broadcast("hello.world", "hey, this is a broadcast message to all hello.world
 
 You can perform join-n-fork RPC calls using a parallel version of the `request` method.
 
-```
+```java
 List<EventEnvelope> request(List<EventEnvelope> events, long timeout) throws IOException;
 
 e.g.
@@ -200,7 +201,7 @@ Mercury provides real-time inter-service event streaming and you do not need to 
 However, if you want to do store-n-forward pub/sub for certain use cases, you may use the `PubSub` class.
 Following are some useful pub/sub API:
 
-```
+```java
 public boolean featureEnabled();
 public boolean createTopic(String topic) throws IOException;
 public void deleteTopic(String topic) throws IOException;
@@ -231,17 +232,15 @@ The payload can be PoJo, Map or Java primitives.
 
 To check if a target service is available, you can use the `exists` method.
 
-```
+```java
 boolean po.exists(String route);
 
-e.g.
 if (po.exists("hello.world")) {
     // do something
 }
 
-This service discovery process is instantaneous using distributed routing table.
-
 ```
+This service discovery process is instantaneous using distributed routing table.
 
 
 | Chapter-4                                 | Home                                     |
