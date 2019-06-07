@@ -162,7 +162,7 @@ void broadcast(String to, Kv... parameters) throws IOException;
 void broadcast(String to, Object body) throws IOException;
 void broadcast(String to, Object body, Kv... parameters) throws IOException;
 
-e.g.
+// example
 po.broadcast("hello.world", "hey, this is a broadcast message to all hello.world providers");
 
 ```
@@ -174,7 +174,7 @@ You can perform join-n-fork RPC calls using a parallel version of the `request` 
 ```java
 List<EventEnvelope> request(List<EventEnvelope> events, long timeout) throws IOException;
 
-e.g.
+// example
 List<EventEnvelope> parallelEvents = new ArrayList<>();
 
 EventEnvelope event1 = new EventEnvelope();
