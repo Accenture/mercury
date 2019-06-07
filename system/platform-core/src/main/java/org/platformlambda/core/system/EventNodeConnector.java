@@ -41,7 +41,6 @@ import java.util.concurrent.ConcurrentMap;
 
 public class EventNodeConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(EventNodeConnector.class);
-    private static final EventNodeConnector instance = new EventNodeConnector();
     private static final CryptoApi crypto = new CryptoApi();
     private static final Utility util = Utility.getInstance();
     private static final MsgPack msgPack = new MsgPack();
@@ -71,6 +70,8 @@ public class EventNodeConnector implements LambdaFunction {
     public enum State {
         UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED
     }
+
+    private static final EventNodeConnector instance = new EventNodeConnector();
 
     private EventNodeConnector() {
         // singleton

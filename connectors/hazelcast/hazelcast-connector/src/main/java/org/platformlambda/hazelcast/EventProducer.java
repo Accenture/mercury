@@ -95,15 +95,15 @@ public class EventProducer implements LambdaFunction {
                     }
                 } else {
                     for (String dest : destinations) {
-                        if (dest.equals(origin)) {
-                            EventEnvelope local = new EventEnvelope();
-                            local.load(payload);
-                            po.send(local);
-                        } else {
-                            String realTopic = HazelcastSetup.getNamespace() + dest;
-                            ITopic<byte[]> iTopic = client.getReliableTopic(realTopic);
-                            iTopic.publish(payload);
-                        }
+                        /*
+                         * Automatic segmentation happens at the PostOffice level
+                         * so this outgoing payload may be a whole event or a block of it.
+                         *
+                         * The EventConsumer at the receiving side will reconstruct the payload if needed.
+                         */
+                        String realTopic = HazelcastSetup.getNamespace() + dest;
+                        ITopic<byte[]> iTopic = client.getReliableTopic(realTopic);
+                        iTopic.publish(payload);
                     }
                 }
 

@@ -19,40 +19,27 @@
 package org.platformlambda.core.util;
 
 import org.junit.Test;
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.ObjectStreamReader;
 import org.platformlambda.core.system.ObjectStreamWriter;
-import org.platformlambda.core.system.PostOffice;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
-import static org.platformlambda.core.system.Platform.STREAM_MANAGER;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ObjectStreamTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void readWrite() throws IOException, TimeoutException, AppException {
+    public void readWrite() throws IOException {
 
         String messageOne = "hello world";
         String messageTwo = "it is great";
 
-        PostOffice po = PostOffice.getInstance();
-        EventEnvelope response = po.request(STREAM_MANAGER, 5000, new Kv("type", "create"));
-        assertFalse(response.hasError());
-        assertTrue(response.getBody() instanceof String);
-
-        String fqPath = (String) response.getBody();
-        assertTrue(fqPath.startsWith("stream."));
-        // fully qualified path = streamId @ origin
-        assertTrue(fqPath.contains("@"));
-
-        ObjectStreamWriter out = new ObjectStreamWriter(fqPath);
+        ObjectStreamIO io = new ObjectStreamIO();
+        ObjectStreamWriter out = io.getOutputStream();
         out.write(messageOne);
         out.write(messageTwo);
         /*
@@ -61,21 +48,21 @@ public class ObjectStreamTest {
          *
          * For this test, we do not close the output stream to demonstrate the timeout.
          */
-//         out.close();
+        //  out.close();
 
         /*
-         * get a list of all open streams and verify that the new I/O stream exists
-         * e.g. {total=1, streams={stream.97c7d66f9a0f43a685ab01b7fcae00a4=2018-05-30T20:30:14.853Z}}
+         * See all open streams in this application instance and verify that the new stream is there
          */
-        String path = fqPath.substring(0, fqPath.indexOf('@'));
-        EventEnvelope query = po.request(STREAM_MANAGER, 5000, new Kv("type", "query"));
-        assertTrue(query.getBody() instanceof Map);
-        Map<String, Object> result = (Map<String, Object>) query.getBody();
-        assertTrue(result.containsKey("streams"));
-        Map<String, Object> map = (Map<String, Object>) result.get("streams");
-        assertTrue(map.containsKey(path));
-
-        ObjectStreamReader in = new ObjectStreamReader(fqPath, 1000);
+        String fullPath = io.getRoute();
+        // remove the node-ID from the fully qualified route name
+        String path = fullPath.substring(0, fullPath.indexOf('@'));
+        Map<String, Object> localStreams = io.getLocalStreams();
+        assertTrue(localStreams.containsKey(path));
+        /*
+         * read object from the event stream
+         * (minimum timeout value is one second)
+         */
+        ObjectStreamReader in = io.getInputStream(1000);
         int i = 0;
         while (!in.isEof()) {
             try {

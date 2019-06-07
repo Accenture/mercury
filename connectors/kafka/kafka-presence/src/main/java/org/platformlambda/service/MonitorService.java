@@ -165,8 +165,10 @@ public class MonitorService implements LambdaFunction {
                             Map<String, Object> info = new HashMap<>();
                             String time = Utility.getInstance().date2str(new Date(), true);
                             info.put(CREATED, time);
+                            info.put(UPDATED, time);
                             info.put(MONITOR, platform.getOrigin());
                             info.put(ID, route);
+                            info.put(SEQ, 0);
                             route2token.put(route, token);
                             token2info.put(token, info);
                             token2txPath.put(token, txPath);

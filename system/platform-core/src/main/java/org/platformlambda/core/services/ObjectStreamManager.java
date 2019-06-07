@@ -37,10 +37,8 @@ public class ObjectStreamManager implements LambdaFunction {
     private static final String NAME = "name";
     private static final String DESTROY = "destroy";
     private static final String QUERY = "query";
-    private static final String TOTAL = "total";
-    private static final String STREAMS = "streams";
 
-    private static final Map<String, Date> streams = new HashMap<>();
+    private static final Map<String, String> streams = new HashMap<>();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
@@ -49,33 +47,27 @@ public class ObjectStreamManager implements LambdaFunction {
         if (CREATE.equals(headers.get(TYPE))) {
             ObjectStreamService service = new ObjectStreamService();
             platform.registerPrivate(service.getPath(), service, 1);
-            streams.put(service.getPath(), new Date());
+            streams.put(service.getPath(), Utility.getInstance().date2str(new Date()));
             log.info("{} created", service.getPath());
+            // return fully qualified name
             return service.getPath()+"@"+platform.getOrigin();
         } else if (DESTROY.equals(headers.get(TYPE)) && headers.containsKey(NAME)) {
             String fqName = headers.get(NAME);
             String name = fqName.contains("@") ? fqName.substring(0, fqName.indexOf('@')) : fqName;
-            Date created = streams.get(name);
+            String created = streams.get(name);
             if (created != null) {
                 streams.remove(name);
                 platform.release(name);
-                log.info("{} ({}) destroyed", name, Utility.getInstance().date2str(created));
+                log.info("{} ({}) destroyed", name, created);
                 return true;
             } else {
                 throw new IllegalArgumentException(name + " not found");
             }
         } else if (QUERY.equals(headers.get(TYPE))) {
-            Map<String, Object> result = new HashMap<>();
-            Map<String, Object> map = new HashMap<>();
-            for (String k: streams.keySet()) {
-                map.put(k, streams.get(k));
-            }
-            result.put(STREAMS, map);
-            result.put(TOTAL, map.size());
-            return result;
+            return streams;
 
         } else {
-            throw new IllegalArgumentException("Usage: set header (type=create) to create a new I/O stream");
+            throw new IllegalArgumentException("type must be create, destroy or query");
         }
     }
 

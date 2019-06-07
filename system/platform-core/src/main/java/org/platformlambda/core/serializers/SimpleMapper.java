@@ -35,8 +35,8 @@ public class SimpleMapper {
     private static final String SNAKE_CASE_SERIALIZATION = "snake.case.serialization";
     private static final Set<String> safeModels = new HashSet<>();
     private static final String[] SAFE_GROUPS = {"java.util.", "java.lang."};
-    private static final SimpleMapper instance = new SimpleMapper();
     private SimpleObjectMapper mapper;
+    private static final SimpleMapper instance = new SimpleMapper();
 
     private SimpleMapper() {
         // Camel or snake case

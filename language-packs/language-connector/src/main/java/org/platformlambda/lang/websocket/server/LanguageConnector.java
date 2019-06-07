@@ -33,6 +33,8 @@ import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.services.LanguageInbox;
 import org.platformlambda.lang.services.LanguageRelay;
+import org.platformlambda.lang.services.PubSubController;
+import org.platformlambda.lang.services.TopicListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,24 +63,28 @@ public class LanguageConnector implements LambdaFunction {
     private static final String STATUS = "status";
     private static final String REPLY_TO = "reply_to";
     private static final String CID = "cid";
-    private static final String NOTES = "notes";
+    private static final String EXTRA = "extra";
     private static final String LOGIN = "login";
     private static final String ADD = "add";
     private static final String REMOVE = "remove";
+    private static final String READY = "ready";
     private static final String DISCONNECT = "disconnect";
     private static final String TOKEN = "token";
+    private static final String API_KEY = "api_key";
     private static final String BROADCAST = "broadcast";
     private static final String EXEC_TIME = "exec_time";
     private static final String LANGUAGE_REGISTRY = "language.pack.registry";
     private static final String LANGUAGE_INBOX = "language.pack.inbox";
+    private static final String PUB_SUB_CONTROLLER = "pub.sub.controller";
     private static final String SYSTEM_ALERT = "system.alerts";
     private static final String SYSTEM_CONFIG = "system.config";
     private static final String MAX_PAYLOAD = "max.payload";
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
+    private static final int OVERHEAD = MultipartPayload.OVERHEAD;
 
     private static ManagedCache cache;
-    private static String apiKeyLabel, langApiKey, inboxRoute;
+    private static String apiKey, inboxRoute;
 
     private enum State {
         OPEN, AUTHENTICATED
@@ -98,6 +104,10 @@ public class LanguageConnector implements LambdaFunction {
     public static List<String> getDestinations(String route) {
         List<String> result = routingTable.get(route);
         return result == null? new ArrayList<>() : new ArrayList<>(result);
+    }
+
+    public static boolean hasRoute(String route) {
+        return routingTable.containsKey(route);
     }
 
     private static void notifyClient(String txPath, int status, String message) throws IOException {
@@ -125,23 +135,32 @@ public class LanguageConnector implements LambdaFunction {
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
+    private static void sendReady(String txPath) throws IOException {
+        Map<String, Object> response = new HashMap<>();
+        response.put(TYPE, EVENT);
+        response.put(ROUTE, SYSTEM_CONFIG);
+        EventEnvelope alert = new EventEnvelope();
+        alert.setTo(SYSTEM_CONFIG);
+        alert.setHeader(TYPE, READY);
+        response.put(EVENT, LanguageConnector.mapFromEvent(alert));
+        PostOffice.getInstance().send(txPath, msgPack.pack(response));
+    }
+
     public static void initialize() throws IOException {
-        if (langApiKey == null) {
+        if (apiKey == null) {
             cache = MultipartPayload.getInstance().getCache();
             /*
-             * If no lang.api.key is given in application.properties,
+             * If no api.key is given in application.properties,
              *  the API key will be random so it will not accept any connection.
              */
             Utility util = Utility.getInstance();
             AppConfigReader reader = AppConfigReader.getInstance();
-            apiKeyLabel = reader.getProperty("lang.api.key.label", "lang_api_key");
-            langApiKey = reader.getProperty("lang.api.key");
-            if (langApiKey == null) {
-                langApiKey = util.getUuid();
-                log.error("Language packs disabled because lang.api.key is missing in application.properties or LANG_API_KEY in environment");
+            apiKey = reader.getProperty("api.key");
+            if (apiKey == null) {
+                apiKey = util.getUuid();
+                log.error("Language packs disabled because api.key is missing in application.properties or LANG_API_KEY in environment");
             }
-            log.info("Started. {} loaded.", apiKeyLabel);
-            LanguageRelay relay = new LanguageRelay();
+            log.info("Started");
             LambdaFunction registry = (headers, body, instance) -> {
                 if (headers.containsKey(TYPE)) {
                     String type = headers.get(TYPE);
@@ -156,7 +175,7 @@ public class LanguageConnector implements LambdaFunction {
                             } else {
                                 if (!routingTable.containsKey(route)) {
                                     routingTable.put(route, new ArrayList<>());
-                                    Platform.getInstance().register(route, relay, 1);
+                                    Platform.getInstance().register(route, LanguageRelay.getInstance(), 1);
                                 }
                                 List<String> clients = routingTable.get(route);
                                 clients.add(token);
@@ -183,13 +202,16 @@ public class LanguageConnector implements LambdaFunction {
                             removeClientFromRoute(r, token);
                         }
                     }
+                    if (READY.equals(type) && headers.containsKey(READY)) {
+                        sendReady(headers.get(READY));
+                    }
                 }
                 return null;
             };
-
             Platform platform = Platform.getInstance();
             platform.registerPrivate(LANGUAGE_REGISTRY, registry, 1);
             platform.registerPrivate(LANGUAGE_INBOX, new LanguageInbox(), 1);
+            platform.registerPrivate(PUB_SUB_CONTROLLER, new PubSubController(), 1);
             LanguageConnector.inboxRoute = LANGUAGE_INBOX + "@" + platform.getOrigin();
         }
     }
@@ -202,6 +224,7 @@ public class LanguageConnector implements LambdaFunction {
             if (clients.isEmpty()) {
                 routingTable.remove(route);
                 Platform.getInstance().release(route);
+                TopicListener.releaseRoute(route);
                 log.info("{} cleared", route);
             }
         }
@@ -248,19 +271,20 @@ public class LanguageConnector implements LambdaFunction {
                             ConnectionStatus client = connections.get(token);
                             if (client != null) {
                                 if (client.getState() == State.OPEN) {
-                                    if (LOGIN.equals(type) && event.containsKey(apiKeyLabel)
-                                            && event.get(apiKeyLabel).equals(langApiKey)) {
+                                    if (LOGIN.equals(type) && event.containsKey(API_KEY)
+                                            && event.get(API_KEY).equals(apiKey)) {
                                         client.setState(State.AUTHENTICATED);
                                         Map<String, Object> config = new HashMap<>();
-                                        config.put(MAX_PAYLOAD, WsConfigurator.getInstance().getMaxBinaryPayload() - MultipartPayload.OVERHEAD);
+                                        config.put(MAX_PAYLOAD, WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD);
                                         sendServerConfig(txPath, config);
                                         log.info("{} authenticated", token);
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
                                         Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
-                                                "Requires login with "+apiKeyLabel);
+                                                "Requires login with "+API_KEY);
                                     }
                                 } else if (client.getState() == State.AUTHENTICATED) {
+                                    // handle registration of public routes
                                     if (ADD.equals(type) && event.containsKey(ROUTE)) {
                                         po.send(LANGUAGE_REGISTRY, new Kv(TYPE, ADD),
                                                 new Kv(TOKEN, token), new Kv(ROUTE, event.get(ROUTE)));
@@ -269,6 +293,14 @@ public class LanguageConnector implements LambdaFunction {
                                         po.send(LANGUAGE_REGISTRY, new Kv(TYPE, REMOVE),
                                                 new Kv(TOKEN, token), new Kv(ROUTE, event.get(ROUTE)));
                                     }
+                                    /*
+                                     * echo ready signal through language registry
+                                     * so that the acknowledgement is done orderly
+                                     */
+                                    if (READY.equals(type)) {
+                                        po.send(LANGUAGE_REGISTRY, new Kv(TYPE, READY), new Kv(READY, txPath));
+                                    }
+                                    // reconstruct large payload
                                     if (BLOCK.equals(type) && event.containsKey(BLOCK)) {
                                         EventEnvelope block = eventFromMap((Map<String, Object>) event.get(BLOCK));
                                         Map<String, String> control = block.getHeaders();
@@ -295,6 +327,7 @@ public class LanguageConnector implements LambdaFunction {
                                             }
                                         }
                                     }
+                                    // regular events
                                     if (EVENT.equals(type) && event.containsKey(EVENT)) {
                                         EventEnvelope request = eventFromMap((Map<String, Object>) event.get(EVENT));
                                         po.send(mapReplyTo(token, request));
@@ -333,7 +366,7 @@ public class LanguageConnector implements LambdaFunction {
                  * Change the replyTo to the language inbox which will intercept
                  * the service responses.
                  */
-                request.setNotes(token+replyTo);
+                request.setExtra(token+replyTo);
                 request.setReplyTo(LanguageConnector.inboxRoute);
             }
         }
@@ -376,8 +409,8 @@ public class LanguageConnector implements LambdaFunction {
         if (map.containsKey(CID)) {
             event.setCorrelationId((String) map.get(CID));
         }
-        if (map.containsKey(NOTES)) {
-            event.setNotes((String) map.get(NOTES));
+        if (map.containsKey(EXTRA)) {
+            event.setExtra((String) map.get(EXTRA));
         }
         if (map.containsKey(EXEC_TIME)) {
             if (map.get(EXEC_TIME) instanceof Float) {
@@ -411,8 +444,8 @@ public class LanguageConnector implements LambdaFunction {
         if (event.getCorrelationId() != null) {
             result.put(CID, event.getCorrelationId());
         }
-        if (event.getNotes() != null) {
-            result.put(NOTES, event.getNotes());
+        if (event.getExtra() != null) {
+            result.put(EXTRA, event.getExtra());
         }
         if (event.getExecutionTime() >= 0) {
             result.put(EXEC_TIME, event.getExecutionTime());

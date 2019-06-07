@@ -25,8 +25,7 @@ import java.io.IOException;
 
 public class AppConfigReader extends ConfigReader {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
-
-    public static final AppConfigReader reader = new AppConfigReader();
+    private static final AppConfigReader reader = new AppConfigReader();
 
     public static AppConfigReader getInstance() {
         return reader;

@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@CloudConnector("event.node")
+@CloudConnector(name="event.node")
 public class EventNodeSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(EventNodeSetup.class);
 

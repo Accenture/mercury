@@ -53,6 +53,7 @@ public class EventConsumer implements MessageListener<byte[]> {
                 }
 
             } else {
+                // reconstruct large payload larger than 64MB
                 MultipartPayload.getInstance().incoming(message);
             }
 

@@ -482,4 +482,8 @@ public class CryptoApi {
         return ThreadLocalRandom.current().nextInt(bound);
     }
 
+    public int nextInt(int start, int bound) {
+        return ThreadLocalRandom.current().nextInt(start, bound);
+    }
+
 }

@@ -40,6 +40,8 @@ public class EventEnvelope {
     // metrics
     private static final String EXECUTION = "1";
     private static final String ROUND_TRIP = "2";
+    // extra routing information for a request from a language pack client
+    private static final String EXTRA = "3";
     // route paths
     private static final String TO = "T";
     private static final String REPLY_TO = "R";
@@ -54,13 +56,12 @@ public class EventEnvelope {
     // object type for automatic serialization
     private static final String OBJ_TYPE = "O";
     private static final String PARA_TYPES = "P";
-    private static final String NOTES = "N";
     // final destination
     private static final String END_ROUTE = "E";
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
 
-    private String id, from, to, replyTo, cid, notes, type, parametricType;
+    private String id, from, to, replyTo, cid, extra, type, parametricType;
     private Integer status;
     private Map<String, String> headers = new HashMap<>();
     private Object body;
@@ -96,8 +97,8 @@ public class EventEnvelope {
         return cid;
     }
 
-    public String getNotes() {
-        return notes;
+    public String getExtra() {
+        return extra;
     }
 
     public Integer getStatus() {
@@ -154,36 +155,79 @@ public class EventEnvelope {
         return this;
     }
 
+    /**
+     * Set the target route
+     *
+     * @param to target route
+     * @return event envelope
+     */
     public EventEnvelope setTo(String to) {
         this.to = to;
         return this;
     }
 
+    /**
+     * Optionally provide the sender
+     *
+     * @param from the sender
+     * @return event envelope
+     */
     public EventEnvelope setFrom(String from) {
         this.from = from;
         return this;
     }
 
+    /**
+     * Optionally set the replyTo address
+     *
+     * @param replyTo route
+     * @return event envelope
+     */
     public EventEnvelope setReplyTo(String replyTo) {
         this.replyTo = replyTo;
         return this;
     }
 
+    /**
+     * Optionally set a correlation-ID
+     *
+     * @param cid correlation-ID
+     * @return event envelope
+     */
     public EventEnvelope setCorrelationId(String cid) {
         this.cid = cid;
         return this;
     }
 
-    public EventEnvelope setNotes(String notes) {
-        this.notes = notes;
+    /**
+     * Reserved for system use by language pack. DO NOT use in regular application.
+     *
+     * @param extra language pack extra routing information
+     * @return event envelope
+     */
+    public EventEnvelope setExtra(String extra) {
+        this.extra = extra;
         return this;
     }
 
+    /**
+     * Optionally set status code (use HTTP compatible response code) if the return object is an event envelope.
+     *
+     * @param status 200 for normal response
+     * @return event envelope
+     */
     public EventEnvelope setStatus(int status) {
         this.status = status;
         return this;
     }
 
+    /**
+     * Optionally set a parameter
+     *
+     * @param key of a parameter
+     * @param value of a parameter
+     * @return event envelope
+     */
     public EventEnvelope setHeader(String key, Object value) {
         if (key != null && value != null) {
             this.headers.put(key, value instanceof String? (String) value : value.toString());
@@ -191,28 +235,57 @@ public class EventEnvelope {
         return this;
     }
 
+    /**
+     * Set payload
+     *
+     * @param body Usually a PoJo, a Map or Java primitive
+     * @return event envelope
+     */
     public EventEnvelope setBody(Object body) {
         this.body = body;
         return this;
     }
 
+    /**
+     * DO NOT set this manually. The system will set it.
+     *
+     * @param milliseconds spent
+     * @return event envelope
+     */
     public EventEnvelope setExecutionTime(float milliseconds) {
         String ms = String.format("%.3f", milliseconds);
         this.executionTime = Float.parseFloat(ms);
         return this;
     }
 
+    /**
+     * DO NOT set this manually. The system will set it.
+     *
+     * @param milliseconds spent
+     * @return event envelope
+     */
     public EventEnvelope setRoundTrip(float milliseconds) {
         String ms = String.format("%.3f", milliseconds);
         this.roundTrip = Float.parseFloat(ms);
         return this;
     }
 
+    /**
+     * DO NOT set this manually. The system will set it.
+     *
+     * @param level 0 to 2
+     * @return event envelope
+     */
     public EventEnvelope setBroadcastLevel(int level) {
         this.broadcastLevel = level;
         return this;
     }
 
+    /**
+     * DO NOT set this manually. The system will set it when needed.
+     *
+     * @return event envelope
+     */
     public EventEnvelope setEndOfRoute() {
         this.endOfRoute = true;
         return this;
@@ -238,7 +311,6 @@ public class EventEnvelope {
     /**
      * For Java object with generic types, you may tell EventEnvelope to transport
      * the parameterized Class(es) so that the object can be deserialized correctly.
-     * (Note that only simple typing is supported)
      *
      * @param parameterClass one or more parameter classes
      * @return this EventEnvelope
@@ -255,6 +327,13 @@ public class EventEnvelope {
         return this;
     }
 
+    /**
+     * For Java object with generic types, you may tell EventEnvelope to transport
+     * the parameterized Class so that the object can be deserialized correctly.
+     *
+     * @param parametricType a single parameter class
+     * @return this EventEnvelope
+     */
     public EventEnvelope setParametricType(String parametricType) {
         this.parametricType = parametricType;
         return this;
@@ -286,8 +365,8 @@ public class EventEnvelope {
             if (message.containsKey(CID)) {
                 cid = (String) message.get(CID);
             }
-            if (message.containsKey(NOTES)) {
-                notes = (String) message.get(NOTES);
+            if (message.containsKey(EXTRA)) {
+                extra = (String) message.get(EXTRA);
             }
             if (message.containsKey(STATUS)) {
                 if (message.get(STATUS) instanceof Integer) {
@@ -367,7 +446,7 @@ public class EventEnvelope {
     }
 
     /**
-     * Encode the EventEnvelope into a byte array
+     * Serialize the EventEnvelope as a byte array
      *
      * @return byte array
      * @throws IOException in case of encoding errors
@@ -389,8 +468,8 @@ public class EventEnvelope {
         if (cid != null) {
             message.put(CID, cid);
         }
-        if (notes != null) {
-            message.put(NOTES, notes);
+        if (extra != null) {
+            message.put(EXTRA, extra);
         }
         if (status != null) {
             message.put(STATUS, status);

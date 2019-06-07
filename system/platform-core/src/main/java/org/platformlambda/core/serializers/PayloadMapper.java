@@ -28,9 +28,6 @@ import java.util.List;
 import java.util.Map;
 
 public class PayloadMapper {
-
-    private static final PayloadMapper instance = new PayloadMapper();
-
     public static final String MAP = "M";
     public static final String ARRAY = "A";
     public static final String LIST = "L";
@@ -40,6 +37,7 @@ public class PayloadMapper {
     private static final long FIVE_MINUTE = 5 * 60 * 1000;
 
     private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
+    private static final PayloadMapper instance = new PayloadMapper();
 
     private PayloadMapper() {
         // singleton

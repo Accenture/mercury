@@ -23,7 +23,6 @@
 | info.api.key.label                          | X-Info-Key                                | Optional*|
 | info.api.key                                | some secret key (recommended to use UUID) | Optional*|
 | info.api.key.label                          | X-Info-Key                                | Optional*|
-| application.feature.streaming               | default false                             | Optional |
 | application.feature.route.substitution      | default false                             | Optional |
 | route.substitution                          | comma separated rules. e.g hi.here:v1.hi  | Optional |
 
@@ -45,12 +44,6 @@ You can get an instance of the serializer with `SimpleMapper.getInstance().getWh
 # info.api.key
 
 This is used to authenticate HTTP requests to the "protected.info.endpoints".
-
-# streaming feature
-
-Turning on this application feature would create a stream manager in the application container. Please refer to `ObjectStreamTest.java` in the Unit Tests for usage.
-
-Since a unique stream handler is created for each stream, you may close the input stream once your application has finished using the stream. Otherwise, it would result in resource leak.
 
 # route substitution
 

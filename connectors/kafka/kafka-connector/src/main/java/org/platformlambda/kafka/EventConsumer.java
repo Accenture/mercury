@@ -22,10 +22,12 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,23 +36,59 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.Set;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
+    private static final long POLL_MS = 10000;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
-    private boolean normal = true;
+    private boolean normal = true, pubSub = false;
+    private long offset = -1;
 
     public EventConsumer(Properties base, String topic) {
+        initialize(base, topic, false);
+    }
+
+    public EventConsumer(Properties base, String topic, boolean pubSub, String... parameters) {
+        initialize(base, topic, pubSub, parameters);
+    }
+
+    private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
+        this.pubSub = pubSub;
         this.topic = topic;
         String origin = Platform.getInstance().getOrigin();
         Properties prop = new Properties();
         prop.putAll(base);
-        // create unique ID from origin ID by dropping date prefix
-        prop.put(ConsumerConfig.CLIENT_ID_CONFIG, origin.substring(8)); // drop yyyyMMdd
-        prop.put(ConsumerConfig.GROUP_ID_CONFIG, origin.substring(6));  // drop yyyyMM
-        prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        // create unique values for client ID and group ID
+        if (pubSub) {
+            if (parameters.length == 2 || parameters.length == 3) {
+                prop.put(ConsumerConfig.CLIENT_ID_CONFIG, parameters[0]);
+                prop.put(ConsumerConfig.GROUP_ID_CONFIG, parameters[1]);
+                /*
+                 * If offset is not given, the consumer will read from the latest when it is started for the first time.
+                 * Subsequent restart of the consumer will resume read from the current offset.
+                 */
+                if (parameters.length == 3) {
+                    Utility util = Utility.getInstance();
+                    long value = util.str2int(parameters[2]);
+                    if (value > -1) {
+                        offset = value;
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Unable to start consumer for topic "+topic+" - number of parameters must be 2 or 3");
+            }
+        } else {
+            /*
+             * topic for application instance is designed to be real-time
+             * so the system will skip the offset to the latest
+             */
+            prop.put(ConsumerConfig.CLIENT_ID_CONFIG, origin.substring(8));
+            prop.put(ConsumerConfig.GROUP_ID_CONFIG, origin.substring(6));
+            prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        }
         prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);
         prop.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class);
         this.consumer = new KafkaConsumer<>(prop);
@@ -59,12 +97,20 @@ public class EventConsumer extends Thread {
     @Override
     public void run() {
         PostOffice po = PostOffice.getInstance();
-        consumer.subscribe(Collections.singletonList(topic), new ConsumerLifeCycle());
-        log.info("Started. Listening to {}", topic);
+        consumer.subscribe(Collections.singletonList(topic), new ConsumerLifeCycle(topic));
+        log.info("Subscribed topic {}", topic);
 
+        if (pubSub && offset > -1) {
+            consumer.poll(Duration.ofMillis(POLL_MS));
+            Set<TopicPartition> p = consumer.assignment();
+            for (TopicPartition tp: p) {
+                consumer.seek(tp, offset);
+                log.info("Setting read pointer for topic {}, partition-{} to {}", topic, tp.partition(), offset);
+            }
+        }
         try {
             while (normal) {
-                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(5000));
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(POLL_MS));
                 for (ConsumerRecord<String, byte[]> record : records) {
                     EventEnvelope message = new EventEnvelope();
                     try {
@@ -77,7 +123,7 @@ public class EventConsumer extends Thread {
                         }
 
                     } catch (IOException e) {
-                        log.error("Unable to process incoming event - {}", e.getMessage());
+                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                     }
                 }
             }
@@ -86,20 +132,22 @@ public class EventConsumer extends Thread {
              * We will let the cloud restarts the application instance automatically.
              * There is nothing we can do.
              */
-            log.error("Unrecoverable event stream error - {}", e.getMessage());
+            log.error("Unrecoverable event stream error for {} - {}", topic, e.getMessage());
             consumer.close();
             System.exit(-1);
         } catch (WakeupException e) {
-            log.info("Stopping");
+            log.info("Stopping listener for {}", topic);
         } finally {
             consumer.close();
-            log.info("Stopped");
+            log.info("Unsubscribed topic {}", topic);
         }
     }
 
     public void shutdown() {
-        normal = false;
-        consumer.wakeup();
+        if (normal) {
+            normal = false;
+            consumer.wakeup();
+        }
     }
 
 }

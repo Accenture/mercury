@@ -27,17 +27,15 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.services.ObjectStreamManager;
-import org.platformlambda.core.services.RouteManager;
+import org.platformlambda.core.services.RouteSubstitutionManager;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
@@ -47,11 +45,10 @@ public class Platform {
     private static final ManagedCache cache = ManagedCache.createCache("system.log.cache", 30000);
     private static final CryptoApi crypto = new CryptoApi();
 
-    public static final String STREAM_MANAGER = "system.streams.manager";
+    public static final String STREAM_MANAGER = "object.streams.io";
     private static final String ROUTE_MAPPER = ".route.mapper";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
-    private static final String STREAMING_FEATURE = "application.feature.streaming";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String LAMBDA = "lambda";
     private static final String NODE_ID = "id";
@@ -61,18 +58,17 @@ public class Platform {
     private static Platform instance = new Platform();
 
     private Platform() {
-        // initialize instance because the registration methods need it
+        // initialize instance because the registration method needs it
         instance = this;
         // start built-in services
         AppConfigReader config = AppConfigReader.getInstance();
-        boolean streaming = config.getProperty(STREAMING_FEATURE, "false").equals("true");
         boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
-            if (streaming) {
-                registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
-            }
+            // streaming becomes a standard feature since v1.12.0
+            registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             if (substitute) {
-                register(getRouteManagerName(), new RouteManager(), 1);
+                // route substitution manager is registered as PUBLIC so it can sync with its peers
+                register(getRouteManagerName(), new RouteSubstitutionManager(), 1);
             }
         } catch (IOException e) {
             log.error("Unable to create {} - {}", STREAM_MANAGER, e.getMessage());
@@ -214,14 +210,14 @@ public class Platform {
             final String original;
             if (isConnector) {
                 CloudConnector connector = cls.getAnnotation(CloudConnector.class);
-                serviceName = connector.value();
+                serviceName = connector.name();
                 original = connector.original();
             } else {
                 CloudService connector = cls.getAnnotation(CloudService.class);
-                serviceName = connector.value();
+                serviceName = connector.name();
                 original = connector.original();
             }
-            if (serviceName.equals(name)) {
+            if (name.equals(serviceName)) {
                 try {
                     Object o = cls.newInstance();
                     if (o instanceof CloudSetup) {
@@ -230,10 +226,9 @@ public class Platform {
                             log.info("Starting cloud {} {} using {}", isConnector? "connector" : "service", name, cls.getName());
                             cloud.initialize();
                             /*
-                             * If the module is a wrapper,
-                             * the system will execute original connector or service after initialization.
+                             * For wrapper, the system will execute original connector or service after initialization.
                              */
-                            if (!"none".equals(original)) {
+                            if (original.length() > 0) {
                                 startService(original, services, isConnector);
                             }
                         }).start();
@@ -311,7 +306,6 @@ public class Platform {
         if (lambda == null) {
             throw new IOException("Missing lambda function");
         }
-        // start built
         // guarantee that only valid service name is registered
         Utility util = Utility.getInstance();
         if (!util.validServiceName(route)) {
@@ -319,7 +313,7 @@ public class Platform {
         }
         String path = util.filteredServiceName(route);
         if (path.length() == 0) {
-            throw new IOException("Service routing path cannot be empty");
+            throw new IOException("Invalid route name");
         }
         if (!path.contains(".")) {
             throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
@@ -419,26 +413,31 @@ public class Platform {
     }
 
     public void waitForProvider(String provider, int seconds) throws TimeoutException {
-        int count = 1;
-        while (!hasRoute(provider)) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // ok to ignore
-            }
-            logRecently("info", "Waiting for " + provider + " to get ready... " + count);
-            // taking too much time?
-            if (++count >= seconds) {
-                String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
-                logRecently("error", message);
-                throw new TimeoutException(message);
-            }
+        if (!hasRoute(provider)) {
+            int cycles = seconds / 2;
+            int count = 1;
+            do {
+                // retry every 2 seconds
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
+                }
+                logRecently("info", "Waiting for " + provider + " to get ready... " + count);
+                // taking too much time?
+                if (++count >= cycles) {
+                    String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
+                    logRecently("error", message);
+                    throw new TimeoutException(message);
+                }
+            } while (!hasRoute(provider));
+            logRecently("info", provider + " is ready");
         }
-        logRecently("info", provider + " is ready");
     }
 
     private void logRecently(String level, String message) {
         Utility util = Utility.getInstance();
+        // this avoids printing duplicated log in a concurrent situation
         String hash = util.getUTF(crypto.getMd5(util.getUTF(message)));
         if (!cache.exists(hash)) {
             cache.put(hash, true);

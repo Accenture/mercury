@@ -39,14 +39,8 @@ public class WsConfigurator {
     private static boolean idleTimerLogged = false;
     private static boolean textSizeLogged = false;
     private static boolean binarySizeLogged = false;
-
     private int idleTimeout, textSize, binarySize, maxBinaryPayload;
-
     private static final WsConfigurator instance = new WsConfigurator();
-
-    public static WsConfigurator getInstance() {
-        return instance;
-    }
 
     private WsConfigurator() {
         Utility util = Utility.getInstance();
@@ -59,6 +53,11 @@ public class WsConfigurator {
             this.idleTimeout = MIN_TIMEOUT;
         }
     }
+
+    public static WsConfigurator getInstance() {
+        return instance;
+    }
+
 
     public int getIdleTimeout() {
         return idleTimeout;

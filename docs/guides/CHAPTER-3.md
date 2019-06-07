@@ -90,9 +90,9 @@ If you create the functions at run-time, please remember to release the function
 
 2. Event stream
 
-To do event streaming, you can ask the Event Manager (route=`system.streams.manager`) to create a stream and then use the `ObjectStreamWriter` and the `ObjectStreamReader` classes to write to and read from the stream.
+To do event streaming, you can use the ObjectStreamIO to create a stream and then use the `ObjectStreamWriter` and the `ObjectStreamReader` classes to write to and read from the stream.
 
-Note that if you close the output stream, the manager will send a `EOF` to signal that that there are no more events to the stream. When you detect the end of stream, you can close the input stream. When you close the input stream, you will release the stream and all resources associated with it.
+Note that if you close the output stream, the system will send a `EOF` to signal that that there are no more events to the stream. When you detect the end of stream, you can close the input stream. When you close the input stream, you will release the stream and all resources associated with it.
 
 I/O stream consumes resources and thus you must close the input stream at the end of stream processing.
 
@@ -102,23 +102,31 @@ The following unit test demonstrates this use case.
 String messageOne = "hello world";
 String messageTwo = "it is great";
 
-PostOffice po = PostOffice.getInstance();
-EventEnvelope response = po.request(STREAM_MANAGER, 5000, new Kv("type", "create"));
-assertFalse(response.hasError());
-assertTrue(response.getBody() instanceof String);
-
-String fqPath = (String) response.getBody();
-assertTrue(fqPath.startsWith("stream."));
-// fully qualified path = streamId @ origin
-assertTrue(fqPath.contains("@"));
-
-ObjectStreamWriter out = new ObjectStreamWriter(fqPath);
+ObjectStreamIO io = new ObjectStreamIO();
+ObjectStreamWriter out = io.getOutputStream();
 out.write(messageOne);
 out.write(messageTwo);
-// do not close output stream to demonstrate that the iterator will timeout during read
-// out.close();
+/*
+ * If output stream is closed, it will send an EOF signal so that the input stream reader will detect it.
+ * Otherwise, input stream reader will see a RuntimeException of timeout.
+ *
+ * For this test, we do not close the output stream to demonstrate the timeout.
+ */
+//  out.close();
 
-ObjectStreamReader in = new ObjectStreamReader(fqPath, 1000);
+/*
+ * See all open streams in this application instance and verify that the new stream is there
+ */
+String fullPath = io.getRoute();
+// remove the node-ID from the fully qualified route name
+String path = fullPath.substring(0, fullPath.indexOf('@'));
+Map<String, Object> localStreams = io.getLocalStreams();
+assertTrue(localStreams.containsKey(path));
+/*
+ * read object from the event stream
+ * (minimum timeout value is one second)
+ */
+ObjectStreamReader in = io.getInputStream(1000);
 int i = 0;
 while (!in.isEof()) {
     try {
@@ -138,11 +146,11 @@ while (!in.isEof()) {
         break;
     }
 }
+// ensure that it has read the two messages
+assertEquals(2, i);
 // must close input stream to release resources
 in.close();
-
 ```
-For option 2 (event stream), please set `application.feature.streaming=true` in application.properties.
 
 ### Broadcast
 
@@ -182,6 +190,42 @@ parallelEvents.add(event2);
 
 List<EventEnvelope> responses = po.request(parallelEvents, 3000);
 ```
+
+### Pub/Sub for store-n-forward event streaming
+
+Native Pub/Sub will be automatically enabled if the underlying cloud connector supports it. e.g. Kafka.
+
+Mercury provides real-time inter-service event streaming and you do not need to deal with low-level messaging.
+
+However, if you want to do store-n-forward pub/sub for certain use cases, you may use the `PubSub` class.
+Following are some useful pub/sub API:
+
+```
+public boolean featureEnabled();
+public boolean createTopic(String topic) throws IOException;
+public void deleteTopic(String topic) throws IOException;
+public void publish(String topic, Map<String, String> headers, Object body) throws IOException;
+public void subscribe(String topic, LambdaFunction listener, String... parameters) throws IOException;
+public void unsubscribe(String topic) throws IOException;
+public boolean exists(String topic) throws IOException;
+public List<String> list() throws IOException;
+
+```
+Some pub/sub engine would require additional parameters when subscribing a topic. For Kafka, you must provide the following parameters
+
+1. clientId
+2. groupId
+3. optional read offset pointer
+
+If the offset pointer is not given, Kafka will position the read pointer to the latest when the clientId and groupId are first seen.
+Thereafter, Kafka will remember the read pointer for the groupId and resume read from the last read pointer.
+
+As a result, for proper subscription, you must create the topic first and then create a lambda function to subscribe to the topic before publishing anything to the topic.
+
+To read the event stream of a topic from the beginning, you can set offset to "0".
+
+The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do serialization yourself.
+The payload can be PoJo, Map or Java primitives.
 
 ### Check if a target service is available
 

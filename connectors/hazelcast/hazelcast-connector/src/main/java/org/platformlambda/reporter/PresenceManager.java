@@ -119,7 +119,6 @@ public class PresenceManager extends Thread {
         } else {
             log.warn("Presence connector already started");
         }
-
     }
 
     private void connect() {

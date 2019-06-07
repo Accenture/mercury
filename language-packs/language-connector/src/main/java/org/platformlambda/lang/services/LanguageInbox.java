@@ -55,8 +55,8 @@ public class LanguageInbox implements LambdaFunction {
              * It is in the format: "token_id->reply_to"
              */
             EventEnvelope event = (EventEnvelope) body;
-            String sender = event.getNotes();
-            if (sender.contains("->")) {
+            String sender = event.getExtra();
+            if (sender != null && sender.contains("->")) {
                 int sep = sender.indexOf("->");
                 String token = sender.substring(0, sep);
                 String replyTo = sender.substring(sep+2);

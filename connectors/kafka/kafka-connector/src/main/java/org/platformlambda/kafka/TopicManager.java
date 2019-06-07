@@ -23,6 +23,7 @@ import org.apache.kafka.common.Node;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +39,13 @@ public class TopicManager implements LambdaFunction {
     private static final String CREATE_TOPIC = "create_topic";
     private static final String LEAVE = "leave";
     private static final String LIST = "list";
+    private static final String PUB_SUB = "pub_sub";
     private static final String EXISTS = "exists";
     private static final String STOP = "stop";
     private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
     private static long lastStarted = 0;
     private static long lastActive = System.currentTimeMillis();
+    private static Integer replicationFactor;
 
     private Properties properties;
     private AdminClient admin;
@@ -97,11 +100,13 @@ public class TopicManager implements LambdaFunction {
                 return true;
             }
             if (LIST.equals(headers.get(TYPE))) {
-                return listTopics();
+                return listTopics(!headers.containsKey(PUB_SUB));
             }
             if (EXISTS.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
                 String origin = headers.get(ORIGIN);
-                return validTopicId(origin) && topicExists(origin);
+                // direct pub-sub topic does not use regular node topic name
+                boolean valid = headers.containsKey(PUB_SUB) || regularTopicFormat(origin);
+                return valid && topicExists(origin);
             }
             // if origin is not specified, it will create the dedicated topic for a new application that is starting up
             if (CREATE_TOPIC.equals(headers.get(TYPE))) {
@@ -144,19 +149,29 @@ public class TopicManager implements LambdaFunction {
     }
 
     private int getReplicationFactor() {
-        DescribeClusterResult cluster = admin.describeCluster();
-        try {
-            Collection<Node> nodes = cluster.nodes().get();
-            log.info("Kafka cluster information");
-            for (Node n: nodes) {
-                log.info("Broker-Id: {}, Host: {}", n.id(), n.host());
+        if (replicationFactor == null) {
+            AppConfigReader reader = AppConfigReader.getInstance();
+            int factor = Utility.getInstance().str2int(reader.getProperty("kafka.replication.factor", "3"));
+            if (factor > 3) {
+                factor = 3;
+                log.warn("Default kafka replication factor reset to 3");
             }
-            return nodes.size() > 2? 2 : nodes.size();
+            DescribeClusterResult cluster = admin.describeCluster();
+            try {
+                Collection<Node> nodes = cluster.nodes().get();
+                log.info("Kafka cluster information");
+                for (Node n : nodes) {
+                    log.info("Broker-Id: {}, Host: {}", n.id(), n.host());
+                }
+                replicationFactor = nodes.size() >= factor ? factor : nodes.size();
+                log.info("Kafka replication factor set to {}", replicationFactor);
 
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Unable to read cluster information - {}", e.getMessage());
-            return 1;
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Unable to read cluster information - {}", e.getMessage());
+                replicationFactor = 1;
+            }
         }
+        return replicationFactor;
     }
 
     private void createTopic(String topic) {
@@ -226,7 +241,7 @@ public class TopicManager implements LambdaFunction {
         }
     }
 
-    private List<String> listTopics() {
+    private List<String> listTopics(boolean regular) {
         startAdmin();
         List<String> result = new ArrayList<>();
         ListTopicsResult list = admin.listTopics();
@@ -239,8 +254,14 @@ public class TopicManager implements LambdaFunction {
              * Since version 1.11.0, platform originId is generated using util.getDateUuid().
              */
             for (String topic: topics) {
-                if (validTopicId(topic)) {
-                    result.add(topic);
+                if (regular) {
+                    if (regularTopicFormat(topic)) {
+                        result.add(topic);
+                    }
+                } else {
+                    if (!regularTopicFormat(topic)) {
+                        result.add(topic);
+                    }
                 }
             }
         } catch (InterruptedException | ExecutionException e) {
@@ -250,18 +271,18 @@ public class TopicManager implements LambdaFunction {
     }
 
     /**
-     * Validate a topic ID
+     * Validate a topic ID for an application instance
      *
      * @param topic in format of yyyymmdd uuid
      * @return true if valid
      */
-    private boolean validTopicId(String topic) {
+    public static boolean regularTopicFormat(String topic) {
         if (topic.length() != TOPIC_LEN) {
             return false;
         }
-        String yyyymmdd = topic.substring(0, 8);
+        // first 8 digits is a date stamp
         String uuid = topic.substring(8);
-        if (!Utility.getInstance().isDigits(yyyymmdd)) {
+        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
             return false;
         }
         for (int i=0; i < uuid.length(); i++) {

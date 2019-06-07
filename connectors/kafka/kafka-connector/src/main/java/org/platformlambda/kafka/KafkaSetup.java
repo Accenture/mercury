@@ -25,30 +25,34 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.pubsub.KafkaPubSub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
-@CloudConnector("kafka")
+@CloudConnector(name="kafka")
 public class KafkaSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(KafkaSetup.class);
 
     public static final String MANAGER = "kafka.manager";
+    public static final String PRESENCE_MONITOR = "presence.monitor";
     private static final String CLOUD_CHECK = "cloud.connector.health";
-    private static final String PRESENCE_MONITOR = "presence.monitor";
     private static final String ORIGIN = "origin";
     private static final String BROKER_URL = "bootstrap.servers";
     private static final String TYPE = "type";
     private static final String CREATE_TOPIC = "create_topic";
+    private static final String FILEPATH = "file:";
 
     private static String displayUrl = "unknown";
     private boolean isServiceMonitor;
@@ -63,22 +67,47 @@ public class KafkaSetup implements CloudSetup {
         return displayUrl;
     }
 
+    private ConfigReader getConfig(String pathList) {
+        ConfigReader config = new ConfigReader();
+        List<String> paths = Utility.getInstance().split(pathList, ",");
+        for (String p: paths) {
+            // ignore trailing spaces
+            String name = p.trim();
+            try {
+                log.info("Loading from {}", name);
+                if (name.startsWith(FILEPATH)) {
+                    File f = new File(name.substring(FILEPATH.length()));
+                    if (!f.exists()) {
+                        log.warn("{} not found", f);
+                        continue;
+                    }
+                }
+                config.load(name);
+                return config;
+            } catch (IOException e) {
+                log.error("Unable to setup kafka from {} - {}", p, e.getMessage());
+                System.exit(-1);
+            }
+        }
+        return null;
+    }
+
     @Override
     public void initialize() {
         try {
             AppConfigReader reader = AppConfigReader.getInstance();
-            String kafkaConfig = reader.getProperty("kafka.client.properties", "classpath:/kafka.properties");
-            ConfigReader config = new ConfigReader();
-            try {
-                config.load(kafkaConfig);
-            } catch (IOException e) {
-                log.error("Unable to setup kafka from {} - {}", kafkaConfig, e.getMessage());
+            // to find kafka.properties, try file first, then classpath
+            String pathList = reader.getProperty("kafka.client.properties",
+                                          "file:/tmp/config/kafka.properties,classpath:/kafka.properties");
+            ConfigReader config = getConfig(pathList);
+            if (config == null) {
+                log.error("Unable to find kafka properties from {}", pathList);
                 System.exit(-1);
             }
             String brokerUrls = config.getProperty(BROKER_URL);
             List<String> brokers = Utility.getInstance().split(brokerUrls, ",");
             if (brokers.isEmpty()) {
-                log.error("Unable to setup kafka from {} - missing {}", kafkaConfig, BROKER_URL);
+                log.error("Unable to setup kafka from {} - missing {}", pathList, BROKER_URL);
                 System.exit(-1);
             }
             if (brokers.size() > 1) {
@@ -96,8 +125,14 @@ public class KafkaSetup implements CloudSetup {
             for (String k: config.getMap().keySet()) {
                 baseProp.put(k, config.getProperty(k));
             }
-            Platform platform = Platform.getInstance();
+            /*
+             * Enable pub/sub feature in case the user application wants to do pub/sub manually
+             * (it must be enabled before starting cloud connector
+             *  because pub/sub will check the dependency of the connector)
+             */
+            PubSub.getInstance().enableFeature(new KafkaPubSub(baseProp));
             // setup producer
+            Platform platform = Platform.getInstance();
             log.info("Starting kafka producer module");
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(baseProp), 1);
             platform.registerPrivate(MANAGER, new TopicManager(baseProp), 1);

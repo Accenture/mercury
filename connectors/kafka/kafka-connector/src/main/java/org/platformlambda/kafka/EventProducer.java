@@ -21,7 +21,6 @@ package org.platformlambda.kafka;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.KafkaException;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -87,7 +86,6 @@ public class EventProducer implements LambdaFunction {
             closeProducer();
             monitor.shutdown();
         }));
-
     }
 
     public static long getLastStarted() {
@@ -173,21 +171,21 @@ public class EventProducer implements LambdaFunction {
                 String uuid = Utility.getInstance().getUuid();
                 byte[] payload = (byte[]) body;
                 for (String dest : destinations) {
-                    if (dest.equals(origin)) {
-                        EventEnvelope local = new EventEnvelope();
-                        local.load(payload);
-                        po.send(local);
-                    } else {
-                        startProducer();
-                        try {
-                            producer.send(new ProducerRecord<>(dest, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
-                            total++;
-                            lastActive = System.currentTimeMillis();
-                        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                            log.error("Unable to send message to {} - {}", dest, e.getMessage());
-                            undelivered.add(dest);
-                            closeProducer();
-                        }
+                    startProducer();
+                    try {
+                        /*
+                         * Automatic segmentation happens at the PostOffice level
+                         * so this outgoing payload may be a whole event or a block of it.
+                         *
+                         * The EventConsumer at the receiving side will reconstruct the payload if needed.
+                         */
+                        producer.send(new ProducerRecord<>(dest, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
+                        total++;
+                        lastActive = System.currentTimeMillis();
+                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                        log.error("Unable to send message to {} - {}", dest, e.getMessage());
+                        undelivered.add(dest);
+                        closeProducer();
                     }
                 }
             }

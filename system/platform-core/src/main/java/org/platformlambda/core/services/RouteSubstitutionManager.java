@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 
-    public class RouteManager implements LambdaFunction {
-        private static final Logger log = LoggerFactory.getLogger(RouteManager.class);
+    public class RouteSubstitutionManager implements LambdaFunction {
+        private static final Logger log = LoggerFactory.getLogger(RouteSubstitutionManager.class);
 
         private static final String SUBSYSTEM = "subsystem";
         private static final String ROUTE_SUBSTITUTION = "route_substitution";

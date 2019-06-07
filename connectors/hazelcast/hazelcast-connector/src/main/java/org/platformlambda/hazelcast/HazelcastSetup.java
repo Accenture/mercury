@@ -39,7 +39,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-@CloudConnector("hazelcast")
+@CloudConnector(name="hazelcast")
 public class HazelcastSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(HazelcastSetup.class);
 

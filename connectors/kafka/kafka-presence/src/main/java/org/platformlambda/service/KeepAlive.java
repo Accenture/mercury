@@ -122,9 +122,9 @@ public class KeepAlive extends Thread {
                     System.exit(-1);
                 }
             }
-            log.info("Waiting for kafka connection to get ready... {}", n);
+            log.info("Waiting for kafka to get ready... {}", n);
             try {
-                Thread.sleep(1000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 // yield to the operating system
             }

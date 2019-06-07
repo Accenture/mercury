@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-public class InfoService implements LambdaFunction {
+public class AdditionalInfo implements LambdaFunction {
 
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String QUERY = "query";

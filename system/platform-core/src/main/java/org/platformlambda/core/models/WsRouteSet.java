@@ -30,8 +30,10 @@ public class WsRouteSet {
     private String route, txPath;
 
     public WsRouteSet(String path) {
+        // generate a 5-digit random number as identifier
+        int r = crypto.nextInt(10000, 100000);
+        // ensure uniqueness using a monotonically increasing sequence number
         int n = counter.incrementAndGet();
-        int r = crypto.nextInt(10000);
         this.route = path + ".in." + r +"." + n;
         this.txPath = path + ".out." + r +"." + n;
     }

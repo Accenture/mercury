@@ -21,6 +21,7 @@ package org.platformlambda.core.services;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.Utility;
@@ -29,10 +30,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.platformlambda.core.system.Platform.STREAM_MANAGER;
-
 public class ObjectStreamService implements LambdaFunction {
 
+    private static final String STREAM_MANAGER = Platform.STREAM_MANAGER;
     public static final String TYPE = "type";
     public static final String READ = "read";
     public static final String PEEK = "peek";
@@ -60,7 +60,6 @@ public class ObjectStreamService implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
             EventEnvelope event = new EventEnvelope();

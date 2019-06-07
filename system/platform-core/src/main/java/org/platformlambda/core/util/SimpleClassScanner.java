@@ -18,13 +18,15 @@
 
 package org.platformlambda.core.util;
 
-import org.platformlambda.core.annotations.CloudConnector;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.lang.annotation.Annotation;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class SimpleClassScanner {
 
@@ -32,7 +34,6 @@ public class SimpleClassScanner {
     private static final String PLATFORM_LAMBDA = "org.platformlambda";
     private static String EX_START = "Invalid package path (";
     private static String EX_END = "). A proper package should have at least one dot character.";
-
     private static final SimpleClassScanner instance = new SimpleClassScanner();
 
     private SimpleClassScanner() {

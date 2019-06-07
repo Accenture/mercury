@@ -31,11 +31,9 @@ public @interface CloudConnector {
     /*
      * Name of cloud connector that implements the CloudSetup interface
      */
-    String value();
+    String name();
     /*
-     * You may create a cloud connector as a wrapper of another cloud connector.
-     * In this case, the "original" cloud connector will be executed
-     * after the initialize() method of the wrapper is completed.
+     * If original connector is given, this cloud connector is a wrapper.
      */
-    String original() default "none";
+    String original() default "";
 }

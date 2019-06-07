@@ -24,7 +24,6 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.CryptoApi;
-import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
@@ -52,13 +51,18 @@ public class LanguageRelay implements LambdaFunction {
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
 
-    private static ManagedCache cache;
+    private static final LanguageRelay instance = new LanguageRelay();
+
+    private LanguageRelay() {
+        // singleton
+    }
+
+    public static final LanguageRelay getInstance() {
+        return instance;
+    }
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (cache == null) {
-            cache = MultipartPayload.getInstance().getCache();
-        }
         if (body instanceof EventEnvelope) {
             EventEnvelope event = (EventEnvelope) body;
             String to = event.getTo();

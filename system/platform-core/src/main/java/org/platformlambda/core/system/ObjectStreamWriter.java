@@ -21,9 +21,10 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.services.ObjectStreamService;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public class ObjectStreamWriter {
+public class ObjectStreamWriter implements Closeable {
 
     private static final String TYPE = ObjectStreamService.TYPE;
     private static final String WRITE = ObjectStreamService.WRITE;
@@ -45,6 +46,7 @@ public class ObjectStreamWriter {
         }
     }
 
+    @Override
     public void close() throws IOException {
         if (!closed) {
             closed = true;

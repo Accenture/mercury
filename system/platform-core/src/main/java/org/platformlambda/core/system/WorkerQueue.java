@@ -111,8 +111,8 @@ public class WorkerQueue extends AbstractActor {
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
                 }
-                if (event.getNotes() != null) {
-                    response.setNotes(event.getNotes());
+                if (event.getExtra() != null) {
+                    response.setExtra(event.getExtra());
                 }
                 if (result instanceof EventEnvelope) {
                     EventEnvelope resultEnvelope = (EventEnvelope) result;
@@ -177,6 +177,9 @@ public class WorkerQueue extends AbstractActor {
                 response.setFrom(def.getRoute());
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
+                }
+                if (event.getExtra() != null) {
+                    response.setExtra(event.getExtra());
                 }
                 try {
                     po.send(response);

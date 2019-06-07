@@ -29,13 +29,11 @@ import java.lang.annotation.*;
 @Documented
 public @interface CloudService {
     /*
-     * name of the cloud service
+     * Name of the cloud service that implements the CloudSetup interface
      */
-    String value();
+    String name();
     /*
-     * You may create a cloud service as a wrapper of another cloud service.
-     * In this case, the "original" cloud service will be executed
-     * after the initialize() method of the wrapper is completed.
+     * If original connector is given, this cloud service is a wrapper.
      */
-    String original() default "none";
+    String original() default "";
 }

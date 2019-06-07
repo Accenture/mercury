@@ -39,6 +39,7 @@ public class InfoService implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String LIST = "list";
     private static final String ID = "id";
+    private static final String PUB_SUB = "pub_sub";
 
     @Override
     @SuppressWarnings("unchecked")
@@ -54,11 +55,14 @@ public class InfoService implements LambdaFunction {
             result.put("connections", connections);
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
-            List<String> topics = getTopics();
+            List<String> topics = getTopics(false);
             result.put("topics", topics);
+            List<String> pubSub = getTopics(true);
+            result.put("pub_sub", pubSub);
             // totals
             Map<String, Object> counts = new HashMap<>();
             counts.put("connections", connections.size());
+            counts.put("pub_sub", pubSub.size());
             counts.put("topics", topics.size());
             result.put("total", counts);
             return result;
@@ -78,10 +82,11 @@ public class InfoService implements LambdaFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> getTopics() throws TimeoutException, IOException, AppException {
+    private List<String> getTopics(boolean pubSub) throws TimeoutException, IOException, AppException {
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope res1 = po.request(MANAGER, 30000, new Kv(TYPE, LIST));
-        return res1.getBody() instanceof List? (List<String>) res1.getBody() : new ArrayList<>();
+        EventEnvelope res = pubSub? po.request(MANAGER, 15000, new Kv(TYPE, LIST), new Kv(PUB_SUB, true)) :
+                                    po.request(MANAGER, 15000, new Kv(TYPE, LIST));
+        return res.getBody() instanceof List? (List<String>) res.getBody() : new ArrayList<>();
     }
 
 }

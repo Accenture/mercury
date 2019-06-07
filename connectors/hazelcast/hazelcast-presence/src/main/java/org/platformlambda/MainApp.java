@@ -30,7 +30,7 @@ import org.platformlambda.hazelcast.PresenceProducer;
 import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
 import org.platformlambda.service.HouseKeeper;
-import org.platformlambda.service.InfoService;
+import org.platformlambda.service.AdditionalInfo;
 import org.platformlambda.service.KeepAlive;
 import org.platformlambda.service.PingScheduler;
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ public class MainApp implements EntryPoint {
     public static final String PRESENCE_HANDLER = "presence.service";
 
     private static final String MONITOR = "monitor";
-    private static final String INFO_SERVICE = "additional.info";
+    private static final String ADDITIONAL_INFO = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
 
     public static void main(String[] args) {
@@ -65,7 +65,7 @@ public class MainApp implements EntryPoint {
         platform.waitForProvider(CLOUD_CONNECTOR, 20);
         platform.waitForProvider(MANAGER, 20);
         // start additional info service
-        platform.registerPrivate(INFO_SERVICE, new InfoService(), 1);
+        platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 1);
         /*
          * setup presence.monitor topic producer and consumer
          */

@@ -165,7 +165,7 @@ public class InfoServlet extends HttpServlet {
         if (Platform.getInstance().hasRoute(service)) {
             try {
                 EventEnvelope res = PostOffice.getInstance().request(service, 5000, new Kv(TYPE, QUERY));
-                    result.put(service, res.getBody());
+                result.put(service, res.getBody());
             } catch (TimeoutException | IOException | AppException e) {
                 result.put(ERROR, e.getMessage());
             }

@@ -25,7 +25,7 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@CloudService("kafka.reporter")
+@CloudService(name="kafka.reporter")
 public class PresenceSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(PresenceSetup.class);
 
@@ -36,19 +36,24 @@ public class PresenceSetup implements CloudSetup {
     @Override
     public void initialize() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        boolean eventNode = EVENT_NODE.equals(reader.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
-        if (eventNode) {
-            log.error("Presence reporter is not supported when Event Node is used");
+        boolean serviceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        if (serviceMonitor) {
+            log.error("Presence reporter is not required for presence monitor");
         } else {
-            try {
-                String url = reader.getProperty(PRESENCE_MONITOR, "ws://127.0.0.1:8080/ws/presence");
-                PresenceManager connection = new PresenceManager(url);
-                connection.start();
+            boolean eventNode = EVENT_NODE.equals(reader.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
+            if (eventNode) {
+                log.error("Presence reporter is not supported when Event Node is used");
+            } else {
+                try {
+                    String url = reader.getProperty(PRESENCE_MONITOR, "ws://127.0.0.1:8080/ws/presence");
+                    PresenceManager connection = new PresenceManager(url);
+                    connection.start();
 
-            } catch (Exception e) {
-                PresenceManager.shutdown();
-                log.error("Unable to start", e);
-                System.exit(-1);
+                } catch (Exception e) {
+                    PresenceManager.shutdown();
+                    log.error("Unable to start", e);
+                    System.exit(-1);
+                }
             }
         }
     }

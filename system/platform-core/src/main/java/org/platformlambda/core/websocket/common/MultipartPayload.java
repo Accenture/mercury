@@ -37,20 +37,18 @@ import java.util.Map;
 public class MultipartPayload {
     private static final Logger log = LoggerFactory.getLogger(MultipartPayload.class);
 
-    private static MultipartPayload instance = new MultipartPayload();
-    private static final ManagedCache cache = ManagedCache.createCache("LargePayloads", 30000);
-    private static final String TO = "to";
-    private static final String BROADCAST = "broadcast";
-
     public static final String ID = "id";
     public static final String COUNT = "count";
     public static final String TOTAL = "total";
     public static final int OVERHEAD = 256;
+    private static final ManagedCache cache = ManagedCache.createCache("LargePayloads", 30000);
+    private static final String TO = "to";
+    private static final String BROADCAST = "broadcast";
+    private static int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+    private static MultipartPayload instance = new MultipartPayload();
 
     private MultipartPayload() {
-        NumberFormat number = NumberFormat.getInstance();
-        int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
-        log.info("Automatic segmentation when event payload exceeds {}", number.format(maxPayload));
+        log.info("Automatic segmentation when event payload exceeds {}", NumberFormat.getInstance().format(MAX_PAYLOAD));
     }
 
     public static MultipartPayload getInstance() {
@@ -97,10 +95,9 @@ public class MultipartPayload {
     public void outgoing(ActorRef dest, EventEnvelope event) throws IOException {
         if (dest != null && event != null) {
             event.setEndOfRoute();
-            int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
             byte[] payload = event.toBytes();
-            if (payload.length > maxPayload) {
-                int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
+            if (payload.length > MAX_PAYLOAD) {
+                int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
                 for (int i = 0; i < total; i++) {
                     // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
@@ -108,9 +105,9 @@ public class MultipartPayload {
                     block.setHeader(MultipartPayload.ID, event.getId());
                     block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
                     block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
-                    byte[] segment = new byte[maxPayload];
+                    byte[] segment = new byte[MAX_PAYLOAD];
                     int size = in.read(segment);
-                    block.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
+                    block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
                     EventEnvelope out = new EventEnvelope().setHeader(TO, event.getTo()).setBody(block.toBytes());
                     if (event.getBroadcastLevel() > 1) {
                         // tell a cloud connector that this event should be broadcast

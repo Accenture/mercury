@@ -23,12 +23,13 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.services.ObjectStreamService;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-public class ObjectStreamReader implements Iterable<Object> {
+public class ObjectStreamReader implements Iterable<Object>, Closeable {
 
     private static final String TYPE = ObjectStreamService.TYPE;
     private static final String READ = ObjectStreamService.READ;
@@ -45,7 +46,8 @@ public class ObjectStreamReader implements Iterable<Object> {
 
     public ObjectStreamReader(String streamId, long timeout) {
         this.streamId = streamId;
-        this.timeout = timeout;
+        // the minimum timeout for an event stream is one second
+        this.timeout = timeout < 1000? 1000 : timeout;
         this.iterator = new ObjectBlockReader();
     }
 
@@ -70,6 +72,7 @@ public class ObjectStreamReader implements Iterable<Object> {
         }
     }
 
+    @Override
     public void close() throws IOException {
         if (!closed) {
             closed = true;
