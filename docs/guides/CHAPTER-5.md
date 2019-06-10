@@ -56,7 +56,7 @@ This is usually used for blue/green environment tests. In some simple cases, you
 If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to externalize kafka.properties.
 It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
 
-Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an externalize config file.
+Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an external config file.
 
 You want also use the embedded config file as a backup like this:
 
