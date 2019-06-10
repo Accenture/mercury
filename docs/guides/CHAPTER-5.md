@@ -25,6 +25,8 @@
 | info.api.key.label                          | X-Info-Key                                | Optional*|
 | application.feature.route.substitution      | default false                             | Optional |
 | route.substitution                          | comma separated rules. e.g hi.here:v1.hi  | Optional |
+| kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
+| kafka.replication.factor                    | 3                                         | Kafka    |
 
 `*` - when using the "rest-spring" library when your module needs REST endpoints or health check.
 
@@ -48,6 +50,29 @@ This is used to authenticate HTTP requests to the "protected.info.endpoints".
 # route substitution
 
 This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. e.g. "hello.world" maps to "v1.hello.world".
+
+# Kafka specific configuration
+
+If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to externalize kafka.properties.
+It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
+
+Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an externalize config file.
+
+You want also use the embedded config file as a backup like this:
+
+```
+# this is the configuration used by the kafka.presence monitor
+kafka.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
+```
+
+`kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
+If the available number of kafka brokers are more than the replication factor, it will use the given replication factor.
+Otherwise, the system will fall back to a smaller value and this optimization may not work in production.
+Therefore, please discuss with your DevOps administrator for the optimal replication factor value.
+
+```
+Number of replicated copies = replication factor - 1
+```
 
 # presence monitor
 
