@@ -101,6 +101,12 @@ public class MonitorService implements LambdaFunction {
             connectionInfo.remove(origin);
             log.info("Removing member {}", origin);
             notifyConnectedApps();
+            // retire the current instance of producer that may have reference to the topic
+            try {
+                PostOffice.getInstance().send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+            } catch (IOException e) {
+                // ok to ignore
+            }
         }
     }
 

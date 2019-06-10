@@ -67,7 +67,7 @@ public class EventProducer implements LambdaFunction {
     private static long lastActive = System.currentTimeMillis();
     private static KafkaProducer<String, byte[]> producer;
     private static boolean isServiceMonitor, ready = false, abort = false;
-    private static long seq = 0, total = 0;
+    private static long seq = 0, totalEvents = 0;
     private static Properties properties;
 
     public EventProducer(Properties base) {
@@ -111,13 +111,13 @@ public class EventProducer implements LambdaFunction {
         if (producer != null) {
             try {
                 producer.close();
-                log.info("Producer {} released, delivered: {}", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG), total);
+                log.info("Producer {} released, delivered: {}", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG), totalEvents);
             } catch (Exception e) {
                 // ok to ignore
             }
             producer = null;
             lastStarted = 0;
-            total = 0;
+            totalEvents = 0;
         }
         lastActive = System.currentTimeMillis();
     }
@@ -145,9 +145,7 @@ public class EventProducer implements LambdaFunction {
             log.error("abort because {} is not available", SERVICE_REGISTRY);
             return false;
         }
-        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String origin = platform.getOrigin();
         String type = headers.get(TYPE);
         if (type != null) {
             if (INIT.equals(type) && !isServiceMonitor) {
@@ -180,7 +178,7 @@ public class EventProducer implements LambdaFunction {
                          * The EventConsumer at the receiving side will reconstruct the payload if needed.
                          */
                         producer.send(new ProducerRecord<>(dest, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
-                        total++;
+                        totalEvents++;
                         lastActive = System.currentTimeMillis();
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {
                         log.error("Unable to send message to {} - {}", dest, e.getMessage());
@@ -277,7 +275,7 @@ public class EventProducer implements LambdaFunction {
             String uuid = Utility.getInstance().getUuid();
             EventEnvelope direct = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY).setHeader(TYPE, INIT);
             producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
-            total++;
+            totalEvents++;
             lastActive = System.currentTimeMillis();
             log.info("Tell event consumer to start with {}", origin);
 
@@ -293,7 +291,7 @@ public class EventProducer implements LambdaFunction {
             String uuid = Utility.getInstance().getUuid();
             EventEnvelope direct = new EventEnvelope().setTo(replyTo).setHeader(TYPE, PONG).setBody(true);
             producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
-            total++;
+            totalEvents++;
             lastActive = System.currentTimeMillis();
 
         } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
@@ -313,7 +311,7 @@ public class EventProducer implements LambdaFunction {
                     EventEnvelope direct = new EventEnvelope().setTo(PostOffice.CLOUD_CONNECTOR)
                             .setHeader(TYPE, LOOP_BACK).setHeader(ORIGIN, origin).setHeader(REPLY_TO, replyTo);
                     producer.send(new ProducerRecord<>(target, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
-                    total++;
+                    totalEvents++;
                     lastActive = System.currentTimeMillis();
                     return;
 

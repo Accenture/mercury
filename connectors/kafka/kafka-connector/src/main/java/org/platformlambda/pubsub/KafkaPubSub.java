@@ -46,16 +46,22 @@ public class KafkaPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(KafkaPubSub.class);
 
     private static final String MANAGER = KafkaSetup.MANAGER;
+    private static final String PUBLISHER = "system.pubsub.producer";
     private static final String TYPE = "type";
     private static final String PRESENCE_MONITOR = KafkaSetup.PRESENCE_MONITOR;
     private static final String CREATE_TOPIC = "create_topic";
     private static final String PUB_SUB = "pub_sub";
     private static final String LIST = "list";
+    private static final String TOPIC = "topic";
+    private static final String ID = "id";
+    private static final String DEST = "dest";
     private static final String EXISTS = "exists";
     private static final String LEAVE = "leave";
+    private static final String STOP = "stop";
     private static final String ORIGIN = "origin";
     private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - 256;
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
+    private static long seq = 0, totalEvents = 0;
 
     private Properties properties = new Properties();
     private Properties baseProp;
@@ -68,6 +74,54 @@ public class KafkaPubSub implements PubSubProvider {
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
         properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
+        LambdaFunction f = (headers, body, instance) -> {
+            String type = headers.get(TYPE);
+            if (STOP.equals(type)) {
+                closeProducer();
+            }
+            if (PUB_SUB.equals(type) && headers.containsKey(TOPIC) && headers.containsKey(ID)
+                    && headers.containsKey(DEST) && body instanceof byte[]) {
+                String topic = headers.get(TOPIC);
+                String dest = headers.get(DEST);
+                String id = headers.get(ID);
+                byte[] payload = (byte[]) body;
+                startProducer();
+                String uuid = Utility.getInstance().getUuid();
+                try {
+                    // perform segmentation for large payload
+                    if (payload.length > MAX_PAYLOAD) {
+                        int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
+                        ByteArrayInputStream in = new ByteArrayInputStream(payload);
+                        for (int i = 0; i < total; i++) {
+                            // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
+                            EventEnvelope block = new EventEnvelope();
+                            block.setHeader(MultipartPayload.ID, id);
+                            block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
+                            block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
+                            byte[] segment = new byte[MAX_PAYLOAD];
+                            int size = in.read(segment);
+                            block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
+                            producer.send(new ProducerRecord<>(topic, uuid+i, block.toBytes())).get(10000, TimeUnit.MILLISECONDS);
+                            totalEvents++;
+                            log.info("Sending block {} of {} to {} via {}", i + 1, total, dest, topic);
+                        }
+                    } else {
+                        producer.send(new ProducerRecord<>(topic, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
+                        totalEvents++;
+                    }
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    log.error("Unable to publish event to {} - {}", dest, e.getMessage());
+                    closeProducer();
+
+                }
+            }
+            return null;
+        };
+        try {
+            Platform.getInstance().registerPrivate(PUBLISHER, f, 1);
+        } catch (IOException e) {
+            log.error("Unable to start pub/sub producer - {}", e.getMessage());
+        }
         // clean up subscribers when application stops
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
@@ -118,21 +172,40 @@ public class KafkaPubSub implements PubSubProvider {
             throw new IOException("Unable to delete topic because "+topic+" is reserved");
         }
         try {
-            PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, LEAVE), new Kv(ORIGIN, topic));
+            PostOffice po = PostOffice.getInstance();
+            po.request(MANAGER, 20000, new Kv(TYPE, LEAVE), new Kv(ORIGIN, topic));
+            // retire the current instance of producer that may have reference to the topic
+            po.send(PUBLISHER, new Kv(TYPE, STOP));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
     }
 
-    @Override
-    public void publish(String topic, Map<String, String> headers, Object body) throws IOException {
+    private void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
-            String id = Platform.getInstance().getOrigin()+"ps";
+            String id = Platform.getInstance().getOrigin()+"ps"+(++seq);
             properties.put(ProducerConfig.CLIENT_ID_CONFIG, id.substring(8));
             producer = new KafkaProducer<>(properties);
             log.info("Pub/Sub Producer {} ready", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG));
         }
+    }
+
+    private void closeProducer() {
+        if (producer != null) {
+            try {
+                producer.close();
+                log.info("Pub/Sub Producer {} released, delivered: {}", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG), totalEvents);
+            } catch (Exception e) {
+                // ok to ignore
+            }
+            producer = null;
+            totalEvents = 0;
+        }
+    }
+
+    @Override
+    public void publish(String topic, Map<String, String> headers, Object body) throws IOException {
         if (TopicManager.regularTopicFormat(topic)) {
             throw new IOException("Unable to publish because "+topic+" is reserved");
         }
@@ -147,7 +220,6 @@ public class KafkaPubSub implements PubSubProvider {
          * Kafka is designed for high-performance event streaming.
          * Therefore, checking the validity of a kafka topic is not an option because it would be too slow.
          */
-        String uuid = Utility.getInstance().getUuid();
         EventEnvelope event = new EventEnvelope();
         event.setTo(topic);
         if (headers != null) {
@@ -157,29 +229,9 @@ public class KafkaPubSub implements PubSubProvider {
         }
         event.setBody(body);
         byte[] payload = event.toBytes();
-        try {
-            // perform segmentation for large payload
-            if (payload.length > MAX_PAYLOAD) {
-                int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
-                ByteArrayInputStream in = new ByteArrayInputStream(payload);
-                for (int i = 0; i < total; i++) {
-                    // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
-                    EventEnvelope block = new EventEnvelope();
-                    block.setHeader(MultipartPayload.ID, event.getId());
-                    block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
-                    block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
-                    byte[] segment = new byte[MAX_PAYLOAD];
-                    int size = in.read(segment);
-                    block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
-                    producer.send(new ProducerRecord<>(topic, uuid+i, block.toBytes())).get(10000, TimeUnit.MILLISECONDS);
-                    log.info("Sending block {} of {} to {} via {}", i + 1, total, event.getTo(), topic);
-                }
-            } else {
-                producer.send(new ProducerRecord<>(topic, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
-            }
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new IOException(e.getMessage());
-        }
+        // this will guarantee that events are published orderly, keeping event sequencing for each topic
+        PostOffice.getInstance().send(PUBLISHER, payload, new Kv(TYPE, PUB_SUB), new Kv(ID, event.getId()),
+                                        new Kv(DEST, event.getTo()), new Kv(TOPIC, topic));
     }
 
     @Override
@@ -247,6 +299,7 @@ public class KafkaPubSub implements PubSubProvider {
     }
 
     private void shutdown() {
+        closeProducer();
         for (String topic: subscribers.keySet()) {
             EventConsumer consumer = subscribers.get(topic);
             consumer.shutdown();
