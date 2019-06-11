@@ -49,6 +49,13 @@ void send(final EventEnvelope event) throws IOException;
 ```
 Kv is a key-value pair for holding one parameter.
 
+### Deferred delivery
+
+```java
+String sendLater(final EventEnvelope event, Date future) throws IOException;
+```
+A scheduled ID will be returned. You may cancel the scheduled delivery with `cancelFutureEvent(id)`.
+
 ### Call-back
 
 You can register a call back function and uses its route name as the "reply-to" address in the send method. To set a reply-to address, you need to use the EventEnvelope directly.
