@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. Store-n-forward pub/sub API will be automatically enabled if the underlying cloud connector supports it. e.g. kafka
 2. ObjectStreamIO, a convenient wrapper class, to provide event stream I/O API.
 3. Object stream feature is now a standard feature instead of optional.
+4. Deferred delivery added to language connector.
 
 ### Removed
 

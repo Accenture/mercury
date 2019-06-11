@@ -31,10 +31,7 @@ import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
-import org.platformlambda.lang.services.LanguageInbox;
-import org.platformlambda.lang.services.LanguageRelay;
-import org.platformlambda.lang.services.PubSubController;
-import org.platformlambda.lang.services.TopicListener;
+import org.platformlambda.lang.services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +73,7 @@ public class LanguageConnector implements LambdaFunction {
     private static final String LANGUAGE_REGISTRY = "language.pack.registry";
     private static final String LANGUAGE_INBOX = "language.pack.inbox";
     private static final String PUB_SUB_CONTROLLER = "pub.sub.controller";
+    private static final String DEFERRED_DELIVERY = "system.deferred.delivery";
     private static final String SYSTEM_ALERT = "system.alerts";
     private static final String SYSTEM_CONFIG = "system.config";
     private static final String MAX_PAYLOAD = "max.payload";
@@ -212,6 +210,7 @@ public class LanguageConnector implements LambdaFunction {
             platform.registerPrivate(LANGUAGE_REGISTRY, registry, 1);
             platform.registerPrivate(LANGUAGE_INBOX, new LanguageInbox(), 1);
             platform.registerPrivate(PUB_SUB_CONTROLLER, new PubSubController(), 1);
+            platform.registerPrivate(DEFERRED_DELIVERY, new DeferredDelivery(), 1);
             LanguageConnector.inboxRoute = LANGUAGE_INBOX + "@" + platform.getOrigin();
         }
     }
