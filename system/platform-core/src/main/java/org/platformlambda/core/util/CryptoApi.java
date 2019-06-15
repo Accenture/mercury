@@ -407,7 +407,7 @@ public class CryptoApi {
         sb.append(type.toUpperCase());
         sb.append(DASHES);
         sb.append("\r\n");
-        sb.append(Utility.getInstance().bytesToBase64(key, true));
+        sb.append(Utility.getInstance().bytesToBase64(key, true, false));
         sb.append(DASHES);
         sb.append(END);
         sb.append(' ');

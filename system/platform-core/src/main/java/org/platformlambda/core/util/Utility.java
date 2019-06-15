@@ -813,11 +813,15 @@ public class Utility {
     /////////////////////////////
 
     public String bytesToBase64(byte[] b) {
-        return bytesToBase64(b, false);
+        return bytesToBase64(b, false, false);
     }
 
-    public String bytesToBase64(byte[] b, boolean pretty) {
-        byte[] b64 = Base64.getEncoder().encode(b);
+    public String bytesToUrlBase64(byte[] b) {
+        return bytesToBase64(b, false, true);
+    }
+
+    public String bytesToBase64(byte[] b, boolean pretty, boolean isUrl) {
+        byte[] b64 = isUrl? Base64.getUrlEncoder().encode(b) : Base64.getEncoder().encode(b);
         String result = getUTF(b64);
         if (pretty) {
             StringBuilder sb = new StringBuilder();
@@ -836,8 +840,20 @@ public class Utility {
     }
 
     public byte[] base64ToBytes(String base64) {
+        return base64ToBytes(base64, false);
+    }
+
+    public byte[] urlBase64ToBytes(String base64) {
+        return base64ToBytes(base64, true);
+    }
+
+    public byte[] base64ToBytes(String base64, boolean isUrl) {
         String b64 = base64.contains("\n") ? base64.replace("\n", "").replace("\r", "") : base64;
-        return Base64.getDecoder().decode(b64);
+        if (isUrl) {
+            return Base64.getUrlDecoder().decode(b64);
+        } else {
+            return Base64.getDecoder().decode(b64);
+        }
     }
 
     public byte[] hex2bytes(String hex) throws IOException {

@@ -31,7 +31,7 @@ public class StringConversionTest {
 
     @Test
     public void base64() {
-        String base64 = util.bytesToBase64(INPUT.getBytes(), true);
+        String base64 = util.bytesToBase64(INPUT.getBytes(), true, false);
         // verify that it is a pretty-print output
         assertTrue(base64.contains("\r\n"));
         byte[] b = util.base64ToBytes(base64);
