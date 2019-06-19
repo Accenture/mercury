@@ -234,7 +234,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -Dcloud.connector=none -jar target/rest-example-1.12.2.jar
+java -Dcloud.connector=none -jar target/rest-example-1.12.3.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -289,20 +289,20 @@ For simplicity, we are going to use the Event Node system to emulate a cloud env
 cd mercury/connectors
 cd event-node
 mvn clean package
-java -jar target/event-node-1.12.2.jar
+java -jar target/event-node-1.12.3.jar
 # the Event Node system will run. It emulates an event stream system.
 
 # Open another terminal and go to the project root
 cd mercury/examples
 cd lambda-example
 mvn clean package
-java -Dcloud.connector=event.node -jar target/lambda-example-1.12.2.jar
+java -Dcloud.connector=event.node -jar target/lambda-example-1.12.3.jar
 # the lambda-example microservices module will run and connect to the event node
 
 # Go to the terminal that runs the rest-example earlier
 Ctrl-C to quit the rest-example application
 # Then run the rest-example again with cloud.connector set to event.node
-java -Dcloud.connector=event.node -jar target/rest-example-1.12.2.jar
+java -Dcloud.connector=event.node -jar target/rest-example-1.12.3.jar
 # without the "-Dcloud.connector" parameter override, the rest-example will run and connect to a hazelcast cluster.
 
 ```
@@ -351,7 +351,7 @@ Members {size:1, ver:1} [
 cd mercury/connectors
 cd hazelcast/hazelcast-presence
 mvn clean package
-java -jar target/hazelcast-presence-1.12.2.jar
+java -jar target/hazelcast-presence-1.12.3.jar
 # this will start the "presence monitor" that will connect to the hazelcast cluster.
 ```
 
@@ -359,11 +359,11 @@ java -jar target/hazelcast-presence-1.12.2.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=hazelcast -jar target/lambda-example-1.12.2.jar
+java -Dcloud.connector=hazelcast -jar target/lambda-example-1.12.3.jar
 # the lambda-example will connect to the hazelcast cluster and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=hazelcast -jar target/rest-example-1.12.2.jar
+java -Dcloud.connector=hazelcast -jar target/rest-example-1.12.3.jar
 # the rest-example will also connect to the hazelcast cluster and the "presence monitor"
 
 ```
@@ -388,7 +388,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 123,
         "type" : "APP",
         "updated" : "2018-12-21T17:51:01Z",
-        "version" : "1.12.2"
+        "version" : "1.12.3"
       },
       "201812215ff40bbc36004637ac8cd18debf5cf95" : {
         "created" : "2018-12-21T17:11:49Z",
@@ -397,7 +397,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 117,
         "type" : "WEB",
         "updated" : "2018-12-21T17:50:55Z",
-        "version" : "1.12.2"
+        "version" : "1.12.3"
       }
     },
     "topics" : [ "201812215ff40bbc36004637ac8cd18debf5cf95", "201812213aed6381e8b543d48f3f288f64207019" ],
@@ -409,7 +409,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
   "app" : {
     "description" : "Presence Monitor",
     "name" : "hazelcast-presence",
-    "version" : "1.12.2"
+    "version" : "1.12.3"
   },
   "memory" : {
     "allocated" : "737,673,216",

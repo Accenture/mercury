@@ -273,7 +273,7 @@ public class SimpleMapper {
                         result.put(k, p.getAsString());
                     }
                     if (p.isNumber()) {
-                        result.put(k, TypedNumber(p));
+                        result.put(k, typedNumber(p));
                     }
                 }
             }
@@ -300,14 +300,14 @@ public class SimpleMapper {
                     result.add(p.getAsString());
                 }
                 if (p.isNumber()) {
-                    result.add(TypedNumber(p));
+                    result.add(typedNumber(p));
                 }
             }
         }
         return result;
     }
 
-    private Object TypedNumber(JsonPrimitive p) {
+    private Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.
          * This is a best effort to keep the numbers as int, long, float or double.

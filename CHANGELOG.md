@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version 1.12.2, 6/14/2019
+## Version 1.12.3, 6/19/2019
 
 ### Added
 
@@ -19,7 +19,12 @@ N/A
 
 ### Changed
 
-Disable HTML encape sequence for GSON serializer
+1. Disable HTML encape sequence for GSON serializer
+2. Bug fix for GSON serialization optimization
+
+By default, GSON serializer converts all numbers to double, resulting in unwanted decimal point for integer and long.
+To handle custom map serialization for correct representation of numbers, an unintended side effect was introduced in earlier releases.
+List of inner PoJo would be incorrectly serialized as map, resulting in casting exception. This release resolves this issue.
 
 ---
 
