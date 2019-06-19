@@ -1,6 +1,7 @@
 package org.platformlambda.core.serializers;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import org.platformlambda.core.util.Utility;
 
@@ -12,16 +13,17 @@ import java.util.Map;
 
 public class SimpleObjectMapper {
 
-    private Gson engine;
+    private Gson mapGson, objGson;
     private Utility util;
 
-    public SimpleObjectMapper(Gson engine) {
-        this.engine = engine;
+    public SimpleObjectMapper(Gson mapGson, Gson objGson) {
+        this.mapGson = mapGson;
+        this.objGson = objGson;
         this.util = Utility.getInstance();
     }
 
     public String writeValueAsString(Object value) {
-        return engine.toJson(value);
+        return mapGson.toJson(value);
     }
 
     public byte[] writeValueAsBytes(Object value) {
@@ -31,11 +33,13 @@ public class SimpleObjectMapper {
     @SuppressWarnings("unchecked")
     public <T> T readValue(Object fromValue, Class<T> toValueType) {
         // return original map
-        if (fromValue instanceof Map && isMap(toValueType)) {
+        boolean outputIsMap = isMap(toValueType);
+        if (fromValue instanceof Map && outputIsMap) {
             return (T) fromValue;
         }
         // return original list
-        if (fromValue instanceof List && isList(toValueType)) {
+        boolean outputIsList = isList(toValueType);
+        if (fromValue instanceof List && outputIsList) {
             return (T) fromValue;
         }
         if (fromValue instanceof InputStream) {
@@ -49,12 +53,20 @@ public class SimpleObjectMapper {
             return readJsonString(util.getUTF((byte[]) fromValue), toValueType);
         } else {
             // input is an object
-            return engine.fromJson(engine.toJsonTree(fromValue), toValueType);
+            if (outputIsList || outputIsMap) {
+                return mapGson.fromJson(mapGson.toJsonTree(fromValue), toValueType);
+            } else {
+                return objGson.fromJson(objGson.toJsonTree(fromValue), toValueType);
+            }
         }
     }
 
     private <T> T readJsonString(String fromValue, Class<T> toValueType) {
-        return engine.fromJson(fromValue, toValueType);
+        if (isMap(toValueType) || isList(toValueType)) {
+            return mapGson.fromJson(fromValue, toValueType);
+        } else {
+            return objGson.fromJson(fromValue, toValueType);
+        }
     }
 
     private boolean isMap(Class<?> type) {
@@ -67,9 +79,9 @@ public class SimpleObjectMapper {
 
     public <T> T restoreGeneric(Object fromValue, Class<T> toValueType, Class<?>... args) {
         if (fromValue instanceof Map) {
-            return engine.fromJson(engine.toJsonTree(fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return objGson.fromJson(objGson.toJsonTree(fromValue), TypeToken.getParameterized(toValueType, args).getType());
         } else if (fromValue instanceof byte[]) {
-            return engine.fromJson(util.getUTF((byte[]) fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return objGson.fromJson(util.getUTF((byte[]) fromValue), TypeToken.getParameterized(toValueType, args).getType());
         } else {
             throw new IllegalArgumentException("Unable to restore to "+fromValue.getClass().getName()+" because payload is not byte array or map");
         }

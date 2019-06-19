@@ -45,7 +45,7 @@ public class SimpleMapper {
         if (snake) {
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
-        this.mapper = new SimpleObjectMapper(getJson(snake));
+        this.mapper = new SimpleObjectMapper(getJson(snake, true), getJson(snake, false));
         /*
          * Optionally, load white list for authorized PoJo
          */
@@ -60,7 +60,7 @@ public class SimpleMapper {
         }
     }
 
-    private Gson getJson(boolean snake) {
+    private Gson getJson(boolean snake, boolean isMap) {
         // configure Gson engine
         GsonBuilder builder = new GsonBuilder();
         // avoid equal sign to become 003d unicode
@@ -86,8 +86,10 @@ public class SimpleMapper {
          *
          * For PoJo, Gson will do the conversion correctly because there are typing information in the class.
          */
-        builder.registerTypeAdapter(Map.class, new MapDeserializer());
-        builder.registerTypeAdapter(List.class, new ListDeserializer());
+        if (isMap) {
+            builder.registerTypeAdapter(Map.class, new MapDeserializer());
+            builder.registerTypeAdapter(List.class, new ListDeserializer());
+        }
         // Indent JSON output
         builder.setPrettyPrinting();
         // Camel or snake case

@@ -139,7 +139,7 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertPoJoUsingJackson() throws ClassNotFoundException {
+    public void convertPoJoUsingGson() throws ClassNotFoundException {
         PoJo input = new PoJo();
         input.setName("hello world");
         input.setNumber(12345);

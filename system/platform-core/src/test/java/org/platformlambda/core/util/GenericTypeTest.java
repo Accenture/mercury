@@ -20,15 +20,42 @@ package org.platformlambda.core.util;
 
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.util.models.ListOfObjects;
 import org.platformlambda.core.util.models.ObjectWithGenericType;
 import org.platformlambda.core.util.models.PoJo;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.junit.Assert.*;
 
 public class GenericTypeTest {
+
+    @Test
+    public void testListOfObjects() throws IOException {
+        int number = 100;
+        String name = "hello world";
+        PoJo pojo = new PoJo();
+        pojo.setNumber(number);
+        pojo.setName(name);
+        ListOfObjects list = new ListOfObjects();
+        list.setPoJoList(Collections.singletonList(pojo));
+
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(list);
+        byte[] b = event.toBytes();
+
+        EventEnvelope result = new EventEnvelope();
+        result.load(b);
+
+        assertTrue(result.getBody() instanceof ListOfObjects);
+        ListOfObjects o = (ListOfObjects) result.getBody();
+        assertTrue(result.getBody() instanceof ListOfObjects);
+        PoJo restored = o.getPoJoList().get(0);
+        assertEquals(name, restored.getName());
+        assertEquals(number, restored.getNumber());
+    }
 
     @Test
     @SuppressWarnings("unchecked")
