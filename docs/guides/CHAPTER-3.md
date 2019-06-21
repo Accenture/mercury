@@ -96,22 +96,28 @@ Note that you can programmatically `register` and `release` a function at run-ti
 
 If you create the functions at run-time, please remember to release the functions when processing is completed to avoid wasting system resources.
 
-2. Event stream
+2. Object stream
 
-To do event streaming, you can use the ObjectStreamIO to create a stream and then use the `ObjectStreamWriter` and the `ObjectStreamReader` classes to write to and read from the stream.
+To do object streaming, you can use the ObjectStreamIO to create a stream or open an existing stream.
+Then, you can use the `ObjectStreamWriter` and the `ObjectStreamReader` classes to write to and read from the stream.
 
-Note that if you close the output stream, the system will send a `EOF` to signal that that there are no more events to the stream. When you detect the end of stream, you can close the input stream. When you close the input stream, you will release the stream and all resources associated with it.
+For the producer, if you close the output stream, the system will send a `EOF` to signal that that there are no more events to the stream. 
+
+For the consumer, When you detect the end of stream, you can close the input stream to release the stream and all resources associated with it.
 
 I/O stream consumes resources and thus you must close the input stream at the end of stream processing.
+The system will automatically close the stream upon an expiry timer that you provide when a new stream is created.
 
 The following unit test demonstrates this use case.
 
 ```java
 String messageOne = "hello world";
 String messageTwo = "it is great";
-
-ObjectStreamIO io = new ObjectStreamIO();
-ObjectStreamWriter out = io.getOutputStream();
+/*
+ * Producer creates a new stream with 60 seconds inactivity expiry
+ */
+ObjectStreamIO producer = new ObjectStreamIO(60);
+ObjectStreamWriter out = producer.getOutputStream();
 out.write(messageOne);
 out.write(messageTwo);
 /*
@@ -125,16 +131,22 @@ out.write(messageTwo);
 /*
  * See all open streams in this application instance and verify that the new stream is there
  */
-String fullPath = io.getRoute();
+String streamId = producer.getRoute();
 // remove the node-ID from the fully qualified route name
-String path = fullPath.substring(0, fullPath.indexOf('@'));
-Map<String, Object> localStreams = io.getLocalStreams();
+String path = streamId.substring(0, streamId.indexOf('@'));
+Map<String, Object> localStreams = producer.getLocalStreams();
 assertTrue(localStreams.containsKey(path));
+
+/*
+ * Producer should send the streamId to the consumer.
+ * The consumer can then open the existing stream with the streamId.
+ */
+ObjectStreamIO consumer = new ObjectStreamIO(streamId);
 /*
  * read object from the event stream
  * (minimum timeout value is one second)
  */
-ObjectStreamReader in = io.getInputStream(1000);
+ObjectStreamReader in = consumer.getInputStream(1000);
 int i = 0;
 while (!in.isEof()) {
     try {

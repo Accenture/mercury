@@ -37,9 +37,11 @@ public class ObjectStreamTest {
 
         String messageOne = "hello world";
         String messageTwo = "it is great";
-
-        ObjectStreamIO io = new ObjectStreamIO();
-        ObjectStreamWriter out = io.getOutputStream();
+        /*
+         * Producer creates a new stream with 60 seconds inactivity expiry
+         */
+        ObjectStreamIO producer = new ObjectStreamIO(60);
+        ObjectStreamWriter out = producer.getOutputStream();
         out.write(messageOne);
         out.write(messageTwo);
         /*
@@ -53,16 +55,22 @@ public class ObjectStreamTest {
         /*
          * See all open streams in this application instance and verify that the new stream is there
          */
-        String fullPath = io.getRoute();
+        String streamId = producer.getRoute();
         // remove the node-ID from the fully qualified route name
-        String path = fullPath.substring(0, fullPath.indexOf('@'));
-        Map<String, Object> localStreams = io.getLocalStreams();
+        String path = streamId.substring(0, streamId.indexOf('@'));
+        Map<String, Object> localStreams = producer.getLocalStreams();
         assertTrue(localStreams.containsKey(path));
+
+        /*
+         * Producer should send the streamId to the consumer.
+         * The consumer can then open the existing stream with the streamId.
+         */
+        ObjectStreamIO consumer = new ObjectStreamIO(streamId);
         /*
          * read object from the event stream
          * (minimum timeout value is one second)
          */
-        ObjectStreamReader in = io.getInputStream(1000);
+        ObjectStreamReader in = consumer.getInputStream(1000);
         int i = 0;
         while (!in.isEof()) {
             try {
@@ -86,6 +94,7 @@ public class ObjectStreamTest {
         assertEquals(2, i);
         // must close input stream to release resources
         in.close();
+
     }
 
 }

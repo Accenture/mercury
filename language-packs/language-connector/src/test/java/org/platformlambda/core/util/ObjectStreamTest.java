@@ -38,7 +38,7 @@ public class ObjectStreamTest {
         String messageOne = "hello world";
         String messageTwo = "it is great";
 
-        ObjectStreamIO io = new ObjectStreamIO();
+        ObjectStreamIO io = new ObjectStreamIO(20);
         ObjectStreamWriter out = io.getOutputStream();
         out.write(messageOne);
         out.write(messageTwo);

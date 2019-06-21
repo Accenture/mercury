@@ -54,14 +54,38 @@ public class ObjectStreamIO {
     private static final String CREATE = "create";
     private static final String QUERY = "query";
     private static final String STREAM_PREFIX = "stream.";
+    private static final String EXPIRY_SEC = "expiry_seconds";
     private String route;
     private ObjectStreamWriter writer;
     private ObjectStreamReader reader;
     private boolean inputClosed = false;
 
     public ObjectStreamIO() throws IOException {
+        this.createStream(1800);
+    }
+
+    public ObjectStreamIO(int expirySeconds) throws IOException {
+        this.createStream(expirySeconds);
+    }
+
+    /**
+     * Open an existing stream
+     *
+     * @param streamId for an existing stream
+     * @throws IOException in case the stream ID is invalid
+     */
+    public ObjectStreamIO(String streamId) throws IOException {
+        if (streamId.startsWith(STREAM_PREFIX) && streamId.contains("@")) {
+            this.route = streamId;
+        } else {
+            throw new IOException("Invalid stream route");
+        }
+    }
+
+    private void createStream(int expirySeconds) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, 5000, new Kv(TYPE, CREATE));
+            EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, 5000,
+                    new Kv(TYPE, CREATE), new Kv(EXPIRY_SEC, expirySeconds));
             if (response.getBody() instanceof String) {
                 String name = (String) response.getBody();
                 if (name.startsWith(STREAM_PREFIX) && name.contains("@")) {
@@ -73,14 +97,6 @@ public class ObjectStreamIO {
         }
         if (route == null) {
             throw new IOException("Stream manager is not responding correctly");
-        }
-    }
-
-    public ObjectStreamIO(String route) throws IOException {
-        if (route.startsWith(STREAM_PREFIX) && route.contains("@")) {
-            this.route = route;
-        } else {
-            throw new IOException("Invalid stream route");
         }
     }
 

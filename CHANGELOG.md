@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version 1.12.3, 6/19/2019
+## Version 1.12.3, 6/21/2019
 
 ### Added
 
-N/A
+Add inactivity expiry timer to ObjectStreamIO so that house-keeper can clean up resources that are idle
 
 ### Removed
 

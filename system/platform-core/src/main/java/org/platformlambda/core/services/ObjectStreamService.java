@@ -27,7 +27,6 @@ import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.Utility;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 
 public class ObjectStreamService implements LambdaFunction {
@@ -68,6 +67,7 @@ public class ObjectStreamService implements LambdaFunction {
             if (type.equals(WRITE)) {
                 if (!writeEOF) {
                     write(event);
+                    ObjectStreamManager.increment(path);
                 }
                 return true;
             }
@@ -85,6 +85,7 @@ public class ObjectStreamService implements LambdaFunction {
                     return new EventEnvelope().setHeader(TYPE, EOF);
                 } else {
                     EventEnvelope data = elasticQueue.peek();
+                    ObjectStreamManager.touch(path);
                     if (data != null) {
                         if (EOF.equals(data.getHeaders().get(TYPE))) {
                             readEOF = true;
@@ -103,6 +104,7 @@ public class ObjectStreamService implements LambdaFunction {
                     return new EventEnvelope().setHeader(TYPE, EOF);
                 } else {
                     EventEnvelope data = elasticQueue.read();
+                    ObjectStreamManager.touch(path);
                     if (data != null) {
                         if (EOF.equals(data.getHeaders().get(TYPE))) {
                             readEOF = true;
@@ -127,8 +129,9 @@ public class ObjectStreamService implements LambdaFunction {
         return new EventEnvelope();
     }
 
-    private void write(EventEnvelope event) throws IOException {
+    private void write(EventEnvelope event) {
         elasticQueue.write(event);
+        ObjectStreamManager.touch(path);
     }
 
 }

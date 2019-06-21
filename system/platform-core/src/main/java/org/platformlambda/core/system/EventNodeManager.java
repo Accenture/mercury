@@ -47,7 +47,7 @@ public class EventNodeManager extends Thread {
     private long timer = 0;
 
     public EventNodeManager() {
-        Runtime.getRuntime().addShutdownHook(new Cleanup());
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     @Override
@@ -153,14 +153,8 @@ public class EventNodeManager extends Thread {
                 || message.contains("connection fail")? "Unreachable" : message;
     }
 
-    private class Cleanup extends Thread {
-
-        @Override
-        public void run() {
-            log.info("Stopping");
-            EventNodeManager.normal = false;
-        }
-
+    private void shutdown() {
+        EventNodeManager.normal = false;
     }
 
 }
