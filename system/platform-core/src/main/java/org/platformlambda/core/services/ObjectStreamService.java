@@ -118,6 +118,7 @@ public class ObjectStreamService implements LambdaFunction {
             // close the input stream and release resources
             if (type.equals(CLOSE)) {
                 writeEOF = true;
+                elasticQueue.destroy();
                 PostOffice.getInstance().send(STREAM_MANAGER, new Kv(TYPE, DESTROY), new Kv(NAME, path));
             }
         }

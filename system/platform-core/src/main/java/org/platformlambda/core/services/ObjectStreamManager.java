@@ -18,8 +18,10 @@
 
 package org.platformlambda.core.services;
 
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,7 @@ public class ObjectStreamManager implements LambdaFunction {
 
     private static final String TYPE = "type";
     private static final String CREATE = "create";
+    private static final String CLOSE = ObjectStreamService.CLOSE;
     private static final String NAME = "name";
     private static final String DESTROY = "destroy";
     private static final String QUERY = "query";
@@ -163,16 +166,21 @@ public class ObjectStreamManager implements LambdaFunction {
                             StreamInfo info = streams.get(id);
                             if (now - info.updated > info.expiryMills) {
                                 try {
-                                    streams.remove(id);
-                                    platform.release(id);
-                                    log.warn("{} expired. Inactivity for {} seconds ({} - {}, transactions={})",
-                                            id,
+                                    log.warn("{} expired. Inactivity for {} seconds ({} - {}, transactions={})", id,
                                             info.expiryMills / 1000,
                                             util.date2str(new Date(info.created), true),
-                                            util.date2str(new Date(info.updated), true),
-                                            info.count);
+                                            util.date2str(new Date(info.updated), true), info.count);
+                                    // tell service to destroy elastic queue object
+                                    PostOffice.getInstance().send(id, new Kv(TYPE, CLOSE));
                                 } catch (IOException e) {
+                                    // perhaps stream service route is closed concurrently
                                     log.error("Unable to release {} - {}", id, e.getMessage());
+                                    streams.remove(id);
+                                    try {
+                                        platform.release(id);
+                                    } catch (IOException ex) {
+                                        // this should not occur
+                                    }
                                 }
 
                             }
