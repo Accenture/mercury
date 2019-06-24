@@ -156,12 +156,12 @@ public class Platform {
                     List<Class<?>> services = scanner.getAnnotatedClasses(CloudService.class, true);
                     for (String name: list) {
                         if (loaded.contains(name)) {
-                            log.error("CLoud service ({}) already loaded", name);
+                            log.error("Cloud service ({}) already loaded", name);
                         } else {
                             if (startService(name, services, false)) {
                                 loaded.add(name);
                             } else {
-                                log.error("CLoud service ({}) not found", name);
+                                log.error("Cloud service ({}) not found", name);
                             }
                         }
                     }
@@ -196,7 +196,7 @@ public class Platform {
             SimpleClassScanner scanner = SimpleClassScanner.getInstance();
             List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
             if (!startService(name, services, true)) {
-                log.error("CLoud connector ({}) not found", name);
+                log.error("Cloud connector ({}) not found", name);
             }
         }
     }
