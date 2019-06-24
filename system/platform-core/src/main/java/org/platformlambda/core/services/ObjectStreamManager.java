@@ -186,11 +186,11 @@ public class ObjectStreamManager implements LambdaFunction {
                             }
                         }
                     }
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        // ok to ignore
-                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
                 }
             }
             log.info("Stopped");
