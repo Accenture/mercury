@@ -30,7 +30,7 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.pubsub.KafkaPubSub;
+import org.platformlambda.kafka.pubsub.KafkaPubSub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

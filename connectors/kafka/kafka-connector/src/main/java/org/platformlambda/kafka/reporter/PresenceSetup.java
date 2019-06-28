@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.reporter;
+package org.platformlambda.kafka.reporter;
 
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;

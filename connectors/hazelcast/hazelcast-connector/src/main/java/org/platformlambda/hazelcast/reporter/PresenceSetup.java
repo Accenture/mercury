@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.reporter;
+package org.platformlambda.hazelcast.reporter;
 
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;

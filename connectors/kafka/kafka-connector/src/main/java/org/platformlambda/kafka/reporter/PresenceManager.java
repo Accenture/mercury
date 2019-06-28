@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.reporter;
+package org.platformlambda.kafka.reporter;
 
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -119,6 +119,7 @@ public class PresenceManager extends Thread {
         } else {
             log.warn("Presence connector already started");
         }
+
     }
 
     private void connect() {
