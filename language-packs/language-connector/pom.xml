@@ -31,8 +31,8 @@
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
              Not necessary if testing using Event Node.
 
-             As a connector, both Kafka and Hazelcast connectors are added so
-             you can select the connector from the application.properties without recompiling from source. 
+             For convenience, both Kafka and Hazelcast connectors are added so
+             you can select the connector from command line without recompiling from source. 
 
 	         For production, please select only one cloud connector to reduce memory footprint. -->
         <dependency>

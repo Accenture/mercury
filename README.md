@@ -324,7 +324,7 @@ Congratulations! You have just created a network of microservices and consume th
 
 If you run another instance of the lambda-example in a different terminal and try the endpoint http://127.0.0.1:8083/api/hello/pojo/1 again, you will see the "origin" of the response changes. This illustrates that the system is load balancing your request to multiple containers.
 
-### Truly scalable application
+### Scalable application using Hazelcast
 
 The Event Node is designed for rapid prototyping so the event stream system is emulated in one laptop.
 
@@ -359,18 +359,18 @@ java -jar target/hazelcast-presence-1.12.4.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=hazelcast -jar target/lambda-example-1.12.4.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.4.jar
 # the lambda-example will connect to the hazelcast cluster and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=hazelcast -jar target/rest-example-1.12.4.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.4.jar
 # the rest-example will also connect to the hazelcast cluster and the "presence monitor"
 
 ```
 
 You may visit http://127.0.0.1:8083/api/hello/pojo/1. The output is exactly the same as the earlier demo.
 
-The "cloud.connector=hazelcast" parameter overrides the application.properties in the rest-example and lambda-example projects.
+The "cloud.connector=hazelcast" and "cloud.services=hazelcast.reporter" parameter overrides the application.properties in the rest-example and lambda-example projects so they can select Hazelcast instead of the Event Node.
 
 - Get additional info from the presence monitor
 
@@ -444,11 +444,50 @@ You may also check the health status of the presence monitor by visiting http://
 }
 ```
 
-## Event stream systems
+## Scalable application using kafka
 
-Hazelcast is a distributed memory grid and is ideal for real-time application. For applications that require both real-time and store-n-forward pub/sub use cases, you may want to explore the use of Event Stream systems. We have developed a Kafka cloud connector for this purpose. Please refer to the "Kafka" folder under "connectors" for details.
+Hazelcast is a distributed memory grid and is ideal for real-time application. For applications that require both real-time and store-n-forward pub/sub use cases, you may want to explore the use of Event Stream systems. We have developed a Kafka cloud connector for this purpose.
 
-To use lambda-example and rest-example with the kafka cloud connector, please replace the "hazelcast-connector" with "kafka-connector" in the corresponding pom.xml files. 
+For rapid development and prototyping, we have implemented a convenient standalone Kafka server.
+
+- Now let's build the kafka-standalone and hazelcast-presence projects
+
+```bash
+cd mercury/connectors
+cd kafka/kafka-standalone
+mvn clean package
+java -jar target/kafka-standalone-1.12.4.jar
+# this will start a standalone kafka server with embedded zookeeper
+cd ../kafka-presence
+mvn clean package
+java -jar target/kafka-presence-1.12.4.jar
+# this will start the "presence monitor" that will connect to the hazelcast cluster.
+```
+
+- Run the lambda-example and rest-example again
+
+```bash
+# go to the lambda-example project folder in one terminal
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.4.jar
+# the lambda-example will connect to the kafka server and the "presence monitor"
+
+# go to the rest-example project folder in another terminal
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.4.jar
+# the rest-example will also connect to the kafka server and the "presence monitor"
+
+```
+
+You may visit http://127.0.0.1:8083/api/hello/pojo/1. The output is exactly the same as the Hazelcast demo.
+
+The "cloud.connector=kafka" and "cloud.services=kafka.reporter" parameter overrides the application.properties in the rest-example and lambda-example projects so they can select Kafka instead of Hazelcast.
+
+- Get additional info from the presence monitor
+
+You may visit http://127.0.0.1:8080/info to see connection info. The output is almost the same as Hazelcast demo except you will also find "pub/sub" topic for the presence monitor.
+
+For Kafka, the presence monitor (`kafka-presence`) is using pub/sub for coordination among multiple instances of the presence monitors. This allows monitors to monitor each other for improved resilience. This is a distributed cluster design and not a master-slave arrangement.
+
+The Kafka-connector library also encapsulates native Kafka pub/sub feature so that your application can do pub/sub without tight coupling with Kafka. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-3.md)
 
 ## Write your own microservices
 
