@@ -22,6 +22,8 @@ import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ConfigReader;
+import org.platformlambda.kafka.util.SetupUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,18 @@ public class PresenceSetup implements CloudSetup {
             } else {
                 try {
                     String url = reader.getProperty(PRESENCE_MONITOR, "ws://127.0.0.1:8080/ws/presence");
+                    // to find kafka.properties, try file first, then classpath
+                    String pathList = reader.getProperty("presence.properties","file:/tmp/config/presence.properties");
+                    ConfigReader config = SetupUtil.getConfig(pathList);
+                    if (config != null) {
+                        String urlFromProperties = config.getProperty("url");
+                        if (urlFromProperties != null) {
+                            url = urlFromProperties;
+                            log.info("Setting presence URL to {}", urlFromProperties);
+                        } else {
+                            log.error("Missing url parameter in presence.properties. Fall back to using application.properties");
+                        }
+                    }
                     PresenceManager connection = new PresenceManager(url);
                     connection.start();
 
