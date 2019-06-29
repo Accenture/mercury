@@ -14,5 +14,3 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 5 - application.properties](CHAPTER-5.md)
 
-[Chapter 6 - Upcoming features](CHAPTER-6.md)
-

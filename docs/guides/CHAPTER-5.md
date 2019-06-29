@@ -89,7 +89,5 @@ This allows us to use any REST application server when technology evolves.
 
 If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
 
-| Chapter-6                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [Upcoming features](CHAPTER-6.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
+[Table of Contents](TABLE-OF-CONTENTS.md)
 
