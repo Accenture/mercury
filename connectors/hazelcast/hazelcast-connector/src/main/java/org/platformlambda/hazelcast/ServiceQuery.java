@@ -56,7 +56,7 @@ public class ServiceQuery implements LambdaFunction {
             Map<String, Object> result = new HashMap<>();
             result.put("routes", ServiceRegistry.getAllRoutes());
             result.put("nodes", ServiceRegistry.getAllOrigins());
-            result.put("me", Platform.getInstance().getOrigin());
+            result.put("this", Platform.getInstance().getOrigin());
             result.put("time", new Date());
             return result;
 

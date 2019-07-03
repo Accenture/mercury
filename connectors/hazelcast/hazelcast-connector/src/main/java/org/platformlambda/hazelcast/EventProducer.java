@@ -68,10 +68,7 @@ public class EventProducer implements LambdaFunction {
             log.error("abort because {} is not available", SERVICE_REGISTRY);
             return false;
         }
-
-        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String origin = platform.getOrigin();
         String type = headers.get(TYPE);
         if (type != null) {
             if (LOOP_BACK.equals(type) && headers.containsKey(REPLY_TO) && headers.containsKey(ORIGIN)) {

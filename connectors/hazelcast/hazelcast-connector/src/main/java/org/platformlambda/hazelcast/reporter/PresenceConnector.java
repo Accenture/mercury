@@ -105,6 +105,8 @@ public class PresenceConnector implements LambdaFunction {
                         log.info("Activated {}", route);
                         // tell peers that this server has joined
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()));
+                    } else {
+                        po.send(event);
                     }
                     break;
                 case WsEnvelope.STRING:

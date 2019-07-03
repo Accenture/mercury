@@ -50,6 +50,7 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String NODES = "nodes";
     private static final String JOIN = "join";
+    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -167,10 +168,19 @@ public class TopicManager implements LambdaFunction {
     }
 
     private List<String> listTopics() {
+        List<String> result = new ArrayList<>();
         String nodes = HazelcastSetup.getNamespace()+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
-        return new ArrayList<>(map.keySet());
+        List<String> topicList = new ArrayList<>(map.keySet());
+        for (String t: topicList) {
+            if (regularTopicFormat(t)) {
+                result.add(t);
+            } else {
+                log.error("Found invalid topic {}", t);
+            }
+        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -201,6 +211,29 @@ public class TopicManager implements LambdaFunction {
             iTopic.destroy();
             log.info("Topic {} deleted", topic);
         }
+    }
+
+    /**
+     * Validate a topic ID for an application instance
+     *
+     * @param topic in format of yyyymmdd uuid
+     * @return true if valid
+     */
+    public static boolean regularTopicFormat(String topic) {
+        if (topic.length() != TOPIC_LEN) {
+            return false;
+        }
+        // first 8 digits is a date stamp
+        String uuid = topic.substring(8);
+        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
+            return false;
+        }
+        for (int i=0; i < uuid.length(); i++) {
+            if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
+            if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;
+            return false;
+        }
+        return true;
     }
 
 }

@@ -64,6 +64,7 @@ public class MonitorService implements LambdaFunction {
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
+    private static final String PEERS = "peers";
     private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
     private static final long EXPIRY = 60 * 1000;
 
@@ -71,6 +72,7 @@ public class MonitorService implements LambdaFunction {
     private static final ConcurrentMap<String, String> route2token = new ConcurrentHashMap<>();
     // connection list of user applications to this presence monitor instance
     private static final ConcurrentMap<String, Map<String, Object>> token2info = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> token2txPath = new ConcurrentHashMap<>();
     // user application connections for the whole system
     private static final ManagedCache connectionInfo = ManagedCache.createCache("app.ws.info", EXPIRY);
 
@@ -91,6 +93,7 @@ public class MonitorService implements LambdaFunction {
         } else {
             connectionInfo.put(origin, info);
             log.info("Adding {}", origin);
+            notifyConnectedApps();
         }
     }
 
@@ -98,11 +101,33 @@ public class MonitorService implements LambdaFunction {
         if (connectionInfo.exists(origin)) {
             connectionInfo.remove(origin);
             log.info("Removing {}", origin);
+            notifyConnectedApps();
         }
     }
 
     public static List<String> getOrigins() {
         return new ArrayList<>(route2token.values());
+    }
+
+    private static void notifyConnectedApps() {
+        if (!token2txPath.isEmpty()) {
+            PostOffice po = PostOffice.getInstance();
+            Map<String, Object> connections = connectionInfo.getMap();
+            List<String> list = new ArrayList<>(connections.keySet());
+            for (String token: token2txPath.keySet()) {
+                String txPath = token2txPath.get(token);
+                EventEnvelope event = new EventEnvelope();
+                event.setTo(ServiceDiscovery.SERVICE_REGISTRY);
+                event.setHeader(ORIGIN, token);
+                event.setHeader(TYPE, PEERS);
+                event.setBody(list);
+                try {
+                    po.send(txPath, event.toBytes());
+                } catch (IOException e) {
+                    log.error("Unable to update peer list to {} - {}", token, e.getMessage());
+                }
+            }
+        }
     }
 
     @Override
@@ -145,6 +170,7 @@ public class MonitorService implements LambdaFunction {
                             info.put(ID, route);
                             route2token.put(route, token);
                             token2info.put(token, info);
+                            token2txPath.put(token, txPath);
                         } else {
                             Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.PROTOCOL_ERROR, "Unauthorized");
                         }
@@ -158,6 +184,7 @@ public class MonitorService implements LambdaFunction {
                     token = headers.get(WsEnvelope.TOKEN);
                     route2token.remove(route);
                     token2info.remove(token);
+                    token2txPath.remove(token);
                     log.info("Stopped {}, node={}", route, token);
                     if (connectionInfo.exists(token)) {
                         Object o = connectionInfo.get(token);
@@ -251,11 +278,6 @@ public class MonitorService implements LambdaFunction {
                     log.info("tell {} that {} has left", p, closedApp);
                 }
             }
-            /*
-             * When an application instance leaves, we must tell message hub producer to restart
-             * so that prior topics in the outgoing paths can be cleared.
-             */
-            po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
 
         } catch (Exception e) {
             log.error("Unable to broadcast leave event for {} - {}", closedApp, e.getMessage());

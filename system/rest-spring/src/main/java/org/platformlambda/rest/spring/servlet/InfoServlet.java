@@ -70,13 +70,19 @@ public class InfoServlet extends HttpServlet {
     private static final String TIME = "time";
     private static final String LIBRARY = "library";
     private static final String ROUTE_SUBSTITUTION = "route_substitution";
+    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
+
+    private static Boolean isServiceMonitor;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
         Platform platform = Platform.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
-
+        if (isServiceMonitor == null) {
+            isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
+        }
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> app = new HashMap<>();
         VersionInfo info = Utility.getInstance().getVersionInfo();
@@ -94,6 +100,15 @@ public class InfoServlet extends HttpServlet {
          * add routing table information if any
          */
         if (pathElements.size() == 1 && LIST_ROUTES.equals(pathElements.get(0))) {
+            if (isServiceMonitor) {
+                response.sendError(400, "List route feature is only available in regular application instances");
+                return;
+            }
+            String node = request.getParameter(ORIGIN);
+            if (node != null && !node.equals(platform.getOrigin())) {
+                showRemoteRouting(node, response);
+                return;
+            }
             try {
                 result.put(ROUTING, getRoutingTable());
                 // add route substitution list if any
@@ -147,6 +162,42 @@ public class InfoServlet extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("utf-8");
         response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
+    }
+
+    private void showRemoteRouting(String node, HttpServletResponse response) throws IOException {
+        if (regularTopicFormat(node)) {
+            try {
+                Map<String, Object> result = new HashMap<>();
+                result.put(TYPE, "remote routing table");
+                result.put(ROUTING, getRemoteRouting(node));
+                result.put(TIME, new Date());
+                result.put(ORIGIN, Platform.getInstance().getOrigin());
+                // send result
+                response.setContentType("application/json");
+                response.setCharacterEncoding("utf-8");
+                response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
+
+            } catch (AppException e) {
+                response.sendError(e.getStatus(), e.getMessage());
+            } catch (TimeoutException e) {
+                response.sendError(408, e.getMessage());
+            }
+        } else {
+            response.sendError(400, "Invalid application instance format (origin)");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getRemoteRouting(String node) throws AppException, TimeoutException, IOException {
+        Platform platform = Platform.getInstance();
+        if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+            EventEnvelope response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY+"@"+node,
+                    8000, new Kv(TYPE, DOWNLOAD));
+            if (response.getBody() instanceof Map) {
+                return (Map<String, Object>) response.getBody();
+            }
+        }
+        return new HashMap<>();
     }
 
     private void sendError(HttpServletResponse response, String path, int status, String message) throws IOException {
@@ -217,6 +268,29 @@ public class InfoServlet extends HttpServlet {
                 data.remove(k);
             }
         }
+    }
+
+    /**
+     * Validate a topic ID for an application instance
+     *
+     * @param topic in format of yyyymmdd uuid
+     * @return true if valid
+     */
+    private boolean regularTopicFormat(String topic) {
+        if (topic.length() != TOPIC_LEN) {
+            return false;
+        }
+        // first 8 digits is a date stamp
+        String uuid = topic.substring(8);
+        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
+            return false;
+        }
+        for (int i=0; i < uuid.length(); i++) {
+            if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
+            if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;
+            return false;
+        }
+        return true;
     }
 
 }

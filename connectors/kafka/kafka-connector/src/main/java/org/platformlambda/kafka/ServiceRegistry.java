@@ -155,7 +155,7 @@ public class ServiceRegistry implements LambdaFunction {
         if (READY.equals(type)) {
             return ready;
         }
-        // peer events from kafka presence monitor
+        // peer events from presence monitor
         if (PEERS.equals(type) && body instanceof List) {
             PostOffice po = PostOffice.getInstance();
             String me = Platform.getInstance().getOrigin();
@@ -232,7 +232,6 @@ public class ServiceRegistry implements LambdaFunction {
                 }
             }
         }
-
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
             String myOrigin = Platform.getInstance().getOrigin();
