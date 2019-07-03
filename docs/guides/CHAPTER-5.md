@@ -10,6 +10,8 @@
 | spring.resources.static-locations           | classpath:/public/                        | Yes*     |
 | spring.jersey.application-path              | /api                                      | Yes*     |
 | web.component.scan                          | your own package path(s)                  | Yes*     |
+| show.env.variables                          | comma separated list of variable names    | Optional*|
+| show.application.properties                 | comma separated list of property names    | Optional*|
 | cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional |
 | cloud.services                              | e.g. hazelcast.reporter                   | Optional |
 | presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional |
@@ -22,7 +24,6 @@
 | protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*|
 | info.api.key.label                          | X-Info-Key                                | Optional*|
 | info.api.key                                | some secret key (recommended to use UUID) | Optional*|
-| info.api.key.label                          | X-Info-Key                                | Optional*|
 | application.feature.route.substitution      | default false                             | Optional |
 | route.substitution                          | comma separated rules. e.g hi.here:v1.hi  | Optional |
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
