@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,9 @@ public class EnvServlet extends HttpServlet {
 	private static final long serialVersionUID = 3495394964619652075L;
 	private static final String SHOW_ENV = "show.env.variables";
 	private static final String SHOW_PROPERTIES = "show.application.properties";
+	private static final String SYSTEM_ENV = "systemEnvironment";
+	private static final String APP_PROPS = "applicationProperties";
+	private static final String MISSING = "missing";
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -49,24 +53,44 @@ public class EnvServlet extends HttpServlet {
 		List<String> envVars = util.split(reader.getProperty(SHOW_ENV, ""), ", ");
 		List<String> properties = util.split(reader.getProperty(SHOW_PROPERTIES, ""), ", ");
 
+		List<String> missingVars = new ArrayList<>();
 		Map<String, Object> eMap = new HashMap<>();
 		if (!envVars.isEmpty()) {
 			for (String var: envVars) {
 				String v = System.getenv(var);
-				eMap.put(var, v == null? "?" : v);
+				if (v == null) {
+					missingVars.add(var);
+				} else {
+					eMap.put(var, v);
+				}
 			}
 		}
-		result.put("systemEnvironment", eMap);
+		result.put(SYSTEM_ENV, eMap);
 
+		List<String> missingProp = new ArrayList<>();
 		Map<String, Object> pMap = new HashMap<>();
 		if (!properties.isEmpty()) {
 			for (String var: properties) {
 				String v = reader.getProperty(var);
-				pMap.put(var, v == null? "?" : v);
+				if (v == null) {
+					missingProp.add(var);
+				} else {
+					pMap.put(var, v);
+				}
 			}
 		}
-		result.put("applicationProperties", pMap);
-		
+		result.put(APP_PROPS, pMap);
+		// any missing keys?
+		Map<String, Object> missingKeys = new HashMap<>();
+		if (!missingVars.isEmpty()) {
+			missingKeys.put(SYSTEM_ENV, missingVars);
+		}
+		if (!missingProp.isEmpty()) {
+			missingKeys.put(APP_PROPS, missingProp);
+		}
+		if (!missingKeys.isEmpty()) {
+			result.put(MISSING, missingKeys);
+		}
 		response.setContentType("application/json");
 		response.setCharacterEncoding("utf-8");
 		response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));

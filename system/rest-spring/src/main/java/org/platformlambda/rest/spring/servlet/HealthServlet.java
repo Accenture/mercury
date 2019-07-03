@@ -62,7 +62,7 @@ public class HealthServlet extends HttpServlet {
     private static final String REQUIRED = "required";
     private static final String UPSTREAM = "upstream";
     private static final String NOT_FOUND = "not found";
-    private static final String WARNING = "WARNING: ";
+    private static final String PLEASE_CHECK = "Please check: ";
     private static final Map<String, Object> basicInfo = new HashMap<>();
     private static List<String> requiredServices = new ArrayList<>();
     private static List<String> optionalServices = new ArrayList<>();
@@ -158,11 +158,11 @@ public class HealthServlet extends HttpServlet {
             } catch (IOException e) {
                 if (e.getMessage().contains(NOT_FOUND)) {
                     /*
-                     * this means the configured health check service is not started.
-                     * We would just show a warning message.
+                     * This means the configured health check service is not started.
+                     * Just show a warning message to avoid blocking the health check.
                      */
                     m.put(STATUS_CODE, 200);
-                    m.put(MESSAGE, WARNING+e.getMessage());
+                    m.put(MESSAGE, PLEASE_CHECK+e.getMessage());
                 } else {
                     m.put(STATUS_CODE, 500);
                     m.put(MESSAGE, e.getMessage());
