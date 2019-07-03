@@ -40,6 +40,7 @@ public class HouseKeeper implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HouseKeeper.class);
 
     private static final String MANAGER = MainApp.MANAGER;
+    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String TYPE = "type";
     private static final String LIST = "list";
     private static final String DOWNLOAD = "download";
@@ -47,6 +48,7 @@ public class HouseKeeper implements LambdaFunction {
     private static final String ORIGIN = "origin";
     private static final String ALIVE = "alive";
     private static final String LEAVE = "leave";
+    private static final String STOP = "stop";
     private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
     private static final long EXPIRY = 60 * 1000;
@@ -116,6 +118,9 @@ public class HouseKeeper implements LambdaFunction {
                     } else {
                         log.info("Detected expired topic {}", e);
                     }
+                    // when a topic is deleted, we should reset the producer and admin clients
+                    po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+                    po.send(MANAGER, new Kv(TYPE, STOP));
                     // remove from memory
                     topics.remove(e);
                 }

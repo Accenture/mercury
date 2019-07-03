@@ -27,6 +27,7 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -56,6 +57,8 @@ public class EventConsumer extends Thread {
     }
 
     private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
+        AppConfigReader reader = AppConfigReader.getInstance();
+        boolean isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         this.pubSub = pubSub;
         this.topic = topic;
         String origin = Platform.getInstance().getOrigin();
@@ -82,12 +85,13 @@ public class EventConsumer extends Thread {
             }
         } else {
             /*
-             * topic for application instance is designed to be real-time
-             * so the system will skip the offset to the latest
+             * For presence monitor, we want to skip offset to the latest.
+             * For regular applications, we want to read from the beginning.
              */
             prop.put(ConsumerConfig.CLIENT_ID_CONFIG, origin.substring(8));
             prop.put(ConsumerConfig.GROUP_ID_CONFIG, origin.substring(6));
-            prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+            prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, isServiceMonitor? "latest" : "earliest");
+            log.info("{} = {}", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, prop.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
         }
         prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);
         prop.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class);

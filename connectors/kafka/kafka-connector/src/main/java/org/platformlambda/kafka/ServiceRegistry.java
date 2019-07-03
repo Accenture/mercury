@@ -24,6 +24,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -38,6 +39,8 @@ import java.util.concurrent.TimeoutException;
 public class ServiceRegistry implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
 
+    private static final CryptoApi crypto = new CryptoApi();
+    private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String PERSONALITY = EventNodeConnector.PERSONALITY;
     private static final String TYPE = ServiceDiscovery.TYPE;
@@ -50,6 +53,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String READY = "ready";
+    private static final String CHECKSUM = "checksum";
     private static final String PING = "ping";
     private static final String STOP = "stop";
     // static because this is a shared lambda function
@@ -93,6 +97,33 @@ public class ServiceRegistry implements LambdaFunction {
         }
     }
 
+    private String getChecksum() {
+        StringBuilder sb = new StringBuilder();
+        List<String> keys = new ArrayList<>(routes.keySet());
+        if (keys.size() > 1) {
+            Collections.sort(keys);
+        }
+        sb.append("*");
+        for (String r: keys) {
+            sb.append(r);
+            sb.append(':');
+            Map<String, String> instances = routes.get(r);
+            List<String> innerKeys = new ArrayList<>(instances.keySet());
+            if (innerKeys.size() > 1) {
+                Collections.sort(innerKeys);
+            }
+            for (String i: innerKeys) {
+                String v = instances.get(i);
+                sb.append(i);
+                sb.append('-');
+                sb.append(v);
+                sb.append('\n');
+            }
+        }
+        Utility util = Utility.getInstance();
+        return util.bytesToUrlBase64(crypto.getSHA1(util.getUTF(sb.toString())));
+    }
+
     private List<String> getAdditions(List<String> updated) {
         List<String> additions = new ArrayList<>();
         for (String member: updated) {
@@ -123,10 +154,6 @@ public class ServiceRegistry implements LambdaFunction {
         String type = headers.get(TYPE);
         if (READY.equals(type)) {
             return ready;
-        }
-        if (PING.equals(type)) {
-            log.info("{} from presence monitor", PING);
-            return true;
         }
         // peer events from kafka presence monitor
         if (PEERS.equals(type) && body instanceof List) {
@@ -183,9 +210,29 @@ public class ServiceRegistry implements LambdaFunction {
         return processEvent(headers);
     }
 
-    private Object processEvent(Map<String, String> headers) throws IOException, TimeoutException, AppException {
+    private Object processEvent(Map<String, String> headers) throws IOException {
         PostOffice po = PostOffice.getInstance();
         String type = headers.get(TYPE);
+        if (PING.equals(type)) {
+            broadcastChecksum(getChecksum());
+            log.info("Routing table integrity check");
+            return true;
+        }
+        if (CHECKSUM.equals(type) && headers.containsKey(CHECKSUM) && headers.containsKey(ORIGIN)) {
+            String myOrigin = Platform.getInstance().getOrigin();
+            String origin = headers.get(ORIGIN);
+            String extChecksum = headers.get(CHECKSUM);
+            String myChecksum = getChecksum();
+            if (!origin.equals(myOrigin)) {
+                if (extChecksum.equals(myChecksum)) {
+                    log.info("Routing table matches with {}, checksum {}", origin, extChecksum);
+                } else {
+                    log.warn("Routing table checksum not matched. Sending my routes to {}", origin);
+                    sendMyRoutes(origin);
+                }
+            }
+        }
+
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
             String myOrigin = Platform.getInstance().getOrigin();
@@ -201,24 +248,14 @@ public class ServiceRegistry implements LambdaFunction {
                     cache.put(key, true);
                     log.info("Peer {} joined", origin);
                 }
-                for (String r : routes.keySet()) {
-                    ConcurrentMap<String, String> originMap = routes.get(r);
-                    if (originMap.containsKey(myOrigin)) {
-                        String personality = originMap.get(myOrigin);
-                        EventEnvelope request = new EventEnvelope();
-                        request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + origin)
-                                .setHeader(TYPE, ADD)
-                                .setHeader(ORIGIN, myOrigin)
-                                .setHeader(ROUTE, r).setHeader(PERSONALITY, personality);
-                        po.send(request);
-                    }
-                }
+                sendMyRoutes(origin);
             }
         }
         // when a node leaves
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
             // restart kafka producer when a node leaves
             po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+            po.send(MANAGER, new Kv(TYPE, STOP));
             // remove corresponding entries from routing table
             String origin = headers.get(ORIGIN);
             if (origin.equals(Platform.getInstance().getOrigin())) {
@@ -261,17 +298,34 @@ public class ServiceRegistry implements LambdaFunction {
             // remove from routing table
             removeRoute(origin, route);
         }
-
         return true;
     }
 
-    private void broadcast(String origin, String route, String personality, String type) throws IOException, TimeoutException, AppException {
+    private void sendMyRoutes(String origin) throws IOException {
+        PostOffice po = PostOffice.getInstance();
+        String myOrigin = Platform.getInstance().getOrigin();
+        for (String r : routes.keySet()) {
+            ConcurrentMap<String, String> originMap = routes.get(r);
+            if (originMap.containsKey(myOrigin)) {
+                String personality = originMap.get(myOrigin);
+                EventEnvelope request = new EventEnvelope();
+                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + origin)
+                        .setHeader(TYPE, ADD)
+                        .setHeader(ORIGIN, myOrigin)
+                        .setHeader(ROUTE, r).setHeader(PERSONALITY, personality);
+                po.send(request);
+            }
+        }
+    }
+
+    private void broadcast(String origin, String route, String personality, String type) throws IOException {
         PostOffice po = PostOffice.getInstance();
         Utility util = Utility.getInstance();
-        if (origin.equals(Platform.getInstance().getOrigin())) {
+        String myOrigin = Platform.getInstance().getOrigin();
+        if (origin.equals(myOrigin)) {
             // broadcast to peers
             for (String p : peers) {
-                if (!p.equals(Platform.getInstance().getOrigin())) {
+                if (!p.equals(myOrigin)) {
                     EventEnvelope request = new EventEnvelope();
                     request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + p)
                             .setHeader(TYPE, type).setHeader(ORIGIN, origin);
@@ -284,6 +338,20 @@ public class ServiceRegistry implements LambdaFunction {
                     origins.put(p, util.date2str(new Date(), true));
                     po.send(request);
                 }
+            }
+        }
+    }
+
+    private void broadcastChecksum(String checkSum) throws IOException {
+        PostOffice po = PostOffice.getInstance();
+        String myOrigin = Platform.getInstance().getOrigin();
+        // broadcast to peers
+        for (String p : peers) {
+            if (!p.equals(myOrigin)) {
+                EventEnvelope request = new EventEnvelope();
+                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + p).setHeader(ORIGIN, myOrigin)
+                        .setHeader(TYPE, CHECKSUM).setHeader(CHECKSUM, checkSum);
+                po.send(request);
             }
         }
     }
@@ -325,7 +393,7 @@ public class ServiceRegistry implements LambdaFunction {
         origins.remove(origin);
     }
 
-    private void addNode() throws IOException, TimeoutException, AppException {
+    private void addNode() throws IOException {
         Platform platform = Platform.getInstance();
         String origin = platform.getOrigin();
         // copy local registry to global registry
