@@ -43,14 +43,15 @@ public class ObjectStreamService implements LambdaFunction {
     private static final String STREAM = "stream.";
     private static final String NAME = "name";
     private static final String DESTROY = "destroy";
-    private static final String QUEUES = "queues";
+    private static final String STREAMS = "streams";
     private ElasticQueue elasticQueue;
     private String path;
     private boolean writeEOF = false, readEOF = false;
 
     public ObjectStreamService() {
         this.path = STREAM+Utility.getInstance().getUuid();
-        this.elasticQueue = new ElasticQueue(new File(Utility.getInstance().getWorkFolder(), QUEUES), this.path);
+        File dir = new File(Utility.getInstance().getWorkFolder(), STREAMS);
+        this.elasticQueue = new ElasticQueue(dir, this.path);
     }
 
     public String getPath() {

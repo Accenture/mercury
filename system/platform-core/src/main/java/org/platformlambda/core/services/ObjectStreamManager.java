@@ -85,7 +85,7 @@ public class ObjectStreamManager implements LambdaFunction {
             ObjectStreamService service = new ObjectStreamService();
             platform.registerPrivate(service.getPath(), service, 1);
             streams.put(service.getPath(), new StreamInfo(expirySeconds));
-            log.info("{} created with inactivity expiry in {} seconds", service.getPath(), expirySeconds);
+            log.info("{} created with inactivity expiry of {} seconds", service.getPath(), expirySeconds);
             // return fully qualified name
             return service.getPath()+"@"+platform.getOrigin();
         } else if (DESTROY.equals(headers.get(TYPE)) && headers.containsKey(NAME)) {

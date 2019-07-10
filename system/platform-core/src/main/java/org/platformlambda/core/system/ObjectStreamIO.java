@@ -58,14 +58,20 @@ public class ObjectStreamIO {
     private String route;
     private ObjectStreamWriter writer;
     private ObjectStreamReader reader;
+    private int expirySeconds = 1800;
     private boolean inputClosed = false;
 
     public ObjectStreamIO() throws IOException {
-        this.createStream(1800);
+        this.createStream();
     }
 
     public ObjectStreamIO(int expirySeconds) throws IOException {
-        this.createStream(expirySeconds);
+        this.expirySeconds = expirySeconds;
+        this.createStream();
+    }
+
+    public int getExpirySeconds() {
+        return expirySeconds;
     }
 
     /**
@@ -82,7 +88,7 @@ public class ObjectStreamIO {
         }
     }
 
-    private void createStream(int expirySeconds) throws IOException {
+    private void createStream() throws IOException {
         try {
             EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, 5000,
                     new Kv(TYPE, CREATE), new Kv(EXPIRY_SEC, expirySeconds));
