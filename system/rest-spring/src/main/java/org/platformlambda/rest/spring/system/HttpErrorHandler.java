@@ -52,6 +52,7 @@ public class HttpErrorHandler implements ErrorController {
     private static final String ERROR = "error";
     private static final String PATH = "path";
     private static final String ACCEPT = "accept";
+    private static final String ACCEPT_ANY = "*/*";
     private static final String MESSAGE = "message";
     private static final String STATUS = "status";
     private static final String SET_MESSAGE = "${message}";
@@ -115,7 +116,7 @@ public class HttpErrorHandler implements ErrorController {
             contentType = MediaType.TEXT_HTML;
         } else if (accept.contains(MediaType.APPLICATION_XML)) {
             contentType = MediaType.APPLICATION_XML;
-        } else if (accept.contains(MediaType.APPLICATION_JSON)) {
+        } else if (accept.contains(MediaType.APPLICATION_JSON) || accept.contains(ACCEPT_ANY)) {
             contentType = MediaType.APPLICATION_JSON;
         } else {
             contentType = MediaType.TEXT_PLAIN;

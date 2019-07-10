@@ -1,0 +1,54 @@
+rest:
+  - service: "hello.world"
+    methods: ['GET', 'POST']
+    url: "/api/hello/world"
+    timeout: 10s
+    # optional authentication service
+#    authentication: "v1.api.auth"
+    cors: cors_1
+    headers: header_1
+
+  - service: "hello.world"
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/test/ok*"
+    # optional "upload" key if it is a multi-part file upload
+    upload: "file"
+    timeout: 15s
+    headers: header_1
+#    cors: cors_1
+
+  - service: "hello.world"
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/nice/{task}/*"
+    timeout: 12
+    headers: header_1
+#    cors: cors_1
+
+#
+# CORS HEADERS for pre-flight (HTTP OPTIONS) and normal cases
+#
+cors:
+  - id: cors_1
+    options:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Max-Age: 86400"
+    headers:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Allow-Credentials: true"
+
+#
+# add/drop/keep header parameters
+#
+headers:
+  - id: header_1
+    # headers to be inserted
+    add: ["hello-world: nice"]
+    # keep and drop are mutually exclusive where keep has precedent over drop
+    # i.e. when keep is not empty, it will drop all headers except those to be kept
+    # when keep is empty and drop is not, it will drop only the headers in the drop list
+#    keep: ['x-session-id', 'user-agent']
+    drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']

@@ -44,6 +44,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
     private static final String ERROR = "error";
     private static final String PATH = "path";
     private static final String ACCEPT = "accept";
+    private static final String ACCEPT_ANY = "*/*";
     private static final String MESSAGE = "message";
     private static final String STATUS = "status";
     private static final String SET_MESSAGE = "${message}";
@@ -91,7 +92,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
             contentType = MediaType.TEXT_HTML;
         } else if (accept.contains(MediaType.APPLICATION_XML)) {
             contentType = MediaType.APPLICATION_XML;
-        } else if (accept.contains(MediaType.APPLICATION_JSON)) {
+        } else if (accept.contains(MediaType.APPLICATION_JSON) || accept.contains(ACCEPT_ANY)) {
             contentType = MediaType.APPLICATION_JSON;
         } else {
             contentType = MediaType.TEXT_PLAIN;
@@ -107,8 +108,6 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
                  * Therefore, it is handled in the same fashion as a NotFoundException
                  */
                 case CLIENT_ERROR_EXCEPTION:
-                    status = Response.Status.NOT_FOUND.getStatusCode();
-                    break;
                 case NOT_FOUND_EXCEPTION:
                     status = Response.Status.NOT_FOUND.getStatusCode();
                     break;
@@ -119,8 +118,6 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
                     status = Response.Status.METHOD_NOT_ALLOWED.getStatusCode();
                     break;
                 case ILLEGAL_ARG_EXCEPTION:
-                    status = Response.Status.BAD_REQUEST.getStatusCode();
-                    break;
                 case BAD_REQUEST_EXCEPTION:
                     status = Response.Status.BAD_REQUEST.getStatusCode();
                     break;

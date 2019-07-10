@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class MsgPackTest {
 
@@ -60,16 +62,18 @@ public class MsgPackTest {
 
     @Test
     public void dataIsNull() throws IOException {
-        byte[] b = msgPack.pack(null);
+        Object input = null;
+        byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
-        assertNull(o);
+        assertEquals(input, o);
     }
 
     @Test
     public void dataIsBoolean() throws IOException {
-        byte[] b = msgPack.pack(true);
+        boolean input = true;
+        byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
-        assertEquals(true, o);
+        assertEquals(input, o);
     }
 
     @Test
