@@ -154,3 +154,25 @@ By default, the system will search for `file:/tmp/config/rest.yaml` and then `cl
 If needed, you can change this in the `rest.automation.yaml` property in the application.properties file.
 
 The `/tmp/config/rest.yaml` allows you to externalize the REST automation configuration without rebuilding the REST automation helper application.
+
+### Running this helper application
+
+Before you build this application, you should follow the README in the top level project to build the Mercury libraries (platform-core, rest-core, rest-spring, kafka-connector, hazelcast-connector).
+
+If you use the Event Node "platform-in-box" for dev and test, you can simply build the Event Node and run it in a command terminal.
+
+Then you can build this helper app and run with:
+```
+java -Dcloud.connector=event.node target/rest-automation...jar
+```
+
+If you plan to use Hazelcast or Kafka as the network event stream system, you should also build the corresponding presence monitor (hazelcast-presence and kafka-presence).
+
+Once the Mercury libraries and the presence monitors are built. You can start either Hazelcast or Kafka and build this helper app.
+
+You can run the app with:
+```
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter target/rest-automation...jar
+or
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter target/rest-automation...jar
+```
