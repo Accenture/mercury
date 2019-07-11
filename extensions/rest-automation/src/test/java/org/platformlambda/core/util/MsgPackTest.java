@@ -34,8 +34,8 @@ public class MsgPackTest {
 
     private static final MsgPack msgPack = new MsgPack();
 
-    @SuppressWarnings("unchecked")
     @Test
+    @SuppressWarnings("unchecked")
     public void dataIsMap() throws IOException {
         Map<String, Object> input = new HashMap<>();
         input.put("hello", "world");

@@ -128,7 +128,18 @@ content_length: number of bytes of the incoming stream
 
 For simple use case, you can just send text, bytes or Map as the return value in your service.
 
-For advanced use cases, you can send status code, set HTTP headers if your service return an EventEnvelope object.
+For advanced use cases, you can send status code, set HTTP headers if your service returns an EventEnvelope object.
+
+### HTTP status code
+
+If your service set status code directly, you should use the standard 3-digit HTTP status code because it will be sent to the browser directly.
+i.e. 200 means OK and 404 for NOT_FOUND, etc.
+
+### Exception handling
+
+If you service throws exception, it will automatically translate into a regular HTTP exception with status code and message.
+
+To control the HTTP error code, your service should use the AppException class. It allows you to set HTTP status code and error message directly.
 
 ### Input stream
 
@@ -136,15 +147,15 @@ If you want to support file upload, you can specify the `upload` parameter in th
 The default value is "file". If your user uses different tag, you must change the `upload` parameter to match the upload tag.
 
 If incoming request is a file, your service will see the "stream", "filename" and "content_length" parameters.
-If incoming request is a byte stream, your service will see the "stream" and "content_length" parameters.
+If incoming request is a byte stream, your service will find the "stream" and "content_length" parameters.
 
 ### Output stream
 
 If your service wants to send the output to the browser as a stream of text or bytes, you can create an ObjectStreamIO with a timeout value.
-You can then set the streamId in the HTTP header "stream". You should also set the "timeout" header to your IO stream timeout value.
+You can then set the streamId in the HTTP header "stream". You should also set the HTTP header "timeout" to tell the REST endpoint to use it as IO stream read timeout value.
+The "stream" and "timeout" headers are used by the REST automation framework. They will not be set as HTTP response headers.
 
-You timeout value should be short and yet good enough for your service to send one block of data. The timer will be reset when there is I/O activity.
-
+You timeout value should be short and yet good enough for your service to send one block of data. The timer will be reset when there is I/O activity. 
 One use case of output stream is file download.
 
 ### Location of the YAML configuration file

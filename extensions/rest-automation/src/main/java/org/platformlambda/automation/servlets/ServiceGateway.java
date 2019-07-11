@@ -139,6 +139,19 @@ public class ServiceGateway extends HttpServlet {
         return null;
     }
 
+    private String getHeaderCase(String header) {
+        StringBuilder sb = new StringBuilder();
+        List<String> parts = Utility.getInstance().split(header, "-");
+        for (String p: parts) {
+            sb.append(p.substring(0, 1).toUpperCase());
+            if (p.length() > 1) {
+                sb.append(p.substring(1));
+            }
+            sb.append('-');
+        }
+        return sb.length() == 0? null : sb.substring(0, sb.length()-1);
+    }
+
 	@Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!ready) {
@@ -172,7 +185,10 @@ public class ServiceGateway extends HttpServlet {
                 CorsInfo corsInfo = RoutingEntry.getInstance().getCorsInfo(route.info.corsId);
                 if (corsInfo != null && !corsInfo.options.isEmpty()) {
                     for (String ch : corsInfo.options.keySet()) {
-                        response.setHeader(ch, corsInfo.options.get(ch));
+                        String prettyHeader = getHeaderCase(ch);
+                        if (prettyHeader != null) {
+                            response.setHeader(prettyHeader, corsInfo.headers.get(ch));
+                        }
                     }
                     response.setStatus(204);
                 } else {
@@ -441,7 +457,10 @@ public class ServiceGateway extends HttpServlet {
                                 CorsInfo corsInfo = RoutingEntry.getInstance().getCorsInfo(holder.corsId);
                                 if (corsInfo != null && !corsInfo.headers.isEmpty()) {
                                     for (String ch: corsInfo.headers.keySet()) {
-                                        response.setHeader(ch, corsInfo.headers.get(ch));
+                                        String prettyHeader = getHeaderCase(ch);
+                                        if (prettyHeader != null) {
+                                            response.setHeader(prettyHeader, corsInfo.headers.get(ch));
+                                        }
                                     }
                                 }
                             }
@@ -463,7 +482,10 @@ public class ServiceGateway extends HttpServlet {
                                         contentType = value.toLowerCase();
                                         response.setContentType(contentType);
                                     } else {
-                                        response.setHeader(key, value);
+                                        String prettyHeader = getHeaderCase(key);
+                                        if (prettyHeader != null) {
+                                            response.setHeader(prettyHeader, value);
+                                        }
                                     }
                                 }
                             }
@@ -487,10 +509,21 @@ public class ServiceGateway extends HttpServlet {
                                 }
                             }
                             response.setCharacterEncoding(UTF_8);
+                            // is this an exception?
+                            int status = event.getStatus();
+                            boolean ok = status >= 200 && status < 300;
+                            if (!ok && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
+                                String message = ((String) event.getBody()).trim();
+                                // make sure it does not look like JSON or XML
+                                if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
+                                    response.sendError(status, (String) event.getBody());
+                                    holder.context.complete();
+                                    return null;
+                                }
+                            }
                             // output is a stream?
                             Object resBody = event.getBody();
                             if (resBody == null && streamId != null) {
-                                log.info("GOT stream {}", streamId);
                                 ObjectStreamIO io = new ObjectStreamIO(streamId);
                                 ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout));
                                 try {
@@ -504,11 +537,9 @@ public class ServiceGateway extends HttpServlet {
                                          */
                                         if (block instanceof byte[]) {
                                             out.write((byte[]) block);
-                                            log.info("Writing bytes {}", util.getUTF((byte[]) block));
                                         }
                                         if (block instanceof String) {
                                             out.write(util.getUTF((String) block));
-                                            log.info("Writing text {}", block);
                                         }
                                     }
                                     in.close();
