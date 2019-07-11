@@ -22,6 +22,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServiceDiscovery;
 
+import java.util.List;
 import java.util.Map;
 
 public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
@@ -29,18 +30,40 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
     private static final String DOWNLOAD = "download";
 
     @Override
+    @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
         if (FIND.equals(headers.get(TYPE)) && headers.containsKey(ROUTE)) {
             String route = headers.get(ROUTE);
-            if (Platform.getInstance().hasRoute(route)) {
-                return true;
+            if (route.equals("*")) {
+                if (body instanceof List) {
+                    return exists((List<String>) body);
+                } else {
+                    return false;
+                }
+            } else {
+                return exists(route);
             }
-            return routes.containsKey(route);
         } else if (DOWNLOAD.equals(headers.get(TYPE))) {
             return routes;
         } else {
             throw new IllegalArgumentException("Usage: headers (type: find), (route: route_name)");
         }
+    }
+
+    private boolean exists(List<String> routes) {
+        for (String r: routes) {
+            if (!exists(r)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean exists(String route) {
+        if (Platform.getInstance().hasRoute(route)) {
+            return true;
+        }
+        return routes.containsKey(route);
     }
 
 }

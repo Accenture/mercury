@@ -127,7 +127,7 @@ public class HazelcastSetup implements CloudSetup {
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(HazelcastSetup.getHazelcastClient()), 1);
             // enable service discovery
             platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 1);
-            platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 5);
+            platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.registerPrivate(CLOUD_CHECK, new HazelcastHealthCheck(), 2);
             platform.startCloudServices();
 

@@ -21,6 +21,7 @@ rest:
     timeout: 10s
     # optional authentication service
 #    authentication: "v1.api.auth"
+    threshold: 30000
     cors: cors_1
     headers: header_1
 
@@ -74,7 +75,14 @@ The system will find the service at run-time. If the service is not available, t
 The `keep` and `drop` entries are mutually exclusive where `keep` has precedent over `drop`. When keep is empty and drop is not, it will drop only the headers in the drop list.
 The `add` entry allow the developer to insert additional header key-values before it reaches the target service that serves the REST endpoint.
 
-For content types of XML and JSON, the system will try to convert the input stream into a map. For binary content type, the system will return a stream ID so that your service can read the stream directly.
+For content types of XML and JSON, the system will try to convert the input stream into a map.
+
+For binary content type, the system will check if the input stream is larger than a threshold.
+`threshold` - the default threshold buffer is 50,000 bytes, min is 5,000 and max is 500,000
+
+If the input stream is small, it will convert the input stream into a byte array and store it in the "body" parameter.
+
+if the input stream is large, it will return a stream ID so that your service can read the data as a stream.
 
 Cors header processing is optional. If present, it will return the configured key-values for pre-flight and regular responses.
 

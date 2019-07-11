@@ -25,6 +25,8 @@ import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 @MainApplication
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
@@ -35,7 +37,7 @@ public class MainApp implements EntryPoint {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void start(String[] args) {
+    public void start(String[] args) throws IOException {
 
         Platform platform = Platform.getInstance();
         platform.connectToCloud();

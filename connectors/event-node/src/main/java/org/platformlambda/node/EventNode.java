@@ -55,7 +55,7 @@ public class EventNode implements EntryPoint {
             // start event node
             Platform platform = Platform.getInstance();
             platform.register(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 1);
-            platform.register(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 5);
+            platform.register(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.register(CONNECTOR_HEALTH, new EventNodeHealth(), 1);
             LambdaRouter.begin();
         } catch (IOException e) {

@@ -27,6 +27,7 @@ import org.platformlambda.core.util.Utility;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ServiceQuery implements LambdaFunction {
@@ -38,6 +39,7 @@ public class ServiceQuery implements LambdaFunction {
     private static String INFO = "info";
 
     @Override
+    @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
         String type = headers.get(TYPE);
         if (INFO.equals(type)) {
@@ -62,15 +64,36 @@ public class ServiceQuery implements LambdaFunction {
 
         } else if (FIND.equals(type) && headers.containsKey(ROUTE)) {
             String route = headers.get(ROUTE);
-            if (Platform.getInstance().hasRoute(route)) {
-                return true;
+            if (route.equals("*")) {
+                if (body instanceof List) {
+                    return exists((List<String>) body);
+                } else {
+                    return false;
+                }
+            } else {
+                return exists(route);
             }
-            Map<String, String> targets = ServiceRegistry.getDestinations(route);
-            return targets != null && !targets.isEmpty();
 
         } else {
             throw new IllegalArgumentException("Usage: type=download, info or (type=find, route=route_name)");
         }
+    }
+
+    private boolean exists(List<String> routes) {
+        for (String r: routes) {
+            if (!exists(r)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean exists(String route) {
+        if (Platform.getInstance().hasRoute(route)) {
+            return true;
+        }
+        Map<String, String> targets = ServiceRegistry.getDestinations(route);
+        return targets != null && !targets.isEmpty();
     }
 
 }

@@ -17,6 +17,7 @@ public class RoutingEntry {
     private static final String CORS = "cors";
     private static final String AUTH = "authentication";
     private static final String UPLOAD = "upload";
+    private static final String THRESHOLD = "threshold";
     private static final String SERVICE = "service";
     private static final String METHODS = "methods";
     private static final String URL = "url";
@@ -31,6 +32,9 @@ public class RoutingEntry {
     private static final String[] VALID_METHODS = {"GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"};
     private static final List<String> METHOD_LIST = Arrays.asList(VALID_METHODS);
     private static final int FIVE_MINUTES = 5 * 60;
+    private static final int MIN_THRESHOLD = 5000;
+    private static final int REG_THRESHOLD = 50000;
+    private static final int MAX_THRESHOLD = 500000;
 
     private Map<String, RouteInfo> routes = new HashMap<>();
     private Map<String, Boolean> exactRoutes = new HashMap<>();
@@ -246,6 +250,18 @@ public class RoutingEntry {
                 } else {
                     info.authService = auth;
                 }
+            }
+            if (entry.containsKey(THRESHOLD)) {
+                int value = util.str2int(entry.get(THRESHOLD).toString());
+                if (value < MIN_THRESHOLD) {
+                    value = MIN_THRESHOLD;
+                    log.warn("{} - threshold set to {} because {} is too small", entry.get(URL), REG_THRESHOLD, value);
+                }
+                if (value > MAX_THRESHOLD) {
+                    value = MAX_THRESHOLD;
+                    log.warn("{} - threshold set to {} because {} is too big", entry.get(URL), MAX_THRESHOLD, value);
+                }
+                info.threshold = value;
             }
             String service = (String) entry.get(SERVICE);
             List<String> methods = (List<String>) entry.get(METHODS);

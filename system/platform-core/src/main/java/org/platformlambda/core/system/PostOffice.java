@@ -717,31 +717,52 @@ public class PostOffice {
      * @param route name of the target service
      * @return true or false
      */
-    public boolean exists(String route) {
+    public boolean exists(String... route) {
+        if (route.length == 0) {
+            return false;
+        }
         Platform platform = Platform.getInstance();
-        if (platform.hasRoute(route)) {
+        List<String> remoteServices = new ArrayList<>();
+        for (String r: route) {
+            if (!platform.hasRoute(r)) {
+                remoteServices.add(r);
+            }
+        }
+        // all routes are local
+        if (remoteServices.isEmpty()) {
             return true;
-        } else {
-            try {
-                if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+        }
+        // check if the remote services are reachable
+        try {
+            if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+                if (remoteServices.size() == 1) {
                     EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
                             new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
-                            new Kv(ServiceDiscovery.ROUTE, route));
+                            new Kv(ServiceDiscovery.ROUTE, remoteServices.get(0)));
+                    if (response.getBody() instanceof Boolean) {
+                        return (Boolean) response.getBody();
+                    }
+                } else {
+                    EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                            remoteServices,
+                            new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
+                            new Kv(ServiceDiscovery.ROUTE, "*"));
                     if (response.getBody() instanceof Boolean) {
                         return (Boolean) response.getBody();
                     }
                 }
-            } catch (IOException | TimeoutException e) {
-                /*
-                 * This happens when the network connection is not ready.
-                 * i.e. cloud.connector is available but system.service.query is not ready.
-                 */
-            } catch (AppException e) {
-                // this should not occur
-                log.error("Unable to check route {} - ({}) {}", route, e.getStatus(), e.getMessage());
             }
-            return false;
+        } catch (IOException | TimeoutException e) {
+            /*
+             * This happens when the network connection is not ready.
+             * i.e. cloud.connector is available but system.service.query is not ready.
+             */
+        } catch (AppException e) {
+            // this should not occur
+            log.error("Unable to check route {} - ({}) {}", route, e.getStatus(), e.getMessage());
         }
+        return false;
+
     }
 
 }

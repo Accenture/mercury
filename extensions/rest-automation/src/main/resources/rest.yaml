@@ -7,6 +7,10 @@ rest:
 #    authentication: "v1.api.auth"
     cors: cors_1
     headers: header_1
+    # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
+    # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
+    # Default is 50000 bytes, min is 5000, max is 500000
+    threshold: 30000
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']

@@ -81,7 +81,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String FILE_NAME = "filename";
     private static final String ACCEPT = "accept";
     private static final String CONTENT_TYPE = "content-type";
-    private static final String CONTENT_LENGTH = "content_length";
+    private static final String CONTENT_LENGTH = "content-length";
     private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
     private static final String HTML_END = "\n</pre>\n<body>\n</html>";
     private static final String RESULT = "result";
@@ -202,6 +202,19 @@ public class ServiceGateway extends HttpServlet {
             response.sendError(405, "Method not allowed");
             return;
         }
+        // check if target service is available
+        PostOffice po = PostOffice.getInstance();
+        if (route.info.authService == null) {
+            if (!po.exists(route.info.service)) {
+                response.sendError(503, "Service "+route.info.service+" not reachable");
+                return;
+            }
+        } else {
+            if (!po.exists(route.info.service, route.info.authService)) {
+                response.sendError(503, "Service "+route.info.service+" or "+route.info.authService+" not reachable");
+                return;
+            }
+        }
         Map<String, Object> dataset = new HashMap<>();
         dataset.put(URL, url);
         dataset.put(METHOD, request.getMethod());
@@ -270,7 +283,6 @@ public class ServiceGateway extends HttpServlet {
         }
         dataset.put(IP, request.getRemoteAddr());
         // authentication required?
-        PostOffice po = PostOffice.getInstance();
         if (route.info.authService != null) {
             try {
                 long authTimeout = route.info.timeoutSeconds * 1000;
@@ -366,26 +378,39 @@ public class ServiceGateway extends HttpServlet {
                 }
 
             } else {
-                // anything else is sent as an input stream
-                int len;
-                int total = 0;
-                byte[] buffer = new byte[BUFFER_SIZE];
-                InputStream in = request.getInputStream();
-                ObjectStreamIO stream = null;
-                ObjectStreamWriter out = null;
-                while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-                    if (out == null) {
-                        // defer creation of object stream because input stream may be empty
-                        stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                        out = stream.getOutputStream();
-                    }
-                    total += len;
-                    out.write(buffer, 0, len);
+                /*
+                 * The input is not JSON or XML.
+                 * Check if the content-length is larger than threshold.
+                 */
+                boolean sendAsBytes = false;
+                int contentLen = request.getContentLength();
+                if (contentLen > 0 && contentLen <= route.info.threshold) {
+                    byte[] bytes = util.stream2bytes(request.getInputStream(), false);
+                    dataset.put(BODY, bytes);
+                    sendAsBytes = true;
                 }
-                if (out != null) {
-                    out.close();
-                    dataset.put(STREAM, stream.getRoute());
-                    dataset.put(CONTENT_LENGTH, total);
+                // If content-length is undefined or larger than threshold, it will be sent as a stream.
+                if (!sendAsBytes) {
+                    int len;
+                    int total = 0;
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    InputStream in = request.getInputStream();
+                    ObjectStreamIO stream = null;
+                    ObjectStreamWriter out = null;
+                    while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                        if (out == null) {
+                            // defer creation of object stream because input stream may be empty
+                            stream = new ObjectStreamIO(route.info.timeoutSeconds);
+                            out = stream.getOutputStream();
+                        }
+                        total += len;
+                        out.write(buffer, 0, len);
+                    }
+                    if (out != null) {
+                        out.close();
+                        dataset.put(STREAM, stream.getRoute());
+                        dataset.put(CONTENT_LENGTH, total);
+                    }
                 }
             }
         }
@@ -511,8 +536,13 @@ public class ServiceGateway extends HttpServlet {
                             response.setCharacterEncoding(UTF_8);
                             // is this an exception?
                             int status = event.getStatus();
-                            boolean ok = status >= 200 && status < 300;
-                            if (!ok && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
+                            /*
+                             * status range 100: used for HTTP protocol handshake
+                             * status range 200: normal responses
+                             * status range 300: redirection or unchanged content
+                             * status ranges 400 and 500: HTTP exceptions
+                             */
+                            if (status < 400 && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
                                 String message = ((String) event.getBody()).trim();
                                 // make sure it does not look like JSON or XML
                                 if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
