@@ -10,7 +10,7 @@ Everything can be expressed as anonymous functions and they communicate with eac
 
 If you want digital decoupling, this is the technology that you should invest 30 minutes of your time to try it out.
 
-The pre-requisites are very minimal. The foundation technology requires only Java 1.8 JDK or above (Oracle or OpenJDK) and the Maven build system ("mvn"). Docker/Kubernetes are optional. The application modules that you create using the Mercury framework will run in bare metal, VM and any cloud environments.
+The pre-requisites are very minimal. The foundation technology requires only Java 1.8 JDK (Oracle or OpenJDK) and the Maven build system ("mvn"). Docker/Kubernetes are optional. The application modules that you create using the Mercury framework will run in bare metal, VM and any cloud environments.
 
 This project is created by architects and computer scientists who have spent years to perfect software decoupling, scalability and resilience, high performance and massively parallel processing,
 
@@ -525,6 +525,10 @@ Change the exposed port numnber and application name accordingly. Then build the
 - Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601
 
 - UTF8 text encoding: we recommend the use of UTF8 for text strings.
+
+## Java JDK higher versions
+
+Mercury has been tested and deployed with Java 1.8. We will polish the codebase to accommodate higher versions of Java later.
 
 ## Developer guide
 
