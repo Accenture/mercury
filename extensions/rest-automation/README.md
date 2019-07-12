@@ -70,10 +70,10 @@ headers:
 
 The `service` must be a service that is registered as public function. The required service does not need to be available when the REST automation helper application starts.
 
-The system will find the service at run-time. If the service is not available, the user will see an exception "Route not found".
+The system will find the service at run-time. If the service is not available, the user will see HTTP-503 "Service not reachable".
 
 The `keep` and `drop` entries are mutually exclusive where `keep` has precedent over `drop`. When keep is empty and drop is not, it will drop only the headers in the drop list.
-The `add` entry allow the developer to insert additional header key-values before it reaches the target service that serves the REST endpoint.
+The `add` entry allows the developer to insert additional header key-values before it reaches the target service that serves the REST endpoint.
 
 For content types of XML and JSON, the system will try to convert the input stream into a map.
 
@@ -128,7 +128,7 @@ timeout: timeout value (in seconds) of the REST endpoint
 # optional
 stream: stream-ID of incoming data stream (e.g. file)
 filename: filename if it is a file upload
-content_length: number of bytes of the incoming stream
+content-length: number of bytes of the incoming stream
 
 ```
 
@@ -154,8 +154,8 @@ To control the HTTP error code, your service should use the AppException class. 
 If you want to support file upload, you can specify the `upload` parameter in the rest.yaml configuration file.
 The default value is "file". If your user uses different tag, you must change the `upload` parameter to match the upload tag.
 
-If incoming request is a file, your service will see the "stream", "filename" and "content_length" parameters.
-If incoming request is a byte stream, your service will find the "stream" and "content_length" parameters.
+If incoming request is a file, your service will see the "stream", "filename" and "content-length" parameters.
+If incoming request is a byte stream, your service will find the "stream" and "content-length" parameters.
 
 ### Output stream
 
