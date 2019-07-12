@@ -6,13 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.6, 7/10/2019
+## Version 1.12.6, 7/12/2019
 
 ### Added
 
 1. Periodic routing table integrity check (15 minutes)
 2. Set kafka read pointer to the beginning for new application instances except presence monitor
 3. REST automation helper application in the "extensions" project
+4. Support service discovery of multiple routes in the updated PostOffice's exists() method
 
 ### Removed
 

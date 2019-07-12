@@ -1,4 +1,4 @@
-# Post Office API
+﻿# Post Office API
 
 Post Office is a platform abstraction layer that routes events among functions. It maintains a distributed routing table to ensure that service discovery is instantaneous,
 
@@ -252,10 +252,18 @@ The payload can be PoJo, Map or Java primitives.
 To check if a target service is available, you can use the `exists` method.
 
 ```java
-boolean po.exists(String route);
+boolean po.exists(String... route);
+
+// input can be a single route or multiple routes
+// it will return true only when all routes are available
+// for examples
 
 if (po.exists("hello.world")) {
     // do something
+}
+
+if (po.exists("hello.math", "v1.diff.equation")) {
+    // do other things
 }
 
 ```
