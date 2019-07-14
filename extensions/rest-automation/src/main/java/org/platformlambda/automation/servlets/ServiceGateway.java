@@ -40,10 +40,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.*;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
+import javax.servlet.http.*;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
@@ -69,6 +66,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String PATH = "path";
     private static final String QUERY = "query";
     private static final String HEADERS = "headers";
+    private static final String COOKIE = "cookie";
+    private static final String COOKIES = "cookies";
     private static final String ASYNC_HTTP = "async.http";
     private static final String METHOD = "method";
     private static final String OPTIONS = "OPTIONS";
@@ -239,6 +238,7 @@ public class ServiceGateway extends HttpServlet {
         if (!queryParams.isEmpty()) {
             parameters.put(QUERY, queryParams);
         }
+        boolean hasCookies = false;
         Map<String, Object> headers = new HashMap<>();
         Enumeration<String> hNames = request.getHeaderNames();
         while (hNames.hasMoreElements()) {
@@ -248,7 +248,23 @@ public class ServiceGateway extends HttpServlet {
              * Header key is assumed to be lower-case to ensure case-insensitivity.
              */
             String value = request.getHeader(key);
-            headers.put(key.toLowerCase(), value);
+            String lk = key.toLowerCase();
+            if (lk.equals(COOKIE)) {
+                // cookie is not kept in the headers
+                hasCookies = true;
+            } else {
+                headers.put(lk, value);
+            }
+        }
+        // load cookies
+        if (hasCookies) {
+            // save cookies in dataset
+            Map<String, String> cookieMap = new HashMap<>();
+            Cookie[] cookies = request.getCookies();
+            for (Cookie c: cookies) {
+                cookieMap.put(c.getName(), c.getValue());
+            }
+            dataset.put(COOKIES, cookieMap);
         }
         RoutingEntry re = RoutingEntry.getInstance();
         if (route.info.transformId != null) {
