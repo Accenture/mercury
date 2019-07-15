@@ -145,6 +145,14 @@ For advanced use cases, you can send status code, set HTTP headers if your servi
 If your service set status code directly, you should use the standard 3-digit HTTP status code because it will be sent to the browser directly.
 i.e. 200 means OK and 404 for NOT_FOUND, etc.
 
+### Setting cookies
+
+You can ask a browser to set a cookie by setting the "Set-Cookie" key-value in an EventEnvelope's header which will be converted to a HTTP response header.
+For details, please see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+
+There is a convenient "getHtmlDate()" method in the Utility class if you want to set the "Expires" directive in a cookie.
+
+
 ### Exception handling
 
 If you service throws exception, it will automatically translate into a regular HTTP exception with status code and message.

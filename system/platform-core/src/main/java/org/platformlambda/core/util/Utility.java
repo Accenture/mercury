@@ -47,6 +47,7 @@ public class Utility {
     private static final DateTimeFormatter DATE_ONLY = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final DateTimeFormatter SQL_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter HTML_DATE = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
     private static final String TIMESTAMP_FORMAT = "yyyyMMddHHmmssSSS";
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern(TIMESTAMP_FORMAT);
     private static final String SQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH.mm.ss.SSS";
@@ -367,6 +368,16 @@ public class Utility {
     public String getAmazonDate(Date date) {
         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), UTC_TIME);
         return zdt.format(DATE_TIME).replace('-', 'T')+"Z";
+    }
+
+    /**
+     * RFC 7231 Date (aka HTML date)
+     * @param date input
+     * @return date string for use in a HTTP header
+     */
+    public String getHtmlDate(Date date) {
+        ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), UTC_TIME);
+        return zdt.format(HTML_DATE);
     }
 
     public long timestamp2ms(String timestamp) {
