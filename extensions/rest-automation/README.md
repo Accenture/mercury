@@ -155,7 +155,7 @@ There is a convenient "getHtmlDate()" method in the Utility class if you want to
 
 ### Exception handling
 
-If you service throws exception, it will automatically translate into a regular HTTP exception with status code and message.
+If your service throws exception, it will automatically translate into a regular HTTP exception with status code and message.
 
 To control the HTTP error code, your service should use the AppException class. It allows you to set HTTP status code and error message directly.
 
