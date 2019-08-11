@@ -157,7 +157,7 @@
                 <configuration>
                 	<source>1.8</source>
                 </configuration>
-				<executions>
+		<executions>
                     <execution>
                         <id>attach-javadocs</id>
                         <goals>
