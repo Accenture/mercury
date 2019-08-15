@@ -7,7 +7,7 @@
     <artifactId>rest-spring</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.7</version>
+    <version>1.12.8</version>
     <name>REST library with Spring Boot</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -24,8 +24,8 @@
 
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>rest-core</artifactId>
-            <version>1.12.7</version>
+            <artifactId>platform-core</artifactId>
+            <version>1.12.8</version>
         </dependency>
 
         <!-- Remove Tomcat dependency from Spring Boot so we can pick the latest one -->
