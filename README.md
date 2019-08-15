@@ -189,7 +189,7 @@ This is an example project to illustrate writing microservices without using an 
 
 `rest-example`
 
-This is an example project that may be used as a template to write microservices container that provides REST endpoints using a light-weight application server.
+If you wish to write your own REST endpoints programmatically instead of using the rest-automation helper application, you may use this example project as a template.
 
 
 ## Before you start
