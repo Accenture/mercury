@@ -1,4 +1,4 @@
-﻿# Mercury - rapid software development for modern microservices
+﻿# Mercury - rapid software development for microservices
 
 ## Welcome to the Mercury project
 
@@ -125,11 +125,12 @@ po.send("v1.some.service", "hello world");
 ### How this repository is organized
 
 The Mercury framework includes the following:
-1. system `platform-core, rest-core and rest-spring`
-2. connectors `event-node, hazelcast, kafka, etc.`
-3. language packs `python, node.js, etc.`
-4. documentation `architecture and user guides`
-5. examples `code samples / templates for creating microservices with or without REST endpoints`
+1. system `platform-core and rest-spring`
+2. connectors `event-node, hazelcast, kafka...`
+3. language packs `python, node.js...`
+4. extensions `rest-automation...`
+5. documentation `architecture and user guides`
+6. examples `code samples / templates for creating microservices with or without REST endpoints`
 
 
 ## Libraries and components
@@ -177,6 +178,10 @@ The Event Node is not designed for production purpose. It is a convenient tool f
 `language-connector`
 
 The python language pack is available in https://github.com/Accenture/mercury-python
+
+`rest-automation`
+
+This extension package is a helper application that automates the creation of REST endpoints by configuration instead of code.
 
 `lambda-example`
 
