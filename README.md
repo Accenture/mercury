@@ -215,6 +215,15 @@ mvn clean install
 # close the terminal
 ```
 
+To build the rest-automation helper application:
+
+```bash
+# start a terminal and go to the mercury sandbox folder
+cd extensions/rest-automation
+mvn clean package
+# close the terminal
+```
+
 To support Python and other programming languages, please build the language-connector application.
 
 ```bash
