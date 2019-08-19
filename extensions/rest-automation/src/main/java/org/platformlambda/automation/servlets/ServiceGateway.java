@@ -162,11 +162,15 @@ public class ServiceGateway extends HttpServlet {
             } else {
                 String url = BASE_PATH + path;
                 RoutingEntry re = RoutingEntry.getInstance();
-                AssignedRoute route = re.getRouteInfo(url);
+                AssignedRoute route = re.getRouteInfo(request.getMethod(), url);
                 if (route == null) {
                     response.sendError(404, "Resource not found");
                 } else {
-                    routeRequest(url, route, request, response);
+                    if (route.info == null) {
+                        response.sendError(405, "Method not allowed");
+                    } else {
+                        routeRequest(url, route, request, response);
+                    }
                 }
             }
         }
@@ -194,11 +198,6 @@ public class ServiceGateway extends HttpServlet {
                     response.sendError(405, "Method not allowed");
                 }
             }
-            return;
-        }
-        // validate HTTP method
-        if (!route.info.methods.contains(request.getMethod())) {
-            response.sendError(405, "Method not allowed");
             return;
         }
         // check if target service is available

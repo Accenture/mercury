@@ -18,15 +18,15 @@ rest:
     # optional "upload" key if it is a multi-part file upload
     upload: "file"
     timeout: 15s
+    cors: cors_1
     headers: header_1
-#    cors: cors_1
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
     timeout: 12
+    cors: cors_1
     headers: header_1
-#    cors: cors_1
 
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal cases

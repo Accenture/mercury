@@ -40,6 +40,7 @@ public class RoutingEntry {
     private static final String METHODS = "methods";
     private static final String URL = "url";
     private static final String ID = "id";
+    private static final String OPTIONS_METHOD = "OPTIONS";
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
     private static final String TIMEOUT = "timeout";
@@ -72,7 +73,7 @@ public class RoutingEntry {
         return instance;
     }
 
-    public AssignedRoute getRouteInfo(String url) {
+    public AssignedRoute getRouteInfo(String method, String url) {
         Utility util = Utility.getInstance();
         StringBuilder sb = new StringBuilder();
         List<String> input = util.split(url.toLowerCase(), "/");
@@ -81,11 +82,12 @@ public class RoutingEntry {
             sb.append(p.trim());
         }
         String nUrl = sb.toString();
+        String key = method+":"+nUrl;
         if (exactRoutes.containsKey(nUrl)) {
-            return new AssignedRoute(routes.get(nUrl));
+            return new AssignedRoute(routes.get(key));
         } else {
             for (String u: urlPaths) {
-                AssignedRoute info = getMatchedRoute(input, u);
+                AssignedRoute info = getMatchedRoute(input, method, u);
                 if (info != null) {
                     return info;
                 }
@@ -102,8 +104,9 @@ public class RoutingEntry {
         return cors.get(id);
     }
 
-    private AssignedRoute getMatchedRoute(List<String> input, String configured) {
-        AssignedRoute result = new AssignedRoute(routes.get(configured));
+    private AssignedRoute getMatchedRoute(List<String> input, String method, String configured) {
+        String key = method+":"+configured;
+        AssignedRoute result = new AssignedRoute(routes.get(key));
         Utility util = Utility.getInstance();
         List<String> segments = util.split(configured, "/");
         if (matchRoute(input, segments, configured.endsWith("*"))) {
@@ -197,7 +200,9 @@ public class RoutingEntry {
             }
             List<String> exact = new ArrayList<>();
             for (String r: exactRoutes.keySet()) {
-                exact.add(r);
+                if (!exact.contains(r)) {
+                    exact.add(r);
+                }
             }
             if (exact.size() > 1) {
                 Collections.sort(exact);
@@ -208,8 +213,12 @@ public class RoutingEntry {
             // sort URLs for easy parsing
             if (!routes.isEmpty()) {
                 for (String r: routes.keySet()) {
-                    if (!exactRoutes.containsKey(r)) {
-                        urlPaths.add(r);
+                    int colon = r.indexOf(':');
+                    if (colon > 0) {
+                        String urlOnly = r.substring(colon+1);
+                        if (!exactRoutes.containsKey(urlOnly) && !urlPaths.contains(urlOnly)) {
+                            urlPaths.add(urlOnly);
+                        }
                     }
                 }
             }
@@ -325,29 +334,38 @@ public class RoutingEntry {
                     return;
                 }
             }
-            if (routes.containsKey(url)) {
-                log.error("Skipping duplicated entry {}", entry);
+            if (!util.validServiceName(service)) {
+                log.error("Skipping entry with invalid service name {}", entry);
             } else {
-                if (!util.validServiceName(service)) {
-                    log.error("Skipping entry with invalid service name {}", entry);
-                } else {
-                    info.service = service;
-                    if (validMethods(methods)) {
-                        info.methods = methods;
-                        if (exact) {
-                            exactRoutes.put(url, true);
-                        }
-                        String nUrl = getUrl(url, exact);
-                        if (nUrl == null) {
-                            log.error("Skipping invalid entry {}", entry);
-                        } else {
-                            info.url = nUrl;
-                            routes.put(nUrl, info);
-                            log.info("{} {} -> {}, timeout={}s", methods, nUrl, service, info.timeoutSeconds);
-                        }
-                    } else {
-                        log.error("Skipping entry with invalid method {}", entry);
+                info.service = service;
+                if (validMethods(methods)) {
+                    info.methods = methods;
+                    if (exact) {
+                        exactRoutes.put(url, true);
                     }
+                    String nUrl = getUrl(url, exact);
+                    if (nUrl == null) {
+                        log.error("Skipping invalid entry {}", entry);
+                    } else {
+                        info.url = nUrl;
+                        List<String> allMethods = new ArrayList<>(methods);
+                        if (!allMethods.contains(OPTIONS_METHOD)) {
+                            allMethods.add(OPTIONS_METHOD);
+                        }
+                        for (String m: allMethods) {
+                            String key = m+":"+nUrl;
+                            if (routes.containsKey(key)) {
+                                if (!m.equals(OPTIONS_METHOD)) {
+                                    log.error("Skipping duplicated method and URL {}", key);
+                                }
+                            } else {
+                                routes.put(key, info);
+                                log.info("{} {} -> {}, timeout={}s", m, nUrl, service, info.timeoutSeconds);
+                            }
+                        }
+                    }
+                } else {
+                    log.error("Skipping entry with invalid method {}", entry);
                 }
             }
 
