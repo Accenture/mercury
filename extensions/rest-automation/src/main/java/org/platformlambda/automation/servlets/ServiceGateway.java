@@ -557,7 +557,7 @@ public class ServiceGateway extends HttpServlet {
                              * status range 300: redirection or unchanged content
                              * status ranges 400 and 500: HTTP exceptions
                              */
-                            if (status < 400 && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
+                            if (status >= 400 && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
                                 String message = ((String) event.getBody()).trim();
                                 // make sure it does not look like JSON or XML
                                 if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
