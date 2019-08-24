@@ -171,7 +171,7 @@ The kafka-connector and kafka-presence is fully scalable.
 
 `event-node`
 
-For ease of software development, the Event Node project can be compiled into an executable JAR. It emulates the event stream system (i.e. the event stream itself such as Kafka and Hazelcast) and the presence monitor.
+For ease of software development, the Event Node project can be compiled into an executable JAR. It emulates an event stream system (i.e. the event stream itself such as Kafka and Hazelcast) and the presence monitor.
 
 The Event Node is not designed for production purpose. It is a convenient tool for software development in a single laptop.
 
