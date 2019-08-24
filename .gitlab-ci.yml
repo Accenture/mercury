@@ -25,7 +25,6 @@ build:
     script:
         - mvn $MAVEN_CLI_OPTS clean compile install -f system/platform-core
         - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
-        - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-connector
         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-connector
     cache:
