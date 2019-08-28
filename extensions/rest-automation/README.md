@@ -24,6 +24,8 @@ rest:
     threshold: 30000
     cors: cors_1
     headers: header_1
+    # optionally, you can turn on Distributed Tracing
+    tracing: true
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
