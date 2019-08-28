@@ -74,6 +74,9 @@ public class LanguageInbox implements LambdaFunction {
                     for (String h: eventHeaders.keySet()) {
                         relay.setHeader(h, eventHeaders.get(h));
                     }
+                    if (event.getExecutionTime() > -1) {
+                        relay.setExecutionTime(event.getExecutionTime());
+                    }
                     if (event.getCorrelationId() != null) {
                         relay.setCorrelationId(event.getCorrelationId());
                     }
