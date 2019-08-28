@@ -527,6 +527,17 @@ ENTRYPOINT ["java","-jar","your-app-name.jar"]
 
 Change the exposed port numnber and application name accordingly. Then build the docker image and publish it to a docker registry so you can deploy from there using Kubernetes or alike.
 
+## Distributed tracing
+
+Microservices are likely to be deployed in a multi-tier environment.
+As a result, a single transaction would pass through multiple layers of services.
+
+Distributed tracing allows us to visualize the complete service path for each transaction.
+This enables easy trouble shooting for large scale applications.
+
+With the Mercury framework, distributed tracing does not require coding at application level.
+To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration in
+the rest-automation helper application.
 
 ## Other consideration
 
