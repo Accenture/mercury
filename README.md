@@ -26,11 +26,9 @@ If you have your own preference of a different event stream system, you can foll
 
 Hope you enjoy this journey to improve the world.
 
-Best regards, the Mercury team
+Best regards, the Mercury team, Accenture
 
-June 2019
-
-p.s. This project is originated from the "platformlambda project" and contributed by Accenture.
+August 2019
 
 
 ## Rationale
