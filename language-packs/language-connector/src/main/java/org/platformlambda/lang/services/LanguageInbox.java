@@ -77,8 +77,8 @@ public class LanguageInbox implements LambdaFunction {
                     if (event.getCorrelationId() != null) {
                         relay.setCorrelationId(event.getCorrelationId());
                     }
-                    if (event.getExecutionTime() > -1) {
-                        relay.setExecutionTime(event.getExecutionTime());
+                    if (event.getTraceId() != null) {
+                        relay.setTrace(event.getCorrelationId(), event.getTracePath());
                     }
                     response.put(EVENT, LanguageConnector.mapFromEvent(relay));
 

@@ -18,8 +18,7 @@
 
 package org.platformlambda.core.services;
 
-import javax.websocket.CloseReason;
-import javax.websocket.Session;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -28,9 +27,12 @@ import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 
+import javax.websocket.CloseReason;
+import javax.websocket.Session;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+@ZeroTracing
 public class WsTransmitter implements LambdaFunction {
 
     private static final CryptoApi crypto = new CryptoApi();
@@ -43,7 +45,6 @@ public class WsTransmitter implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         if (body == null && headers.containsKey(WsEnvelope.TYPE)) {
             if (WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
                 String status = headers.get(STATUS);
@@ -66,8 +67,8 @@ public class WsTransmitter implements LambdaFunction {
 
         } else if (body instanceof byte[]) {
             if (session != null && session.isOpen()) {
-                byte[] payload = sessionKey != null? crypto.aesEncrypt((byte[])body, sessionKey) : (byte[]) body;
-                session.getBasicRemote().sendBinary(ByteBuffer.wrap(payload));
+                byte[] bytes = sessionKey != null ? crypto.aesEncrypt((byte[]) body, sessionKey) : (byte[]) body;
+                session.getBasicRemote().sendBinary(ByteBuffer.wrap(bytes));
             }
 
         } else if (body instanceof String) {
@@ -79,7 +80,6 @@ public class WsTransmitter implements LambdaFunction {
                 session.getBasicRemote().sendText(mapper.writeValueAsString(body));
             }
         }
-        // nothing to return because this is asynchronous
         return null;
     }
 

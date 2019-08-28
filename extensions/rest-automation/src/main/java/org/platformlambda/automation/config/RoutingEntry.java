@@ -36,6 +36,7 @@ public class RoutingEntry {
     private static final String AUTH = "authentication";
     private static final String UPLOAD = "upload";
     private static final String THRESHOLD = "threshold";
+    private static final String TRACING = "tracing";
     private static final String SERVICE = "service";
     private static final String METHODS = "methods";
     private static final String URL = "url";
@@ -290,6 +291,11 @@ public class RoutingEntry {
                 }
                 info.threshold = value;
             }
+            if (entry.containsKey(TRACING)) {
+                if ("true".equalsIgnoreCase(entry.get(TRACING).toString())) {
+                    info.tracing = true;
+                }
+            }
             String service = (String) entry.get(SERVICE);
             List<String> methods = (List<String>) entry.get(METHODS);
             String url = (String) entry.get(URL);
@@ -360,7 +366,13 @@ public class RoutingEntry {
                                 }
                             } else {
                                 routes.put(key, info);
-                                log.info("{} {} -> {}, timeout={}s", m, nUrl, service, info.timeoutSeconds);
+                                // OPTIONS method is not traced
+                                if (m.equals(OPTIONS_METHOD)) {
+                                    log.info("{} {} -> {}, timeout={}s", m, nUrl, service, info.timeoutSeconds);
+                                } else {
+                                    log.info("{} {} -> {}, timeout={}s, tracing={}", m, nUrl, service,
+                                            info.timeoutSeconds, info.tracing);
+                                }
                             }
                         }
                     }

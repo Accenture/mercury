@@ -28,6 +28,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.services.RouteSubstitutionManager;
+import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,7 @@ public class Platform {
     private static final CryptoApi crypto = new CryptoApi();
 
     public static final String STREAM_MANAGER = "object.streams.io";
+    public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     private static final String ROUTE_MAPPER = ".route.mapper";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
@@ -64,6 +66,7 @@ public class Platform {
         AppConfigReader config = AppConfigReader.getInstance();
         boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
+            registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
             // streaming becomes a standard feature since v1.12.0
             registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             if (substitute) {

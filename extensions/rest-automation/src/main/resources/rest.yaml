@@ -11,6 +11,8 @@ rest:
     # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
     # Default is 50000 bytes, min is 5000, max is 500000
     threshold: 30000
+    # optionally, you can turn on Distributed Tracing
+    tracing: true
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']

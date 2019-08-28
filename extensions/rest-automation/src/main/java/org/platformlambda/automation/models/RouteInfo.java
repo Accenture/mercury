@@ -24,6 +24,7 @@ public class RouteInfo {
 
     public String url, service, authService, corsId, transformId;
     public int threshold = 50000;
+    public boolean tracing = false;
     public List<String> methods;
     public int timeoutSeconds = 30;
     public String upload = "file";

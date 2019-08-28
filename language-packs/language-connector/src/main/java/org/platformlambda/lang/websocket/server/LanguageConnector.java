@@ -70,6 +70,8 @@ public class LanguageConnector implements LambdaFunction {
     private static final String API_KEY = "api_key";
     private static final String BROADCAST = "broadcast";
     private static final String EXEC_TIME = "exec_time";
+    private static final String TRACE_ID = "trace_id";
+    private static final String TRACE_PATH = "trace_path";
     private static final String LANGUAGE_REGISTRY = "language.pack.registry";
     private static final String LANGUAGE_INBOX = "language.pack.inbox";
     private static final String PUB_SUB_CONTROLLER = "pub.sub.controller";
@@ -390,6 +392,9 @@ public class LanguageConnector implements LambdaFunction {
         if (map.containsKey(REPLY_TO)) {
             event.setReplyTo((String) map.get(REPLY_TO));
         }
+        if (map.containsKey(TRACE_ID) && map.containsKey(TRACE_PATH)) {
+            event.setTrace((String) map.get(TRACE_ID), (String) map.get(TRACE_PATH));
+        }
         if (map.containsKey(BROADCAST)) {
             boolean broadcast = (Boolean) map.get(BROADCAST);
             if (broadcast) {
@@ -435,6 +440,10 @@ public class LanguageConnector implements LambdaFunction {
         }
         if (event.getReplyTo() != null) {
             result.put(REPLY_TO, event.getReplyTo());
+        }
+        if (event.getTraceId() != null) {
+            result.put(TRACE_ID, event.getTraceId());
+            result.put(TRACE_PATH, event.getTracePath());
         }
         result.put(HEADERS, event.getHeaders());
         if (event.getBody() != null) {

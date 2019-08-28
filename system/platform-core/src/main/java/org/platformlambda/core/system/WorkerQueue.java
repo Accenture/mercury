@@ -23,9 +23,9 @@ import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +43,10 @@ public class WorkerQueue extends AbstractActor {
     private static final String ORIGIN = "origin";
 
     private PostOffice po = PostOffice.getInstance();
+    private String origin;
     private ServiceDef def;
     private boolean interceptor;
+    private boolean tracing;
     private int instance;
     private ActorRef manager;
     private boolean stopped = false;
@@ -58,6 +60,8 @@ public class WorkerQueue extends AbstractActor {
         this.instance = instance;
         this.manager = manager;
         this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
+        this.tracing = def.getFunction().getClass().getAnnotation(ZeroTracing.class) == null;
+        this.origin = Platform.getInstance().getOrigin();
         // tell manager that this worker is ready to process a new event
         manager.tell(READY, getSelf());
         log.debug("{} started", getSelf().path().name());
@@ -69,8 +73,42 @@ public class WorkerQueue extends AbstractActor {
             if (!stopped) {
                 final ActorRef self = getSelf();
                 executor.submit(()->{
-                    // execute function as a future task
-                    processEvent(event);
+                    /*
+                     * Execute function as a future task
+                     */
+                    if (event.getTraceId() != null) {
+                        po.startTracing(event.getTraceId(), event.getTracePath());
+                    }
+                    ProcessStatus ps = processEvent(event);
+                    /*
+                     * Skip trace logging if zero tracing
+                     */
+                    TraceInfo trace = po.stopTracing();
+                    if (tracing && trace != null) {
+                        try {
+                            /*
+                             * Send the trace info and processing status to
+                             * distributed tracing for logging.
+                             *
+                             * Since tracing has been stopped, this guarantees
+                             * this will not go into an endless loop.
+                             */
+                            EventEnvelope dt = new EventEnvelope();
+                            dt.setTo(Platform.DISTRIBUTED_TRACING).setBody(trace.annotations);
+                            dt.setHeader("origin", origin);
+                            dt.setHeader("id", trace.id).setHeader("path", trace.path);
+                            dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);
+                            dt.setHeader("success", ps.success);
+                            if (ps.success) {
+                                dt.setHeader("exec_time", ps.executionTime);
+                            } else {
+                                dt.setHeader("status", ps.status).setHeader("exception", ps.exception);
+                            }
+                            po.send(dt);
+                        } catch (Exception e) {
+                            log.error("Unable to send distributed tracing - {}", e.getMessage());
+                        }
+                    }
                     /*
                      * Send a ready signal to inform the system this worker is ready for next event.
                      * This guarantee that this future task is executed orderly
@@ -86,7 +124,7 @@ public class WorkerQueue extends AbstractActor {
         }).build();
     }
 
-    private void processEvent(EventEnvelope event) {
+    private ProcessStatus processEvent(EventEnvelope event) {
         LambdaFunction f = def.getFunction();
         try {
             boolean ping = event.getHeaders().isEmpty() && event.getBody() == null;
@@ -95,7 +133,7 @@ public class WorkerQueue extends AbstractActor {
              * If the service is an interceptor, we will pass the original event envelope instead of the message body.
              */
             Object result = ping? null : f.handleEvent(event.getHeaders(), interceptor ? event : event.getBody(), instance);
-            float diff = ping? 0 : System.nanoTime() - begin;
+            float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
                 boolean needResponse = true;
@@ -113,6 +151,10 @@ public class WorkerQueue extends AbstractActor {
                 }
                 if (event.getExtra() != null) {
                     response.setExtra(event.getExtra());
+                }
+                // propagate the trace to the next service if any
+                if (event.getTraceId() != null) {
+                    response.setTrace(event.getTraceId(), event.getTracePath());
                 }
                 if (result instanceof EventEnvelope) {
                     EventEnvelope resultEnvelope = (EventEnvelope) result;
@@ -152,10 +194,17 @@ public class WorkerQueue extends AbstractActor {
                     po.send(response);
                 } else {
                     if (!interceptor && needResponse) {
-                        response.setExecutionTime(diff / PostOffice.ONE_MILLISECOND);
+                        response.setExecutionTime(diff);
                         po.send(response);
                     }
                 }
+            }
+            if (diff > 0) {
+                // adjust precision to 3 decimal points
+                String ms = String.format("%.3f", diff);
+                return new ProcessStatus(Float.parseFloat(ms));
+            } else {
+                return new ProcessStatus(0);
             }
 
         } catch (Exception e) {
@@ -181,10 +230,14 @@ public class WorkerQueue extends AbstractActor {
                 if (event.getExtra() != null) {
                     response.setExtra(event.getExtra());
                 }
+                // propagate the trace to the next service if any
+                if (event.getTraceId() != null) {
+                    response.setTrace(event.getTraceId(), event.getTracePath());
+                }
                 try {
                     po.send(response);
                 } catch (Exception nested) {
-                    log.warn("Unhandled exception for {} - {}", getSelf().path().name(), nested.getMessage());
+                    log.warn("Unhandled exception when sending reply from {} - {}", getSelf().path().name(), nested.getMessage());
                 }
             } else {
                 if (status >= 500) {
@@ -193,6 +246,7 @@ public class WorkerQueue extends AbstractActor {
                     log.warn("Unhandled exception for {} - {}", getSelf().path().name(), ex.getMessage());
                 }
             }
+            return new ProcessStatus(status, e.getMessage());
         }
     }
 

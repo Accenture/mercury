@@ -51,6 +51,9 @@ public class EventEnvelope {
     // message headers and body
     private static final String HEADERS = "H";
     private static final String BODY = "B";
+    // distributed trace ID for tracking a transaction from the edge to multiple levels of services
+    private static final String TRACE_ID = "t";
+    private static final String TRACE_PATH = "p";
     // optional correlation ID
     private static final String CID = "X";
     // object type for automatic serialization
@@ -61,7 +64,7 @@ public class EventEnvelope {
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
 
-    private String id, from, to, replyTo, cid, extra, type, parametricType;
+    private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
     private Integer status;
     private Map<String, String> headers = new HashMap<>();
     private Object body;
@@ -91,6 +94,14 @@ public class EventEnvelope {
 
     public String getReplyTo() {
         return replyTo;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public String getTracePath() {
+        return tracePath;
     }
 
     public String getCorrelationId() {
@@ -185,6 +196,20 @@ public class EventEnvelope {
      */
     public EventEnvelope setReplyTo(String replyTo) {
         this.replyTo = replyTo;
+        return this;
+    }
+
+    /**
+     * A transaction trace should only be created by the rest-automation application
+     * or a service at the "edge".
+     *
+     * @param traceId unique ID for distributed tracing
+     * @param tracePath path at the edge such as HTTP method and URI
+     * @return event envelope
+     */
+    public EventEnvelope setTrace(String traceId, String tracePath) {
+        this.traceId = traceId;
+        this.tracePath = tracePath;
         return this;
     }
 
@@ -362,6 +387,12 @@ public class EventEnvelope {
             if (message.containsKey(REPLY_TO)) {
                 replyTo = (String) message.get(REPLY_TO);
             }
+            if (message.containsKey(TRACE_ID)) {
+                traceId = (String) message.get(TRACE_ID);
+            }
+            if (message.containsKey(TRACE_PATH)) {
+                tracePath = (String) message.get(TRACE_PATH);
+            }
             if (message.containsKey(CID)) {
                 cid = (String) message.get(CID);
             }
@@ -464,6 +495,12 @@ public class EventEnvelope {
         }
         if (replyTo != null) {
             message.put(REPLY_TO, replyTo);
+        }
+        if (traceId != null) {
+            message.put(TRACE_ID, traceId);
+        }
+        if (tracePath != null) {
+            message.put(TRACE_PATH, tracePath);
         }
         if (cid != null) {
             message.put(CID, cid);

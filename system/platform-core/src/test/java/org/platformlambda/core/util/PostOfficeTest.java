@@ -23,6 +23,7 @@ import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TraceInfo;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 
@@ -74,6 +75,48 @@ public class PostOfficeTest {
         assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
         assertEquals(input, result.get("body"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void multilevelTrace() throws TimeoutException, IOException, AppException {
+        final String TRACE_ID = "cid-123456";
+        final String TRACE_PATH = "GET /api/hello/world";
+        Platform platform = Platform.getInstance();
+        LambdaFunction tier1 = (headers, body, instance) -> {
+            Map<String, Object> result = new HashMap<>();
+            result.put("headers", headers);
+            result.put("body", body);
+            result.put("instance", instance);
+            result.put("origin", platform.getOrigin());
+            // verify trace ID and path
+            PostOffice po = PostOffice.getInstance();
+            assertEquals(TRACE_ID, po.getTraceId());
+            TraceInfo info = po.getTrace();
+            assertEquals(TRACE_PATH, info.path);
+            // send to level-2 service
+            EventEnvelope response = po.request("hello.level.2", 5000, "test");
+            assertEquals(TRACE_ID, response.getBody());
+            return result;
+        };
+        LambdaFunction tier2 = (headers, body, instance) -> {
+            PostOffice po = PostOffice.getInstance();
+            assertEquals(TRACE_ID, po.getTraceId());
+            return po.getTraceId();
+        };
+        platform.register("hello.level.1", tier1, 1);
+        platform.register("hello.level.2", tier2, 1);
+        // test tracing to 2 levels
+        String testMessage = "some message";
+        EventEnvelope event = new EventEnvelope();
+        event.setTo("hello.level.1").setHeader("hello", "world").setBody(testMessage);
+        event.setTrace(TRACE_ID, TRACE_PATH);
+        PostOffice po = PostOffice.getInstance();
+        EventEnvelope response = po.request(event, 5000);
+        assertEquals(HashMap.class, response.getBody().getClass());
+        Map<String, Object> result = (Map<String, Object>) response.getBody();
+        assertTrue(result.containsKey("body"));
+        assertEquals(testMessage, result.get("body"));
     }
 
     @Test

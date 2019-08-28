@@ -52,6 +52,7 @@ public class PostOffice {
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ManagedCache cache = ManagedCache.createCache("sys.missing.broadcast", 5000);
+    private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
     private boolean isEventNode, substituteRoutes;
     private static final PostOffice instance = new PostOffice();
 
@@ -77,6 +78,64 @@ public class PostOffice {
 
     public static PostOffice getInstance() {
         return instance;
+    }
+
+    /**
+     * User application may obtain the trace ID of the current transaction so it can use for logging
+     * or passing to an external system.
+     *
+     * @return trace ID of the current transaction
+     */
+    public String getTraceId() {
+        TraceInfo info = traces.get(Thread.currentThread().getId());
+        return info != null? info.id : null;
+    }
+
+    /**
+     * Obtain trace info of the current transaction.
+     *
+     * @return trace info
+     */
+    public TraceInfo getTrace() {
+        return traces.get(Thread.currentThread().getId());
+    }
+
+    /**
+     * User application may add key-values using this method so they are shown as annotations
+     * in the trace report.
+     *
+     * @param key of the annotation
+     * @param value of the annotation
+     */
+    public void annotateTrace(String key, String value) {
+        TraceInfo info = traces.get(Thread.currentThread().getId());
+        if (info != null) {
+            info.annotate(key, value);
+        }
+    }
+
+    /**
+     * IMPORTANT: This method is reserved by the system. User application MUST NOT access this.
+     * @param traceId to identify a transaction
+     * @param tracePath for the transaction
+     */
+    public void startTracing(String traceId, String tracePath) {
+        traces.put(Thread.currentThread().getId(), new TraceInfo(traceId, tracePath));
+    }
+
+    /**
+     * IMPORTANT: This method is reserved by the system. User application MUST NOT access this.
+     * @return current trace info before it is stopped
+     */
+    public TraceInfo stopTracing() {
+        Long threadId = Thread.currentThread().getId();
+        TraceInfo trace = traces.get(threadId);
+        if (trace != null) {
+            traces.remove(threadId);
+            return trace;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -433,6 +492,10 @@ public class PostOffice {
         }
         String to = substituteRouteIfNeeded(dest);
         event.setTo(to);
+        TraceInfo trace = getTrace();
+        if (trace != null) {
+            event.setTrace(trace.id, trace.path);
+        }
         // is this a reply message?
         int slash = to.indexOf('@');
         if (slash > 0) {
@@ -615,6 +678,10 @@ public class PostOffice {
         }
         String to = substituteRouteIfNeeded(dest);
         event.setTo(to);
+        TraceInfo trace = getTrace();
+        if (trace != null) {
+            event.setTrace(trace.id, trace.path);
+        }
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());
         Inbox inbox = new Inbox(1);

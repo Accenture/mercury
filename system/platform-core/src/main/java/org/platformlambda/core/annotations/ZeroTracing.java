@@ -21,12 +21,9 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
- * This indicates that the annotated lambda function is an interceptor.
- * The original EventEnvelope from the caller will be delivered as message body
- * so that the interceptor function can use the information to forward the
- * request to the destination
+ * This tells the system not to trace a function with this annotation
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface EventInterceptor { }
+public @interface ZeroTracing { }

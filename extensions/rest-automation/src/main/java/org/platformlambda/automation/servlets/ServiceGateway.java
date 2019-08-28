@@ -68,7 +68,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String HEADERS = "headers";
     private static final String COOKIE = "cookie";
     private static final String COOKIES = "cookies";
-    private static final String ASYNC_HTTP = "async.http";
+    private static final String ASYNC_HTTP = "async.http.response";
     private static final String METHOD = "method";
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
@@ -85,6 +85,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String HTML_END = "\n</pre>\n<body>\n</html>";
     private static final String RESULT = "result";
     private static final String ACCEPT_ANY = "*/*";
+    private static final String TRACE_HEADER = "X-Trace-Id";
 
     private static final int BUFFER_SIZE = 2048;
 
@@ -297,11 +298,26 @@ public class ServiceGateway extends HttpServlet {
             dataset.put(HEADERS, headers);
         }
         dataset.put(IP, request.getRemoteAddr());
+        // Distributed tracing required?
+        String traceId = null;
+        String tracePath = null;
+        // Set trace header if needed
+        if (route.info.tracing) {
+            traceId = "t"+util.getUuid();
+            tracePath = request.getMethod()+" "+url;
+            response.setHeader(TRACE_HEADER, traceId);
+        }
         // authentication required?
         if (route.info.authService != null) {
             try {
                 long authTimeout = route.info.timeoutSeconds * 1000;
-                EventEnvelope authResponse = po.request(route.info.authService, authTimeout, dataset);
+                EventEnvelope authRequest = new EventEnvelope();
+                authRequest.setTo(route.info.authService).setBody(dataset);
+                // distributed tracing required?
+                if (route.info.tracing) {
+                    authRequest.setTrace(traceId, tracePath);
+                }
+                EventEnvelope authResponse = po.request(authRequest, authTimeout);
                 if (!authResponse.hasError() && authResponse.getBody() instanceof Boolean) {
                     Boolean authOK = (Boolean) authResponse.getBody();
                     if (!authOK) {
@@ -446,6 +462,10 @@ public class ServiceGateway extends HttpServlet {
         EventEnvelope event = new EventEnvelope();
         event.setTo(route.info.service).setBody(dataset)
                 .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP+"@"+Platform.getInstance().getOrigin());
+        // enable distributed tracing if needed
+        if (route.info.tracing) {
+            event.setTrace(traceId, tracePath);
+        }
         try {
             po.send(event);
         } catch (IOException e) {
@@ -474,7 +494,7 @@ public class ServiceGateway extends HttpServlet {
             if (timeout < 1) {
                 return contextTimeout;
             }
-            return timeout > contextTimeout? contextTimeout : timeout;
+            return Math.min(timeout, contextTimeout);
         }
 
         @Override
