@@ -369,9 +369,12 @@ public class RoutingEntry {
                                 // OPTIONS method is not traced
                                 if (m.equals(OPTIONS_METHOD)) {
                                     log.info("{} {} -> {}, timeout={}s", m, nUrl, service, info.timeoutSeconds);
+                                } else if (info.authService != null) {
+                                    log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
+                                            m, nUrl, info.authService, service, info.timeoutSeconds, info.tracing);
                                 } else {
-                                    log.info("{} {} -> {}, timeout={}s, tracing={}", m, nUrl, service,
-                                            info.timeoutSeconds, info.tracing);
+                                    log.info("{} {} -> {}, timeout={}s, tracing={}",
+                                            m, nUrl, service, info.timeoutSeconds, info.tracing);
                                 }
                             }
                         }

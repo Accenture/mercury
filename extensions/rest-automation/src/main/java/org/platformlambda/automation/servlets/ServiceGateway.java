@@ -66,6 +66,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String PATH = "path";
     private static final String QUERY = "query";
     private static final String HEADERS = "headers";
+    private static final String SESSION = "session";
     private static final String COOKIE = "cookie";
     private static final String COOKIES = "cookies";
     private static final String ASYNC_HTTP = "async.http.response";
@@ -320,9 +321,14 @@ public class ServiceGateway extends HttpServlet {
                 EventEnvelope authResponse = po.request(authRequest, authTimeout);
                 if (!authResponse.hasError() && authResponse.getBody() instanceof Boolean) {
                     Boolean authOK = (Boolean) authResponse.getBody();
-                    if (!authOK) {
-                        response.sendError(401, "Unauthorized");
-                        return;
+                    if (authOK) {
+                        /*
+                         * Upon successful authentication,
+                         * the authentication service may save session information as headers
+                         */
+                        dataset.put(SESSION, authResponse.getHeaders());
+                    } else {
+                        throw new AppException(401, "Unauthorized");
                     }
                 }
             } catch (IOException e) {
@@ -334,7 +340,7 @@ public class ServiceGateway extends HttpServlet {
                 response.sendError(408, e.getMessage());
                 return;
             } catch (AppException e) {
-                log.error("Authentication exception, status={}, message={}", e.getStatus(), e.getMessage());
+                // allow the authentication service to throw exception back to the browser
                 response.sendError(e.getStatus(), e.getMessage());
                 return;
             }

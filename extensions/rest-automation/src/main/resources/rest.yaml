@@ -3,7 +3,8 @@ rest:
     methods: ['GET', 'POST']
     url: "/api/hello/world"
     timeout: 10s
-    # optional authentication service
+    # optional authentication service which should return result as an EventEnvelope
+    # with session info in headers and true|false in body
 #    authentication: "v1.api.auth"
     cors: cors_1
     headers: header_1
