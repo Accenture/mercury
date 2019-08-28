@@ -536,7 +536,7 @@ Distributed tracing allows us to visualize the complete service path for each tr
 This enables easy trouble shooting for large scale applications.
 
 With the Mercury framework, distributed tracing does not require coding at application level.
-To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration in
+To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of
 the rest-automation helper application.
 
 ## Other consideration
