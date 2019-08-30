@@ -32,7 +32,7 @@ public class AssignedRoute {
     }
 
     public void setArgument(String key, String value) {
-        arguments.put(key, value);
+        arguments.put(key.toLowerCase(), value);
     }
 
 }

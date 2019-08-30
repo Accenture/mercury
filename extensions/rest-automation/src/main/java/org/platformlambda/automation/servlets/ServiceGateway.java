@@ -230,10 +230,10 @@ public class ServiceGateway extends HttpServlet {
             String key = pNames.nextElement();
             String[] values = request.getParameterValues(key);
             if (values.length == 1) {
-                queryParams.put(key, values[0]);
+                queryParams.put(key.toLowerCase(), values[0]);
             }
             if (values.length > 1) {
-                queryParams.put(key, Arrays.asList(values));
+                queryParams.put(key.toLowerCase(), Arrays.asList(values));
             }
         }
         if (!queryParams.isEmpty()) {
@@ -263,7 +263,7 @@ public class ServiceGateway extends HttpServlet {
             Map<String, String> cookieMap = new HashMap<>();
             Cookie[] cookies = request.getCookies();
             for (Cookie c: cookies) {
-                cookieMap.put(c.getName(), c.getValue());
+                cookieMap.put(c.getName().toLowerCase(), c.getValue());
             }
             dataset.put(COOKIES, cookieMap);
         }
@@ -325,8 +325,14 @@ public class ServiceGateway extends HttpServlet {
                         /*
                          * Upon successful authentication,
                          * the authentication service may save session information as headers
+                         * (auth headers are converted to lower case for case insensitivity)
                          */
-                        dataset.put(SESSION, authResponse.getHeaders());
+                        Map<String, String> authResHeaders = authResponse.getHeaders();
+                        Map<String, String> lowerCaseHeaders = new HashMap<>();
+                        for (String k: authResHeaders.keySet()) {
+                            lowerCaseHeaders.put(k.toLowerCase(), authResHeaders.get(k));
+                        }
+                        dataset.put(SESSION, lowerCaseHeaders);
                     } else {
                         throw new AppException(401, "Unauthorized");
                     }
