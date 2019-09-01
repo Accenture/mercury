@@ -306,6 +306,9 @@ public class ServiceGateway extends HttpServlet {
         if (route.info.tracing) {
             traceId = "t"+util.getUuid();
             tracePath = request.getMethod()+" "+url;
+            if (request.getQueryString() != null) {
+                tracePath += "?"+request.getQueryString();
+            }
             response.setHeader(TRACE_HEADER, traceId);
         }
         // authentication required?
