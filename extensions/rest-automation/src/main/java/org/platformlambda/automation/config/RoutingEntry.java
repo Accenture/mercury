@@ -87,13 +87,24 @@ public class RoutingEntry {
         if (exactRoutes.containsKey(nUrl)) {
             return new AssignedRoute(routes.get(key));
         } else {
+            AssignedRoute similar = null;
             for (String u: urlPaths) {
                 AssignedRoute info = getMatchedRoute(input, method, u);
                 if (info != null) {
-                    return info;
+                    if (similar == null) {
+                        similar = info;
+                    }
+                    // both URL path and method are correct
+                    if (routes.containsKey(method + ":" + u)) {
+                        return info;
+                    }
                 }
             }
-            return null;
+            /*
+             * Similar path found but method does not match.
+             * This allows it to reject the request with "HTTP-405 Method Not Allowed".
+             */
+            return similar;
         }
     }
 
