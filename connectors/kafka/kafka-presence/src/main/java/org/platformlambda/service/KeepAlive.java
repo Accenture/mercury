@@ -36,13 +36,13 @@ import java.util.ArrayList;
 public class KeepAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(KeepAlive.class);
 
+    public static final String MONITOR_ALIVE = "monitor_alive";
     private static final SecureRandom random = new SecureRandom();
     private static final String TO = "to";
     private static final long INTERVAL = 20 * 1000;
     private static final String INIT = "init";
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
-    private static final String ALIVE = "alive";
     private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
     private static final long TOKEN_LIFE = 5 * 60 * 1000;
@@ -65,7 +65,7 @@ public class KeepAlive extends Thread {
         PostOffice po = PostOffice.getInstance();
         // first cycle starts in 5 seconds
         long t0 = System.currentTimeMillis() - INTERVAL + 5000;
-        while(normal) {
+        while (normal) {
             long now = System.currentTimeMillis();
             if (now - t0 > INTERVAL) {
                 t0 = now;
@@ -78,7 +78,7 @@ public class KeepAlive extends Thread {
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
                 event.setHeader(ORIGIN, origin);
-                event.setHeader(TYPE, ALIVE);
+                event.setHeader(TYPE, MONITOR_ALIVE);
                 // token is used for leader election
                 event.setHeader(TOKEN, token);
                 // use sortable timestamp yyyymmddhhmmss

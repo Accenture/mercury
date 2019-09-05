@@ -24,12 +24,11 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
+import org.platformlambda.models.AppInfo;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class InfoService implements LambdaFunction {
@@ -40,6 +39,7 @@ public class InfoService implements LambdaFunction {
     private static final String LIST = "list";
     private static final String ID = "id";
     private static final String PUB_SUB = "pub_sub";
+    private static final long EXPIRY = 60 * 1000;   // THIS SHOULD BE 1 MINUTE
 
     @Override
     @SuppressWarnings("unchecked")
@@ -56,14 +56,32 @@ public class InfoService implements LambdaFunction {
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
             List<String> topics = getTopics(false);
-            result.put("topics", topics);
+            Map<String, Object> liveTopics = new HashMap<>();
+            Map<String, Object> expiredTopics = new HashMap<>();
+            result.put("live_topics", liveTopics);
+            result.put("expired_topics", expiredTopics);
+            Utility util = Utility.getInstance();
+            long now = System.currentTimeMillis();
+            for (String t: topics) {
+                AppInfo info = HouseKeeper.getAppInfo(t);
+                if (info != null) {
+                    if (now - info.lastSeen > EXPIRY) {
+                        expiredTopics.put(t, info.appName+", "+
+                                util.date2str(new Date(info.lastSeen), true)+", "+info.source);
+                    } else {
+                        liveTopics.put(t, info.appName+", "+
+                                util.date2str(new Date(info.lastSeen), true)+", "+info.source);
+                    }
+                }
+            }
             List<String> pubSub = getTopics(true);
             result.put("pub_sub", pubSub);
             // totals
             Map<String, Object> counts = new HashMap<>();
             counts.put("connections", connections.size());
             counts.put("pub_sub", pubSub.size());
-            counts.put("topics", topics.size());
+            counts.put("live_topics", liveTopics.size());
+            counts.put("expired_topics", expiredTopics.size());
             result.put("total", counts);
             return result;
         } else {

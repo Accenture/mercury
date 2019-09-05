@@ -25,8 +25,11 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.models.AppInfo;
+import org.platformlambda.models.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,28 +49,53 @@ public class HouseKeeper implements LambdaFunction {
     private static final String DOWNLOAD = "download";
     private static final String TO = "to";
     private static final String ORIGIN = "origin";
-    private static final String ALIVE = "alive";
+    private static final String NAME = "name";
+    private static final String MONITOR_ALIVE = KeepAlive.MONITOR_ALIVE;
+    private static final String APP_ALIVE = "app_alive";
     private static final String LEAVE = "leave";
     private static final String STOP = "stop";
     private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
-    private static final long EXPIRY = 60 * 1000;
+    private static final String EVENT = "event";
+    private static final String WS = "ws";
+    private static final String TEMP = "?";
+    private static final String RESTART = "restart";
+    private static final long ONE_MINUTE = 60 * 1000;
+    private static final long EXPIRY = 5 * ONE_MINUTE;   // THIS SHOULD BE 5 MINUTES
 
     private static final ConcurrentMap<String, Member> monitors = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, Long> topics = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, AppInfo> topics = new ConcurrentHashMap<>();
 
-    private boolean deleteTopicEnable;
+    private long start;
 
     public HouseKeeper() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        deleteTopicEnable = "true".equals(reader.getProperty("delete.topic.enable", "true"));
-        if (!deleteTopicEnable) {
-            log.info("***********************************************");
-            log.info("**********   NON-PRODUCTION WARNING  **********");
-            log.info("********** delete.topic.enable=false **********");
-            log.info("* THIS SETTING MUST NOT BE USED IN PRODUCTION *");
-            log.info("***********************************************");
+        start = System.currentTimeMillis() +
+                        getStartTime(reader.getProperty("start.housekeeping", "5m"));
+        log.info("Housekeeping will start at {}", Utility.getInstance().date2str(new Date(start), true));
+    }
+
+    private long getStartTime(String time) {
+        if (time.length() > 1 && (time.endsWith("s") || time.endsWith("m") || time.endsWith("h"))) {
+            long t = Utility.getInstance().str2long(time.substring(0, time.length()-1));
+            if (t > 0) {
+                if (time.endsWith("s")) {
+                    return t * 1000;
+                }
+                if (time.endsWith("m")) {
+                    return t * 60 * 1000;
+                }
+                if (time.endsWith("h")) {
+                    return t * 60 * 60 * 1000;
+                }
+            }
         }
+        log.error("start.housekeeping timer must be a number ends with s, m or h");
+        return 0;
+    }
+
+    public static AppInfo getAppInfo(String origin) {
+        return topics.get(origin);
     }
 
     public static Map<String, Date> getMonitors() {
@@ -81,62 +109,84 @@ public class HouseKeeper implements LambdaFunction {
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (ALIVE.equals(headers.get(TYPE)) && headers.containsKey(TIMESTAMP) && headers.containsKey(TOKEN)
-                && headers.containsKey(ORIGIN)) {
-            String origin = headers.get(ORIGIN);
-            String timestamp = headers.get(TIMESTAMP);
-            long time = Utility.getInstance().timestamp2ms(timestamp);
-            long now = System.currentTimeMillis();
-            if (time > now) {
-                time = now;
-            } else {
-                if (now - time > EXPIRY) {
-                    return false;
+        if (APP_ALIVE.equals(headers.get(TYPE))) {
+            if (headers.containsKey(TIMESTAMP) && headers.containsKey(ORIGIN) && headers.containsKey(NAME)) {
+                long timestamp = Utility.getInstance().timestamp2ms(headers.get(TIMESTAMP));
+                if (System.currentTimeMillis() - timestamp < EXPIRY) {
+                    topics.put(headers.get(ORIGIN), new AppInfo(headers.get(NAME), timestamp, EVENT));
                 }
             }
-            String me = Platform.getInstance().getOrigin();
-            if (!monitors.containsKey(origin)) {
-                log.info("Registered monitor {} {}", origin, me.equals(origin)? "(me)" : "(peer)");
-            }
-            monitors.put(origin, new Member(headers.get(TOKEN), time));
-            removeExpiredMonitors();
-            if (me.equals(origin)) {
-                log.debug("Found {} monitor{}", monitors.size(), monitors.size() == 1 ? "" : "s");
-                /*
-                 * Skip signals from other presence monitor.
-                 * Check only when it is my turn.
-                 */
-                String leader = getLeader(me);
-                boolean myTurn = leader.equals(me);
-                List<String> expired = findExpiredTopics();
-                PostOffice po = PostOffice.getInstance();
-                for (String e : expired) {
-                    // delete the expired topic from Kafka
-                    if (myTurn && deleteTopicEnable) {
-                        log.info("Removing expired topic {}", e);
-                        po.send(MANAGER, new Kv(TYPE, LEAVE), new Kv(ORIGIN, e));
-                    } else {
-                        log.info("Detected expired topic {}", e);
+        }
+        if (MONITOR_ALIVE.equals(headers.get(TYPE))) {
+            if (headers.containsKey(TIMESTAMP) && headers.containsKey(TOKEN) && headers.containsKey(ORIGIN)) {
+                String origin = headers.get(ORIGIN);
+                String timestamp = headers.get(TIMESTAMP);
+                long time = Utility.getInstance().timestamp2ms(timestamp);
+                long now = System.currentTimeMillis();
+                if (time > now) {
+                    time = now;
+                } else {
+                    if (now - time > EXPIRY) {
+                        return false;
                     }
-                    // when a topic is deleted, we should reset the producer and admin clients
-                    po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
-                    po.send(MANAGER, new Kv(TYPE, STOP));
-                    // remove from memory
-                    topics.remove(e);
                 }
-            } else if (body instanceof List) {
-                // compare connection list of myself with a peer
-                Map<String, Object> connections = MonitorService.getConnections();
-                List<String> myConnections = new ArrayList<>(connections.keySet());
-                List<String> peerConnections = (List<String>) body;
-                if (!sameList(myConnections, peerConnections)) {
-                    log.warn("Sync up connection list with peers");
-                    // download current connections from peers
-                    EventEnvelope event = new EventEnvelope();
-                    event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
-                    event.setHeader(TYPE, DOWNLOAD);
-                    event.setHeader(ORIGIN, me);
-                    PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
+                String me = Platform.getInstance().getOrigin();
+                if (!monitors.containsKey(origin)) {
+                    log.info("Registered monitor {} {}", origin, me.equals(origin) ? "(me)" : "(peer)");
+                }
+                monitors.put(origin, new Member(headers.get(TOKEN), time));
+                removeExpiredMonitors();
+                if (me.equals(origin)) {
+                    log.debug("Found {} monitor{}", monitors.size(), monitors.size() == 1 ? "" : "s");
+                    /*
+                     * Skip signals from other presence monitor.
+                     * Check only when it is my turn.
+                     */
+                    boolean restartMyProducer = false, restartAppProducers = false;
+                    String leader = getLeader(me);
+                    boolean myTurn = leader.equals(me);
+                    List<String> expired = findExpiredTopics();
+                    PostOffice po = PostOffice.getInstance();
+                    for (String e : expired) {
+                        restartMyProducer = true;
+                        // delete the expired topic from Kafka
+                        if (myTurn && now > start) {
+                            restartAppProducers = true;
+                            log.info("Removing expired topic {}", e);
+                            po.send(MANAGER, new Kv(TYPE, LEAVE), new Kv(ORIGIN, e));
+                        } else {
+                            log.info("Detected expired topic {}", e);
+                        }
+                        // remove from memory
+                        topics.remove(e);
+                    }
+                    if (restartAppProducers) {
+                        List<String> peers = getAppPeers();
+                        // and broadcast the restart event to all live application instances
+                        for (String p : peers) {
+                            po.send(ServiceDiscovery.SERVICE_REGISTRY + "@" + p, new Kv(TYPE, RESTART));
+                        }
+                    }
+                    if (restartMyProducer) {
+                        // when a topic is deleted, we should reset the producer and admin clients
+                        po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+                        po.send(MANAGER, new Kv(TYPE, STOP));
+                    }
+
+                } else if (body instanceof List) {
+                    // compare connection list of myself with a peer
+                    Map<String, Object> connections = MonitorService.getConnections();
+                    List<String> myConnections = new ArrayList<>(connections.keySet());
+                    List<String> peerConnections = (List<String>) body;
+                    if (!sameList(myConnections, peerConnections)) {
+                        log.warn("Sync up connection list with peers");
+                        // download current connections from peers
+                        EventEnvelope event = new EventEnvelope();
+                        event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
+                        event.setHeader(TYPE, DOWNLOAD);
+                        event.setHeader(ORIGIN, me);
+                        PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
+                    }
                 }
             }
         }
@@ -153,29 +203,36 @@ public class HouseKeeper implements LambdaFunction {
         return a.toString().equals(b.toString());
     }
 
+    @SuppressWarnings("unchecked")
     private List<String> findExpiredTopics() {
         long now = System.currentTimeMillis();
         List<String> expired = new ArrayList<>();
-        List<String> connections = new ArrayList<>(MonitorService.getConnections().keySet());
-        // topics must be live for current connections
-        for (String c: connections) {
-            topics.put(c, now);
+        Map<String, Object> connections = MonitorService.getConnections();
+        for (String key: connections.keySet()) {
+            Object o = connections.get(key);
+            if (o instanceof Map) {
+                Map<String, Object> info = (Map<String, Object>) o;
+                if (info.containsKey(NAME)) {
+                    topics.put(key, new AppInfo(info.get(NAME).toString(), now, WS));
+                }
+            }
         }
         try {
             List<String> registered = getTopics();
             for (String t: registered) {
                 if (!topics.containsKey(t)) {
-                    topics.put(t, now);
+                    // this gives an unknown topic to wait for a complete alive cycle
+                    topics.put(t, new AppInfo("Unknown", now, TEMP));
+                }
+            }
+            for (String k: topics.keySet()) {
+                AppInfo appInfo = topics.get(k);
+                if (now - appInfo.lastSeen > EXPIRY) {
+                    expired.add(k);
                 }
             }
         } catch (TimeoutException | IOException | AppException e) {
             log.error("Unable to scan for expired topics - {}", e.getMessage());
-        }
-        for (String k: topics.keySet()) {
-            long time = topics.get(k);
-            if (now - time > EXPIRY) {
-                expired.add(k);
-            }
         }
         return expired;
     }
@@ -220,18 +277,32 @@ public class HouseKeeper implements LambdaFunction {
     @SuppressWarnings("unchecked")
     private List<String> getTopics() throws TimeoutException, IOException, AppException {
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope res1 = po.request(MANAGER, 30000, new Kv(TYPE, LIST));
+        EventEnvelope res1 = po.request(MANAGER, 20000, new Kv(TYPE, LIST));
         return res1.getBody() instanceof List? (List<String>) res1.getBody() : new ArrayList<>();
     }
 
-    private class Member {
-        public int token;
-        public long updated;
-
-        public Member(String token, long updated) {
-            this.token = Utility.getInstance().str2int(token);
-            this.updated = updated;
+    @SuppressWarnings("unchecked")
+    private List<String> getAppPeers() throws IOException, TimeoutException, AppException {
+        List<String> peers = new ArrayList<>();
+        PostOffice po = PostOffice.getInstance();
+        // check topic list
+        EventEnvelope list = po.request(MANAGER, 20000, new Kv(TYPE, LIST));
+        if (list.getBody() instanceof List) {
+            List<String> eventTopics = (List<String>) list.getBody();
+            if (!eventTopics.isEmpty()) {
+                long now = System.currentTimeMillis();
+                for (String t : eventTopics) {
+                    // check if topic is active
+                    AppInfo info = getAppInfo(t);
+                    if (info != null) {
+                        if (now - info.lastSeen < EXPIRY) {
+                            peers.add(t);
+                        }
+                    }
+                }
+            }
         }
+        return peers;
     }
 
 }

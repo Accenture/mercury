@@ -47,7 +47,7 @@ public class HouseKeeper implements LambdaFunction {
     private static final String TOKEN = "token";
     private static final String DOWNLOAD = "download";
     private static final String TIMESTAMP = "timestamp";
-    private static final long EXPIRY = 60 * 1000;
+    private static final long EXPIRY = 90 * 1000;
 
     private static final ConcurrentMap<String, Member> monitors = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Long> topics = new ConcurrentHashMap<>();

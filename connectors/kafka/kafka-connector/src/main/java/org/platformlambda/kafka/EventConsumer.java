@@ -42,7 +42,7 @@ import java.util.Set;
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
-    private static final long POLL_MS = 10000;
+    private static final long POLL_SECONDS = 60;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
     private boolean normal = true, pubSub = false;
@@ -105,7 +105,7 @@ public class EventConsumer extends Thread {
         log.info("Subscribed topic {}", topic);
 
         if (pubSub && offset > -1) {
-            consumer.poll(Duration.ofMillis(POLL_MS));
+            consumer.poll(Duration.ofSeconds(POLL_SECONDS));
             Set<TopicPartition> p = consumer.assignment();
             for (TopicPartition tp: p) {
                 consumer.seek(tp, offset);
@@ -114,7 +114,7 @@ public class EventConsumer extends Thread {
         }
         try {
             while (normal) {
-                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(POLL_MS));
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(POLL_SECONDS));
                 for (ConsumerRecord<String, byte[]> record : records) {
                     EventEnvelope message = new EventEnvelope();
                     try {

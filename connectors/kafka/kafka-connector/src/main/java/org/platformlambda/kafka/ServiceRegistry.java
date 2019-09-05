@@ -52,6 +52,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String INIT = "init";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
+    private static final String RESTART = "restart";
     private static final String READY = "ready";
     private static final String CHECKSUM = "checksum";
     private static final String PING = "ping";
@@ -249,6 +250,12 @@ public class ServiceRegistry implements LambdaFunction {
                 }
                 sendMyRoutes(origin);
             }
+        }
+        if (RESTART.equals(type)) {
+            // just restart
+            log.info("Restarting event producer");
+            po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+            po.send(MANAGER, new Kv(TYPE, STOP));
         }
         // when a node leaves
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {

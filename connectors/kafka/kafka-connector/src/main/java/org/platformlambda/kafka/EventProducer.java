@@ -214,7 +214,7 @@ public class EventProducer implements LambdaFunction {
 
     private List<String> getDestinations(String to, boolean broadcast) {
         // broadcast to all presence monitor instances?
-        if (isServiceMonitor && to.equals("*")) {
+        if (to.equals("*")) {
             return Collections.singletonList(PRESENCE_MONITOR);
         }
         // normal message

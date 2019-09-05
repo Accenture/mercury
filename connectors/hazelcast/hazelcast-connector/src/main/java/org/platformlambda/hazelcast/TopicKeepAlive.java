@@ -31,7 +31,7 @@ public class TopicKeepAlive extends Thread {
 
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String TYPE = ServiceDiscovery.TYPE;
-    private static final long TOPIC_ALIVE_INTERVAL = 15 * 1000;
+    private static final long TOPIC_ALIVE_INTERVAL = 20 * 1000;
 
     private boolean normal = true;
 

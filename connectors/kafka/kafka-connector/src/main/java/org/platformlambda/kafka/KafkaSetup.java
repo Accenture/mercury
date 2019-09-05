@@ -131,6 +131,11 @@ public class KafkaSetup implements CloudSetup {
             platform.registerPrivate(CLOUD_CHECK, new KafkaHealthCheck(), 2);
             platform.startCloudServices();
 
+            if (!isServiceMonitor) {
+                AppAlive alive = new AppAlive();
+                alive.start();
+            }
+
         } catch (IOException | TimeoutException | AppException e) {
             log.error("Unable to setup kafka client", e);
             System.exit(-1);
