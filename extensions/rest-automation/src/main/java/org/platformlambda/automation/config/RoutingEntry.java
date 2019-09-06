@@ -49,7 +49,7 @@ public class RoutingEntry {
     private static final String DROP = "drop";
     private static final String KEEP = "keep";
     private static final String ACCESS_CONTROL_PREFIX = "Access-Control-";
-    private static final String[] VALID_METHODS = {"GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"};
+    private static final String[] VALID_METHODS = {"GET", "PUT", "POST", "DELETE", "HEAD", "PATCH", "OPTIONS"};
     private static final List<String> METHOD_LIST = Arrays.asList(VALID_METHODS);
     private static final int FIVE_MINUTES = 5 * 60;
     private static final int MIN_THRESHOLD = 5000;

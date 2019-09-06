@@ -74,6 +74,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
+    private static final String PATCH = "PATCH";
+    private static final String HEAD = "HEAD";
     private static final String BODY = "body";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
@@ -360,7 +362,9 @@ public class ServiceGateway extends HttpServlet {
             contentType = "application/octet-stream";
         }
         // ignore URL encoded content type because it has been already fetched as request/query parameters
-        if (!contentType.startsWith(MediaType.APPLICATION_FORM_URLENCODED) && (request.getMethod().equals(POST) || request.getMethod().equals(PUT))) {
+        if (!contentType.startsWith(MediaType.APPLICATION_FORM_URLENCODED) &&
+                (request.getMethod().equals(POST) || request.getMethod().equals(PUT) ||
+                        request.getMethod().equals(PATCH))) {
             // handle request body
             if (contentType.startsWith(MediaType.MULTIPART_FORM_DATA) && request.getMethod().equals(POST)) {
                 // file upload
@@ -475,7 +479,7 @@ public class ServiceGateway extends HttpServlet {
         context.addListener(new AsyncHttpHandler(requestId));
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
-        holder.setUrl(url).setCorsId(route.info.corsId);
+        holder.setUrl(url).setMethod(request.getMethod()).setCorsId(route.info.corsId);
         String acceptContent = request.getHeader(ACCEPT);
         if (acceptContent != null) {
             holder.setAccept(acceptContent);
@@ -489,6 +493,8 @@ public class ServiceGateway extends HttpServlet {
         if (route.info.tracing) {
             event.setTrace(traceId, tracePath);
         }
+
+        log.info("dataset--------{}", dataset);
         try {
             po.send(event);
         } catch (IOException e) {
@@ -609,74 +615,77 @@ public class ServiceGateway extends HttpServlet {
                                     return null;
                                 }
                             }
-                            // output is a stream?
-                            Object resBody = event.getBody();
-                            if (resBody == null && streamId != null) {
-                                ObjectStreamIO io = new ObjectStreamIO(streamId);
-                                ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout));
-                                try {
-                                    OutputStream out = response.getOutputStream();
-                                    for (Object block : in) {
-                                        // update last access time
-                                        holder.touch();
-                                        /*
-                                         * only bytes or text are supported when using output stream
-                                         * e.g. for downloading a large file
-                                         */
-                                        if (block instanceof byte[]) {
-                                            out.write((byte[]) block);
+                            // With the exception of HEAD method, HTTP response may have a body
+                            if (!HEAD.equals(holder.method)) {
+                                // output is a stream?
+                                Object resBody = event.getBody();
+                                if (resBody == null && streamId != null) {
+                                    ObjectStreamIO io = new ObjectStreamIO(streamId);
+                                    ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout));
+                                    try {
+                                        OutputStream out = response.getOutputStream();
+                                        for (Object block : in) {
+                                            // update last access time
+                                            holder.touch();
+                                            /*
+                                             * only bytes or text are supported when using output stream
+                                             * e.g. for downloading a large file
+                                             */
+                                            if (block instanceof byte[]) {
+                                                out.write((byte[]) block);
+                                            }
+                                            if (block instanceof String) {
+                                                out.write(util.getUTF((String) block));
+                                            }
                                         }
-                                        if (block instanceof String) {
-                                            out.write(util.getUTF((String) block));
+                                        in.close();
+                                    } catch (IOException | RuntimeException e) {
+                                        log.warn("{} output stream {} interrupted - {}", holder.url, streamId, e.getMessage());
+                                        if (e.getMessage().contains("timeout")) {
+                                            response.sendError(408, e.getMessage());
+                                        } else {
+                                            response.sendError(500, e.getMessage());
                                         }
                                     }
-                                    in.close();
-                                } catch (IOException | RuntimeException e) {
-                                    log.warn("{} output stream {} interrupted - {}", holder.url, streamId, e.getMessage());
-                                    if (e.getMessage().contains("timeout")) {
-                                        response.sendError(408, e.getMessage());
+                                    // regular output
+                                } else if (resBody instanceof Map) {
+                                    if (contentType.startsWith(MediaType.TEXT_HTML)) {
+                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
+                                        OutputStream out = response.getOutputStream();
+                                        out.write(util.getUTF(HTML_START));
+                                        out.write(payload);
+                                        out.write(util.getUTF(HTML_END));
+                                    } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
+                                        response.getOutputStream().write(util.getUTF(xmlWriter.write(resBody)));
                                     } else {
-                                        response.sendError(500, e.getMessage());
+                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
+                                        response.getOutputStream().write(payload);
                                     }
+                                } else if (resBody instanceof List) {
+                                    if (contentType.startsWith(MediaType.TEXT_HTML)) {
+                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
+                                        OutputStream out = response.getOutputStream();
+                                        out.write(util.getUTF(HTML_START));
+                                        out.write(payload);
+                                        out.write(util.getUTF(HTML_END));
+                                    } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
+                                        // xml must be delivered as a map so we use a wrapper here
+                                        Map<String, Object> map = new HashMap<>();
+                                        map.put(RESULT, resBody);
+                                        response.getOutputStream().write(util.getUTF(xmlWriter.write(map)));
+                                    } else {
+                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
+                                        response.getOutputStream().write(payload);
+                                    }
+                                } else if (resBody instanceof String) {
+                                    String text = (String) resBody;
+                                    response.getOutputStream().write(util.getUTF(text));
+                                } else if (resBody instanceof byte[]) {
+                                    byte[] binary = (byte[]) resBody;
+                                    response.getOutputStream().write(binary);
+                                } else if (resBody != null) {
+                                    response.getOutputStream().write(util.getUTF(resBody.toString()));
                                 }
-                            // regular output
-                            } else if (resBody instanceof Map) {
-                                if (contentType.startsWith(MediaType.TEXT_HTML)) {
-                                    byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                    OutputStream out = response.getOutputStream();
-                                    out.write(util.getUTF(HTML_START));
-                                    out.write(payload);
-                                    out.write(util.getUTF(HTML_END));
-                                } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
-                                    response.getOutputStream().write(util.getUTF(xmlWriter.write(resBody)));
-                                } else {
-                                    byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                    response.getOutputStream().write(payload);
-                                }
-                            } else if (resBody instanceof List) {
-                                if (contentType.startsWith(MediaType.TEXT_HTML)) {
-                                    byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                    OutputStream out = response.getOutputStream();
-                                    out.write(util.getUTF(HTML_START));
-                                    out.write(payload);
-                                    out.write(util.getUTF(HTML_END));
-                                } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
-                                    // xml must be delivered as a map so we use a wrapper here
-                                    Map<String, Object> map = new HashMap<>();
-                                    map.put(RESULT, resBody);
-                                    response.getOutputStream().write(util.getUTF(xmlWriter.write(map)));
-                                } else {
-                                    byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                    response.getOutputStream().write(payload);
-                                }
-                            } else if (resBody instanceof String) {
-                                String text = (String) resBody;
-                                response.getOutputStream().write(util.getUTF(text));
-                            } else if (resBody instanceof byte[]) {
-                                byte[] binary = (byte[]) resBody;
-                                response.getOutputStream().write(binary);
-                            } else if (resBody != null) {
-                                response.getOutputStream().write(util.getUTF(resBody.toString()));
                             }
                         }
                         holder.context.complete();

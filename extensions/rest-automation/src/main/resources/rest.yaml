@@ -1,6 +1,6 @@
 rest:
   - service: "hello.world"
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST', 'HEAD', 'PATCH']
     url: "/api/hello/world"
     timeout: 10s
     # optional authentication service which should return result as an EventEnvelope
