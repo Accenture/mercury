@@ -493,8 +493,6 @@ public class ServiceGateway extends HttpServlet {
         if (route.info.tracing) {
             event.setTrace(traceId, tracePath);
         }
-
-        log.info("dataset--------{}", dataset);
         try {
             po.send(event);
         } catch (IOException e) {
