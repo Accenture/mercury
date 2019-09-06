@@ -45,7 +45,6 @@ public class ServiceNameTest {
         assertTrue(util.reservedFilename(windowsMetafile));
         assertTrue(util.reservedExtension(windowsExt));
         assertFalse(util.reservedExtension(valid));
-
     }
 
 }

@@ -60,10 +60,14 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
     }
 
     private boolean exists(String route) {
-        if (Platform.getInstance().hasRoute(route)) {
-            return true;
+        if (route.contains(".")) {
+            if (Platform.getInstance().hasRoute(route)) {
+                return true;
+            }
+            return routes.containsKey(route);
+        } else {
+            return originExists(route);
         }
-        return routes.containsKey(route);
     }
 
 }

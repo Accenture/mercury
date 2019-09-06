@@ -788,15 +788,18 @@ public class PostOffice {
         if (route.length == 0) {
             return false;
         }
+        int local = 0;
         Platform platform = Platform.getInstance();
         List<String> remoteServices = new ArrayList<>();
         for (String r: route) {
-            if (!platform.hasRoute(r)) {
+            if (platform.hasRoute(r)) {
+                local++;
+            } else {
                 remoteServices.add(r);
             }
         }
         // all routes are local
-        if (remoteServices.isEmpty()) {
+        if (local == route.length && remoteServices.isEmpty()) {
             return true;
         }
         // check if the remote services are reachable
@@ -829,7 +832,6 @@ public class PostOffice {
             log.error("Unable to check route {} - ({}) {}", route, e.getStatus(), e.getMessage());
         }
         return false;
-
     }
 
 }

@@ -8,7 +8,7 @@ It is as simple as a redirection from a URL to a service route of a function. Su
 
 The REST automation helper application is language neutual so you can write your business logic in Java, Python or any Mercury supported language pack without any application server.
 
-## User defined trace processor (upcoming)
+## User defined trace processor
 
 The trace processor is provided as an example so you can custom it for your own use cases.
 

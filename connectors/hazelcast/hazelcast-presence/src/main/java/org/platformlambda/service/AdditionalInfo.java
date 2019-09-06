@@ -37,8 +37,11 @@ public class AdditionalInfo implements LambdaFunction {
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String QUERY = "query";
     private static final String TYPE = "type";
-    private static final String LIST = "list";
+    private static final String GET_ALL = "get_all";
     private static final String ID = "id";
+    private static final String NODE = "node";
+    private static final String NAME = "name";
+    private static final String UPDATED = "updated";
 
     @Override
     @SuppressWarnings("unchecked")
@@ -54,7 +57,7 @@ public class AdditionalInfo implements LambdaFunction {
             result.put("connections", connections);
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
-            List<String> topics = getTopics();
+            Map<String, String> topics = getTopics();
             result.put("topics", topics);
             // totals
             Map<String, Object> counts = new HashMap<>();
@@ -78,11 +81,22 @@ public class AdditionalInfo implements LambdaFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> getTopics() throws TimeoutException, IOException, AppException {
+    private Map<String, String> getTopics() throws TimeoutException, IOException, AppException {
         // get topic list from hazelcast
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope res1 = po.request(MANAGER, 30000, new Kv(TYPE, LIST));
-        return res1.getBody() instanceof List? (List<String>) res1.getBody() : new ArrayList<>();
+        EventEnvelope res = po.request(MANAGER, 30000, new Kv(TYPE, GET_ALL));
+        Map<String, String> result = new HashMap<>();
+        List<Map<String, String>> dataset = res.getBody() instanceof List?
+                                            (List<Map<String, String>>) res.getBody() : new ArrayList<>();
+        for (Map<String, String> map: dataset) {
+            if (map.containsKey(NAME) && map.containsKey(NODE) && map.containsKey(UPDATED)) {
+                String name = map.get(NAME);
+                String node = map.get(NODE);
+                String time = map.get(UPDATED);
+                result.put(node, name+", "+time);
+            }
+        }
+        return result;
     }
 
 }

@@ -39,7 +39,7 @@ public class InfoService implements LambdaFunction {
     private static final String LIST = "list";
     private static final String ID = "id";
     private static final String PUB_SUB = "pub_sub";
-    private static final long EXPIRY = 60 * 1000;   // THIS SHOULD BE 1 MINUTE
+    private static final long EXPIRY = 60 * 1000;
 
     @Override
     @SuppressWarnings("unchecked")

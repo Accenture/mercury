@@ -47,6 +47,7 @@ public class TopicManager implements LambdaFunction {
     private static final String LEAVE = "leave";
     private static final String LIST = "list";
     private static final String GET = "get";
+    private static final String GET_ALL = "get_all";
     private static final String EXISTS = "exists";
     private static final String NODES = "nodes";
     private static final String JOIN = "join";
@@ -77,6 +78,9 @@ public class TopicManager implements LambdaFunction {
             if (GET.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
                 String origin = headers.get(ORIGIN);
                 return getTopic(origin);
+            }
+            if (GET_ALL.equals(headers.get(TYPE))) {
+                return getTopics();
             }
             // if origin is not specified, it will create the dedicated topic for a new application that is starting up
             if (CREATE_TOPIC.equals(headers.get(TYPE))) {
@@ -112,6 +116,7 @@ public class TopicManager implements LambdaFunction {
             IMap<String, byte[]> map = client.getMap(nodes);
             Map<String, String> metadata = new HashMap<>();
             metadata.put("node", topic);
+            metadata.put("name", Platform.getInstance().getName());
             metadata.put("created", now);
             metadata.put("updated", now);
             try {
@@ -132,6 +137,7 @@ public class TopicManager implements LambdaFunction {
         if (metadata == null) {
             metadata = new HashMap<>();
             metadata.put("node", topic);
+            metadata.put("name", Platform.getInstance().getName());
             metadata.put("recovered", now);
             log.info("Topic {} recovered", topic);
             // tell peers that I have joined
@@ -152,7 +158,6 @@ public class TopicManager implements LambdaFunction {
             // this does not happen
             log.error("Unable to touch topic {} - {}", topic, e.getMessage());
         }
-
     }
 
     @SuppressWarnings("unchecked")
@@ -176,9 +181,20 @@ public class TopicManager implements LambdaFunction {
         for (String t: topicList) {
             if (regularTopicFormat(t)) {
                 result.add(t);
-            } else {
-                log.error("Found invalid topic {}", t);
             }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, String>> getTopics() throws IOException {
+        List<Map<String, String>> result = new ArrayList<>();
+        String nodes = HazelcastSetup.getNamespace()+NODES;
+        HazelcastInstance client = HazelcastSetup.getHazelcastClient();
+        IMap<String, byte[]> map = client.getMap(nodes);
+        for (String k: map.keySet()) {
+            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(k));
+            result.add(metadata);
         }
         return result;
     }

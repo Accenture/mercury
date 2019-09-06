@@ -89,11 +89,17 @@ public class ServiceQuery implements LambdaFunction {
     }
 
     private boolean exists(String route) {
-        if (Platform.getInstance().hasRoute(route)) {
-            return true;
+        if (route.contains(".")) {
+            // normal route name
+            if (Platform.getInstance().hasRoute(route)) {
+                return true;
+            }
+            Map<String, String> targets = ServiceRegistry.getDestinations(route);
+            return targets != null && !targets.isEmpty();
+        } else {
+            // origin ID
+            return ServiceRegistry.destinationExists(route);
         }
-        Map<String, String> targets = ServiceRegistry.getDestinations(route);
-        return targets != null && !targets.isEmpty();
     }
 
 }

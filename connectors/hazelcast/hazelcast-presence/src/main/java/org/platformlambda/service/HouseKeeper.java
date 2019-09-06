@@ -26,6 +26,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.hazelcast.TopicManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,17 +41,17 @@ public class HouseKeeper implements LambdaFunction {
 
     private static final String MANAGER = MainApp.MANAGER;
     private static final String TYPE = "type";
-    private static final String LIST = "list";
     private static final String ORIGIN = "origin";
     private static final String ALIVE = "alive";
     private static final String LEAVE = "leave";
     private static final String TOKEN = "token";
     private static final String DOWNLOAD = "download";
     private static final String TIMESTAMP = "timestamp";
-    private static final long EXPIRY = 90 * 1000;
+    private static final long ONE_MINUTE = 60 * 1000;
+    // Topic expiry is 60 seconds, deletion is 2 minutes
+    private static final long EXPIRY = 2 * ONE_MINUTE;
 
     private static final ConcurrentMap<String, Member> monitors = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, Long> topics = new ConcurrentHashMap<>();
 
     public static Map<String, Date> getMonitors() {
         Map<String, Date> result = new HashMap<>();
@@ -93,15 +94,13 @@ public class HouseKeeper implements LambdaFunction {
                 List<String> expired = findExpiredTopics();
                 PostOffice po = PostOffice.getInstance();
                 for (String e : expired) {
-                    // delete the expired topic from Kafka
+                    // delete the expired topic
                     if (myTurn) {
                         log.info("Removing expired topic {}", e);
                         po.send(MANAGER, new Kv(TYPE, LEAVE), new Kv(ORIGIN, e));
                     } else {
                         log.info("Detected expired topic {}", e);
                     }
-                    // remove from memory
-                    topics.remove(e);
                 }
             } else if (body instanceof List) {
                 // compare connection list
@@ -133,28 +132,20 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private List<String> findExpiredTopics() {
+        Utility util = Utility.getInstance();
         long now = System.currentTimeMillis();
         List<String> expired = new ArrayList<>();
-        List<String> connections = new ArrayList<>(MonitorService.getConnections().keySet());
-        // topics must be live for current connections
-        for (String c: connections) {
-            topics.put(c, now);
-        }
         try {
-            List<String> registered = getTopics();
-            for (String t: registered) {
-                if (!topics.containsKey(t)) {
-                    topics.put(t, now);
+            Map<String, String> registered = getTopics();
+            for (String node: registered.keySet()) {
+                String timestamp = registered.get(node);
+                long time = util.str2date(timestamp).getTime();
+                if (now - time > EXPIRY) {
+                    expired.add(node);
                 }
             }
         } catch (TimeoutException | IOException | AppException e) {
             log.error("Unable to scan for expired topics - {}", e.getMessage());
-        }
-        for (String k: topics.keySet()) {
-            long time = topics.get(k);
-            if (now - time > EXPIRY) {
-                expired.add(k);
-            }
         }
         return expired;
     }
@@ -197,13 +188,14 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> getTopics() throws TimeoutException, IOException, AppException {
+    private Map<String, String> getTopics() throws TimeoutException, IOException, AppException {
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope res1 = po.request(MANAGER, 30000, new Kv(TYPE, LIST));
-        return res1.getBody() instanceof List? (List<String>) res1.getBody() : new ArrayList<>();
+        EventEnvelope res = po.request(MANAGER, 30000, new Kv(TYPE, TopicManager.LIST_TIMESTAMP));
+        return res.getBody() instanceof Map? (Map<String, String>) res.getBody() : new HashMap<>();
     }
 
     private class Member {
+
         public int token;
         public long updated;
 
@@ -211,6 +203,7 @@ public class HouseKeeper implements LambdaFunction {
             this.token = Utility.getInstance().str2int(token);
             this.updated = updated;
         }
+
     }
 
 }
