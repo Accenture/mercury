@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.websocket.CloseReason;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -146,20 +147,35 @@ public class LanguageConnector implements LambdaFunction {
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
+    private static String getApiKey() {
+        Utility util = Utility.getInstance();
+        AppConfigReader reader = AppConfigReader.getInstance();
+        String envVar = reader.getProperty("api.key.location");
+        String apiKeyInEnv = System.getenv(envVar);
+        if (apiKeyInEnv != null) {
+            log.info("Found API key in environment variable {}", envVar);
+            return apiKeyInEnv;
+        }
+        File tempConfigDir = new File("/tmp/config");
+        if (!tempConfigDir.exists()) {
+            tempConfigDir.mkdirs();
+        }
+        File apiKeyFile = new File(tempConfigDir, "lang-api-key.txt");
+        if (apiKeyFile.exists()) {
+            log.info("Reading API key from {}", apiKeyFile);
+            return util.file2str(apiKeyFile).trim();
+        } else {
+            log.warn("Generating new API key in {} because it is not found in environment variable {}", apiKeyFile, envVar);
+            String key = util.getUuid();
+            util.str2file(apiKeyFile, key+"\n");
+            return key;
+        }
+    }
+
     public static void initialize() throws IOException {
         if (apiKey == null) {
             cache = MultipartPayload.getInstance().getCache();
-            /*
-             * If no api.key is given in application.properties,
-             *  the API key will be random so it will not accept any connection.
-             */
-            Utility util = Utility.getInstance();
-            AppConfigReader reader = AppConfigReader.getInstance();
-            apiKey = reader.getProperty("api.key");
-            if (apiKey == null) {
-                apiKey = util.getUuid();
-                log.error("Language packs disabled because api.key is missing in application.properties or LANG_API_KEY in environment");
-            }
+            apiKey = getApiKey();
             log.info("Started");
             LambdaFunction registry = (headers, body, instance) -> {
                 if (headers.containsKey(TYPE)) {
