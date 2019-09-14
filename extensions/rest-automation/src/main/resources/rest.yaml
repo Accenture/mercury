@@ -48,14 +48,29 @@ cors:
       - "Access-Control-Allow-Credentials: true"
 
 #
-# add/drop/keep header parameters
+# add/drop/keep HTTP request and response headers
 #
 headers:
   - id: header_1
-    # headers to be inserted
-    add: ["hello-world: nice"]
-    # keep and drop are mutually exclusive where keep has precedent over drop
-    # i.e. when keep is not empty, it will drop all headers except those to be kept
-    # when keep is empty and drop is not, it will drop only the headers in the drop list
-#    keep: ['x-session-id', 'user-agent']
-    drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']
+    request:
+      #
+      # headers to be inserted
+      #    add: ["hello-world: nice"]
+      #
+      # keep and drop are mutually exclusive where keep has precedent over drop
+      # i.e. when keep is not empty, it will drop all headers except those to be kept
+      # when keep is empty and drop is not, it will drop only the headers in the drop list
+      #    keep: ['x-session-id', 'user-agent']
+      #
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']
+    response:
+      #
+      # the system can filter the response headers set by a target service
+      # but it cannot remove any response headers set by the underlying servlet container.
+      # However, you may override non-essential headers using the "add" directive. e.g. the "server" header.
+      # i.e. don't touch essential headers such as content-length.
+      #
+      #     keep: ['only_this_header_and_drop_all']
+      #     drop: ['drop_only_these_headers', 'another_drop_header']
+      #
+      #      add: ["server: mercury 1.12"]

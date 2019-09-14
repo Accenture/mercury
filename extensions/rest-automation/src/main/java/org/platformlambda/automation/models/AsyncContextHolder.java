@@ -25,7 +25,7 @@ public class AsyncContextHolder {
     public AsyncContext context;
     public long timeout;
     public long lastAccess;
-    public String url, corsId, accept, method;
+    public String url, corsId, resHeaderId, accept, method;
 
     public AsyncContextHolder(AsyncContext context, long timeout) {
         this.context = context;
@@ -40,6 +40,11 @@ public class AsyncContextHolder {
 
     public AsyncContextHolder setCorsId(String corsId) {
         this.corsId = corsId;
+        return this;
+    }
+
+    public AsyncContextHolder setResHeaderId(String resHeaderId) {
+        this.resHeaderId = resHeaderId;
         return this;
     }
 

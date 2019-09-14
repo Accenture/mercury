@@ -6,11 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.9, 8/26/2019
+## Version 1.12.9, 9/14/2019
 
 ### Added
 
-Distributed tracing implemented in platform-core and rest-automation
+1. Distributed tracing implemented in platform-core and rest-automation
+2. Improved HTTP header transformation for rest-automation
 
 ### Removed
 

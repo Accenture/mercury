@@ -22,7 +22,7 @@ import java.util.List;
 
 public class RouteInfo {
 
-    public String url, service, authService, corsId, transformId;
+    public String url, service, authService, corsId, requestTransformId, responseTransformId;
     public int threshold = 50000;
     public boolean tracing = false;
     public List<String> methods;

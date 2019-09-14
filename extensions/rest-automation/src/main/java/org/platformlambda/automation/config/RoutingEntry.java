@@ -45,6 +45,8 @@ public class RoutingEntry {
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
     private static final String TIMEOUT = "timeout";
+    private static final String REQUEST = "request";
+    private static final String RESPONSE = "response";
     private static final String ADD = "add";
     private static final String DROP = "drop";
     private static final String KEEP = "keep";
@@ -61,7 +63,8 @@ public class RoutingEntry {
     // id -> {maps for options and headers}
     private Map<String, CorsInfo> cors = new HashMap<>();
     // id -> add, drop, keep
-    private Map<String, HeaderInfo> headerTransform = new HashMap<>();
+    private Map<String, HeaderInfo> requestHeaderTransform = new HashMap<>();
+    private Map<String, HeaderInfo> responseHeaderTransform = new HashMap<>();
     private List<String> urlPaths = new ArrayList<>();
 
     private static RoutingEntry instance = new RoutingEntry();
@@ -108,8 +111,8 @@ public class RoutingEntry {
         }
     }
 
-    public HeaderInfo getHeaderInfo(String id) {
-        return headerTransform.get(id);
+    public HeaderInfo getHeaderInfo(String id, boolean request) {
+        return request? requestHeaderTransform.get(id) : responseHeaderTransform.get(id);
     }
 
     public CorsInfo getCorsInfo(String id) {
@@ -178,7 +181,7 @@ public class RoutingEntry {
                 if (isMap((List<Object>) headerList)) {
                     loadHeaderTransform((List<Map<String, Object>>) headerList);
                 } else {
-                    log.error("'headers' section must be a list of configuration where each entry is a map of id, add, drop and keep");
+                    log.error("'headers' section must be a list of configuration with request and response entries");
                 }
 
             } else {
@@ -344,9 +347,16 @@ public class RoutingEntry {
             }
             if (entry.containsKey(HEADERS)) {
                 String id = entry.get(HEADERS).toString();
-                if (headerTransform.containsKey(id)) {
-                    info.transformId = id;
-                } else {
+                boolean foundTransform = false;
+                if (requestHeaderTransform.containsKey(id)) {
+                    info.requestTransformId = id;
+                    foundTransform = true;
+                }
+                if (responseHeaderTransform.containsKey(id)) {
+                    info.responseTransformId = id;
+                    foundTransform = true;
+                }
+                if (!foundTransform) {
                     log.error("Skipping invalid entry because headers ID {} is not found, {}", id, entry);
                     return;
                 }
@@ -495,7 +505,7 @@ public class RoutingEntry {
                     info.addHeader(h.toString());
                 }
                 cors.put(id, info);
-                log.info("Loaded CORS definition with id {}", id);
+                log.info("Loaded {} CORS headers", id);
 
             } else {
                 log.error("Skipping invalid CORS entry {}", entry);
@@ -537,45 +547,53 @@ public class RoutingEntry {
 
     private void loadHeaderTransform(List<Map<String, Object>> config) {
         for (Map<String, Object> entry: config) {
-            if (entry.containsKey(ID) &&
-                    (entry.containsKey(ADD) || entry.containsKey(DROP) || entry.containsKey(KEEP))) {
-                loadHeaderEntry(entry);
+            if (entry.containsKey(ID)) {
+                loadHeaderEntry(entry, true);
+                loadHeaderEntry(entry, false);
             } else {
-                log.error("Skipping invalid HEADERS definition - it must contain id and one or more of add/drop/keep {}", entry);
+                log.error("Skipping invalid HEADERS definition - it must contain id with request/response entries {}", entry);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void loadHeaderEntry(Map<String, Object> entry) {
+    private void loadHeaderEntry(Map<String, Object> entry, boolean isRequest) {
         String id = (String) entry.get(ID);
-        HeaderInfo info = new HeaderInfo(id);
-        if (entry.get(ADD) instanceof List) {
-            List<Object> items = (List<Object>) entry.get(ADD);
-            for (Object o: items) {
-                String keyValue = o.toString();
-                int colon = keyValue.indexOf(':');
-                if (colon > 0) {
-                    info.addHeader(keyValue.substring(0, colon).trim().toLowerCase(), keyValue.substring(colon+1).trim());
-                } else {
-                    log.warn("Skipping invalid ADD entry {} for HEADERS definition {}", o, id);
+        Object go = isRequest? entry.get(REQUEST) : entry.get(RESPONSE);
+        if (go instanceof Map) {
+            Map<String, Object> group = (Map<String, Object>) go;
+            HeaderInfo info = new HeaderInfo(id);
+            if (group.get(ADD) instanceof List) {
+                List<Object> items = (List<Object>) group.get(ADD);
+                for (Object o : items) {
+                    String keyValue = o.toString();
+                    int colon = keyValue.indexOf(':');
+                    if (colon > 0) {
+                        info.addHeader(keyValue.substring(0, colon).trim().toLowerCase(), keyValue.substring(colon + 1).trim());
+                    } else {
+                        log.warn("Skipping invalid ADD entry {} for HEADERS definition {}", o, id);
+                    }
                 }
             }
-        }
-        if (entry.get(DROP) instanceof List) {
-            List<Object> items = (List<Object>) entry.get(DROP);
-            for (Object o: items) {
-                info.drop(o.toString().toLowerCase());
+            if (group.get(DROP) instanceof List) {
+                List<Object> items = (List<Object>) group.get(DROP);
+                for (Object o : items) {
+                    info.drop(o.toString().toLowerCase());
+                }
             }
-        }
-        if (entry.get(KEEP) instanceof List) {
-            List<Object> items = (List<Object>) entry.get(KEEP);
-            for (Object o: items) {
-                info.keep(o.toString().toLowerCase());
+            if (group.get(KEEP) instanceof List) {
+                List<Object> items = (List<Object>) group.get(KEEP);
+                for (Object o : items) {
+                    info.keep(o.toString().toLowerCase());
+                }
             }
+            if (isRequest) {
+                requestHeaderTransform.put(id, info);
+            } else {
+                responseHeaderTransform.put(id, info);
+            }
+            log.info("Loaded {} {} headers {}", id, isRequest ? REQUEST : RESPONSE, go);
         }
-        headerTransform.put(id, info);
-        log.info("Loaded HEADERS definition with id {}", id);
     }
 
 }

@@ -242,7 +242,7 @@ public class ServiceGateway extends HttpServlet {
             parameters.put(QUERY, queryParams);
         }
         boolean hasCookies = false;
-        Map<String, Object> headers = new HashMap<>();
+        Map<String, String> headers = new HashMap<>();
         Enumeration<String> hNames = request.getHeaderNames();
         while (hNames.hasMoreElements()) {
             String key = hNames.nextElement();
@@ -270,32 +270,8 @@ public class ServiceGateway extends HttpServlet {
             dataset.put(COOKIES, cookieMap);
         }
         RoutingEntry re = RoutingEntry.getInstance();
-        if (route.info.transformId != null) {
-            HeaderInfo headerInfo = re.getHeaderInfo(route.info.transformId);
-            if (headerInfo.keepHeaders != null && !headerInfo.keepHeaders.isEmpty()) {
-                // drop all headers except those to be kept
-                Map<String, Object> toBeKept = new HashMap<>();
-                for (String h: headers.keySet()) {
-                    if (headerInfo.keepHeaders.contains(h)) {
-                        toBeKept.put(h, headers.get(h));
-                    }
-                }
-                headers = toBeKept;
-            } else if (headerInfo.dropHeaders != null && !headerInfo.dropHeaders.isEmpty()) {
-                // drop the headers according to "drop" list
-                Map<String, Object> toBeKept = new HashMap<>();
-                for (String h: headers.keySet()) {
-                    if (!headerInfo.dropHeaders.contains(h)) {
-                        toBeKept.put(h, headers.get(h));
-                    }
-                }
-                headers = toBeKept;
-            }
-            if (headerInfo.additionalHeaders != null && !headerInfo.additionalHeaders.isEmpty()) {
-                for (String h: headerInfo.additionalHeaders.keySet()) {
-                    headers.put(h, headerInfo.additionalHeaders.get(h));
-                }
-            }
+        if (route.info.requestTransformId != null) {
+            headers = filterHeaders(re.getHeaderInfo(route.info.requestTransformId, true), headers);
         }
         if (!headers.isEmpty()) {
             dataset.put(HEADERS, headers);
@@ -480,6 +456,7 @@ public class ServiceGateway extends HttpServlet {
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
         holder.setUrl(url).setMethod(request.getMethod()).setCorsId(route.info.corsId);
+        holder.setResHeaderId(route.info.responseTransformId);
         String acceptContent = request.getHeader(ACCEPT);
         if (acceptContent != null) {
             holder.setAccept(acceptContent);
@@ -508,6 +485,35 @@ public class ServiceGateway extends HttpServlet {
             }
         }
         return null;
+    }
+
+    private Map<String, String> filterHeaders(HeaderInfo headerInfo, Map<String, String> headers) {
+        Map<String, String> result = new HashMap<>(headers);
+        if (headerInfo.keepHeaders != null && !headerInfo.keepHeaders.isEmpty()) {
+            // drop all headers except those to be kept
+            Map<String, String> toBeKept = new HashMap<>();
+            for (String h: headers.keySet()) {
+                if (headerInfo.keepHeaders.contains(h)) {
+                    toBeKept.put(h, headers.get(h));
+                }
+            }
+            result = toBeKept;
+        } else if (headerInfo.dropHeaders != null && !headerInfo.dropHeaders.isEmpty()) {
+            // drop the headers according to "drop" list
+            Map<String, String> toBeKept = new HashMap<>();
+            for (String h: headers.keySet()) {
+                if (!headerInfo.dropHeaders.contains(h)) {
+                    toBeKept.put(h, headers.get(h));
+                }
+            }
+            result = toBeKept;
+        }
+        if (headerInfo.additionalHeaders != null && !headerInfo.additionalHeaders.isEmpty()) {
+            for (String h: headerInfo.additionalHeaders.keySet()) {
+                result.put(h, headerInfo.additionalHeaders.get(h));
+            }
+        }
+        return result;
     }
 
     @EventInterceptor
@@ -555,25 +561,33 @@ public class ServiceGateway extends HttpServlet {
                             String timeoutOverride = null;
                             String streamId = null;
                             String contentType = null;
+                            Map<String, String> resHeaders = new HashMap<>();
                             if (!event.getHeaders().isEmpty()) {
-                                Map<String, String> resHeaders = event.getHeaders();
-                                for (String h: resHeaders.keySet()) {
+                                Map<String, String> evtHeaders = event.getHeaders();
+                                for (String h: evtHeaders.keySet()) {
                                     String key = h.toLowerCase();
-                                    String value = resHeaders.get(h);
+                                    String value = evtHeaders.get(h);
                                     // "stream" and "timeout" are reserved as stream ID and read timeout in seconds
                                     if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
-                                        streamId = resHeaders.get(h);
+                                        streamId = evtHeaders.get(h);
                                     } else if (key.equals(TIMEOUT)) {
-                                        timeoutOverride = resHeaders.get(h);
+                                        timeoutOverride = evtHeaders.get(h);
                                     } else if (key.equals(CONTENT_TYPE)) {
                                         contentType = value.toLowerCase();
                                         response.setContentType(contentType);
                                     } else {
-                                        String prettyHeader = getHeaderCase(key);
-                                        if (prettyHeader != null) {
-                                            response.setHeader(prettyHeader, value);
-                                        }
+                                        resHeaders.put(key, value);
                                     }
+                                }
+                            }
+                            if (holder.resHeaderId != null) {
+                                HeaderInfo hi = RoutingEntry.getInstance().getHeaderInfo(holder.resHeaderId, false);
+                                resHeaders = filterHeaders(hi, resHeaders);
+                            }
+                            for (String h: resHeaders.keySet()) {
+                                String prettyHeader = getHeaderCase(h);
+                                if (prettyHeader != null) {
+                                    response.setHeader(prettyHeader, resHeaders.get(h));
                                 }
                             }
                             // default content type is JSON
