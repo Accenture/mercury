@@ -63,8 +63,8 @@ public class RoutingEntry {
     // id -> {maps for options and headers}
     private Map<String, CorsInfo> cors = new HashMap<>();
     // id -> add, drop, keep
-    private Map<String, HeaderInfo> requestHeaderTransform = new HashMap<>();
-    private Map<String, HeaderInfo> responseHeaderTransform = new HashMap<>();
+    private Map<String, HeaderInfo> requestHeaderInfo = new HashMap<>();
+    private Map<String, HeaderInfo> responseHeaderInfo = new HashMap<>();
     private List<String> urlPaths = new ArrayList<>();
 
     private static RoutingEntry instance = new RoutingEntry();
@@ -111,8 +111,12 @@ public class RoutingEntry {
         }
     }
 
-    public HeaderInfo getHeaderInfo(String id, boolean request) {
-        return request? requestHeaderTransform.get(id) : responseHeaderTransform.get(id);
+    public HeaderInfo getRequestHeaderInfo(String id) {
+        return requestHeaderInfo.get(id);
+    }
+
+    public HeaderInfo getResponseHeaderInfo(String id) {
+        return responseHeaderInfo.get(id);
     }
 
     public CorsInfo getCorsInfo(String id) {
@@ -348,11 +352,11 @@ public class RoutingEntry {
             if (entry.containsKey(HEADERS)) {
                 String id = entry.get(HEADERS).toString();
                 boolean foundTransform = false;
-                if (requestHeaderTransform.containsKey(id)) {
+                if (requestHeaderInfo.containsKey(id)) {
                     info.requestTransformId = id;
                     foundTransform = true;
                 }
-                if (responseHeaderTransform.containsKey(id)) {
+                if (responseHeaderInfo.containsKey(id)) {
                     info.responseTransformId = id;
                     foundTransform = true;
                 }
@@ -588,9 +592,9 @@ public class RoutingEntry {
                 }
             }
             if (isRequest) {
-                requestHeaderTransform.put(id, info);
+                requestHeaderInfo.put(id, info);
             } else {
-                responseHeaderTransform.put(id, info);
+                responseHeaderInfo.put(id, info);
             }
             log.info("Loaded {} {} headers {}", id, isRequest ? REQUEST : RESPONSE, go);
         }

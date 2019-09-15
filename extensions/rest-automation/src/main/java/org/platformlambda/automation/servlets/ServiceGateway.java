@@ -271,7 +271,7 @@ public class ServiceGateway extends HttpServlet {
         }
         RoutingEntry re = RoutingEntry.getInstance();
         if (route.info.requestTransformId != null) {
-            headers = filterHeaders(re.getHeaderInfo(route.info.requestTransformId, true), headers);
+            headers = filterHeaders(re.getRequestHeaderInfo(route.info.requestTransformId), headers);
         }
         if (!headers.isEmpty()) {
             dataset.put(HEADERS, headers);
@@ -581,7 +581,7 @@ public class ServiceGateway extends HttpServlet {
                                 }
                             }
                             if (holder.resHeaderId != null) {
-                                HeaderInfo hi = RoutingEntry.getInstance().getHeaderInfo(holder.resHeaderId, false);
+                                HeaderInfo hi = RoutingEntry.getInstance().getResponseHeaderInfo(holder.resHeaderId);
                                 resHeaders = filterHeaders(hi, resHeaders);
                             }
                             for (String h: resHeaders.keySet()) {
