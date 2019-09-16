@@ -127,7 +127,11 @@ public class WorkerQueue extends AbstractActor {
     private ProcessStatus processEvent(EventEnvelope event) {
         LambdaFunction f = def.getFunction();
         try {
-            boolean ping = event.getHeaders().isEmpty() && event.getBody() == null;
+            /*
+             * Interceptor can read any input (i.e. including case for empty headers and null body).
+             * The system therefore disables ping when the target function is an interceptor.
+             */
+            boolean ping = !interceptor && event.getHeaders().isEmpty() && event.getBody() == null;
             long begin = ping? 0 : System.nanoTime();
             /*
              * If the service is an interceptor, we will pass the original event envelope instead of the message body.
