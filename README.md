@@ -467,7 +467,7 @@ java -jar target/kafka-standalone-1.12.9.jar
 cd ../kafka-presence
 mvn clean package
 java -jar target/kafka-presence-1.12.9.jar
-# this will start the "presence monitor" that will connect to the hazelcast cluster.
+# this will start the "presence monitor" that will connect to the kafka cluster.
 ```
 
 - Run the lambda-example and rest-example again
