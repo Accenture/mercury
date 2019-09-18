@@ -456,7 +456,7 @@ Hazelcast is a distributed memory grid and is ideal for real-time application. F
 
 For rapid development and prototyping, we have implemented a convenient standalone Kafka server.
 
-- Now let's build the kafka-standalone and hazelcast-presence projects
+- Now let's build the kafka-standalone and kafka-presence projects
 
 ```bash
 cd mercury/connectors
