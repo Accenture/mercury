@@ -1,3 +1,6 @@
+#
+# REST automation is the recommended way to create REST endpoints properly
+#
 rest:
   - service: "hello.world"
     methods: ['GET', 'POST', 'HEAD', 'PATCH']
@@ -74,3 +77,27 @@ headers:
       #     drop: ['drop_only_these_headers', 'another_drop_header']
       #
       #      add: ["server: mercury 1.12"]
+
+#
+# WebSocket automation is designed primarily for real-time notification services
+# because it connects a stateful websocket connection to your stateless service.
+# (IMPORTANT - Stateless websocket services may not apply to other use cases)
+#
+# The hello.ws.notification and hello.ws.auth service are available as a template
+# in the websocket-automation-example application.
+#
+# Tracing for incoming websocket messages is not supported because websocket is a stateful connection.
+# However, outgoing websocket events are tracked if tracing is turned on from the calling service.
+#
+websocket:
+  - service: "hello.ws.notification"
+    #
+    # The web-socket URL is /ws/api/{application}:{token}?query_parameters
+    # The token and query parameters will be passed to the authentication service first.
+    #
+    application: "notification"
+    #
+    # The authentication service may insert session information in the headers
+    # before routing to the user provided service.
+    #
+    authentication: "hello.ws.auth"

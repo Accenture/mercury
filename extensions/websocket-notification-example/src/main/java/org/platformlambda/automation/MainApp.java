@@ -18,31 +18,45 @@
 
 package org.platformlambda.automation;
 
+import org.platformlambda.automation.init.InitialLoad;
+import org.platformlambda.automation.ws.HelloAuthentication;
+import org.platformlambda.automation.ws.HelloNotification;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 @MainApplication
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
+
+    public static final String INITIAL_LOAD = "initial.load";
+    public static final String AUTHENTICATION_SERVICE = "hello.ws.auth";
+    public static final String NOTIFICATION_SERVICE = "hello.ws.notification";
 
     public static void main(String[] args) {
         RestServer.main(args);
     }
 
     @Override
-    public void start(String[] args) {
+    public void start(String[] args) throws IOException {
         /*
-         * ServiceGateway will start first to load routing entries from rest.yaml
-         * and start async.http.response service.
-         *
-         * The main app can then connect to the cloud.
+         * Starting the demo authenticator and notification service
          */
         Platform platform = Platform.getInstance();
+        platform.register(NOTIFICATION_SERVICE, new HelloNotification(), 10);
+        platform.register(AUTHENTICATION_SERVICE, new HelloAuthentication(), 5);
         platform.connectToCloud();
+
+        // check if there are peers to recover
+        PostOffice po = PostOffice.getInstance();
+        platform.registerPrivate(INITIAL_LOAD, new InitialLoad(), 1);
+        po.send(INITIAL_LOAD, "start");
 
         log.info("Application started");
     }

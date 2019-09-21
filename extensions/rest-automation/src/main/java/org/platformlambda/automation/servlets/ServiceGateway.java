@@ -19,6 +19,7 @@
 package org.platformlambda.automation.servlets;
 
 import org.platformlambda.automation.config.RoutingEntry;
+import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.models.CorsInfo;
@@ -105,6 +106,8 @@ public class ServiceGateway extends HttpServlet {
                 }
                 RoutingEntry routing = RoutingEntry.getInstance();
                 routing.load(config.getMap());
+                WsEntry ws = WsEntry.getInstance();
+                ws.load(config.getMap());
                 // start service response handler
                 ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
                 Platform platform = Platform.getInstance();
