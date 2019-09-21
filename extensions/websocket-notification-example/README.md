@@ -50,7 +50,7 @@ Alternatively, you may send text or byte messages directly.
 
 ## Using this template
 
-HelloNotification, InitialLoad, UserChannels and UserSession are designed to be reusable module for generic websocket notification.
+HelloNotification, InitialLoad, UserChannels and UserSession are designed to be reusable for generic websocket notification.
 You should be able to use them out-of-the-box without modification.
 
 HelloAuthentication is a place-holder. Please change the "getUser" method accordingly.
