@@ -332,7 +332,7 @@ public class PostOffice {
         if (dest == null) {
             throw new IOException("Missing routing path");
         }
-        String to = substituteRouteIfNeeded(dest);
+        String to = substituteRouteIfAny(dest);
         event.setTo(to);
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
@@ -464,7 +464,7 @@ public class PostOffice {
         return reRoutes;
     }
 
-    private String substituteRouteIfNeeded(String to) {
+    public String substituteRouteIfAny(String to) {
         if (to != null) {
             int slash = to.indexOf('@');
             if (slash > 0) {
@@ -490,7 +490,7 @@ public class PostOffice {
         if (dest == null) {
             throw new IOException("Missing routing path");
         }
-        String to = substituteRouteIfNeeded(dest);
+        String to = substituteRouteIfAny(dest);
         event.setTo(to);
         TraceInfo trace = getTrace();
         if (trace != null) {
@@ -676,7 +676,7 @@ public class PostOffice {
         if (dest == null) {
             throw new IOException("Missing routing path");
         }
-        String to = substituteRouteIfNeeded(dest);
+        String to = substituteRouteIfAny(dest);
         event.setTo(to);
         TraceInfo trace = getTrace();
         if (trace != null) {
@@ -736,7 +736,7 @@ public class PostOffice {
             if (dest == null) {
                 throw new IOException("Missing routing path");
             }
-            String to = substituteRouteIfNeeded(dest);
+            String to = substituteRouteIfAny(dest);
             event.setTo(to);
             // insert sequence number as correlation ID if not present
             // so that the caller can correlate the service responses
@@ -792,10 +792,11 @@ public class PostOffice {
         Platform platform = Platform.getInstance();
         List<String> remoteServices = new ArrayList<>();
         for (String r: route) {
-            if (platform.hasRoute(r)) {
+            String actualRoute = substituteRouteIfAny(r);
+            if (platform.hasRoute(actualRoute)) {
                 local++;
             } else {
-                remoteServices.add(r);
+                remoteServices.add(actualRoute);
             }
         }
         // all routes are local
