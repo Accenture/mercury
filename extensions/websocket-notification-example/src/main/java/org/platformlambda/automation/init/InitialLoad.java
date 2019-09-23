@@ -34,20 +34,20 @@ public class InitialLoad implements LambdaFunction {
     private static final String INITIAL_LOAD = "initial.load";
     private static final String ORIGIN = "origin";
     private static final String DONE = "done";
-    private static final long MAX_PING = 60000;
+    private static final long MAX_WAIT = 30000;
     private long start = System.currentTimeMillis();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         Platform platform = Platform.getInstance();
         long now = System.currentTimeMillis();
-        if (DONE.equals(body) || now - start > MAX_PING) {
+        if (DONE.equals(body) || now - start > MAX_WAIT) {
             platform.release(INITIAL_LOAD);
             return DONE;
         }
         // keep ping until we get an answer from a peer or the maximum ping interval is reached
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope download = new EventEnvelope().setTo(MainApp.NOTIFICATION_SERVICE);
+        EventEnvelope download = new EventEnvelope().setTo(MainApp.WS_NOTIFICATION_SERVICE);
         download.setHeader(TYPE, DOWNLOAD);
         download.setHeader(ORIGIN, platform.getOrigin());
         po.broadcast(download);

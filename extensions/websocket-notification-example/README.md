@@ -4,13 +4,13 @@ WebSocket is usually employed as a notification channel to the browser so that y
 the user and asynchronously send notification events to the browser.
 
 The REST automation helper application supports this websocket notification use case. The sample rest.yaml 
-configuration file contains a websocket routing entry to the hello.ws.auth and hello.ws.notification services.
+configuration file contains a websocket routing entry to the sample.ws.auth and ws.notification services.
 
-The hello.ws.auth is the authentication service so that your backend application
+The sample.ws.auth is the authentication service so that your backend application
 can validate if the incoming websocket is associated with an authenticated user
 session.
 
-The hello.ws.notification is an example application that receives incoming requests and save a mapping of the 
+The ws.notification is the websocket service that receives incoming requests and save a mapping of the 
 user's websocket outgoing paths that your backend services can send notification to.
 
 This supports multi-device user sessions. When a user makes a request to change something, the backend services can 
@@ -34,8 +34,8 @@ Alternatively, you may send text or byte messages directly.
 
 ```java
     PostOffice po = PostOffice.getInstance();
-    EventEnvelope list = po.request("hello.ws.notification", 5000,
-                                          new Kv("type", "get_path"), new Kv("user_id", user));
+    EventEnvelope list = po.request("ws.notification", 5000,
+                                     new Kv("type", "get_path"), new Kv("user_id", user));
     if (list.getBody() instanceof List) {
         List<String> paths = (List<String>) list.getBody();
         // the list contains the outgoing paths to the websocket connections of the user

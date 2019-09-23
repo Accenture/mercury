@@ -241,22 +241,22 @@ WebSocket is usually employed as a notification channel to the browser so that y
 the user and asynchronously send notification events to the browser.
 
 The REST automation helper application supports this websocket notification use case. The sample rest.yaml 
-configuration file contains a websocket routing entry to the hello.ws.auth and hello.ws.notification services.
+configuration file contains a websocket routing entry to the sample.ws.auth and ws.notification services.
 
 ## YAML syntax
 
-While authentication is optional for a REST endpoint, it is mandatory for websocket endpoints.
+While authentication is optional for a REST endpoint, it is mandatory for websocket endpoints because HTTP request headers such as "Authorization" header are not accessible by a websocket server.
 
-The hello.ws.auth is the authentication service so that your backend application
+The sample.ws.auth is the authentication service so that your backend application
 can validate if the incoming websocket is associated with an authenticated user
-session.
+session. Your websocket authentication service may inspect the access token or query parameters
+to decide if the websocket connection can be accepted.
 
-The hello.ws.notification is an example application that receives incoming requests and save a mapping of the 
-user's websocket outgoing paths that your backend services can send notification to.
+The ws.notification is the websocket service that receives incoming requests and save a mapping of the user's websocket outgoing paths that your backend services can send notification to.
 
 ```yaml
 websocket:
-  - service: "hello.ws.notification"
+  - service: "ws.notification"
     #
     # The web-socket URL is /ws/api/{application}:{token}?query_parameters
     # The token and query parameters will be passed to the authentication service first.
@@ -266,7 +266,7 @@ websocket:
     # The authentication service may insert session information in the headers
     # before routing to the user provided service.
     #
-    authentication: "hello.ws.auth"
+    authentication: "sample.ws.auth"
 ```
 
 ## Sample browser application for connecting to a notification channel

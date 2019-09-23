@@ -15,12 +15,12 @@ your service can detect "presence" of the user and asynchronously send
 notification events to the browser.
 
 The REST automation helper application supports this websocket notification use case. The sample rest.yaml configuration file contains a websocket routing entry
-to the hello.ws.auth and hello.ws.notification services.
+to the sample.ws.auth and ws.notification services.
 
-The hello.ws.auth is the authentication service so that your backend application
+The sample.ws.auth is the authentication service so that your backend application
 can validate if the incoming websocket is associated with an authenticated user
 session.
 
-The hello.ws.notification is an example application that receives incoming requests and save a mapping of the user's websocket outgoing paths that your backend services can send notification to.
+The ws.notification is the websocket service that receives incoming requests and save a mapping of the user's websocket outgoing paths that your backend services can send notification to.
 
 This supports multi-device user sessions. When a user makes a request to change something, the backend services can send notification events to all connected devices of the same user.

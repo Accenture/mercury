@@ -26,8 +26,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-public class HelloAuthentication implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(HelloAuthentication.class);
+public class WsAuthentication implements LambdaFunction {
+    private static final Logger log = LoggerFactory.getLogger(WsAuthentication.class);
 
     private static final String X_USER = "x-user"; // this must be lower case
     private static final String TYPE = WsEnvelope.TYPE;

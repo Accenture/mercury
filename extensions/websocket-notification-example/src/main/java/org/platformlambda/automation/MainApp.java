@@ -19,8 +19,8 @@
 package org.platformlambda.automation;
 
 import org.platformlambda.automation.init.InitialLoad;
-import org.platformlambda.automation.ws.HelloAuthentication;
-import org.platformlambda.automation.ws.HelloNotification;
+import org.platformlambda.automation.ws.WsAuthentication;
+import org.platformlambda.automation.ws.WsNotification;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
@@ -36,8 +36,8 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static final String INITIAL_LOAD = "initial.load";
-    public static final String AUTHENTICATION_SERVICE = "hello.ws.auth";
-    public static final String NOTIFICATION_SERVICE = "hello.ws.notification";
+    public static final String WS_AUTHENTICATION_SERVICE = "sample.ws.auth";
+    public static final String WS_NOTIFICATION_SERVICE = "ws.notification";
 
     public static void main(String[] args) {
         RestServer.main(args);
@@ -49,8 +49,8 @@ public class MainApp implements EntryPoint {
          * Starting the demo authenticator and notification service
          */
         Platform platform = Platform.getInstance();
-        platform.register(NOTIFICATION_SERVICE, new HelloNotification(), 10);
-        platform.register(AUTHENTICATION_SERVICE, new HelloAuthentication(), 5);
+        platform.register(WS_NOTIFICATION_SERVICE, new WsNotification(), 10);
+        platform.register(WS_AUTHENTICATION_SERVICE, new WsAuthentication(), 5);
         platform.connectToCloud();
 
         // check if there are peers to recover

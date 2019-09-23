@@ -50,7 +50,7 @@ public class DemoBroadcast {
             throw new IllegalArgumentException("Missing message in query");
         }
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope list = po.request(MainApp.NOTIFICATION_SERVICE, 5000,
+        EventEnvelope list = po.request(MainApp.WS_NOTIFICATION_SERVICE, 5000,
                                             new Kv(TYPE, GET_PATHS), new Kv(USER_ID, user));
         if (list.getBody() instanceof List) {
             List<String> paths = (List<String>) list.getBody();
@@ -77,7 +77,7 @@ public class DemoBroadcast {
             }
 
         } else {
-            throw new IllegalArgumentException("Invalid response from "+MainApp.NOTIFICATION_SERVICE);
+            throw new IllegalArgumentException("Invalid response from "+MainApp.WS_NOTIFICATION_SERVICE);
         }
     }
 

@@ -38,8 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class HelloNotification implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(HelloNotification.class);
+public class WsNotification implements LambdaFunction {
+    private static final Logger log = LoggerFactory.getLogger(WsNotification.class);
 
     private static final String X_USER = "x-user";  // this must be lower case
     private static final String TYPE = WsEnvelope.TYPE;
@@ -118,7 +118,7 @@ public class HelloNotification implements LambdaFunction {
                     // handle the request first
                     handleOpen(headers, body);
                     // then broadcast to peer
-                    EventEnvelope forward = new EventEnvelope().setTo(MainApp.NOTIFICATION_SERVICE);
+                    EventEnvelope forward = new EventEnvelope().setTo(MainApp.WS_NOTIFICATION_SERVICE);
                     for (String h : headers.keySet()) {
                         forward.setHeader(h, headers.get(h));
                     }
@@ -148,7 +148,7 @@ public class HelloNotification implements LambdaFunction {
                     // handle the request
                     handleClose(headers);
                     // broadcast to peers
-                    EventEnvelope forward = new EventEnvelope().setTo(MainApp.NOTIFICATION_SERVICE);
+                    EventEnvelope forward = new EventEnvelope().setTo(MainApp.WS_NOTIFICATION_SERVICE);
                     for (String h : headers.keySet()) {
                         forward.setHeader(h, headers.get(h));
                     }
@@ -192,7 +192,7 @@ public class HelloNotification implements LambdaFunction {
                             if (PING.equals(data.get(TYPE))) {
                                 UserSession user = getUserSession(headers.get(ROUTE));
                                 if (user != null) {
-                                    po.broadcast(MainApp.NOTIFICATION_SERVICE, user, new Kv(TYPE, WS_ALIVE));
+                                    po.broadcast(MainApp.WS_NOTIFICATION_SERVICE, user, new Kv(TYPE, WS_ALIVE));
                                     keepAlive = true;
                                 } else {
                                     // session has expired
@@ -203,7 +203,9 @@ public class HelloNotification implements LambdaFunction {
                             }
                         }
                         if (!keepAlive) {
-                            log.warn("Incoming events with {} characters dropped", json.length());
+                            String txPath = headers.get(TX_PATH);
+                            log.warn("Incoming events with {} characters dropped from {}", json.length(),
+                                    txPath.contains("@") ? txPath.substring(0, txPath.indexOf('@')): txPath);
                         }
                     }
                 }
@@ -223,8 +225,10 @@ public class HelloNotification implements LambdaFunction {
                  * You can add your custom logic
                  */
                 if (type.equals(BYTES)) {
+                    String txPath = headers.get(TX_PATH);
                     byte[] b = (byte[]) body;
-                    log.warn("Incoming events with {} bytes dropped", b.length);
+                    log.warn("Incoming events with {} bytes dropped from {}", b.length,
+                            txPath.contains("@") ? txPath.substring(0, txPath.indexOf('@')): txPath);
                 }
 
             } else {
@@ -249,7 +253,7 @@ public class HelloNotification implements LambdaFunction {
                     if (!origin.equals(me)) {
                         for (String key: sessions.getMap().keySet()) {
                             Object o = sessions.get(key);
-                            po.send(MainApp.NOTIFICATION_SERVICE+"@"+headers.get(ORIGIN), o, new Kv(TYPE, RESTORE));
+                            po.send(MainApp.WS_NOTIFICATION_SERVICE +"@"+headers.get(ORIGIN), o, new Kv(TYPE, RESTORE));
                         }
                         // tell the new member that initial load is done
                         po.send(MainApp.INITIAL_LOAD+"@"+headers.get(ORIGIN), "done");
@@ -319,6 +323,7 @@ public class HelloNotification implements LambdaFunction {
         UserSession user = new UserSession(userId, route, txPath, metadata);
         saveUserSession(user);
         addUserChannel(userId, txPath);
+        log.info("User {} connected to notification path {}", userId, txPath);
     }
 
     private void handleClose(Map<String, String> headers) {
@@ -326,6 +331,7 @@ public class HelloNotification implements LambdaFunction {
         if (user != null) {
             removeUserChannel(user);
             clearUserSession(user);
+            log.info("User {} disconnected from notification path {}", user.getUserId(), user.getTxPath());
         }
     }
 
