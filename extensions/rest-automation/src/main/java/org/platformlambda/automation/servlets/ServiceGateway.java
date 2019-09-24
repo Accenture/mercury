@@ -158,7 +158,7 @@ public class ServiceGateway extends HttpServlet {
         return sb.length() == 0? null : sb.substring(0, sb.length()-1);
     }
 
-	@Override
+    @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!ready) {
             response.sendError(404, "Unable to serve requests because REST endpoints are not configured");
@@ -479,7 +479,7 @@ public class ServiceGateway extends HttpServlet {
             response.sendError(400, e.getMessage());
             context.complete();
         }
-     }
+    }
 
     private String getFileName(final Part part) {
         for (String content : part.getHeader("content-disposition").split(";")) {

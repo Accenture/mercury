@@ -80,14 +80,14 @@ public class RoutingEntry {
     public AssignedRoute getRouteInfo(String method, String url) {
         Utility util = Utility.getInstance();
         StringBuilder sb = new StringBuilder();
-        List<String> input = util.split(url.toLowerCase(), "/");
+        List<String> input = util.split(url, "/");
         for (String p: input) {
             sb.append('/');
             sb.append(p.trim());
         }
-        String nUrl = sb.toString();
-        String key = method+":"+nUrl;
-        if (exactRoutes.containsKey(nUrl)) {
+        String normalizedUrl = sb.toString();
+        String key = method+":"+normalizedUrl;
+        if (exactRoutes.containsKey(normalizedUrl)) {
             return new AssignedRoute(routes.get(key));
         } else {
             AssignedRoute similar = null;
