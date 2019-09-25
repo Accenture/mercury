@@ -60,7 +60,7 @@ public class WsGateway implements LambdaFunction {
     private static final String TOKEN = WsEnvelope.TOKEN;
     private static final String AUTHENTICATION = "authentication";
     private static final String APPLICATION = "application";
-
+    // route -> info
     private static final ConcurrentMap<String, WsInfo> route2WsInfo = new ConcurrentHashMap<>();
 
     @Override
@@ -81,7 +81,7 @@ public class WsGateway implements LambdaFunction {
         return null;
     }
 
-    private void handleOpen(Map<String, String> headers) throws IOException, TimeoutException, AppException {
+    private void handleOpen(Map<String, String> headers) throws IOException {
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
@@ -119,16 +119,30 @@ public class WsGateway implements LambdaFunction {
                     "Service "+wsInfo.authService+" or "+wsInfo.userService+" not reachable");
             return;
         }
-        EventEnvelope authResult = po.request(wsInfo.authService, 5000, request,
-                new Kv(TYPE, AUTHENTICATION),
-                new Kv(ROUTE, headers.get(ROUTE)), new Kv(TX_PATH, headers.get(TX_PATH)));
-        if (!Boolean.TRUE.equals(authResult.getBody())) {
-            util.closeConnection(headers.get(TX_PATH),
-                    CloseReason.CloseCodes.CANNOT_ACCEPT, "Unauthorized");
+        String authError = null;
+        Map<String, String> authResponseHeaders = new HashMap<>();
+        try {
+            EventEnvelope authResult = po.request(wsInfo.authService, 5000, request,
+                    new Kv(TYPE, AUTHENTICATION),
+                    new Kv(ROUTE, headers.get(ROUTE)), new Kv(TX_PATH, headers.get(TX_PATH)));
+            if (Boolean.TRUE.equals(authResult.getBody())) {
+                authResponseHeaders = authResult.getHeaders();
+            } else {
+                authError = "Unauthorized";
+            }
+        } catch (IOException | TimeoutException e) {
+            authError = e.getMessage();
+            log.error("WebSocket authentication - {}", authError);
+        } catch (AppException e) {
+            authError = e.getMessage();
+        }
+        if (authError != null) {
+            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT, authError);
             return;
         }
         // remove credentials from request parameters before sending to the user service
         request.remove(TOKEN);
+        // save routing information
         route2WsInfo.put(headers.get(ROUTE), wsInfo);
         EventEnvelope forward = new EventEnvelope();
         forward.setTo(wsInfo.userService).setBody(request).setHeader(TYPE, OPEN);
@@ -141,10 +155,9 @@ public class WsGateway implements LambdaFunction {
          * The user service must understand the session metadata that the user-defined authentication
          * service provides. e.g. authenticated user ID may be provided in the "X-User" header.
          */
-        Map<String, String> authHeaders = authResult.getHeaders();
-        for (String h: authHeaders.keySet()) {
+        for (String h: authResponseHeaders.keySet()) {
             // for consistency with HTTP headers, these user defined headers are also case insensitive.
-            forward.setHeader(h.toLowerCase(), authHeaders.get(h));
+            forward.setHeader(h.toLowerCase(), authResponseHeaders.get(h));
         }
         po.send(forward);
         log.info("Started {}, {}, {}", headers.get(ROUTE), ip, app);

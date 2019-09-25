@@ -90,9 +90,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String RESULT = "result";
     private static final String ACCEPT_ANY = "*/*";
     private static final String TRACE_HEADER = "X-Trace-Id";
-
     private static final int BUFFER_SIZE = 2048;
-
+    // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
 
     private static Boolean ready;
@@ -186,9 +185,10 @@ public class ServiceGateway extends HttpServlet {
     @SuppressWarnings("unchecked")
     private void routeRequest(String url, AssignedRoute route, HttpServletRequest request, HttpServletResponse response) throws IOException {
         request.setCharacterEncoding(UTF_8);
+        response.setCharacterEncoding(UTF_8);
         Utility util = Utility.getInstance();
-        // handle OPTIONS
         if (OPTIONS.equals(request.getMethod())) {
+            // insert CORS headers for OPTIONS
             if (route.info.corsId == null) {
                 response.sendError(405, "Method not allowed");
             } else {
@@ -197,7 +197,7 @@ public class ServiceGateway extends HttpServlet {
                     for (String ch : corsInfo.options.keySet()) {
                         String prettyHeader = getHeaderCase(ch);
                         if (prettyHeader != null) {
-                            response.setHeader(prettyHeader, corsInfo.headers.get(ch));
+                            response.setHeader(prettyHeader, corsInfo.options.get(ch));
                         }
                     }
                     response.setStatus(204);
@@ -206,6 +206,19 @@ public class ServiceGateway extends HttpServlet {
                 }
             }
             return;
+        } else {
+            // insert CORS headers for the HTTP response
+            if (route.info.corsId != null) {
+                CorsInfo corsInfo = RoutingEntry.getInstance().getCorsInfo(route.info.corsId);
+                if (corsInfo != null && !corsInfo.headers.isEmpty()) {
+                    for (String ch: corsInfo.headers.keySet()) {
+                        String prettyHeader = getHeaderCase(ch);
+                        if (prettyHeader != null) {
+                            response.setHeader(prettyHeader, corsInfo.headers.get(ch));
+                        }
+                    }
+                }
+            }
         }
         // check if target service is available
         PostOffice po = PostOffice.getInstance();
@@ -318,16 +331,13 @@ public class ServiceGateway extends HttpServlet {
                         }
                         dataset.put(SESSION, lowerCaseHeaders);
                     } else {
-                        throw new AppException(401, "Unauthorized");
+                        response.sendError(401, "Unauthorized");
+                        return;
                     }
                 }
-            } catch (IOException e) {
-                log.error("Missing authentication service - {}", e.getMessage());
+            } catch (IOException | TimeoutException e) {
+                log.error("REST authentication - {}", e.getMessage());
                 response.sendError(400, e.getMessage());
-                return;
-            } catch (TimeoutException e) {
-                log.error("Authentication timeout - {}", e.getMessage());
-                response.sendError(408, e.getMessage());
                 return;
             } catch (AppException e) {
                 // allow the authentication service to throw exception back to the browser
@@ -458,8 +468,7 @@ public class ServiceGateway extends HttpServlet {
         context.addListener(new AsyncHttpHandler(requestId));
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
-        holder.setUrl(url).setMethod(request.getMethod()).setCorsId(route.info.corsId);
-        holder.setResHeaderId(route.info.responseTransformId);
+        holder.setUrl(url).setMethod(request.getMethod()).setResHeaderId(route.info.responseTransformId);
         String acceptContent = request.getHeader(ACCEPT);
         if (acceptContent != null) {
             holder.setAccept(acceptContent);
@@ -549,17 +558,6 @@ public class ServiceGateway extends HttpServlet {
                             if (event.getStatus() != 200) {
                                 response.setStatus(event.getStatus());
                             }
-                            if (holder.corsId != null) {
-                                CorsInfo corsInfo = RoutingEntry.getInstance().getCorsInfo(holder.corsId);
-                                if (corsInfo != null && !corsInfo.headers.isEmpty()) {
-                                    for (String ch: corsInfo.headers.keySet()) {
-                                        String prettyHeader = getHeaderCase(ch);
-                                        if (prettyHeader != null) {
-                                            response.setHeader(prettyHeader, corsInfo.headers.get(ch));
-                                        }
-                                    }
-                                }
-                            }
                             String accept = holder.accept;
                             String timeoutOverride = null;
                             String streamId = null;
@@ -612,7 +610,6 @@ public class ServiceGateway extends HttpServlet {
                                     response.setContentType(MediaType.TEXT_PLAIN);
                                 }
                             }
-                            response.setCharacterEncoding(UTF_8);
                             // is this an exception?
                             int status = event.getStatus();
                             /*

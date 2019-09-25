@@ -18,6 +18,7 @@
 
 package org.platformlambda.automation.ws;
 
+import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
@@ -38,23 +39,25 @@ public class WsAuthentication implements LambdaFunction {
     private static final String APPLICATION = "application";
     private static final String IP = WsEnvelope.IP;
     private static final String QUERY = WsEnvelope.QUERY;
+    private static final String ID = "id";
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException {
         /*
          * Sample input:
          * headers = {route=api.in.50344.2, tx_path=api.out.50344.2, type=authentication}
-         * body = {application=notification, query={}, ip=127.0.0.1, token=some_value}
+         * body = {application=notification, query={id=some_user}, ip=127.0.0.1, token=some_value}
          */
         log.info("Authenticate {} {}", headers, body);
         if (body instanceof Map && AUTHENTICATION.equals(headers.get(TYPE)) && headers.containsKey(ROUTE) &&
                 headers.containsKey(TX_PATH)) {
             Map<String, Object> data = (Map<String, Object>) body;
-            if (data.containsKey(APPLICATION) && data.containsKey(IP) && data.containsKey(QUERY) &&
-                    data.containsKey(TOKEN)) {
-                String user = getUser((String) data.get(TOKEN));
+            if (data.containsKey(APPLICATION) && data.containsKey(IP) &&
+                    data.containsKey(QUERY) && data.containsKey(TOKEN)) {
+                String user = getAuthenticatedUser((String) data.get(TOKEN), (Map<String, String>) data.get(QUERY));
                 if (user == null) {
+                    // this will reject the request without a reason
                     return false;
                 } else {
                     return new EventEnvelope().setHeader(X_USER, user).setBody(true);
@@ -64,14 +67,17 @@ public class WsAuthentication implements LambdaFunction {
         return false;
     }
 
-    private String getUser(String token) {
+    private String getAuthenticatedUser(String token, Map<String, String> query) throws AppException {
         /*
          * TODO: insert your authentication logic here
          */
         if ("demo-token".equals(token)) {
-            return "demo";
-        } else if ("admin-token".equals(token)) {
-            return "admin";
+            if (query.containsKey(ID)) {
+                return query.get(ID);
+            } else {
+                throw new AppException(401, "Missing id in query parameters");
+            }
+
         } else {
             return null;
         }
