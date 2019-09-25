@@ -335,9 +335,13 @@ public class ServiceGateway extends HttpServlet {
                         return;
                     }
                 }
-            } catch (IOException | TimeoutException e) {
+            } catch (IOException e) {
                 log.error("REST authentication - {}", e.getMessage());
                 response.sendError(400, e.getMessage());
+                return;
+            } catch (TimeoutException e) {
+                log.error("REST authentication - {}", e.getMessage());
+                response.sendError(408, e.getMessage());
                 return;
             } catch (AppException e) {
                 // allow the authentication service to throw exception back to the browser
