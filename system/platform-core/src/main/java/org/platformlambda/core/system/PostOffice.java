@@ -334,6 +334,11 @@ public class PostOffice {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        // propagate trace info
+        TraceInfo trace = getTrace();
+        if (trace != null) {
+            event.setTrace(trace.id, trace.path);
+        }
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
         long interval = futureMs - now;
@@ -492,6 +497,7 @@ public class PostOffice {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
             event.setTrace(trace.id, trace.path);
@@ -678,6 +684,7 @@ public class PostOffice {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
             event.setTrace(trace.id, trace.path);

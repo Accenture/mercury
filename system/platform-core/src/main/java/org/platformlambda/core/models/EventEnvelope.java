@@ -254,8 +254,19 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope setHeader(String key, Object value) {
-        if (key != null && value != null) {
-            this.headers.put(key, value instanceof String? (String) value : value.toString());
+        if (key != null) {
+            String v;
+            // null value is transported as an empty string
+            if (value == null) {
+                v = "";
+            } else if (value instanceof String) {
+                v = (String) value;
+            } else if (value instanceof Date) {
+                v = Utility.getInstance().date2str((Date) value);
+            } else {
+                v = value.toString();
+            }
+            this.headers.put(key, v);
         }
         return this;
     }

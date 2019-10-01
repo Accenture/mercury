@@ -18,6 +18,10 @@
 
 package org.platformlambda.core.models;
 
+import org.platformlambda.core.util.Utility;
+
+import java.util.Date;
+
 public class Kv {
 
     public String key;
@@ -31,7 +35,16 @@ public class Kv {
      */
     public Kv(String key, Object value) {
         this.key = key;
-        this.value = value == null? "" : (value instanceof String? (String) value : value.toString());
+        // null value is transported as an empty string
+        if (value == null) {
+            this.value = "";
+        } else if (value instanceof String) {
+            this.value = (String) value;
+        } else if (value instanceof Date) {
+            this.value = Utility.getInstance().date2str((Date) value);
+        } else {
+            this.value = value.toString();
+        }
     }
 
 }
