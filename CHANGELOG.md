@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 Multi-tenancy support for event streams (Hazelcast and Kafka).
-This allows the use of a single event stream cluster for multiple non-prod environment.
+This allows the use of a single event stream cluster for multiple non-prod environments.
 For production, it must use a separate event stream cluster for security reason.
 
 ### Removed
