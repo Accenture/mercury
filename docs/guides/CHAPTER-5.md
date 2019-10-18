@@ -28,6 +28,7 @@
 | route.substitution                          | comma separated rules. e.g hi.here:v1.hi  | Optional |
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
 | kafka.replication.factor                    | 3                                         | Kafka    |
+| multi.tenancy.namespace                     | environment shortname                     | Optional |
 
 `*` - when using the "rest-spring" library when your module needs REST endpoints or health check.
 
