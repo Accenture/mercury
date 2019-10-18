@@ -28,10 +28,12 @@ public class AppAlive extends Thread {
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
+        Platform platform = Platform.getInstance();
         Utility util = Utility.getInstance();
-        String origin = Platform.getInstance().getOrigin();
+        String origin = platform.getOrigin();
         PostOffice po = PostOffice.getInstance();
-        long t0 = 0;
+        // the first message will be sent in 10 seconds
+        long t0 = System.currentTimeMillis() - 10000;
         while (normal) {
             if (ConsumerLifeCycle.isReady()) {
                 long now = System.currentTimeMillis();

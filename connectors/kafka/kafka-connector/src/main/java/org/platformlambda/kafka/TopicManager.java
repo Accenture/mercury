@@ -42,7 +42,6 @@ public class TopicManager implements LambdaFunction {
     private static final String PUB_SUB = "pub_sub";
     private static final String EXISTS = "exists";
     private static final String STOP = "stop";
-    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
     private static long lastStarted = 0;
     private static long lastActive = System.currentTimeMillis();
     private static Integer replicationFactor;
@@ -93,7 +92,6 @@ public class TopicManager implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
-
         if (headers.containsKey(TYPE)) {
             if (STOP.equals(headers.get(TYPE))) {
                 stopAdmin();
@@ -132,7 +130,7 @@ public class TopicManager implements LambdaFunction {
         try {
             Map<String, TopicDescription> result = topicMetadata.all().get();
             count++;
-            if (result != null && !result.isEmpty()) {
+            if (!result.isEmpty()) {
                 for (String k: result.keySet()) {
                     TopicDescription desc = result.get(k);
                     if (desc.name().equals(topic)) {
@@ -163,7 +161,7 @@ public class TopicManager implements LambdaFunction {
                 for (Node n : nodes) {
                     log.info("Broker-Id: {}, Host: {}", n.id(), n.host());
                 }
-                replicationFactor = nodes.size() >= factor ? factor : nodes.size();
+                replicationFactor = Math.min(factor, nodes.size());
                 log.info("Kafka replication factor set to {}", replicationFactor);
 
             } catch (InterruptedException | ExecutionException e) {
@@ -246,21 +244,21 @@ public class TopicManager implements LambdaFunction {
         List<String> result = new ArrayList<>();
         ListTopicsResult list = admin.listTopics();
         try {
-            // node ID is formatted in UUID
             Set<String> topics = list.names().get();
             count++;
-            /*
-             * For each application instance, a topic is created using its originId.
-             * Since version 1.11.0, platform originId is generated using util.getDateUuid().
-             */
-            for (String topic: topics) {
+            String namespace = Platform.getInstance().getNamespace();
+            for (String t: topics) {
+                // skip topics that are not in this namespace
+                if (namespace != null && !t.endsWith(namespace)) {
+                    continue;
+                }
                 if (regular) {
-                    if (regularTopicFormat(topic)) {
-                        result.add(topic);
+                    if (regularTopicFormat(t)) {
+                        result.add(t);
                     }
                 } else {
-                    if (!regularTopicFormat(topic)) {
-                        result.add(topic);
+                    if (!regularTopicFormat(t)) {
+                        result.add(t);
                     }
                 }
             }
@@ -277,7 +275,8 @@ public class TopicManager implements LambdaFunction {
      * @return true if valid
      */
     public static boolean regularTopicFormat(String topic) {
-        if (topic.length() != TOPIC_LEN) {
+        Platform platform = Platform.getInstance();
+        if (topic.length() != platform.getOrigin().length()) {
             return false;
         }
         // first 8 digits is a date stamp
@@ -285,6 +284,14 @@ public class TopicManager implements LambdaFunction {
         if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
             return false;
         }
+        // drop namespace before validation
+        if (platform.getNamespace() != null) {
+            int dot = uuid.lastIndexOf('.');
+            if (dot > 1) {
+                uuid = uuid.substring(0, dot);
+            }
+        }
+        // application instance ID should be hexadecimal
         for (int i=0; i < uuid.length(); i++) {
             if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
             if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;

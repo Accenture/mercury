@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.10, 10/18/2019
+
+### Added
+
+Multi-tenancy support for event streams (Hazelcast and Kafka).
+This allows the use of a single event stream cluster for multiple non-prod environment.
+For production, it must use a separate event stream cluster for security reason.
+
+### Removed
+
+N/A
+
+### Changed
+
+logging framework changed from logback to log4j2 (version 2.12.1).
+
+---
 ## Version 1.12.9, 9/14/2019
 
 ### Added

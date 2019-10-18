@@ -112,8 +112,10 @@ public class KafkaSetup implements CloudSetup {
             platform.registerPrivate(MANAGER, new TopicManager(baseProp), 1);
             String origin = platform.getOrigin();
             log.info("Starting kafka consumer module");
+            String namespace = Platform.getInstance().getNamespace();
+            String presenceMonitor = namespace == null? PRESENCE_MONITOR : PRESENCE_MONITOR + "." + namespace;
             PostOffice po = PostOffice.getInstance();
-            String topic = isServiceMonitor? PRESENCE_MONITOR : origin;
+            String topic = isServiceMonitor? presenceMonitor : origin;
             EventEnvelope init = po.request(MANAGER, 20000, new Kv(TYPE, CREATE_TOPIC), new Kv(ORIGIN, topic));
             if (init.getBody() instanceof Boolean) {
                 if (!((Boolean) init.getBody())) {

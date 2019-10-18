@@ -71,6 +71,10 @@ public class MainApp implements EntryPoint {
          */
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         String topic = HazelcastSetup.getNamespace()+MONITOR;
+        String namespace = Platform.getInstance().getNamespace();
+        if (namespace != null) {
+            topic += "."+namespace;
+        }
         client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(topic));
         // setup producer
         platform.registerPrivate(PRESENCE_MONITOR, new PresenceProducer(client, topic), 1);

@@ -51,7 +51,6 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String NODES = "nodes";
     private static final String JOIN = "join";
-    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -177,8 +176,12 @@ public class TopicManager implements LambdaFunction {
         String nodes = HazelcastSetup.getNamespace()+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
-        List<String> topicList = new ArrayList<>(map.keySet());
-        for (String t: topicList) {
+        String namespace = Platform.getInstance().getNamespace();
+        for (String t: map.keySet()) {
+            // skip topics that are not in this namespace
+            if (namespace != null && !t.endsWith(namespace)) {
+                continue;
+            }
             if (regularTopicFormat(t)) {
                 result.add(t);
             }
@@ -192,8 +195,13 @@ public class TopicManager implements LambdaFunction {
         String nodes = HazelcastSetup.getNamespace()+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
-        for (String k: map.keySet()) {
-            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(k));
+        String namespace = Platform.getInstance().getNamespace();
+        for (String t: map.keySet()) {
+            // skip topics that are not in this namespace
+            if (namespace != null && !t.endsWith(namespace)) {
+                continue;
+            }
+            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(t));
             result.add(metadata);
         }
         return result;
@@ -205,10 +213,15 @@ public class TopicManager implements LambdaFunction {
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         Map<String, String> result = new HashMap<>();
-        for (String k: map.keySet()) {
-            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(k));
+        String namespace = Platform.getInstance().getNamespace();
+        for (String t: map.keySet()) {
+            // skip topics that are not in this namespace
+            if (namespace != null && !t.endsWith(namespace)) {
+                continue;
+            }
+            Map<String, String> metadata = (Map<String, String>) msgPack.unpack(map.get(t));
             if (metadata.containsKey("updated")) {
-                result.put(k, metadata.get("updated"));
+                result.put(t, metadata.get("updated"));
             }
         }
         return result;
@@ -236,7 +249,8 @@ public class TopicManager implements LambdaFunction {
      * @return true if valid
      */
     public static boolean regularTopicFormat(String topic) {
-        if (topic.length() != TOPIC_LEN) {
+        Platform platform = Platform.getInstance();
+        if (topic.length() != platform.getOrigin().length()) {
             return false;
         }
         // first 8 digits is a date stamp
@@ -244,6 +258,14 @@ public class TopicManager implements LambdaFunction {
         if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
             return false;
         }
+        // drop namespace before validation
+        if (platform.getNamespace() != null) {
+            int dot = uuid.lastIndexOf('.');
+            if (dot > 1) {
+                uuid = uuid.substring(0, dot);
+            }
+        }
+        // application instance ID should be hexadecimal
         for (int i=0; i < uuid.length(); i++) {
             if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
             if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;

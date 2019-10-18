@@ -55,7 +55,7 @@ public class Platform {
     private static final String LAMBDA = "lambda";
     private static final String NODE_ID = "id";
     private static ActorSystem system;
-    private static String nodeId, lambdaId;
+    private static String nodeId, lambdaId, namespace;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static Platform instance = new Platform();
 
@@ -131,9 +131,21 @@ public class Platform {
      */
     public String getLambdaId() {
         if (lambdaId == null) {
-            lambdaId = Utility.getInstance().getDateUuid();
+            Utility util = Utility.getInstance();
+            AppConfigReader config = AppConfigReader.getInstance();
+            namespace = config.getProperty("multi.tenancy.namespace");
+            lambdaId = namespace == null? Utility.getInstance().getDateUuid() :
+                                    Utility.getInstance().getDateUuid() + "." + util.filteredServiceName(namespace);
         }
         return lambdaId;
+    }
+
+    /**
+     * Namespace will be null if multi.tenancy.namespace is not configured in application.properties
+     * @return namespace
+     */
+    public String getNamespace() {
+        return namespace;
     }
 
     /**

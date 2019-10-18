@@ -215,7 +215,8 @@ public class EventProducer implements LambdaFunction {
     private List<String> getDestinations(String to, boolean broadcast) {
         // broadcast to all presence monitor instances?
         if (to.equals("*")) {
-            return Collections.singletonList(PRESENCE_MONITOR);
+            String namespace = Platform.getInstance().getNamespace();
+            return Collections.singletonList(namespace == null? PRESENCE_MONITOR : PRESENCE_MONITOR + "." + namespace);
         }
         // normal message
         Platform platform = Platform.getInstance();

@@ -7,25 +7,29 @@
     <artifactId>kafka-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.9</version>
+    <version>1.12.10</version>
     <name>Cloud connector for Kafka cluster</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!--<repositories>
+    <repositories>
         <repository>
-            <id>your-repo</id>
-            <url>https://your_repository_here/artifactory/libs-release</url>
+            <id>central</id>
+            <url>http://repo1.maven.org/maven2/</url>
         </repository>
-    </repositories>-->
+<!--        <repository>-->
+<!--            <id>your-repo</id>-->
+<!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
+<!--        </repository>-->
+    </repositories>
 
     <dependencies>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.9</version>
+            <version>1.12.10</version>
         </dependency>
 
         <dependency>
@@ -39,6 +43,19 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>2.1</version>
             <scope>test</scope>
         </dependency>
 

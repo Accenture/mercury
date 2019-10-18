@@ -65,7 +65,6 @@ public class MonitorService implements LambdaFunction {
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
     private static final String PEERS = "peers";
-    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
     private static final long EXPIRY = 60 * 1000;
 
     // websocket route to user application origin-ID. Websocket routes for this presence monitor instance only
@@ -311,14 +310,22 @@ public class MonitorService implements LambdaFunction {
      * @return true if valid
      */
     private boolean validTopicId(String topic) {
-        if (topic.length() != TOPIC_LEN) {
+        Platform platform = Platform.getInstance();
+        if (topic.length() != platform.getOrigin().length()) {
             return false;
         }
-        String yyyymmdd = topic.substring(0, 8);
         String uuid = topic.substring(8);
-        if (!Utility.getInstance().isDigits(yyyymmdd)) {
+        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
             return false;
         }
+        // drop namespace before validation
+        if (platform.getNamespace() != null) {
+            int dot = uuid.lastIndexOf('.');
+            if (dot > 1) {
+                uuid = uuid.substring(0, dot);
+            }
+        }
+        // application instance ID should be hexadecimal
         for (int i=0; i < uuid.length(); i++) {
             if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
             if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;

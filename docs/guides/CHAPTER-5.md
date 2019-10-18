@@ -83,6 +83,21 @@ For production, you would be using Kafka or Hazelcast as the event stream. In th
 
 You can then configure a "presence reporter" in your service module to report to the presence monitor. It uses websocket "presence" technology to inform the monitor when your module fails so that a new instance can be started.
 
+# multi-tenancy for event stream systems
+
+Since version 1.12.10, multi-tenancy is supported for hazelcast and kafka.
+This is a convenient feature for non-prod environments to share a single event stream system.
+For production, you should use a separate event stream cluster.
+
+To enable multi-tenancy support, set the following parameters in application.properties like this:
+
+```
+# set a name for the environment. e.g. "dev"
+# you can use any environment variable to map to a namespace. e.g. RUNTIME_ENV
+multi.tenancy.namespace=dev
+env.variables=RUNTIME_ENV:multi.tenancy.namespace
+```
+
 # Spring Boot
 
 The foundation code uses Spring Boot in the "rest-spring" library. For loose coupling, we use the `@MainApplication` as a replacement for the `SpringApplication`. Please refer to the MainApp class in the "rest-example" project.
