@@ -317,6 +317,10 @@ public class RoutingEntry {
             String service = (String) entry.get(SERVICE);
             List<String> methods = (List<String>) entry.get(METHODS);
             String url = (String) entry.get(URL);
+            // drop query string when parsing URL
+            if (url.contains("?")) {
+                url = url.substring(0, url.indexOf('?'));
+            }
             int timeout = -1;
             if (entry.containsKey(TIMEOUT)) {
                 Object t = entry.get(TIMEOUT);
