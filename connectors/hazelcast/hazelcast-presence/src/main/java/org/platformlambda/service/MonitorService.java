@@ -49,7 +49,6 @@ public class MonitorService implements LambdaFunction {
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String READY = "ready";
 
-    private static final String STOP = "stop";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
     private static final String PUT = "put";
