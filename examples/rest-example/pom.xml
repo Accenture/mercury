@@ -13,12 +13,16 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!--<repositories>
+    <repositories>
         <repository>
-            <id>your-repo</id>
-            <url>https://your_repo_here/artifactory/libs-release</url>
+            <id>central</id>
+            <url>http://repo1.maven.org/maven2/</url>
         </repository>
-    </repositories>-->
+<!--        <repository>-->
+<!--            <id>your-repo</id>-->
+<!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
+<!--        </repository>-->
+    </repositories>
 
     <dependencies>
 
