@@ -100,7 +100,9 @@ public class AdditionalInfo implements LambdaFunction {
 
     private List<String> sortedTopicList(List<String> list) {
         Utility util = Utility.getInstance();
-        Collections.sort(list);
+        if (list.size() > 1) {
+            Collections.sort(list);
+        }
         List<String> result = new ArrayList<>();
         for (String item: list) {
             List<String> parts = util.split(item, "|");
