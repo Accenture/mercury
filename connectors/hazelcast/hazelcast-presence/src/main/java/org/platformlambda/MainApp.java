@@ -65,7 +65,7 @@ public class MainApp implements EntryPoint {
         platform.waitForProvider(CLOUD_CONNECTOR, 20);
         platform.waitForProvider(MANAGER, 20);
         // start additional info service
-        platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 1);
+        platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 3);
         /*
          * setup presence.monitor topic producer and consumer
          */

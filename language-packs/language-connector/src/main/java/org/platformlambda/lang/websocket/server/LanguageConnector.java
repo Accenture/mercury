@@ -27,7 +27,7 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.ManagedCache;
+import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
@@ -84,7 +84,7 @@ public class LanguageConnector implements LambdaFunction {
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
 
-    private static ManagedCache cache;
+    private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
     private static String apiKey, inboxRoute;
 
     private enum State {
@@ -174,7 +174,6 @@ public class LanguageConnector implements LambdaFunction {
 
     public static void initialize() throws IOException {
         if (apiKey == null) {
-            cache = MultipartPayload.getInstance().getCache();
             apiKey = getApiKey();
             log.info("Started");
             LambdaFunction registry = (headers, body, instance) -> {

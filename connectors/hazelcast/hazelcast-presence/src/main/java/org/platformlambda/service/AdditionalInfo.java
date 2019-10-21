@@ -23,13 +23,11 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
 import org.platformlambda.hazelcast.HazelcastSetup;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class AdditionalInfo implements LambdaFunction {
@@ -57,7 +55,7 @@ public class AdditionalInfo implements LambdaFunction {
             result.put("connections", connections);
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
-            Map<String, String> topics = getTopics();
+            List<String> topics = getTopics();
             result.put("topics", topics);
             // totals
             Map<String, Object> counts = new HashMap<>();
@@ -81,19 +79,35 @@ public class AdditionalInfo implements LambdaFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, String> getTopics() throws TimeoutException, IOException, AppException {
+    private List<String> getTopics() throws TimeoutException, IOException, AppException {
         // get topic list from hazelcast
         PostOffice po = PostOffice.getInstance();
         EventEnvelope res = po.request(MANAGER, 30000, new Kv(TYPE, GET_ALL));
-        Map<String, String> result = new HashMap<>();
+        List<String> list = new ArrayList<>();
         List<Map<String, String>> dataset = res.getBody() instanceof List?
                                             (List<Map<String, String>>) res.getBody() : new ArrayList<>();
+
         for (Map<String, String> map: dataset) {
             if (map.containsKey(NAME) && map.containsKey(NODE) && map.containsKey(UPDATED)) {
                 String name = map.get(NAME);
                 String node = map.get(NODE);
                 String time = map.get(UPDATED);
-                result.put(node, name+", "+time);
+                list.add(name+"|"+time+"|"+node);
+            }
+        }
+        return sortedTopicList(list);
+    }
+
+    private List<String> sortedTopicList(List<String> list) {
+        Utility util = Utility.getInstance();
+        Collections.sort(list);
+        List<String> result = new ArrayList<>();
+        for (String item: list) {
+            List<String> parts = util.split(item, "|");
+            if (parts.size() == 3) {
+                result.add(parts.get(2)+", "+parts.get(1)+", "+parts.get(0));
+            } else {
+                result.add(item);
             }
         }
         return result;

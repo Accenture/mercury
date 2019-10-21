@@ -22,7 +22,7 @@ import akka.actor.ActorRef;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.ManagedCache;
+import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,7 @@ public class MultipartPayload {
     public static final String COUNT = "count";
     public static final String TOTAL = "total";
     public static final int OVERHEAD = 256;
-    private static final ManagedCache cache = ManagedCache.createCache("LargePayloads", 30000);
+    private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
     private static final String TO = "to";
     private static final String BROADCAST = "broadcast";
     private static int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
@@ -53,10 +53,6 @@ public class MultipartPayload {
 
     public static MultipartPayload getInstance() {
         return instance;
-    }
-
-    public ManagedCache getCache() {
-        return cache;
     }
 
     public void incoming(EventEnvelope message) throws IOException {

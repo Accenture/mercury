@@ -39,7 +39,7 @@ public class MainApp implements EntryPoint {
     public static final String MANAGER = "kafka.manager";
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
-    private static final String INFO_SERVICE = "additional.info";
+    private static final String ADDITIONAL_INFO = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
 
     public static void main(String[] args) {
@@ -55,7 +55,7 @@ public class MainApp implements EntryPoint {
         platform.waitForProvider(CLOUD_CONNECTOR, 20);
         platform.waitForProvider(MANAGER, 20);
         // start additional info service
-        platform.registerPrivate(INFO_SERVICE, new InfoService(), 1);
+        platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 3);
         // ping connected application instances periodically
         new PingScheduler().start();
         // broadcast heart beat to presence monitor peers

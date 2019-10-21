@@ -51,7 +51,6 @@ public class PostOffice {
     private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
-    private static final ManagedCache cache = ManagedCache.createCache("sys.missing.broadcast", 5000);
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
     private boolean isEventNode, substituteRoutes;
     private static final PostOffice instance = new PostOffice();
@@ -564,10 +563,6 @@ public class PostOffice {
                         MultipartPayload.getInstance().outgoing(cloud.getTxPaths().get(0), event.setBroadcastLevel(2));
                     }
                 } else {
-                    if (!cache.exists(event.getTo())) {
-                        cache.put(event.getTo(), true);
-                        log.warn("Broadcast event to {} delivered locally because cloud is not available", event.getTo());
-                    }
                     // set broadcast level to 3 for language pack clients if any
                     target.getActor().tell(event.setBroadcastLevel(3), ActorRef.noSender());
                 }

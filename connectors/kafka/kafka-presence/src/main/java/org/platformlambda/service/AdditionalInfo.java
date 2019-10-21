@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
-public class InfoService implements LambdaFunction {
+public class AdditionalInfo implements LambdaFunction {
 
     private static final String MANAGER = MainApp.MANAGER;
     private static final String QUERY = "query";
@@ -56,24 +56,26 @@ public class InfoService implements LambdaFunction {
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
             List<String> topics = getTopics(false);
-            Map<String, Object> liveTopics = new HashMap<>();
-            Map<String, Object> expiredTopics = new HashMap<>();
-            result.put("live_topics", liveTopics);
-            result.put("expired_topics", expiredTopics);
             Utility util = Utility.getInstance();
             long now = System.currentTimeMillis();
+            List<String> liveTopicList = new ArrayList<>();
+            List<String> expiredTopicList = new ArrayList<>();
             for (String t: topics) {
                 AppInfo info = HouseKeeper.getAppInfo(t);
                 if (info != null) {
                     if (now - info.lastSeen > EXPIRY) {
-                        expiredTopics.put(t, info.appName+", "+
-                                util.date2str(new Date(info.lastSeen), true)+", "+info.source);
+                        expiredTopicList.add(info.appName+"|"+
+                                util.date2str(new Date(info.lastSeen), true)+"|"+t+"|"+info.source);
                     } else {
-                        liveTopics.put(t, info.appName+", "+
-                                util.date2str(new Date(info.lastSeen), true)+", "+info.source);
+                        liveTopicList.add(info.appName+"|"+
+                                util.date2str(new Date(info.lastSeen), true)+"|"+t+"|"+info.source);
                     }
                 }
             }
+            List<String> liveTopics = sortedTopicList(liveTopicList);
+            List<String> expiredTopics = sortedTopicList(expiredTopicList);
+            result.put("live_topics", liveTopics);
+            result.put("expired_topics", expiredTopics);
             List<String> pubSub = getTopics(true);
             result.put("pub_sub", pubSub);
             // totals
@@ -87,6 +89,21 @@ public class InfoService implements LambdaFunction {
         } else {
             throw new IllegalArgumentException("Usage: type=query");
         }
+    }
+
+    private List<String> sortedTopicList(List<String> list) {
+        Utility util = Utility.getInstance();
+        Collections.sort(list);
+        List<String> result = new ArrayList<>();
+        for (String item: list) {
+            List<String> parts = util.split(item, "|");
+            if (parts.size() == 4) {
+                result.add(parts.get(2)+", "+parts.get(1)+", "+parts.get(0)+" via "+parts.get(3));
+            } else {
+                result.add(item);
+            }
+        }
+        return result;
     }
 
     private Map<String, Object> filterInfo(Map<String, Object> info) {

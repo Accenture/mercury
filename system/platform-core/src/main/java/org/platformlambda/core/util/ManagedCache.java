@@ -26,13 +26,16 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ManagedCache {
     private static final Logger log = LoggerFactory.getLogger(ManagedCache.class);
 
     private static final long DEFAULT_MAX_ITEMS = 2000;
     private static final long MIN_EXPIRY = 1000;
-    private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<String, ManagedCache>();
+    private static final long FIVE_MINUTES = 5 * 60000;
+    private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
+    private static final AtomicInteger counter = new AtomicInteger(0);
 
     private String name;
     private long expiry, maxItems;
@@ -44,6 +47,11 @@ public class ManagedCache {
         this.name = name;
         this.expiry = expiryMs;
         this.maxItems = maxItems;
+        if (counter.incrementAndGet() == 1) {
+            // clean up cache every 5 minutes to promote garbage collection
+            CleanUp cleanUp = new CleanUp();
+            cleanUp.start();
+        }
     }
 
     /**
@@ -65,17 +73,17 @@ public class ManagedCache {
      * @param maxItems maximum number of cached objects
      * @return cache instance
      */
-    public static ManagedCache createCache(String name, long expiryMs, long maxItems) {
+    public synchronized static ManagedCache createCache(String name, long expiryMs, long maxItems) {
         ManagedCache managedCache = getInstance(name);
         if (managedCache != null) {
             return managedCache;
         }
-        long expiryTimer = expiryMs < MIN_EXPIRY ? MIN_EXPIRY : expiryMs;
+        long expiryTimer = Math.max(expiryMs, MIN_EXPIRY);
         Cache<String, Object> cache = CacheBuilder.newBuilder().maximumSize(maxItems).expireAfterWrite(expiryTimer, TimeUnit.MILLISECONDS).build();
-        log.debug("Created cache ({}), new entry expires after {} seconds, maxItems={}", name, expiryTimer / 1000, maxItems);
         // create cache
         managedCache = new ManagedCache(cache, name, expiryTimer, maxItems);
         cacheCollection.put(name, managedCache);
+        log.info("Created cache ({}), expiry {} ms, maxItems={}", name, expiryTimer, maxItems);
         return managedCache;
     }
 
@@ -133,6 +141,7 @@ public class ManagedCache {
     }
 
     public void cleanUp() {
+        log.debug("Cleaning up {}", this.getName());
         cache.cleanUp();
     }
 
@@ -154,6 +163,44 @@ public class ManagedCache {
 
     public long getLastReset() {
         return lastReset;
+    }
+
+    private class CleanUp extends Thread {
+
+        private boolean normal = true;
+
+        public CleanUp() {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+        }
+
+        @Override
+        public void run() {
+            log.info("Started");
+            long t1 = System.currentTimeMillis();
+            while (normal) {
+                long now = System.currentTimeMillis();
+                // avoid scanning frequently
+                if (now - t1 > FIVE_MINUTES) {
+                    t1 = now;
+                    // clean up cache collection
+                    for (String key : cacheCollection.keySet()) {
+                        ManagedCache c = cacheCollection.get(key);
+                        c.cleanUp();
+                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
+                }
+            }
+            log.info("Stopped");
+        }
+
+        private void shutdown() {
+            normal = false;
+        }
+
     }
 
 }
