@@ -169,7 +169,7 @@ public class ManagedCache {
 
         private boolean normal = true;
 
-        public CleanUp() {
+        private CleanUp() {
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
         }
 

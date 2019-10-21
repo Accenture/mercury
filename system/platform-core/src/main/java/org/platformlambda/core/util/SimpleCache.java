@@ -132,7 +132,7 @@ public class SimpleCache {
     private class CleanUp extends Thread {
         private boolean normal = true;
 
-        public CleanUp() {
+        private CleanUp() {
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
         }
 
