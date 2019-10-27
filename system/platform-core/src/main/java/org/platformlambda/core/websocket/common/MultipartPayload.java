@@ -57,14 +57,19 @@ public class MultipartPayload {
 
     public void incoming(EventEnvelope message) throws IOException {
         Map<String, String> control = message.getHeaders();
-        if (control.size() == 3 && control.containsKey(ID)
+        if (message.getTo() != null) {
+            // normal event
+            PostOffice.getInstance().send(message);
+        } else if (control.size() == 3 && control.containsKey(ID)
                 && control.containsKey(COUNT) && control.containsKey(TOTAL)) {
+            // segmented incoming event
             Utility util = Utility.getInstance();
             String id = control.get(ID);
             int count = util.str2int(control.get(COUNT));
             int total = util.str2int(control.get(TOTAL));
             byte[] data = (byte[]) message.getBody();
             if (data != null && count != -1 && total != -1) {
+                log.debug("Receiving block {} of {} as {} - {} bytes", count, total, id, data.length);
                 ByteArrayOutputStream buffer = (ByteArrayOutputStream) cache.get(id);
                 if (count == 1 || buffer == null) {
                     buffer = new ByteArrayOutputStream();
@@ -97,10 +102,11 @@ public class MultipartPayload {
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
                 for (int i = 0; i < total; i++) {
                     // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
+                    int count = i + 1;
                     EventEnvelope block = new EventEnvelope();
                     block.setHeader(MultipartPayload.ID, event.getId());
-                    block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
-                    block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
+                    block.setHeader(MultipartPayload.COUNT, count);
+                    block.setHeader(MultipartPayload.TOTAL, total);
                     byte[] segment = new byte[MAX_PAYLOAD];
                     int size = in.read(segment);
                     block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
@@ -110,7 +116,7 @@ public class MultipartPayload {
                         out.setHeader(BROADCAST, "1");
                     }
                     dest.tell(out, ActorRef.noSender());
-                    log.debug("Sending block {} of {} to {} via {}", i + 1, total, event.getTo(), dest.path().name());
+                    log.debug("Sending block {} of {} to {} - {} bytes", i + 1, total, event.getTo(), size);
                 }
 
             } else {

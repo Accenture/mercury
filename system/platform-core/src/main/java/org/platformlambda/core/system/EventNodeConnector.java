@@ -160,11 +160,7 @@ public class EventNodeConnector implements LambdaFunction {
                                 util.closeConnection(txPath, CloseReason.CloseCodes.GOING_AWAY, "Secure transport failed");
                                 return false;
                             }
-                            if (message.getTo() != null) {
-                                po.send(message);
-                            } else {
-                                MultipartPayload.getInstance().incoming(message);
-                            }
+                            MultipartPayload.getInstance().incoming(message);
                             EventNodeManager.touch();
                         } else {
                             // handle handshake

@@ -48,7 +48,6 @@ public class JaxRest {
     public Map<String, Object> hello(@Context HttpServletRequest request) throws IOException, TimeoutException, AppException {
 
         PostOffice po = PostOffice.getInstance();
-
         Map<String, Object> forward = new HashMap<>();
         forward.put("time", new Date());
 
