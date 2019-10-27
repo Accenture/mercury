@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.11, 10/21/2019
+## Version 1.12.12, 10/26/2019
 
 ### Added
 
@@ -20,7 +20,9 @@ N/A
 
 ### Changed
 
-logging framework changed from logback to log4j2 (version 2.12.1).
+1. logging framework changed from logback to log4j2 (version 2.12.1)
+2. Use JSR-356 websocket annotated ClientEndpoint
+3. Improved websocket reconnection logic
 
 ---
 ## Version 1.12.9, 9/14/2019

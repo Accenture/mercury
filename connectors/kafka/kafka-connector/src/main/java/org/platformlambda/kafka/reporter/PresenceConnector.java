@@ -45,7 +45,7 @@ public class PresenceConnector implements LambdaFunction {
 
     private static PresenceConnector instance = new PresenceConnector();
     public enum State {
-        UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED
+        UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED, ERROR
     }
     private State state = State.UNASSIGNED;
     private String monitor;
@@ -80,8 +80,7 @@ public class PresenceConnector implements LambdaFunction {
                     connectTime = System.currentTimeMillis();
                     ready = false;
                     setState(State.CONNECTED);
-                    // register basic application info
-                    sendAppInfo(monitor);
+                    sendAppInfo();
                     log.info("Connected {}, {}, {}", route, ip, path);
                     break;
                 case WsEnvelope.CLOSE:
@@ -138,6 +137,10 @@ public class PresenceConnector implements LambdaFunction {
         return state == State.CONNECTED;
     }
 
+    public boolean isReady() {
+        return ready;
+    }
+
     public void checkActivation() {
         if (!ready && monitor != null && connectTime > 0 && System.currentTimeMillis() - connectTime > MAX_WAIT) {
             String message = "Connection not activated within "+(MAX_WAIT / 1000)+" seconds";
@@ -163,18 +166,20 @@ public class PresenceConnector implements LambdaFunction {
         }
     }
 
-    private void sendAppInfo(String txPath) {
-        try {
-            VersionInfo app = Utility.getInstance().getVersionInfo();
-            EventEnvelope info = new EventEnvelope();
-            info.setTo(INFO);
-            info.setHeader("name", Platform.getInstance().getName());
-            info.setHeader("version", app.getVersion());
-            info.setHeader("type", ServerPersonality.getInstance().getType().toString());
-            PostOffice.getInstance().send(txPath, info.toBytes());
+    public void sendAppInfo() {
+        if (monitor != null) {
+            try {
+                VersionInfo app = Utility.getInstance().getVersionInfo();
+                EventEnvelope info = new EventEnvelope();
+                info.setTo(INFO);
+                info.setHeader("name", Platform.getInstance().getName());
+                info.setHeader("version", app.getVersion());
+                info.setHeader("type", ServerPersonality.getInstance().getType().toString());
+                PostOffice.getInstance().send(monitor, info.toBytes());
 
-        } catch (IOException e) {
-            log.error("Unable to send application info to presence monitor - {}", e.getMessage());
+            } catch (IOException e) {
+                log.error("Unable to send application info to presence monitor - {}", e.getMessage());
+            }
         }
     }
 

@@ -30,26 +30,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 
 public class KeepAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(KeepAlive.class);
 
     public static final String MONITOR_ALIVE = "monitor_alive";
-    private static final SecureRandom random = new SecureRandom();
     private static final String TO = "to";
     private static final long INTERVAL = 20 * 1000;
     private static final String INIT = "init";
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
-    private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
-    private static final long TOKEN_LIFE = 5 * 60 * 1000;
-    private static final int TOKEN_BOUND = 10000;
 
-    private int token = random.nextInt(TOKEN_BOUND);
-    private long updated = System.currentTimeMillis();
     private static boolean normal = true;
 
     @Override
@@ -72,15 +65,11 @@ public class KeepAlive extends Thread {
                 /*
                  * broadcast to all presence monitors
                  */
-                if (now - updated > TOKEN_LIFE) {
-                    generateToken();
-                }
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
                 event.setHeader(ORIGIN, origin);
                 event.setHeader(TYPE, MONITOR_ALIVE);
                 // token is used for leader election
-                event.setHeader(TOKEN, token);
                 // use sortable timestamp yyyymmddhhmmss
                 event.setHeader(TIMESTAMP, util.getTimestamp());
                 // send my connection list
@@ -98,11 +87,6 @@ public class KeepAlive extends Thread {
             }
         }
         log.info("Stopped");
-    }
-
-    private void generateToken() {
-        token = random.nextInt(TOKEN_BOUND);
-        updated = System.currentTimeMillis();
     }
 
     private void initializeKafka() {

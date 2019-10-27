@@ -38,11 +38,9 @@ public class WsRegistry {
     private static final Logger log = LoggerFactory.getLogger(WsRegistry.class);
 
     // JSR-356 websocket sessionId to route mapping
-    private static final ConcurrentMap<String, String> routeMap = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> sessionToRoute = new ConcurrentHashMap<>();
     // route to WsEnvelope mapping
     private static final ConcurrentMap<String, WsEnvelope> registry = new ConcurrentHashMap<>();
-    // route to Session mapping
-    private static final ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<>();
     private static final String IP = "ip";
     private static final WsRegistry instance = new WsRegistry();
 
@@ -69,17 +67,16 @@ public class WsRegistry {
     public void createHandler(LambdaFunction service, Session session, WsEnvelope connection) throws IOException {
         // update websocket configuration
         WsConfigurator.getInstance().update(session);
-        connection.sessionId = session.getId();
+        connection.session = session;
         registry.put(connection.route, connection);
-        sessions.put(connection.route, session);
-        routeMap.put(session.getId(), connection.route);
+        sessionToRoute.put(session.getId(), connection.route);
         Platform platform = Platform.getInstance();
         platform.registerPrivate(connection.route, service,1);
         platform.registerPrivate(connection.txPath, new WsTransmitter(),1);
     }
 
     public String getRoute(String sessionId) {
-        return routeMap.get(sessionId);
+        return sessionToRoute.get(sessionId);
     }
 
     public String getTxPath(String sessionId) {
@@ -94,12 +91,8 @@ public class WsRegistry {
     }
 
     public Session getSession(String route) {
-        Session session = sessions.get(route);
-        if (session != null) {
-            // immediately remove to guarantee that it can only be used once
-            sessions.remove(route);
-        }
-        return session;
+        WsEnvelope connection = registry.get(route);
+        return connection == null? null : connection.session;
     }
 
     public WsEnvelope get(String route) {
@@ -116,21 +109,27 @@ public class WsRegistry {
             Platform platform = Platform.getInstance();
             try {
                 platform.release(connection.txPath);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.error("Unable to release {} - {}", connection.txPath, e.getMessage());
             }
             try {
                 platform.release(connection.route);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.error("Unable to release {} - {}", connection.route, e.getMessage());
             }
             // clean up websocket registry
             if (registry.containsKey(route)) {
                 WsEnvelope envelope = registry.get(route);
                 registry.remove(route);
-                routeMap.remove(envelope.sessionId);
-                sessions.remove(route);
-                log.info("Session {} ({}, {}) released", envelope.sessionId, envelope.route, envelope.txPath);
+                if (envelope.session != null) {
+                    String sessionId = envelope.session.getId();
+                    sessionToRoute.remove(sessionId);
+                    // remove references
+                    envelope.session = null;
+                    envelope.sessionKey = null;
+                    envelope.publicKey = null;
+                    log.info("Session-{} ({}, {}) released", sessionId, envelope.route, envelope.txPath);
+                }
             }
         }
     }

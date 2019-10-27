@@ -22,15 +22,12 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.client.WsClientEndpoint;
+import org.platformlambda.core.websocket.client.SimpleClientEndpoint;
 import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.ClientEndpointConfig;
-import javax.websocket.ContainerProvider;
-import javax.websocket.DeploymentException;
-import javax.websocket.WebSocketContainer;
+import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -43,11 +40,15 @@ public class PresenceManager extends Thread {
 
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
-    private static boolean normal = true;
-    private long timer = 0;
     private static final long WAIT_INTERVAL = 5000;
-    private static List<String> platformPaths = new ArrayList<>();
+    private static final long MAX_HANDSHAKE_WAIT = 10000;
+
+    private static boolean normal = true;
+
+    private List<String> platformPaths = new ArrayList<>();
+    private Session session;
     private String url;
+    private long lastPending = 0;
     
     public PresenceManager(String url) {
         this.url = url;
@@ -71,10 +72,11 @@ public class PresenceManager extends Thread {
             System.exit(-1);
         }
         // start reporting to presence monitor
-        long lastActivity = 0;
+        long timer = 0;
+        long lastSeen = 0;
         PresenceConnector connector = PresenceConnector.getInstance();
         if (connector.isUnassigned()) {
-            lastActivity = System.currentTimeMillis();
+            lastSeen = System.currentTimeMillis();
             long idleTimeout = WsConfigurator.getInstance().getIdleTimeout() * 1000;
             if (url.contains(",")) {
                 platformPaths = Utility.getInstance().split(url, ", ");
@@ -86,16 +88,33 @@ public class PresenceManager extends Thread {
              * Thereafter, wait for 5 seconds and try again until it is connected.
              */
             long interval = idleTimeout / 3;
-            log.info("Reporting to {} with keep-alive interval {} seconds ", platformPaths, interval / 1000);
+            log.info("Reporting to {} with keep-alive {} seconds ", platformPaths, interval / 1000);
             while (normal) {
                 long now = System.currentTimeMillis();
-                if (connector.isConnected()) {
-                    connector.checkActivation();
-                    timer = now;
-                    // keep-alive
-                    if (now - lastActivity > interval) {
-                        connector.keepAlive();
-                        lastActivity = System.currentTimeMillis();
+                if (session != null && session.isOpen() && connector.isConnected()) {
+                    if (connector.isReady()) {
+                        connector.checkActivation();
+                        timer = now;
+                        // keep-alive
+                        if (now - lastSeen > interval) {
+                            connector.keepAlive();
+                            lastSeen = System.currentTimeMillis();
+                        }
+                    } else {
+                        if (now - lastPending > MAX_HANDSHAKE_WAIT) {
+                            try {
+                                connector.setState(PresenceConnector.State.ERROR);
+                                String message = "Presence monitor does not respond in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                                log.error(message);
+                                session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
+                            } catch (IOException e) {
+                                log.error("Unable to close session - {}", e.getMessage());
+                            }
+                            session = null;
+                        } else {
+                            log.warn("Waiting for presence monitor to respond");
+                            connector.sendAppInfo();
+                        }
                     }
 
                 } else {
@@ -104,52 +123,62 @@ public class PresenceManager extends Thread {
                         try {
                             connect();
                         } catch (Exception e) {
-                            // this should never happen
                             log.error("Unexpected error when trying to reconnect - {}", e.getMessage());
                         }
                     }
                 }
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e1) {
                     // ok to ignore
                 }
             }
             log.info("Stopped");
-        } else {
-            log.warn("Presence connector already started");
         }
 
     }
 
-    private void connect() {
+    private void connect() throws IOException {
         Platform platform = Platform.getInstance();
         PresenceConnector connector = PresenceConnector.getInstance();
-        connector.setState(PresenceConnector.State.CONNECTING);
-        for (String path : platformPaths) {
-            try {
-                URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
+        if (lastPending == 0) {
+            connector.setState(PresenceConnector.State.CONNECTING);
+            for (String path : platformPaths) {
                 try {
-                    WsClientEndpoint endpoint = new WsClientEndpoint(PresenceConnector.getInstance(), uri);
-                    WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                    ClientEndpointConfig config = ClientEndpointConfig.Builder.create().build();
-                    container.connectToServer(endpoint, config, uri);
-                    log.info("Reporting to {}", uri);
-                    break; // exit after successful connection
-                } catch (DeploymentException | IOException e) {
-                    log.warn("{} {}", simpleError(e.getMessage()), uri);
+                    URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e1) {
-                        // ok to ignore
+                        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                        session = container.connectToServer(new SimpleClientEndpoint(connector, uri), uri);
+                        lastPending = System.currentTimeMillis();
+                        log.info("Reporting to {}", uri);
+                        return; // exit after successful connection
+                    } catch (DeploymentException | IOException e) {
+                        log.warn("{} {}", simpleError(e.getMessage()), uri);
                     }
+                } catch (URISyntaxException e) {
+                    log.error("Invalid service monitor URL " + path, e);
+                    System.exit(-1);
                 }
-            } catch (URISyntaxException e) {
-                log.error("Invalid service monitor URL "+path, e);
-                System.exit(-1);
+            }
+        } else {
+            if (System.currentTimeMillis() - lastPending > MAX_HANDSHAKE_WAIT) {
+                if (session != null && session.isOpen()) {
+                    connector.setState(PresenceConnector.State.ERROR);
+                    String message = "Presence monitor does not respond in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                    log.error(message);
+                    session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
+                }
+            } else {
+                // give remote end a few seconds to respond
+                if (session != null && session.isOpen()) {
+                    log.warn("Waiting for presence monitor to respond");
+                    connector.sendAppInfo();
+                    return;
+                }
             }
         }
-
+        session = null;
+        lastPending = 0;
     }
 
     private String simpleError(String error) {

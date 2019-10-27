@@ -68,7 +68,7 @@ public class EventNodeConnector implements LambdaFunction {
     private boolean ready = false, checkingAlive = false;
 
     public enum State {
-        UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED
+        UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED, ERROR
     }
 
     private static final EventNodeConnector instance = new EventNodeConnector();
@@ -279,6 +279,7 @@ public class EventNodeConnector implements LambdaFunction {
                     if (message.contains(ALIVE)) {
                         aliveTime = System.currentTimeMillis();
                         checkingAlive = false;
+                        EventNodeManager.touch();
                         log.debug("{}", body);
                     }
                     break;

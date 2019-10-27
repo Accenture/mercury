@@ -29,7 +29,6 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.AppInfo;
-import org.platformlambda.models.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,6 @@ public class HouseKeeper implements LambdaFunction {
     private static final String APP_ALIVE = "app_alive";
     private static final String LEAVE = "leave";
     private static final String STOP = "stop";
-    private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
     private static final String EVENT = "event";
     private static final String WS = "ws";
@@ -64,7 +62,7 @@ public class HouseKeeper implements LambdaFunction {
     // Topic expiry is 60 seconds, deletion is 5 minutes
     private static final long EXPIRY = 5 * ONE_MINUTE;
 
-    private static final ConcurrentMap<String, Member> monitors = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Long> monitors = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, AppInfo> topics = new ConcurrentHashMap<>();
 
     private long start;
@@ -102,7 +100,7 @@ public class HouseKeeper implements LambdaFunction {
     public static Map<String, Date> getMonitors() {
         Map<String, Date> result = new HashMap<>();
         for (String m: monitors.keySet()) {
-            result.put(m, new Date(monitors.get(m).updated));
+            result.put(m, new Date(monitors.get(m)));
         }
         return result;
     }
@@ -119,7 +117,7 @@ public class HouseKeeper implements LambdaFunction {
             }
         }
         if (MONITOR_ALIVE.equals(headers.get(TYPE))) {
-            if (headers.containsKey(TIMESTAMP) && headers.containsKey(TOKEN) && headers.containsKey(ORIGIN)) {
+            if (headers.containsKey(TIMESTAMP) && headers.containsKey(ORIGIN)) {
                 String origin = headers.get(ORIGIN);
                 String timestamp = headers.get(TIMESTAMP);
                 long time = Utility.getInstance().timestamp2ms(timestamp);
@@ -135,7 +133,7 @@ public class HouseKeeper implements LambdaFunction {
                 if (!monitors.containsKey(origin)) {
                     log.info("Registered monitor {} {}", origin, me.equals(origin) ? "(me)" : "(peer)");
                 }
-                monitors.put(origin, new Member(headers.get(TOKEN), time));
+                monitors.put(origin, time);
                 removeExpiredMonitors();
                 if (me.equals(origin)) {
                     log.debug("Found {} monitor{}", monitors.size(), monitors.size() == 1 ? "" : "s");
@@ -143,35 +141,37 @@ public class HouseKeeper implements LambdaFunction {
                      * Skip signals from other presence monitor.
                      * Check only when it is my turn.
                      */
-                    boolean restartMyProducer = false, restartAppProducers = false;
-                    String leader = getLeader(me);
-                    boolean myTurn = leader.equals(me);
                     List<String> expired = findExpiredTopics();
-                    PostOffice po = PostOffice.getInstance();
-                    for (String e : expired) {
-                        restartMyProducer = true;
-                        // delete the expired topic from Kafka
-                        if (myTurn && now > start) {
-                            restartAppProducers = true;
-                            log.info("Removing expired topic {}", e);
-                            po.send(MANAGER, new Kv(TYPE, LEAVE), new Kv(ORIGIN, e));
-                        } else {
-                            log.info("Detected expired topic {}", e);
+                    if (now > start) {
+                        boolean restartMyProducer = false, restartAppProducers = false;
+                        String leader = getLeader(me);
+                        boolean myTurn = leader.equals(me);
+                        PostOffice po = PostOffice.getInstance();
+                        for (String e : expired) {
+                            restartMyProducer = true;
+                            // delete the expired topic from Kafka
+                            if (myTurn) {
+                                restartAppProducers = true;
+                                log.info("Removing expired topic {}", e);
+                                po.send(MANAGER, new Kv(TYPE, LEAVE), new Kv(ORIGIN, e));
+                            } else {
+                                log.info("Detected expired topic {}", e);
+                            }
+                            // remove from memory
+                            topics.remove(e);
                         }
-                        // remove from memory
-                        topics.remove(e);
-                    }
-                    if (restartAppProducers) {
-                        List<String> peers = getAppPeers();
-                        // and broadcast the restart event to all live application instances
-                        for (String p : peers) {
-                            po.send(ServiceDiscovery.SERVICE_REGISTRY + "@" + p, new Kv(TYPE, RESTART));
+                        if (restartAppProducers) {
+                            List<String> peers = getAppPeers();
+                            // and broadcast the restart event to all live application instances
+                            for (String p : peers) {
+                                po.send(ServiceDiscovery.SERVICE_REGISTRY + "@" + p, new Kv(TYPE, RESTART));
+                            }
                         }
-                    }
-                    if (restartMyProducer) {
-                        // when a topic is deleted, we should reset the producer and admin clients
-                        po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
-                        po.send(MANAGER, new Kv(TYPE, STOP));
+                        if (restartMyProducer) {
+                            // when a topic is deleted, we should reset the producer and admin clients
+                            po.send(CLOUD_CONNECTOR, new Kv(TYPE, STOP));
+                            po.send(MANAGER, new Kv(TYPE, STOP));
+                        }
                     }
 
                 } else if (body instanceof List) {
@@ -180,7 +180,8 @@ public class HouseKeeper implements LambdaFunction {
                     List<String> myConnections = new ArrayList<>(connections.keySet());
                     List<String> peerConnections = (List<String>) body;
                     if (!sameList(myConnections, peerConnections)) {
-                        log.warn("Sync up connection list with peers");
+                        log.warn("Sync up because my list ({}) does not match peer ({})",
+                                myConnections.size(), peerConnections.size());
                         // download current connections from peers
                         EventEnvelope event = new EventEnvelope();
                         event.setTo(org.platformlambda.MainApp.PRESENCE_HANDLER);
@@ -195,6 +196,9 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private boolean sameList(List<String> a, List<String> b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
         if (a.size() > 1) {
             Collections.sort(a);
         }
@@ -242,7 +246,7 @@ public class HouseKeeper implements LambdaFunction {
         long now = System.currentTimeMillis();
         List<String> expired = new ArrayList<>();
         for (String k: monitors.keySet()) {
-            long time = monitors.get(k).updated;
+            long time = monitors.get(k);
             if (now - time > EXPIRY) {
                 expired.add(k);
             }
@@ -256,23 +260,14 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private String getLeader(String me) {
-        /*
-         * The member with the highest token value wins.
-         * Default is "me" when there are no bidders.
-         */
-        String leader = me;
-        int base = 0;
-        for (String k: monitors.keySet()) {
-            if (leader == null) {
-                leader = k;
-            }
-            int token = monitors.get(k).token;
-            if (token > base) {
-                leader = k;
-                base = token;
-            }
+        // the smallest origin ID wins
+        List<String> list = new ArrayList<>(monitors.keySet());
+        if (list.size() > 1) {
+            Collections.sort(list);
+            return list.get(0);
+        } else {
+            return me;
         }
-        return leader;
     }
 
     @SuppressWarnings("unchecked")

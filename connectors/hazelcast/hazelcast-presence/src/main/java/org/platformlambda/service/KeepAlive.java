@@ -29,14 +29,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Map;
 
 public class KeepAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(KeepAlive.class);
 
-    private static final SecureRandom random = new SecureRandom();
     private static final long INTERVAL = 20 * 1000;
     private static final String INIT = "init";
     private static final String TYPE = "type";
@@ -44,12 +41,13 @@ public class KeepAlive extends Thread {
     private static final String ALIVE = "alive";
     private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
-    private static final long TOKEN_LIFE = 5 * 60 * 1000;
-    private static final int TOKEN_BOUND = 10000;
 
-    private int token = random.nextInt(TOKEN_BOUND);
-    private long updated = System.currentTimeMillis();
+    private boolean ready = false;
     private static boolean normal = true;
+
+    public KeepAlive() {
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    }
 
     @Override
     public void run() {
@@ -57,8 +55,6 @@ public class KeepAlive extends Thread {
         initializeHazelcast();
         // begin keep-alive
         log.info("Started");
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-
         Utility util = Utility.getInstance();
         String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
@@ -68,19 +64,18 @@ public class KeepAlive extends Thread {
             long now = System.currentTimeMillis();
             if (now - t0 > INTERVAL) {
                 t0 = now;
+                if (!ready) {
+                    initializeHazelcast();
+                }
                 /*
                  * broadcast to all presence monitors
                  */
-                if (now - updated > TOKEN_LIFE) {
-                    generateToken();
-                }
                 // send keep-alive
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
                 event.setHeader(ORIGIN, origin);
                 event.setHeader(TYPE, ALIVE);
                 // token is used for leader election
-                event.setHeader(TOKEN, token);
                 // use sortable timestamp yyyymmddhhmmss
                 event.setHeader(TIMESTAMP, util.getTimestamp());
                 // send my connection list
@@ -100,11 +95,6 @@ public class KeepAlive extends Thread {
         log.info("Stopped");
     }
 
-    private void generateToken() {
-        token = random.nextInt(TOKEN_BOUND);
-        updated = System.currentTimeMillis();
-    }
-
     private void initializeHazelcast() {
         int n = 0;
         while (n < 20) {
@@ -112,18 +102,19 @@ public class KeepAlive extends Thread {
             if (TopicLifecycleListener.isReady()) {
                 try {
                     EventEnvelope event = new EventEnvelope();
-                    event.setTo(MainApp.PRESENCE_HANDLER);
-                    event.setHeader(INIT, PresenceHandler.INIT_TOKEN);
+                    event.setTo(MainApp.PRESENCE_HANDLER).setHeader(INIT, PresenceHandler.getInitToken());
                     PostOffice.getInstance().send(MainApp.PRESENCE_MONITOR, event.toBytes());
-                    break;
+                    log.info("Initialize hazelcast connection");
+                    ready = true;
+                    return;
                 } catch (IOException e) {
-                    log.error("Unable to initialize kafka connection - {}", e.getMessage());
+                    log.error("Unable to initialize hazelcast connection - {}", e.getMessage());
                     System.exit(-1);
                 }
             }
             log.info("Waiting for hazelcast connection to get ready... {}", n);
             try {
-                Thread.sleep(1000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 // yield to the operating system
             }

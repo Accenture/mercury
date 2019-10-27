@@ -44,19 +44,18 @@ public class HouseKeeper implements LambdaFunction {
     private static final String ORIGIN = "origin";
     private static final String ALIVE = "alive";
     private static final String LEAVE = "leave";
-    private static final String TOKEN = "token";
     private static final String DOWNLOAD = "download";
     private static final String TIMESTAMP = "timestamp";
     private static final long ONE_MINUTE = 60 * 1000;
     // Topic expiry is 60 seconds, deletion is 2 minutes
     private static final long EXPIRY = 2 * ONE_MINUTE;
 
-    private static final ConcurrentMap<String, Member> monitors = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Long> monitors = new ConcurrentHashMap<>();
 
     public static Map<String, Date> getMonitors() {
         Map<String, Date> result = new HashMap<>();
         for (String m: monitors.keySet()) {
-            result.put(m, new Date(monitors.get(m).updated));
+            result.put(m, new Date(monitors.get(m)));
         }
         return result;
     }
@@ -64,8 +63,7 @@ public class HouseKeeper implements LambdaFunction {
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (ALIVE.equals(headers.get(TYPE)) && headers.containsKey(TIMESTAMP) && headers.containsKey(TOKEN)
-                && headers.containsKey(ORIGIN)) {
+        if (ALIVE.equals(headers.get(TYPE)) && headers.containsKey(TIMESTAMP) && headers.containsKey(ORIGIN)) {
             String origin = headers.get(ORIGIN);
             String timestamp = headers.get(TIMESTAMP);
             long time = Utility.getInstance().timestamp2ms(timestamp);
@@ -81,13 +79,16 @@ public class HouseKeeper implements LambdaFunction {
             if (!monitors.containsKey(origin)) {
                 log.info("Registered monitor {} {}", origin, me.equals(origin)? "(me)" : "(peer)");
             }
-            monitors.put(origin, new Member(headers.get(TOKEN), time));
+            monitors.put(origin, time);
             removeExpiredMonitors();
+            /*
+             * 1. if it is my event, check if I am the leader and perform housekeeping of expired topics.
+             * 2. Otherwise, it will sync up connection list.
+             */
             if (me.equals(origin)) {
                 log.debug("Found {} monitor{}", monitors.size(), monitors.size() == 1 ? "" : "s");
                 /*
-                 * Skip signals from other presence monitor.
-                 * Check only when it is my turn.
+                 * Check when it is my turn
                  */
                 String leader = getLeader(me);
                 boolean myTurn = leader.equals(me);
@@ -108,7 +109,8 @@ public class HouseKeeper implements LambdaFunction {
                 List<String> myConnections = new ArrayList<>(connections.keySet());
                 List<String> peerConnections = (List<String>) body;
                 if (!sameList(myConnections, peerConnections)) {
-                    log.warn("Sync up connection list with peers");
+                    log.warn("Sync up because my list ({}) does not match peer ({})",
+                            myConnections.size(), peerConnections.size());
                     // download current connections from peers
                     EventEnvelope event = new EventEnvelope();
                     event.setTo(MainApp.PRESENCE_HANDLER);
@@ -122,6 +124,9 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private boolean sameList(List<String> a, List<String> b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
         if (a.size() > 1) {
             Collections.sort(a);
         }
@@ -154,7 +159,7 @@ public class HouseKeeper implements LambdaFunction {
         long now = System.currentTimeMillis();
         List<String> expired = new ArrayList<>();
         for (String k: monitors.keySet()) {
-            long time = monitors.get(k).updated;
+            long time = monitors.get(k);
             if (now - time > EXPIRY) {
                 expired.add(k);
             }
@@ -168,23 +173,14 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private String getLeader(String me) {
-        /*
-         * The member with the highest token value wins.
-         * Default is "me" when there are no bidders.
-         */
-        String leader = me;
-        int base = 0;
-        for (String k: monitors.keySet()) {
-            if (leader == null) {
-                leader = k;
-            }
-            int token = monitors.get(k).token;
-            if (token > base) {
-                leader = k;
-                base = token;
-            }
+        // the smallest origin ID wins
+        List<String> list = new ArrayList<>(monitors.keySet());
+        if (list.size() > 1) {
+            Collections.sort(list);
+            return list.get(0);
+        } else {
+            return me;
         }
-        return leader;
     }
 
     @SuppressWarnings("unchecked")
@@ -192,18 +188,6 @@ public class HouseKeeper implements LambdaFunction {
         PostOffice po = PostOffice.getInstance();
         EventEnvelope res = po.request(MANAGER, 30000, new Kv(TYPE, TopicManager.LIST_TIMESTAMP));
         return res.getBody() instanceof Map? (Map<String, String>) res.getBody() : new HashMap<>();
-    }
-
-    private class Member {
-
-        public int token;
-        public long updated;
-
-        public Member(String token, long updated) {
-            this.token = Utility.getInstance().str2int(token);
-            this.updated = updated;
-        }
-
     }
 
 }

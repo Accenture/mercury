@@ -53,7 +53,7 @@ public class ConnectionMonitor extends Thread {
                 ConnectionStatus status = connections.get(c);
                 if (!status.authenticated) {
                     if (now - status.connectTime > TIMEOUT) {
-                        log.error("{} failed to handshake in {} seconds", status.route, timeoutSeconds);
+                        log.error("{} does not handshake in {} seconds", status.route, timeoutSeconds);
                         EventEnvelope error = new EventEnvelope();
                         error.setTo(status.txPath);
                         error.setHeader(WsTransmitter.STATUS, String.valueOf(CloseReason.CloseCodes.PROTOCOL_ERROR.getCode()));

@@ -20,7 +20,7 @@ package org.platformlambda.core.system;
 
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.client.WsClientEndpoint;
+import org.platformlambda.core.websocket.client.SimpleClientEndpoint;
 import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +40,13 @@ public class EventNodeManager extends Thread {
     private static final long WAIT_INTERVAL = 5000;
     private static final long MAX_HANDSHAKE_WAIT = 8000;
     private static final int IDLE_THRESHOLD = 10;
-    private static List<String> platformPaths = new ArrayList<>();
 
-    private static long lastActivity;
-    private static boolean normal = true;
-    private long timer = 0;
+    private static long lastSeen = System.currentTimeMillis();
+
+    private List<String> platformPaths = new ArrayList<>();
+    private Session session;
+    private long lastPending = 0;
+    private boolean normal = true;
 
     public EventNodeManager() {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
@@ -54,7 +56,7 @@ public class EventNodeManager extends Thread {
     public void run() {
         EventNodeConnector connector = EventNodeConnector.getInstance();
         if (connector.isUnassigned()) {
-            lastActivity = System.currentTimeMillis();
+            log.info("Started");
             long idleSeconds = WsConfigurator.getInstance().getIdleTimeout() - IDLE_THRESHOLD;
             long idleTimeout = (idleSeconds < IDLE_THRESHOLD? IDLE_THRESHOLD : idleSeconds) * 1000;
             if (platformPaths.isEmpty()) {
@@ -71,27 +73,33 @@ public class EventNodeManager extends Thread {
              * it is connected.
              */
             log.info("{} = {}", PLATFORM_PATH, platformPaths);
+            long timer = 0;
             while (normal) {
                 long now = System.currentTimeMillis();
-                if (connector.isConnected()) {
+                if (session != null && session.isOpen() && connector.isConnected()) {
                     timer = now;
+                    lastPending = 0;
                     if (connector.isReady()) {
                         // keep-alive when idle
-                        if (now - lastActivity > idleTimeout) {
+                        if (now - lastSeen > idleTimeout) {
                             connector.keepAlive();
-                            lastActivity = System.currentTimeMillis();
+                            lastSeen = System.currentTimeMillis();
                         } else {
                             connector.isAlive();
                         }
                     } else {
                         if (now - connector.getHandshakeStartTime() > MAX_HANDSHAKE_WAIT) {
-                            String message = "Event node failed to handshake in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
-                            log.error(message);
                             try {
-                                Utility.getInstance().closeConnection(connector.getTxPath(), CloseReason.CloseCodes.GOING_AWAY, message);
+                                connector.setState(EventNodeConnector.State.ERROR);
+                                String message = "Event node does not handshake in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                                log.error(message);
+                                session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
                             } catch (IOException e) {
-                                // ok to ignore
+                                log.error("Unable to close session - {}", e.getMessage());
                             }
+                            session = null;
+                        } else {
+                            log.warn("Waiting for event node to handshake");
                         }
                     }
 
@@ -101,7 +109,6 @@ public class EventNodeManager extends Thread {
                         try {
                             connect();
                         } catch (Exception e) {
-                            // this should never occur but just in case...
                             log.error("Unexpected error when reconnect - {}", e.getMessage());
                         }
                     }
@@ -117,34 +124,47 @@ public class EventNodeManager extends Thread {
     }
 
     public static void touch() {
-        lastActivity = System.currentTimeMillis();
+        lastSeen = System.currentTimeMillis();
     }
 
-    private void connect() {
-        EventNodeConnector connector = EventNodeConnector.getInstance();
-        connector.setState(EventNodeConnector.State.CONNECTING);
+    private void connect() throws IOException {
         Platform platform = Platform.getInstance();
-        for (String path: platformPaths) {
-            try {
-                URI uri = new URI((path.endsWith("/")? path : path+"/") + platform.getOrigin());
+        EventNodeConnector connector = EventNodeConnector.getInstance();
+        if (lastPending == 0) {
+            connector.setState(EventNodeConnector.State.CONNECTING);
+            for (String path : platformPaths) {
                 try {
-                    WsClientEndpoint endpoint = new WsClientEndpoint(EventNodeConnector.getInstance(), uri);
-                    WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                    // use default client endpoint configuration
-                    container.connectToServer(endpoint, ClientEndpointConfig.Builder.create().build(), uri);
-                    break; // exit after successful connection
-                } catch (DeploymentException | IOException e) {
-                    log.warn("{} {}", simplifiedError(e.getMessage()), uri);
+                    URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e1) {
-                        // ok to ignore
+                        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                        session = container.connectToServer(new SimpleClientEndpoint(connector, uri), uri);
+                        lastPending = System.currentTimeMillis();
+                        return; // exit after successful connection
+                    } catch (DeploymentException | IOException e) {
+                        log.warn("{} {}", simplifiedError(e.getMessage()), uri);
                     }
+                } catch (URISyntaxException e) {
+                    log.error("Invalid event node URL {}", path);
                 }
-            } catch (URISyntaxException e) {
-                log.error("Invalid event node URL {}", path);
+            }
+        } else {
+            if (System.currentTimeMillis() - lastPending > MAX_HANDSHAKE_WAIT) {
+                if (session != null && session.isOpen()) {
+                    connector.setState(EventNodeConnector.State.ERROR);
+                    String message = "Event node does not respond in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                    log.error(message);
+                    session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
+                }
+            } else {
+                // give remote end a few seconds to respond
+                if (session != null && session.isOpen()) {
+                    log.warn("Waiting for event node to respond");
+                    return;
+                }
             }
         }
+        session = null;
+        lastPending = 0;
     }
 
     private String simplifiedError(String error) {
@@ -154,7 +174,7 @@ public class EventNodeManager extends Thread {
     }
 
     private void shutdown() {
-        EventNodeManager.normal = false;
+        normal = false;
     }
 
 }

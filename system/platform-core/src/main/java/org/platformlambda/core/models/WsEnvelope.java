@@ -20,6 +20,7 @@ package org.platformlambda.core.models;
 
 import org.platformlambda.core.util.Utility;
 
+import javax.websocket.Session;
 import java.util.List;
 
 public class WsEnvelope {
@@ -39,7 +40,8 @@ public class WsEnvelope {
     public static final String CLOSE_CODE = "close_code";
     public static final String CLOSE_REASON = "close_reason";
 
-    public String route, txPath, ip, path, query, origin, sessionId;
+    public String route, txPath, ip, path, query, origin;
+    public Session session;
     public byte[] sessionKey, publicKey;
     public boolean encrypt = false;
 

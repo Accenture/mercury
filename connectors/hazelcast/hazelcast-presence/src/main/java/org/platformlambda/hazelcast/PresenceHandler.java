@@ -34,38 +34,40 @@ import java.util.UUID;
 public class PresenceHandler implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceHandler.class);
 
-    public static final String INIT_TOKEN = UUID.randomUUID().toString();
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String DOWNLOAD = "download";
     private static final String PUT = "put";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
+    private final static String initToken = UUID.randomUUID().toString();
 
     private static boolean ready = false;
     private int ignored = 0;
 
     public static boolean isReady() {
-        return PresenceHandler.ready;
+        return ready;
+    }
+
+    public static String getInitToken() {
+        return initToken;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
-
         String myOrigin = Platform.getInstance().getOrigin();
-
         if (headers.containsKey(INIT)){
             /*
              * Ignore all incoming event until the correct initialization message is created.
              */
-            if (PresenceHandler.ready) {
-                if (INIT_TOKEN.equals(headers.get(INIT))) {
+            if (ready) {
+                if (getInitToken().equals(headers.get(INIT))) {
                     log.info("System is healthy");
                 }
             } else {
-                if (INIT_TOKEN.equals(headers.get(INIT))) {
-                    PresenceHandler.ready = true;
+                if (getInitToken().equals(headers.get(INIT))) {
+                    ready = true;
                     if (ignored > 0) {
                         log.warn("Skipping {} outdated events", ignored);
                     }
@@ -81,8 +83,7 @@ public class PresenceHandler implements LambdaFunction {
             }
             return false;
         }
-
-        if (PresenceHandler.ready) {
+        if (ready) {
             /*
              * Handle incoming events
              */

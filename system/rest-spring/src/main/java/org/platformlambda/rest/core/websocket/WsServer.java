@@ -116,7 +116,7 @@ public class WsServer {
                     new Kv(WsEnvelope.IP, envelope.ip), new Kv(WsEnvelope.PATH, envelope.path),
                     new Kv(WsEnvelope.QUERY, normalizeQuery(envelope.query, envelope.ip)),
                     new Kv(WsEnvelope.TOKEN, envelope.origin));
-            log.info("{} {} {} connected to {} {}", session.getId(), route,
+            log.info("Session-{} {} {} connected to {} {}", session.getId(), route,
                     cls.getSimpleName(), envelope.ip, envelope.path);
         } catch (InstantiationException | IllegalAccessException | AppException | IOException | TimeoutException e) {
             log.error("Unable to start {} ({}), {}", cls.getName(), name, e.getMessage());
@@ -148,23 +148,7 @@ public class WsServer {
     }
 
     @OnMessage
-    public void onMessage(byte[] payload, Session session) {
-        String route = registry.getRoute(session.getId());
-        if (route != null) {
-            WsEnvelope envelope = registry.get(route);
-            if (envelope != null) {
-                try {
-                    PostOffice.getInstance().send(route, payload, new Kv(WsEnvelope.TYPE, WsEnvelope.BYTES),
-                            new Kv(WsEnvelope.ROUTE, route), new Kv(WsEnvelope.TX_PATH, envelope.txPath));
-                } catch (IOException e) {
-                    log.error("Unable to route websocket payload to {}, {}", route, e.getMessage());
-                }
-            }
-        }
-    }
-
-    @OnMessage
-    public void onMessage(String message, Session session) {
+    public void onText(String message, Session session) {
         String route = registry.getRoute(session.getId());
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
@@ -179,6 +163,22 @@ public class WsServer {
         }
     }
 
+    @OnMessage
+    public void onBinary(byte[] payload, Session session) {
+        String route = registry.getRoute(session.getId());
+        if (route != null) {
+            WsEnvelope envelope = registry.get(route);
+            if (envelope != null) {
+                try {
+                    PostOffice.getInstance().send(route, payload, new Kv(WsEnvelope.TYPE, WsEnvelope.BYTES),
+                            new Kv(WsEnvelope.ROUTE, route), new Kv(WsEnvelope.TX_PATH, envelope.txPath));
+                } catch (IOException e) {
+                    log.error("Unable to route websocket payload to {}, {}", route, e.getMessage());
+                }
+            }
+        }
+    }
+
     @OnClose
     public void onClose(Session session, CloseReason reason) {
         open = false;
@@ -186,7 +186,7 @@ public class WsServer {
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
             if (envelope != null) {
-                log.info("{} {} closed ({}, {})", session.getId(), route,
+                log.info("Session-{} {} closed ({}, {})", session.getId(), route,
                         reason.getCloseCode().getCode(), reason.getReasonPhrase());
                 try {
                     /*
@@ -211,7 +211,7 @@ public class WsServer {
     public void onError(Session session, Throwable error) {
         if (open) {
             String route = registry.getRoute(session.getId());
-            log.warn("{} {} exception {}", session.getId(), route, error.getMessage());
+            log.warn("Session-{} {} exception {}", session.getId(), route, error.getMessage());
         }
     }
 

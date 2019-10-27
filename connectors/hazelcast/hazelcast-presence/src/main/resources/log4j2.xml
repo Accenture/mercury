@@ -6,6 +6,8 @@
         </Console>
     </Appenders>
     <Loggers>
+        <!--        <logger name="org.platformlambda.core.system.WorkerQueue" level="DEBUG" />-->
+        <logger name="org.platformlambda.hazelcast.TopicLifecycleListener" level="DEBUG" />
         <Root level="${env:LOG_LEVEL:-INFO}" additivity="false">
             <AppenderRef ref="console" />
         </Root>

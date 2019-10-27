@@ -22,7 +22,6 @@ import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -41,17 +40,23 @@ public class WsTransmitter implements LambdaFunction {
     public static final String MESSAGE = "message";
     private Session session;
     private byte[] sessionKey;
-    private SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (body == null && headers.containsKey(WsEnvelope.TYPE)) {
             if (WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
-                String status = headers.get(STATUS);
-                String message = headers.get(MESSAGE);
-                if (status != null && message != null && session != null && session.isOpen()) {
-                    session.close(new CloseReason(CloseReason.CloseCodes.getCloseCode(Utility.getInstance().str2int(status)), message));
+                if (session != null && session.isOpen()) {
+                    int status = Utility.getInstance().str2int(headers.get(STATUS));
+                    String message = headers.get(MESSAGE) == null? "" : headers.get(MESSAGE);
+                    if (status >= 0) {
+                        session.close(new CloseReason(CloseReason.CloseCodes.getCloseCode(status), message));
+                    } else {
+                        session.close();
+                    }
                 }
+                // remove references
+                session = null;
+                sessionKey = null;
             }
             if (WsEnvelope.OPEN.equals(headers.get(WsEnvelope.TYPE))
                     && headers.containsKey(WsEnvelope.ROUTE)) {
@@ -77,7 +82,7 @@ public class WsTransmitter implements LambdaFunction {
             }
         } else {
             if (session != null && session.isOpen()) {
-                session.getBasicRemote().sendText(mapper.writeValueAsString(body));
+                session.getBasicRemote().sendText(SimpleMapper.getInstance().getMapper().writeValueAsString(body));
             }
         }
         return null;

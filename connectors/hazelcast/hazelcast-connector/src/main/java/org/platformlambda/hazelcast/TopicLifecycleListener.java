@@ -42,7 +42,7 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String JOIN = "join";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
-    private static boolean ready = true;
+    private static boolean ready = false;
     private String realTopic;
     private boolean isServiceMonitor;
 
@@ -61,6 +61,7 @@ public class TopicLifecycleListener implements LifecycleListener {
         } catch (IOException e) {
             // this should not occur
         }
+        log.info("Monitoring {}", realTopic);
     }
 
     public static boolean isReady() {
@@ -81,6 +82,7 @@ public class TopicLifecycleListener implements LifecycleListener {
         } else {
             log.info("Event consumer started");
         }
+        ready = true;
         if (!isServiceMonitor) {
             // tell peers that I have joined
             try {
@@ -99,14 +101,12 @@ public class TopicLifecycleListener implements LifecycleListener {
         }
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_CONNECTED) {
             if (!ready) {
-                log.info("Ready");
                 try {
                     PostOffice.getInstance().send(SETUP_CONSUMER, new Kv(TYPE, RESTORE));
                 } catch (IOException e) {
                     log.error("Unable to setup event consumer - {}", e.getMessage());
                 }
             }
-            ready = true;
         }
     }
 
