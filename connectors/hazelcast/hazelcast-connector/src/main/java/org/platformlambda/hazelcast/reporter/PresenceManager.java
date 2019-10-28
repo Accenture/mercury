@@ -49,7 +49,7 @@ public class PresenceManager extends Thread {
     private List<String> platformPaths = new ArrayList<>();
     private Session session;
     private String url;
-    private long lastPending = 0;
+    private long lastPending = 0, timer = 0;
     
     public PresenceManager(String url) {
         this.url = url;
@@ -73,7 +73,6 @@ public class PresenceManager extends Thread {
             System.exit(-1);
         }
         // start reporting to presence monitor
-        long timer = 0;
         PresenceConnector connector = PresenceConnector.getInstance();
         if (connector.isUnassigned()) {
             lastSeen = System.currentTimeMillis();
@@ -90,44 +89,19 @@ public class PresenceManager extends Thread {
             long interval = idleTimeout / 3;
             log.info("Reporting to {} with keep-alive {} seconds ", platformPaths, interval / 1000);
             while (normal) {
-                long now = System.currentTimeMillis();
-                if (session != null && session.isOpen() && connector.isConnected()) {
-                    if (connector.isReady()) {
-                        connector.checkActivation();
-                        timer = now;
-                        // keep-alive
-                        if (now - lastSeen > interval) {
-                            connector.keepAlive();
-                            lastSeen = System.currentTimeMillis();
-                        } else {
-                            connector.isAlive();
-                        }
-                    } else {
-                        if (now - lastPending > MAX_HANDSHAKE_WAIT) {
-                            try {
-                                connector.setState(PresenceConnector.State.ERROR);
-                                String message = "Presence monitor does not respond in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
-                                log.error(message);
-                                session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
-                            } catch (IOException e) {
-                                log.error("Unable to close session - {}", e.getMessage());
-                            }
-                            session = null;
-                        } else {
-                            log.warn("Waiting for presence monitor to respond");
-                            connector.sendAppInfo();
-                        }
-                    }
-                } else {
-                    if (now - timer >= WAIT_INTERVAL) {
-                        timer = System.currentTimeMillis();
+                try {
+                    manageConnection(interval);
+                } catch (Exception e) {
+                    log.error("Unexpected connectivity issue - {}", e.getMessage());
+                    // guaranteed persistent connection
+                    if (session != null && session.isOpen()) {
                         try {
-                            connect();
-                        } catch (Exception e) {
-                            // this should never happen
-                            log.error("Unexpected error when trying to reconnect - {}", e.getMessage());
+                            session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, e.getMessage()));
+                        } catch (IOException ex) {
+                            // ok to ignore
                         }
                     }
+                    session = null;
                 }
                 try {
                     Thread.sleep(2000);
@@ -136,6 +110,49 @@ public class PresenceManager extends Thread {
                 }
             }
             log.info("Stopped");
+        }
+    }
+
+    private void manageConnection(long interval) {
+        PresenceConnector connector = PresenceConnector.getInstance();
+        long now = System.currentTimeMillis();
+        if (session != null && session.isOpen() && connector.isConnected()) {
+            if (connector.isReady()) {
+                connector.checkActivation();
+                timer = now;
+                // keep-alive
+                if (now - lastSeen > interval) {
+                    connector.keepAlive();
+                    lastSeen = System.currentTimeMillis();
+                } else {
+                    connector.isAlive();
+                }
+            } else {
+                if (now - lastPending > MAX_HANDSHAKE_WAIT) {
+                    try {
+                        connector.setState(PresenceConnector.State.ERROR);
+                        String message = "Presence monitor does not respond in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                        log.error(message);
+                        session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
+                    } catch (IOException e) {
+                        log.error("Unable to close session - {}", e.getMessage());
+                    }
+                    session = null;
+                } else {
+                    log.warn("Waiting for presence monitor to respond");
+                    connector.sendAppInfo();
+                }
+            }
+        } else {
+            if (now - timer >= WAIT_INTERVAL) {
+                timer = System.currentTimeMillis();
+                try {
+                    connect();
+                } catch (Exception e) {
+                    // this should never happen
+                    log.error("Unexpected error when trying to reconnect - {}", e.getMessage());
+                }
+            }
         }
     }
 

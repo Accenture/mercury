@@ -45,7 +45,7 @@ public class EventNodeManager extends Thread {
 
     private List<String> platformPaths = new ArrayList<>();
     private Session session;
-    private long lastPending = 0;
+    private long lastPending = 0, timer = 0;
     private boolean normal = true;
 
     public EventNodeManager() {
@@ -73,45 +73,20 @@ public class EventNodeManager extends Thread {
              * it is connected.
              */
             log.info("{} = {}", PLATFORM_PATH, platformPaths);
-            long timer = 0;
             while (normal) {
-                long now = System.currentTimeMillis();
-                if (session != null && session.isOpen() && connector.isConnected()) {
-                    timer = now;
-                    lastPending = 0;
-                    if (connector.isReady()) {
-                        // keep-alive when idle
-                        if (now - lastSeen > idleTimeout) {
-                            connector.keepAlive();
-                            lastSeen = System.currentTimeMillis();
-                        } else {
-                            connector.isAlive();
-                        }
-                    } else {
-                        if (now - connector.getHandshakeStartTime() > MAX_HANDSHAKE_WAIT) {
-                            try {
-                                connector.setState(EventNodeConnector.State.ERROR);
-                                String message = "Event node does not handshake in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
-                                log.error(message);
-                                session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
-                            } catch (IOException e) {
-                                log.error("Unable to close session - {}", e.getMessage());
-                            }
-                            session = null;
-                        } else {
-                            log.warn("Waiting for event node to handshake");
-                        }
-                    }
-
-                } else {
-                    if (now - timer >= WAIT_INTERVAL) {
-                        timer = System.currentTimeMillis();
+                try {
+                    manageConnection(idleTimeout);
+                } catch (Exception e) {
+                    log.error("Unexpected connectivity issue - {}", e.getMessage());
+                    // guaranteed persistent connection
+                    if (session != null && session.isOpen()) {
                         try {
-                            connect();
-                        } catch (Exception e) {
-                            log.error("Unexpected error when reconnect - {}", e.getMessage());
+                            session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, e.getMessage()));
+                        } catch (IOException ex) {
+                            // ok to ignore
                         }
                     }
+                    session = null;
                 }
                 try {
                     Thread.sleep(1000);
@@ -120,6 +95,48 @@ public class EventNodeManager extends Thread {
                 }
             }
             log.info("Stopped");
+        }
+    }
+
+    private void manageConnection(long idleTimeout) {
+        EventNodeConnector connector = EventNodeConnector.getInstance();
+        long now = System.currentTimeMillis();
+        if (session != null && session.isOpen() && connector.isConnected()) {
+            timer = now;
+            lastPending = 0;
+            if (connector.isReady()) {
+                // keep-alive when idle
+                if (now - lastSeen > idleTimeout) {
+                    connector.keepAlive();
+                    lastSeen = System.currentTimeMillis();
+                } else {
+                    connector.isAlive();
+                }
+            } else {
+                if (now - connector.getHandshakeStartTime() > MAX_HANDSHAKE_WAIT) {
+                    try {
+                        connector.setState(EventNodeConnector.State.ERROR);
+                        String message = "Event node does not handshake in "+(MAX_HANDSHAKE_WAIT / 1000)+" seconds";
+                        log.error(message);
+                        session.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, message));
+                    } catch (IOException e) {
+                        log.error("Unable to close session - {}", e.getMessage());
+                    }
+                    session = null;
+                } else {
+                    log.warn("Waiting for event node to handshake");
+                }
+            }
+
+        } else {
+            if (now - timer >= WAIT_INTERVAL) {
+                timer = System.currentTimeMillis();
+                try {
+                    connect();
+                } catch (Exception e) {
+                    log.error("Unexpected error when reconnect - {}", e.getMessage());
+                }
+            }
         }
     }
 
