@@ -141,6 +141,7 @@ public class EventNodeConnector implements LambdaFunction {
                     break;
                 case WsEnvelope.CLOSE:
                     ready = false;
+                    checkingAlive = false;
                     setState(State.DISCONNECTED);
                     // release resources
                     log.debug("Disconnected {}", headers.get(WsEnvelope.ROUTE));
@@ -270,13 +271,12 @@ public class EventNodeConnector implements LambdaFunction {
                     }
                     break;
                 case WsEnvelope.STRING:
-                    // the data event for string payload contains route and txPath
                     String message = (String) body;
+                    log.debug("{}", body);
                     if (message.contains(ALIVE)) {
                         aliveTime = System.currentTimeMillis();
                         checkingAlive = false;
                         EventNodeManager.touch();
-                        log.debug("{}", body);
                     }
                     break;
                 default:
@@ -289,7 +289,7 @@ public class EventNodeConnector implements LambdaFunction {
     }
 
     public void isAlive() {
-        if (checkingAlive && (System.currentTimeMillis() - aliveTime > MAX_ALIVE_WAIT)) {
+        if (checkingAlive && txPath != null && (System.currentTimeMillis() - aliveTime > MAX_ALIVE_WAIT)) {
             String message = "Event node failed to keep alive in "+(MAX_ALIVE_WAIT / 1000)+" seconds";
             log.error(message);
             try {
@@ -301,9 +301,9 @@ public class EventNodeConnector implements LambdaFunction {
     }
 
     public void keepAlive() {
-        checkingAlive = true;
-        aliveTime = System.currentTimeMillis();
         if (txPath != null) {
+            checkingAlive = true;
+            aliveTime = System.currentTimeMillis();
             aliveSeq++;
             try {
                 PostOffice.getInstance().send(txPath, ALIVE+" "+aliveSeq);

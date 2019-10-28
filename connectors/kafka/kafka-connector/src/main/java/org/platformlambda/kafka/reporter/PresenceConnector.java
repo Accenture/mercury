@@ -40,6 +40,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String ORIGIN = "origin";
     private static final String INFO = "info";
     private static final String READY = "ready";
+    private static final String SEQ = "seq";
     private static final String ALIVE = "keep-alive";
     private static final long MAX_WAIT = 8 * 1000;
 
@@ -50,8 +51,8 @@ public class PresenceConnector implements LambdaFunction {
     private State state = State.UNASSIGNED;
     private String monitor;
     private long connectTime = 0;
-    private long aliveSeq = 0;
-    private boolean ready = false;
+    private long aliveTime = 0, aliveSeq = 0;
+    private boolean ready = false, checkingAlive = false;
 
     private PresenceConnector() {
         // singleton
@@ -79,6 +80,7 @@ public class PresenceConnector implements LambdaFunction {
                     aliveSeq = 0;
                     connectTime = System.currentTimeMillis();
                     ready = false;
+                    checkingAlive = false;
                     setState(State.CONNECTED);
                     sendAppInfo();
                     log.info("Connected {}, {}, {}", route, ip, path);
@@ -89,6 +91,7 @@ public class PresenceConnector implements LambdaFunction {
                     monitor = null;
                     connectTime = 0;
                     ready = false;
+                    checkingAlive = false;
                     setState(State.DISCONNECTED);
                     log.info("Disconnected {}", route);
                     // tell service registry to clear routing table
@@ -108,8 +111,13 @@ public class PresenceConnector implements LambdaFunction {
                     }
                     break;
                 case WsEnvelope.STRING:
-                    // text message from presence monitor is meant for logging only
+                    String message = (String) body;
                     log.debug("{}", body);
+                    if (message.contains(ALIVE)) {
+                        aliveTime = System.currentTimeMillis();
+                        checkingAlive = false;
+                        PresenceManager.touch();
+                    }
                     break;
                 default:
                     // this should not happen
@@ -154,11 +162,25 @@ public class PresenceConnector implements LambdaFunction {
         }
     }
 
+    public void isAlive() {
+        if (checkingAlive && monitor != null && (System.currentTimeMillis() - aliveTime > MAX_WAIT)) {
+            String message = "Presence monitor failed to keep alive in "+(MAX_WAIT / 1000)+" seconds";
+            log.error(message);
+            try {
+                Utility.getInstance().closeConnection(monitor, CloseReason.CloseCodes.GOING_AWAY, message);
+            } catch (IOException e) {
+                // ok to ignore
+            }
+        }
+    }
+
     public void keepAlive() {
         if (monitor != null) {
+            checkingAlive = true;
+            aliveTime = System.currentTimeMillis();
             aliveSeq++;
             try {
-                PostOffice.getInstance().send(monitor, new EventEnvelope().setTo(ALIVE).setHeader("seq", aliveSeq).toBytes());
+                PostOffice.getInstance().send(monitor, new EventEnvelope().setTo(ALIVE).setHeader(SEQ, aliveSeq).toBytes());
 
             } catch (IOException e) {
                 log.error("Unable to send keep alive - {}", e.getMessage());

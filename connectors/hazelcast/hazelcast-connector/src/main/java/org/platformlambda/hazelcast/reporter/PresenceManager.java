@@ -43,6 +43,7 @@ public class PresenceManager extends Thread {
     private static final long WAIT_INTERVAL = 5000;
     private static final long MAX_HANDSHAKE_WAIT = 10000;
 
+    private static long lastSeen = System.currentTimeMillis();
     private static boolean normal = true;
 
     private List<String> platformPaths = new ArrayList<>();
@@ -73,7 +74,6 @@ public class PresenceManager extends Thread {
         }
         // start reporting to presence monitor
         long timer = 0;
-        long lastSeen = 0;
         PresenceConnector connector = PresenceConnector.getInstance();
         if (connector.isUnassigned()) {
             lastSeen = System.currentTimeMillis();
@@ -99,6 +99,8 @@ public class PresenceManager extends Thread {
                         if (now - lastSeen > interval) {
                             connector.keepAlive();
                             lastSeen = System.currentTimeMillis();
+                        } else {
+                            connector.isAlive();
                         }
                     } else {
                         if (now - lastPending > MAX_HANDSHAKE_WAIT) {
@@ -135,6 +137,10 @@ public class PresenceManager extends Thread {
             }
             log.info("Stopped");
         }
+    }
+
+    public static void touch() {
+        lastSeen = System.currentTimeMillis();
     }
 
     private void connect() throws IOException {
