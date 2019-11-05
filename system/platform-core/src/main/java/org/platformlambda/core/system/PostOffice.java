@@ -91,12 +91,24 @@ public class PostOffice {
     }
 
     /**
-     * Obtain trace info of the current transaction.
+     * User application may obtain the complete trace object for trace ID, path, start time and annotations.
      *
      * @return trace info
      */
     public TraceInfo getTrace() {
         return traces.get(Thread.currentThread().getId());
+    }
+
+    /**
+     * Get my route name for the currently running service.
+     * This is typically used in Role Based Access Control (RBAC) to restrict certain user roles to execute the service.
+     * RBAC is a user application's responsibility.
+     *
+     * @return route name
+     */
+    public String getRoute() {
+        TraceInfo trace = getTrace();
+        return trace != null? trace.route : "?";
     }
 
     /**
@@ -115,11 +127,12 @@ public class PostOffice {
 
     /**
      * IMPORTANT: This method is reserved by the system. User application MUST NOT access this.
+     * @param route name
      * @param traceId to identify a transaction
      * @param tracePath for the transaction
      */
-    public void startTracing(String traceId, String tracePath) {
-        traces.put(Thread.currentThread().getId(), new TraceInfo(traceId, tracePath));
+    public void startTracing(String route, String traceId, String tracePath) {
+        traces.put(Thread.currentThread().getId(), new TraceInfo(route, traceId, tracePath));
     }
 
     /**
@@ -127,7 +140,7 @@ public class PostOffice {
      * @return current trace info before it is stopped
      */
     public TraceInfo stopTracing() {
-        Long threadId = Thread.currentThread().getId();
+        long threadId = Thread.currentThread().getId();
         TraceInfo trace = traces.get(threadId);
         if (trace != null) {
             traces.remove(threadId);
@@ -336,7 +349,12 @@ public class PostOffice {
         // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
-            event.setTrace(trace.id, trace.path);
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
+            }
+            if (trace.id != null && trace.path != null) {
+                event.setTrace(trace.id, trace.path);
+            }
         }
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
@@ -346,7 +364,7 @@ public class PostOffice {
         }
         // best effort to check if the target can be discovered
         discover(to, event.isEndOfRoute());
-        log.info("Future event to {} in {} ms", to, interval);
+        log.debug("Future event to {} in {} ms", to, interval);
         // schedule the event delivery
         ActorSystem system = Platform.getInstance().getEventSystem();
         Cancellable task = system.scheduler().scheduleOnce(Duration.create(interval, TimeUnit.MILLISECONDS), () -> {
@@ -499,7 +517,12 @@ public class PostOffice {
         // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
-            event.setTrace(trace.id, trace.path);
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
+            }
+            if (trace.id != null && trace.path != null) {
+                event.setTrace(trace.id, trace.path);
+            }
         }
         // is this a reply message?
         int slash = to.indexOf('@');
@@ -682,7 +705,12 @@ public class PostOffice {
         // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
-            event.setTrace(trace.id, trace.path);
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
+            }
+            if (trace.id != null && trace.path != null) {
+                event.setTrace(trace.id, trace.path);
+            }
         }
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());

@@ -226,9 +226,9 @@ public class ServiceRegistry implements LambdaFunction {
             String myChecksum = getChecksum();
             if (!origin.equals(myOrigin)) {
                 if (extChecksum.equals(myChecksum)) {
-                    log.info("Routing table matches with {}, checksum {}", origin, extChecksum);
+                    log.debug("Routing table matches with {}, checksum {}", origin, extChecksum);
                 } else {
-                    log.warn("Routing table checksum not matched. Sending my routes to {}", origin);
+                    log.warn("Routing table checksum not matched. Syncing with {}", origin);
                     sendMyRoutes(origin);
                 }
             }

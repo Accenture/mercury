@@ -76,15 +76,13 @@ public class WorkerQueue extends AbstractActor {
                     /*
                      * Execute function as a future task
                      */
-                    if (event.getTraceId() != null) {
-                        po.startTracing(event.getTraceId(), event.getTracePath());
-                    }
+                    po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
                     ProcessStatus ps = processEvent(event);
                     /*
                      * Skip trace logging if zero tracing
                      */
                     TraceInfo trace = po.stopTracing();
-                    if (tracing && trace != null) {
+                    if (tracing && trace != null && trace.id != null && trace.path != null) {
                         try {
                             /*
                              * Send the trace info and processing status to

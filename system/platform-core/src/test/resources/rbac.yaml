@@ -1,0 +1,10 @@
+roles:
+  - MEMBER
+  - MANAGER
+  - ADMIN
+  - DEVOPS
+
+services:
+  "v1.data.read": [MEMBER]
+  "v1.data.update": [MANAGER, ADMIN]
+  "v1.data.export": [DEVOPS]

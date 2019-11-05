@@ -216,5 +216,4 @@ public class PresenceManager extends Thread {
         normal = false;
     }
 
-
 }

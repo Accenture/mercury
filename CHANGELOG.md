@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.13, 11/5/2019
+
+### Added
+
+1. getRoute() method is added to PostOffice to facilitate RBAC
+2. The route name of the current service is added to an outgoing event when the "from" field is not present
+3. Simple RBAC using YAML configuration instead of code
+
+### Removed
+
+N/A
+
+### Changed
+
+Change Kafka client v2.3.0 to v2.2.0 for improved stability when number of Kafka brokers is less than 4
+
+---
 ## Version 1.12.12, 10/26/2019
 
 ### Added

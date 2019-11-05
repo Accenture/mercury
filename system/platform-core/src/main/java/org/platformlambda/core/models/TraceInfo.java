@@ -26,17 +26,20 @@ import java.util.Map;
 
 public class TraceInfo {
 
-    public String id, path;
+    public String route, id, path;
     public String startTime;
     public Map<String, String> annotations = new HashMap<>();
 
-    public TraceInfo(String id, String path) {
-        if (id == null) {
-            throw new IllegalArgumentException("trace id must not be null");
-        }
-        this.id = id;
-        this.path = path == null? "?" : path;
+    public TraceInfo(String route, String id, String path) {
+        this.route = route;
         this.startTime = Utility.getInstance().date2str(new Date());
+        if (id == null) {
+            this.id = null;
+            this.path = null;
+        } else {
+            this.id = id;
+            this.path = path == null ? "?" : path;
+        }
     }
 
     public void annotate(String key, String value) {

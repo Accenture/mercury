@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.TraceInfo;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 
@@ -80,36 +79,45 @@ public class PostOfficeTest {
     @Test
     @SuppressWarnings("unchecked")
     public void multilevelTrace() throws TimeoutException, IOException, AppException {
+        final String ROUTE_ONE = "hello.level.1";
+        final String ROUTE_TWO = "hello.level.2";
         final String TRACE_ID = "cid-123456";
         final String TRACE_PATH = "GET /api/hello/world";
+        final String SOME_KEY = "some_key";
+        final String SOME_VALUE = "some value";
         Platform platform = Platform.getInstance();
         LambdaFunction tier1 = (headers, body, instance) -> {
+            PostOffice po = PostOffice.getInstance();
+            assertEquals(ROUTE_ONE, po.getRoute());
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
             result.put("body", body);
             result.put("instance", instance);
             result.put("origin", platform.getOrigin());
             // verify trace ID and path
-            PostOffice po = PostOffice.getInstance();
             assertEquals(TRACE_ID, po.getTraceId());
-            TraceInfo info = po.getTrace();
-            assertEquals(TRACE_PATH, info.path);
+            assertEquals(TRACE_PATH, po.getTrace().path);
+            // annotate trace
+            po.annotateTrace(SOME_KEY, SOME_VALUE);
             // send to level-2 service
-            EventEnvelope response = po.request("hello.level.2", 5000, "test");
+            EventEnvelope response = po.request(ROUTE_TWO, 5000, "test");
             assertEquals(TRACE_ID, response.getBody());
             return result;
         };
         LambdaFunction tier2 = (headers, body, instance) -> {
             PostOffice po = PostOffice.getInstance();
+            assertEquals(ROUTE_TWO, po.getRoute());
             assertEquals(TRACE_ID, po.getTraceId());
+            // annotations are local to a service and should not be transported to the next service
+            assertTrue(po.getTrace().annotations.isEmpty());
             return po.getTraceId();
         };
-        platform.register("hello.level.1", tier1, 1);
-        platform.register("hello.level.2", tier2, 1);
+        platform.register(ROUTE_ONE, tier1, 1);
+        platform.register(ROUTE_TWO, tier2, 1);
         // test tracing to 2 levels
         String testMessage = "some message";
         EventEnvelope event = new EventEnvelope();
-        event.setTo("hello.level.1").setHeader("hello", "world").setBody(testMessage);
+        event.setTo(ROUTE_ONE).setHeader("hello", "world").setBody(testMessage);
         event.setTrace(TRACE_ID, TRACE_PATH);
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request(event, 5000);
