@@ -25,7 +25,6 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
-import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
