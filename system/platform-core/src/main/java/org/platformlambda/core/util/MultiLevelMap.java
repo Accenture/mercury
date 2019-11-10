@@ -239,10 +239,12 @@ public class MultiLevelMap {
         if (v instanceof String) {
             Utility util = Utility.getInstance();
             String value = (String) v;
-            if (value.equalsIgnoreCase(TRUE)) return true;
-            if (value.equalsIgnoreCase(FALSE)) return false;
-            if (value.equalsIgnoreCase(NULL)) return null;
-            if (util.isNumeric(value)) return util.str2long(value);
+            if (value.length() > 0) {
+                if (value.equalsIgnoreCase(TRUE)) return true;
+                if (value.equalsIgnoreCase(FALSE)) return false;
+                if (value.equalsIgnoreCase(NULL)) return null;
+                if (util.isNumeric(value)) return util.str2long(value);
+            }
         }
         return v;
     }
