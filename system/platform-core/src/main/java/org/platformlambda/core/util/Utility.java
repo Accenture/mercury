@@ -779,11 +779,14 @@ public class Utility {
     }
 
     public boolean isDigits(String str) {
+        if (str == null) {
+            return false;
+        }
         for (int i=0; i < str.length(); i++) {
             if (str.charAt(i) >= '0' && str.charAt(i) <= '9') continue;
             return false;
         }
-        return true;
+        return str.length() > 0;
     }
 
     private String get3digitMs(String s) {
