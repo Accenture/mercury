@@ -181,7 +181,8 @@ public class Utility {
     }
 
     public String normalizeFolder(String folder) {
-        return folder.startsWith("~") ? folder.replace("~", System.getProperty("user.home")).replace("\\", "/") : folder;
+        String result = folder.startsWith("~") ? folder.replace("~", System.getProperty("user.home")) : folder;
+        return result.replace("\\", "/");
     }
 
     public File getWorkFolder() {

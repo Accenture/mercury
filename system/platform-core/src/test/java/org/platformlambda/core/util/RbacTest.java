@@ -40,7 +40,6 @@ public class RbacTest {
     @Test
     @SuppressWarnings("unchecked")
     public void simpleRbac() throws IOException, TimeoutException, AppException {
-
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
         // validate RBAC inside a service function
