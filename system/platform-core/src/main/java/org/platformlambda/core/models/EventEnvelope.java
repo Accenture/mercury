@@ -1,19 +1,14 @@
 /*
-
     Copyright 2018-2019 Accenture Technology
-
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-
         http://www.apache.org/licenses/LICENSE-2.0
-
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
  */
 
 package org.platformlambda.core.models;
@@ -22,6 +17,7 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -434,16 +430,18 @@ public class EventEnvelope {
             }
             if (message.containsKey(BODY) && message.containsKey(OBJ_TYPE)) {
                 TypedPayload typed = new TypedPayload((String) message.get(OBJ_TYPE), message.get(BODY));
-                // for binary encoding, the payload is a Map
-                if (typed.getType().contains(".")) {
-                    binary = typed.getPayload() instanceof Map;
-                }
                 if (parametricType != null) {
                     typed.setParametricType(parametricType);
                 }
                 try {
-                    // validate class name in white list if any
-                    SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
+                    /*
+                     * 1. set binary to true if PoJo and the payload is a map
+                     * 2. validate class name in white-list if any
+                     */
+                    if (typed.getType().contains(".")) {
+                        binary = typed.getPayload() instanceof Map;
+                        SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
+                    }
                     body = converter.decode(typed);
                 } catch (Exception e) {
                     /*

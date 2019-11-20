@@ -19,6 +19,7 @@
 package org.platformlambda.core.serializers;
 
 import org.platformlambda.core.models.TypedPayload;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 
@@ -39,8 +40,12 @@ public class PayloadMapper {
     private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
     private static final PayloadMapper instance = new PayloadMapper();
 
+    private boolean enablePoJo;
+
     private PayloadMapper() {
-        // singleton
+        // by default, pojo transport is enabled
+        AppConfigReader config = AppConfigReader.getInstance();
+        enablePoJo = "true".equals(config.getProperty("enable.pojo.transport", "true"));
     }
 
     public static PayloadMapper getInstance() {
@@ -104,7 +109,7 @@ public class PayloadMapper {
             }
             return result;
         }
-        if (type.contains(".")) {
+        if (type.contains(".") && enablePoJo) {
             // best effort to convert to original class
             Class<?> cls = getClassByName(type);
             if (cls != null) {

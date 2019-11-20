@@ -7,7 +7,7 @@
     <artifactId>platform-core</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.13</version>
+    <version>1.12.14</version>
     <name>Mercury core library</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -31,7 +31,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-            <version>5.1.10.RELEASE</version>
+            <version>5.2.1.RELEASE</version>
         </dependency>
 
         <dependency>
@@ -79,7 +79,7 @@
         <dependency>
             <groupId>org.apache.tomcat.embed</groupId>
             <artifactId>tomcat-embed-websocket</artifactId>
-            <version>9.0.26</version>
+            <version>9.0.27</version>
         </dependency>
 
 <!--        <dependency>-->

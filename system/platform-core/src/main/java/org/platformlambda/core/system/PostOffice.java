@@ -51,12 +51,12 @@ public class PostOffice {
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
-    private boolean isEventNode, substituteRoutes;
+    private boolean eventNode, substituteRoutes;
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
         AppConfigReader config = AppConfigReader.getInstance();
-        isEventNode = config.getProperty(CLOUD_CONNECTOR, "event.node").equals("event.node");
+        eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
         substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         if (substituteRoutes) {
             // load route substitution list from application.properties
@@ -207,7 +207,7 @@ public class PostOffice {
     }
 
     public TargetRoute getCloudRoute() {
-        if (isEventNode) {
+        if (eventNode) {
             // avoid loopback if it is the event node itself
             if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
                 EventNodeConnector connector = EventNodeConnector.getInstance();
