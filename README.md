@@ -257,7 +257,6 @@ It will respond with some sample output like this:
       "accept-language" : "en-US,en;q=0.9",
       "cache-control" : "max-age=0",
       "connection" : "keep-alive",
-      "cookie" : "_ga=GA1.4.1745506134.1545067415",
       "host" : "127.0.0.1:8083",
       "time" : "2018-12-21T16:39:33.546Z",
       "upgrade-insecure-requests" : "1",
