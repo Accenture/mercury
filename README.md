@@ -260,7 +260,7 @@ It will respond with some sample output like this:
       "host" : "127.0.0.1:8083",
       "time" : "2018-12-21T16:39:33.546Z",
       "upgrade-insecure-requests" : "1",
-      "user-agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+      "user-agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) ..."
     },
     "headers" : {
       "seq" : "4"
