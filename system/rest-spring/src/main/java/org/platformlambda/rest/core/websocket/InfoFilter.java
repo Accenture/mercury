@@ -78,6 +78,15 @@ public class InfoFilter implements Filter {
                  */
                 chain.doFilter(new IpWrapper(req), res);
             } else {
+                /*
+                 * HTTP Strict Transport Security (HSTS)
+                 * https://tools.ietf.org/html/rfc6797
+                 *
+                 * If HTTPS, add "Strict Transport Security" header.
+                 */
+                if (HTTPS.equals(req.getHeader(PROTOCOL))) {
+                    res.setHeader(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
+                }
                 if (isProtected(req)) {
                     String apiKey = req.getHeader(apiKeyLabel);
                     if (apiKey == null) {
@@ -89,15 +98,6 @@ public class InfoFilter implements Filter {
                             return;
                         }
                     }
-                }
-                /*
-                 * HTTP Strict Transport Security (HSTS)
-                 * https://tools.ietf.org/html/rfc6797
-                 *
-                 * If HTTPS, add "Strict Transport Security" header.
-                 */
-                if (HTTPS.equals(req.getHeader(PROTOCOL))) {
-                    res.setHeader(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
                 }
                 chain.doFilter(req, res);
             }
