@@ -18,8 +18,11 @@
 
 package org.platformlambda.core.system;
 
+import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,7 @@ public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
 
     private static String[] parameters = new String[0];
+    private static boolean preProcessing = false;
 
     public static void main(String[] args) {
         parameters = args;
@@ -38,16 +42,70 @@ public class AppStarter {
         application.begin();
     }
 
+    public static void prepare() {
+        // find and execute optional preparation modules
+        if (!preProcessing) {
+            preProcessing = true;
+            SimpleClassScanner scanner = SimpleClassScanner.getInstance();
+            Set<String> packages = scanner.getPackages(true);
+            for (String p : packages) {
+                List<Class<?>> services = scanner.getAnnotatedClasses(p, BeforeApplication.class);
+                for (Class<?> cls : services) {
+                    if (!Feature.isRequired(cls)) {
+                        log.debug("Skipping optional preparation {}", cls);
+                        continue;
+                    }
+                    try {
+                        Object o = cls.newInstance();
+                        if (o instanceof EntryPoint) {
+                            /*
+                             * execute preparation logic as a blocking operation
+                             * (e.g. setting up environment variable, override application.properties, etc.)
+                             */
+                            EntryPoint app = (EntryPoint) o;
+                            try {
+                                log.info("Starting {}", app.getClass().getName());
+                                app.start(parameters);
+                            } catch (Exception e) {
+                                log.error("Unable to run " + app.getClass().getName(), e);
+                            }
+                        } else {
+                            log.error("Unable to start {} because it is not an instance of {}",
+                                    cls.getName(), EntryPoint.class.getName());
+                        }
+
+                    } catch (InstantiationException | IllegalAccessException e) {
+                        log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
+                    }
+                }
+            }
+            /*
+             * In case values in application.properties are updated by the BeforeApplication modules,
+             * the AppConfigReader must reload itself.
+             */
+            AppConfigReader.getInstance().reload();
+        }
+    }
+
     public void begin() {
-        int total = 0;
+        // preparation step is executed only once
+        AppStarter.prepare();
+        // find and execute MainApplication modules
+        int total = 0, features = 0;
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
         for (String p : packages) {
             List<Class<?>> services = scanner.getAnnotatedClasses(p, MainApplication.class);
             for (Class<?> cls : services) {
+                if (!Feature.isRequired(cls)) {
+                    features++;
+                    log.info("Skipping optional main {}", cls);
+                    continue;
+                }
                 try {
                     Object o = cls.newInstance();
                     if (o instanceof EntryPoint) {
+                        // execute MainApplication module in a separate thread for non-blocking operation
                         AppRunner app = new AppRunner((EntryPoint) o);
                         app.start();
                         total++;
@@ -62,8 +120,12 @@ public class AppStarter {
             }
         }
         if (total == 0) {
-            log.error("Main application not found. Remember to annotate it with {} that implements {}",
-                    MainApplication.class.getName(), EntryPoint.class.getName());
+            if (features == 0) {
+                log.error("MainApplication not found. Remember to annotate it with {} that implements {}",
+                        MainApplication.class.getName(), EntryPoint.class.getName());
+            } else {
+                log.error("Please enable at least one MainApplication module and try again");
+            }
             System.exit(-1);
         }
     }

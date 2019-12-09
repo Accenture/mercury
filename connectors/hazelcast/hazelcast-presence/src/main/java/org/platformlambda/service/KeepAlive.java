@@ -39,7 +39,6 @@ public class KeepAlive extends Thread {
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String ALIVE = "alive";
-    private static final String TOKEN = "token";
     private static final String TIMESTAMP = "timestamp";
 
     private boolean ready = false;
@@ -75,8 +74,6 @@ public class KeepAlive extends Thread {
                 event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
                 event.setHeader(ORIGIN, origin);
                 event.setHeader(TYPE, ALIVE);
-                // token is used for leader election
-                // use sortable timestamp yyyymmddhhmmss
                 event.setHeader(TIMESTAMP, util.getTimestamp());
                 // send my connection list
                 event.setBody(new ArrayList<>(MonitorService.getConnections().keySet()));

@@ -59,6 +59,8 @@ public class ServiceGateway extends HttpServlet {
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
 
+    private static final String PROTOCOL = "x-forwarded-proto";
+    private static final String HTTPS = "https";
     private static final String UTF_8 = "utf-8";
     private static final String BASE_PATH = "/api";
     private static final String URL = "url";
@@ -83,6 +85,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String TIMEOUT = "timeout";
     private static final String FILE_NAME = "filename";
     private static final String ACCEPT = "accept";
+    private static final String SET_COOKIE = "set-cookie";
+    private static final String COOKIE_SEPARATOR = "|";
     private static final String CONTENT_TYPE = "content-type";
     private static final String CONTENT_LENGTH = "content-length";
     private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
@@ -211,7 +215,7 @@ public class ServiceGateway extends HttpServlet {
             if (route.info.corsId != null) {
                 CorsInfo corsInfo = RoutingEntry.getInstance().getCorsInfo(route.info.corsId);
                 if (corsInfo != null && !corsInfo.headers.isEmpty()) {
-                    for (String ch: corsInfo.headers.keySet()) {
+                    for (String ch : corsInfo.headers.keySet()) {
                         String prettyHeader = getHeaderCase(ch);
                         if (prettyHeader != null) {
                             response.setHeader(prettyHeader, corsInfo.headers.get(ch));
@@ -224,18 +228,23 @@ public class ServiceGateway extends HttpServlet {
         PostOffice po = PostOffice.getInstance();
         if (route.info.authService == null) {
             if (!po.exists(route.info.service)) {
-                response.sendError(503, "Service "+route.info.service+" not reachable");
+                response.sendError(503, "Service " + route.info.service + " not reachable");
                 return;
             }
         } else {
             if (!po.exists(route.info.service, route.info.authService)) {
-                response.sendError(503, "Service "+route.info.service+" or "+route.info.authService+" not reachable");
+                response.sendError(503, "Service " + route.info.service + " or " + route.info.authService + " not reachable");
                 return;
             }
         }
         Map<String, Object> dataset = new HashMap<>();
+        String queryString = request.getQueryString();
+        if (queryString != null) {
+            dataset.put(QUERY, queryString);
+        }
         dataset.put(URL, url);
         dataset.put(METHOD, request.getMethod());
+        dataset.put(HTTPS, HTTPS.equals(request.getHeader(PROTOCOL)));
         dataset.put(TIMEOUT, route.info.timeoutSeconds);
         Map<String, Object> parameters = new HashMap<>();
         dataset.put(PARAMETERS, parameters);
@@ -248,10 +257,10 @@ public class ServiceGateway extends HttpServlet {
             String key = pNames.nextElement();
             String[] values = request.getParameterValues(key);
             if (values.length == 1) {
-                queryParams.put(key.toLowerCase(), values[0]);
+                queryParams.put(key, values[0]);
             }
             if (values.length > 1) {
-                queryParams.put(key.toLowerCase(), Arrays.asList(values));
+                queryParams.put(key, Arrays.asList(values));
             }
         }
         if (!queryParams.isEmpty()) {
@@ -280,7 +289,7 @@ public class ServiceGateway extends HttpServlet {
             // save cookies in dataset
             Map<String, String> cookieMap = new HashMap<>();
             Cookie[] cookies = request.getCookies();
-            for (Cookie c: cookies) {
+            for (Cookie c : cookies) {
                 cookieMap.put(c.getName().toLowerCase(), c.getValue());
             }
             dataset.put(COOKIES, cookieMap);
@@ -298,10 +307,10 @@ public class ServiceGateway extends HttpServlet {
         String tracePath = null;
         // Set trace header if needed
         if (route.info.tracing) {
-            traceId = "t"+util.getUuid();
-            tracePath = request.getMethod()+" "+url;
-            if (request.getQueryString() != null) {
-                tracePath += "?"+request.getQueryString();
+            traceId = "t" + util.getUuid();
+            tracePath = request.getMethod() + " " + url;
+            if (queryString != null) {
+                tracePath += "?" + queryString;
             }
             response.setHeader(TRACE_HEADER, traceId);
         }
@@ -326,7 +335,7 @@ public class ServiceGateway extends HttpServlet {
                          */
                         Map<String, String> authResHeaders = authResponse.getHeaders();
                         Map<String, String> lowerCaseHeaders = new HashMap<>();
-                        for (String k: authResHeaders.keySet()) {
+                        for (String k : authResHeaders.keySet()) {
                             lowerCaseHeaders.put(k.toLowerCase(), authResHeaders.get(k));
                         }
                         dataset.put(SESSION, lowerCaseHeaders);
@@ -350,117 +359,113 @@ public class ServiceGateway extends HttpServlet {
             }
         }
         // load HTTP body
-        String contentType = request.getContentType();
-        if (contentType == null) {
-            contentType = "application/octet-stream";
-        }
-        // ignore URL encoded content type because it has been already fetched as request/query parameters
-        if (!contentType.startsWith(MediaType.APPLICATION_FORM_URLENCODED) &&
-                (request.getMethod().equals(POST) || request.getMethod().equals(PUT) ||
-                        request.getMethod().equals(PATCH))) {
-            // handle request body
-            if (contentType.startsWith(MediaType.MULTIPART_FORM_DATA) && request.getMethod().equals(POST)) {
-                // file upload
-                String label = route.info.upload;
-                try {
-                    Part filePart = request.getPart(label);
-                    if (filePart != null) {
-                        String fileName = getFileName(filePart);
-                        if (fileName != null) {
-                            int len;
-                            int total = 0;
-                            byte[] buffer = new byte[BUFFER_SIZE];
-                            InputStream in = filePart.getInputStream();
-                            ObjectStreamIO stream = null;
-                            ObjectStreamWriter out = null;
-                            while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-                                if (out == null) {
-                                    // Depending on input file size, the servlet will save the input stream
-                                    // into memory or local file system, the system therefore defer creation
-                                    // of the object stream until the buffered input stream is ready.
-                                    stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                                    out = stream.getOutputStream();
+        if (request.getMethod().equals(POST) || request.getMethod().equals(PUT) || request.getMethod().equals(PATCH)) {
+            String contentType = request.getContentType();
+            // ignore URL encoded content type because it has been already fetched as request/query parameters
+            if (contentType != null && !contentType.startsWith(MediaType.APPLICATION_FORM_URLENCODED)) {
+                // handle request body
+                if (contentType.startsWith(MediaType.MULTIPART_FORM_DATA) && request.getMethod().equals(POST)) {
+                    // file upload
+                    try {
+                        Part filePart = request.getPart(route.info.upload);
+                        if (filePart != null) {
+                            String fileName = getFileName(filePart);
+                            if (fileName != null) {
+                                int len;
+                                int total = 0;
+                                byte[] buffer = new byte[BUFFER_SIZE];
+                                InputStream in = filePart.getInputStream();
+                                ObjectStreamIO stream = null;
+                                ObjectStreamWriter out = null;
+                                while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                                    if (out == null) {
+                                        // Depending on input file size, the servlet will save the input stream
+                                        // into memory or local file system, the system therefore defer creation
+                                        // of the object stream until the buffered input stream is ready.
+                                        stream = new ObjectStreamIO(route.info.timeoutSeconds);
+                                        out = stream.getOutputStream();
+                                    }
+                                    total += len;
+                                    out.write(buffer, 0, len);
                                 }
-                                total += len;
-                                out.write(buffer, 0, len);
-                            }
-                            if (out != null) {
-                                out.close();
-                                dataset.put(STREAM, stream.getRoute());
-                                dataset.put(FILE_NAME, fileName);
-                                dataset.put(CONTENT_LENGTH, total);
+                                if (out != null) {
+                                    out.close();
+                                    dataset.put(STREAM, stream.getRoute());
+                                    dataset.put(FILE_NAME, fileName);
+                                    dataset.put(CONTENT_LENGTH, total);
+                                }
                             }
                         }
-                    }
-                } catch (ServletException e) {
-                    response.sendError(400, e.getMessage());
-                    return;
-                }
-
-            } else if (contentType.startsWith(MediaType.APPLICATION_JSON)) {
-                // request body is assumed to be JSON
-                String json = util.getUTF(util.stream2bytes(request.getInputStream(), false)).trim();
-                if (json.length() == 0) {
-                    dataset.put(BODY, new HashMap<>());
-                } else {
-                    if (json.startsWith("{") && json.endsWith("}")) {
-                        dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, Map.class));
-                    } else if (json.startsWith("[") && json.endsWith("]")) {
-                        dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, List.class));
-                    } else {
-                        response.sendError(400, "Invalid JSON input");
-                        return;
-                    }
-                }
-
-            } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
-                // request body is assumed to be XML
-                String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
-                if (text.length() == 0) {
-                    dataset.put(BODY, new HashMap<>());
-                } else {
-                    try {
-                        Map<String, Object> map = xmlReader.parse(text);
-                        dataset.put(BODY, map);
-                    } catch (Exception e) {
+                    } catch (ServletException e) {
                         response.sendError(400, e.getMessage());
                         return;
                     }
-                }
 
-            } else {
-                /*
-                 * The input is not JSON or XML.
-                 * Check if the content-length is larger than threshold.
-                 */
-                boolean sendAsBytes = false;
-                int contentLen = request.getContentLength();
-                if (contentLen > 0 && contentLen <= route.info.threshold) {
-                    byte[] bytes = util.stream2bytes(request.getInputStream(), false);
-                    dataset.put(BODY, bytes);
-                    sendAsBytes = true;
-                }
-                // If content-length is undefined or larger than threshold, it will be sent as a stream.
-                if (!sendAsBytes) {
-                    int len;
-                    int total = 0;
-                    byte[] buffer = new byte[BUFFER_SIZE];
-                    InputStream in = request.getInputStream();
-                    ObjectStreamIO stream = null;
-                    ObjectStreamWriter out = null;
-                    while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-                        if (out == null) {
-                            // defer creation of object stream because input stream may be empty
-                            stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                            out = stream.getOutputStream();
+                } else if (contentType.startsWith(MediaType.APPLICATION_JSON)) {
+                    // request body is assumed to be JSON
+                    String json = util.getUTF(util.stream2bytes(request.getInputStream(), false)).trim();
+                    if (json.length() == 0) {
+                        dataset.put(BODY, new HashMap<>());
+                    } else {
+                        if (json.startsWith("{") && json.endsWith("}")) {
+                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, Map.class));
+                        } else if (json.startsWith("[") && json.endsWith("]")) {
+                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, List.class));
+                        } else {
+                            response.sendError(400, "Invalid JSON input");
+                            return;
                         }
-                        total += len;
-                        out.write(buffer, 0, len);
                     }
-                    if (out != null) {
-                        out.close();
-                        dataset.put(STREAM, stream.getRoute());
-                        dataset.put(CONTENT_LENGTH, total);
+
+                } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
+                    // request body is assumed to be XML
+                    String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
+                    if (text.length() == 0) {
+                        dataset.put(BODY, new HashMap<>());
+                    } else {
+                        try {
+                            Map<String, Object> map = xmlReader.parse(text);
+                            dataset.put(BODY, map);
+                        } catch (Exception e) {
+                            response.sendError(400, e.getMessage());
+                            return;
+                        }
+                    }
+
+                } else {
+                    /*
+                     * The input is not JSON or XML.
+                     * Check if the content-length is larger than threshold.
+                     */
+                    boolean sendAsBytes = false;
+                    int contentLen = request.getContentLength();
+                    if (contentLen > 0 && contentLen <= route.info.threshold) {
+                        byte[] bytes = util.stream2bytes(request.getInputStream(), false);
+                        dataset.put(BODY, bytes);
+                        sendAsBytes = true;
+                    }
+                    // If content-length is undefined or larger than threshold, it will be sent as a stream.
+                    if (!sendAsBytes) {
+                        int len;
+                        int total = 0;
+                        byte[] buffer = new byte[BUFFER_SIZE];
+                        InputStream in = request.getInputStream();
+                        ObjectStreamIO stream = null;
+                        ObjectStreamWriter out = null;
+                        while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                            if (out == null) {
+                                // defer creation of object stream because input stream may be empty
+                                stream = new ObjectStreamIO(route.info.timeoutSeconds);
+                                out = stream.getOutputStream();
+                            }
+                            total += len;
+                            out.write(buffer, 0, len);
+                        }
+                        if (out != null) {
+                            out.close();
+                            dataset.put(STREAM, stream.getRoute());
+                            dataset.put(CONTENT_LENGTH, total);
+                        }
                     }
                 }
             }
@@ -580,6 +585,8 @@ public class ServiceGateway extends HttpServlet {
                                     } else if (key.equals(CONTENT_TYPE)) {
                                         contentType = value.toLowerCase();
                                         response.setContentType(contentType);
+                                    } else if (key.equals(SET_COOKIE)) {
+                                        setCookies(response, value);
                                     } else {
                                         resHeaders.put(key, value);
                                     }
@@ -709,6 +716,18 @@ public class ServiceGateway extends HttpServlet {
                 }
             }
             return null;
+        }
+    }
+
+    private void setCookies(HttpServletResponse response, String cookies) {
+        String header = getHeaderCase(SET_COOKIE);
+        if (cookies.contains(COOKIE_SEPARATOR)) {
+            List<String> items = Utility.getInstance().split(cookies, COOKIE_SEPARATOR);
+            for (String value: items) {
+                response.addHeader(header, value);
+            }
+        } else {
+            response.setHeader(header, cookies);
         }
     }
 

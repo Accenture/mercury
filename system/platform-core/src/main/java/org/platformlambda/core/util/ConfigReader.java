@@ -19,6 +19,7 @@
 package org.platformlambda.core.util;
 
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.util.common.ConfigBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -26,7 +27,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.util.*;
 
-public class ConfigReader {
+public class ConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(ConfigReader.class);
 
     private static final String CLASSPATH = "classpath:";
@@ -48,33 +49,62 @@ public class ConfigReader {
      * @param key parameter
      * @return value
      */
+    @Override
     public Object get(String key) {
+        if (key == null || key.length() == 0) {
+            return null;
+        }
         String value = getSystemProperty(key);
         return value != null? value : config.get(key);
     }
 
     private String getSystemProperty(String key) {
+        if (key == null || key.length() == 0) {
+            return null;
+        }
         String value = System.getProperty(key);
         return value != null? value : (environmentVars.containsKey(key)? System.getenv(environmentVars.get(key)) : null);
     }
 
+    @Override
     public Object get(String key, Object defaultValue) {
         Object o = get(key);
         return o != null? o : defaultValue;
     }
 
+    @Override
     public String getProperty(String key) {
         Object o = get(key);
         return o != null? (o instanceof String? (String) o : o.toString()) : null;
     }
 
+    @Override
     public String getProperty(String key, String defaultValue) {
         String s = getProperty(key);
         return s != null? s : defaultValue;
     }
 
+    @Override
     public Map<String, Object> getMap() {
         return config;
+    }
+
+    @Override
+    public boolean exists(String key) {
+        if (key == null || key.length() == 0) {
+            return false;
+        }
+        return config.containsKey(key);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return config.isEmpty();
+    }
+
+    @Override
+    public int size() {
+        return config.size();
     }
 
     @SuppressWarnings("unchecked")
@@ -120,6 +150,19 @@ public class ConfigReader {
             } catch (IOException e) {
                 //
             }
+        }
+    }
+
+    public void load(Map<String, Object> map) {
+        config = map;
+        enforceKeysAsText(config);
+        // load environment variables if any
+        Object o = config.get(ENV_VARIABLES);
+        if (o != null) {
+            environmentVars.putAll(getEnvVars(o));
+        }
+        if (doSubstitution) {
+            update(config);
         }
     }
 

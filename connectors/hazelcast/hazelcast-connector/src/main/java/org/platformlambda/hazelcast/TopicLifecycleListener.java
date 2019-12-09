@@ -38,7 +38,7 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final Logger log = LoggerFactory.getLogger(TopicLifecycleListener.class);
 
     private static final String TYPE = ServiceDiscovery.TYPE;
-    private static final String SETUP_CONSUMER = "start.consumer";
+    private static final String SETUP_CONSUMER = "hazelcast.connection.monitor";
     private static final String JOIN = "join";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";

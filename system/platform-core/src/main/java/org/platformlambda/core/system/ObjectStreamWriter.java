@@ -70,11 +70,8 @@ public class ObjectStreamWriter implements Closeable {
         if (end > payload.length) {
             throw new IOException("end pointer must not be larger than payload buffer size");
         }
-        if (start == 0 && end == payload.length) {
-            write(payload);
-        } else {
-            write(Arrays.copyOfRange(payload, start, end));
-        }
+        // always create a new byte array
+        write(Arrays.copyOfRange(payload, start, end));
     }
 
     @Override

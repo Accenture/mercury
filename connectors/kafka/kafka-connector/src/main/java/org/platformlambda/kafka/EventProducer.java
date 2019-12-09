@@ -177,7 +177,12 @@ public class EventProducer implements LambdaFunction {
                          *
                          * The EventConsumer at the receiving side will reconstruct the payload if needed.
                          */
-                        producer.send(new ProducerRecord<>(dest, uuid, payload)).get(10000, TimeUnit.MILLISECONDS);
+                        long t1 = System.currentTimeMillis();
+                        producer.send(new ProducerRecord<>(dest, uuid, payload)).get(20, TimeUnit.SECONDS);
+                        long diff = System.currentTimeMillis() - t1;
+                        if (diff > 5000) {
+                            log.warn("Kafka is slow in sending event - took {} ms", diff);
+                        }
                         totalEvents++;
                         lastActive = System.currentTimeMillis();
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {

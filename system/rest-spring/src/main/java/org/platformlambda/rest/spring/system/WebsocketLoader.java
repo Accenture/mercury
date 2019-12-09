@@ -18,8 +18,8 @@
 
 package org.platformlambda.rest.spring.system;
 
+import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
-import org.platformlambda.rest.spring.util.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

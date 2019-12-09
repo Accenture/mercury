@@ -29,10 +29,7 @@ import org.platformlambda.hazelcast.PresenceHandler;
 import org.platformlambda.hazelcast.PresenceProducer;
 import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.service.HouseKeeper;
-import org.platformlambda.service.AdditionalInfo;
-import org.platformlambda.service.KeepAlive;
-import org.platformlambda.service.PingScheduler;
+import org.platformlambda.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +44,10 @@ public class MainApp implements EntryPoint {
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String PRESENCE_MONITOR = "presence.monitor";
     public static final String PRESENCE_HANDLER = "presence.service";
+    public static final String CONFIG_MANAGER = "config.manager";
+    public static final String INITIAL_LOAD = "initial.load";
 
+    private static final String START = "start";
     private static final String MONITOR = "monitor";
     private static final String ADDITIONAL_INFO = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
@@ -86,6 +86,12 @@ public class MainApp implements EntryPoint {
         new KeepAlive().start();
         // setup presence housekeeper that removes expired hazelcast topics
         platform.registerPrivate(PRESENCE_HOUSEKEEPER, new HouseKeeper(), 1);
+        // application configuration manager service
+        platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
+        platform.registerPrivate(INITIAL_LOAD, new InitialLoad(), 1);
+        // initialize
+        PostOffice po = PostOffice.getInstance();
+        po.send(INITIAL_LOAD, START);
         log.info("Started");
     }
 

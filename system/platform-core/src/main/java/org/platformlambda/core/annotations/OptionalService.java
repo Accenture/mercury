@@ -22,7 +22,13 @@ import java.lang.annotation.*;
 
 /**
  * This indicates that the annotated class is optional.
- * The value points to a parameter in application.properties
+ *
+ * If a parameter name is used as value, the condition is evaluated as "parameter=true".
+ *
+ * Otherwise, simple condition is supported.
+ * e.g.
+ * !hello.world means if hello.world does not exist or is "false"
+ * hello.world=12345 means true if the parameter value is "12345"
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

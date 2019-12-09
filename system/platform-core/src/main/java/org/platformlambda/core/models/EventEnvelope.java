@@ -17,13 +17,14 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class EventEnvelope {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
@@ -59,6 +60,8 @@ public class EventEnvelope {
     private static final String END_ROUTE = "E";
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
+    // Special header for setting HTTP cookie for rest-automation
+    private static final String SET_COOKIE = "set-cookie";
 
     private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
     private Integer status;
@@ -262,7 +265,17 @@ public class EventEnvelope {
             } else {
                 v = value.toString();
             }
-            this.headers.put(key, v);
+            if (SET_COOKIE.equalsIgnoreCase(key)) {
+                if (this.headers.containsKey(key)) {
+                    String prev = this.headers.get(key);
+                    this.headers.put(key, prev + "|" + v);
+                } else {
+                    this.headers.put(key, v);
+                }
+
+            } else {
+                this.headers.put(key, v);
+            }
         }
         return this;
     }

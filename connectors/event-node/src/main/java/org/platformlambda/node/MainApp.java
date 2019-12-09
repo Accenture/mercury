@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.node.services.ConfigManager;
 import org.platformlambda.node.services.EventNodeHealth;
 import org.platformlambda.rest.RestServer;
 import org.platformlambda.node.services.ServiceQuery;
@@ -35,9 +36,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 @MainApplication
-public class EventNode implements EntryPoint {
-    private static final Logger log = LoggerFactory.getLogger(EventNode.class);
+public class MainApp implements EntryPoint {
+    private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
+    public static final String CONFIG_MANAGER = "config.manager";
     private static final String CONNECTOR_HEALTH = "cloud.connector.health";
 
     public static void main(String[] args) {
@@ -57,6 +59,8 @@ public class EventNode implements EntryPoint {
             platform.register(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 1);
             platform.register(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.register(CONNECTOR_HEALTH, new EventNodeHealth(), 1);
+            // application configuration manager service
+            platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
             LambdaRouter.begin();
         } catch (IOException e) {
             log.error("Unable to begin service discovery - {}", e.getMessage());

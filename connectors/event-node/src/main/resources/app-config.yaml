@@ -1,0 +1,23 @@
+#
+# sample application configuration
+#
+# Configuration parameters are partitioned by application name.
+# "environment" are used to set environment variables before an application is started.
+# "application.properties" are used to override the application.properties before an application is started.
+# "runtime" parameters are retrieved on-demand and they can change over-time.
+#
+config:
+
+  sample-application:
+    environment:
+      LOG_LEVEL: INFO
+    application.properties:
+      some.key.1: "some value"
+    runtime:
+      another.key.1: "another value"
+
+  another-application:
+    environment:
+      LOG_LEVEL: DEBUG
+    application.properties:
+      some.key.2: "some value too"

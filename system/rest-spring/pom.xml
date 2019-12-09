@@ -7,7 +7,7 @@
     <artifactId>rest-spring</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.14</version>
+    <version>1.12.15</version>
     <name>REST library with Spring Boot</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,7 +29,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.14</version>
+            <version>1.12.15</version>
         </dependency>
 
         <!-- Remove Tomcat dependency from Spring Boot so we can pick the latest one -->
@@ -112,23 +112,6 @@
             <groupId>com.fasterxml</groupId>
             <artifactId>classmate</artifactId>
             <version>1.5.0</version>
-        </dependency>
-
-        <!-- google http client can run without apache http client dependency -->
-        <dependency>
-            <groupId>com.google.http-client</groupId>
-            <artifactId>google-http-client</artifactId>
-            <version>1.32.1</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>

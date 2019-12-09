@@ -41,6 +41,12 @@ public class RestServer {
     public static void main(String[] args) {
         // save command line arguments
         RestServer.args = args;
+        /*
+         * execute preparation steps if any
+         * - this allows application to do preparation such as setting environment variables,
+         *   overriding application.properties, etc.
+         */
+        AppStarter.prepare();
         // start Spring Boot
         SpringApplication.run(RestServer.class, args);
     }

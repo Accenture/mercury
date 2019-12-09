@@ -2,6 +2,33 @@
 # REST automation is the recommended way to create REST endpoints properly
 #
 rest:
+  - service: "v1.user.login"
+    methods: ['GET']
+    url: "/api/login"
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    threshold: 30000
+    tracing: true
+
+  - service: "v1.user.login"
+    methods: ['GET']
+    url: "/api/logout"
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    threshold: 30000
+    tracing: true
+
+  - service: "v1.sso.authentication"
+    methods: ['GET']
+    url: "/api/authentication/login"
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    threshold: 30000
+    tracing: true
+
   - service: "hello.world"
     methods: ['GET', 'POST', 'HEAD', 'PATCH']
     url: "/api/hello/world"
@@ -66,6 +93,7 @@ headers:
       #    keep: ['x-session-id', 'user-agent']
       #
       drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']
+      
     response:
       #
       # the system can filter the response headers set by a target service
@@ -77,6 +105,11 @@ headers:
       #     drop: ['drop_only_these_headers', 'another_drop_header']
       #
       #      add: ["server: mercury 1.12"]
+      #
+      # You may want to add cache-control to disable browser and CDN caching.
+      # add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
+      #
+      add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
 
 #
 # WebSocket automation is designed primarily for real-time notification services

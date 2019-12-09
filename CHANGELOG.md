@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.15, 12/9/2019
+
+### Added
+
+1. Simple configuration management is added to event-node, hazelcast-presence and kafka-presence monitors
+2. Added `BeforeApplication` annotation - this allows user application to execute some setup logic before the main application starts. e.g. modifying parameters in application.properties
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Kafka publisher timeout value changed from 10 to 20 seconds
+2. Log a warning when Kafka takes more than 5 seconds to send an event
+
+---
+
+---
 ## Version 1.12.14, 11/20/2019
 
 ### Added

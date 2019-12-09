@@ -31,6 +31,7 @@ public class AsyncHttpRequest {
     private static final String TIMEOUT = "timeout";
     private static final String SESSION = "session";
     private static final String PARAMETERS = "parameters";
+    private static final String HTTPS = "https";
     private static final String QUERY = "query";
     private static final String PATH = "path";
     private static final String COOKIES = "cookies";
@@ -42,6 +43,7 @@ public class AsyncHttpRequest {
 
     private Map<String, String> headers = new HashMap<>();
     private String method;
+    private String queryString;
     private String url;
     private String ip;
     private Map<String, Object> queryParams = new HashMap<>();
@@ -51,8 +53,11 @@ public class AsyncHttpRequest {
     private Object body;
     private String streamRoute;
     private String fileName;
+    private boolean https = false;
     private int contentLength = -1;
     private int timeoutSeconds = -1;
+
+    public AsyncHttpRequest() { }
 
     public AsyncHttpRequest(Object input) {
         fromMap(input);
@@ -62,12 +67,27 @@ public class AsyncHttpRequest {
         return method;
     }
 
+    public AsyncHttpRequest setMethod(String method) {
+        this.method = method;
+        return this;
+    }
+
     public String getUrl() {
         return url;
     }
 
+    public AsyncHttpRequest setUrl(String url) {
+        this.url = url;
+        return this;
+    }
+
     public String getRemoteIp() {
         return ip;
+    }
+
+    public AsyncHttpRequest setRemoteIp(String ip) {
+        this.ip = ip;
+        return this;
     }
 
     public Map<String, String> getHeaders() {
@@ -78,12 +98,27 @@ public class AsyncHttpRequest {
         return headers.get(key.toLowerCase());
     }
 
+    public AsyncHttpRequest setHeader(String key, String value) {
+        this.headers.put(key, value);
+        return this;
+    }
+
     public Object getBody() {
         return body;
     }
 
+    public AsyncHttpRequest setBody(Object body) {
+        this.body = body;
+        return this;
+    }
+
     public String getStreamRoute() {
         return streamRoute;
+    }
+
+    public AsyncHttpRequest setStreamRoute(String streamRoute) {
+        this.streamRoute = streamRoute;
+        return this;
     }
 
     public boolean isStream() {
@@ -94,6 +129,11 @@ public class AsyncHttpRequest {
         return fileName;
     }
 
+    public AsyncHttpRequest setFileName(String fileName) {
+        this.fileName = fileName;
+        return this;
+    }
+
     public boolean isFile() {
         return fileName != null;
     }
@@ -102,8 +142,18 @@ public class AsyncHttpRequest {
         return timeoutSeconds;
     }
 
+    public AsyncHttpRequest setTimeoutSeconds(int timeoutSeconds) {
+        this.timeoutSeconds = timeoutSeconds;
+        return this;
+    }
+
     public int getContentLength() {
         return contentLength;
+    }
+
+    public AsyncHttpRequest setContentLength(int contentLength) {
+        this.contentLength = contentLength;
+        return this;
     }
 
     public Map<String, String> getSessionInfo() {
@@ -114,6 +164,16 @@ public class AsyncHttpRequest {
         return session.get(key.toLowerCase());
     }
 
+    public AsyncHttpRequest setSessionInfo(String key, String value) {
+        this.session.put(key.toLowerCase(), value);
+        return this;
+    }
+
+    public AsyncHttpRequest removeSessionInfo(String key) {
+        this.session.remove(key);
+        return this;
+    }
+
     public Map<String, String> getCookies() {
         return cookies;
     }
@@ -122,12 +182,50 @@ public class AsyncHttpRequest {
         return cookies.get(key.toLowerCase());
     }
 
+    public AsyncHttpRequest setCookie(String key, String value) {
+        this.cookies.put(key, value);
+        return this;
+    }
+
+    public AsyncHttpRequest removeCookie(String key) {
+        this.cookies.remove(key);
+        return this;
+    }
+
     public Map<String, String> getPathParameters() {
         return pathParams;
     }
 
     public String getPathParameter(String key) {
         return pathParams.get(key.toLowerCase());
+    }
+
+    public AsyncHttpRequest setPathParameter(String key, String value) {
+        this.pathParams.put(key.toLowerCase(), value);
+        return this;
+    }
+
+    public AsyncHttpRequest removePathParameter(String key) {
+        this.pathParams.remove(key);
+        return this;
+    }
+
+    public String getQueryString() {
+        return queryString;
+    }
+
+    public AsyncHttpRequest setQueryString(String queryString) {
+        this.queryString = queryString;
+        return this;
+    }
+
+    public boolean isSecure() {
+        return https;
+    }
+
+    public AsyncHttpRequest setSecure(boolean https) {
+        this.https = https;
+        return this;
     }
 
     public Map<String, Object> getQueryParameters() {
@@ -169,6 +267,75 @@ public class AsyncHttpRequest {
         return null;
     }
 
+    public AsyncHttpRequest setQueryParameter(String key, String value) {
+        this.queryParams.put(key.toLowerCase(), value);
+        return this;
+    }
+
+    public AsyncHttpRequest removeQueryParameter(String key) {
+        this.queryParams.remove(key);
+        return this;
+    }
+
+    /**
+     * The set methods and toMap method are used for manually construct a HTTP request object
+     * that are typically used for Unit Test or for a service to emulate a REST browser.
+     *
+     * In normal case, the AsyncHttpRequest map is generated by the rest-automation application.
+     *
+     * @return async http request object as a map
+     */
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new HashMap<>();
+        if (!headers.isEmpty()) {
+            result.put(HEADERS, headers);
+        }
+        if (!cookies.isEmpty()) {
+            result.put(COOKIES, cookies);
+        }
+        if (!session.isEmpty()) {
+            result.put(SESSION, session);
+        }
+        if (method != null) {
+            result.put(METHOD, method);
+        }
+        if (ip != null) {
+            result.put(IP, ip);
+        }
+        if (url != null) {
+            result.put(URL, url);
+        }
+        if (timeoutSeconds != -1) {
+            result.put(TIMEOUT, timeoutSeconds);
+        }
+        if (fileName != null) {
+            result.put(FILE_NAME, fileName);
+        }
+        if (contentLength != -1) {
+            result.put(CONTENT_LENGTH, contentLength);
+        }
+        if (streamRoute != null) {
+            result.put(STREAM, streamRoute);
+        }
+        if (body != null) {
+            result.put(BODY, body);
+        }
+        if (queryString != null) {
+            result.put(QUERY, queryString);
+        }
+        if (!pathParams.isEmpty() || !queryParams.isEmpty()) {
+            Map<String, Object> parameters = new HashMap<>();
+            result.put(PARAMETERS, parameters);
+            if (!pathParams.isEmpty()) {
+                parameters.put(PATH, pathParams);
+            }
+            if (!queryParams.isEmpty()) {
+                parameters.put(QUERY, queryParams);
+            }
+        }
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     private void fromMap(Object input) {
         if (input instanceof Map) {
@@ -206,6 +373,12 @@ public class AsyncHttpRequest {
             if (map.containsKey(BODY)) {
                 body = map.get(BODY);
             }
+            if (map.containsKey(QUERY)) {
+                queryString = (String) map.get(QUERY);
+            }
+            if (map.containsKey(HTTPS)) {
+                https = (boolean) map.get(HTTPS);
+            }
             if (map.containsKey(PARAMETERS)) {
                 Map<String, Object> params = (Map<String, Object>) map.get(PARAMETERS);
                 if (params.containsKey(PATH)) {
@@ -216,7 +389,7 @@ public class AsyncHttpRequest {
                 }
             }
         } else {
-            throw new IllegalArgumentException("Input - expect: Map, actual: "+input.getClass().getSimpleName());
+            throw new IllegalArgumentException("Expect: Map, actual: "+input.getClass().getSimpleName());
         }
     }
 }

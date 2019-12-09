@@ -16,21 +16,15 @@
 
  */
 
-package org.platformlambda.rest.spring.util;
+package org.platformlambda.core.annotations;
 
-import org.platformlambda.core.annotations.OptionalService;
-import org.platformlambda.core.util.AppConfigReader;
+import java.lang.annotation.*;
 
-public class Feature {
-
-    public static boolean isRequired(Class<?> cls) {
-        OptionalService condition = cls.getAnnotation(OptionalService.class);
-        if (condition != null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            return "true".equals(reader.getProperty(condition.value()));
-        } else {
-            return true;
-        }
-    }
-
-}
+/**
+ * This indicates that the annotated class is the Main Application.
+ * Note that the main application class should also implement the EntryPoint interface.
+ */
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface BeforeApplication { }
