@@ -79,7 +79,7 @@ public class ServerPersonality {
             log.info("Setting personality for {} to {}", origin, type.toString());
             loadKeyPair();
         } else {
-            throw new IllegalArgumentException("Unable to override because personality has already been set as "+this.type);
+            log.warn("Unable to override because personality has already been set as {}", this.type);
         }
     }
 
