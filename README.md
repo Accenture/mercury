@@ -70,7 +70,7 @@ This simplifies software development and unit tests.
 3. `Microservices module` or `microservice` - This refers to a single unit of deployment that contains at least one public function and optionally some private functions. All functions communicate with each others through a memory based event stream system within the module. Each microservices module can be independently deployed and scaled.
 4. `Microservices application` - It is a collection of microservices modules running together as a single application.
 5. `User facing endpoints` - This refers to public API for REST, websocket or other communication protocols.
-6. `Event API` - Microservices functions expose event APIs internally for inter-service communications. For example, a user facing endpoint may use REST protocol. The HTTP request is then converted to a event in a request to a microservices module.
+6. `Event API` - Microservices functions expose event APIs internally for inter-service communications. For example, a user facing endpoint may use REST protocol. The HTTP request is then converted to an event to a microservice.
 7. `Real-time events` - Messages that are time sensitive. e.g. RPC requests and responses.
 8. `Store-n-forward events` - Events that are not time sensitive. First, a calling function can send an event without waiting for a response. Second, the called function may not even available when the event is delivered. e.g. data pipeline applications.
 9. `Streaming events` - This refers to continuous flow of events from one function to another. Note that streaming can be either real-time or store-n-forward.
