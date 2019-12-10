@@ -23,8 +23,17 @@ import java.lang.annotation.*;
 /**
  * This indicates that the annotated class is the Main Application.
  * Note that the main application class should also implement the EntryPoint interface.
+ *
+ * Smaller sequence will be executed first
+ * (please note that sequence 0 is reserved for config management)
+ *
+ * sequence must be between 1 to 999
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface BeforeApplication { }
+public @interface BeforeApplication {
+
+    int sequence() default 10;
+
+}

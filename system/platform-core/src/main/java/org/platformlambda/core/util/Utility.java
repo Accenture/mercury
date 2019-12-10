@@ -86,7 +86,7 @@ public class Utility {
             ".lpt1", ".lpt2", ".lpt3", ".lpt4", ".lpt5", ".lpt6", ".lpt7", ".lpt8", ".lpt9"};
     private static final String INVALID_HEX = "Invalid hex string";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
-    private static final String ZEROS = "0000000000";
+    private static final String ZEROS = "0000000000000000";
     private static final String TOTAL = "Total";
 
     private static final VersionInfo versionInfo = new VersionInfo();
@@ -126,7 +126,7 @@ public class Utility {
             int size = list.size();
             int n = 0;
             for (String f : list) {
-                libs.add(zeroFillLibs(++n, size) + ". " + f);
+                libs.add(zeroFill(++n, size) + ". " + f);
             }
             libs.add(TOTAL + ": " + list.size());
         }
@@ -174,9 +174,9 @@ public class Utility {
         return versionInfo.getArtifactId();
     }
 
-    private String zeroFillLibs(int n, int total) {
-        int len = String.valueOf(total).length();
-        String value = String.valueOf(n);
+    public String zeroFill(int seq, int max) {
+        int len = String.valueOf(max).length();
+        String value = String.valueOf(seq);
         return value.length() < len? ZEROS.substring(0, len - value.length()) + value : value;
     }
 

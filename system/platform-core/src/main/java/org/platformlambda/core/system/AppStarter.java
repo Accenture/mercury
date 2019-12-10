@@ -24,15 +24,16 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
 
+    private static final int MAX_SEQ = 999;
     private static String[] parameters = new String[0];
     private static boolean preProcessing = false;
 
@@ -46,15 +47,31 @@ public class AppStarter {
         // find and execute optional preparation modules
         if (!preProcessing) {
             preProcessing = true;
+            Utility util = Utility.getInstance();
             SimpleClassScanner scanner = SimpleClassScanner.getInstance();
             Set<String> packages = scanner.getPackages(true);
             for (String p : packages) {
+                // sort loading sequence
+                int n = 0;
+                Map<String, Class<?>> steps = new HashMap<>();
                 List<Class<?>> services = scanner.getAnnotatedClasses(p, BeforeApplication.class);
                 for (Class<?> cls : services) {
-                    if (!Feature.isRequired(cls)) {
-                        log.debug("Skipping optional preparation {}", cls);
-                        continue;
+                    if (Feature.isRequired(cls)) {
+                        n++;
+                        BeforeApplication before = cls.getAnnotation(BeforeApplication.class);
+                        int seq = Math.min(MAX_SEQ, before.sequence());
+                        String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(n, MAX_SEQ);
+                        steps.put(key, cls);
+                    } else {
+                        log.debug("Skipping optional startup {}", cls);
                     }
+                }
+                List<String> list = new ArrayList<>(steps.keySet());
+                if (list.size() > 1) {
+                    Collections.sort(list);
+                }
+                for (String seq : list) {
+                    Class<?> cls = steps.get(seq);
                     try {
                         Object o = cls.newInstance();
                         if (o instanceof EntryPoint) {
@@ -91,36 +108,36 @@ public class AppStarter {
         // preparation step is executed only once
         AppStarter.prepare();
         // find and execute MainApplication modules
-        int total = 0, features = 0;
+        int total = 0, skipped = 0;
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
         for (String p : packages) {
             List<Class<?>> services = scanner.getAnnotatedClasses(p, MainApplication.class);
             for (Class<?> cls : services) {
-                if (!Feature.isRequired(cls)) {
-                    features++;
-                    log.info("Skipping optional main {}", cls);
-                    continue;
-                }
-                try {
-                    Object o = cls.newInstance();
-                    if (o instanceof EntryPoint) {
-                        // execute MainApplication module in a separate thread for non-blocking operation
-                        AppRunner app = new AppRunner((EntryPoint) o);
-                        app.start();
-                        total++;
-                    } else {
-                        log.error("Unable to start {} because it is not an instance of {}",
-                                cls.getName(), EntryPoint.class.getName());
-                    }
+                if (Feature.isRequired(cls)) {
+                    try {
+                        Object o = cls.newInstance();
+                        if (o instanceof EntryPoint) {
+                            // execute MainApplication module in a separate thread for non-blocking operation
+                            AppRunner app = new AppRunner((EntryPoint) o);
+                            app.start();
+                            total++;
+                        } else {
+                            log.error("Unable to start {} because it is not an instance of {}",
+                                    cls.getName(), EntryPoint.class.getName());
+                        }
 
-                } catch (InstantiationException | IllegalAccessException e) {
-                    log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
+                    } catch (InstantiationException | IllegalAccessException e) {
+                        log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
+                    }
+                } else {
+                    skipped++;
+                    log.info("Skipping optional main {}", cls);
                 }
             }
         }
         if (total == 0) {
-            if (features == 0) {
+            if (skipped == 0) {
                 log.error("MainApplication not found. Remember to annotate it with {} that implements {}",
                         MainApplication.class.getName(), EntryPoint.class.getName());
             } else {

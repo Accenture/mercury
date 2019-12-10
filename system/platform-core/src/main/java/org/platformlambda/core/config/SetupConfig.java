@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@BeforeApplication
+@BeforeApplication(sequence = 0)
 @OptionalService("app.config.enabled")
 public class SetupConfig implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(SetupConfig.class);
