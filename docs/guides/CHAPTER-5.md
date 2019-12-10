@@ -33,7 +33,7 @@
 | kafka.replication.factor                    | 3                                         | Kafka    |
 | multi.tenancy.namespace                     | environment shortname                     | Optional |
 
-`*` - when using the "rest-spring" library when your module needs REST endpoints or health check.
+`*` - when using the "rest-spring" library
 
 # safe.data.models
 
