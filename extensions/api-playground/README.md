@@ -11,7 +11,7 @@ The default directory is `/tmp/api-playground`
 You can change the directory location by overriding the "api.playground.apps" parameter when starting up this application.
 
 ```
-java -Dapi.playground.apps=another_location -jar target\api-playground-1.12.15.jar
+java -Dapi.playground.apps=another_location -jar api-playground-1.12.15.jar
 
 where another location is a folder in the local file system.
 ```
@@ -25,12 +25,12 @@ Please visit http://127.0.0.1:8083 after starting this application.
 
 Using default API specs location,
 ```
-java -jar target\api-playground-1.12.15.jar
+java -jar api-playground-1.12.15.jar
 ```
 
 With user defined API specs location,
 ```
-java -Dapi.playground.apps=another_location -jar target\api-playground-1.12.15.jar
+java -Dapi.playground.apps=another_location -jar api-playground-1.12.15.jar
 ```
 
 ## How this application is created?
