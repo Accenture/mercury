@@ -4,7 +4,7 @@ This is a standalone application that uses swagger UI for the rendering of OpenA
 
 This application is designed as a convenient tool for API design, tests and discussion among developers and product owners.
 
-## OpenAPI API specs folder
+## OpenAPI specs file folder
 
 The default directory is `/tmp/api-playground`
 
