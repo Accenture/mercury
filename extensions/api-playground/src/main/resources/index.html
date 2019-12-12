@@ -1,0 +1,82 @@
+<!-- HTML for static distribution bundle build -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API playground</title>
+
+    <link rel="stylesheet" type="text/css" href="/swagger-ui.css" >
+    <link rel="stylesheet" type="text/css" href="/bootstrap-4.4.1/bootstrap.min.css" >
+    <script src="/jquery/jquery-3.4.1.min.js"></script>
+    <script src="/bootstrap-4.4.1/bootstrap.min.js"></script>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
+    <style>
+      html
+      {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+
+      *,
+      *:before,
+      *:after
+      {
+        box-sizing: inherit;
+      }
+
+      body
+      {
+        margin:0;
+        background: #fafafa;
+      }
+    </style>
+</head>
+
+<body>
+<header>
+    <!-- Fixed navbar -->
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+        <a class="navbar-brand" href="/">API playground</a>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Apps
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        $dropdown
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+</header>
+
+<div style="margin-bottom: 70px"></div>
+<div id="swagger-ui"></div>
+
+<script src="/swagger-ui-bundle.js"> </script>
+<script src="/swagger-ui-standalone-preset.js"> </script>
+<script>
+    window.onload = function() {
+      // Begin Swagger UI call region
+      const ui = SwaggerUIBundle({
+        url: "$url",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ]
+      })
+      // End Swagger UI call region
+      window.ui = ui
+    }
+  </script>
+</body>
+</html>

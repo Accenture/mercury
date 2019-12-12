@@ -1,0 +1,139 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Playground
+  description: You may browse available API specs or select one from the Apps link.
+
+servers:
+  - url: /api
+paths:
+  /specs:
+    get:
+      summary: List all API files
+      operationId: listFiles
+      tags:
+        - playground
+      responses:
+        '200':
+          description: a list of OpenAPI yaml or json files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileList"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /specs/{filename}:
+    get:
+      summary: View API specs
+      operationId: viewFile
+      tags:
+        - playground
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: the file name of the API specs to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: file content
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /hello/world:
+    get:
+      summary: Hello World demo
+      operationId: helloworld
+      tags:
+        - helloworld
+      responses:
+        '200':
+          description: echo HTTP request headers and cookies
+          content:
+            application/json:
+              schema:
+                type: "string"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /hello/concurrent:
+    get:
+      summary: Concurrent Hello World demo
+      operationId: concurrent
+      tags:
+        - helloworld
+      responses:
+        '200':
+          description: demonstrate concurrent execution of the hello-world service
+          content:
+            application/json:
+              schema:
+                type: "string"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    FileList:
+      type: object
+      required:
+        - total
+        - list
+        - time
+      properties:
+        total:
+          type: integer
+          format: int32
+        list:
+          type: array
+          items:
+            type: string
+        time:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required:
+        - type
+        - status
+        - message
+        - path
+      properties:
+        type:
+          type: string
+        status:
+          type: integer
+          format: int8
+        message:
+          type: string
+        path:
+          type: string
