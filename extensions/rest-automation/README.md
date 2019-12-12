@@ -281,3 +281,8 @@ For production, please deploy your rest.yaml file as /tmp/config/rest.yaml
 The rest.yaml in "/tmp/config" will override the sample rest.yaml in the resources folder.
 
 If your application does not support websocket notification channel, you can remove the websocket section in rest.yaml
+
+## Acknowledgements
+
+The generalized HTTP response error HTML page uses Bootstrap CSS under MIT license
+- https://github.com/twbs/bootstrap/blob/master/LICENSE
