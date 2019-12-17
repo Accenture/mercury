@@ -42,6 +42,7 @@ public class RoutingEntry {
     private static final String URL = "url";
     private static final String ID = "id";
     private static final String OPTIONS_METHOD = "OPTIONS";
+    private static final String ORIGIN = "origin";
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
     private static final String TIMEOUT = "timeout";
@@ -505,7 +506,7 @@ public class RoutingEntry {
             List<Object> options = (List<Object>) entry.get(OPTIONS);
             List<Object> headers = (List<Object>) entry.get(HEADERS);
             if (validCorsList(options) && validCorsList(headers)) {
-                CorsInfo info = new CorsInfo(id);
+                CorsInfo info = new CorsInfo(id, entry.get(ORIGIN));
                 for (Object o: options) {
                     info.addOption(o.toString());
                 }
@@ -513,7 +514,7 @@ public class RoutingEntry {
                     info.addHeader(h.toString());
                 }
                 cors.put(id, info);
-                log.info("Loaded {} CORS headers", id);
+                log.info("Loaded {} CORS headers ({})", id, info.getOrigin(false));
 
             } else {
                 log.error("Skipping invalid CORS entry {}", entry);

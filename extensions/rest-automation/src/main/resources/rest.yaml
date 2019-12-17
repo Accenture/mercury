@@ -62,10 +62,18 @@ rest:
     headers: header_1
 
 #
-# CORS HEADERS for pre-flight (HTTP OPTIONS) and normal cases
+# CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
+#
+# Access-Control-Allow-Origin must be "*" or domain name starting with "http://" or "https://"
+# The use of wildcard "*" should only be allowed for non-prod environments.
+#
+# For production, please add the "app.origin" key in the application.properties.
+# In this example, the app.origin value will be used to override the value
+# in "Access-Control-Allow-Origin".
 #
 cors:
   - id: cors_1
+    origin: ${app.origin}
     options:
       - "Access-Control-Allow-Origin: *"
       - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"

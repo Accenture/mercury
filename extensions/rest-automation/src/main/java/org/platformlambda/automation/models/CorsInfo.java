@@ -23,26 +23,53 @@ import java.util.Map;
 
 public class CorsInfo {
 
+    private static final String ACCESS_CONTROL_ORIGIN = "access-control-allow-origin";
+    private static final String HTTP = "http://";
+    private static final String HTTPS = "https://";
+    private String origin;
     public String id;
     public Map<String, String> options = new HashMap<>();
     public Map<String, String> headers = new HashMap<>();
 
-    public CorsInfo(String id) {
+    public CorsInfo(String id, Object origin) {
         this.id = id;
+        this.origin = getOrigin(origin);
+    }
+
+    public String getOrigin(boolean isOption) {
+        return isOption? options.get(ACCESS_CONTROL_ORIGIN) : headers.get(ACCESS_CONTROL_ORIGIN);
     }
 
     public void addOption(String element) {
         int colon = element.indexOf(':');
-        String key = element.substring(0, colon).trim();
+        String key = element.substring(0, colon).trim().toLowerCase();
         String value = element.substring(colon+1).trim();
-        options.put(key.toLowerCase(), value);
+        if (key.equals(ACCESS_CONTROL_ORIGIN) && origin != null) {
+            options.put(key, origin);
+        } else {
+            options.put(key, value);
+        }
     }
 
     public void addHeader(String element) {
         int colon = element.indexOf(':');
-        String key = element.substring(0, colon).trim();
+        String key = element.substring(0, colon).trim().toLowerCase();
         String value = element.substring(colon+1).trim();
-        headers.put(key.toLowerCase(), value);
+        if (key.equals(ACCESS_CONTROL_ORIGIN) && origin != null) {
+            headers.put(key, origin);
+        } else {
+            headers.put(key, value);
+        }
+    }
+
+    private String getOrigin(Object origin) {
+        if (origin instanceof String) {
+            String o = (String) origin;
+            if ("*".equals(o) || o.startsWith(HTTP) || o.startsWith(HTTPS)) {
+                return o;
+            }
+        }
+        return null;
     }
 
 }
