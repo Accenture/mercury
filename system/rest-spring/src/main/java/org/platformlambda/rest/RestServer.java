@@ -46,7 +46,7 @@ public class RestServer {
          * - this allows application to do preparation such as setting environment variables,
          *   overriding application.properties, etc.
          */
-        AppStarter.prepare();
+        AppStarter.prepare(args);
         // start Spring Boot
         SpringApplication.run(RestServer.class, args);
     }

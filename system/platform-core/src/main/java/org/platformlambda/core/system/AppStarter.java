@@ -34,16 +34,14 @@ public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
 
     private static final int MAX_SEQ = 999;
-    private static String[] parameters = new String[0];
     private static boolean preProcessing = false;
 
     public static void main(String[] args) {
-        parameters = args;
         AppStarter application = new AppStarter();
-        application.begin();
+        application.begin(args);
     }
 
-    public static void prepare() {
+    public static void prepare(String[] args) {
         // find and execute optional preparation modules
         if (!preProcessing) {
             preProcessing = true;
@@ -82,7 +80,7 @@ public class AppStarter {
                             EntryPoint app = (EntryPoint) o;
                             try {
                                 log.info("Starting {}", app.getClass().getName());
-                                app.start(parameters);
+                                app.start(args);
                             } catch (Exception e) {
                                 log.error("Unable to run " + app.getClass().getName(), e);
                             }
@@ -104,9 +102,9 @@ public class AppStarter {
         }
     }
 
-    public void begin() {
+    public void begin(String[] args) {
         // preparation step is executed only once
-        AppStarter.prepare();
+        AppStarter.prepare(args);
         // find and execute MainApplication modules
         int total = 0, skipped = 0;
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
@@ -119,7 +117,7 @@ public class AppStarter {
                         Object o = cls.newInstance();
                         if (o instanceof EntryPoint) {
                             // execute MainApplication module in a separate thread for non-blocking operation
-                            AppRunner app = new AppRunner((EntryPoint) o);
+                            AppRunner app = new AppRunner((EntryPoint) o, args);
                             app.start();
                             total++;
                         } else {
@@ -150,16 +148,18 @@ public class AppStarter {
     private class AppRunner extends Thread {
 
         private EntryPoint app;
+        private String[] args;
 
-        public AppRunner(EntryPoint app) {
+        public AppRunner(EntryPoint app, String[] args) {
             this.app = app;
+            this.args = args;
         }
 
         @Override
         public void run() {
             try {
                 log.info("Starting {}", app.getClass().getName());
-                app.start(parameters);
+                app.start(args);
             } catch (Exception e) {
                 log.error("Unable to run "+app.getClass().getName(), e);
             }

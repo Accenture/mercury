@@ -274,15 +274,28 @@ websocket:
 The ws.html sample app is available under the resources folder and the browser app can be tested by visiting
 http://127.0.0.1:8100/ws.html
 
-# Production
+## Custom HTML error page
 
-For production, please deploy your rest.yaml file as /tmp/config/rest.yaml
+You may customize the standardized `errorPage.html` in the resources folder for your organization.
+
+## Static HTML folder
+
+You can tell the rest-automation application to use a static HTML folder in the local file system with one of these methods:
+
+application.properties
+```
+spring.resources.static-locations=file:/tmp/html
+```
+
+or startup parameters
+```
+java -jar rest-automation.jar -html file:/tmp/html
+```
+
+# API definition file (rest.yaml)
+
+Please design and deploy your own rest.yaml file in /tmp/config/rest.yaml
 
 The rest.yaml in "/tmp/config" will override the sample rest.yaml in the resources folder.
 
 If your application does not support websocket notification channel, you can remove the websocket section in rest.yaml
-
-## Acknowledgements
-
-The generalized HTTP response error HTML page uses Bootstrap CSS under MIT license
-- https://github.com/twbs/bootstrap/blob/master/LICENSE
