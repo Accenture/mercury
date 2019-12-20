@@ -150,7 +150,7 @@ public class PresenceManager extends Thread {
                 try {
                     connect();
                 } catch (Exception e) {
-                    log.error("Unexpected error when trying to reconnect - {}", e.getMessage());
+                    log.error("Unexpected error when trying to connect {} - {}", platformPaths, e.getMessage());
                 }
             }
         }
@@ -174,7 +174,7 @@ public class PresenceManager extends Thread {
                         lastPending = System.currentTimeMillis();
                         log.info("Reporting to {}", uri);
                         return; // exit after successful connection
-                    } catch (DeploymentException | IOException e) {
+                    } catch (Exception e) {
                         log.warn("{} {}", simpleError(e.getMessage()), uri);
                     }
                 } catch (URISyntaxException e) {
