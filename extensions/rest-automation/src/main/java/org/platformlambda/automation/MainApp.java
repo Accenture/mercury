@@ -20,10 +20,13 @@ package org.platformlambda.automation;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 @MainApplication
 public class MainApp implements EntryPoint {
@@ -34,7 +37,7 @@ public class MainApp implements EntryPoint {
     }
 
     @Override
-    public void start(String[] args) {
+    public void start(String[] args) throws IOException {
         /*
          * ServiceGateway will start first to load routing entries from rest.yaml
          * and start async.http.response service.
@@ -42,7 +45,13 @@ public class MainApp implements EntryPoint {
          * The main app can then connect to the cloud.
          */
         Platform platform = Platform.getInstance();
-        platform.connectToCloud();
+//        platform.connectToCloud();
+
+        LambdaFunction f = (headers, body, instance) -> {
+            log.info("---->{}", body);
+            return body;
+        };
+        platform.register("hello.world", f, 10);
 
         log.info("Application started");
     }

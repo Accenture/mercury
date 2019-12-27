@@ -27,6 +27,11 @@ public class RouteInfo {
     public boolean tracing = false;
     public List<String> methods;
     public int timeoutSeconds = 30;
+    // optional for file upload
     public String upload = "file";
+    // optional for HTTP relay
+    public String host;
+    public boolean trustAllCert = false;
+    public List<String> urlRewrite;
 
 }

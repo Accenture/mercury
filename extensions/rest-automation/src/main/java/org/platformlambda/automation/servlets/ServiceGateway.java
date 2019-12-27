@@ -43,9 +43,7 @@ import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -65,6 +63,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String BASE_PATH = "/api";
     private static final String URL = "url";
     private static final String IP = "ip";
+    private static final String TRUST_ALL_CERT = "trust_all_cert";
+    private static final String RELAY = "relay";
     private static final String PARAMETERS = "parameters";
     private static final String PATH = "path";
     private static final String QUERY = "query";
@@ -72,7 +72,8 @@ public class ServiceGateway extends HttpServlet {
     private static final String SESSION = "session";
     private static final String COOKIE = "cookie";
     private static final String COOKIES = "cookies";
-    private static final String ASYNC_HTTP = "async.http.response";
+    private static final String ASYNC_HTTP_REQUEST = "async.http.request";
+    private static final String ASYNC_HTTP_RESPONSE = "async.http.response";
     private static final String METHOD = "method";
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
@@ -82,6 +83,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String BODY = "body";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
+    private static final String UPLOAD = "upload";
     private static final String TIMEOUT = "timeout";
     private static final String FILE_NAME = "filename";
     private static final String ACCEPT = "accept";
@@ -114,7 +116,8 @@ public class ServiceGateway extends HttpServlet {
                 // start service response handler
                 ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
                 Platform platform = Platform.getInstance();
-                platform.registerPrivate(ASYNC_HTTP, new ServiceResponseHandler(), 100);
+                platform.registerPrivate(ASYNC_HTTP_REQUEST, new HttpRelay(), 100);
+                platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(), 100);
                 /*
                  * When AsyncContext timeout, the HttpServletResponse object is already closed.
                  * Therefore, we use a custom timeout handler so we can control the timeout experience.
@@ -190,8 +193,9 @@ public class ServiceGateway extends HttpServlet {
     private void routeRequest(String url, AssignedRoute route, HttpServletRequest request, HttpServletResponse response) throws IOException {
         request.setCharacterEncoding(UTF_8);
         response.setCharacterEncoding(UTF_8);
+        String method = request.getMethod();
         Utility util = Utility.getInstance();
-        if (OPTIONS.equals(request.getMethod())) {
+        if (OPTIONS.equals(method)) {
             // insert CORS headers for OPTIONS
             if (route.info.corsId == null) {
                 response.sendError(405, "Method not allowed");
@@ -242,8 +246,12 @@ public class ServiceGateway extends HttpServlet {
         if (queryString != null) {
             dataset.put(QUERY, queryString);
         }
-        dataset.put(URL, url);
-        dataset.put(METHOD, request.getMethod());
+        dataset.put(URL, normalizeUrl(url, route.info.urlRewrite));
+        if (route.info.host != null) {
+            dataset.put(RELAY, route.info.host);
+            dataset.put(TRUST_ALL_CERT, route.info.trustAllCert);
+        }
+        dataset.put(METHOD, method);
         dataset.put(HTTPS, HTTPS.equals(request.getHeader(PROTOCOL)));
         dataset.put(TIMEOUT, route.info.timeoutSeconds);
         Map<String, Object> parameters = new HashMap<>();
@@ -308,7 +316,7 @@ public class ServiceGateway extends HttpServlet {
         // Set trace header if needed
         if (route.info.tracing) {
             traceId = "t" + util.getUuid();
-            tracePath = request.getMethod() + " " + url;
+            tracePath = method + " " + url;
             if (queryString != null) {
                 tracePath += "?" + queryString;
             }
@@ -359,12 +367,12 @@ public class ServiceGateway extends HttpServlet {
             }
         }
         // load HTTP body
-        if (request.getMethod().equals(POST) || request.getMethod().equals(PUT) || request.getMethod().equals(PATCH)) {
+        if (POST.equals(method) || PUT.equals(method) || PATCH.equals(method)) {
             String contentType = request.getContentType();
             // ignore URL encoded content type because it has been already fetched as request/query parameters
             if (contentType != null && !contentType.startsWith(MediaType.APPLICATION_FORM_URLENCODED)) {
                 // handle request body
-                if (contentType.startsWith(MediaType.MULTIPART_FORM_DATA) && request.getMethod().equals(POST)) {
+                if (contentType.startsWith(MediaType.MULTIPART_FORM_DATA) && POST.equals(method)) {
                     // file upload
                     try {
                         Part filePart = request.getPart(route.info.upload);
@@ -374,7 +382,7 @@ public class ServiceGateway extends HttpServlet {
                                 int len;
                                 int total = 0;
                                 byte[] buffer = new byte[BUFFER_SIZE];
-                                InputStream in = filePart.getInputStream();
+                                BufferedInputStream in = new BufferedInputStream(filePart.getInputStream());
                                 ObjectStreamIO stream = null;
                                 ObjectStreamWriter out = null;
                                 while ((len = in.read(buffer, 0, buffer.length)) != -1) {
@@ -393,6 +401,7 @@ public class ServiceGateway extends HttpServlet {
                                     dataset.put(STREAM, stream.getRoute());
                                     dataset.put(FILE_NAME, fileName);
                                     dataset.put(CONTENT_LENGTH, total);
+                                    dataset.put(UPLOAD, route.info.upload);
                                 }
                             }
                         }
@@ -437,19 +446,16 @@ public class ServiceGateway extends HttpServlet {
                      * The input is not JSON or XML.
                      * Check if the content-length is larger than threshold.
                      */
-                    boolean sendAsBytes = false;
                     int contentLen = request.getContentLength();
                     if (contentLen > 0 && contentLen <= route.info.threshold) {
                         byte[] bytes = util.stream2bytes(request.getInputStream(), false);
                         dataset.put(BODY, bytes);
-                        sendAsBytes = true;
-                    }
-                    // If content-length is undefined or larger than threshold, it will be sent as a stream.
-                    if (!sendAsBytes) {
+                    } else {
+                        // If content-length is undefined or larger than threshold, it will be sent as a stream.
                         int len;
                         int total = 0;
                         byte[] buffer = new byte[BUFFER_SIZE];
-                        InputStream in = request.getInputStream();
+                        BufferedInputStream in = new BufferedInputStream(request.getInputStream());
                         ObjectStreamIO stream = null;
                         ObjectStreamWriter out = null;
                         while ((len = in.read(buffer, 0, buffer.length)) != -1) {
@@ -477,7 +483,7 @@ public class ServiceGateway extends HttpServlet {
         context.addListener(new AsyncHttpHandler(requestId));
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
-        holder.setUrl(url).setMethod(request.getMethod()).setResHeaderId(route.info.responseTransformId);
+        holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);
         String acceptContent = request.getHeader(ACCEPT);
         if (acceptContent != null) {
             holder.setAccept(acceptContent);
@@ -486,7 +492,7 @@ public class ServiceGateway extends HttpServlet {
         // forward to HTTP request to the target service
         EventEnvelope event = new EventEnvelope();
         event.setTo(route.info.service).setBody(dataset)
-                .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP+"@"+Platform.getInstance().getOrigin());
+                .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+Platform.getInstance().getOrigin());
         // enable distributed tracing if needed
         if (route.info.tracing) {
             event.setTrace(traceId, tracePath);
@@ -497,6 +503,15 @@ public class ServiceGateway extends HttpServlet {
             response.sendError(400, e.getMessage());
             context.complete();
         }
+    }
+
+    private String normalizeUrl(String url, List<String> urlRewrite) {
+        if (urlRewrite != null && urlRewrite.size() == 2) {
+            if (url.startsWith(urlRewrite.get(0))) {
+                return urlRewrite.get(1) + url.substring(urlRewrite.get(0).length());
+            }
+        }
+        return url;
     }
 
     private String getFileName(final Part part) {
@@ -544,6 +559,7 @@ public class ServiceGateway extends HttpServlet {
             if (timeoutOverride == null) {
                 return contextTimeout;
             }
+            // convert to milliseconds
             long timeout = Utility.getInstance().str2long(timeoutOverride) * 1000;
             if (timeout < 1) {
                 return contextTimeout;
@@ -661,7 +677,6 @@ public class ServiceGateway extends HttpServlet {
                                                 out.write(util.getUTF((String) block));
                                             }
                                         }
-                                        in.close();
                                     } catch (IOException | RuntimeException e) {
                                         log.warn("{} output stream {} interrupted - {}", holder.url, streamId, e.getMessage());
                                         if (e.getMessage().contains("timeout")) {
@@ -669,6 +684,8 @@ public class ServiceGateway extends HttpServlet {
                                         } else {
                                             response.sendError(500, e.getMessage());
                                         }
+                                    } finally {
+                                        in.close();
                                     }
                                     // regular output
                                 } else if (resBody instanceof Map) {

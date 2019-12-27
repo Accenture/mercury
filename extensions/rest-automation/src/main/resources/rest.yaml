@@ -30,7 +30,7 @@ rest:
     tracing: true
 
   - service: "hello.world"
-    methods: ['GET', 'POST', 'HEAD', 'PATCH']
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH']
     url: "/api/hello/world"
     timeout: 10s
     # optional authentication service which should return result as an EventEnvelope
@@ -55,11 +55,33 @@ rest:
     headers: header_1
 
   - service: "hello.world"
+    trust_all_cert: true
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
     timeout: 12
     cors: cors_1
     headers: header_1
+
+  #
+  # When service is a URL, it will relay HTTP or HTTPS requests.
+  # "trust_all_cert" and "url_rewrite" are optional.
+  #
+  # For target host with self-signed certificate, you may set "trust_all_cert" to true.
+  # trust_all_cert: true
+  #
+  # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
+  # e.g. url_rewrite: ['/api/v1', '/v1/api']
+  # In this example, "/api/v1" will be replaced with "/v1/api"
+  #
+  - service: "http://127.0.0.1:8100"
+    trust_all_cert: true
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/v1/*"
+    url_rewrite: ['/api/v1', '/api']
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+    tracing: true
 
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
@@ -98,9 +120,11 @@ headers:
       # keep and drop are mutually exclusive where keep has precedent over drop
       # i.e. when keep is not empty, it will drop all headers except those to be kept
       # when keep is empty and drop is not, it will drop only the headers in the drop list
-      #    keep: ['x-session-id', 'user-agent']
+      # e.g.
+      # keep: ['x-session-id', 'user-agent']
+      # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
       #
-      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
       
     response:
       #

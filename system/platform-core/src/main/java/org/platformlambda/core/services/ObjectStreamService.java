@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.services;
 
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -29,6 +30,7 @@ import org.platformlambda.core.util.Utility;
 import java.io.File;
 import java.util.Map;
 
+@ZeroTracing
 public class ObjectStreamService implements LambdaFunction {
 
     private static final String STREAM_MANAGER = Platform.STREAM_MANAGER;

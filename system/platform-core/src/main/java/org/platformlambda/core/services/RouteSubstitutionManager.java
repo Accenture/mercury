@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.services;
 
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -29,19 +30,20 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 
-    public class RouteSubstitutionManager implements LambdaFunction {
-        private static final Logger log = LoggerFactory.getLogger(RouteSubstitutionManager.class);
+@ZeroTracing
+public class RouteSubstitutionManager implements LambdaFunction {
+    private static final Logger log = LoggerFactory.getLogger(RouteSubstitutionManager.class);
 
-        private static final String SUBSYSTEM = "subsystem";
-        private static final String ROUTE_SUBSTITUTION = "route_substitution";
-        private static final String ORIGIN = "origin";
-        private static final String SYNC = "sync";
-        private static final String MERGE = "merge";
-        private static final String TYPE = ServiceDiscovery.TYPE;
-        private static final String ADD = ServiceDiscovery.ADD;
-        private static final String REMOVE = ServiceDiscovery.REMOVE;
-        private static final String ROUTE = "route";
-        private static final String REPLACEMENT = "replacement";
+    private static final String SUBSYSTEM = "subsystem";
+    private static final String ROUTE_SUBSTITUTION = "route_substitution";
+    private static final String ORIGIN = "origin";
+    private static final String SYNC = "sync";
+    private static final String MERGE = "merge";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ADD = ServiceDiscovery.ADD;
+    private static final String REMOVE = ServiceDiscovery.REMOVE;
+    private static final String ROUTE = "route";
+    private static final String REPLACEMENT = "replacement";
 
     @Override
     @SuppressWarnings("unchecked")

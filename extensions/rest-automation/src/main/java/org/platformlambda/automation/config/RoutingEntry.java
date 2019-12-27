@@ -26,11 +26,16 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
 
 public class RoutingEntry {
     private static final Logger log = LoggerFactory.getLogger(RoutingEntry.class);
 
+    private static final String ASYNC_HTTP_REQUEST = "async.http.request";
+    private static final String HTTP = "http://";
+    private static final String HTTPS = "https://";
     private static final String REST = "rest";
     private static final String CORS = "cors";
     private static final String AUTH = "authentication";
@@ -39,12 +44,14 @@ public class RoutingEntry {
     private static final String TRACING = "tracing";
     private static final String SERVICE = "service";
     private static final String METHODS = "methods";
-    private static final String URL = "url";
+    private static final String URL_LABEL = "url";
     private static final String ID = "id";
     private static final String OPTIONS_METHOD = "OPTIONS";
     private static final String ORIGIN = "origin";
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
+    private static final String TRUST_ALL_CERT = "trust_all_cert";
+    private static final String URL_REWRITE = "url_rewrite";
     private static final String TIMEOUT = "timeout";
     private static final String REQUEST = "request";
     private static final String RESPONSE = "response";
@@ -262,9 +269,9 @@ public class RoutingEntry {
 
     private void loadRest(List<Map<String, Object>> config) {
         for (Map<String, Object> entry: config) {
-            if (entry.containsKey(SERVICE) && entry.containsKey(METHODS) && entry.containsKey(URL)
-                    && entry.get(URL) instanceof String) {
-                String url = (String) entry.get(URL);
+            if (entry.containsKey(SERVICE) && entry.containsKey(METHODS) && entry.containsKey(URL_LABEL)
+                    && entry.get(URL_LABEL) instanceof String) {
+                String url = (String) entry.get(URL_LABEL);
                 if (url.contains("{") || url.contains("}") || url.contains("*")) {
                     loadRestEntry(entry, false);
                 } else {
@@ -302,11 +309,11 @@ public class RoutingEntry {
                 int value = util.str2int(entry.get(THRESHOLD).toString());
                 if (value < MIN_THRESHOLD) {
                     value = MIN_THRESHOLD;
-                    log.warn("{} - threshold set to {} because {} is too small", entry.get(URL), REG_THRESHOLD, value);
+                    log.warn("{} - threshold set to {} because {} is too small", entry.get(URL_LABEL), REG_THRESHOLD, value);
                 }
                 if (value > MAX_THRESHOLD) {
                     value = MAX_THRESHOLD;
-                    log.warn("{} - threshold set to {} because {} is too big", entry.get(URL), MAX_THRESHOLD, value);
+                    log.warn("{} - threshold set to {} because {} is too big", entry.get(URL_LABEL), MAX_THRESHOLD, value);
                 }
                 info.threshold = value;
             }
@@ -315,9 +322,9 @@ public class RoutingEntry {
                     info.tracing = true;
                 }
             }
-            String service = (String) entry.get(SERVICE);
+            String service = entry.get(SERVICE).toString().toLowerCase();
             List<String> methods = (List<String>) entry.get(METHODS);
-            String url = (String) entry.get(URL);
+            String url = (String) entry.get(URL_LABEL);
             // drop query string when parsing URL
             if (url.contains("?")) {
                 url = url.substring(0, url.indexOf('?'));
@@ -370,10 +377,63 @@ public class RoutingEntry {
                     return;
                 }
             }
-            if (!util.validServiceName(service)) {
+            // URL rewrite
+            if (entry.containsKey(URL_REWRITE)) {
+                if (entry.get(URL_REWRITE) instanceof List) {
+                    List<String> urlRewrite = (List<String>) entry.get(URL_REWRITE);
+                    if (urlRewrite.size() == 2) {
+                        info.urlRewrite = urlRewrite;
+                    } else {
+                        log.error("Skipping entry with invalid {} - {}. It should contain a list of 2 prefixes",
+                                URL_REWRITE, service);
+                        return;
+                    }
+                } else {
+                    log.error("Skipping entry with invalid {} - {}, expected: List<String>, actual: {}",
+                            URL_REWRITE, service, entry.get(URL_REWRITE).getClass().getSimpleName());
+                    return;
+                }
+            }
+            boolean isHttp = false;
+            if (service.startsWith(HTTP) || service.startsWith(HTTPS)) {
+                try {
+                    URL u = new URL(service);
+                    if (!u.getPath().isEmpty()) {
+                        log.error("Skipping entry with invalid service URL {} - Must not contain path", service);
+                        return;
+                    }
+                    if (u.getQuery() != null) {
+                        log.error("Skipping entry with invalid service URL {} - Must not contain query", service);
+                        return;
+                    }
+                    isHttp = true;
+                    if (service.startsWith(HTTPS) && entry.containsKey(TRUST_ALL_CERT) &&
+                                "true".equalsIgnoreCase(entry.get(TRUST_ALL_CERT).toString())) {
+                        info.trustAllCert = true;
+                        log.warn("Be careful - {}=true for {}", TRUST_ALL_CERT, service);
+                    }
+                    if (service.startsWith(HTTP) && entry.containsKey(TRUST_ALL_CERT)) {
+                        log.warn("{}=true for {} is not relevant - Do you meant https?", TRUST_ALL_CERT, service);
+                    }
+
+                } catch (MalformedURLException e) {
+                    log.error("Skipping entry with invalid service URL {} - {}", service, e.getMessage());
+                    return;
+                }
+            } else {
+                if (entry.containsKey(TRUST_ALL_CERT)) {
+                    log.warn("{}=true for {} is not relevant", TRUST_ALL_CERT, service);
+                }
+            }
+            if (!isHttp && !util.validServiceName(service)) {
                 log.error("Skipping entry with invalid service name {}", entry);
             } else {
-                info.service = service;
+                if (isHttp) {
+                    info.service = ASYNC_HTTP_REQUEST;
+                    info.host = service;
+                } else {
+                    info.service = service;
+                }
                 if (validMethods(methods)) {
                     info.methods = methods;
                     if (exact) {

@@ -51,27 +51,43 @@ public class ObjectStreamWriter implements Closeable {
 
     public void write(Object payload) throws IOException {
         if (payload == null) {
-            // writing a null payload also indicates EOF
+            // null payload means EOF
             close();
         } else {
-            try {
-                // use RPC request to guarantee that the payload is written to disk
-                PostOffice.getInstance().request(streamId, timeout, payload, new Kv(TYPE, WRITE));
-            } catch (TimeoutException | AppException e) {
-                throw new IOException(e.getMessage());
+            if (payload instanceof byte[]) {
+                byte[] b = (byte[]) payload;
+                write(b, 0, b.length);
+            } else {
+                try {
+                    // use RPC request to guarantee that the payload is written to disk
+                    PostOffice.getInstance().request(streamId, timeout, payload, new Kv(TYPE, WRITE));
+                } catch (TimeoutException | AppException e) {
+                    throw new IOException(e.getMessage());
+                }
             }
         }
     }
 
     public void write(byte[] payload, int start, int end) throws IOException {
-        if (start >= end) {
-            throw new IOException("start must be less than end pointer. Actual: start/end="+start+"/"+end);
+        if (payload == null) {
+            // null payload means EOF
+            close();
+        } else {
+            if (start >= end) {
+                throw new IOException("start must be less than end pointer. Actual: start/end=" + start + "/" + end);
+            }
+            if (end > payload.length) {
+                throw new IOException("end pointer must not be larger than payload buffer size");
+            }
+            // always create a new byte array
+            byte[] b = Arrays.copyOfRange(payload, start, end);
+            try {
+                // use RPC request to guarantee that the payload is written to disk
+                PostOffice.getInstance().request(streamId, timeout, b, new Kv(TYPE, WRITE));
+            } catch (TimeoutException | AppException e) {
+                throw new IOException(e.getMessage());
+            }
         }
-        if (end > payload.length) {
-            throw new IOException("end pointer must not be larger than payload buffer size");
-        }
-        // always create a new byte array
-        write(Arrays.copyOfRange(payload, start, end));
     }
 
     @Override

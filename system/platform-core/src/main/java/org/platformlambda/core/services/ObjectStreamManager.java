@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.services;
 
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@ZeroTracing
 public class ObjectStreamManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ObjectStreamManager.class);
 

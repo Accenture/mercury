@@ -16,6 +16,7 @@ A routing entry is a simple mapping of URL to a microservice.
 
 ```yaml
 rest:
+
   - service: "hello.world"
     methods: ['GET', 'POST']
     url: "/api/hello/world"
@@ -48,6 +49,7 @@ rest:
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal cases
 #
 cors:
+
   - id: cors_1
     options:
       - "Access-Control-Allow-Origin: *"
@@ -64,6 +66,7 @@ cors:
 # add/drop/keep header parameters
 #
 headers:
+
   - id: header_1
     # headers to be inserted
     add: ["hello-world: nice"]
@@ -256,6 +259,7 @@ The ws.notification is the websocket service that receives incoming requests and
 
 ```yaml
 websocket:
+
   - service: "ws.notification"
     #
     # The web-socket URL is /ws/api/{application}:{token}?query_parameters

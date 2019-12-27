@@ -18,6 +18,8 @@
 
 package org.platformlambda.core.models;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,21 +33,27 @@ public class AsyncHttpRequest {
     private static final String TIMEOUT = "timeout";
     private static final String SESSION = "session";
     private static final String PARAMETERS = "parameters";
+    private static final String HTTP_PROTOCOL = "http://";
+    private static final String HTTPS_PROTOCOL = "https://";
     private static final String HTTPS = "https";
     private static final String QUERY = "query";
     private static final String PATH = "path";
     private static final String COOKIES = "cookies";
-    private static final String URL = "url";
+    private static final String URL_LABEL = "url";
     private static final String BODY = "body";
+    private static final String UPLOAD = "upload";
     private static final String STREAM = "stream";
     private static final String FILE_NAME = "filename";
     private static final String CONTENT_LENGTH = "content-length";
+    private static final String TRUST_ALL_CERT = "trust_all_cert";
+    private static final String RELAY = "relay";
 
     private Map<String, String> headers = new HashMap<>();
     private String method;
     private String queryString;
     private String url;
     private String ip;
+    private String upload;
     private Map<String, Object> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> cookies = new HashMap<>();
@@ -53,6 +61,8 @@ public class AsyncHttpRequest {
     private Object body;
     private String streamRoute;
     private String fileName;
+    private String relay;
+    private boolean trustAllCert = false;
     private boolean https = false;
     private int contentLength = -1;
     private int timeoutSeconds = -1;
@@ -228,8 +238,50 @@ public class AsyncHttpRequest {
         return this;
     }
 
+    public String getUploadTag() {
+        return upload;
+    }
+
+    public AsyncHttpRequest setUploadTag(String tag) {
+        this.upload = tag;
+        return this;
+    }
+
     public Map<String, Object> getQueryParameters() {
         return queryParams;
+    }
+
+    public String getRelay() {
+        return relay;
+    }
+
+    public AsyncHttpRequest setRelay(String host) {
+        if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
+            try {
+                URL u = new URL(host);
+                if (!u.getPath().isEmpty()) {
+                    throw new IllegalArgumentException("Invalid host - Must not contain path");
+                }
+                if (u.getQuery() != null) {
+                    throw new IllegalArgumentException("Invalid host - Must not contain query");
+                }
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException("Invalid host - "+e.getMessage());
+            }
+            this.relay = host;
+            return this;
+        } else {
+            throw new IllegalArgumentException("Invalid host - must starts with "+HTTP_PROTOCOL+" or "+HTTPS_PROTOCOL);
+        }
+    }
+
+    public boolean isTrustAllCert() {
+        return trustAllCert;
+    }
+
+    public AsyncHttpRequest setTrustAllCert(boolean trustAllCert) {
+        this.trustAllCert = trustAllCert;
+        return this;
     }
 
     /**
@@ -303,7 +355,7 @@ public class AsyncHttpRequest {
             result.put(IP, ip);
         }
         if (url != null) {
-            result.put(URL, url);
+            result.put(URL_LABEL, url);
         }
         if (timeoutSeconds != -1) {
             result.put(TIMEOUT, timeoutSeconds);
@@ -323,6 +375,9 @@ public class AsyncHttpRequest {
         if (queryString != null) {
             result.put(QUERY, queryString);
         }
+        if (upload != null) {
+            result.put(UPLOAD, upload);
+        }
         if (!pathParams.isEmpty() || !queryParams.isEmpty()) {
             Map<String, Object> parameters = new HashMap<>();
             result.put(PARAMETERS, parameters);
@@ -332,6 +387,17 @@ public class AsyncHttpRequest {
             if (!queryParams.isEmpty()) {
                 parameters.put(QUERY, queryParams);
             }
+        }
+        result.put(HTTPS, https);
+        /*
+         * Optional HTTP host name in the "relay" field
+         *
+         * This is used by the rest-automation "async.http.request" service
+         * when forwarding HTTP request to a target HTTP endpoint.
+         */
+        if (relay != null) {
+            result.put(RELAY, relay);
+            result.put(TRUST_ALL_CERT, trustAllCert);
         }
         return result;
     }
@@ -355,8 +421,8 @@ public class AsyncHttpRequest {
             if (map.containsKey(IP)) {
                 ip = (String) map.get(IP);
             }
-            if (map.containsKey(URL)) {
-                url = (String) map.get(URL);
+            if (map.containsKey(URL_LABEL)) {
+                url = (String) map.get(URL_LABEL);
             }
             if (map.containsKey(TIMEOUT)) {
                 timeoutSeconds = (int) map.get(TIMEOUT);
@@ -378,6 +444,15 @@ public class AsyncHttpRequest {
             }
             if (map.containsKey(HTTPS)) {
                 https = (boolean) map.get(HTTPS);
+            }
+            if (map.containsKey(RELAY)) {
+                relay = (String) map.get(RELAY);
+            }
+            if (map.containsKey(TRUST_ALL_CERT)) {
+                trustAllCert = (boolean) map.get(TRUST_ALL_CERT);
+            }
+            if (map.containsKey(UPLOAD)) {
+                upload = (String) map.get(UPLOAD);
             }
             if (map.containsKey(PARAMETERS)) {
                 Map<String, Object> params = (Map<String, Object>) map.get(PARAMETERS);
