@@ -412,39 +412,35 @@ public class ServiceGateway extends HttpServlet {
 
                 } else if (contentType.startsWith(MediaType.APPLICATION_JSON)) {
                     // request body is assumed to be JSON
-                    String json = util.getUTF(util.stream2bytes(request.getInputStream(), false)).trim();
-                    if (json.length() == 0) {
+                    String text = util.getUTF(util.stream2bytes(request.getInputStream(), false)).trim();
+                    if (text.length() == 0) {
                         dataset.put(BODY, new HashMap<>());
                     } else {
-                        if (json.startsWith("{") && json.endsWith("}")) {
-                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, Map.class));
-                        } else if (json.startsWith("[") && json.endsWith("]")) {
-                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(json, List.class));
+                        if (text.startsWith("{") && text.endsWith("}")) {
+                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
+                        } else if (text.startsWith("[") && text.endsWith("]")) {
+                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(text, List.class));
                         } else {
-                            response.sendError(400, "Invalid JSON input");
-                            return;
+                            dataset.put(BODY, text);
                         }
                     }
 
                 } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
                     // request body is assumed to be XML
                     String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
-                    if (text.length() == 0) {
-                        dataset.put(BODY, new HashMap<>());
-                    } else {
-                        try {
-                            Map<String, Object> map = xmlReader.parse(text);
-                            dataset.put(BODY, map);
-                        } catch (Exception e) {
-                            response.sendError(400, e.getMessage());
-                            return;
-                        }
+                    try {
+                        dataset.put(BODY, text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
+                    } catch (Exception e) {
+                        dataset.put(BODY, text);
                     }
-
+                } else if (contentType.startsWith(MediaType.TEXT_HTML) || contentType.startsWith(MediaType.TEXT_PLAIN)) {
+                    String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
+                    dataset.put(BODY, text);
                 } else {
                     /*
-                     * The input is not JSON or XML.
+                     * The input is not JSON, XML or TEXT
                      * Check if the content-length is larger than threshold.
+                     * For large payload, it is better to deliver as a stream.
                      */
                     int contentLen = request.getContentLength();
                     if (contentLen > 0 && contentLen <= route.info.threshold) {

@@ -8,6 +8,7 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.ObjectStreamReader;
@@ -25,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +34,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public class HttpRelay implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HttpRelay.class);
+    private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final ConcurrentMap<String, HttpRequestFactory> httpFactory = new ConcurrentHashMap<>();
 
@@ -234,7 +237,38 @@ public class HttpRelay implements LambdaFunction {
                     }
                     return resEvent;
                 } else {
-                    return resEvent.setBody(util.stream2bytes(response.getContent()));
+                    String resContentType = response.getHeaders().getFirstHeaderStringValue(CONTENT_TYPE);
+                    if (resContentType != null) {
+                        if (resContentType.startsWith(MediaType.APPLICATION_JSON)) {
+                            // request body is assumed to be JSON
+                            String text = util.getUTF(util.stream2bytes(response.getContent(), false)).trim();
+                            if (text.length() == 0) {
+                                return resEvent.setBody(new HashMap<>());
+                            } else {
+                                if (text.startsWith("{") && text.endsWith("}")) {
+                                    return resEvent.setBody(SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
+                                } else if (text.startsWith("[") && text.endsWith("]")) {
+                                    return resEvent.setBody(SimpleMapper.getInstance().getMapper().readValue(text, List.class));
+                                } else {
+                                    return resEvent.setBody(text);
+                                }
+                            }
+
+                        } else if (resContentType.startsWith(MediaType.APPLICATION_XML)) {
+                            // request body is assumed to be XML
+                            String text = util.getUTF(util.stream2bytes(response.getContent(), false));
+                            try {
+                                return resEvent.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
+                            } catch (Exception e) {
+                                return resEvent.setBody(text);
+                            }
+                        } else if (resContentType.startsWith(MediaType.TEXT_HTML) ||
+                                   resContentType.startsWith(MediaType.TEXT_PLAIN)) {
+                            String text = util.getUTF(util.stream2bytes(response.getContent(), false));
+                            return resEvent.setBody(text);
+                        }
+                    }
+                    return resEvent.setBody(util.stream2bytes(response.getContent(), false));
                 }
 
             } catch (HttpResponseException e) {
