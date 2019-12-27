@@ -94,7 +94,8 @@ public class PresenceConnector implements LambdaFunction {
                     setState(State.DISCONNECTED);
                     log.info("Disconnected {}", route);
                     // tell service registry to clear routing table
-                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, platform.getOrigin()));
+                    PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
+                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
                     break;
                 case WsEnvelope.BYTES:
                     route = headers.get(WsEnvelope.ROUTE);

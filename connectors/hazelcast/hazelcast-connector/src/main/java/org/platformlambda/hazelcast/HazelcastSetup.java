@@ -113,7 +113,6 @@ public class HazelcastSetup implements CloudSetup {
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String origin = platform.getOrigin();
-
         try {
             platform.registerPrivate(MANAGER, new TopicManager(), 1);
             if (!isServiceMonitor) {

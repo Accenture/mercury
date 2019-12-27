@@ -48,6 +48,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
 
+    private static final String RESET = "reset";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String PING = "ping";
@@ -60,22 +61,26 @@ public class ServiceRegistry implements LambdaFunction {
      * routes: route_name -> (origin, personality)
      * origins: origin -> last seen
      */
+    private static final ManagedCache origins = ManagedCache.createCache("peer.origins", 10000);
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, String> origins = new ConcurrentHashMap<>();
     private static final ManagedCache cache = ManagedCache.createCache("discovery.log.cache", 2000);
     private static List<String> peers = new ArrayList<>();
+    private static String me;
 
     public ServiceRegistry() {
         AppConfigReader reader = AppConfigReader.getInstance();
         isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        me = Platform.getInstance().getOrigin();
     }
 
     public static Map<String, Map<String, String>> getAllRoutes() {
         return new HashMap<>(routes);
     }
 
-    public static Map<String, String> getAllOrigins() {
-        return new HashMap<>(origins);
+    public static Set<String> getAllOrigins() {
+        Set<String> result = new HashSet<>(peers);
+        result.addAll(origins.getMap().keySet());
+        return result;
     }
 
     public static ConcurrentMap<String, String> getDestinations(String route) {
@@ -83,11 +88,7 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static boolean destinationExists(String origin) {
-        if (origins.containsKey(origin)) {
-            return true;
-        } else {
-            return peers.contains(origin);
-        }
+        return origin.equals(me) || origins.exists(origin) || peers.contains(origin);
     }
 
     private String getChecksum() {
@@ -153,6 +154,9 @@ public class ServiceRegistry implements LambdaFunction {
             List<String> additions = getAdditions(updated);
             List<String> removal = getRemoval(updated);
             peers = updated;
+            for (String p: peers) {
+                origins.put(p, Utility.getInstance().date2str(new Date(), true));
+            }
             List<String> members = new ArrayList<>(peers);
             members.remove(me);
             if (members.isEmpty()) {
@@ -223,13 +227,17 @@ public class ServiceRegistry implements LambdaFunction {
             String origin = headers.get(ORIGIN);
             if (origin.equals(Platform.getInstance().getOrigin())) {
                 // this happens when the service-monitor is down
-                List<String> all = new ArrayList<>(origins.keySet());
+                Set<String> all = getAllOrigins();
                 for (String o : all) {
                     if (!o.equals(origin)) {
                         log.info("{} disconnected", o);
                         removeRoutesFromOrigin(o);
                     }
                 }
+                origins.clear();
+                peers.clear();
+                peers.add(origin);
+                log.warn("Peer connections cleared");
             } else {
                 String key = "leave/"+origin;
                 if (!cache.exists(key)) {

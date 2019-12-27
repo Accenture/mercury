@@ -37,6 +37,7 @@ public class PresenceHandler implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String DOWNLOAD = "download";
+    private static final String RESET = "reset";
     private static final String PUT = "put";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
@@ -89,6 +90,11 @@ public class PresenceHandler implements LambdaFunction {
              */
             if (headers.containsKey(ORIGIN)) {
                 if (headers.containsKey(TYPE)) {
+                    if (RESET.equals(headers.get(TYPE))) {
+                        // reset all connections because Hazelcast is offline
+                        log.warn("Reset application connection because Hazelcast is offline");
+                        MonitorService.closeAllConnections();
+                    }
                     if (PUT.equals(headers.get(TYPE)) && body instanceof Map) {
                         MonitorService.updateNodeInfo(headers.get(ORIGIN), (Map<String, Object>) body);
                     }

@@ -31,6 +31,7 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.hazelcast.PresenceHandler;
+import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,8 +79,20 @@ public class MonitorService implements LambdaFunction {
         return new HashMap<>(connectionInfo.getMap());
     }
 
-    public static void updateNodeInfo(String origin, Map<String, Object> info) {
+    public static void closeAllConnections() {
+        Utility util = Utility.getInstance();
+        for (String token: token2txPath.keySet()) {
+            String txPath = token2txPath.get(token);
+            log.warn("Reset connection {}", txPath);
+            try {
+                util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,"Starting up");
+            } catch (IOException e) {
+                log.warn("Unable to close connection {}", txPath);
+            }
+        }
+    }
 
+    public static void updateNodeInfo(String origin, Map<String, Object> info) {
         if (connectionInfo.exists(origin)) {
             Object o = connectionInfo.get(origin);
             if (o instanceof Map) {
@@ -146,8 +159,10 @@ public class MonitorService implements LambdaFunction {
                     String ip = headers.get(WsEnvelope.IP);
                     log.info("Started {}, {}, node={}", route, ip, token);
                     // check if dependencies are ready
-                    if (PresenceHandler.isReady() && platform.hasRoute(CLOUD_CONNECTOR) && platform.hasRoute(MANAGER)
-                            && platform.hasRoute(MainApp.PRESENCE_MONITOR) && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
+                    if (PresenceHandler.isReady() && TopicLifecycleListener.isReady() &&
+                            platform.hasRoute(CLOUD_CONNECTOR) && platform.hasRoute(MANAGER) &&
+                            platform.hasRoute(MainApp.PRESENCE_MONITOR) &&
+                            platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
                         // check if there is a corresponding message hub is available
                         boolean exists = false;
                         if (validTopicId(token)) {

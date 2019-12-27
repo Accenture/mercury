@@ -27,7 +27,9 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.hazelcast.reporter.PresenceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +53,12 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String NODES = "nodes";
     private static final String JOIN = "join";
+    private boolean isServiceMonitor;
+
+    public TopicManager() {
+        AppConfigReader reader = AppConfigReader.getInstance();
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+    }
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -70,9 +78,15 @@ public class TopicManager implements LambdaFunction {
                     touchTopic(Platform.getInstance().getOrigin());
                     return true;
                 } catch (Exception e) {
-                    log.error("Unable to touch topic - {}", e.getMessage());
+                    if (e.getMessage() != null && e.getMessage().contains("offline")) {
+                        log.error("Hazelcast connection problem - {}", e.getMessage());
+                        // tell service registry to clear routing table
+                        PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
+                                new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    } else {
+                        log.error("Unable to touch topic - {}", e.getMessage());
+                    }
                 }
-
             }
             if (GET.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
                 String origin = headers.get(ORIGIN);
@@ -139,11 +153,17 @@ public class TopicManager implements LambdaFunction {
             metadata.put("name", Platform.getInstance().getName());
             metadata.put("recovered", now);
             log.info("Topic {} recovered", topic);
-            // tell peers that I have joined
-            try {
-                PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN), new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-            } catch (IOException e) {
-                log.error("Unable to notify peers that I have joined - {}", e.getMessage());
+            if (!isServiceMonitor) {
+                PresenceConnector connector = PresenceConnector.getInstance();
+                if (connector.isConnected() && connector.isReady()) {
+                    // tell peers that I have joined
+                    try {
+                        PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                                new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    } catch (IOException e) {
+                        log.error("Unable to notify peers that I have joined - {}", e.getMessage());
+                    }
+                }
             }
         }
         metadata.put("updated", now);

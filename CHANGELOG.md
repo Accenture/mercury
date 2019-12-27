@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.18, 12/27/2019
+
+### Added
+
+Added HTTP relay feature in rest-automation project
+
+### Removed
+
+N/A
+
+### Changed
+
+Improved hazelcast retry and peer discovery logic
+
+---
+
 ## Version 1.12.17, 12/16/2019
 
 ### Added
@@ -23,8 +39,6 @@ N/A
 
 1. Kafka publisher timeout value changed from 10 to 20 seconds
 2. Log a warning when Kafka takes more than 5 seconds to send an event
-
----
 
 ---
 ## Version 1.12.14, 11/20/2019
