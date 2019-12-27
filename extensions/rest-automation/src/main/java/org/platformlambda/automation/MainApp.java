@@ -36,7 +36,7 @@ public class MainApp implements EntryPoint {
     }
 
     @Override
-    public void start(String[] args) throws IOException {
+    public void start(String[] args) {
         /*
          * ServiceGateway will start first to load routing entries from rest.yaml
          * and start async.http.response service.
