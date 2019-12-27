@@ -20,7 +20,6 @@ package org.platformlambda.automation;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
@@ -45,13 +44,7 @@ public class MainApp implements EntryPoint {
          * The main app can then connect to the cloud.
          */
         Platform platform = Platform.getInstance();
-//        platform.connectToCloud();
-
-        LambdaFunction f = (headers, body, instance) -> {
-            log.info("---->{}", body);
-            return body;
-        };
-        platform.register("hello.world", f, 10);
+        platform.connectToCloud();
 
         log.info("Application started");
     }
