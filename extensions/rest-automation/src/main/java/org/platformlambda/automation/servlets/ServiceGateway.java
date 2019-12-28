@@ -90,7 +90,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String SET_COOKIE = "set-cookie";
     private static final String COOKIE_SEPARATOR = "|";
     private static final String CONTENT_TYPE = "content-type";
-    private static final String CONTENT_LENGTH = "content_length";
+    private static final String CONTENT_LENGTH = "size";
     private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
     private static final String HTML_END = "\n</pre>\n<body>\n</html>";
     private static final String RESULT = "result";
