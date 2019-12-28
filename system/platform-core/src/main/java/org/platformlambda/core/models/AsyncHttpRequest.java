@@ -20,10 +20,7 @@ package org.platformlambda.core.models;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AsyncHttpRequest {
 
@@ -319,8 +316,21 @@ public class AsyncHttpRequest {
         return null;
     }
 
-    public AsyncHttpRequest setQueryParameter(String key, String value) {
-        this.queryParams.put(key.toLowerCase(), value);
+    @SuppressWarnings("unchecked")
+    public AsyncHttpRequest setQueryParameter(String key, Object value) {
+        if (value instanceof String) {
+            this.queryParams.put(key.toLowerCase(), value);
+        }
+        if (value instanceof List) {
+            List<String> params = new ArrayList<>();
+            List<Object> list = (List<Object>) value;
+            for (Object o: list) {
+                if (o != null) {
+                    params.add(o instanceof String ? (String) o : o.toString());
+                }
+            }
+            this.queryParams.put(key.toLowerCase(), params);
+        }
         return this;
     }
 

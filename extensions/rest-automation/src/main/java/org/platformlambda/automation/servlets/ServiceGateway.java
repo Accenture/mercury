@@ -26,6 +26,7 @@ import org.platformlambda.automation.models.CorsInfo;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -61,40 +62,26 @@ public class ServiceGateway extends HttpServlet {
     private static final String HTTPS = "https";
     private static final String UTF_8 = "utf-8";
     private static final String BASE_PATH = "/api";
-    private static final String URL = "url";
-    private static final String IP = "ip";
-    private static final String TRUST_ALL_CERT = "trust_all_cert";
-    private static final String RELAY = "relay";
-    private static final String PARAMETERS = "parameters";
-    private static final String PATH = "path";
-    private static final String QUERY = "query";
-    private static final String HEADERS = "headers";
-    private static final String SESSION = "session";
     private static final String COOKIE = "cookie";
-    private static final String COOKIES = "cookies";
     private static final String ASYNC_HTTP_REQUEST = "async.http.request";
     private static final String ASYNC_HTTP_RESPONSE = "async.http.response";
-    private static final String METHOD = "method";
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
     private static final String HEAD = "HEAD";
-    private static final String BODY = "body";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
-    private static final String UPLOAD = "upload";
     private static final String TIMEOUT = "timeout";
-    private static final String FILE_NAME = "filename";
     private static final String ACCEPT = "accept";
     private static final String SET_COOKIE = "set-cookie";
     private static final String COOKIE_SEPARATOR = "|";
     private static final String CONTENT_TYPE = "content-type";
-    private static final String CONTENT_LENGTH = "size";
     private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
     private static final String HTML_END = "\n</pre>\n<body>\n</html>";
     private static final String RESULT = "result";
     private static final String ACCEPT_ANY = "*/*";
+    private static final String CONTENT_DISPOSITION = "content-disposition";
     private static final String TRACE_HEADER = "X-Trace-Id";
     private static final int BUFFER_SIZE = 2048;
     // requestId -> context
@@ -241,38 +228,34 @@ public class ServiceGateway extends HttpServlet {
                 return;
             }
         }
-        Map<String, Object> dataset = new HashMap<>();
+        AsyncHttpRequest req = new AsyncHttpRequest();
         String queryString = request.getQueryString();
         if (queryString != null) {
-            dataset.put(QUERY, queryString);
+            req.setQueryString(queryString);
         }
-        dataset.put(URL, normalizeUrl(url, route.info.urlRewrite));
+        req.setUrl(normalizeUrl(url, route.info.urlRewrite));
         if (route.info.host != null) {
-            dataset.put(RELAY, route.info.host);
-            dataset.put(TRUST_ALL_CERT, route.info.trustAllCert);
+            req.setRelay(route.info.host);
+            req.setTrustAllCert(route.info.trustAllCert);
         }
-        dataset.put(METHOD, method);
-        dataset.put(HTTPS, HTTPS.equals(request.getHeader(PROTOCOL)));
-        dataset.put(TIMEOUT, route.info.timeoutSeconds);
-        Map<String, Object> parameters = new HashMap<>();
-        dataset.put(PARAMETERS, parameters);
+        req.setMethod(method);
+        req.setSecure(HTTPS.equals(request.getHeader(PROTOCOL)));
+        req.setTimeoutSeconds(route.info.timeoutSeconds);
         if (!route.arguments.isEmpty()) {
-            parameters.put(PATH, route.arguments);
+            for (String p: route.arguments.keySet()) {
+                req.setPathParameter(p, route.arguments.get(p));
+            }
         }
-        Map<String, Object> queryParams = new HashMap<>();
         Enumeration<String> pNames = request.getParameterNames();
         while (pNames.hasMoreElements()) {
             String key = pNames.nextElement();
             String[] values = request.getParameterValues(key);
             if (values.length == 1) {
-                queryParams.put(key, values[0]);
+                req.setQueryParameter(key, values[0]);
             }
             if (values.length > 1) {
-                queryParams.put(key, Arrays.asList(values));
+                req.setQueryParameter(key, Arrays.asList(values));
             }
-        }
-        if (!queryParams.isEmpty()) {
-            parameters.put(QUERY, queryParams);
         }
         boolean hasCookies = false;
         Map<String, String> headers = new HashMap<>();
@@ -298,18 +281,17 @@ public class ServiceGateway extends HttpServlet {
             Map<String, String> cookieMap = new HashMap<>();
             Cookie[] cookies = request.getCookies();
             for (Cookie c : cookies) {
-                cookieMap.put(c.getName().toLowerCase(), c.getValue());
+                req.setCookie(c.getName().toLowerCase(), c.getValue());
             }
-            dataset.put(COOKIES, cookieMap);
         }
         RoutingEntry re = RoutingEntry.getInstance();
         if (route.info.requestTransformId != null) {
             headers = filterHeaders(re.getRequestHeaderInfo(route.info.requestTransformId), headers);
         }
-        if (!headers.isEmpty()) {
-            dataset.put(HEADERS, headers);
+        for (String h: headers.keySet()) {
+            req.setHeader(h, headers.get(h));
         }
-        dataset.put(IP, request.getRemoteAddr());
+        req.setRemoteIp(request.getRemoteAddr());
         // Distributed tracing required?
         String traceId = null;
         String tracePath = null;
@@ -327,7 +309,8 @@ public class ServiceGateway extends HttpServlet {
             try {
                 long authTimeout = route.info.timeoutSeconds * 1000;
                 EventEnvelope authRequest = new EventEnvelope();
-                authRequest.setTo(route.info.authService).setBody(dataset);
+                // the AsyncHttpRequest is sent as a map
+                authRequest.setTo(route.info.authService).setBody(req.toMap());
                 // distributed tracing required?
                 if (route.info.tracing) {
                     authRequest.setTrace(traceId, tracePath);
@@ -342,11 +325,9 @@ public class ServiceGateway extends HttpServlet {
                          * (auth headers are converted to lower case for case insensitivity)
                          */
                         Map<String, String> authResHeaders = authResponse.getHeaders();
-                        Map<String, String> lowerCaseHeaders = new HashMap<>();
                         for (String k : authResHeaders.keySet()) {
-                            lowerCaseHeaders.put(k.toLowerCase(), authResHeaders.get(k));
+                            req.setSessionInfo(k.toLowerCase(), authResHeaders.get(k));
                         }
-                        dataset.put(SESSION, lowerCaseHeaders);
                     } else {
                         response.sendError(401, "Unauthorized");
                         return;
@@ -398,10 +379,10 @@ public class ServiceGateway extends HttpServlet {
                                 }
                                 if (out != null) {
                                     out.close();
-                                    dataset.put(STREAM, stream.getRoute());
-                                    dataset.put(FILE_NAME, fileName);
-                                    dataset.put(CONTENT_LENGTH, total);
-                                    dataset.put(UPLOAD, route.info.upload);
+                                    req.setStreamRoute(stream.getRoute());
+                                    req.setFileName(fileName);
+                                    req.setContentLength(total);
+                                    req.setUploadTag(route.info.upload);
                                 }
                             }
                         }
@@ -414,14 +395,14 @@ public class ServiceGateway extends HttpServlet {
                     // request body is assumed to be JSON
                     String text = util.getUTF(util.stream2bytes(request.getInputStream(), false)).trim();
                     if (text.length() == 0) {
-                        dataset.put(BODY, new HashMap<>());
+                        req.setBody(new HashMap<>());
                     } else {
                         if (text.startsWith("{") && text.endsWith("}")) {
-                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
+                            req.setBody(SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
                         } else if (text.startsWith("[") && text.endsWith("]")) {
-                            dataset.put(BODY, SimpleMapper.getInstance().getMapper().readValue(text, List.class));
+                            req.setBody(SimpleMapper.getInstance().getMapper().readValue(text, List.class));
                         } else {
-                            dataset.put(BODY, text);
+                            req.setBody(text);
                         }
                     }
 
@@ -429,13 +410,13 @@ public class ServiceGateway extends HttpServlet {
                     // request body is assumed to be XML
                     String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
                     try {
-                        dataset.put(BODY, text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
+                        req.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
                     } catch (Exception e) {
-                        dataset.put(BODY, text);
+                        req.setBody(text);
                     }
                 } else if (contentType.startsWith(MediaType.TEXT_HTML) || contentType.startsWith(MediaType.TEXT_PLAIN)) {
                     String text = util.getUTF(util.stream2bytes(request.getInputStream(), false));
-                    dataset.put(BODY, text);
+                    req.setBody(text);
                 } else {
                     /*
                      * The input is not JSON, XML or TEXT
@@ -445,7 +426,7 @@ public class ServiceGateway extends HttpServlet {
                     int contentLen = request.getContentLength();
                     if (contentLen > 0 && contentLen <= route.info.threshold) {
                         byte[] bytes = util.stream2bytes(request.getInputStream(), false);
-                        dataset.put(BODY, bytes);
+                        req.setBody(bytes);
                     } else {
                         // If content-length is undefined or larger than threshold, it will be sent as a stream.
                         int len;
@@ -465,8 +446,8 @@ public class ServiceGateway extends HttpServlet {
                         }
                         if (out != null) {
                             out.close();
-                            dataset.put(STREAM, stream.getRoute());
-                            dataset.put(CONTENT_LENGTH, total);
+                            req.setStreamRoute(stream.getRoute());
+                            req.setContentLength(total);
                         }
                     }
                 }
@@ -485,9 +466,12 @@ public class ServiceGateway extends HttpServlet {
             holder.setAccept(acceptContent);
         }
         contexts.put(requestId, holder);
-        // forward to HTTP request to the target service
+        /*
+         * Forward the AsyncHttpRequest to the target service.
+         * It is delivered as a map so it is more generic
+         */
         EventEnvelope event = new EventEnvelope();
-        event.setTo(route.info.service).setBody(dataset)
+        event.setTo(route.info.service).setBody(req.toMap())
                 .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+Platform.getInstance().getOrigin());
         // enable distributed tracing if needed
         if (route.info.tracing) {
@@ -511,7 +495,7 @@ public class ServiceGateway extends HttpServlet {
     }
 
     private String getFileName(final Part part) {
-        for (String content : part.getHeader("content-disposition").split(";")) {
+        for (String content : part.getHeader(CONTENT_DISPOSITION).split(";")) {
             if (content.trim().startsWith("filename")) {
                 return content.substring(content.indexOf('=') + 1).trim().replace("\"", "");
             }

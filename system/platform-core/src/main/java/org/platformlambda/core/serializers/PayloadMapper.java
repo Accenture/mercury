@@ -40,12 +40,14 @@ public class PayloadMapper {
     private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
     private static final PayloadMapper instance = new PayloadMapper();
 
-    private boolean enablePoJo;
+    private static Boolean enablePoJo;
 
     private PayloadMapper() {
-        // by default, pojo transport is enabled
-        AppConfigReader config = AppConfigReader.getInstance();
-        enablePoJo = "true".equals(config.getProperty("enable.pojo.transport", "true"));
+        if (enablePoJo == null) {
+            // by default, pojo transport is enabled
+            AppConfigReader config = AppConfigReader.getInstance();
+            enablePoJo = "true".equals(config.getProperty("enable.pojo.transport", "true"));
+        }
     }
 
     public static PayloadMapper getInstance() {

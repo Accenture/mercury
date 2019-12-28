@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.18, 12/27/2019
+## Version 1.12.19, 12/28/2019
 
 ### Added
 
@@ -18,7 +18,8 @@ N/A
 
 ### Changed
 
-Improved hazelcast retry and peer discovery logic
+1. Improved hazelcast retry and peer discovery logic
+2. Refactored rest-automation's service gateway module to use AsyncHttpRequest
 
 ---
 
