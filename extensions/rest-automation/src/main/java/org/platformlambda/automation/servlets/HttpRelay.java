@@ -24,6 +24,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ public class HttpRelay implements LambdaFunction {
 
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
+    private static final String COOKIE = "cookie";
     private static final String GET = "GET";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
@@ -205,6 +207,20 @@ public class HttpRelay implements LambdaFunction {
                     }
                     update = true;
                 }
+            }
+            // set cookies if any
+            Map<String, String> cookies  = request.getCookies();
+            StringBuilder sb = new StringBuilder();
+            for (String k: cookies.keySet()) {
+                String v = cookies.get(k);
+                sb.append(k);
+                sb.append('=');
+                sb.append(URLEncoder.encode(v, "UTF-8"));
+                sb.append("; ");
+            }
+            if (sb.length() > 0) {
+                httpHeaders.set(COOKIE, sb.substring(0, sb.length()-2));
+                update = true;
             }
             if (update) {
                 http.setHeaders(httpHeaders);

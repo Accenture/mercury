@@ -2,6 +2,8 @@ package org.platformlambda.core.models;
 
 import org.platformlambda.core.util.Utility;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Date;
 
 public class SimpleHttpCookie {
@@ -14,11 +16,12 @@ public class SimpleHttpCookie {
     private boolean httpOnly;
 
     public SimpleHttpCookie(String name, String value) {
-        if (name.contains(SEPARATOR) || value.contains(SEPARATOR)) {
-            throw new IllegalArgumentException("Cookie cannot contain separator '"+SEPARATOR+"'");
-        }
         this.name = name;
-        this.value = value;
+        try {
+            this.value = URLEncoder.encode(value, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            this.value = value;
+        }
     }
 
     public SimpleHttpCookie setSecure(boolean secure) {

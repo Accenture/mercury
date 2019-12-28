@@ -44,7 +44,7 @@ public class AsyncHttpRequest {
     private static final String UPLOAD = "upload";
     private static final String STREAM = "stream";
     private static final String FILE_NAME = "filename";
-    private static final String CONTENT_LENGTH = "content-length";
+    private static final String CONTENT_LENGTH = "content_length";
     private static final String TRUST_ALL_CERT = "trust_all_cert";
     private static final String RELAY = "relay";
 
