@@ -320,8 +320,7 @@ public class AsyncHttpRequest {
     public AsyncHttpRequest setQueryParameter(String key, Object value) {
         if (value instanceof String) {
             this.queryParams.put(key.toLowerCase(), value);
-        }
-        if (value instanceof List) {
+        } else if (value instanceof List) {
             List<String> params = new ArrayList<>();
             List<Object> list = (List<Object>) value;
             for (Object o: list) {
@@ -330,6 +329,10 @@ public class AsyncHttpRequest {
                 }
             }
             this.queryParams.put(key.toLowerCase(), params);
+        } else if (value == null) {
+            this.queryParams.put(key.toLowerCase(), "");
+        } else {
+            this.queryParams.put(key.toLowerCase(), value.toString());
         }
         return this;
     }
