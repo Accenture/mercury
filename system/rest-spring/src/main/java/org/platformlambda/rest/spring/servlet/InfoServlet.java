@@ -73,6 +73,7 @@ public class InfoServlet extends HttpServlet {
     private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
 
     private static Boolean isServiceMonitor;
+    private static boolean usingEventNode = true;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -82,6 +83,7 @@ public class InfoServlet extends HttpServlet {
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
         if (isServiceMonitor == null) {
             isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
+            usingEventNode = "event.node".equals(config.getProperty("cloud.connector"));
         }
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> app = new HashMap<>();
@@ -101,13 +103,19 @@ public class InfoServlet extends HttpServlet {
          */
         if (pathElements.size() == 1 && LIST_ROUTES.equals(pathElements.get(0))) {
             if (isServiceMonitor) {
-                response.sendError(400, "List route feature is only available in regular application instances");
+                response.sendError(400, "Routing table is not shown from a presence monitor");
                 return;
             }
             String node = request.getParameter(ORIGIN);
-            if (node != null && !node.equals(platform.getOrigin())) {
-                showRemoteRouting(node, response);
-                return;
+            if (node != null) {
+                if (usingEventNode) {
+                    response.sendError(400, "Remote routing table is not shown when using Event Node");
+                    return;
+                }
+                if (!node.equals(platform.getOrigin())) {
+                    showRemoteRouting(node, response);
+                    return;
+                }
             }
             try {
                 result.put(ROUTING, getRoutingTable());
@@ -168,7 +176,7 @@ public class InfoServlet extends HttpServlet {
         if (regularTopicFormat(node)) {
             try {
                 Map<String, Object> result = new HashMap<>();
-                result.put(TYPE, "remote routing table");
+                result.put(TYPE, "remote");
                 result.put(ROUTING, getRemoteRouting(node));
                 result.put(TIME, new Date());
                 result.put(ORIGIN, Platform.getInstance().getOrigin());
@@ -192,7 +200,7 @@ public class InfoServlet extends HttpServlet {
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
             EventEnvelope response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY+"@"+node,
-                    8000, new Kv(TYPE, DOWNLOAD));
+                    8000, new Kv(ORIGIN, platform.getOrigin()), new Kv(TYPE, DOWNLOAD));
             if (response.getBody() instanceof Map) {
                 return (Map<String, Object>) response.getBody();
             }
@@ -229,7 +237,8 @@ public class InfoServlet extends HttpServlet {
         if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
             EventEnvelope response;
             try {
-                response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 8000, new Kv(TYPE, DOWNLOAD));
+                response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 8000,
+                                new Kv(ORIGIN, platform.getOrigin()), new Kv(TYPE, DOWNLOAD));
             } catch (IOException e) {
                 // event node is down - just return local routing table
                 return getLocalRouting();

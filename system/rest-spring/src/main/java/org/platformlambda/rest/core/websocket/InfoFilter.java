@@ -42,6 +42,7 @@ public class InfoFilter implements Filter {
     private static final String UPGRADE = "upgrade";
     private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
+    private static final String LOCALHOST = "127.0.0.1";
 
     private static boolean loaded = false;
     private static List<String> protectedRestEndpoints = new ArrayList<>();
@@ -112,7 +113,7 @@ public class InfoFilter implements Filter {
     }
 
     private boolean isProtected(HttpServletRequest req) {
-        if (!protectedRestEndpoints.isEmpty()) {
+        if (!LOCALHOST.equals(req.getRemoteAddr()) && !protectedRestEndpoints.isEmpty()) {
             String uri = req.getRequestURI();
             for (String ep: protectedRestEndpoints) {
                 if (equals(uri, ep)) {

@@ -22,8 +22,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServiceDiscovery;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
 
@@ -44,7 +43,14 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
                 return exists(route);
             }
         } else if (DOWNLOAD.equals(headers.get(TYPE))) {
-            return routes;
+            Map<String, Object> result = new HashMap<>();
+            result.put("routes", routes);
+            result.put("nodes", new ArrayList<>(origins.keySet()));
+            if (headers.containsKey(ORIGIN)) {
+                result.put("this", headers.get(ORIGIN));
+            }
+            result.put("time", new Date());
+            return result;
         } else {
             throw new IllegalArgumentException("Usage: headers (type: find), (route: route_name)");
         }

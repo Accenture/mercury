@@ -20,6 +20,7 @@ N/A
 
 1. Improved hazelcast retry and peer discovery logic
 2. Refactored rest-automation's service gateway module to use AsyncHttpRequest
+3. Info endpoint to show routing table of a peer
 
 ---
 
