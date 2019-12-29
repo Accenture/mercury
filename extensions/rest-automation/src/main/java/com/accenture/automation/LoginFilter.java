@@ -19,6 +19,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * To avoid unintended side effect, this module must sit in a different folder than the base package
+ * so the OptionalService annotation would be evaluated.
+ */
 @WebFilter(asyncSupported = true, value = "/*")
 @OptionalService("sso.enabled")
 public class LoginFilter implements Filter {
@@ -35,7 +39,7 @@ public class LoginFilter implements Filter {
     private static final String SESSION_ID = "session_id";
     private static final String SESSION_COOKIE = "x-session-id";
     private static String sessionService, apiLoginPage;
-    private static boolean enforceHttps, ssoEnabled;
+    private static boolean enforceHttps;
     private static List<String> protectedPages = new ArrayList<>();
     private static List<String> wildcardPages = new ArrayList<>();
 
@@ -45,7 +49,6 @@ public class LoginFilter implements Filter {
             Utility util = Utility.getInstance();
             AppConfigReader reader = AppConfigReader.getInstance();
             sessionService = reader.getProperty("session.service", "v1.session.manager");
-            ssoEnabled = "true".equals(reader.getProperty("sso.enabled", "false"));
             apiLoginPage = reader.getProperty("sso.login", "/api/login");
             enforceHttps = "true".equals(reader.getProperty("enforce.https", "false"));
             List<String> pages = util.split(reader.getProperty("sso.protected.pages", "/, /index.html"), ", ");
@@ -69,7 +72,7 @@ public class LoginFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        if (ssoEnabled && request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
+        if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest req = (HttpServletRequest) request;
             HttpServletResponse res = (HttpServletResponse) response;
             if (req.getHeader(UPGRADE) != null) {
