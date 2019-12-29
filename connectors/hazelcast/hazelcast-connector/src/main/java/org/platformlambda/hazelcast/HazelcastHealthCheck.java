@@ -27,6 +27,7 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.hazelcast.reporter.PresenceConnector;
 
 import java.io.IOException;
 import java.util.*;
@@ -92,7 +93,10 @@ public class HazelcastHealthCheck implements LambdaFunction {
                     Boolean pingOk = (Boolean) pong.getBody();
                     if (pingOk) {
                         long diff = System.currentTimeMillis() - begin;
-                        return "Loopback test took " + diff + " ms";
+                        String loopback = "Loopback test took " + diff + " ms";
+                        PresenceConnector connector = PresenceConnector.getInstance();
+                        boolean ready = connector.isConnected() && connector.isReady();
+                        return loopback+"; presence-monitor "+(ready? "connected" : "offline");
                     }
                 }
                 throw new AppException(500, "Loopback test failed");
