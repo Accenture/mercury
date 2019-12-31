@@ -157,7 +157,7 @@ public class EventNodeManager extends Thread {
                         session = container.connectToServer(new SimpleClientEndpoint(connector, uri), uri);
                         lastPending = System.currentTimeMillis();
                         return; // exit after successful connection
-                    } catch (DeploymentException | IOException e) {
+                    } catch (Exception e) {
                         log.warn("{} {}", simplifiedError(e.getMessage()), uri);
                     }
                 } catch (URISyntaxException e) {

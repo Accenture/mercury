@@ -76,7 +76,7 @@ public class EventNodeConnector implements LambdaFunction {
     private EventNodeConnector() {
         // singleton
         ServerPersonality personality = ServerPersonality.getInstance();
-        personalityType = personality.getType().toString();
+        personalityType = personality.getType().name();
         // public.key.user.group is a convenient feature. MUST not exist in production.
         AppConfigReader reader = AppConfigReader.getInstance();
         String userGroup = reader.getProperty(PUBLIC_KEY_USER_GROUP);
@@ -204,7 +204,7 @@ public class EventNodeConnector implements LambdaFunction {
                                     byte[] signature = crypto.rsaSign(challengeToken, personality.getPrivateKey());
                                     // pack signer, token, signature and server personality and encrypt into the message body
                                     Map<String, Object> metadata = new HashMap<>();
-                                    metadata.put(SIGNER, personality.getKeyFileName());
+                                    metadata.put(SIGNER, personality.getKeyName());
                                     metadata.put(TOKEN, challengeToken);
                                     metadata.put(SIGNATURE, signature);
                                     metadata.put(PERSONALITY, personality.getType().toString());

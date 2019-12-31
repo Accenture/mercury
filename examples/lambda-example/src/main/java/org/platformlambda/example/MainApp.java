@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.services.HelloGeneric;
 import org.platformlambda.services.HelloPoJo;
 import org.slf4j.Logger;

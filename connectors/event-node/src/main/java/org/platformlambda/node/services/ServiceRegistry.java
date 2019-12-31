@@ -75,7 +75,9 @@ public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction 
             LambdaClient client = clients.get(origin);
             origins.remove(origin);
             clients.remove(origin);
-            log.info("{}.{} disconnected", client.personality, origin);
+            if (client != null) {
+                log.info("{}.{} disconnected", client.personality, origin);
+            }
             return true;
         }
 

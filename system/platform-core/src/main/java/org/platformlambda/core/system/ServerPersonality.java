@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.system;
 
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -48,9 +49,13 @@ public class ServerPersonality {
 
     private Type type = Type.UNDEFINED;
     private byte[] publicKey, privateKey;
+    private static boolean loaded = false;
 
     private ServerPersonality() {
-        // singleton
+        Utility util = Utility.getInstance();
+        ensureDirExists(util.getIdentityFolder());
+        ensureDirExists(util.getEventNodeCredentials());
+        ensureDirExists(util.getLambdaCredentials());
     }
 
     public static ServerPersonality getInstance() {
@@ -72,15 +77,15 @@ public class ServerPersonality {
             }
             throw new IllegalArgumentException(sb.substring(0, sb.length()-2) + "]");
         }
-        if (this.type == Type.UNDEFINED) {
-            this.type = type;
-            Platform platform = Platform.getInstance();
-            String origin = platform.getOrigin();
-            log.info("Setting personality for {} to {}", origin, type.toString());
-            loadKeyPair();
-        } else {
-            log.warn("Unable to override because personality has already been set as {}", this.type);
+        if (type == Type.PLATFORM) {
+            AppConfigReader config = AppConfigReader.getInstance();
+            if (!"this".equals(config.getProperty("event.node"))) {
+                throw new IllegalArgumentException(Type.PLATFORM.name()+" is reserved for Event Node");
+            }
         }
+        this.type = type;
+        loadKeyPair();
+        log.info("Setting personality as {}", type);
     }
 
     public byte[] getPublicKey() {
@@ -92,65 +97,50 @@ public class ServerPersonality {
     }
 
     private void loadKeyPair() {
-        Utility util = Utility.getInstance();
-        File dir = util.getIdentityFolder();
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        String fileName = getKeyFileName();
-        String pubName = fileName+CryptoApi.PUBLIC;
-        File pubFile = new File(dir, pubName);
-        File priFile = new File(dir, getKeyFileName()+CryptoApi.PRIVATE);
-        if (!pubFile.exists() || !priFile.exists()) {
-            generateRsaKey();
-        }
-        // check if the key files exist
-        if (pubFile.exists() && priFile.exists()) {
-            publicKey = crypto.readPem(util.file2str(pubFile));
-            privateKey = crypto.readPem(util.file2str(priFile));
+        if (!loaded) {
+            loaded = true;
+            Utility util = Utility.getInstance();
+            File dir = util.getIdentityFolder();
+            String fileName = getKeyName();
+            String pubName = fileName+CryptoApi.PUBLIC;
+            File pubFile = new File(dir, pubName);
+            String priName = fileName+CryptoApi.PRIVATE;
+            File priFile = new File(dir, priName);
+            if (pubFile.exists() && priFile.exists()) {
+                publicKey = crypto.readPem(util.file2str(pubFile));
+                privateKey = crypto.readPem(util.file2str(priFile));
+            } else {
+                KeyPair kp = crypto.generateRsaKey();
+                // save public key
+                publicKey = crypto.getEncodedPublicKey(kp);
+                util.str2file(pubFile, crypto.writePem(publicKey, "rsa public key"));
+                // save private key
+                privateKey = crypto.getEncodedPrivateKey(kp);
+                util.str2file(priFile, crypto.writePem(privateKey, "rsa private key"));
+                log.info("RSA keypair generated");
+            }
             // save public key so it is easy to do application development and end-to-end platform tests locally
-            File pk = this.type == Type.PLATFORM?
+            File pk = this.type == Type.PLATFORM ?
                     new File(util.getEventNodeCredentials(), pubName) : new File(util.getLambdaCredentials(), pubName);
             if (!pk.exists()) {
-                util.bytes2file(pk, util.file2bytes(pubFile));
+                util.str2file(pk, crypto.writePem(publicKey, "rsa public key"));
+                log.info("Public key saved {}", pk);
             }
         }
     }
 
-    private void generateRsaKey() {
-        Utility util = Utility.getInstance();
-        File dir = util.getIdentityFolder();
-        String fileName = getKeyFileName();
-        String pubName = fileName+CryptoApi.PUBLIC;
-        File pubFile = new File(dir, pubName);
-        String priName = fileName+CryptoApi.PRIVATE;
-        File priFile = new File(dir, priName);
-        boolean generated = false;
-        if (!pubFile.exists() || !priFile.exists()) {
-            generated = true;
-            KeyPair kp = crypto.generateRsaKey();
-            // save public key
-            byte[] pub = crypto.getEncodedPublicKey(kp);
-            util.str2file(pubFile, crypto.writePem(pub, "rsa public key"));
-            // save private key
-            byte[] pri = crypto.getEncodedPrivateKey(kp);
-            util.str2file(priFile, crypto.writePem(pri, "rsa private key"));
-        }
-        // check file system again
-        if (generated) {
-            if (pubFile.exists() && priFile.exists()) {
-                log.info("RSA keypair generated");
+    private void ensureDirExists(File dir) {
+        if (!dir.exists()) {
+            if (dir.mkdirs()) {
+                log.info("Created {}", dir);
             } else {
-                log.error("Unable to generate RSA keypair. Check local file system access rights.");
+                log.error("Unable to create {}", dir);
             }
         }
-
     }
 
-    public String getKeyFileName() {
-        String nodeId = Platform.getInstance().getNodeId();
-        Utility util = Utility.getInstance();
-        return util.getPackageName()+"."+nodeId;
+    public String getKeyName() {
+        return Platform.getInstance().getName();
     }
 
 }

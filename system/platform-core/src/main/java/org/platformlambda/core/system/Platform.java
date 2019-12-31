@@ -26,14 +26,13 @@ import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
+import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.services.RouteSubstitutionManager;
-import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,9 +52,8 @@ public class Platform {
     private static final StopSignal STOP = new StopSignal();
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String LAMBDA = "lambda";
-    private static final String NODE_ID = "id";
     private static ActorSystem system;
-    private static String nodeId, lambdaId, namespace;
+    private static String lambdaId, namespace;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static Platform instance = new Platform();
 
@@ -98,49 +96,6 @@ public class Platform {
     }
 
     /**
-     * Node-ID is unique per machine.
-     * It is only used by the Event Node (network event stream emulator).
-     *
-     * @return nodeId
-     */
-    public String getNodeId() {
-        if (nodeId == null) {
-            Utility util = Utility.getInstance();
-            File dir = util.getIdentityFolder();
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
-            File file = new File(dir, NODE_ID);
-            if (file.exists()) {
-                nodeId = util.file2str(file).trim();
-            } else {
-                String uuid = util.getDateUuid();
-                util.str2file(file, uuid + "\n");
-                nodeId = uuid;
-            }
-        }
-        return nodeId;
-    }
-
-    /**
-     * Lambda-ID is a unique identifier for each application instance.
-     * It is generated randomly each time when the app starts.
-     * It is used as the originator for REST servers and LAMBDA executables.
-     *
-     * @return lambdaId
-     */
-    public String getLambdaId() {
-        if (lambdaId == null) {
-            Utility util = Utility.getInstance();
-            AppConfigReader config = AppConfigReader.getInstance();
-            namespace = config.getProperty("multi.tenancy.namespace");
-            lambdaId = namespace == null? Utility.getInstance().getDateUuid() :
-                                    Utility.getInstance().getDateUuid() + "." + util.filteredServiceName(namespace);
-        }
-        return lambdaId;
-    }
-
-    /**
      * Namespace will be null if multi.tenancy.namespace is not configured in application.properties
      * @return namespace
      */
@@ -154,7 +109,14 @@ public class Platform {
      * @return unique origin ID
      */
     public String getOrigin() {
-        return ServerPersonality.getInstance().getType() == ServerPersonality.Type.PLATFORM? getNodeId() : getLambdaId();
+        if (lambdaId == null) {
+            Utility util = Utility.getInstance();
+            AppConfigReader config = AppConfigReader.getInstance();
+            namespace = config.getProperty("multi.tenancy.namespace");
+            lambdaId = namespace == null? Utility.getInstance().getDateUuid() :
+                    Utility.getInstance().getDateUuid() + "." + util.filteredServiceName(namespace);
+        }
+        return lambdaId;
     }
 
     public synchronized void startCloudServices() {
@@ -375,7 +337,7 @@ public class Platform {
             }
             if (tell) {
                 PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
-                        new Kv(EventNodeConnector.PERSONALITY, ServerPersonality.getInstance().getType().toString()),
+                        new Kv(EventNodeConnector.PERSONALITY, ServerPersonality.getInstance().getType().name()),
                         new Kv(ServiceDiscovery.ROUTE, route),
                         new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
                         new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.ADD));

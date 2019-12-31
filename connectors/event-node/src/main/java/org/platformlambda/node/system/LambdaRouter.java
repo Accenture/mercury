@@ -97,7 +97,8 @@ public class LambdaRouter implements LambdaFunction {
                 route = headers.get(WsEnvelope.ROUTE);
                 txPath = headers.get(WsEnvelope.TX_PATH);
                 if (!started) {
-                    Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.SERVICE_RESTART, "Starting up. Please try again");
+                    Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.SERVICE_RESTART,
+                                                        "Starting up. Please try again");
                     return false;
                 }
                 ServiceDiscovery.createLambdaClient(headers.get(WsEnvelope.TOKEN), txPath);
@@ -157,7 +158,7 @@ public class LambdaRouter implements LambdaFunction {
                             EventEnvelope hello = new EventEnvelope();
                             hello.setHeader(WsEnvelope.TYPE, EventNodeConnector.HELLO);
                             // send "hello" with the platform public key name
-                            hello.setHeader(PUBLIC_KEY_ID, ServerPersonality.getInstance().getKeyFileName());
+                            hello.setHeader(PUBLIC_KEY_ID, ServerPersonality.getInstance().getKeyName());
                             // supply public key value if public.key.user.group matches
                             if (publicKeyUserGroup != null && para.containsKey(PUBLIC_KEY_USER_GROUP) && publicKeyUserGroup.equals(para.get(PUBLIC_KEY_USER_GROUP))) {
                                 hello.setHeader(PUBLIC_KEY_USER_GROUP, publicKeyUserGroup);

@@ -20,16 +20,16 @@ package org.platformlambda.node;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.node.services.ConfigManager;
 import org.platformlambda.node.services.EventNodeHealth;
-import org.platformlambda.rest.RestServer;
 import org.platformlambda.node.services.ServiceQuery;
 import org.platformlambda.node.services.ServiceRegistry;
 import org.platformlambda.node.system.ConnectionMonitor;
 import org.platformlambda.node.system.LambdaRouter;
+import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -206,19 +206,11 @@ public class Utility {
     }
 
     public File getEventNodeCredentials() {
-        File dir = new File(getCredentialFolder(), NODES);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        return dir;
+        return new File(getCredentialFolder(), NODES);
     }
 
     public File getLambdaCredentials() {
-        File dir = new File(getCredentialFolder(), LAMBDAS);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        return dir;
+        return new File(getCredentialFolder(), LAMBDAS);
     }
 
     public String getUuid() {

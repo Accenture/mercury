@@ -23,10 +23,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.system.ServiceDef;
-import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 
@@ -62,6 +59,7 @@ public class InfoServlet extends HttpServlet {
     private static final String ALLOCATED = "allocated";
     private static final String FREE = "free";
     private static final String ORIGIN = "origin";
+    private static final String PERSONALITY = "personality";
     private static final String ROUTING = "routing";
     private static final String LIST_ROUTES = "routes";
     private static final String LIB = "lib";
@@ -162,6 +160,7 @@ public class InfoServlet extends HttpServlet {
             updateResult(SYSTEM_INFO, result);
             result.put(TIME, new Date());
             result.put(ORIGIN, platform.getOrigin());
+            result.put(PERSONALITY, ServerPersonality.getInstance().getType().name());
         } else {
             sendError(response, request.getRequestURI(), 404, "Not found");
             return;

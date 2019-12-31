@@ -46,7 +46,8 @@ public class EventNodeSetup implements CloudSetup {
              * When event node is used, it will resolve websocket txPaths dynamically.
              * For other cloud connectors, they will simply return "cloud.connector".
              */
-            Platform.getInstance().registerPrivate(PostOffice.CLOUD_CONNECTOR, (headers, body, instance) -> PostOffice.EVENT_NODE, 1);
+            Platform.getInstance().registerPrivate(PostOffice.CLOUD_CONNECTOR,
+                    (headers, body, instance) -> PostOffice.EVENT_NODE, 1);
 
         } catch (IOException e) {
             log.error("Cloud setup exception - {}", e.getMessage());
