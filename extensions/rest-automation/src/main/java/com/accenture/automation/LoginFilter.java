@@ -37,7 +37,8 @@ public class LoginFilter implements Filter {
     private static final String TYPE = "type";
     private static final String EXISTS = "exists";
     private static final String SESSION_ID = "session_id";
-    private static final String SESSION_COOKIE = "x-session-id";
+    private static final String X_SESSION_ID = "x-session-id";
+    private static final String X_TERM_ID = "X-Term-Id";
     private static String sessionService, apiLoginPage;
     private static boolean enforceHttps;
     private static List<String> protectedPages = new ArrayList<>();
@@ -51,7 +52,7 @@ public class LoginFilter implements Filter {
             sessionService = reader.getProperty("session.service", "v1.session.manager");
             apiLoginPage = reader.getProperty("sso.login", "/api/login");
             enforceHttps = "true".equals(reader.getProperty("enforce.https", "false"));
-            List<String> pages = util.split(reader.getProperty("sso.protected.pages", "/, /index.html"), ", ");
+            List<String> pages = util.split(reader.getProperty("sso.protected.pages", "/, /index.*"), ", ");
             List<String> wildcardList = new ArrayList<>();
             for (String p : pages) {
                 if (p.startsWith("*")) {
@@ -87,7 +88,9 @@ public class LoginFilter implements Filter {
                 } else {
                     if (isProtected(uri)) {
                         disableBrowserCache(res);
-                        if (isValidSession(getSessionId(req))) {
+                        String sessionId = getCookie(req, X_SESSION_ID);
+                        String longTermId = getCookie(req, X_TERM_ID);
+                        if (longTermId != null && longTermId.equals(sessionId) && isValidSession(sessionId)) {
                             chain.doFilter(request, response);
                         } else {
                             res.sendRedirect(apiLoginPage + "?return=" + target);
@@ -120,11 +123,11 @@ public class LoginFilter implements Filter {
         response.setDateHeader("Expires", 0);
     }
 
-    private String getSessionId(HttpServletRequest request) {
+    private String getCookie(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie c: cookies) {
-                if (c.getName().equalsIgnoreCase(SESSION_COOKIE)) {
+                if (c.getName().equalsIgnoreCase(name)) {
                     return c.getValue();
                 }
             }
