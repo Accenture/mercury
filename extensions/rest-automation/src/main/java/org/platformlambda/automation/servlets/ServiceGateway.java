@@ -264,24 +264,20 @@ public class ServiceGateway extends HttpServlet {
             String key = hNames.nextElement();
             /*
              * Single-value HTTP header is assumed.
-             * Header key is assumed to be lower-case to ensure case-insensitivity.
              */
             String value = request.getHeader(key);
-            String lk = key.toLowerCase();
-            if (lk.equals(COOKIE)) {
+            if (key.equalsIgnoreCase(COOKIE)) {
                 // cookie is not kept in the headers
                 hasCookies = true;
             } else {
-                headers.put(lk, value);
+                headers.put(key.toLowerCase(), value);
             }
         }
         // load cookies
         if (hasCookies) {
-            // save cookies in dataset
-            Map<String, String> cookieMap = new HashMap<>();
             Cookie[] cookies = request.getCookies();
             for (Cookie c : cookies) {
-                req.setCookie(c.getName().toLowerCase(), c.getValue());
+                req.setCookie(c.getName(), c.getValue());
             }
         }
         RoutingEntry re = RoutingEntry.getInstance();
@@ -326,7 +322,7 @@ public class ServiceGateway extends HttpServlet {
                          */
                         Map<String, String> authResHeaders = authResponse.getHeaders();
                         for (String k : authResHeaders.keySet()) {
-                            req.setSessionInfo(k.toLowerCase(), authResHeaders.get(k));
+                            req.setSessionInfo(k, authResHeaders.get(k));
                         }
                     } else {
                         response.sendError(401, "Unauthorized");

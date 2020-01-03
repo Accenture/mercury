@@ -110,6 +110,10 @@ public class InfoServlet extends HttpServlet {
                     response.sendError(400, "Remote routing table is not shown when using Event Node");
                     return;
                 }
+                if (isServiceMonitor) {
+                    response.sendError(400, "Remote routing table is not shown when using Presence Monitor");
+                    return;
+                }
                 if (!node.equals(platform.getOrigin())) {
                     showRemoteRouting(node, response);
                     return;

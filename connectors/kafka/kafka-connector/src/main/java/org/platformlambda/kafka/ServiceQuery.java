@@ -55,10 +55,14 @@ public class ServiceQuery implements LambdaFunction {
             return result;
 
         } else if (DOWNLOAD.equals(type)) {
+            Utility util = Utility.getInstance();
+            Platform platform = Platform.getInstance();
+            String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
             Map<String, Object> result = new HashMap<>();
             result.put("routes", ServiceRegistry.getAllRoutes());
             result.put("nodes", ServiceRegistry.getAllOrigins());
-            result.put("this", Platform.getInstance().getOrigin());
+            result.put("name", me);
+            result.put("this", platform.getOrigin());
             result.put("time", new Date());
             return result;
 

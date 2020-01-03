@@ -45,12 +45,12 @@ public class AsyncHttpRequest {
     private static final String TRUST_ALL_CERT = "trust_all_cert";
     private static final String RELAY = "relay";
 
-    private Map<String, String> headers = new HashMap<>();
     private String method;
     private String queryString;
     private String url;
     private String ip;
     private String upload;
+    private Map<String, String> headers = new HashMap<>();
     private Map<String, Object> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
     private Map<String, String> cookies = new HashMap<>();
@@ -106,7 +106,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setHeader(String key, String value) {
-        this.headers.put(key, value);
+        this.headers.put(key.toLowerCase(), value);
         return this;
     }
 
@@ -177,7 +177,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest removeSessionInfo(String key) {
-        this.session.remove(key);
+        this.session.remove(key.toLowerCase());
         return this;
     }
 
@@ -190,12 +190,12 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setCookie(String key, String value) {
-        this.cookies.put(key, value);
+        this.cookies.put(key.toLowerCase(), value);
         return this;
     }
 
     public AsyncHttpRequest removeCookie(String key) {
-        this.cookies.remove(key);
+        this.cookies.remove(key.toLowerCase());
         return this;
     }
 
@@ -213,7 +213,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest removePathParameter(String key) {
-        this.pathParams.remove(key);
+        this.pathParams.remove(key.toLowerCase());
         return this;
     }
 
@@ -338,7 +338,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest removeQueryParameter(String key) {
-        this.queryParams.remove(key);
+        this.queryParams.remove(key.toLowerCase());
         return this;
     }
 
@@ -353,13 +353,13 @@ public class AsyncHttpRequest {
     public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
         if (!headers.isEmpty()) {
-            result.put(HEADERS, headers);
+            result.put(HEADERS, setLowerCase(headers));
         }
         if (!cookies.isEmpty()) {
-            result.put(COOKIES, cookies);
+            result.put(COOKIES, setLowerCase(cookies));
         }
         if (!session.isEmpty()) {
-            result.put(SESSION, session);
+            result.put(SESSION, setLowerCase(session));
         }
         if (method != null) {
             result.put(METHOD, method);
@@ -395,10 +395,10 @@ public class AsyncHttpRequest {
             Map<String, Object> parameters = new HashMap<>();
             result.put(PARAMETERS, parameters);
             if (!pathParams.isEmpty()) {
-                parameters.put(PATH, pathParams);
+                parameters.put(PATH, setLowerCase(pathParams));
             }
             if (!queryParams.isEmpty()) {
-                parameters.put(QUERY, queryParams);
+                parameters.put(QUERY, setLowerCaseQuery(queryParams));
             }
         }
         result.put(HTTPS, https);
@@ -415,18 +415,34 @@ public class AsyncHttpRequest {
         return result;
     }
 
+    private Map<String, String> setLowerCase(Map<String, String> source) {
+        Map<String, String> result = new HashMap<>();
+        for (String key: source.keySet()) {
+            result.put(key.toLowerCase(), source.get(key));
+        }
+        return result;
+    }
+
+    private Map<String, Object> setLowerCaseQuery(Map<String, Object> source) {
+        Map<String, Object> result = new HashMap<>();
+        for (String key: source.keySet()) {
+            result.put(key.toLowerCase(), source.get(key));
+        }
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     private void fromMap(Object input) {
         if (input instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) input;
             if (map.containsKey(HEADERS)) {
-                headers.putAll((Map<String, String>) map.get(HEADERS));
+                headers = setLowerCase((Map<String, String>) map.get(HEADERS));
             }
             if (map.containsKey(COOKIES)) {
-                cookies.putAll((Map<String, String>) map.get(COOKIES));
+                cookies = setLowerCase((Map<String, String>) map.get(COOKIES));
             }
             if (map.containsKey(SESSION)) {
-                session.putAll((Map<String, String>) map.get(SESSION));
+                session = setLowerCase((Map<String, String>) map.get(SESSION));
             }
             if (map.containsKey(METHOD)) {
                 method = (String) map.get(METHOD);
@@ -468,12 +484,12 @@ public class AsyncHttpRequest {
                 upload = (String) map.get(UPLOAD);
             }
             if (map.containsKey(PARAMETERS)) {
-                Map<String, Object> params = (Map<String, Object>) map.get(PARAMETERS);
-                if (params.containsKey(PATH)) {
-                    pathParams.putAll((Map<String, String>) params.get(PATH));
+                Map<String, Object> parameters = (Map<String, Object>) map.get(PARAMETERS);
+                if (parameters.containsKey(PATH)) {
+                    pathParams = setLowerCase((Map<String, String>) parameters.get(PATH));
                 }
-                if (params.containsKey(QUERY)) {
-                    queryParams.putAll((Map<String, String>) params.get(QUERY));
+                if (parameters.containsKey(QUERY)) {
+                    queryParams = setLowerCaseQuery((Map<String, Object>) parameters.get(QUERY));
                 }
             }
         } else {
