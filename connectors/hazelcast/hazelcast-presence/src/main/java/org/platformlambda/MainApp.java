@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2020 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,18 +18,20 @@
 
 package org.platformlambda;
 
+import com.accenture.services.ConfigManager;
 import com.hazelcast.core.HazelcastInstance;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.hazelcast.PresenceHandler;
 import org.platformlambda.hazelcast.PresenceProducer;
 import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.service.*;
+import org.platformlambda.services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,12 +88,15 @@ public class MainApp implements EntryPoint {
         new KeepAlive().start();
         // setup presence housekeeper that removes expired hazelcast topics
         platform.registerPrivate(PRESENCE_HOUSEKEEPER, new HouseKeeper(), 1);
-        // application configuration manager service
-        platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
-        platform.registerPrivate(INITIAL_LOAD, new InitialLoad(), 1);
-        // initialize
-        PostOffice po = PostOffice.getInstance();
-        po.send(INITIAL_LOAD, START);
+        // optional application configuration management service
+        AppConfigReader config = AppConfigReader.getInstance();
+        if ("true".equals(config.getProperty("app.config.manager", "false"))) {
+            platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
+            platform.registerPrivate(INITIAL_LOAD, new InitialLoad(), 1);
+            // initialize
+            PostOffice po = PostOffice.getInstance();
+            po.send(INITIAL_LOAD, START);
+        }
         log.info("Started");
     }
 

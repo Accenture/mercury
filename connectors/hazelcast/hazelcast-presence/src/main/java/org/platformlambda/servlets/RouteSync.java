@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2020 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
-import org.platformlambda.service.MonitorService;
+import org.platformlambda.services.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -4,7 +4,7 @@
     <title>Notification Demo</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="/bootstrap-4.4.1/bootstrap.min.css" >
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" >
 
     <script type="text/javascript">
         /*
@@ -155,19 +155,21 @@
     <br/><br/>
     <form>
         <div class="input-group">
-            <span class="input-group-addon">Application</span>
-            <input id="app" type="text" class="form-control" name="app" placeholder="application:token">
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Application</span>
+                </div>
+                <input id="app" type="text" class="form-control" name="app" placeholder="application:token">
+            </div>
+
         </div>
     </form>
     <div style="height: 10px"></div>
     <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
     <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
     <button id="resume" style="display: none" type="button" class="btn btn-warning" onclick="javascript:resume()">Continue</button>
-
-    <pre id="message" style="background-color: #3c3c3c; color: white; display: none; margin-top: 20px;">
-
-    </pre>
-
+    <hr>
+    <pre id="message" class="border border-success rounded" style="background-color: #3c3c3c; color: white; display: none;"></pre>
 </div>
 
 </body>

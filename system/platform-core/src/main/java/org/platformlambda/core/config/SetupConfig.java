@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @BeforeApplication(sequence = 0)
-@OptionalService("app.config.enabled")
+@OptionalService("app.config.client")
 public class SetupConfig implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(SetupConfig.class);
 
@@ -32,6 +32,8 @@ public class SetupConfig implements EntryPoint {
     private static final String MESSAGE = "message";
     private static final String CONFIG = "config";
     private static final String X_API_KEY = "x-api-key";
+    private static final String HTTP = "http://";
+    private static final String HTTPS = "https://";
     private static final long INTERVAL = 5000;
 
     @Override
@@ -44,9 +46,9 @@ public class SetupConfig implements EntryPoint {
             log.error(SPRING_APPNAME+" or "+APPNAME+" is missing from application.properties");
             System.exit(-1);
         }
-        String manager = reader.getProperty("app.config.manager");
+        String manager = reader.getProperty("app.config.endpoint");
         if (manager == null) {
-            log.error("app.config.manager is not configured");
+            log.error("app.config.endpoint is not configured");
             System.exit(-1);
         }
         String apiKey = getApiKey();
@@ -55,11 +57,15 @@ public class SetupConfig implements EntryPoint {
             System.exit(-1);
         }
         URL url = null;
-        try {
-            url = new URL(manager);
-        } catch (MalformedURLException e) {
-            log.error("app.config.manager is not configured correctly - {}", e.getMessage());
-            System.exit(-1);
+        if (manager.startsWith(HTTP) || manager.startsWith(HTTPS)) {
+            try {
+                url = new URL(manager);
+            } catch (MalformedURLException e) {
+                log.error("app.config.endpoint is not a valid URL - {}", e.getMessage());
+                System.exit(-1);
+            }
+        } else {
+            log.error("app.config.endpoint is not a valid http or https URL");
         }
         int n = 0;
         long t0 = 0;
@@ -110,7 +116,7 @@ public class SetupConfig implements EntryPoint {
         if (map.containsKey(CONFIG)) {
             Map<String, Object> config = (Map<String, Object>) map.get(CONFIG);
             for (String k: config.keySet()) {
-                log.info("Override parameter - {}", k);
+                log.info("Override {}", k);
                 System.setProperty(k, config.get(k).toString());
             }
         }

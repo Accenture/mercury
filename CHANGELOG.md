@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.21, 1/2/2020
+## Version 1.12.25, 1/3/2020
 
 ### Added
 
@@ -20,6 +20,7 @@ N/A
 
 1. Simplified key management for Event Node
 2. AsyncHttpRequest case insensitivity for headers, cookies, path parameters and session key-values
+3. Make built-in configuration management optional
 
 ---
 ## Version 1.12.19, 12/28/2019

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2020 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -773,7 +773,7 @@ public class ServiceGateway extends HttpServlet {
             log.info("Async HTTP timeout handler started");
             while (normal) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     // ok to ignore
                 }

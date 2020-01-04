@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2020 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.stereotype.Component;
 
+import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletRegistration;
@@ -68,7 +69,7 @@ public class WebAppLoader implements ServletContextInitializer {
                         dynamic.setLoadOnStartup(servlet.loadOnStartup());
                     }
                     totalServlets++;
-                    log.info("{} registered as WEB SERVLET {}{}{}", cls.getName(), Arrays.asList(servlet.value()),
+                    log.info("{} registered as WEB SERVLET {}{}{}", cls.getName(), Arrays.asList(urls),
                             servlet.asyncSupported()? " with async support" : "",
                             servlet.loadOnStartup() > 0? ", start up sequence "+servlet.loadOnStartup() : "");
                 } else {
@@ -84,9 +85,10 @@ public class WebAppLoader implements ServletContextInitializer {
                 FilterRegistration.Dynamic dynamic = context.addFilter(cls.getSimpleName(), cls.getName());
                 String[] urls = filter.value().length == 0? filter.urlPatterns() : filter.value();
                 if (urls.length > 0) {
-                    dynamic.addMappingForUrlPatterns(EnumSet.copyOf(Arrays.asList(filter.dispatcherTypes())), true, urls);
+                    List<DispatcherType> dispatcherTypes = Arrays.asList(filter.dispatcherTypes());
+                    dynamic.addMappingForUrlPatterns(EnumSet.copyOf(dispatcherTypes), true, urls);
                     totalFilters++;
-                    log.info("{} registered as WEB FILTER {}", cls.getName(), filter.value());
+                    log.info("{} registered as WEB FILTER {}", cls.getName(), Arrays.asList(urls));
                 } else {
                     log.error("WebFilter {} is missing value or urlPatterns", cls.getName());
                 }

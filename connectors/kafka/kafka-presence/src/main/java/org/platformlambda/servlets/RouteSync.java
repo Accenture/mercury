@@ -7,7 +7,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
-import org.platformlambda.service.MonitorService;
+import org.platformlambda.services.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

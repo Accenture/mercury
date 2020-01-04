@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2020 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -57,7 +57,6 @@ public class RestServer {
 
             @Override
             public void contextInitialized(ServletContextEvent sce) {
-                log.info("Starting main applications");
                 AppStarter.main(args);
             }
 
