@@ -41,10 +41,6 @@ public class HelloPoJo {
 
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("hello.pojo", 3000, new Kv("id", id));
-        // demonstrate error handling
-        if (response.hasError()) {
-            throw new AppException(response.getStatus(), response.getError());
-        }
         // confirm that the PoJo object is transported correctly over the event stream system
         if (response.getBody() instanceof SamplePoJo) {
             return response.getBody();
@@ -53,6 +49,7 @@ public class HelloPoJo {
                 throw new AppException(500, "Invalid service response. Expect: " +
                         SamplePoJo.class.getName() + ", actual: null");
             } else {
+                System.out.println(response.getBody());
                 throw new AppException(500, "Invalid service response. Expect: " +
                         SamplePoJo.class.getName() + ", actual: " + response.getBody().getClass().getName());
             }

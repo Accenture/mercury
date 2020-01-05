@@ -430,6 +430,9 @@ public class EventEnvelope {
             if (message.containsKey(EXTRA)) {
                 extra = (String) message.get(EXTRA);
             }
+            if (message.containsKey(IGNORE_POJO)) {
+                pojo = false;
+            }
             if (message.containsKey(STATUS)) {
                 if (message.get(STATUS) instanceof Integer) {
                     status = (Integer) message.get(STATUS);
@@ -453,7 +456,7 @@ public class EventEnvelope {
                 parametricType = (String) message.get(PARA_TYPES);
             }
             if (message.containsKey(BODY) && message.containsKey(OBJ_TYPE)) {
-                if (message.containsKey(IGNORE_POJO)) {
+                if (!pojo) {
                     type = (String) message.get(OBJ_TYPE);
                     body = message.get(BODY);
                 } else {
