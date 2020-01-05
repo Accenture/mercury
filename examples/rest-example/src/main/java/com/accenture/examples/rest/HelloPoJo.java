@@ -49,7 +49,6 @@ public class HelloPoJo {
                 throw new AppException(500, "Invalid service response. Expect: " +
                         SamplePoJo.class.getName() + ", actual: null");
             } else {
-                System.out.println(response.getBody());
                 throw new AppException(500, "Invalid service response. Expect: " +
                         SamplePoJo.class.getName() + ", actual: " + response.getBody().getClass().getName());
             }
