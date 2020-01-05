@@ -7,7 +7,7 @@
     <artifactId>kafka-standalone</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.25</version>
+    <version>1.12.26</version>
     <name>Standalone kafka system for development and testing</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,7 +29,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.25</version>
+            <version>1.12.26</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.zookeeper/zookeeper -->

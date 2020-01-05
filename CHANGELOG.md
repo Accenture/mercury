@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.25, 1/3/2020
+## Version 1.12.26, 1/4/2020
 
 ### Added
 
-N/A
+Feature to disable PoJo deserialization so that caller can decide if the result set should be in PoJo or a Map.
 
 ### Removed
 

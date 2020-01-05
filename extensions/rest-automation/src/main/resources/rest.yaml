@@ -95,6 +95,7 @@ rest:
 #
 cors:
   - id: cors_1
+    # origin is optional. If present, it will replace Access-Control-Allow-Origin value in options and headers
     origin: ${api.origin}
     options:
       - "Access-Control-Allow-Origin: *"

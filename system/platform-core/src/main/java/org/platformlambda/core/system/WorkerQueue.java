@@ -151,6 +151,10 @@ public class WorkerQueue extends AbstractActor {
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
                 }
+                // keep the "ignore pojo" flag so the caller can skip pojo deserialization
+                if (!event.isPoJoEnabled()) {
+                    response.setPoJoEnabled(false);
+                }
                 if (event.getExtra() != null) {
                     response.setExtra(event.getExtra());
                 }

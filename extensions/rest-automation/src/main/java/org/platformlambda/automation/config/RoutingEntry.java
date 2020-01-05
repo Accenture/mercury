@@ -18,6 +18,7 @@
 
 package org.platformlambda.automation.config;
 
+import org.platformlambda.automation.MainApp;
 import org.platformlambda.automation.models.CorsInfo;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.automation.models.RouteInfo;
@@ -33,7 +34,7 @@ import java.util.*;
 public class RoutingEntry {
     private static final Logger log = LoggerFactory.getLogger(RoutingEntry.class);
 
-    private static final String ASYNC_HTTP_REQUEST = "async.http.request";
+    private static final String ASYNC_HTTP_REQUEST = MainApp.ASYNC_HTTP_REQUEST;
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
     private static final String REST = "rest";

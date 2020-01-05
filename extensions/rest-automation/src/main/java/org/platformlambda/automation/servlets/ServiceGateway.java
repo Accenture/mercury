@@ -18,33 +18,35 @@
 
 package org.platformlambda.automation.servlets;
 
+import org.platformlambda.automation.MainApp;
 import org.platformlambda.automation.config.RoutingEntry;
-import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.models.CorsInfo;
-import org.platformlambda.automation.models.HeaderInfo;
-import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
-import org.platformlambda.core.serializers.SimpleXmlWriter;
-import org.platformlambda.core.system.*;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.ConfigReader;
+import org.platformlambda.core.system.ObjectStreamIO;
+import org.platformlambda.core.system.ObjectStreamWriter;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.*;
+import javax.servlet.AsyncContext;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
+import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import javax.ws.rs.core.MediaType;
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -56,86 +58,29 @@ public class ServiceGateway extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(ServiceGateway.class);
 
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
-    private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-
     private static final String PROTOCOL = "x-forwarded-proto";
     private static final String HTTPS = "https";
     private static final String UTF_8 = "utf-8";
     private static final String BASE_PATH = "/api";
     private static final String COOKIE = "cookie";
-    private static final String ASYNC_HTTP_REQUEST = "async.http.request";
-    private static final String ASYNC_HTTP_RESPONSE = "async.http.response";
+    private static final String ASYNC_HTTP_RESPONSE = MainApp.ASYNC_HTTP_RESPONSE;
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
-    private static final String HEAD = "HEAD";
-    private static final String STREAM = "stream";
-    private static final String STREAM_PREFIX = "stream.";
-    private static final String TIMEOUT = "timeout";
     private static final String ACCEPT = "accept";
-    private static final String SET_COOKIE = "set-cookie";
-    private static final String COOKIE_SEPARATOR = "|";
-    private static final String CONTENT_TYPE = "content-type";
-    private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
-    private static final String HTML_END = "\n</pre>\n<body>\n</html>";
-    private static final String RESULT = "result";
-    private static final String ACCEPT_ANY = "*/*";
-    private static final String CONTENT_DISPOSITION = "content-disposition";
     private static final String TRACE_HEADER = "X-Trace-Id";
     private static final int BUFFER_SIZE = 2048;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
+    private static boolean ready = false;
 
-    private static Boolean ready;
-
-    public ServiceGateway() {
-        if (ready == null) {
-            ConfigReader config = getConfig();
-            try {
-                if (config == null) {
-                    throw new IOException("REST automation configuration file is not available");
-                }
-                RoutingEntry routing = RoutingEntry.getInstance();
-                routing.load(config.getMap());
-                WsEntry ws = WsEntry.getInstance();
-                ws.load(config.getMap());
-                // start service response handler
-                ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
-                Platform platform = Platform.getInstance();
-                platform.registerPrivate(ASYNC_HTTP_REQUEST, new HttpRelay(), 100);
-                platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(), 100);
-                /*
-                 * When AsyncContext timeout, the HttpServletResponse object is already closed.
-                 * Therefore, we use a custom timeout handler so we can control the timeout experience.
-                 */
-                AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler();
-                timeoutHandler.start();
-                ready = true;
-            } catch (Exception e) {
-                // capture all exceptions to avoid blocking
-                log.error("Unable to load REST automation configuration - {}", e.getMessage());
-                ready = false;
-            }
-        }
+    public static ConcurrentMap<String, AsyncContextHolder> getContexts() {
+        return contexts;
     }
 
-    private ConfigReader getConfig() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        List<String> paths = Utility.getInstance().split(reader.getProperty("rest.automation.yaml",
-                "file:/tmp/config/rest.yaml, classpath:/rest.yaml"), ", ");
-
-        for (String p: paths) {
-            ConfigReader config = new ConfigReader();
-            try {
-                config.load(p);
-                log.info("Loading config from {}", p);
-                return config;
-            } catch (IOException e) {
-                log.warn("Skipping {} - {}", p, e.getMessage());
-            }
-        }
-        return null;
+    public static void setReady() {
+        ready = true;
     }
 
     private String getHeaderCase(String header) {
@@ -154,7 +99,7 @@ public class ServiceGateway extends HttpServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!ready) {
-            response.sendError(404, "Unable to serve requests because REST endpoints are not configured");
+            response.sendError(503, "Unable to serve requests because REST endpoints are not ready");
         } else {
             String path = request.getPathInfo();
             if (path == null || path.equals("/")) {
@@ -181,6 +126,7 @@ public class ServiceGateway extends HttpServlet {
         request.setCharacterEncoding(UTF_8);
         response.setCharacterEncoding(UTF_8);
         String method = request.getMethod();
+        SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         Utility util = Utility.getInstance();
         if (OPTIONS.equals(method)) {
             // insert CORS headers for OPTIONS
@@ -233,7 +179,7 @@ public class ServiceGateway extends HttpServlet {
         if (queryString != null) {
             req.setQueryString(queryString);
         }
-        req.setUrl(normalizeUrl(url, route.info.urlRewrite));
+        req.setUrl(httpUtil.normalizeUrl(url, route.info.urlRewrite));
         if (route.info.host != null) {
             req.setRelay(route.info.host);
             req.setTrustAllCert(route.info.trustAllCert);
@@ -282,7 +228,7 @@ public class ServiceGateway extends HttpServlet {
         }
         RoutingEntry re = RoutingEntry.getInstance();
         if (route.info.requestTransformId != null) {
-            headers = filterHeaders(re.getRequestHeaderInfo(route.info.requestTransformId), headers);
+            headers = httpUtil.filterHeaders(re.getRequestHeaderInfo(route.info.requestTransformId), headers);
         }
         for (String h: headers.keySet()) {
             req.setHeader(h, headers.get(h));
@@ -354,7 +300,7 @@ public class ServiceGateway extends HttpServlet {
                     try {
                         Part filePart = request.getPart(route.info.upload);
                         if (filePart != null) {
-                            String fileName = getFileName(filePart);
+                            String fileName = httpUtil.getFileName(filePart);
                             if (fileName != null) {
                                 int len;
                                 int total = 0;
@@ -481,249 +427,6 @@ public class ServiceGateway extends HttpServlet {
         }
     }
 
-    private String normalizeUrl(String url, List<String> urlRewrite) {
-        if (urlRewrite != null && urlRewrite.size() == 2) {
-            if (url.startsWith(urlRewrite.get(0))) {
-                return urlRewrite.get(1) + url.substring(urlRewrite.get(0).length());
-            }
-        }
-        return url;
-    }
-
-    private String getFileName(final Part part) {
-        for (String content : part.getHeader(CONTENT_DISPOSITION).split(";")) {
-            if (content.trim().startsWith("filename")) {
-                return content.substring(content.indexOf('=') + 1).trim().replace("\"", "");
-            }
-        }
-        return null;
-    }
-
-    private Map<String, String> filterHeaders(HeaderInfo headerInfo, Map<String, String> headers) {
-        Map<String, String> result = new HashMap<>(headers);
-        if (headerInfo.keepHeaders != null && !headerInfo.keepHeaders.isEmpty()) {
-            // drop all headers except those to be kept
-            Map<String, String> toBeKept = new HashMap<>();
-            for (String h: headers.keySet()) {
-                if (headerInfo.keepHeaders.contains(h)) {
-                    toBeKept.put(h, headers.get(h));
-                }
-            }
-            result = toBeKept;
-        } else if (headerInfo.dropHeaders != null && !headerInfo.dropHeaders.isEmpty()) {
-            // drop the headers according to "drop" list
-            Map<String, String> toBeKept = new HashMap<>();
-            for (String h: headers.keySet()) {
-                if (!headerInfo.dropHeaders.contains(h)) {
-                    toBeKept.put(h, headers.get(h));
-                }
-            }
-            result = toBeKept;
-        }
-        if (headerInfo.additionalHeaders != null && !headerInfo.additionalHeaders.isEmpty()) {
-            for (String h: headerInfo.additionalHeaders.keySet()) {
-                result.put(h, headerInfo.additionalHeaders.get(h));
-            }
-        }
-        return result;
-    }
-
-    @EventInterceptor
-    private class ServiceResponseHandler implements LambdaFunction {
-
-        private long getReadTimeout(String timeoutOverride, long contextTimeout) {
-            if (timeoutOverride == null) {
-                return contextTimeout;
-            }
-            // convert to milliseconds
-            long timeout = Utility.getInstance().str2long(timeoutOverride) * 1000;
-            if (timeout < 1) {
-                return contextTimeout;
-            }
-            return Math.min(timeout, contextTimeout);
-        }
-
-        @Override
-        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-            if (body instanceof EventEnvelope) {
-                Utility util = Utility.getInstance();
-                EventEnvelope event = (EventEnvelope) body;
-                String requestId = event.getCorrelationId();
-                if (requestId != null) {
-                    AsyncContextHolder holder = contexts.get(requestId);
-                    if (holder != null) {
-                        holder.touch();
-                        ServletResponse res = holder.context.getResponse();
-                        if (res instanceof HttpServletResponse) {
-                            HttpServletResponse response = (HttpServletResponse) res;
-                            if (event.getStatus() != 200) {
-                                response.setStatus(event.getStatus());
-                            }
-                            String accept = holder.accept;
-                            String timeoutOverride = null;
-                            String streamId = null;
-                            String contentType = null;
-                            Map<String, String> resHeaders = new HashMap<>();
-                            if (!event.getHeaders().isEmpty()) {
-                                Map<String, String> evtHeaders = event.getHeaders();
-                                for (String h: evtHeaders.keySet()) {
-                                    String key = h.toLowerCase();
-                                    String value = evtHeaders.get(h);
-                                    // "stream" and "timeout" are reserved as stream ID and read timeout in seconds
-                                    if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
-                                        streamId = evtHeaders.get(h);
-                                    } else if (key.equals(TIMEOUT)) {
-                                        timeoutOverride = evtHeaders.get(h);
-                                    } else if (key.equals(CONTENT_TYPE)) {
-                                        contentType = value.toLowerCase();
-                                        response.setContentType(contentType);
-                                    } else if (key.equals(SET_COOKIE)) {
-                                        setCookies(response, value);
-                                    } else {
-                                        resHeaders.put(key, value);
-                                    }
-                                }
-                            }
-                            if (holder.resHeaderId != null) {
-                                HeaderInfo hi = RoutingEntry.getInstance().getResponseHeaderInfo(holder.resHeaderId);
-                                resHeaders = filterHeaders(hi, resHeaders);
-                            }
-                            for (String h: resHeaders.keySet()) {
-                                String prettyHeader = getHeaderCase(h);
-                                if (prettyHeader != null) {
-                                    response.setHeader(prettyHeader, resHeaders.get(h));
-                                }
-                            }
-                            // default content type is JSON
-                            if (contentType == null) {
-                                if (accept == null) {
-                                    contentType = MediaType.APPLICATION_JSON;
-                                    response.setContentType(MediaType.APPLICATION_JSON);
-                                } else if (accept.contains(MediaType.TEXT_HTML)) {
-                                    contentType = MediaType.TEXT_HTML;
-                                    response.setContentType(MediaType.TEXT_HTML);
-                                } else if (accept.contains(MediaType.APPLICATION_XML)) {
-                                    contentType = MediaType.APPLICATION_XML;
-                                    response.setContentType(MediaType.APPLICATION_XML);
-                                } else if (accept.contains(MediaType.APPLICATION_JSON) || accept.contains(ACCEPT_ANY)) {
-                                    contentType = MediaType.APPLICATION_JSON;
-                                    response.setContentType(MediaType.APPLICATION_JSON);
-                                } else {
-                                    contentType = MediaType.TEXT_PLAIN;
-                                    response.setContentType(MediaType.TEXT_PLAIN);
-                                }
-                            }
-                            // is this an exception?
-                            int status = event.getStatus();
-                            /*
-                             * status range 100: used for HTTP protocol handshake
-                             * status range 200: normal responses
-                             * status range 300: redirection or unchanged content
-                             * status ranges 400 and 500: HTTP exceptions
-                             */
-                            if (status >= 400 && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
-                                String message = ((String) event.getBody()).trim();
-                                // make sure it does not look like JSON or XML
-                                if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
-                                    response.sendError(status, (String) event.getBody());
-                                    holder.context.complete();
-                                    return null;
-                                }
-                            }
-                            // With the exception of HEAD method, HTTP response may have a body
-                            if (!HEAD.equals(holder.method)) {
-                                // output is a stream?
-                                Object resBody = event.getBody();
-                                if (resBody == null && streamId != null) {
-                                    ObjectStreamIO io = new ObjectStreamIO(streamId);
-                                    ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout));
-                                    try {
-                                        OutputStream out = response.getOutputStream();
-                                        for (Object block : in) {
-                                            // update last access time
-                                            holder.touch();
-                                            /*
-                                             * only bytes or text are supported when using output stream
-                                             * e.g. for downloading a large file
-                                             */
-                                            if (block instanceof byte[]) {
-                                                out.write((byte[]) block);
-                                            }
-                                            if (block instanceof String) {
-                                                out.write(util.getUTF((String) block));
-                                            }
-                                        }
-                                    } catch (IOException | RuntimeException e) {
-                                        log.warn("{} output stream {} interrupted - {}", holder.url, streamId, e.getMessage());
-                                        if (e.getMessage().contains("timeout")) {
-                                            response.sendError(408, e.getMessage());
-                                        } else {
-                                            response.sendError(500, e.getMessage());
-                                        }
-                                    } finally {
-                                        in.close();
-                                    }
-                                    // regular output
-                                } else if (resBody instanceof Map) {
-                                    if (contentType.startsWith(MediaType.TEXT_HTML)) {
-                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                        OutputStream out = response.getOutputStream();
-                                        out.write(util.getUTF(HTML_START));
-                                        out.write(payload);
-                                        out.write(util.getUTF(HTML_END));
-                                    } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
-                                        response.getOutputStream().write(util.getUTF(xmlWriter.write(resBody)));
-                                    } else {
-                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                        response.getOutputStream().write(payload);
-                                    }
-                                } else if (resBody instanceof List) {
-                                    if (contentType.startsWith(MediaType.TEXT_HTML)) {
-                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                        OutputStream out = response.getOutputStream();
-                                        out.write(util.getUTF(HTML_START));
-                                        out.write(payload);
-                                        out.write(util.getUTF(HTML_END));
-                                    } else if (contentType.startsWith(MediaType.APPLICATION_XML)) {
-                                        // xml must be delivered as a map so we use a wrapper here
-                                        Map<String, Object> map = new HashMap<>();
-                                        map.put(RESULT, resBody);
-                                        response.getOutputStream().write(util.getUTF(xmlWriter.write(map)));
-                                    } else {
-                                        byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(resBody);
-                                        response.getOutputStream().write(payload);
-                                    }
-                                } else if (resBody instanceof String) {
-                                    String text = (String) resBody;
-                                    response.getOutputStream().write(util.getUTF(text));
-                                } else if (resBody instanceof byte[]) {
-                                    byte[] binary = (byte[]) resBody;
-                                    response.getOutputStream().write(binary);
-                                } else if (resBody != null) {
-                                    response.getOutputStream().write(util.getUTF(resBody.toString()));
-                                }
-                            }
-                        }
-                        holder.context.complete();
-                    }
-                }
-            }
-            return null;
-        }
-    }
-
-    private void setCookies(HttpServletResponse response, String cookies) {
-        String header = getHeaderCase(SET_COOKIE);
-        if (cookies.contains(COOKIE_SEPARATOR)) {
-            List<String> items = Utility.getInstance().split(cookies, COOKIE_SEPARATOR);
-            for (String value: items) {
-                response.addHeader(header, value);
-            }
-        } else {
-            response.setHeader(header, cookies);
-        }
-    }
-
     private class AsyncHttpHandler implements AsyncListener {
 
         private String id;
@@ -760,52 +463,4 @@ public class ServiceGateway extends HttpServlet {
         }
     }
 
-    private class AsyncTimeoutHandler extends Thread {
-
-        private boolean normal = true;
-
-        public AsyncTimeoutHandler() {
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-        }
-
-        @Override
-        public void run() {
-            log.info("Async HTTP timeout handler started");
-            while (normal) {
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-                // check async context timeout
-                if (!contexts.isEmpty()) {
-                    List<String> contextList = new ArrayList<>(contexts.keySet());
-                    long now = System.currentTimeMillis();
-                    for (String id : contextList) {
-                        AsyncContextHolder holder = contexts.get(id);
-                        long t1 = holder.lastAccess;
-                        if (now - t1 > holder.timeout) {
-                            ServletResponse res = holder.context.getResponse();
-                            if (res instanceof HttpServletResponse) {
-                                contexts.remove(id);
-                                log.warn("Async HTTP Context {} timeout for {} ms", id, now - t1);
-                                HttpServletResponse response = (HttpServletResponse) res;
-                                try {
-                                    response.sendError(408, "Timeout for " + (holder.timeout / 1000) + " seconds");
-                                    holder.context.complete();
-                                } catch (IOException e) {
-                                    log.error("Unable to send timeout exception to async context {}", id);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            log.info("Async HTTP timeout handler stopped");
-        }
-
-        private void shutdown() {
-            normal = false;
-        }
-    }
 }

@@ -37,6 +37,24 @@ public class PayloadMapperTest {
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
     @Test
+    public void pojoTransport() throws IOException {
+        String name = "hello";
+        PoJo pojo = new PoJo();
+        pojo.setName(name);
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(pojo);
+        byte[] b = event1.toBytes();
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        assertEquals(PoJo.class, event2.getBody().getClass());
+        // try again with pojo disabled
+        event1.setPoJoEnabled(false);
+        b = event1.toBytes();
+        event2.load(b);
+        assertEquals(HashMap.class, event2.getBody().getClass());
+    }
+
+    @Test
     public void rejectUnauthorizedClass() throws IOException {
         UnauthorizedObj input = new UnauthorizedObj();
         input.setName("hello world");

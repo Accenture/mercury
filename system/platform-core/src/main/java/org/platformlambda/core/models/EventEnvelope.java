@@ -60,7 +60,9 @@ public class EventEnvelope {
     private static final String END_ROUTE = "E";
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
-    // Special header for setting HTTP cookie for rest-automation
+    // ignore pojo
+    private static final String IGNORE_POJO = "i";
+    // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
     private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
@@ -68,7 +70,7 @@ public class EventEnvelope {
     private Map<String, String> headers = new HashMap<>();
     private Object body;
     private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, binary = true;
+    private boolean endOfRoute = false, binary = true, pojo = true;
     private int broadcastLevel = 0;
 
     public EventEnvelope() {
@@ -353,6 +355,15 @@ public class EventEnvelope {
         return this;
     }
 
+    public EventEnvelope setPoJoEnabled(boolean pojo) {
+        this.pojo = pojo;
+        return this;
+    }
+
+    public boolean isPoJoEnabled() {
+        return pojo;
+    }
+
     /**
      * For Java object with generic types, you may tell EventEnvelope to transport
      * the parameterized Class(es) so that the object can be deserialized correctly.
@@ -442,33 +453,38 @@ public class EventEnvelope {
                 parametricType = (String) message.get(PARA_TYPES);
             }
             if (message.containsKey(BODY) && message.containsKey(OBJ_TYPE)) {
-                TypedPayload typed = new TypedPayload((String) message.get(OBJ_TYPE), message.get(BODY));
-                if (parametricType != null) {
-                    typed.setParametricType(parametricType);
-                }
-                try {
-                    /*
-                     * 1. set binary to true if PoJo and the payload is a map
-                     * 2. validate class name in white-list if any
-                     */
-                    if (typed.getType().contains(".")) {
-                        binary = typed.getPayload() instanceof Map;
-                        SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
-                    }
-                    body = converter.decode(typed);
-                } catch (Exception e) {
-                    /*
-                     * When the EventEnvelope is being relayed, the event node does not have the PoJo class
-                     * so this will throw exception. Therefore, the object type must be preserved.
-                     *
-                     * The target microservice should be able to restore the object properly
-                     * assuming source and target have the same PoJo class definition.
-                     */
-                    if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                        log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
-                    }
+                if (message.containsKey(IGNORE_POJO)) {
                     type = (String) message.get(OBJ_TYPE);
                     body = message.get(BODY);
+                } else {
+                    TypedPayload typed = new TypedPayload((String) message.get(OBJ_TYPE), message.get(BODY));
+                    if (parametricType != null) {
+                        typed.setParametricType(parametricType);
+                    }
+                    try {
+                        /*
+                         * 1. set binary to true if PoJo and the payload is a map
+                         * 2. validate class name in white-list if any
+                         */
+                        if (typed.getType().contains(".")) {
+                            binary = typed.getPayload() instanceof Map;
+                            SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
+                        }
+                        body = converter.decode(typed);
+                    } catch (Exception e) {
+                        /*
+                         * When the EventEnvelope is being relayed, the event node does not have the PoJo class
+                         * so this will throw exception. Therefore, the object type must be preserved.
+                         *
+                         * The target microservice should be able to restore the object properly
+                         * assuming source and target have the same PoJo class definition.
+                         */
+                        if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
+                            log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
+                        }
+                        type = (String) message.get(OBJ_TYPE);
+                        body = message.get(BODY);
+                    }
                 }
             }
             if (message.containsKey(EXECUTION)) {
@@ -544,6 +560,9 @@ public class EventEnvelope {
         }
         if (parametricType != null) {
             message.put(PARA_TYPES, parametricType);
+        }
+        if (!pojo) {
+            message.put(IGNORE_POJO, true);
         }
         if (body != null) {
             if (type == null) {
