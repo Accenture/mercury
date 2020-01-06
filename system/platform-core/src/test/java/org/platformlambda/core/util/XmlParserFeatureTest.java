@@ -86,7 +86,6 @@ public class XmlParserFeatureTest {
             Document doc = dBuilder.parse(new ByteArrayInputStream(evilXml.getBytes(StandardCharsets.UTF_8)));
             doc.getDocumentElement().normalize();
         } catch (SAXParseException e) {
-            System.out.println(e.getMessage());
             assertTrue(e.getMessage().contains("DOCTYPE is disallowed"));
         }
     }
