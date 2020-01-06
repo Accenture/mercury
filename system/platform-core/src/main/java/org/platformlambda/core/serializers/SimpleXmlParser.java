@@ -50,14 +50,6 @@ public class SimpleXmlParser {
             "http://apache.org/xml/features/disallow-doctype-decl"
     };
     private static final String FEATURES_TO_DISABLE[] = {
-            /*
-             * Features not recognized by DocumentBuilderFactory:
-             * http://xerces.apache.org/xerces-j/features.html#external-general-entities
-             * http://xerces.apache.org/xerces2-j/features.html#external-general-entities
-             * http://xerces.apache.org/xerces-j/features.html#external-parameter-entities
-             * http://xerces.apache.org/xerces2-j/features.html#external-parameter-entities
-             *
-             */
             "http://xml.org/sax/features/external-general-entities",
             "http://xml.org/sax/features/external-parameter-entities",
             "http://apache.org/xml/features/nonvalidating/load-external-dtd"
@@ -101,6 +93,7 @@ public class SimpleXmlParser {
             dbf.setXIncludeAware(false);
             dbf.setExpandEntityReferences(false);
             DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+            dBuilder.setErrorHandler(null);
             doc = dBuilder.parse(res);
             doc.getDocumentElement().normalize();
         } catch (ParserConfigurationException | SAXException e) {
@@ -141,7 +134,6 @@ public class SimpleXmlParser {
     }
 
     private void parseXML(Node node, Map<String, Object> parent, String grandParentName, Map<String, Object> grandParent) {
-
         if (node.getNodeType() == Node.TEXT_NODE) {
             String value = node.getTextContent().trim();
             if (value.length() > 0) {

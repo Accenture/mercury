@@ -56,7 +56,6 @@ public class XmlParserFeatureTest {
              * http://xerces.apache.org/xerces2-j/features.html#external-general-entities
              * http://xerces.apache.org/xerces-j/features.html#external-parameter-entities
              * http://xerces.apache.org/xerces2-j/features.html#external-parameter-entities
-             *
              */
             "http://xml.org/sax/features/external-general-entities",
             "http://xml.org/sax/features/external-parameter-entities",
@@ -83,9 +82,11 @@ public class XmlParserFeatureTest {
                 "<stockCheck><productId>&xxe;</productId></stockCheck>";
         try {
             DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+            dBuilder.setErrorHandler(null);
             Document doc = dBuilder.parse(new ByteArrayInputStream(evilXml.getBytes(StandardCharsets.UTF_8)));
             doc.getDocumentElement().normalize();
         } catch (SAXParseException e) {
+            System.out.println(e.getMessage());
             assertTrue(e.getMessage().contains("DOCTYPE is disallowed"));
         }
     }
