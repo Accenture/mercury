@@ -39,17 +39,17 @@ public class SimpleXmlParser {
     private static final Logger log = LoggerFactory.getLogger(SimpleXmlParser.class);
 
     /*
-     * Contribution:
+     * Acknowledgement:
      *
-     * The solution to avoid XML external entity (XXE) injection attack was provided by Sajeeb Lohani
+     * The solution to avoid XML external entity (XXE) injection attack was contributed by Sajeeb Lohani
      * (github handles @prodigysml and @n33dle) on 1/6/2020.
      *
      * The corresponding Unit test is org.platformlambda.core.util.XmlParserFeatureTest
      */
-    private static final String FEATURES_TO_ENABLE[] = {
+    private static final String[] FEATURES_TO_ENABLE = {
             "http://apache.org/xml/features/disallow-doctype-decl"
     };
-    private static final String FEATURES_TO_DISABLE[] = {
+    private static final String[] FEATURES_TO_DISABLE = {
             "http://xml.org/sax/features/external-general-entities",
             "http://xml.org/sax/features/external-parameter-entities",
             "http://apache.org/xml/features/nonvalidating/load-external-dtd"

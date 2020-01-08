@@ -34,24 +34,23 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Contribution:
- *
- * The solution to avoid XML external entity (XXE) injection attack was provided by Sajeeb Lohani
- * (prodigysml and n33dle) on 1/6/2020.
- *
- * This test ensures that the FEATURES_TO_ENABLE and FEATURES_TO_DISABLE are verified.
- */
 public class XmlParserFeatureTest {
     private static final Logger log = LoggerFactory.getLogger(XmlParserFeatureTest.class);
 
-    private static final String FEATURES_TO_ENABLE[] = {
+    /*
+     * Acknowledgement:
+     *
+     * The solution to avoid XML external entity (XXE) injection attack was contributed by Sajeeb Lohani
+     * (prodigysml and n33dle) on 1/6/2020.
+     *
+     * This test ensures that the FEATURES_TO_ENABLE and FEATURES_TO_DISABLE are enforced.
+     */
+    private static final String[] FEATURES_TO_ENABLE = {
             "http://apache.org/xml/features/disallow-doctype-decl"
     };
-
-    private static final String FEATURES_TO_DISABLE[] = {
+    private static final String[] FEATURES_TO_DISABLE = {
             /*
-             * Features not recognized by DocumentBuilderFactory:
+             * Features not recognized by the default DocumentBuilderFactory:
              * http://xerces.apache.org/xerces-j/features.html#external-general-entities
              * http://xerces.apache.org/xerces2-j/features.html#external-general-entities
              * http://xerces.apache.org/xerces-j/features.html#external-parameter-entities
@@ -77,13 +76,13 @@ public class XmlParserFeatureTest {
          * guarantee that DOCTYPE feature is disabled
          * XML sample from https://portswigger.net/web-security/xxe
          */
-        String evilXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+        String problematic = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                 "<!DOCTYPE foo [ <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> ]>\n" +
                 "<stockCheck><productId>&xxe;</productId></stockCheck>";
         try {
             DocumentBuilder dBuilder = dbf.newDocumentBuilder();
             dBuilder.setErrorHandler(null);
-            Document doc = dBuilder.parse(new ByteArrayInputStream(evilXml.getBytes(StandardCharsets.UTF_8)));
+            Document doc = dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8)));
             doc.getDocumentElement().normalize();
         } catch (SAXParseException e) {
             assertTrue(e.getMessage().contains("DOCTYPE is disallowed"));

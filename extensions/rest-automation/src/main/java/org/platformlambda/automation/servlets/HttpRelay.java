@@ -1,3 +1,21 @@
+/*
+
+    Copyright 2018-2020 Accenture Technology
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+ */
+
 package org.platformlambda.automation.servlets;
 
 import com.google.api.client.http.*;
@@ -39,6 +57,7 @@ public class HttpRelay implements LambdaFunction {
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final ConcurrentMap<String, HttpRequestFactory> httpFactory = new ConcurrentHashMap<>();
 
+    private static final String X_TRACE_ID = ServiceGateway.X_TRACE_ID;
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
@@ -207,6 +226,12 @@ public class HttpRelay implements LambdaFunction {
                     }
                     update = true;
                 }
+            }
+            // propagate X-Trace-Id when forwarding the HTTP request
+            String traceId = po.getTraceId();
+            if (traceId != null) {
+                httpHeaders.set(X_TRACE_ID, traceId);
+                update = true;
             }
             // set cookies if any
             Map<String, String> cookies  = request.getCookies();

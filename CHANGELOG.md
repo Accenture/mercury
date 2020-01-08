@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.28, 1/8/2020
+
+### Added
+
+Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace across systems that support the X-Trace-Id HTTP header. 
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.
+
+---
 ## Version 1.12.26, 1/4/2020
 
 ### Added

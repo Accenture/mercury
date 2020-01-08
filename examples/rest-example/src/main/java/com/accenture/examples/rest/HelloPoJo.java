@@ -53,7 +53,6 @@ public class HelloPoJo {
                         SamplePoJo.class.getName() + ", actual: " + response.getBody().getClass().getName());
             }
         }
-
     }
 
     @GET

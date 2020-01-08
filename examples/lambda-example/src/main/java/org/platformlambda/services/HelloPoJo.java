@@ -34,12 +34,10 @@ public class HelloPoJo implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException, IOException {
-
         String id = headers.get("id");
         if (id == null) {
             throw new IllegalArgumentException("Missing parameter 'id'");
         }
-
         if (id.equals("1")) {
             // return some place-holder values to demonstrate the PoJo can be transported over the network
             SamplePoJo mock = new SamplePoJo(1, "Simple PoJo class", "100 World Blvd, Planet Earth");
@@ -53,7 +51,6 @@ public class HelloPoJo implements LambdaFunction {
         } else {
             throw new AppException(404, "Not found. Try id = 1");
         }
-
     }
 
 }
