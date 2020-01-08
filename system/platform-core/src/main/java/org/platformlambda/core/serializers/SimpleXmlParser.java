@@ -29,6 +29,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +37,23 @@ import java.util.Map;
 
 public class SimpleXmlParser {
     private static final Logger log = LoggerFactory.getLogger(SimpleXmlParser.class);
+
+    /*
+     * Acknowledgement:
+     *
+     * The solution to avoid XML external entity (XXE) injection attack was contributed by Sajeeb Lohani
+     * (github handles @prodigysml and @n33dle) on 1/6/2020.
+     *
+     * The corresponding Unit test is org.platformlambda.core.util.XmlParserFeatureTest
+     */
+    private static final String[] FEATURES_TO_ENABLE = {
+            "http://apache.org/xml/features/disallow-doctype-decl"
+    };
+    private static final String[] FEATURES_TO_DISABLE = {
+            "http://xml.org/sax/features/external-general-entities",
+            "http://xml.org/sax/features/external-parameter-entities",
+            "http://apache.org/xml/features/nonvalidating/load-external-dtd"
+    };
 
     private static final String VALUE = "value";
     private static List<String> defaultDrop = new ArrayList<>();
@@ -56,7 +74,7 @@ public class SimpleXmlParser {
     }
 
     public Map<String, Object> parse(String xml) throws IOException {
-        return parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+        return parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
     }
 
     @SuppressWarnings("unchecked")
@@ -65,8 +83,17 @@ public class SimpleXmlParser {
 
         Document doc;
         try {
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            for (String feature: FEATURES_TO_ENABLE) {
+                setFeature(dbf, feature, true);
+            }
+            for (String feature: FEATURES_TO_DISABLE) {
+                setFeature(dbf, feature, false);
+            }
+            dbf.setXIncludeAware(false);
+            dbf.setExpandEntityReferences(false);
+            DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+            dBuilder.setErrorHandler(null);
             doc = dBuilder.parse(res);
             doc.getDocumentElement().normalize();
         } catch (ParserConfigurationException | SAXException e) {
@@ -107,7 +134,6 @@ public class SimpleXmlParser {
     }
 
     private void parseXML(Node node, Map<String, Object> parent, String grandParentName, Map<String, Object> grandParent) {
-
         if (node.getNodeType() == Node.TEXT_NODE) {
             String value = node.getTextContent().trim();
             if (value.length() > 0) {
@@ -181,6 +207,16 @@ public class SimpleXmlParser {
 
     private boolean canIgnore(String attributeName) {
         return !drop.isEmpty() ? drop.contains(attributeName) : SimpleXmlParser.defaultDrop.contains(attributeName);
+    }
+
+    private boolean setFeature(DocumentBuilderFactory dbf, String feature, boolean enable) {
+        try {
+            dbf.setFeature(feature, enable);
+            return dbf.getFeature(feature) == enable;
+        } catch (ParserConfigurationException e) {
+            log.error("Unable to {} feature - {}", enable? "enable" : "disable", e.getMessage());
+            return false;
+        }
     }
 
 }

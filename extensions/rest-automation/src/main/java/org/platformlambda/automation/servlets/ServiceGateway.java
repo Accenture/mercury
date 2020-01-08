@@ -23,6 +23,7 @@ import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.models.CorsInfo;
+import org.platformlambda.automation.util.AsyncHttpHandler;
 import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
@@ -38,8 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -58,6 +57,7 @@ public class ServiceGateway extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(ServiceGateway.class);
 
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
+    public static final String X_TRACE_ID = "X-Trace-Id";
     private static final String PROTOCOL = "x-forwarded-proto";
     private static final String HTTPS = "https";
     private static final String UTF_8 = "utf-8";
@@ -69,7 +69,6 @@ public class ServiceGateway extends HttpServlet {
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
     private static final String ACCEPT = "accept";
-    private static final String TRACE_HEADER = "X-Trace-Id";
     private static final int BUFFER_SIZE = 2048;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
@@ -239,12 +238,17 @@ public class ServiceGateway extends HttpServlet {
         String tracePath = null;
         // Set trace header if needed
         if (route.info.tracing) {
-            traceId = "t" + util.getUuid();
+            /*
+             * Use X-Trace-Id from HTTP request headers if any.
+             * Otherwise, generate a unique ID.
+             */
+            String httpTrace = request.getHeader(X_TRACE_ID);
+            traceId = httpTrace == null? util.getUuid() : httpTrace;
             tracePath = method + " " + url;
             if (queryString != null) {
                 tracePath += "?" + queryString;
             }
-            response.setHeader(TRACE_HEADER, traceId);
+            response.setHeader(X_TRACE_ID, traceId);
         }
         // authentication required?
         if (route.info.authService != null) {
@@ -399,7 +403,7 @@ public class ServiceGateway extends HttpServlet {
         String requestId = Utility.getInstance().getUuid();
         // create HTTP async context
         AsyncContext context = request.startAsync(request, response);
-        context.addListener(new AsyncHttpHandler(requestId));
+        context.addListener(new AsyncHttpHandler(contexts, requestId));
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
         holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);
@@ -424,42 +428,6 @@ public class ServiceGateway extends HttpServlet {
         } catch (IOException e) {
             response.sendError(400, e.getMessage());
             context.complete();
-        }
-    }
-
-    private class AsyncHttpHandler implements AsyncListener {
-
-        private String id;
-
-        public AsyncHttpHandler(String id) {
-            this.id = id;
-        }
-
-        @Override
-        public void onComplete(AsyncEvent event) {
-            if (contexts.containsKey(id)) {
-                contexts.remove(id);
-                log.debug("Async HTTP Context {} completed, remaining {}", id, contexts.size());
-            }
-        }
-
-        @Override
-        public void onTimeout(AsyncEvent event) {
-            // this should not occur as we use our own async timeout handler
-            contexts.remove(id);
-        }
-
-        @Override
-        public void onError(AsyncEvent event) {
-            if (contexts.containsKey(id)) {
-                contexts.remove(id);
-                log.warn("Async HTTP Context {} exception {}", id, event.getThrowable().getMessage());
-            }
-        }
-
-        @Override
-        public void onStartAsync(AsyncEvent event) {
-            // no-op
         }
     }
 
