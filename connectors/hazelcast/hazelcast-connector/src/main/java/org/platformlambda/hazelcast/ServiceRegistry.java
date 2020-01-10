@@ -48,7 +48,6 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
 
-    private static final String RESET = "reset";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String PING = "ping";
@@ -63,7 +62,6 @@ public class ServiceRegistry implements LambdaFunction {
      */
     private static final ManagedCache origins = ManagedCache.createCache("peer.origins", 10000);
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
-    private static final ManagedCache cache = ManagedCache.createCache("discovery.log.cache", 2000);
     private static List<String> peers = new ArrayList<>();
     private static String me;
 
@@ -213,9 +211,8 @@ public class ServiceRegistry implements LambdaFunction {
                 broadcast(origin, null, null, JOIN);
             } else {
                 // send routing table of this node to the newly joined node
-                String key = "join/"+origin;
-                if (!cache.exists(key)) {
-                    cache.put(key, true);
+                if (!peers.contains(origin)) {
+                    peers.add(origin);
                     log.info("Peer {} joined", origin);
                 }
                 sendMyRoutes(origin);
@@ -239,9 +236,8 @@ public class ServiceRegistry implements LambdaFunction {
                 peers.add(origin);
                 log.warn("Peer connections cleared");
             } else {
-                String key = "leave/"+origin;
-                if (!cache.exists(key)) {
-                    cache.put(key, true);
+                if (peers.contains(origin)) {
+                    peers.remove(origin);
                     log.info("Peer {} left", origin);
                 }
                 removeRoutesFromOrigin(origin);

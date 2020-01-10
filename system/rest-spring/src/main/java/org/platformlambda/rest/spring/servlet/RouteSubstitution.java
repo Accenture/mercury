@@ -38,6 +38,7 @@ import java.util.Map;
 @WebServlet("/route/substitution/*")
 @OptionalService("application.feature.route.substitution")
 public class RouteSubstitution extends HttpServlet {
+    private static final long serialVersionUID = 2972651609009607339L;
 
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {

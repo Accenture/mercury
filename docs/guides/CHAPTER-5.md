@@ -32,6 +32,7 @@
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
 | kafka.replication.factor                    | 3                                         | Kafka    |
 | multi.tenancy.namespace                     | environment shortname                     | Optional |
+| app.shutdown.key                            | secret key to shutdown app instance       | Optional |
 
 `*` - when using the "rest-spring" library
 
@@ -51,6 +52,16 @@ You can get an instance of the serializer with `SimpleMapper.getInstance().getWh
 # info.api.key
 
 This is used to authenticate HTTP requests to the "protected.info.endpoints".
+
+# app.shutdown.key
+
+If this parameter is given, the shutdown endpoint will be activated.
+'''
+POST /shutdown
+
+content-type: "application/x-www-form-urlencoded"
+body: key=the_shutdown_key&origin=originId
+'''
 
 # route substitution
 

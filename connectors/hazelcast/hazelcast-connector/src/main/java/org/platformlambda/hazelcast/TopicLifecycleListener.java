@@ -87,18 +87,24 @@ public class TopicLifecycleListener implements LifecycleListener {
         if (restore) {
             log.info("Event consumer restored");
         } else {
+            ClusterListener.setMembers(client.getCluster().getMembers());
             log.info("Event consumer started");
         }
         ready = true;
         if (!isServiceMonitor) {
             PresenceConnector connector = PresenceConnector.getInstance();
             if (connector.isConnected() && connector.isReady()) {
-                // tell peers that I have joined
-                try {
-                    PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
-                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-                } catch (IOException e) {
-                    log.error("Unable to notify peers that I have joined - {}", e.getMessage());
+                if (restore) {
+                    log.info("Reset connection to presence monitor because hazelcast resets");
+                    connector.resetMonitor();
+                } else {
+                    // tell peers that I have joined
+                    try {
+                        PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                                new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    } catch (IOException e) {
+                        log.error("Unable to notify peers that I have joined - {}", e.getMessage());
+                    }
                 }
             }
         }

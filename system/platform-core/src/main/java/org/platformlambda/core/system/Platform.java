@@ -45,6 +45,7 @@ public class Platform {
     private static final ManagedCache cache = ManagedCache.createCache("system.log.cache", 30000);
     private static final CryptoApi crypto = new CryptoApi();
 
+    public static final String SHUTDOWN_SERVICE = "shutdown.service";
     public static final String STREAM_MANAGER = "object.streams.io";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     private static final String ROUTE_MAPPER = ".route.mapper";
@@ -64,6 +65,11 @@ public class Platform {
         AppConfigReader config = AppConfigReader.getInstance();
         boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
+            registerPrivate(SHUTDOWN_SERVICE, (headers, body, instance) -> {
+                log.info("Shutting down as per operator request");
+                System.exit(-2);
+               return true;
+            }, 1);
             registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
             // streaming becomes a standard feature since v1.12.0
             registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);

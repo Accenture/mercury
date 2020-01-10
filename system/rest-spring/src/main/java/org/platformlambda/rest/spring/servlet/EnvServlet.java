@@ -34,8 +34,8 @@ import java.util.Map;
 
 @WebServlet("/env")
 public class EnvServlet extends HttpServlet {
-
 	private static final long serialVersionUID = 3495394964619652075L;
+	
 	private static final String SHOW_ENV = "show.env.variables";
 	private static final String SHOW_PROPERTIES = "show.application.properties";
 	private static final String SYSTEM_ENV = "systemEnvironment";

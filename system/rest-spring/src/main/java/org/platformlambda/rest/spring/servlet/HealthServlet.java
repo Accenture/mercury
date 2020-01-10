@@ -25,6 +25,7 @@ import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,20 +35,15 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 @WebServlet("/health")
 public class HealthServlet extends HttpServlet {
-	private static final long serialVersionUID = 3238645611193082445L;
-	private static final Logger log = LoggerFactory.getLogger(HealthServlet.class);
+    private static final long serialVersionUID = 231981954669130491L;
 
-    private static final ConcurrentMap<String, Map<String, Object>> metadata = new ConcurrentHashMap<>();
+    private static final Logger log = LoggerFactory.getLogger(HealthServlet.class);
+    private static final ManagedCache cache = ManagedCache.createCache("health.info", 5000);
     private static final String TYPE = "type";
     private static final String QUERY = "query";
     private static final String INFO = "info";
@@ -63,37 +59,13 @@ public class HealthServlet extends HttpServlet {
     private static final String UPSTREAM = "upstream";
     private static final String NOT_FOUND = "not found";
     private static final String PLEASE_CHECK = "Please check: ";
-    private static final Map<String, Object> basicInfo = new HashMap<>();
     private static List<String> requiredServices = new ArrayList<>();
     private static List<String> optionalServices = new ArrayList<>();
-    private static boolean loadInfo = false, listInfo = false;
+    private static boolean loaded = false;
 
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> getBasicInfo() {
-        if (!loadInfo) {
-            // get platform specific node information
-            AppConfigReader reader = AppConfigReader.getInstance();
-            String nodeInfo = reader.getProperty(NODE_INFO, "node.info");
-            if (Platform.getInstance().hasRoute(nodeInfo)) {
-                // do only once
-                loadInfo = true;
-                try {
-                    EventEnvelope response = PostOffice.getInstance().request(nodeInfo, 5000, new Kv(TYPE, QUERY));
-                    if (response.getBody() instanceof Map) {
-                        basicInfo.putAll((Map<String, Object>) response.getBody());
-                    }
-                } catch (IOException | TimeoutException | AppException e) {
-                    log.warn("Unable to obtain node info - {}", e.getMessage());
-                }
-            }
-        }
-        return basicInfo;
-    }
-
-    private void loadConfig() {
-        HealthServlet.getBasicInfo();
-        if (!listInfo) {
-            listInfo = true;
+    public HealthServlet() {
+        if (!loaded) {
+            loaded = true;
             AppConfigReader reader = AppConfigReader.getInstance();
             requiredServices = Utility.getInstance().split(reader.getProperty(REQUIRED_SERVICES, ""), ", ");
             if (requiredServices.isEmpty()) {
@@ -108,9 +80,8 @@ public class HealthServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        loadConfig();
         boolean up = true;
-        Map<String, Object> result = new HashMap<>(basicInfo);
+        Map<String, Object> result = new HashMap<>(getBasicInfo());
         List<Map<String, Object>> upstream = new ArrayList<>();
         result.put(UPSTREAM, upstream);
         /*
@@ -127,6 +98,29 @@ public class HealthServlet extends HttpServlet {
     }
 
     @SuppressWarnings("unchecked")
+    public static Map<String, Object> getBasicInfo() {
+        Object o = cache.get(NODE_INFO);
+        if (o instanceof Map) {
+            return (Map<String, Object>) o;
+        }
+        // get platform specific node information
+        AppConfigReader reader = AppConfigReader.getInstance();
+        String nodeInfo = reader.getProperty(NODE_INFO, NODE_INFO);
+        if (Platform.getInstance().hasRoute(nodeInfo)) {
+            try {
+                EventEnvelope response = PostOffice.getInstance().request(nodeInfo, 5000, new Kv(TYPE, QUERY));
+                if (response.getBody() instanceof Map) {
+                    cache.put(NODE_INFO, response.getBody());
+                    return (Map<String, Object>) response.getBody();
+                }
+            } catch (IOException | TimeoutException | AppException e) {
+                log.warn("Unable to obtain node info - {}", e.getMessage());
+            }
+        }
+        return Collections.EMPTY_MAP;
+    }
+
+    @SuppressWarnings("unchecked")
     private boolean checkServices(List<Map<String, Object>> upstream, List<String> healthServices, boolean required) {
         PostOffice po = PostOffice.getInstance();
         boolean up = true;
@@ -135,16 +129,18 @@ public class HealthServlet extends HttpServlet {
             m.put(ROUTE, route);
             m.put(REQUIRED, required);
             try {
-                if (!metadata.containsKey(route)) {
+                String key = INFO+"/"+route;
+                if (!cache.exists(key)) {
                     EventEnvelope infoRes = po.request(route, 3000, new Kv(TYPE, INFO));
                     if (infoRes.getBody() instanceof Map) {
-                        metadata.put(route, (Map<String, Object>) infoRes.getBody());
+                        cache.put(key, infoRes.getBody());
                     }
                 }
-                Map<String, Object> info = metadata.get(route);
-                if (info != null) {
-                    for (String k : info.keySet()) {
-                        m.put(k, info.get(k));
+                Object info = cache.get(key);
+                if (info instanceof Map) {
+                    Map<String, Object> map = (Map<String, Object>) info;
+                    for (String k : map.keySet()) {
+                        m.put(k, map.get(k));
                     }
                 }
                 EventEnvelope res = po.request(route, 10000, new Kv(TYPE, HEALTH));

@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 
 public class ServiceQuery implements LambdaFunction {
-
     private static String TYPE = ServiceDiscovery.TYPE;
     private static String ROUTE = ServiceDiscovery.ROUTE;
     private static String FIND = ServiceDiscovery.FIND;

@@ -162,6 +162,17 @@ public class PresenceConnector implements LambdaFunction {
         }
     }
 
+    public void resetMonitor() {
+        if (isConnected() && isReady()) {
+            try {
+                Utility.getInstance().closeConnection(monitor, CloseReason.CloseCodes.GOING_AWAY,
+                        "Hazelcast restarted");
+            } catch (IOException e) {
+                // ok to ignore
+            }
+        }
+    }
+
     public void isAlive() {
         if (checkingAlive && monitor != null && (System.currentTimeMillis() - aliveTime > MAX_WAIT)) {
             String message = "Presence monitor failed to keep alive in "+(MAX_WAIT / 1000)+" seconds";

@@ -109,6 +109,7 @@ public class HazelcastSetup implements CloudSetup {
         config.getNetworkConfig().addAddress(addrs);
         config.setConnectionStrategyConfig(connectionStrategy);
         client = HazelcastClient.newHazelcastClient(config);
+        client.getCluster().addMembershipListener(new ClusterListener());
 
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();

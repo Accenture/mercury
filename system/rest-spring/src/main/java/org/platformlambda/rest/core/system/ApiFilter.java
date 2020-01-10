@@ -38,7 +38,7 @@ public class ApiFilter implements ContainerResponseFilter {
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
 
     @Override
-    public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {
+    public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
         String upgrade = requestContext.getHeaderString(UPGRADE);
         String protocol = requestContext.getHeaderString(PROTOCOL);
         /*

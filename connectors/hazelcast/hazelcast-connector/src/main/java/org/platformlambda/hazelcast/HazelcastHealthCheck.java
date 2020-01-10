@@ -34,7 +34,6 @@ import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class HazelcastHealthCheck implements LambdaFunction {
-
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String HEALTH = "health";
@@ -62,7 +61,8 @@ public class HazelcastHealthCheck implements LambdaFunction {
             Map<String, Object> result = new HashMap<>();
             result.put("service", "hazelcast");
             result.put("namespace", namespace);
-            result.put("cluster", HazelcastSetup.getClusterList());
+            result.put("configured", HazelcastSetup.getClusterList());
+            result.put("cluster", ClusterListener.getMembers());
             return result;
         }
         if (HEALTH.equals(headers.get(TYPE))) {

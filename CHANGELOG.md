@@ -6,11 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.28, 1/8/2020
+## Version 1.12.29, 1/10/2020
 
 ### Added
 
-Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace across systems that support the X-Trace-Id HTTP header. 
+1. Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace across systems that support the X-Trace-Id HTTP header.
+2. Added endpoint and service to shutdown application instance.
 
 ### Removed
 
@@ -18,7 +19,8 @@ N/A
 
 ### Changed
 
-Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.
+1. Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.
+2. Bug fix for hazelcast recovery logic - when a hazelcast node is down, the app instance will restart the hazelcast client and reset routing table correctly.
 
 ---
 ## Version 1.12.26, 1/4/2020

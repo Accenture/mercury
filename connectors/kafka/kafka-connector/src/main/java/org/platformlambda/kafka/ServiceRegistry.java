@@ -66,10 +66,11 @@ public class ServiceRegistry implements LambdaFunction {
      */
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> origins = new ConcurrentHashMap<>();
-    private static final ManagedCache cache = ManagedCache.createCache("discovery.log.cache", 2000);
     private static List<String> peers = new ArrayList<>();
+    private static String me;
 
     public ServiceRegistry() {
+        me = Platform.getInstance().getOrigin();
         AppConfigReader reader = AppConfigReader.getInstance();
         if ("true".equals(reader.getProperty("service.monitor", "false"))) {
             isServiceMonitor = true;
@@ -91,11 +92,7 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static boolean destinationExists(String origin) {
-        if (origins.containsKey(origin)) {
-            return true;
-        } else {
-            return peers.contains(origin);
-        }
+        return origin.equals(me) || origins.containsKey(origin) || peers.contains(origin);
     }
 
     private String getChecksum() {
@@ -243,9 +240,8 @@ public class ServiceRegistry implements LambdaFunction {
                 broadcast(origin, null, null, JOIN);
             } else {
                 // send routing table of this node to the newly joined node
-                String key = "join/"+origin;
-                if (!cache.exists(key)) {
-                    cache.put(key, true);
+                if (!peers.contains(origin)) {
+                    peers.add(origin);
                     log.info("Peer {} joined", origin);
                 }
                 sendMyRoutes(origin);
@@ -274,9 +270,8 @@ public class ServiceRegistry implements LambdaFunction {
                     }
                 }
             } else {
-                String key = "leave/"+origin;
-                if (!cache.exists(key)) {
-                    cache.put(key, true);
+                if (peers.contains(origin)) {
+                    peers.remove(origin);
                     log.info("Peer {} left", origin);
                 }
                 removeRoutesFromOrigin(origin);

@@ -41,6 +41,7 @@ import static org.platformlambda.core.system.Platform.STREAM_MANAGER;
 @WebServlet("/info/*")
 public class InfoServlet extends HttpServlet {
 	private static final long serialVersionUID = 376901501172978505L;
+
 	private static final String ERROR = "error";
     private static final String SYSTEM_INFO = "additional.info";
     private static final String JAVA_VERSION = "java.version";
@@ -75,7 +76,6 @@ public class InfoServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-
         Platform platform = Platform.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
