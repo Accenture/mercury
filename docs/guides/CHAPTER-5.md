@@ -56,12 +56,12 @@ This is used to authenticate HTTP requests to the "protected.info.endpoints".
 # app.shutdown.key
 
 If this parameter is given, the shutdown endpoint will be activated.
-'''
+```
 POST /shutdown
 
 content-type: "application/x-www-form-urlencoded"
 body: key=the_shutdown_key&origin=originId
-'''
+```
 
 # route substitution
 
