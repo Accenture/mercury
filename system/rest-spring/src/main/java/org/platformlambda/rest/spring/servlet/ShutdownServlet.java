@@ -42,6 +42,12 @@ public class ShutdownServlet extends HttpServlet {
     private static String secret;
 
     @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // send HTTP-404 "not found" instead of HTTP-405 "method not allowed"
+        response.sendError(404, "Not Found");
+    }
+
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String origin = request.getParameter(ORIGIN);
         if (origin == null) {
