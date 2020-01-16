@@ -18,13 +18,14 @@
 
 package org.platformlambda.rest.core.system;
 
+import org.platformlambda.core.util.AppConfigReader;
+
 import javax.annotation.Priority;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.ext.Provider;
-import java.io.IOException;
 
 @PreMatching
 @Provider
@@ -36,6 +37,17 @@ public class ApiFilter implements ContainerResponseFilter {
     private static final String UPGRADE = "upgrade";
     private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
+    private static boolean loaded = false;
+    private static Boolean hstsRequired;
+
+    public ApiFilter() {
+        if (!loaded) {
+            loaded = true;
+            AppConfigReader reader = AppConfigReader.getInstance();
+            // by default, HSTS header is enabled
+            hstsRequired = "true".equals(reader.getProperty("hsts.feature", "true"));
+        }
+    }
 
     @Override
     public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
@@ -47,7 +59,7 @@ public class ApiFilter implements ContainerResponseFilter {
          *
          * If HTTPS, add "Strict Transport Security" header.
          */
-        if (upgrade == null && HTTPS.equals(protocol)) {
+        if (hstsRequired && upgrade == null && HTTPS.equals(protocol)) {
             responseContext.getHeaders().add(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
         }
     }

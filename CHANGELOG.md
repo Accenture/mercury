@@ -21,6 +21,7 @@ N/A
 
 1. Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.
 2. Bug fix for hazelcast recovery logic - when a hazelcast node is down, the app instance will restart the hazelcast client and reset routing table correctly.
+3. HSTS header insertion is optional so that we can disable it to avoid duplicated header when API gateway is doing it.
 
 ---
 ## Version 1.12.26, 1/4/2020

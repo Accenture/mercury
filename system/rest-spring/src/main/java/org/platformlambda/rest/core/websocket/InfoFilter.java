@@ -47,12 +47,16 @@ public class InfoFilter implements Filter {
     private static boolean loaded = false;
     private static List<String> protectedRestEndpoints = new ArrayList<>();
     private static String apiKeyLabel, infoApiKey;
+    private static Boolean hstsRequired;
 
     @Override
     public void init(FilterConfig filterConfig) {
         if (!loaded) {
             loaded = true;
             AppConfigReader reader = AppConfigReader.getInstance();
+            // by default, HSTS header is enabled
+            hstsRequired = "true".equals(reader.getProperty("hsts.feature", "true"));
+            log.info("HSTS (RFC-6797) feature {}", hstsRequired? "enabled" : "disabled");
             String endpoints = reader.getProperty("protected.info.endpoints");
             if (endpoints != null) {
                 protectedRestEndpoints = Utility.getInstance().split(endpoints, ", ");
@@ -85,7 +89,7 @@ public class InfoFilter implements Filter {
                  *
                  * If HTTPS, add "Strict Transport Security" header.
                  */
-                if (HTTPS.equals(req.getHeader(PROTOCOL))) {
+                if (hstsRequired && HTTPS.equals(req.getHeader(PROTOCOL))) {
                     res.setHeader(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
                 }
                 if (isProtected(req)) {
