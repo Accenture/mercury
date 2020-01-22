@@ -7,7 +7,7 @@
     <artifactId>language-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.29</version>
+    <version>1.12.30</version>
     <name>Language Connector for Python, Nodes.js and Go</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,7 +29,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.29</version>
+            <version>1.12.30</version>
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
@@ -42,12 +42,12 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>1.12.29</version>
+            <version>1.12.30</version>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.12.29</version>
+            <version>1.12.30</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

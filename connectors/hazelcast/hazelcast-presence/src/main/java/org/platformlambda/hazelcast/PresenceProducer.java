@@ -18,23 +18,32 @@
 
 package org.platformlambda.hazelcast;
 
+import com.hazelcast.client.HazelcastClientOfflineException;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
+import org.platformlambda.MainApp;
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 public class PresenceProducer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceProducer.class);
 
+    private static final String TYPE = "type";
+    private static final String RESET = "reset";
+    private static final String ORIGIN = "origin";
     private HazelcastInstance client;
     private boolean ready = false, abort = false;
     private String topic;
+    private boolean online = true;
 
     public PresenceProducer(HazelcastInstance client, String topic) {
         this.client = client;
@@ -59,6 +68,27 @@ public class PresenceProducer implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+        try {
+            return handleEvent(body);
+        } catch (Exception e) {
+            if (e instanceof HazelcastClientOfflineException) {
+                if (online) {
+                    online = false;
+                    try {
+                        PostOffice.getInstance().send(MainApp.PRESENCE_HANDLER,
+                                new Kv(TYPE, RESET), new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    } catch (IOException ok) {
+                        // ok to ignore
+                    }
+                }
+            } else {
+                log.error("{} - {}", e.getClass().getName(), e.getMessage());
+            }
+            return false;
+        }
+    }
+
+    public Object handleEvent(Object body) {
         // check for critical resource
         if (!validRegistry()) {
             log.error("abort because {} is not available", ServiceDiscovery.SERVICE_REGISTRY);
@@ -68,6 +98,8 @@ public class PresenceProducer implements LambdaFunction {
             byte[] payload = (byte[]) body;
             ITopic<byte[]> iTopic = client.getReliableTopic(topic);
             iTopic.publish(payload);
+            // successfully publish an event
+            online = true;
         }
         return true;
     }

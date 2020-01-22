@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.30, 1/22/2020
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Improved hazelcast client connection stability.
+
+When hazelcast cluster membership changes, the hazelcast client event listener would become unstable.
+This version reloads the event listener when hazelcast cluster membership changes are detected.
+
+---
 ## Version 1.12.29, 1/10/2020
 
 ### Added

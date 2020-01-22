@@ -35,8 +35,10 @@ import java.util.concurrent.TimeoutException;
 public class TopicLifecycleListener implements LifecycleListener {
     private static final Logger log = LoggerFactory.getLogger(TopicLifecycleListener.class);
 
+    public static final String SETUP_CONSUMER = "hazelcast.connection.monitor";
+    public static final String CLUSTER_CHANGED = "cluster_changed";
     private static final String TYPE = ServiceDiscovery.TYPE;
-    private static final String SETUP_CONSUMER = "hazelcast.connection.monitor";
+    private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
     private static final String PRESENCE_HANDLER = "presence.service";
     private static final String START = "start";
     private static final String RESET = "reset";
@@ -44,10 +46,12 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String LEAVE = "leave";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
+
     private static boolean ready = false;
-    private static ITopic<byte[]> topic;
-    private static String registrationId;
+    private ITopic<byte[]> topic = null;
+    private String registrationId = null;
     private String realTopic;
+    private String setupType = null;
     private boolean isServiceMonitor;
 
     public TopicLifecycleListener(String realTopic) {
@@ -56,7 +60,7 @@ public class TopicLifecycleListener implements LifecycleListener {
         isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         // create a function to setup consumer asynchronously
         LambdaFunction f = (headers, body, instance) -> {
-            setupConsumer(RESTORE.equals(headers.get(TYPE)));
+            setupConsumer(headers.get(TYPE));
             return true;
         };
         try {
@@ -65,77 +69,66 @@ public class TopicLifecycleListener implements LifecycleListener {
         } catch (IOException e) {
             // this should not occur
         }
-        log.info("Monitoring {}", realTopic);
     }
 
     public static boolean isReady() {
         return ready;
     }
 
-    private void setupConsumer(boolean restore) {
-        if (!PostOffice.getInstance().exists(ServiceDiscovery.SERVICE_REGISTRY)) {
+    private void setupConsumer(String type) {
+        ready = false;
+        log.info("Hazelcast {}", type.toUpperCase());
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        if (!po.exists(SERVICE_REGISTRY)) {
             try {
-                Platform.getInstance().waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 10);
+                platform.waitForProvider(SERVICE_REGISTRY, 10);
             } catch (TimeoutException e) {
                 log.error("Unable to setup event consumer - {}", e.getMessage());
             }
         }
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
-        if (restore) {
-            if (topic != null && registrationId != null) {
-                topic.removeMessageListener(registrationId);
-                log.info("Previous event consumer {} stopped", registrationId);
+        ClusterListener.setMembers(client.getCluster().getMembers());
+        if (topic != null && registrationId != null) {
+            topic.removeMessageListener(registrationId);
+            log.info("Event consumer {} for {} stopped", registrationId, realTopic);
+        }
+        if (!START.equals(type) && isServiceMonitor) {
+            try {
+                po.send(PRESENCE_HANDLER, new Kv(TYPE, RESET), new Kv(ORIGIN, platform.getOrigin()));
+            } catch (IOException e) {
+                log.error("Unable to reset application connections - {}", e.getMessage());
             }
-            if (isServiceMonitor) {
-                try {
-                    PostOffice.getInstance().send(PRESENCE_HANDLER, new Kv(TYPE, RESET),
-                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-                } catch (IOException e) {
-                    log.error("Unable to reset application connections - {}", e.getMessage());
-                }
-            }
-        } else {
-            ClusterListener.setMembers(client.getCluster().getMembers());
         }
         topic = client.getReliableTopic(realTopic);
         registrationId = topic.addMessageListener(new EventConsumer());
-        log.info("Event consumer {} started", registrationId);
+        log.info("Event consumer {} for {} started", registrationId, realTopic);
         ready = true;
+        // reset connection with presence monitor to force syncing routing table
         if (!isServiceMonitor) {
             PresenceConnector connector = PresenceConnector.getInstance();
             if (connector.isConnected() && connector.isReady()) {
-                if (restore) {
-                    log.info("Reset connection to presence monitor because hazelcast resets");
-                    connector.resetMonitor();
-                } else {
-                    // tell peers that I have joined
-                    try {
-                        PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
-                                new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-                    } catch (IOException e) {
-                        log.error("Unable to notify peers that I have joined - {}", e.getMessage());
-                    }
-                }
+                connector.resetMonitor();
             }
         }
     }
 
     @Override
     public void stateChanged(LifecycleEvent event) {
+        PostOffice po = PostOffice.getInstance();
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_DISCONNECTED) {
+            String origin = Platform.getInstance().getOrigin();
             ready = false;
-            log.error("Hazelcast offline");
+            log.error("Hazelcast is offline");
             if (isServiceMonitor) {
                 try {
-                    PostOffice.getInstance().send(PRESENCE_HANDLER, new Kv(TYPE, RESET),
-                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    po.send(PRESENCE_HANDLER, new Kv(TYPE, RESET), new Kv(ORIGIN, origin));
                 } catch (IOException e) {
                     log.error("Unable to reset application connections - {}", e.getMessage());
                 }
             } else {
                 try {
-                    PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
-                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    po.send(SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, origin));
                 } catch (IOException e) {
                     log.error("Unable to reset routing table - {}", e.getMessage());
                 }
@@ -144,7 +137,7 @@ public class TopicLifecycleListener implements LifecycleListener {
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_CONNECTED) {
             if (!ready) {
                 try {
-                    PostOffice.getInstance().send(SETUP_CONSUMER, new Kv(TYPE, RESTORE));
+                    po.send(SETUP_CONSUMER, new Kv(TYPE, RESTORE));
                 } catch (IOException e) {
                     log.error("Unable to setup event consumer - {}", e.getMessage());
                 }

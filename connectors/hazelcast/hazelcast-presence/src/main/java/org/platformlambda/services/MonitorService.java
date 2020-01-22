@@ -18,6 +18,7 @@
 
 package org.platformlambda.services;
 
+import com.hazelcast.client.HazelcastClientOfflineException;
 import org.platformlambda.MainApp;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.exception.AppException;
@@ -65,7 +66,9 @@ public class MonitorService implements LambdaFunction {
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
     private static final String PEERS = "peers";
+    private static final String RESET = "reset";
     private static final long EXPIRY = 60 * 1000;
+    private boolean online = true;
 
     // websocket route to user application origin-ID. Websocket routes for this presence monitor instance only
     private static final ConcurrentMap<String, String> route2token = new ConcurrentHashMap<>();
@@ -148,12 +151,34 @@ public class MonitorService implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+        try {
+            handleEvent(headers, body);
+            online = true;
+            return true;
+        } catch (Exception e) {
+            if (e instanceof HazelcastClientOfflineException) {
+                if (online) {
+                    online = false;
+                    try {
+                        PostOffice.getInstance().send(MainApp.PRESENCE_HANDLER,
+                                new Kv(TYPE, RESET), new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    } catch (IOException ok) {
+                        // ok to ignore
+                    }
+                }
+            } else {
+                log.error("{} - {}", e.getClass().getName(), e.getMessage());
+            }
+            return false;
+        }
+    }
 
+    @SuppressWarnings("unchecked")
+    public void handleEvent(Map<String, String> headers, Object body) throws IOException {
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String route, token, txPath;
-
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
@@ -262,8 +287,6 @@ public class MonitorService implements LambdaFunction {
                     break;
             }
         }
-        // nothing to return because this is asynchronous
-        return null;
     }
 
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {

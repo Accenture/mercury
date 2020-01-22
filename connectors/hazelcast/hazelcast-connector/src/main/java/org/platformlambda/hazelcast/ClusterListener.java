@@ -22,10 +22,14 @@ import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
+import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -33,7 +37,10 @@ import java.util.concurrent.ConcurrentMap;
 public class ClusterListener implements MembershipListener {
     private static final Logger log = LoggerFactory.getLogger(ClusterListener.class);
 
-    private static ConcurrentMap<String, String> nodes = new ConcurrentHashMap<>();
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String SETUP_CONSUMER = TopicLifecycleListener.SETUP_CONSUMER;
+    private static final String CLUSTER_CHANGED = TopicLifecycleListener.CLUSTER_CHANGED;
+    private static final ConcurrentMap<String, String> nodes = new ConcurrentHashMap<>();
 
     public static Map<String, String> getMembers() {
         return new HashMap<>(nodes);
@@ -51,12 +58,26 @@ public class ClusterListener implements MembershipListener {
         String now = Utility.getInstance().date2str(new Date());
         nodes.put(event.getMember().getUuid(), event.getMember().getAddress().toString()+", "+now);
         log.info("Added {}", event.getMember());
+        reloadClient();
     }
 
     @Override
     public void memberRemoved(MembershipEvent event) {
         nodes.remove(event.getMember().getUuid());
         log.info("Removed {}", event.getMember());
+        reloadClient();
+    }
+
+    private void reloadClient() {
+        /*
+         * When cluster membership changes, the hazelcast client event listener would become unreliable.
+         * The event listener must be restarted to improve event stream stability.
+         */
+        try {
+            PostOffice.getInstance().send(SETUP_CONSUMER, new Kv(TYPE, CLUSTER_CHANGED));
+        } catch (IOException e) {
+            log.error("Unable to reset event consumer - {}", e.getMessage());
+        }
     }
 
     @Override
