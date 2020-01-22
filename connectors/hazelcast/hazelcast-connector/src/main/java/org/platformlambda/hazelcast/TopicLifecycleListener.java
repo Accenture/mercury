@@ -18,10 +18,7 @@
 
 package org.platformlambda.hazelcast;
 
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ITopic;
-import com.hazelcast.core.LifecycleEvent;
-import com.hazelcast.core.LifecycleListener;
+import com.hazelcast.core.*;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -48,6 +45,8 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
     private static boolean ready = false;
+    private static ITopic<byte[]> topic;
+    private static String registrationId;
     private String realTopic;
     private boolean isServiceMonitor;
 
@@ -82,14 +81,25 @@ public class TopicLifecycleListener implements LifecycleListener {
             }
         }
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
-        ITopic<byte[]> topic = client.getReliableTopic(realTopic);
-        topic.addMessageListener(new EventConsumer());
         if (restore) {
-            log.info("Event consumer restored");
+            if (topic != null && registrationId != null) {
+                topic.removeMessageListener(registrationId);
+                log.info("Previous event consumer {} stopped", registrationId);
+            }
+            if (isServiceMonitor) {
+                try {
+                    PostOffice.getInstance().send(PRESENCE_HANDLER, new Kv(TYPE, RESET),
+                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                } catch (IOException e) {
+                    log.error("Unable to reset application connections - {}", e.getMessage());
+                }
+            }
         } else {
             ClusterListener.setMembers(client.getCluster().getMembers());
-            log.info("Event consumer started");
         }
+        topic = client.getReliableTopic(realTopic);
+        registrationId = topic.addMessageListener(new EventConsumer());
+        log.info("Event consumer {} started", registrationId);
         ready = true;
         if (!isServiceMonitor) {
             PresenceConnector connector = PresenceConnector.getInstance();

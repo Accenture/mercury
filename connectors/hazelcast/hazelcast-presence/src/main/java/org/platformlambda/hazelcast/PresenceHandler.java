@@ -92,7 +92,7 @@ public class PresenceHandler implements LambdaFunction {
                 if (headers.containsKey(TYPE)) {
                     if (RESET.equals(headers.get(TYPE))) {
                         // reset all connections because Hazelcast is offline
-                        log.warn("Reset application connection because Hazelcast is offline");
+                        log.info("Reset application connections because Hazelcast was interrupted");
                         MonitorService.closeAllConnections();
                     }
                     if (PUT.equals(headers.get(TYPE)) && body instanceof Map) {

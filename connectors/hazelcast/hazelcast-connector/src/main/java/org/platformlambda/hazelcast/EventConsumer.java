@@ -23,6 +23,7 @@ import com.hazelcast.core.MessageListener;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,30 +32,37 @@ import java.io.IOException;
 
 public class EventConsumer implements MessageListener<byte[]> {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
+    private static final ManagedCache cache = ManagedCache.createCache("hazelcast.event.id", 5000);
 
     @Override
     public void onMessage(Message<byte[]> event) {
         EventEnvelope message = new EventEnvelope();
         try {
             message.load(event.getMessageObject());
-            message.setEndOfRoute();
-            if (message.getTo() != null) {
-                String to = message.getTo();
-                /*
-                 * Since this is the final destination, we will drop all events with
-                 * direct addressing not targeting to this application instance.
-                 */
-                if (to.contains("@")) {
-                    if (to.endsWith(Platform.getInstance().getOrigin())) {
+            String msgId = message.getId();
+            if (cache.exists(msgId)) {
+                log.warn("Duplicated event {} {} dropped", msgId, message.getHeaders());
+            } else {
+                cache.put(msgId, true);
+                message.setEndOfRoute();
+                if (message.getTo() != null) {
+                    String to = message.getTo();
+                    /*
+                     * Since this is the final destination, we will drop all events with
+                     * direct addressing not targeting to this application instance.
+                     */
+                    if (to.contains("@")) {
+                        if (to.endsWith(Platform.getInstance().getOrigin())) {
+                            PostOffice.getInstance().send(message);
+                        }
+                    } else {
                         PostOffice.getInstance().send(message);
                     }
-                } else {
-                    PostOffice.getInstance().send(message);
-                }
 
-            } else {
-                // reconstruct large payload larger than 64MB
-                MultipartPayload.getInstance().incoming(message);
+                } else {
+                    // reconstruct large payload larger than 64MB
+                    MultipartPayload.getInstance().incoming(message);
+                }
             }
 
         } catch (IOException e) {
