@@ -32,5 +32,9 @@ pm2 start language-connector.json
 
 # application log
 
-You may tail the log with `pm2 log application_name`
+You may tail the log with 
+
+```
+pm2 log application_name
+```
 
