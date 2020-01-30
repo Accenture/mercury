@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"language-connector",
+        "cwd":"..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "language-packs/language-connector/target/language-connector-1.12.30.jar"
+        ],
+        "watch":[
+            "language-packs/language-connector/target/language-connector-1.12.30.jar"
+        ],
+        "node_args":[], 
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

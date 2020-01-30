@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"kafka-standalone",
+        "cwd":"..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.30.jar"
+        ],
+        "watch":[
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.30.jar"
+        ],
+        "node_args":[],
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

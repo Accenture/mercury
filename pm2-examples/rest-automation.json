@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"rest-automation",
+        "cwd":"..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "extensions/rest-automation/target/rest-automation-1.12.30.jar"
+        ],
+        "watch":[
+            "connectors/rest-automation/target/rest-automation-1.12.30.jar"
+        ],
+        "node_args":[], 
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

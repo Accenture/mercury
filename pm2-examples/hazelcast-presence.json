@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"presence-monitor",
+        "cwd":"..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "connectors/hazelcast/hazelcast-presence/target/hazelcast-presence-1.12.30.jar"
+        ],
+        "watch":[
+            "connectors/hazelcast/hazelcast-presence/target/hazelcast-presence-1.12.30.jar"
+        ],
+        "node_args":[],
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}
