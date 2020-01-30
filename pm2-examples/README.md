@@ -29,3 +29,8 @@ pm2 start rest-example.json
 pm2 start lambda-example.json
 pm2 start language-connector.json
 ```
+
+# application log
+
+You may tail the log with `pm2 log application_name`
+
