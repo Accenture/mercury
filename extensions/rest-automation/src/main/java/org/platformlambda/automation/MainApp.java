@@ -69,8 +69,10 @@ public class MainApp implements EntryPoint {
             ws.load(config.getMap());
             // start service response handler
             ConcurrentMap<String, AsyncContextHolder> contexts = ServiceGateway.getContexts();
-            platform.registerPrivate(ASYNC_HTTP_REQUEST, new HttpRelay(), 100);
-            platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(contexts), 100);
+            // "async.http.request" is deployed as PUBLIC to provide "HttpClient as a service"
+            platform.register(ASYNC_HTTP_REQUEST, new HttpRelay(), 200);
+            // "async.http.response" must be PRIVATE because the AsyncContext objects are kept in local memory
+            platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(contexts), 200);
             /*
              * When AsyncContext timeout, the HttpServletResponse object is already closed.
              * Therefore, we use a custom timeout handler so we can control the timeout experience.

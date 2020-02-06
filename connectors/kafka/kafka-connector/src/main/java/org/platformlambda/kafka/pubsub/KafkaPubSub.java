@@ -241,6 +241,9 @@ public class KafkaPubSub implements PubSubProvider {
             if (parameters.length == 3 && !Utility.getInstance().isDigits(parameters[2])) {
                 throw new IOException("topic offset must be numeric");
             }
+            if (PostOffice.getInstance().exists(topic)) {
+                throw new IOException(topic+" is already used");
+            }
             if (subscribers.containsKey(topic)) {
                 throw new IOException(topic+" is already subscribed by this application instance");
             }

@@ -101,17 +101,12 @@ public class EventConsumer extends Thread {
     @Override
     public void run() {
         PostOffice po = PostOffice.getInstance();
-        consumer.subscribe(Collections.singletonList(topic), new ConsumerLifeCycle(topic));
-        log.info("Subscribed topic {}", topic);
-
+        ConsumerLifeCycle lifeCycle = new ConsumerLifeCycle(topic, pubSub);
         if (pubSub && offset > -1) {
-            consumer.poll(Duration.ofSeconds(POLL_SECONDS));
-            Set<TopicPartition> p = consumer.assignment();
-            for (TopicPartition tp: p) {
-                consumer.seek(tp, offset);
-                log.info("Setting read pointer for topic {}, partition-{} to {}", topic, tp.partition(), offset);
-            }
+            lifeCycle.setOffset(consumer, offset);
         }
+        consumer.subscribe(Collections.singletonList(topic), lifeCycle);
+        log.info("Subscribed topic {}", topic);
         try {
             while (normal) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(POLL_SECONDS));
