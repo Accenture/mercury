@@ -21,11 +21,9 @@ package org.platformlambda.kafka.pubsub;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.PubSubProvider;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -74,7 +72,20 @@ public class KafkaPubSub implements PubSubProvider {
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
         properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
-        LambdaFunction f = (headers, body, instance) -> {
+        try {
+            Platform.getInstance().registerPrivate(PUBLISHER, new Publisher(), 1);
+        } catch (IOException e) {
+            log.error("Unable to start pub/sub producer - {}", e.getMessage());
+        }
+        // clean up subscribers when application stops
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    }
+
+    @ZeroTracing
+    private class Publisher implements LambdaFunction {
+
+        @Override
+        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
             String type = headers.get(TYPE);
             if (STOP.equals(type)) {
                 closeProducer();
@@ -116,14 +127,7 @@ public class KafkaPubSub implements PubSubProvider {
                 }
             }
             return null;
-        };
-        try {
-            Platform.getInstance().registerPrivate(PUBLISHER, f, 1);
-        } catch (IOException e) {
-            log.error("Unable to start pub/sub producer - {}", e.getMessage());
         }
-        // clean up subscribers when application stops
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     private void validateTopicName(String route) throws IOException {
@@ -220,6 +224,7 @@ public class KafkaPubSub implements PubSubProvider {
          * Kafka is designed for high-performance event streaming.
          * Therefore, checking the validity of a kafka topic is not an option because it would be too slow.
          */
+        PostOffice po = PostOffice.getInstance();
         EventEnvelope event = new EventEnvelope();
         event.setTo(topic);
         if (headers != null) {
@@ -228,9 +233,19 @@ public class KafkaPubSub implements PubSubProvider {
             }
         }
         event.setBody(body);
+        // propagate trace info
+        TraceInfo trace = po.getTrace();
+        if (trace != null) {
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
+            }
+            if (trace.id != null && trace.path != null) {
+                event.setTrace(trace.id, trace.path);
+            }
+        }
         byte[] payload = event.toBytes();
         // this will guarantee that events are published orderly, keeping event sequencing for each topic
-        PostOffice.getInstance().send(PUBLISHER, payload, new Kv(TYPE, PUB_SUB), new Kv(ID, event.getId()),
+        po.send(PUBLISHER, payload, new Kv(TYPE, PUB_SUB), new Kv(ID, event.getId()),
                                         new Kv(DEST, event.getTo()), new Kv(TOPIC, topic));
     }
 
