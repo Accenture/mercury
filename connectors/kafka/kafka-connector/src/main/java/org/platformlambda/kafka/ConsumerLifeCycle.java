@@ -89,6 +89,7 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
                     }
                 }
             } else {
+                ready = true;
                 // sending a loop-back message to tell the event consumer that the system is ready
                 if (!serviceMonitor && TopicManager.regularTopicFormat(topic)) {
                     try {
@@ -97,7 +98,6 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
                         log.error("Unable to send initialization request to {} - {}",
                                 PostOffice.CLOUD_CONNECTOR, e.getMessage());
                     }
-                    ready = true;
                 }
             }
         }
