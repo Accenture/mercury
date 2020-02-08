@@ -6,7 +6,7 @@ Starting from version 1.12.30, the rest-automation system, when deployed, will p
 
 This means you can make a HTTP request without using a HttpClient.
 
-For example, a simple HTTP GET request looks like this:
+For example, a simple HTTP GET request may look like this:
 
 ```java
 PostOffice po = PostOffice.getInstance();
