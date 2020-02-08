@@ -59,20 +59,17 @@ For larger payload, you may use streaming method. See sample code below:
 
 ```java
 int len;
-int total = 0;
 byte[] buffer = new byte[BUFFER_SIZE];
 BufferedInputStream in = new BufferedInputStream(someFileInputStream);
 ObjectStreamIO stream = new ObjectStreamIO(timeoutInSeconds);
 ObjectStreamWriter out = stream.getOutputStream();
 while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-    total += len;
     out.write(buffer, 0, len);
 }
 // closing the output stream would save an EOF mark in the stream
 out.close();
 // update the AsyncHttpRequest object
 req.setStreamRoute(stream.getRoute());
-req.setContentLength(total);
 ```
 
 ## Handle HTTP response body stream
