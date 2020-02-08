@@ -93,7 +93,7 @@ if (resHeaders.containsKey("stream")) {
     /*
      * For demonstration, we are using ByteArrayOutputStream.
      * For production code, you should stream the input to persistent storage
-     * or other streaming method.
+     * or handle the input stream directly.
      */
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ObjectStreamReader in = consumer.getInputStream(1000);
