@@ -38,10 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.MediaType;
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
@@ -251,24 +248,31 @@ public class HttpRelay implements LambdaFunction {
                 http.setHeaders(httpHeaders);
             }
             HttpResponse response = null;
+            int len;
+            byte[] buffer = new byte[BUFFER_SIZE];
             try {
                 response = http.execute();
                 EventEnvelope resEvent = new EventEnvelope();
                 resEvent.setStatus(response.getStatusCode());
                 setResponseHeaders(resEvent, response.getHeaders());
                 Long contentLen = response.getHeaders().getContentLength();
+                BufferedInputStream in = new BufferedInputStream(response.getContent());
                 if (contentLen == null) {
-                    BufferedInputStream in = new BufferedInputStream(response.getContent());
-                    int len;
-                    byte[] buffer = new byte[BUFFER_SIZE];
                     ObjectStreamIO stream = null;
                     ObjectStreamWriter out = null;
-                    while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-                        if (out == null) {
-                            stream = new ObjectStreamIO(request.getTimeoutSeconds());
-                            out = stream.getOutputStream();
+                    try {
+                        while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                            if (out == null) {
+                                stream = new ObjectStreamIO(request.getTimeoutSeconds());
+                                out = stream.getOutputStream();
+                            }
+                            out.write(buffer, 0, len);
                         }
-                        out.write(buffer, 0, len);
+                    } catch (IOException e) {
+                        /*
+                         * this is likely to be an end of stream exception from the HttpClient
+                         * and thus it is a normal use case
+                         */
                     }
                     if (out != null) {
                         out.close();
@@ -278,11 +282,23 @@ public class HttpRelay implements LambdaFunction {
                     }
                     return resEvent;
                 } else {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    try {
+                        while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                            out.write(buffer, 0, len);
+                        }
+                    } catch (IOException e) {
+                        /*
+                         * this is likely to be an end of stream exception from the HttpClient
+                         * and thus it is a normal use case
+                         */
+                    }
+                    byte[] b = out.toByteArray();
                     String resContentType = response.getHeaders().getFirstHeaderStringValue(CONTENT_TYPE);
                     if (resContentType != null) {
                         if (resContentType.startsWith(MediaType.APPLICATION_JSON)) {
-                            // request body is assumed to be JSON
-                            String text = util.getUTF(util.stream2bytes(response.getContent(), false)).trim();
+                            // response body is assumed to be JSON
+                            String text = util.getUTF(b).trim();
                             if (text.length() == 0) {
                                 return resEvent.setBody(new HashMap<>());
                             } else {
@@ -296,20 +312,27 @@ public class HttpRelay implements LambdaFunction {
                             }
 
                         } else if (resContentType.startsWith(MediaType.APPLICATION_XML)) {
-                            // request body is assumed to be XML
-                            String text = util.getUTF(util.stream2bytes(response.getContent(), false));
+                            // response body is assumed to be XML
+                            String text = util.getUTF(b).trim();
                             try {
                                 return resEvent.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
                             } catch (Exception e) {
                                 return resEvent.setBody(text);
                             }
-                        } else if (resContentType.startsWith(MediaType.TEXT_HTML) ||
-                                   resContentType.startsWith(MediaType.TEXT_PLAIN)) {
-                            String text = util.getUTF(util.stream2bytes(response.getContent(), false));
-                            return resEvent.setBody(text);
+                        } else if ( resContentType.startsWith(MediaType.TEXT_HTML) ||
+                                    resContentType.startsWith(MediaType.TEXT_PLAIN) ||
+                                    resContentType.startsWith("text/css") ||
+                                    resContentType.startsWith("application/javascript") ||
+                                    resContentType.startsWith("text/javascript") ) {
+                            /*
+                             * For API relay, the content-types are usually JSON or XML.
+                             * HTML, CSS and JS are here as a best effort to return text content.
+                             */
+                            return resEvent.setBody(util.getUTF(b).trim());
                         }
                     }
-                    return resEvent.setBody(util.stream2bytes(response.getContent(), false));
+                    // return unknown content as byte array
+                    return resEvent.setBody(b);
                 }
 
             } catch (HttpResponseException e) {
