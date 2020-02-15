@@ -34,17 +34,21 @@ public class ParseArguments implements EntryPoint {
     @Override
     public void start(String[] args) {
         if (args.length > 0) {
-            if (args.length != 2 || !HTML_ARG.equals(args[0])) {
-                log.error("Usage: java -jar rest-automation.jar -html file_path");
-                System.exit(-1);
+            for (int i=0; i < args.length; i++) {
+                if (args[i].equals(HTML_ARG)) {
+                    if (i+1 < args.length) {
+                        String filePath = args[i+1];
+                        if (filePath.startsWith(FILE_PATH)) {
+                            System.setProperty(HTML_FOLDER, filePath);
+                            log.info("Using HTML folder at {}", filePath);
+                        } else {
+                            log.error("Missing 'file:' prefix in file path - "+filePath);
+                        }
+                    } else {
+                        log.error("Missing html file path");
+                    }
+                }
             }
-            if (!args[1].startsWith(FILE_PATH)) {
-                log.error("Usage: java -jar rest-automation.jar -html file_path");
-                log.error("       file_path must start with {}", FILE_PATH);
-                System.exit(-1);
-            }
-            System.setProperty(HTML_FOLDER, args[1]);
-            log.info("Using HTML folder at {}", args[1]);
         }
     }
 }
