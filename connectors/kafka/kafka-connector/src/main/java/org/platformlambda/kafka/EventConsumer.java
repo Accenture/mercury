@@ -22,7 +22,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
@@ -37,7 +36,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.Set;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
@@ -126,16 +124,18 @@ public class EventConsumer extends Thread {
                     }
                 }
             }
-        } catch (IllegalStateException e) {
-            /*
-             * We will let the cloud restarts the application instance automatically.
-             * There is nothing we can do.
-             */
-            log.error("Unrecoverable event stream error for {} - {}", topic, e.getMessage());
-            consumer.close();
-            System.exit(-1);
-        } catch (WakeupException e) {
-            log.info("Stopping listener for {}", topic);
+        } catch (Exception e) {
+            if (e instanceof WakeupException) {
+                log.info("Stopping listener for {}", topic);
+            } else {
+                /*
+                 * We will let the cloud restarts the application instance automatically.
+                 * There is nothing we can do.
+                 */
+                log.error("Unrecoverable event stream error for {} - {} {}", topic, e.getClass(), e.getMessage());
+                consumer.close();
+                System.exit(-1);
+            }
         } finally {
             consumer.close();
             log.info("Unsubscribed topic {}", topic);
