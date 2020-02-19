@@ -133,7 +133,6 @@ public class EventConsumer extends Thread {
                  * There is nothing we can do.
                  */
                 log.error("Unrecoverable event stream error for {} - {} {}", topic, e.getClass(), e.getMessage());
-                consumer.close();
                 System.exit(-1);
             }
         } finally {
