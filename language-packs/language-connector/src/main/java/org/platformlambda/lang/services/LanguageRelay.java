@@ -22,8 +22,10 @@ import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.CryptoApi;
+import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
@@ -53,8 +55,11 @@ public class LanguageRelay implements LambdaFunction {
 
     private static final LanguageRelay instance = new LanguageRelay();
 
+    private static String version;
+
     private LanguageRelay() {
-        // singleton
+        Utility util = Utility.getInstance();
+        version = util.getPackageName()+" "+util.getVersionInfo().getVersion();
     }
 
     public static final LanguageRelay getInstance() {
@@ -70,13 +75,18 @@ public class LanguageRelay implements LambdaFunction {
                 // Avoid looping by disabling broadcast after delivery
                 List<String> targets = LanguageConnector.getDestinations(to);
                 if (!targets.isEmpty()) {
+                    PostOffice po = PostOffice.getInstance();
+                    po.annotateTrace("version", version);
                     if (event.getBroadcastLevel() > 0) {
+                        // annotate trace if any
+                        po.annotateTrace("target", targets.toString());
                         // broadcast to multiple clients that serve the route
                         for (String token: targets) {
                             send(token, event.setBroadcastLevel(0));
                         }
                     } else {
                         String token = getNextAvailable(targets);
+                        po.annotateTrace("target", token);
                         send(token, event.setBroadcastLevel(0));
                     }
 
