@@ -1,7 +1,6 @@
 # REST Automation
 
-This is a convenient helper application to automate REST endpoint creation and routing for microservices that use 
-the Mercury framework.
+This is the recommended way to automate REST endpoint creation and routing for microservices that use the Mercury framework.
 
 ## REST endpoint creation
 

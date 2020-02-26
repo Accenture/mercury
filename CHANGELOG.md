@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.31, 2/26/2020
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Kafka-connector now supports external service provider for Kafka properties and credentials. If your application implements a function with route name "kafka.properties.provider" before connecting to cloud, the kafka-connector will retrieve kafka credentials on demand. This addresses case when kafka credentials change after application start-up.
+2. Interceptors are designed to forward requests and thus they do not generate replies. However, if you implement a function as an EventInterceptor, your function can throw exception just like a regular function and the exception will be returned to the calling function. This makes it easier to write interceptors.
+
+---
 ## Version 1.12.30, 2/6/2020
 
 ### Added

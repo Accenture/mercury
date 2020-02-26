@@ -47,7 +47,7 @@ public class QueueFileWriter implements AutoCloseable {
                             throw new FileNotFoundException("Unable to create queue file "+f.getPath());
                         } else {
                             log.warn("Retry creating queue file {}", f.getPath());
-                            yield();
+                            releaseControl();
                             continue;
                         }
                     }
@@ -65,13 +65,13 @@ public class QueueFileWriter implements AutoCloseable {
                 } else {
                     // Occasionally OS may not be able to update metadata immediately
                     log.warn("Retry opening queue file {}, due to {}", f.getPath(), e.getMessage());
-                    yield();
+                    releaseControl();
                 }
             }
         }
     }
 
-    private void yield() {
+    private void releaseControl() {
         // give the local file system a brief moment to update metadata
         try {
             Thread.sleep(50);

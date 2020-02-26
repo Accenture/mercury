@@ -62,16 +62,9 @@ public class KafkaPubSub implements PubSubProvider {
     private static long seq = 0, totalEvents = 0;
 
     private Properties properties = new Properties();
-    private Properties baseProp;
     private KafkaProducer<String, byte[]> producer;
 
-    public KafkaPubSub(Properties baseProp) {
-        this.baseProp = baseProp;
-        properties.putAll(baseProp);
-        properties.put(ProducerConfig.ACKS_CONFIG, "1"); // Setting to "1" ensures that the message is received by the leader
-        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
-        properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
+    public KafkaPubSub() {
         try {
             Platform.getInstance().registerPrivate(PUBLISHER, new Publisher(), 1);
         } catch (IOException e) {
@@ -79,6 +72,16 @@ public class KafkaPubSub implements PubSubProvider {
         }
         // clean up subscribers when application stops
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    }
+
+    private Properties getProperties() {
+        Properties properties = new Properties();
+        properties.putAll(KafkaSetup.getKafkaProperties());
+        properties.put(ProducerConfig.ACKS_CONFIG, "1"); // Setting to "1" ensures that the message is received by the leader
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
+        properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
+        return properties;
     }
 
     @ZeroTracing
@@ -189,6 +192,7 @@ public class KafkaPubSub implements PubSubProvider {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
             String id = Platform.getInstance().getOrigin()+"ps"+(++seq);
+            Properties properties = getProperties();
             properties.put(ProducerConfig.CLIENT_ID_CONFIG, id.substring(8));
             producer = new KafkaProducer<>(properties);
             log.info("Pub/Sub Producer {} ready", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG));
@@ -262,7 +266,7 @@ public class KafkaPubSub implements PubSubProvider {
             if (subscribers.containsKey(topic)) {
                 throw new IOException(topic+" is already subscribed by this application instance");
             }
-            EventConsumer consumer = new EventConsumer(baseProp, topic, true, parameters);
+            EventConsumer consumer = new EventConsumer(getProperties(), topic, true, parameters);
             consumer.start();
             Platform.getInstance().register(topic, listener, 1);
             subscribers.put(topic, consumer);

@@ -1,12 +1,12 @@
 # This folder contains optional extensions
 
-## REST automation helper application
+## REST automation
 
-This is a convenient helper application to let you create REST endpoints without writing code.
+This is a recommended way to create and manage your REST endpoints without writing code.
 
 It is as simple as a redirection from a URL to a service route of a function. Supports CORS, header transformation and user-defined authentication.
 
-The REST automation helper application is language neutual so you can write your business logic in Java, Python or any Mercury supported language pack without any application server.
+The REST automation application is language neutual so you can write your business logic in Java, Python or any Mercury supported language pack without any application server.
 
 ## WebSocket notificaton use case and sample application
 

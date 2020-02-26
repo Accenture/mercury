@@ -46,16 +46,8 @@ public class TopicManager implements LambdaFunction {
     private static long lastActive = System.currentTimeMillis();
     private static Integer replicationFactor;
 
-    private Properties properties;
     private AdminClient admin;
     private int count = 0;
-
-    public TopicManager(Properties properties) {
-        Properties prop = new Properties();
-        prop.putAll(properties);
-        prop.put(AdminClientConfig.CLIENT_ID_CONFIG, "admin-"+ Platform.getInstance().getOrigin());
-        this.properties = prop;
-    }
 
     public static long getLastStarted() {
         return lastStarted == 0? System.currentTimeMillis() : lastStarted;
@@ -67,6 +59,9 @@ public class TopicManager implements LambdaFunction {
 
     private void startAdmin() {
         if (admin == null) {
+            Properties properties = new Properties();
+            properties.putAll(KafkaSetup.getKafkaProperties());
+            properties.put(AdminClientConfig.CLIENT_ID_CONFIG, "admin-"+ Platform.getInstance().getOrigin());
             admin = AdminClient.create(properties);
             lastStarted = System.currentTimeMillis();
             log.info("AdminClient ready");

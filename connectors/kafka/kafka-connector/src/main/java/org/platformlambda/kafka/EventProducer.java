@@ -66,20 +66,13 @@ public class EventProducer implements LambdaFunction {
     private static long lastStarted = 0;
     private static long lastActive = System.currentTimeMillis();
     private static KafkaProducer<String, byte[]> producer;
+    private static String currentClientId = null;
     private static boolean isServiceMonitor, ready = false, abort = false;
     private static long seq = 0, totalEvents = 0;
-    private static Properties properties;
 
-    public EventProducer(Properties base) {
+    public EventProducer() {
         final ProducerWatcher monitor = new ProducerWatcher();
         monitor.start();
-        Properties prop = new Properties();
-        prop.putAll(base);
-        prop.put(ProducerConfig.ACKS_CONFIG, "1"); // Setting to "1" ensures that the message is received by the leader
-        prop.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
-        prop.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
-        prop.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
-        EventProducer.properties = prop;
         AppConfigReader reader = AppConfigReader.getInstance();
         isServiceMonitor = TRUE.equals(reader.getProperty(SERVICE_MONITOR, FALSE));
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
@@ -96,14 +89,26 @@ public class EventProducer implements LambdaFunction {
         return lastActive;
     }
 
+    private Properties getProperties() {
+        Properties properties = new Properties();
+        properties.putAll(KafkaSetup.getKafkaProperties());
+        properties.put(ProducerConfig.ACKS_CONFIG, "1"); // Setting to "1" ensures that the message is received by the leader
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
+        properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 15000);
+        return properties;
+    }
+
     private void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
             String id = Platform.getInstance().getOrigin()+"p"+(++seq);
+            Properties properties = getProperties();
             properties.put(ProducerConfig.CLIENT_ID_CONFIG, id.substring(8));
             producer = new KafkaProducer<>(properties);
             lastStarted = System.currentTimeMillis();
-            log.info("Producer {} ready", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG));
+            currentClientId = properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG);
+            log.info("Producer {} ready", currentClientId);
         }
     }
 
@@ -111,7 +116,7 @@ public class EventProducer implements LambdaFunction {
         if (producer != null) {
             try {
                 producer.close();
-                log.info("Producer {} released, delivered: {}", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG), totalEvents);
+                log.info("Producer {} released, delivered: {}", currentClientId, totalEvents);
             } catch (Exception e) {
                 // ok to ignore
             }

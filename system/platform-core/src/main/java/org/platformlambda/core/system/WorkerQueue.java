@@ -226,7 +226,7 @@ public class WorkerQueue extends AbstractActor {
                 status = 500;
             }
             String replyTo = event.getReplyTo();
-            if (!interceptor && replyTo != null) {
+            if (replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
                 response.setFrom(def.getRoute());
