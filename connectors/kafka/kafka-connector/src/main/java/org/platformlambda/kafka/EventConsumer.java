@@ -22,6 +22,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.Set;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
@@ -43,7 +45,7 @@ public class EventConsumer extends Thread {
     private static final long POLL_SECONDS = 60;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
-    private boolean normal = true, pubSub = false;
+    private boolean normal = true, pubSub = false, resetOffset = true;
     private long offset = -1;
 
     public EventConsumer(Properties base, String topic) {
@@ -100,13 +102,21 @@ public class EventConsumer extends Thread {
     public void run() {
         PostOffice po = PostOffice.getInstance();
         ConsumerLifeCycle lifeCycle = new ConsumerLifeCycle(topic, pubSub);
-        if (pubSub && offset > -1) {
-            lifeCycle.setOffset(consumer, offset);
-        }
         consumer.subscribe(Collections.singletonList(topic), lifeCycle);
         log.info("Subscribed topic {}", topic);
         try {
             while (normal) {
+                if (pubSub && offset > -1 && resetOffset) {
+                    // reset only once
+                    resetOffset = false;
+                    // do a quick poll to tell Kafka that the consumer is ready
+                    consumer.poll(Duration.ofSeconds(1));
+                    Set<TopicPartition> p = consumer.assignment();
+                    for (TopicPartition tp : p) {
+                        consumer.seek(tp, offset);
+                        log.info("Reset offset for topic {}, partition-{} to {}", topic, tp.partition(), offset);
+                    }
+                }
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(POLL_SECONDS));
                 for (ConsumerRecord<String, byte[]> record : records) {
                     EventEnvelope message = new EventEnvelope();
