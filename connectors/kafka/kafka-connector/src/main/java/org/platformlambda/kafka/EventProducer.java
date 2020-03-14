@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -150,7 +149,6 @@ public class EventProducer implements LambdaFunction {
             log.error("abort because {} is not available", SERVICE_REGISTRY);
             return false;
         }
-        PostOffice po = PostOffice.getInstance();
         String type = headers.get(TYPE);
         if (type != null) {
             if (INIT.equals(type) && !isServiceMonitor) {
@@ -168,7 +166,6 @@ public class EventProducer implements LambdaFunction {
             return true;
         }
         if (headers.containsKey(TO) && body instanceof byte[]) {
-            List<String> undelivered = new ArrayList<>();
             List<String> destinations = getDestinations(headers.get(TO), headers.containsKey(BROADCAST));
             if (destinations != null) {
                 String uuid = Utility.getInstance().getUuid();
@@ -186,40 +183,22 @@ public class EventProducer implements LambdaFunction {
                         producer.send(new ProducerRecord<>(dest, uuid, payload)).get(20, TimeUnit.SECONDS);
                         long diff = System.currentTimeMillis() - t1;
                         if (diff > 5000) {
-                            log.warn("Kafka is slow in sending event - took {} ms", diff);
+                            log.error("Kafka is slow - took {} ms to send to {}", diff, dest);
                         }
                         totalEvents++;
                         lastActive = System.currentTimeMillis();
-                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                        log.error("Unable to send message to {} - {}", dest, e.getMessage());
-                        undelivered.add(dest);
-                        closeProducer();
+                    } catch (Exception e) {
+                        /*
+                         * this is unrecoverable so the app must shutdown
+                         * such that it will be restarted by the infrastructure
+                         */
+                        log.error("Unable to send message to {} - {}", destinations, e.getMessage());
+                        System.exit(21);
                     }
-                }
-            }
-            if (!undelivered.isEmpty()) {
-                // decode the message to see if there is a reply address
-                String targets = trimBrackets(undelivered);
-                EventEnvelope event = new EventEnvelope();
-                event.load((byte[]) body);
-                if (event.getReplyTo() != null) {
-                    EventEnvelope error = new EventEnvelope();
-                    error.setTo(event.getReplyTo()).setStatus(404).setBody("Route " + targets + " not found");
-                    po.send(error);
-                } else {
-                    log.warn("Event dropped because route {} not found", targets);
                 }
             }
         }
         return true;
-    }
-
-    private String trimBrackets(List<String> routes) {
-        if (routes.size() ==1) {
-            return routes.get(0);
-        } else {
-            return routes.toString().replace("[", "").replace("]", "");
-        }
     }
 
     private List<String> getDestinations(String to, boolean broadcast) {
@@ -285,14 +264,16 @@ public class EventProducer implements LambdaFunction {
             String origin = Platform.getInstance().getOrigin();
             String uuid = Utility.getInstance().getUuid();
             EventEnvelope direct = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY).setHeader(TYPE, INIT);
-            producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
+            producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(20, TimeUnit.SECONDS);
             totalEvents++;
             lastActive = System.currentTimeMillis();
             log.info("Tell event consumer to start with {}", origin);
-
-        } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
-            log.warn("Unable to initialize consumer - {}", e.getMessage());
-            closeProducer();
+        } catch (Exception e) {
+            /*
+             * Unrecoverable error. Shutdown and let infrastructure to restart this app instance.
+             */
+            log.error("Unable to initialize consumer - {}", e.getMessage());
+            System.exit(20);
         }
     }
 
@@ -301,13 +282,15 @@ public class EventProducer implements LambdaFunction {
         try {
             String uuid = Utility.getInstance().getUuid();
             EventEnvelope direct = new EventEnvelope().setTo(replyTo).setHeader(TYPE, PONG).setBody(true);
-            producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
+            producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(20, TimeUnit.SECONDS);
             totalEvents++;
             lastActive = System.currentTimeMillis();
-
-        } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
-            log.warn("Unable to send direct message to {} - {}", origin, e.getMessage());
-            closeProducer();
+        } catch (Exception e) {
+            /*
+             * Unrecoverable error. Shutdown and let infrastructure to restart this app instance.
+             */
+            log.error("Unable to send direct message to {} - {}", origin, e.getMessage());
+            System.exit(22);
         }
     }
 
@@ -321,18 +304,23 @@ public class EventProducer implements LambdaFunction {
                     String uuid = Utility.getInstance().getUuid();
                     EventEnvelope direct = new EventEnvelope().setTo(PostOffice.CLOUD_CONNECTOR)
                             .setHeader(TYPE, LOOP_BACK).setHeader(ORIGIN, origin).setHeader(REPLY_TO, replyTo);
-                    producer.send(new ProducerRecord<>(target, uuid, direct.toBytes())).get(10000, TimeUnit.MILLISECONDS);
+                    producer.send(new ProducerRecord<>(target, uuid, direct.toBytes())).get(20, TimeUnit.SECONDS);
                     totalEvents++;
                     lastActive = System.currentTimeMillis();
-                    return;
-
-                } catch (IOException | InterruptedException | ExecutionException | TimeoutException e) {
-                    log.warn("Unable to send direct message to {} - {}", target, e.getMessage());
-                    closeProducer();
+                } catch (Exception e) {
+                    /*
+                     * Unrecoverable error. Shutdown and let infrastructure to restart this app instance.
+                     */
+                    log.error("Unable to send direct message to {} - {}", target, e.getMessage());
+                    System.exit(23);
                 }
+            } else {
+                log.error("Target topic {} not found", target);
             }
+        } else {
+            log.error("Unable to ping {}, Expected response from {} is Boolean, Actual: {}, ", target, MANAGER,
+                        response.getBody() == null? "null" : response.getBody().getClass());
         }
-        log.error("Target topic {} not found", target);
     }
 
 }

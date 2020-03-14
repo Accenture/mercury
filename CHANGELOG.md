@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+---
+## Version 1.12.32, 3/14/2020
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Kafka-connector will shutdown application instance when the EventProducer cannot send event to Kafka. This would allow the infrastructure to restart application instance automatically.
+
 ---
 ## Version 1.12.31, 2/26/2020
 
