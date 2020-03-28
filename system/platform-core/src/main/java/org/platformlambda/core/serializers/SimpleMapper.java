@@ -220,7 +220,9 @@ public class SimpleMapper {
 
         @Override
         public JsonElement serialize(BigDecimal number, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(number.toString());
+            // we want to avoid scientific notation when sending result to the browser
+            String result = number.toPlainString();
+            return new JsonPrimitive(isZero(result)? "0" : result);
         }
     }
 
@@ -328,6 +330,38 @@ public class SimpleMapper {
                 return (int) n;
             }
         }
+    }
+
+    public boolean isZero(BigDecimal number) {
+        return isZero(number.toPlainString());
+    }
+
+    /**
+     * Check if the BigDecimal is zero
+     *
+     * @param number in BigDecimal
+     * @return true if zero
+     */
+    public boolean isZero(String number) {
+        if (number != null && !number.isEmpty()) {
+            if (number.startsWith("0E")) {
+                /*
+                 * scientific notation of zero
+                 * just in case this method is called if the BigDecimal uses the "toString" method
+                 */
+                return true;
+            } else {
+                /*
+                 * string representation of zero
+                 */
+                for (int i = 0; i < number.length(); i++) {
+                    if (number.charAt(i) == '0' || number.charAt(i) == '+' ||
+                            number.charAt(i) == '-' || number.charAt(i) == '.') continue;
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
 }

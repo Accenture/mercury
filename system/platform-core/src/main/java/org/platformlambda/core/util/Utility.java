@@ -103,81 +103,80 @@ public class Utility {
     }
 
     @SuppressWarnings("unchecked")
-    private void scanLibInfo() {
-        // Get basic application info when the system starts
-        List<String> list = new ArrayList<>();
-        PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
-        // Search Spring Boot packager lib path for dependencies
-        Resource[] res1 = new Resource[0];
-        try {
-            res1 = resolver1.getResources(SPRING_BOOT_LIB_PATH);
-        } catch (IOException e) {
+    private synchronized void scanLibInfo() {
+        if (!loaded) {
+            // Get basic application only once
+            loaded = true;
+            List<String> list = new ArrayList<>();
+            PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
+            // Search Spring Boot packager lib path for dependencies
+            Resource[] res1 = new Resource[0];
             try {
-                res1 = resolver1.getResources(LIB_PATH);
-            } catch (IOException e1) {
-                // nothing we can do
-            }
-        }
-        for (Resource r: res1) {
-            String filename = r.getFilename();
-            if (filename != null) {
-                list.add(filename.endsWith(JAR)? filename.substring(0, filename.length()-JAR.length()) : filename);
-            }
-        }
-        /*
-         * Sort the library names in ascending order.
-         * Library listing is usually used by the application's Info admin endpoint.
-         */
-        if (list.size() > 1) {
-            Collections.sort(list);
-        }
-        if (!list.isEmpty()) {
-            int size = list.size();
-            int n = 0;
-            for (String f : list) {
-                libs.add(zeroFill(++n, size) + ". " + f);
-            }
-            libs.add(TOTAL + ": " + list.size());
-        }
-        // Get default version info from application.properties
-        AppConfigReader reader = AppConfigReader.getInstance();
-        String name = filteredServiceName(reader.getProperty(SPRING_APPNAME, reader.getProperty(APPNAME, DEFAULT_APPNAME)));
-        versionInfo.setGroupId("unknown");
-        versionInfo.setArtifactId(name);
-        versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
-        // if not running in IDE, get version information from JAR
-        if (!libs.isEmpty()) {
-            // resolve it from /META-INF/maven/*/*/pom.properties
-            PathMatchingResourcePatternResolver resolver2 = new PathMatchingResourcePatternResolver();
-            try {
-                Resource[] res2 = resolver2.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
-                if (res2.length == 1) {
-                    Properties p = new Properties();
-                    p.load(new ByteArrayInputStream(stream2bytes(res2[0].getInputStream())));
-                    if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                        versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
-                                   .setGroupId(p.getProperty(GROUP_ID))
-                                   .setVersion(p.getProperty(VERSION));
-                    }
-                }
-
+                res1 = resolver1.getResources(SPRING_BOOT_LIB_PATH);
             } catch (IOException e) {
-                // nothing we can do
+                try {
+                    res1 = resolver1.getResources(LIB_PATH);
+                } catch (IOException e1) {
+                    // nothing we can do
+                }
+            }
+            for (Resource r : res1) {
+                String filename = r.getFilename();
+                if (filename != null) {
+                    list.add(filename.endsWith(JAR) ? filename.substring(0, filename.length() - JAR.length()) : filename);
+                }
+            }
+            /*
+             * Sort the library names in ascending order.
+             * Library listing is usually used by the application's Info admin endpoint.
+             */
+            if (list.size() > 1) {
+                Collections.sort(list);
+            }
+            if (!list.isEmpty()) {
+                int size = list.size();
+                int n = 0;
+                for (String f : list) {
+                    libs.add(zeroFill(++n, size) + ". " + f);
+                }
+                libs.add(TOTAL + ": " + list.size());
+            }
+            // Get default version info from application.properties
+            AppConfigReader reader = AppConfigReader.getInstance();
+            String name = filteredServiceName(reader.getProperty(SPRING_APPNAME, reader.getProperty(APPNAME, DEFAULT_APPNAME)));
+            versionInfo.setGroupId("unknown");
+            versionInfo.setArtifactId(name);
+            versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
+            // if not running in IDE, get version information from JAR
+            if (!libs.isEmpty()) {
+                // resolve it from /META-INF/maven/*/*/pom.properties
+                PathMatchingResourcePatternResolver resolver2 = new PathMatchingResourcePatternResolver();
+                try {
+                    Resource[] res2 = resolver2.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
+                    if (res2.length == 1) {
+                        Properties p = new Properties();
+                        p.load(new ByteArrayInputStream(stream2bytes(res2[0].getInputStream())));
+                        if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
+                            versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
+                                    .setGroupId(p.getProperty(GROUP_ID))
+                                    .setVersion(p.getProperty(VERSION));
+                        }
+                    }
+
+                } catch (IOException e) {
+                    // nothing we can do
+                }
             }
         }
     }
 
     public VersionInfo getVersionInfo() {
-        if (!loaded) {
-            scanLibInfo();
-        }
+        scanLibInfo();
         return versionInfo;
     }
 
     public List<String> getLibraryList() {
-        if (!loaded) {
-            scanLibInfo();
-        }
+        scanLibInfo();
         return libs;
     }
 
