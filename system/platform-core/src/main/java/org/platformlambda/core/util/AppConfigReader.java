@@ -23,99 +23,97 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 public class AppConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
+    private static final String APP_PROPS = "classpath:/application.properties";
+    private static final String APP_YML = "classpath:/application.yml";
+    private static ConfigReader propReader = new ConfigReader();
+    private static MultiLevelMap multiMap = new MultiLevelMap(new HashMap<>());
     private static final AppConfigReader instance = new AppConfigReader();
-
-    private static ConfigReader reader;
 
     public static AppConfigReader getInstance() {
         return instance;
     }
-
-    private static final String APP_PROPS = "classpath:/application.properties";
-    private static final String APP_YML = "classpath:/application.yml";
 
     private AppConfigReader() {
         reload();
     }
 
     public void reload() {
-        reader = new ConfigReader();
         /*
-         * To avoid loop, skip parameter value substitution because AppConfigReader is the base configuration.
-         *
-         * Other ConfigReader may use the dollar bracket convention to substitution parameter values
-         * from the base AppConfigReader.
+         * Load application.properties
+         * property substitution not required because this is the top level config file
          */
-        reader.doSubstitution = false;
         try {
-            // load application.properties
-            reader.load(APP_PROPS);
-            if (!reader.isEmpty()) {
-                log.debug("Loaded {} item{} from {}", reader.size(),
-                        reader.size() == 1? "" : "s", APP_PROPS);
-                return;
-            }
+            propReader = new ConfigReader();
+            propReader.doSubstitution = false;
+            propReader.load(APP_PROPS);
         } catch (IOException e) {
-            log.error("Unable to load {}, {}", APP_PROPS, e.getMessage());
+            // ok to ignore
         }
+        /*
+         * Load application.yml
+         * property substitution not required because this is the top level config file
+         */
         try {
-            // try YAML if application.properties is not found
-            reader.load(APP_YML);
-            if (!reader.isEmpty()) {
-                /*
-                 * flatten the map so it can be read in dot and bracket format directly
-                 * e.g. "application.name"
-                 */
-                reader.flattenMap();
-                log.debug("Loaded {} item{} from {}", reader.size(), reader.size() == 1? "" : "s", APP_YML);
-            }
+            ConfigReader yamlReader = new ConfigReader();
+            yamlReader.doSubstitution = false;
+            yamlReader.load(APP_YML);
+            multiMap = new MultiLevelMap(yamlReader.getMap());
         } catch (IOException e) {
-            log.error("Unable to load {}, {}", APP_YML, e.getMessage());
+            // ok to ignore
+        }
+        if (propReader.isEmpty() && multiMap.isEmpty()) {
+            log.error("Application config not loaded. Please check {} or {}", APP_PROPS, APP_YML);
         }
     }
 
     @Override
     public Object get(String key) {
-        return reader.get(key);
+        if (propReader.exists(key)) {
+            return propReader.get(key);
+        } else {
+            return multiMap.getElement(key);
+        }
     }
 
     @Override
     public Object get(String key, Object defaultValue) {
-        return reader.get(key, defaultValue);
+        Object value = get(key);
+        return value == null? defaultValue : value;
     }
 
     @Override
     public String getProperty(String key) {
-        return reader.getProperty(key);
+        Object value = get(key);
+        return value instanceof String? (String) value : (value == null? null : value.toString());
     }
 
     @Override
     public String getProperty(String key, String defaultValue) {
-        return reader.getProperty(key, defaultValue);
+        String value = getProperty(key);
+        return value == null? defaultValue : value;
     }
 
-    @Override
-    public Map<String, Object> getMap() {
-        return reader.getMap();
+    public Map<String, Object> getPropertyMap() {
+        return propReader.getMap();
+    }
+
+    public Map<String, Object> getYamlMap() {
+        return multiMap.getMap();
     }
 
     @Override
     public boolean exists(String key) {
-        return reader.exists(key);
+        return propReader.exists(key) || multiMap.exists(key);
     }
 
     @Override
     public boolean isEmpty() {
-        return reader.isEmpty();
-    }
-
-    @Override
-    public int size() {
-        return reader.size();
+        return propReader.isEmpty() && multiMap.isEmpty();
     }
 
 }

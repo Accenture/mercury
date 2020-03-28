@@ -39,6 +39,15 @@ public class MultiLevelMap {
         return multiLevels;
     }
 
+    public boolean isEmpty() {
+        return multiLevels.isEmpty();
+    }
+
+    public boolean exists(String compositePath) {
+        Object element = getElement(compositePath);
+        return element != null;
+    }
+
     /**
      * Retrieve an element from a map using a composite path
      * e.g. "some.key", "some.array[3]"
@@ -56,7 +65,10 @@ public class MultiLevelMap {
     }
 
     private Object getElement(String compositePath, Map<String, Object> map) {
-        if (compositePath == null || map == null) return null;
+        if (compositePath == null || map == null || map.isEmpty()) return null;
+        if (map.containsKey(compositePath)) {
+            return map.get(compositePath);
+        }
         if (!compositePath.contains(".") && !compositePath.contains("/") && !compositePath.contains("[")) {
             return map.get(compositePath);
         }

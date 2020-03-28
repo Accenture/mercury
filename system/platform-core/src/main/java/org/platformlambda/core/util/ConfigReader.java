@@ -84,7 +84,6 @@ public class ConfigReader implements ConfigBase {
         return s != null? s : defaultValue;
     }
 
-    @Override
     public Map<String, Object> getMap() {
         return config;
     }
@@ -102,7 +101,6 @@ public class ConfigReader implements ConfigBase {
         return config.isEmpty();
     }
 
-    @Override
     public int size() {
         return config.size();
     }

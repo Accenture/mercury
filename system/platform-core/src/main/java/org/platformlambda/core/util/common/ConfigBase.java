@@ -18,23 +18,18 @@
 
 package org.platformlambda.core.util.common;
 
-import java.util.Map;
-
 public interface ConfigBase {
 
-    public Object get(String key);
+    Object get(String key);
 
-    public Object get(String key, Object defaultValue);
+    Object get(String key, Object defaultValue);
 
-    public String getProperty(String key);
+    String getProperty(String key);
 
-    public String getProperty(String key, String defaultValue);
+    String getProperty(String key, String defaultValue);
 
-    public Map<String, Object> getMap();
+    boolean exists(String key);
 
-    public boolean exists(String key);
+    boolean isEmpty();
 
-    public boolean isEmpty();
-
-    public int size();
 }

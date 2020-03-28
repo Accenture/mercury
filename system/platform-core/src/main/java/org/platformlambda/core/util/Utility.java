@@ -91,10 +91,19 @@ public class Utility {
 
     private static final VersionInfo versionInfo = new VersionInfo();
     private static final List<String> libs = new ArrayList<>();
+    private static boolean loaded = false;
     private static final Utility instance = new Utility();
 
-    @SuppressWarnings("unchecked")
     private Utility() {
+        // singleton
+    }
+
+    public static Utility getInstance() {
+        return instance;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void scanLibInfo() {
         // Get basic application info when the system starts
         List<String> list = new ArrayList<>();
         PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
@@ -158,20 +167,22 @@ public class Utility {
         }
     }
 
-    public static Utility getInstance() {
-        return instance;
-    }
-
     public VersionInfo getVersionInfo() {
+        if (!loaded) {
+            scanLibInfo();
+        }
         return versionInfo;
     }
 
     public List<String> getLibraryList() {
+        if (!loaded) {
+            scanLibInfo();
+        }
         return libs;
     }
 
     public String getPackageName() {
-        return versionInfo.getArtifactId();
+        return getVersionInfo().getArtifactId();
     }
 
     public String zeroFill(int seq, int max) {
