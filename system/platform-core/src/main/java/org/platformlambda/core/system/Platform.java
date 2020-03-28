@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -202,7 +203,7 @@ public class Platform {
             }
             if (name.equals(serviceName)) {
                 try {
-                    Object o = cls.newInstance();
+                    Object o = cls.getDeclaredConstructor().newInstance();
                     if (o instanceof CloudSetup) {
                         CloudSetup cloud = (CloudSetup) o;
                         new Thread(()-> {
@@ -222,7 +223,7 @@ public class Platform {
                                 cls.getName(), CloudSetup.class.getName());
                     }
 
-                } catch (InstantiationException  | IllegalAccessException e) {
+                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                     log.error("Unable to start cloud {} ({}) - {}",
                             isConnector? "connector" : "service", cls.getName(), e.getMessage());
                 }

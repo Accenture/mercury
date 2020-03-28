@@ -34,6 +34,7 @@ import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -71,7 +72,7 @@ public class WsServer {
                     }
                     String wsEndpoint = "/ws/"+annotation.value()+"/{handle}";
                     try {
-                        Object o = cls.newInstance();
+                        Object o = cls.getDeclaredConstructor().newInstance();
                         if (o instanceof LambdaFunction) {
                             lambdas.put(annotation.value(), (Class<LambdaFunction>) cls);
                             log.info("{} loaded as WEBSOCKET SERVER endpoint {}", cls.getName(), wsEndpoint);
@@ -80,7 +81,7 @@ public class WsServer {
                                     cls.getName(), wsEndpoint, LambdaFunction.class.getName());
                         }
 
-                    } catch (InstantiationException  | IllegalAccessException e) {
+                    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                         log.error("Unable to load {} ({}) - {}", cls.getName(), wsEndpoint, e.getMessage());
                     }
                 }
@@ -104,7 +105,7 @@ public class WsServer {
 
         Class<LambdaFunction> cls = lambdas.get(name);
         try {
-            registry.createHandler(cls.newInstance(), session);
+            registry.createHandler(cls.getDeclaredConstructor().newInstance(), session);
             String route = registry.getRoute(session.getId());
             WsEnvelope envelope = registry.get(route);
             // send open event to the newly created websocket transmitter and wait for completion
@@ -118,7 +119,7 @@ public class WsServer {
                     new Kv(WsEnvelope.TOKEN, envelope.origin));
             log.info("Session-{} {} {} connected to {} {}", session.getId(), route,
                     cls.getSimpleName(), envelope.ip, envelope.path);
-        } catch (InstantiationException | IllegalAccessException | AppException | IOException | TimeoutException e) {
+        } catch (InstantiationException | IllegalAccessException | AppException | IOException | TimeoutException | NoSuchMethodException | InvocationTargetException e) {
             log.error("Unable to start {} ({}), {}", cls.getName(), name, e.getMessage());
             session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Path /"+name+"/"+handle+" not available"));
         }

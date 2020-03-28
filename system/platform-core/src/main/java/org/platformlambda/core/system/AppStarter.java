@@ -28,6 +28,7 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class AppStarter {
@@ -72,7 +73,7 @@ public class AppStarter {
                 for (String seq : list) {
                     Class<?> cls = steps.get(seq);
                     try {
-                        Object o = cls.newInstance();
+                        Object o = cls.getDeclaredConstructor().newInstance();
                         if (o instanceof EntryPoint) {
                             /*
                              * execute preparation logic as a blocking operation
@@ -90,7 +91,7 @@ public class AppStarter {
                                     cls.getName(), EntryPoint.class.getName());
                         }
 
-                    } catch (InstantiationException | IllegalAccessException e) {
+                    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                         log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
                     }
                 }
@@ -115,7 +116,7 @@ public class AppStarter {
             for (Class<?> cls : services) {
                 if (Feature.isRequired(cls)) {
                     try {
-                        Object o = cls.newInstance();
+                        Object o = cls.getDeclaredConstructor().newInstance();
                         if (o instanceof EntryPoint) {
                             // execute MainApplication module in a separate thread for non-blocking operation
                             AppRunner app = new AppRunner((EntryPoint) o, args);
@@ -126,7 +127,7 @@ public class AppStarter {
                                     cls.getName(), EntryPoint.class.getName());
                         }
 
-                    } catch (InstantiationException | IllegalAccessException e) {
+                    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                         log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
                     }
                 } else {
