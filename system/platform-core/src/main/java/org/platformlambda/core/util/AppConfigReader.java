@@ -30,7 +30,7 @@ public class AppConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
     private static final String APP_PROPS = "classpath:/application.properties";
     private static final String APP_YML = "classpath:/application.yml";
-    private static ConfigReader propReader = new ConfigReader();
+    private static ConfigReader propReader, yamlReader;
     private static MultiLevelMap multiMap = new MultiLevelMap(new HashMap<>());
     private static final AppConfigReader instance = new AppConfigReader();
 
@@ -47,8 +47,8 @@ public class AppConfigReader implements ConfigBase {
          * Load application.properties
          * property substitution not required because this is the top level config file
          */
+        propReader = new ConfigReader();
         try {
-            propReader = new ConfigReader();
             propReader.doSubstitution = false;
             propReader.load(APP_PROPS);
         } catch (IOException e) {
@@ -58,8 +58,8 @@ public class AppConfigReader implements ConfigBase {
          * Load application.yml
          * property substitution not required because this is the top level config file
          */
+        yamlReader = new ConfigReader();
         try {
-            ConfigReader yamlReader = new ConfigReader();
             yamlReader.doSubstitution = false;
             yamlReader.load(APP_YML);
             multiMap = new MultiLevelMap(yamlReader.getMap());
@@ -73,6 +73,12 @@ public class AppConfigReader implements ConfigBase {
 
     @Override
     public Object get(String key) {
+        // 1. get property value from system first
+        Object value = propReader.isEmpty()? yamlReader.getSystemProperty(key) : propReader.getSystemProperty(key);
+        if (value != null) {
+            return value;
+        }
+        // 2. get it from application.properties or application.yml
         if (propReader.exists(key)) {
             return propReader.get(key);
         } else {

@@ -58,7 +58,7 @@ public class ConfigReader implements ConfigBase {
         return value != null? value : config.get(key);
     }
 
-    private String getSystemProperty(String key) {
+    public String getSystemProperty(String key) {
         if (key == null || key.length() == 0) {
             return null;
         }

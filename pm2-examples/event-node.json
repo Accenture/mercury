@@ -6,10 +6,10 @@
         "script":"java",
         "args":[
             "-jar",
-            "connectors/event-node/target/event-node-1.12.33.jar"
+            "connectors/event-node/target/event-node-1.12.34.jar"
         ],
         "watch":[
-            "connectors/event-node/target/event-node-1.12.33.jar"
+            "connectors/event-node/target/event-node-1.12.34.jar"
         ],
         "node_args":[],
         "exec_interpreter":"",

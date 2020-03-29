@@ -6,10 +6,10 @@
         "script":"java",
         "args":[
             "-jar",
-            "extensions/rest-automation/target/rest-automation-1.12.33.jar"
+            "extensions/rest-automation/target/rest-automation-1.12.34.jar"
         ],
         "watch":[
-            "connectors/rest-automation/target/rest-automation-1.12.33.jar"
+            "connectors/rest-automation/target/rest-automation-1.12.34.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
