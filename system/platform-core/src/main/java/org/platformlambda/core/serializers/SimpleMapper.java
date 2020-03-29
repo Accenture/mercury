@@ -347,7 +347,7 @@ public class SimpleMapper {
             if (number.startsWith("0E")) {
                 /*
                  * scientific notation of zero
-                 * just in case this method is called if caller uses the "toString" method
+                 * just in case if caller uses the BigDecimal's toString method
                  */
                 return true;
             } else {
