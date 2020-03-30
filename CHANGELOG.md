@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
-### Removed
+Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes configMap or other systems of config record.
 
 N/A
 

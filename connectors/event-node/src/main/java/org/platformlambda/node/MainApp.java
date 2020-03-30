@@ -23,8 +23,6 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.system.ServiceDiscovery;
-import org.platformlambda.core.util.AppConfigReader;
-import com.accenture.services.ConfigManager;
 import org.platformlambda.node.services.EventNodeHealth;
 import org.platformlambda.node.services.ServiceQuery;
 import org.platformlambda.node.services.ServiceRegistry;
@@ -60,11 +58,6 @@ public class MainApp implements EntryPoint {
             platform.register(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 1);
             platform.register(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.register(CONNECTOR_HEALTH, new EventNodeHealth(), 1);
-            // optional application configuration management service
-            AppConfigReader config = AppConfigReader.getInstance();
-            if ("true".equals(config.getProperty("app.config.manager", "false"))) {
-                platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
-            }
             LambdaRouter.begin();
         } catch (IOException e) {
             log.error("Unable to begin service discovery - {}", e.getMessage());

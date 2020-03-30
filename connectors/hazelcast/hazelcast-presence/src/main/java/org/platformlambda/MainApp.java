@@ -18,20 +18,21 @@
 
 package org.platformlambda;
 
-import com.accenture.services.ConfigManager;
 import com.hazelcast.core.HazelcastInstance;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.hazelcast.PresenceHandler;
 import org.platformlambda.hazelcast.PresenceProducer;
 import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.services.*;
+import org.platformlambda.services.AdditionalInfo;
+import org.platformlambda.services.HouseKeeper;
+import org.platformlambda.services.KeepAlive;
+import org.platformlambda.services.PingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +47,7 @@ public class MainApp implements EntryPoint {
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String PRESENCE_MONITOR = "presence.monitor";
     public static final String PRESENCE_HANDLER = "presence.service";
-    public static final String CONFIG_MANAGER = "config.manager";
-    public static final String INITIAL_LOAD = "initial.load";
 
-    private static final String START = "start";
     private static final String MONITOR = "monitor";
     private static final String ADDITIONAL_INFO = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
@@ -88,15 +86,6 @@ public class MainApp implements EntryPoint {
         new KeepAlive().start();
         // setup presence housekeeper that removes expired hazelcast topics
         platform.registerPrivate(PRESENCE_HOUSEKEEPER, new HouseKeeper(), 1);
-        // optional application configuration management service
-        AppConfigReader config = AppConfigReader.getInstance();
-        if ("true".equals(config.getProperty("app.config.manager", "false"))) {
-            platform.registerPrivate(CONFIG_MANAGER, new ConfigManager(), 10);
-            platform.registerPrivate(INITIAL_LOAD, new InitialLoad(), 1);
-            // initialize
-            PostOffice po = PostOffice.getInstance();
-            po.send(INITIAL_LOAD, START);
-        }
         log.info("Started");
     }
 
