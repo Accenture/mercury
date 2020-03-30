@@ -21,7 +21,6 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.platformlambda.core.util.Utility;
@@ -96,11 +95,6 @@ public class AppStarter {
                     }
                 }
             }
-            /*
-             * In case values in application.properties are updated by the BeforeApplication modules,
-             * the AppConfigReader must reload itself.
-             */
-            AppConfigReader.getInstance().reload();
         }
     }
 

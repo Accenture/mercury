@@ -31,7 +31,7 @@ public class AppConfigReader implements ConfigBase {
     private static final String APP_PROPS = "classpath:/application.properties";
     private static final String APP_YML = "classpath:/application.yml";
     private static ConfigReader propReader, yamlReader;
-    private static MultiLevelMap multiMap = new MultiLevelMap(new HashMap<>());
+    private static MultiLevelMap multiMap;
     private static final AppConfigReader instance = new AppConfigReader();
 
     public static AppConfigReader getInstance() {
@@ -39,10 +39,6 @@ public class AppConfigReader implements ConfigBase {
     }
 
     private AppConfigReader() {
-        reload();
-    }
-
-    public void reload() {
         /*
          * Load application.properties
          * property substitution not required because this is the top level config file
@@ -64,7 +60,7 @@ public class AppConfigReader implements ConfigBase {
             yamlReader.load(APP_YML);
             multiMap = new MultiLevelMap(yamlReader.getMap());
         } catch (IOException e) {
-            // ok to ignore
+            multiMap = new MultiLevelMap(new HashMap<>());
         }
         if (propReader.isEmpty() && multiMap.isEmpty()) {
             log.error("Application config not loaded. Please check {} or {}", APP_PROPS, APP_YML);
