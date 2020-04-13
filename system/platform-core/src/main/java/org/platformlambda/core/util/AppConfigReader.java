@@ -64,7 +64,7 @@ public class AppConfigReader implements ConfigBase {
 
     @Override
     public Object get(String key) {
-        // 1. get property value from system, then application.properties and finally application.yml
+        // get property value from system, then application.properties and finally application.yml
         Object value = propReader.isEmpty()? yamlReader.getSystemProperty(key) : propReader.getSystemProperty(key);
         return value != null? value : (propReader.exists(key) ? propReader.getRaw(key) : yamlReader.getRaw(key));
     }
