@@ -34,7 +34,7 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
 
     private static final String TYPE = "type";
     private static final String INIT = "init";
-    private static boolean ready = false;
+    private boolean ready = false;
     private boolean pubSub, serviceMonitor;
     private String topic;
 
@@ -45,26 +45,26 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
         this.serviceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
-    public static boolean isReady() {
+    public boolean isReady() {
         return ready;
     }
 
     @Override
-    public void onPartitionsRevoked(Collection<TopicPartition> collection) {
-        if (!pubSub) {
+    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        if (!partitions.isEmpty()) {
             ready = false;
+            log.warn("Topic {} with {} partition{} revoked", topic, partitions.size(),
+                    partitions.size() == 1 ? "" : "s");
         }
-        log.info("Standing by for topic {}", topic);
     }
 
     @Override
-    public void onPartitionsAssigned(Collection<TopicPartition> collection) {
-        // Ignore assignment event when collection is empty
-        if (!collection.isEmpty()) {
-            log.info("Topic {} with {} partition{} is ready", topic, collection.size(),
-                    collection.size() == 1 ? "" : "s");
+    public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+        if (!partitions.isEmpty()) {
+            ready = true;
+            log.info("Topic {} with {} partition{} is ready", topic, partitions.size(),
+                    partitions.size() == 1 ? "" : "s");
             if (!pubSub) {
-                ready = true;
                 // sending a loop-back message to tell the event consumer that the system is ready
                 if (!serviceMonitor && TopicManager.regularTopicFormat(topic)) {
                     try {
@@ -75,6 +75,8 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
                     }
                 }
             }
+        } else {
+            log.warn("No partition for topic {} is available", topic);
         }
     }
 

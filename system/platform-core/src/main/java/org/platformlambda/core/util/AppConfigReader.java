@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 public class AppConfigReader implements ConfigBase {
@@ -31,7 +30,6 @@ public class AppConfigReader implements ConfigBase {
     private static final String APP_PROPS = "classpath:/application.properties";
     private static final String APP_YML = "classpath:/application.yml";
     private static ConfigReader propReader, yamlReader;
-    private static MultiLevelMap multiMap;
     private static final AppConfigReader instance = new AppConfigReader();
 
     public static AppConfigReader getInstance() {
@@ -45,7 +43,6 @@ public class AppConfigReader implements ConfigBase {
          */
         propReader = new ConfigReader();
         try {
-            propReader.doSubstitution = false;
             propReader.load(APP_PROPS);
         } catch (IOException e) {
             // ok to ignore
@@ -56,13 +53,11 @@ public class AppConfigReader implements ConfigBase {
          */
         yamlReader = new ConfigReader();
         try {
-            yamlReader.doSubstitution = false;
             yamlReader.load(APP_YML);
-            multiMap = new MultiLevelMap(yamlReader.getMap());
         } catch (IOException e) {
-            multiMap = new MultiLevelMap(new HashMap<>());
+            // ok to ignore
         }
-        if (propReader.isEmpty() && multiMap.isEmpty()) {
+        if (propReader.isEmpty() && yamlReader.isEmpty()) {
             log.error("Application config not loaded. Please check {} or {}", APP_PROPS, APP_YML);
         }
     }
@@ -74,11 +69,11 @@ public class AppConfigReader implements ConfigBase {
         if (value != null) {
             return value;
         }
-        // 2. get it from application.properties or application.yml
+        // 2. get it from application.properties then application.yml
         if (propReader.exists(key)) {
-            return propReader.get(key);
+            return propReader.getRaw(key);
         } else {
-            return multiMap.getElement(key);
+            return yamlReader.getRaw(key);
         }
     }
 
@@ -105,17 +100,17 @@ public class AppConfigReader implements ConfigBase {
     }
 
     public Map<String, Object> getYamlMap() {
-        return multiMap.getMap();
+        return yamlReader.getMap();
     }
 
     @Override
     public boolean exists(String key) {
-        return propReader.exists(key) || multiMap.exists(key);
+        return propReader.exists(key) || yamlReader.exists(key);
     }
 
     @Override
     public boolean isEmpty() {
-        return propReader.isEmpty() && multiMap.isEmpty();
+        return propReader.isEmpty() && yamlReader.isEmpty();
     }
 
 }

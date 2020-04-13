@@ -1,0 +1,14 @@
+hello:
+  world: great
+
+this.is.a.test: 'message'
+
+oh:
+  hi.great:
+    - 1
+    -
+    - nice:
+        way: 'great'
+        another:
+          - good
+    - 456

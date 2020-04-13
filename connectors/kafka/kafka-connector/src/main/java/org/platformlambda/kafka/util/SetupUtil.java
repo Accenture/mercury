@@ -8,11 +8,14 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class SetupUtil {
     private static final Logger log = LoggerFactory.getLogger(SetupUtil.class);
 
     private static final String FILEPATH = "file:";
+    private static final ConcurrentMap<String, Boolean> messages = new ConcurrentHashMap<>();
 
     public static ConfigReader getConfig(String pathList) {
         ConfigReader config = new ConfigReader();
@@ -21,11 +24,18 @@ public class SetupUtil {
             // ignore trailing spaces
             String name = p.trim();
             try {
-                log.info("Loading from {}", name);
+                // avoid redundant log
+                if (!messages.containsKey(name)) {
+                    messages.put(name, true);
+                    log.info("Loading from {}", name);
+                }
                 if (name.startsWith(FILEPATH)) {
                     File f = new File(name.substring(FILEPATH.length()));
                     if (!f.exists()) {
-                        log.warn("{} not found", f);
+                        if (!messages.containsKey(f.getPath())) {
+                            messages.put(f.getPath(), true);
+                            log.warn("{} not found", f);
+                        }
                         continue;
                     }
                 }

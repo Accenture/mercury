@@ -12,4 +12,6 @@ hello:
   location:
   - abcde
   - ${application.work.location}
+  - world:
+      blvd: 100
 

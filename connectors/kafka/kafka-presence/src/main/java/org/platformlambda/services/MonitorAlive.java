@@ -24,7 +24,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.ConsumerLifeCycle;
+import org.platformlambda.kafka.KafkaSetup;
 import org.platformlambda.kafka.PresenceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,16 +32,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class KeepAlive extends Thread {
-    private static final Logger log = LoggerFactory.getLogger(KeepAlive.class);
+public class MonitorAlive extends Thread {
+    private static final Logger log = LoggerFactory.getLogger(MonitorAlive.class);
 
-    public static final String MONITOR_ALIVE = "monitor_alive";
+    private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TO = "to";
-    private static final long INTERVAL = 20 * 1000;
     private static final String INIT = "init";
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String TIMESTAMP = "timestamp";
+    private static final long INTERVAL = 20 * 1000;
 
     private static boolean normal = true;
 
@@ -91,9 +91,9 @@ public class KeepAlive extends Thread {
 
     private void initializeKafka() {
         int n = 0;
-        while (n < 20) {
+        while (n < 30) {
             n++;
-            if (ConsumerLifeCycle.isReady()) {
+            if (KafkaSetup.isConsumerReady()) {
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HANDLER);
                 event.setHeader(INIT, PresenceHandler.INIT_TOKEN);

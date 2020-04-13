@@ -43,13 +43,13 @@ public class HouseKeeper implements LambdaFunction {
 
     private static final String MANAGER = MainApp.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
+    private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TYPE = "type";
     private static final String LIST = "list";
     private static final String DOWNLOAD = "download";
     private static final String TO = "to";
     private static final String ORIGIN = "origin";
     private static final String NAME = "name";
-    private static final String MONITOR_ALIVE = KeepAlive.MONITOR_ALIVE;
     private static final String APP_ALIVE = "app_alive";
     private static final String LEAVE = "leave";
     private static final String STOP = "stop";

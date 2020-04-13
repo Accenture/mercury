@@ -39,6 +39,7 @@ public class MainApp implements EntryPoint {
     public static final String MANAGER = "kafka.manager";
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
+    public static final String MONITOR_ALIVE = "monitor_alive";
     private static final String ADDITIONAL_INFO = "additional.info";
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
 
@@ -59,7 +60,7 @@ public class MainApp implements EntryPoint {
         // ping connected application instances periodically
         new PingScheduler().start();
         // broadcast heart beat to presence monitor peers
-        new KeepAlive().start();
+        new MonitorAlive().start();
         // setup presence handler
         platform.registerPrivate(PRESENCE_HANDLER, new PresenceHandler(), 1);
         // setup presence housekeeper that removes expired Kafka topics

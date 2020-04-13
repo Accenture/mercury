@@ -98,7 +98,6 @@ public class ConfigReaderTest {
     public void parameterSubstitutionTest() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
-        reader.flattenMap();
         assertEquals("rest-spring", reader.getProperty("hello.name"));
         assertEquals("/tmp/lambda/apps", reader.getProperty("hello.location[1]"));
     }
@@ -123,7 +122,6 @@ public class ConfigReaderTest {
         assertEquals(size+1, formatter.getMap().size());
         assertNull(formatter.getElement(goodArray+"[0]"));
         assertEquals(message, formatter.getElement(goodArray+"[1]"));
-
         o = formatter.getElement(uuid);
         assertTrue(o instanceof Map);
         Map<String, Object> submap = (Map<String, Object>) o;

@@ -37,11 +37,26 @@ public class ConfigReader implements ConfigBase {
     private static final String YAML = ".yaml";
     private static final String PROPERTIES = ".properties";
     private static final String ENV_VARIABLES = "env.variables";
+    /*
+     * A normalized map has composite keys expanded into simple key.
+     * e.g. "hello.world: 1" becomes "hello: world: 1"
+     */
+    private boolean isNormalized = true;
+    private Map<String, Object> properties = new HashMap<>();
+    private MultiLevelMap config = new MultiLevelMap(new HashMap<>());
+    private Map<String, String> envVars = new HashMap<>();
 
-    protected Map<String, Object> config = new HashMap<>();
-    protected boolean doSubstitution = true;
-    private Map<String, String> environmentVars = new HashMap<>();
-    private boolean flat = false;
+    public boolean isNormalizedMap() {
+        return isNormalized;
+    }
+
+    public Object getRaw(String key) {
+        if (key == null || key.length() == 0) {
+            return null;
+        }
+        String v = getSystemProperty(key);
+        return v != null? v : (isNormalized? config.getElement(key) : properties.get(key));
+    }
 
     /**
      * Environment variable overrides application properties
@@ -54,8 +69,22 @@ public class ConfigReader implements ConfigBase {
         if (key == null || key.length() == 0) {
             return null;
         }
-        String value = getSystemProperty(key);
-        return value != null? value : config.get(key);
+        String v = getSystemProperty(key);
+        Object value = v != null? v : (isNormalized? config.getElement(key) : properties.get(key));
+        // get value substitution from application.yml and/or application.properties
+        if (value instanceof String) {
+            String s = (String) value;
+            if (s.startsWith("${") && s.endsWith("}")) {
+                String k = s.substring(2, s.length()-1).trim();
+                if (k.length() > 0) {
+                    Object replacement = AppConfigReader.getInstance().get(k);
+                    if (replacement != null) {
+                        return replacement;
+                    }
+                }
+            }
+        }
+        return value;
     }
 
     public String getSystemProperty(String key) {
@@ -63,7 +92,7 @@ public class ConfigReader implements ConfigBase {
             return null;
         }
         String value = System.getProperty(key);
-        return value != null? value : (environmentVars.containsKey(key)? System.getenv(environmentVars.get(key)) : null);
+        return value != null? value : (envVars.containsKey(key)? System.getenv(envVars.get(key)) : null);
     }
 
     @Override
@@ -85,7 +114,7 @@ public class ConfigReader implements ConfigBase {
     }
 
     public Map<String, Object> getMap() {
-        return config;
+        return isNormalized? config.getMap() : properties;
     }
 
     @Override
@@ -93,16 +122,12 @@ public class ConfigReader implements ConfigBase {
         if (key == null || key.length() == 0) {
             return false;
         }
-        return config.containsKey(key);
+        return isNormalized? config.exists(key) : properties.containsKey(key);
     }
 
     @Override
     public boolean isEmpty() {
-        return config.isEmpty();
-    }
-
-    public int size() {
-        return config.size();
+        return isNormalized? config.isEmpty() : properties.isEmpty();
     }
 
     @SuppressWarnings("unchecked")
@@ -122,25 +147,30 @@ public class ConfigReader implements ConfigBase {
             if (path.endsWith(YML) || path.endsWith(YAML)) {
                 Yaml yaml = new Yaml();
                 String data = Utility.getInstance().stream2str(in);
-                config = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
-                enforceKeysAsText(config);
+                Map<String, Object> m = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
+                enforceKeysAsText(m);
+                config = new MultiLevelMap(normalizeMap(m));
+                isNormalized = true;
+
             } else if (path.endsWith(JSON)) {
-                config = SimpleMapper.getInstance().getMapper().readValue(in, Map.class);
-                enforceKeysAsText(config);
+                Map<String, Object> m = SimpleMapper.getInstance().getMapper().readValue(in, Map.class);
+                enforceKeysAsText(m);
+                config = new MultiLevelMap(normalizeMap(m));
+                isNormalized = true;
+
             } else if (path.endsWith(PROPERTIES)) {
+                properties = new HashMap<>();
                 Properties p = new Properties();
                 p.load(in);
                 for (Object k : p.keySet()) {
-                    config.put(k.toString(), p.get(k));
+                    properties.put(k.toString(), p.get(k));
                 }
+                isNormalized = false;
             }
             // load environment variables if any
-            Object o = config.get(ENV_VARIABLES);
+            Object o = isNormalized? config.getElement(ENV_VARIABLES) : properties.get(ENV_VARIABLES);
             if (o != null) {
-                environmentVars.putAll(getEnvVars(o));
-            }
-            if (doSubstitution) {
-                update(config);
+                envVars = getEnvVars(o);
             }
         } finally {
             try {
@@ -152,16 +182,14 @@ public class ConfigReader implements ConfigBase {
     }
 
     public void load(Map<String, Object> map) {
-        config = map;
-        enforceKeysAsText(config);
+        enforceKeysAsText(map);
         // load environment variables if any
-        Object o = config.get(ENV_VARIABLES);
+        Object o = config.getElement(ENV_VARIABLES);
         if (o != null) {
-            environmentVars.putAll(getEnvVars(o));
+            envVars = getEnvVars(o);
         }
-        if (doSubstitution) {
-            update(config);
-        }
+        config = new MultiLevelMap(normalizeMap(map));
+        isNormalized = true;
     }
 
     private Map<String, String> getEnvVars(Object o) {
@@ -189,11 +217,13 @@ public class ConfigReader implements ConfigBase {
         return result;
     }
 
-    public void flattenMap() {
-        if (!flat) {
-            flat = true;
-            config = Utility.getInstance().getFlatMap(config);
+    private Map<String, Object> normalizeMap(Map<String, Object> map) {
+        Map<String, Object> flat = Utility.getInstance().getFlatMap(map);
+        MultiLevelMap multiMap = new MultiLevelMap(new HashMap<>());
+        for (String k : flat.keySet()) {
+            multiMap.setElement(k, flat.get(k));
         }
+        return multiMap.getMap();
     }
 
     @SuppressWarnings("unchecked")
@@ -210,59 +240,6 @@ public class ConfigReader implements ConfigBase {
                 enforceKeysAsText((Map) v);
             }
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void update(Map<String, Object> map) {
-        for (String k: map.keySet()) {
-            Object v = map.get(k);
-            if (v instanceof String) {
-                String s = ((String) v).trim();
-                if (s.startsWith("${") && s.endsWith("}")) {
-                    String key = s.substring(2, s.length()-1).trim();
-                    if (key.length() > 0) {
-                        Object replacement = AppConfigReader.getInstance().get(key);
-                        if (replacement != null) {
-                            map.put(k, replacement);
-                        }
-                    }
-                }
-            }
-            if (v instanceof Map) {
-                update((Map<String, Object>)v);
-            }
-            if (v instanceof List) {
-                map.put(k, update((List<Object>)v));
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Object> update(List<Object> list) {
-        List<Object> result = new ArrayList<>();
-        for (Object v: list) {
-            boolean replaced = false;
-            if (v instanceof String) {
-                String s = ((String) v).trim();
-                if (s.startsWith("${") && s.endsWith("}")) {
-                    String key = s.substring(2, s.length()-1).trim();
-                    if (key.length() > 0) {
-                        Object replacement = AppConfigReader.getInstance().get(key);
-                        if (replacement != null) {
-                            result.add(replacement);
-                            replaced = true;
-                        }
-                    }
-                }
-            }
-            if (v instanceof Map) {
-                update((Map<String, Object>)v);
-            }
-            if (!replaced) {
-                result.add(v);
-            }
-        }
-        return result;
     }
 
 }

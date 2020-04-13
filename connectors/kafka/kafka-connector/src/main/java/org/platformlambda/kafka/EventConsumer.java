@@ -36,16 +36,19 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
-    private static final long POLL_SECONDS = 60;
+    private static final long FAST_POLL = 10;
+    private static final long REGULAR_POLL = 60;
+    private ConsumerLifeCycle lifeCycle = null;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
-    private boolean normal = true, pubSub = false, resetOffset = true;
+    private boolean normal = true, pubSub = false;
     private long offset = -1;
 
     public EventConsumer(Properties base, String topic) {
@@ -54,6 +57,10 @@ public class EventConsumer extends Thread {
 
     public EventConsumer(Properties base, String topic, boolean pubSub, String... parameters) {
         initialize(base, topic, pubSub, parameters);
+    }
+
+    public ConsumerLifeCycle getLifeCycle() {
+        return lifeCycle;
     }
 
     private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
@@ -98,26 +105,61 @@ public class EventConsumer extends Thread {
         this.consumer = new KafkaConsumer<>(prop);
     }
 
+    private long getEarliest(TopicPartition tp) {
+        Map<TopicPartition, Long> data = consumer.beginningOffsets(Collections.singletonList(tp));
+        return data.get(tp);
+    }
+
+    private long getLatest(TopicPartition tp) {
+        Map<TopicPartition, Long> data = consumer.endOffsets(Collections.singletonList(tp));
+        return data.get(tp);
+    }
+
     @Override
     public void run() {
+        boolean resetOffset = pubSub;
+        long interval = pubSub? FAST_POLL : REGULAR_POLL;
         PostOffice po = PostOffice.getInstance();
-        ConsumerLifeCycle lifeCycle = new ConsumerLifeCycle(topic, pubSub);
+        lifeCycle = new ConsumerLifeCycle(topic, pubSub);
         consumer.subscribe(Collections.singletonList(topic), lifeCycle);
         log.info("Subscribed topic {}", topic);
         try {
             while (normal) {
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(interval));
                 if (pubSub && offset > -1 && resetOffset) {
-                    // reset only once
-                    resetOffset = false;
-                    // do a quick poll to tell Kafka that the consumer is ready
-                    consumer.poll(Duration.ofSeconds(1));
-                    Set<TopicPartition> p = consumer.assignment();
-                    for (TopicPartition tp : p) {
-                        consumer.seek(tp, offset);
-                        log.info("Reset offset for topic {}, partition-{} to {}", topic, tp.partition(), offset);
+                    // wait until a partition is assigned
+                    boolean scanOffset = true;
+                    if (lifeCycle.isReady()) {
+                        Set<TopicPartition> p = consumer.assignment();
+                        if (!p.isEmpty()) {
+                            // must have at least one partition assigned
+                            resetOffset = false;
+                            interval = REGULAR_POLL;
+                            for (TopicPartition tp : p) {
+                                long earliest = getEarliest(tp);
+                                long latest = getLatest(tp);
+                                log.info("Current offset range for topic {} = {} - {}", topic, earliest, latest);
+                                if (offset < earliest) {
+                                    consumer.seek(tp, earliest);
+                                    log.warn("Reset offset for topic {}, partition-{} to {} instead of {}",
+                                            topic, tp.partition(), earliest, offset);
+                                } else if (offset < latest) {
+                                    consumer.seek(tp, offset);
+                                    log.info("Reset offset for topic {}, partition-{} to {}", topic, tp.partition(), offset);
+                                } else {
+                                    scanOffset = false;
+                                    log.warn("Offset for {} not changed because {} is out of range {} - {}",
+                                            topic, offset, earliest, latest);
+                                }
+                            }
+                        }
+                    } else {
+                        log.warn("Awaiting partition assignment for topic {}", topic);
+                    }
+                    if (scanOffset) {
+                        continue;
                     }
                 }
-                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(POLL_SECONDS));
                 for (ConsumerRecord<String, byte[]> record : records) {
                     EventEnvelope message = new EventEnvelope();
                     try {

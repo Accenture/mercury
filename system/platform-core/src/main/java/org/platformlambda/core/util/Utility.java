@@ -301,25 +301,13 @@ public class Utility {
     private void getFlatMap(String prefix, Map<String, Object> src, Map<String, Object> target) {
         for (String k: src.keySet()) {
             Object v = src.get(k);
+            String s = prefix == null ? k : prefix + "." + k;
             if (v instanceof Map) {
-                String key = prefix == null? k : prefix+"."+k;
-                getFlatMap(key, (Map) v, target);
+                getFlatMap(s, (Map) v, target);
             } else if (v instanceof List) {
-                int n = 0;
-                for (Object o: (List) v) {
-                    String key = (prefix == null? k : prefix+"."+k) +"["+n+"]";
-                    n++;
-                    if (o instanceof Map) {
-                        getFlatMap(key, (Map) o, target);
-                    } else if (o instanceof List) {
-                        getFlatList(key, (List) o, target);
-                    } else if (o != null) {
-                        target.put(key, o);
-                    }
-                }
-            } else if (v != null){
-                String key = prefix == null? k : prefix+"."+k;
-                target.put(key, v);
+                getFlatList(s, (List) v, target);
+            } else if (v != null) {
+                target.put(s, v);
             }
         }
     }

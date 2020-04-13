@@ -6,15 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.35, 4/12/2020
+
+### Added
+
+N/A
+
+### Removed
+
+SimpleRBAC class is retired
+
+### Changed
+
+1. Improved ConfigReader and AppConfigReader with automatic key-value normalization for YAML and JSON files
+2. Improved pub/sub module in kafka-connector
+
+---
 ## Version 1.12.34, 3/28/2020
 
 ### Added
 
 N/A
 
-Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes configMap or other systems of config record.
+### Removed
 
-N/A
+Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes configMap or other systems of config record.
 
 ### Changed
 

@@ -20,6 +20,7 @@ package org.platformlambda.core.util;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.core.serializers.SimpleMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,6 +57,11 @@ public class ConfigReaderTest {
          */
         AppConfigReader config = AppConfigReader.getInstance();
         Assert.assertEquals(path, config.getProperty("path"));
+        /*
+         * Test string substitution from application.yml
+         */
+        Object r = reader.get("hello.world");
+        Assert.assertEquals("message", r);
     }
 
     @SuppressWarnings("unchecked")
@@ -63,25 +69,24 @@ public class ConfigReaderTest {
     public void dotFormatterTest() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
-        MultiLevelMap formatter = new MultiLevelMap(reader.getMap());
-        Object o = formatter.getElement("hello.world");
+        Object o = reader.get("hello.world");
         Assert.assertEquals("some value", o);
-        o = formatter.getElement("hello.multiline");
+        o = reader.get("hello.multiline");
         Assert.assertTrue(o instanceof String);
         Assert.assertTrue(o.toString().contains("\n"));
         List<String> lines = Utility.getInstance().split(o.toString(), "\n");
         Assert.assertEquals(2, lines.size());
         Assert.assertEquals("line one", lines.get(0));
         Assert.assertEquals("line two", lines.get(1));
-        o = formatter.getElement("hello.array");
+        o = reader.get("hello.array");
         Assert.assertTrue(o instanceof ArrayList);
         List<String> elements = (List<String>) o;
         Assert.assertEquals(2, elements.size());
         Assert.assertEquals("hi", elements.get(0));
         Assert.assertEquals("this is great", elements.get(1));
-        o = formatter.getElement("hello.array[0]");
+        o = reader.get("hello.array[0]");
         Assert.assertEquals("hi", o);
-        o = formatter.getElement("hello.array[1]");
+        o = reader.get("hello.array[1]");
         Assert.assertEquals("this is great", o);
     }
 
@@ -104,15 +109,18 @@ public class ConfigReaderTest {
 
     @Test
     public void appConfigTest() {
+        // AppConfigReader will combine both application.properties and application.yml
         AppConfigReader reader = AppConfigReader.getInstance();
+        // application.name is stored in "application.properties"
         Assert.assertEquals("platform-core", reader.getProperty("application.name"));
+        // hello.world is stored in "application.yml"
+        Assert.assertEquals("great", reader.get("hello.world"));
     }
 
     @Test
     public void parameterSubstitutionTest() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
-        reader.flattenMap();
         Assert.assertEquals("platform-core", reader.getProperty("hello.name"));
         Assert.assertEquals("/tmp/lambda/apps", reader.getProperty("hello.location[1]"));
     }
@@ -137,7 +145,6 @@ public class ConfigReaderTest {
         Assert.assertEquals(size+1, formatter.getMap().size());
         Assert.assertNull(formatter.getElement(goodArray+"[0]"));
         Assert.assertEquals(message, formatter.getElement(goodArray+"[1]"));
-
         o = formatter.getElement(uuid);
         Assert.assertTrue(o instanceof Map);
         Map<String, Object> submap = (Map<String, Object>) o;
