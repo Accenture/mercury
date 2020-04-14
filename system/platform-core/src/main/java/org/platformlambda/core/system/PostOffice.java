@@ -24,6 +24,7 @@ import akka.actor.Cancellable;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
@@ -46,6 +47,7 @@ public class PostOffice {
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String EVENT_NODE = "event.node";
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
+    private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
@@ -59,8 +61,49 @@ public class PostOffice {
         eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
         substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         if (substituteRoutes) {
+            loadRouteSubstitution();
+        }
+    }
+
+    public static PostOffice getInstance() {
+        return instance;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadRouteSubstitution() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        String file = config.getProperty(ROUTE_SUBSTITUTION_FILE);
+        if (file != null) {
+            // try loading from route-substitution.yaml first
+            ConfigReader reader = new ConfigReader();
+            try {
+                reader.load(file);
+                Object o = reader.get(ROUTE_SUBSTITUTION);
+                if (o instanceof List) {
+                    List<Object> list = (List<Object>) o;
+                    for (Object entry: list) {
+                        String e = entry instanceof String? (String) entry : entry.toString();
+                        int sep = e.indexOf("->");
+                        if (sep == -1) {
+                            log.error("Invalid route substitution entry {}", e);
+                        } else {
+                            String route = e.substring(0, sep).trim();
+                            String replacement = e.substring(sep+2).trim();
+                            try {
+                                addRouteSubstitution(route, replacement);
+                            } catch (IllegalArgumentException err) {
+                                log.error("Unable to add route substitution {} - {}", entry, err.getMessage());
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                log.error("Unable to load route substitution entries - {}", e.getMessage());
+            }
+        } else {
             // load route substitution list from application.properties
-            List<String> substitutionList = Utility.getInstance().split(config.getProperty(ROUTE_SUBSTITUTION, ""), ", ");
+            Utility util = Utility.getInstance();
+            List<String> substitutionList = util.split(config.getProperty(ROUTE_SUBSTITUTION, ""), ", ");
             for (String entry : substitutionList) {
                 int colon = entry.indexOf(':');
                 String route = entry.substring(0, colon).trim();
@@ -72,10 +115,6 @@ public class PostOffice {
                 }
             }
         }
-    }
-
-    public static PostOffice getInstance() {
-        return instance;
     }
 
     /**
