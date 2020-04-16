@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.36, 4/16/2020
+
+### Added
+
+N/A
+
+### Removed
+
+For simplicity, retire route-substitution admin endpoint. Route substitution uses a simple static table in route-substitution.yaml.
+
+### Changed
+
+N/A
+
+---
 ## Version 1.12.35, 4/12/2020
 
 ### Added

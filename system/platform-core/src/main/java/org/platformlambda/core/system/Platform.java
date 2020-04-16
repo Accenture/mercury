@@ -28,7 +28,6 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.services.ObjectStreamManager;
-import org.platformlambda.core.services.RouteSubstitutionManager;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +51,6 @@ public class Platform {
     private static final String ROUTE_MAPPER = ".route.mapper";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
-    private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String LAMBDA = "lambda";
     private static ActorSystem system;
     private static String lambdaId, namespace;
@@ -64,7 +62,6 @@ public class Platform {
         instance = this;
         // start built-in services
         AppConfigReader config = AppConfigReader.getInstance();
-        boolean substitute = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
         try {
             registerPrivate(SHUTDOWN_SERVICE, (headers, body, instance) -> {
                 log.info("Shutting down as per operator request");
@@ -74,10 +71,7 @@ public class Platform {
             registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
             // streaming becomes a standard feature since v1.12.0
             registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
-            if (substitute) {
-                // route substitution manager is registered as PUBLIC so it can sync with its peers
-                register(getRouteManagerName(), new RouteSubstitutionManager(), 1);
-            }
+
         } catch (IOException e) {
             log.error("Unable to create {} - {}", STREAM_MANAGER, e.getMessage());
         }

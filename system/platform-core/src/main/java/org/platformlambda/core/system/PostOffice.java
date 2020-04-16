@@ -509,17 +509,6 @@ public class PostOffice {
         }
     }
 
-    public void removeRouteSubstitution(String original) {
-        if (substituteRoutes) {
-            if (reRoutes.containsKey(original)) {
-                log.info("Route substitution {} cleared", original);
-                reRoutes.remove(original);
-            }
-        } else {
-            throw new IllegalArgumentException("application.feature.route.substitution is not enabled");
-        }
-    }
-
     public Map<String, String> getRouteSubstitutionList() {
         return reRoutes;
     }
