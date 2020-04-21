@@ -52,11 +52,10 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
     private static final String SET_STATUS = "${status}";
     private static final String SET_WARNING = "${warning}";
 
-    private static final String HTTP_PREFIX = "HTTP ";
+    private static final String RESTEASY_PREFIX = "RESTEASY";
     private static final String CHARSET_UTF = ";charset=utf-8";
     private static final String CONTENT_TYPE = "content-type";
-    private static final String NULL = "null";
-    private static final String CLIENT_ERROR_EXCEPTION = "ClientErrorException";
+    private static final String UNKNOWN = "Unknown error";
     private static final String NOT_FOUND_EXCEPTION = "NotFoundException";
     private static final String NOT_SUPPORTED_EXCEPTION = "NotSupportedException";
     private static final String NOT_ALLOWED_EXCEPTION = "NotAllowedException";
@@ -79,11 +78,9 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         }
         Throwable ex = util.getRootCause(exception);
         String cls = ex.getClass().getSimpleName();
-
         Map<String, Object> result = new HashMap<>();
         result.put(TYPE, ERROR);
         result.put(PATH, request.getRequestURI());
-
         String accept = request.getHeader(ACCEPT);
         String contentType;
         if (accept == null) {
@@ -97,55 +94,78 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         } else {
             contentType = MediaType.TEXT_PLAIN;
         }
+        String errorMessage;
         int status;
         if (ex instanceof AppException) {
-            AppException e = (AppException) ex;
-            status = e.getStatus();
+            status = ((AppException) ex).getStatus();
+            errorMessage = ex.getMessage();
         } else {
+            errorMessage = filterOutRestEasyError(ex.getMessage());
             switch(cls) {
-                /*
-                 * ClientErrorException is an exception used by IBM bluemix to indicate that a resource is not found.
-                 * Therefore, it is handled in the same fashion as a NotFoundException
-                 */
-                case CLIENT_ERROR_EXCEPTION:
                 case NOT_FOUND_EXCEPTION:
                     status = Response.Status.NOT_FOUND.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.NOT_FOUND.getReasonPhrase();
+                    }
                     break;
                 case NOT_SUPPORTED_EXCEPTION:
                     status = Response.Status.UNSUPPORTED_MEDIA_TYPE.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase();
+                    }
                     break;
                 case NOT_ALLOWED_EXCEPTION:
                     status = Response.Status.METHOD_NOT_ALLOWED.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.METHOD_NOT_ALLOWED.getReasonPhrase();
+                    }
                     break;
                 case ILLEGAL_ARG_EXCEPTION:
                 case BAD_REQUEST_EXCEPTION:
                     status = Response.Status.BAD_REQUEST.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.BAD_REQUEST.getReasonPhrase();
+                    }
                     break;
                 case FORBIDDEN_EXCEPTION:
                     status = Response.Status.FORBIDDEN.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.FORBIDDEN.getReasonPhrase();
+                    }
                     break;
                 case NOT_ACCEPTABLE_EXCEPTION:
                     status = Response.Status.NOT_ACCEPTABLE.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.NOT_ACCEPTABLE.getReasonPhrase();
+                    }
                     break;
                 case NOT_AUTHORIZED_EXCEPTION:
                     status = Response.Status.UNAUTHORIZED.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.UNAUTHORIZED.getReasonPhrase();
+                    }
                     break;
                 case NOT_AVAILABLE_EXCEPTION:
                     status = Response.Status.SERVICE_UNAVAILABLE.getStatusCode();
+                    if (errorMessage == null) {
+                        errorMessage = Response.Status.SERVICE_UNAVAILABLE.getReasonPhrase();
+                    }
                     break;
                 default:
                     status = 500;
                     break;
             }
         }
-        String simpleError = simpleHttpError(ex.getMessage());
-
+        // if error message cannot be resolved
+        if (errorMessage == null) {
+            errorMessage = UNKNOWN;
+        }
         if (contentType.equals(MediaType.TEXT_HTML)) {
             Response.ResponseBuilder htmlError = Response.status(status);
             htmlError.header(CONTENT_TYPE, MediaType.TEXT_HTML + CHARSET_UTF);
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, request.getRequestURI())
-                    .replace(SET_MESSAGE, simpleError);
+                    .replace(SET_MESSAGE, errorMessage);
             if (status >= 500) {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);
             } else if (status >= 400) {
@@ -153,10 +173,10 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
             } else {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_UNKNOWN_WARNING);
             }
-            return htmlError.entity(errorPage).build();
+            return htmlError.type(MediaType.TEXT_HTML).entity(errorPage).build();
         } else {
             result.put(STATUS, status);
-            result.put(MESSAGE, simpleError);
+            result.put(MESSAGE, errorMessage);
             if (contentType.equals(MediaType.TEXT_PLAIN)) {
                 try {
                     String text = SimpleMapper.getInstance().getMapper().writeValueAsString(result);
@@ -174,20 +194,13 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         }
     }
 
-    private String simpleHttpError(String error) {
-        if (error == null) {
-            return NULL;
+    private String filterOutRestEasyError(String error) {
+        // check for RestEasy error message signature
+        if (error != null && error.startsWith(RESTEASY_PREFIX) && error.contains(":")) {
+            return null;
+        } else {
+            return error;
         }
-        if (error.startsWith(HTTP_PREFIX)) {
-            String message = error.substring(HTTP_PREFIX.length());
-            int space = message.indexOf(' ');
-            if (space > 0) {
-                if (util.isDigits(message.substring(0, space))) {
-                    return message.substring(space + 1);
-                }
-            }
-        }
-        return error;
     }
 
 }
