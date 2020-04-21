@@ -8,7 +8,7 @@
 | server.port                                 | e.g. 8083                                 | Yes*     |
 | spring.mvc.static-path-pattern              | /**                                       | Yes*     |
 | spring.resources.static-locations           | classpath:/public/                        | Yes*     |
-| jax.rs.application.path                     | /api                                      | Optional |
+| jax.rs.application.path                     | /api                                      | Optional*|
 | web.component.scan                          | your own package path(s)                  | Optional*|
 | show.env.variables                          | comma separated list of variable names    | Optional*|
 | show.application.properties                 | comma separated list of property names    | Optional*|
