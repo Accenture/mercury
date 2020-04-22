@@ -173,7 +173,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
             } else {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_UNKNOWN_WARNING);
             }
-            return htmlError.type(MediaType.TEXT_HTML).entity(errorPage).build();
+            return htmlError.entity(errorPage).build();
         } else {
             result.put(STATUS, status);
             result.put(MESSAGE, errorMessage);
