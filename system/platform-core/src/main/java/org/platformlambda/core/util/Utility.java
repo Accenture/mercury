@@ -300,28 +300,39 @@ public class Utility {
     @SuppressWarnings("unchecked")
     private void getFlatMap(String prefix, Map<String, Object> src, Map<String, Object> target) {
         for (String k: src.keySet()) {
+            String key = prefix == null? k : prefix+"."+k;
             Object v = src.get(k);
-            String s = prefix == null ? k : prefix + "." + k;
             if (v instanceof Map) {
-                getFlatMap(s, (Map) v, target);
+                getFlatMap(key, (Map<String, Object>) v, target);
             } else if (v instanceof List) {
-                getFlatList(s, (List) v, target);
+                int n = 0;
+                for (Object o: (List<Object>) v) {
+                    String next = key +"["+n+"]";
+                    n++;
+                    if (o instanceof Map) {
+                        getFlatMap(next, (Map<String, Object>) o, target);
+                    } else if (o instanceof List) {
+                        getFlatList(next, (List<Object>) o, target);
+                    } else if (o != null) {
+                        target.put(next, o);
+                    }
+                }
             } else if (v != null) {
-                target.put(s, v);
+                target.put(key, v);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void getFlatList(String prefix, List src, Map<String, Object> target) {
+    private void getFlatList(String prefix, List<Object> src, Map<String, Object> target) {
         int n = 0;
         for (Object v: src) {
             String key = prefix+"["+n+"]";
             n++;
             if (v instanceof Map) {
-                getFlatMap(key, (Map) v, target);
+                getFlatMap(key, (Map<String, Object>) v, target);
             } else if (v instanceof List) {
-                getFlatList(key, (List) v, target);
+                getFlatList(key, (List<Object>) v, target);
             } else {
                 target.put(key, v);
             }

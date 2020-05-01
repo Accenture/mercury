@@ -25,11 +25,11 @@ import java.util.Map;
 
 public class MultiLevelMap {
 
-    private static final String TRUE = Boolean.TRUE.toString();
-    private static final String FALSE = Boolean.FALSE.toString();
-    private static final String NULL = "null";
-
     private Map<String, Object> multiLevels;
+
+    public MultiLevelMap() {
+        this.multiLevels = new HashMap<>();
+    }
 
     public MultiLevelMap(Map<String, Object> map) {
         this.multiLevels = map;
@@ -50,7 +50,8 @@ public class MultiLevelMap {
 
     /**
      * Retrieve an element from a map using a composite path
-     * e.g. "some.key", "some.array[3]"
+     * (Nested array is supported)
+     * e.g. "some.key", "some.array[3]", "hello.world[2][10][1]"
      *
      * @param compositePath using dot-bracket convention
      * @return element
@@ -59,64 +60,75 @@ public class MultiLevelMap {
         return getElement(compositePath, multiLevels);
     }
 
-    public MultiLevelMap setElement(String compositePath, Object value) {
-        setElement(compositePath, value, multiLevels);
-        return this;
+    @SuppressWarnings("unchecked")
+    private Object getListElement(List<Integer> indexes, List<Object> data) {
+        List<Object> list = data;
+        int n = 0;
+        int len = indexes.size();
+        for (Integer i: indexes) {
+            n++;
+            if (i < 0 || i >= list.size()) {
+                break;
+            }
+            Object o = list.get(i);
+            if (n == len) {
+                return o;
+            }
+            if (o instanceof List) {
+                list = (List<Object>) o;
+            } else {
+                break;
+            }
+        }
+        return null;
     }
 
-    private Object getElement(String compositePath, Map<String, Object> map) {
-        if (compositePath == null || map == null || map.isEmpty()) return null;
-        if (map.containsKey(compositePath)) {
-            return map.get(compositePath);
+    @SuppressWarnings("unchecked")
+    private Object getElement(String path, Map<String, Object> map) {
+        if (path == null || map == null || map.isEmpty()) return null;
+        if (map.containsKey(path)) {
+            return map.get(path);
         }
-        if (!compositePath.contains(".") && !compositePath.contains("/") && !compositePath.contains("[")) {
-            return map.get(compositePath);
+        if (!isComposite(path)) {
+            return map.get(path);
         }
         Utility util = Utility.getInstance();
-        List<String> list = util.split(compositePath, "./");
-        Map o = map;
+        List<String> list = util.split(path, "./");
+        Map<String, Object> current = map;
         int len = list.size();
         int n = 0;
         for (String p: list) {
             n++;
-            if (p.contains("[") && p.endsWith("]") && !p.startsWith("[")) {
-                // does not support array of array
-                int bracketStart = p.indexOf('[');
-                int bracketEnd = p.lastIndexOf(']');
-                if (bracketStart > bracketEnd) break;
-
-                String key = p.substring(0, bracketStart);
-                String index = p.substring(bracketStart+1, bracketEnd).trim();
-
+            if (isListElement(p)) {
+                int start = p.indexOf('[');
+                int end = p.indexOf(']', start);
+                if (end == -1) break;
+                String key = p.substring(0, start);
+                String index = p.substring(start+1, end).trim();
                 if (index.length() == 0) break;
                 if (!util.isNumeric(index)) break;
-
                 int i = util.str2int(index);
                 if (i < 0) break;
-
-                if (o.containsKey(key)) {
-                    Object x = o.get(key);
-                    if (x instanceof List) {
-                        List y = (List) x;
-                        if (i >= y.size()) {
-                            break;
-                        } else {
-                            if (n == len) {
-                                return y.get(i);
-                            } else if (y.get(i) instanceof Map) {
-                                o = (Map) y.get(i);
-                                continue;
-                            }
+                if (current.containsKey(key)) {
+                    Object nextList = current.get(key);
+                    if (nextList instanceof List) {
+                        List<Integer> indexes = getIndexes(p.substring(start));
+                        Object next = getListElement(indexes, (List<Object>) nextList);
+                        if (n == len) {
+                            return next;
+                        } else if (next instanceof Map) {
+                            current = (Map<String, Object>) next;
+                            continue;
                         }
                     }
                 }
             } else {
-                if (o.containsKey(p)) {
-                    Object x = o.get(p);
+                if (current.containsKey(p)) {
+                    Object next = current.get(p);
                     if (n == len) {
-                        return x;
-                    } else if (x instanceof Map) {
-                        o = (Map) x;
+                        return next;
+                    } else if (next instanceof Map) {
+                        current = (Map<String, Object>) next;
                         continue;
                     }
                 }
@@ -127,148 +139,179 @@ public class MultiLevelMap {
         return null;
     }
 
+    public MultiLevelMap setElement(String compositePath, Object value) {
+        validateCompositePathSyntax(compositePath);
+        setElement(compositePath, value, multiLevels);
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
-    private void setElement(String compositePath, Object value, Map<String, Object> map) {
-        // Recursively create node if not found. Otherwise update it
-        List<String> path = Utility.getInstance().split(compositePath, "./");
-        int size = path.size();
-        String element = path.get(size-1);
-        String parentPath = getParentPath(compositePath);
-
-        Object current = getElement(compositePath, map);
-        if (current != null) {
-            if (isListElement(element)) {
-                String parent = compositePath.substring(0, compositePath.lastIndexOf('['));
-                int n = getIndex(element);
-                Object cp = getElement(parent, map);
-                if (cp instanceof List) {
-                    // update element in list
-                    ((List) cp).set(n, getPrimitiveOrObject(value));
-                }
-            } else {
-                if (parentPath == null) {
-                    // root level
-                    map.put(element, getPrimitiveOrObject(value));
-                } else {
-                    // get parent and update map
-                    Object o = getElement(parentPath, map);
-                    if (o instanceof Map) {
-                        ((Map) o).put(element, getPrimitiveOrObject(value));
-                    }
-                }
-
-            }
-        } else {
-            if (size == 1) {
-                if (isListElement(element)) {
-                    String listElement = element.substring(0, element.lastIndexOf('['));
-                    String parent = compositePath.substring(0, compositePath.lastIndexOf('['));
-                    int n = getIndex(element);
-                    Object cp = getElement(parent, map);
-                    if (cp == null) {
-                        List<Object> nlist = new ArrayList<>();
-                        if (n > 0) {
-                            for (int i=0; i < n; i++) {
-                                nlist.add(null);
-                            }
-                        }
-                        nlist.add(getPrimitiveOrObject(value));
-                        map.put(listElement, nlist);
-                    } else if (cp instanceof List) {
-                        List<Object> olist = (List<Object>) cp;
-                        if (olist.size() > n) {
-                            // update element in list
-                            ((List) cp).set(n, getPrimitiveOrObject(value));
-                        } else {
-                            // insert place-holders if necessary
-                            while (n > olist.size()) {
-                                ((List) cp).add(null);
-                            }
-                            // insert new element into list
-                            ((List) cp).add(getPrimitiveOrObject(value));
-                        }
-                    }
-                } else {
-                    map.put(element, getPrimitiveOrObject(value));
-                }
-
-            } else {
-                if (isListElement(element)) {
-                    String listElement = element.substring(0, element.lastIndexOf('['));
-                    String parent = compositePath.substring(0, compositePath.lastIndexOf('['));
-                    int n = getIndex(element);
-                    Object cp = getElement(parent, map);
-                    if (cp == null) {
-                        List<Object> nlist = new ArrayList<>();
-                        if (n > 0) {
-                            for (int i=0; i < n; i++) {
-                                nlist.add(null);
-                            }
-                        }
-                        nlist.add(getPrimitiveOrObject(value));
-                        Object o = getElement(parentPath, map);
-                        if (o instanceof Map) {
-                            ((Map) o).put(listElement, nlist);
-                        } else {
-                            HashMap<String, Object> c = new HashMap<>();
-                            c.put(listElement, nlist);
-                            setElement(parentPath, c, map);
-                        }
-
-                    } else if (cp instanceof List) {
-                        List<Object> olist = (List<Object>) cp;
-                        if (olist.size() > n) {
-                            // update element in list
-                            ((List) cp).set(n, getPrimitiveOrObject(value));
-                        } else {
-                            // insert place-holders if necessary
-                            while (n > olist.size()) {
-                                ((List) cp).add(null);
-                            }
-                            // insert new element into list
-                            ((List) cp).add(getPrimitiveOrObject(value));
-                        }
-                    }
-                } else {
-                    Object o = getElement(parentPath, map);
-                    if (o instanceof Map) {
-                        ((Map) o).put(element, getPrimitiveOrObject(value));
+    private void setElement(String path, Object value, Map<String, Object> map) {
+        Utility util = Utility.getInstance();
+        List<String> segments = util.split(path, "./");
+        if (segments.isEmpty()) {
+            return;
+        }
+        Map<String, Object> current = map;
+        int len = segments.size();
+        int n = 0;
+        // reconstruct the composite as we walk the path segments
+        StringBuilder composite = new StringBuilder();
+        for (String p : segments) {
+            n++;
+            if (isListElement(p)) {
+                List<Integer> indexes = getIndexes(p.substring(p.indexOf('[')));
+                int sep = p.indexOf('[');
+                String element = p.substring(0, sep);
+                Object parent = getElement(composite+element, map);
+                if (n == len) {
+                    if (parent instanceof List) {
+                        setListElement(indexes, (List<Object>) parent, value);
                     } else {
-                        HashMap<String, Object> c = new HashMap<>();
-                        c.put(element, getPrimitiveOrObject(value));
-                        setElement(parentPath, c, map);
+                        List<Object> newList = new ArrayList<>();
+                        setListElement(indexes, newList, value);
+                        current.put(element, newList);
                     }
+                    break;
+                } else {
+                    // parent is guaranteed to be a List because it must be created in previous cycle
+                    if (parent instanceof List) {
+                        Object next = getElement(composite+p, map);
+                        if (next instanceof Map) {
+                            current = (Map<String, Object>) next;
+                        } else {
+                            Map<String, Object> m = new HashMap<>();
+                            setListElement(indexes, (List<Object>) parent, m);
+                            current = m;
+                        }
+                    }
+                }
+
+            } else {
+                if (n == len) {
+                    current.put(p, value);
+                    break;
+                } else {
+                    Object next = current.get(p);
+                    if (next instanceof Map) {
+                        current = (Map<String, Object>) next;
+                    } else {
+                        Map<String, Object> nextMap = new HashMap<>();
+                        current.put(p, nextMap);
+                        current = nextMap;
+                    }
+                }
+            }
+            composite.append(p);
+            composite.append('.');
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setListElement(List<Integer> indexes, List<Object> data, Object value) {
+        List<Object> list = expandList(indexes, data);
+        int len = indexes.size();
+        for (int i=0; i < len; i++) {
+            int idx = indexes.get(i);
+            if (i == len - 1) {
+                list.set(idx, value);
+            } else {
+                Object o = list.get(idx);
+                if (o instanceof List) {
+                    list = (List<Object>) o;
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> expandList(List<Integer> indexes, List<Object> data) {
+        int len = indexes.size();
+        List<Object> list = data;
+        for (int i=0; i < len; i++) {
+            int idx = indexes.get(i);
+            if (idx >= list.size()) {
+                int diff = idx - list.size();
+                while (diff-- >= 0) {
+                    list.add(null);
+                }
+            }
+            if (i == len - 1) {
+                break;
+            }
+            Object o = list.get(idx);
+            if (o instanceof List) {
+                list = (List<Object>) o;
+            } else {
+                List<Object> newList = new ArrayList<>();
+                list.set(idx, newList);
+                list = newList;
+            }
+        }
+        return data;
+    }
+
+    private boolean isComposite(String item) {
+        return item.contains(".") || item.contains("/") || item.contains("[") || item.contains("]");
     }
 
     private boolean isListElement(String item) {
         return (item.contains("[") && item.endsWith("]") && !item.startsWith("["));
     }
 
-    private Object getPrimitiveOrObject(Object v) {
-        if (v instanceof String) {
-            Utility util = Utility.getInstance();
-            String value = (String) v;
-            if (value.length() > 0) {
-                if (value.equalsIgnoreCase(TRUE)) return true;
-                if (value.equalsIgnoreCase(FALSE)) return false;
-                if (value.equalsIgnoreCase(NULL)) return null;
-                if (util.isNumeric(value)) return util.str2long(value);
+    private List<Integer> getIndexes(String indexSegment) {
+        Utility util = Utility.getInstance();
+        List<String> indexes = util.split(indexSegment, "[]");
+        List<Integer> result = new ArrayList<>();
+        for (String s: indexes) {
+            result.add(util.str2int(s));
+        }
+        return result;
+    }
+
+    public void validateCompositePathSyntax(String path) {
+        Utility util = Utility.getInstance();
+        List<String> segments = util.split(path, "./");
+        if (segments.isEmpty()) {
+            throw new IllegalArgumentException("Missing composite path");
+        }
+        for (String s: segments) {
+            if (s.contains("[") || s.contains("]")) {
+                if (!s.endsWith("]")) {
+                    throw new IllegalArgumentException("Invalid composite path - missing end bracket");
+                }
+                // check start-end pair
+                int sep1 = s.indexOf('[');
+                int sep2 = s.indexOf(']');
+                if (sep2 < sep1) {
+                    throw new IllegalArgumentException("Invalid composite path - missing start bracket");
+                }
+                boolean start = false;
+                for (char c: s.substring(sep1).toCharArray()) {
+                    if (c == '[') {
+                        if (start) {
+                            throw new IllegalArgumentException("Invalid composite path - missing end bracket");
+                        } else {
+                            start = true;
+                        }
+                    } else if (c == ']') {
+                        if (!start) {
+                            throw new IllegalArgumentException("Invalid composite path - duplicated end bracket");
+                        } else {
+                            start = false;
+                        }
+                    } else {
+                        if (start) {
+                            if (c < '0' || c > '9') {
+                                throw new IllegalArgumentException("Invalid composite path - indexes must be digits");
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Invalid composite path - invalid indexes");
+                        }
+                    }
+                }
             }
         }
-        return v;
-    }
-
-    private int getIndex(String item) {
-        int bracketStart = item.lastIndexOf('[');
-        int bracketEnd = item.lastIndexOf(']');
-        return Utility.getInstance().str2int(item.substring(bracketStart+1, bracketEnd).trim());
-    }
-
-    private String getParentPath(String path) {
-        return (path.contains(".")) ? path.substring(0, path.lastIndexOf('.')) : null;
     }
 
 }
