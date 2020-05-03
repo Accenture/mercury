@@ -3,11 +3,8 @@ package org.platformlambda.core.util;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.platformlambda.core.serializers.SimpleMapper;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.*;
 
 public class UtilityTests {
