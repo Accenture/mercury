@@ -2,33 +2,6 @@
 # REST automation is the recommended way to create REST endpoints properly
 #
 rest:
-  - service: "v1.user.login"
-    methods: ['GET']
-    url: "/api/login"
-    timeout: 10s
-    cors: cors_1
-    headers: header_1
-    threshold: 30000
-    tracing: true
-
-  - service: "v1.user.login"
-    methods: ['GET']
-    url: "/api/logout"
-    timeout: 10s
-    cors: cors_1
-    headers: header_1
-    threshold: 30000
-    tracing: true
-
-  - service: "v1.sso.authentication"
-    methods: ['GET']
-    url: "/api/authentication/login"
-    timeout: 10s
-    cors: cors_1
-    headers: header_1
-    threshold: 30000
-    tracing: true
-
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH']
     url: "/api/hello/world"

@@ -19,10 +19,10 @@
 package org.platformlambda.automation.config;
 
 import org.platformlambda.automation.MainApp;
+import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.CorsInfo;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.automation.models.RouteInfo;
-import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
