@@ -274,6 +274,9 @@ public class MultiLevelMap {
         }
         for (String s: segments) {
             if (s.contains("[") || s.contains("]")) {
+                if (!s.contains("[")) {
+                    throw new IllegalArgumentException("Invalid composite path - missing start bracket");
+                }
                 if (!s.endsWith("]")) {
                     throw new IllegalArgumentException("Invalid composite path - missing end bracket");
                 }
