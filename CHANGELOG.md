@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.39, 4/21/2020
+## Version 1.12.39, 5/3/2020
 
 ### Added
 
@@ -18,7 +18,8 @@ For security reason, removed Jersey JAX-RS library
 
 ### Changed
 
-Updated RestLoader to initialize RestEasy servlet dispatcher
+1. Updated RestLoader to initialize RestEasy servlet dispatcher
+2. Support nested arrays in MultiLevelMap
 
 ---
 ## Version 1.12.36, 4/16/2020
