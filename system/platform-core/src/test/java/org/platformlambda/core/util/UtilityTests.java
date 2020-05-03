@@ -3,8 +3,11 @@ package org.platformlambda.core.util;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.platformlambda.core.serializers.SimpleMapper;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.*;
 
 public class UtilityTests {
@@ -172,6 +175,13 @@ public class UtilityTests {
         Map<String, Object> m2flat = util.getFlatMap(m2.getMap());
         Assert.assertEquals(SIMPLE_VALUE, m2flat.get(NESTED_PATH));
         Assert.assertEquals(m2flat.get(NESTED_PATH), m2.getElement(NESTED_PATH));
+        // alternate map and list
+        String MIX_PATH = "hello.world[0].headers[0]";
+        MultiLevelMap m3 = new MultiLevelMap();
+        m3.setElement(MIX_PATH, SIMPLE_VALUE);
+        Map<String, Object> m3flat = util.getFlatMap(m3.getMap());
+        Assert.assertEquals(SIMPLE_VALUE, m3flat.get(MIX_PATH));
+        Assert.assertEquals(m3flat.get(MIX_PATH), m3.getElement(MIX_PATH));
     }
 
 }

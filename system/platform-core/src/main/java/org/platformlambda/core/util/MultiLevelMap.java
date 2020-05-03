@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 
 public class MultiLevelMap {
-
     private Map<String, Object> multiLevels;
 
     public MultiLevelMap() {
@@ -172,7 +171,6 @@ public class MultiLevelMap {
                     }
                     break;
                 } else {
-                    // parent is guaranteed to be a List because it must be created in previous cycle
                     if (parent instanceof List) {
                         Object next = getElement(composite+p, map);
                         if (next instanceof Map) {
@@ -182,6 +180,12 @@ public class MultiLevelMap {
                             setListElement(indexes, (List<Object>) parent, m);
                             current = m;
                         }
+                    } else {
+                        Map<String, Object> nextMap = new HashMap<>();
+                        List<Object> newList = new ArrayList<>();
+                        setListElement(indexes, newList, nextMap);
+                        current.put(element, newList);
+                        current = nextMap;
                     }
                 }
 
