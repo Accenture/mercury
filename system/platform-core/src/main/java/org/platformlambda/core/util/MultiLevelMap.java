@@ -62,20 +62,20 @@ public class MultiLevelMap {
 
     @SuppressWarnings("unchecked")
     private Object getListElement(List<Integer> indexes, List<Object> data) {
-        List<Object> list = data;
+        List<Object> current = data;
         int n = 0;
         int len = indexes.size();
         for (Integer i: indexes) {
             n++;
-            if (i < 0 || i >= list.size()) {
+            if (i < 0 || i >= current.size()) {
                 break;
             }
-            Object o = list.get(i);
+            Object o = current.get(i);
             if (n == len) {
                 return o;
             }
             if (o instanceof List) {
-                list = (List<Object>) o;
+                current = (List<Object>) o;
             } else {
                 break;
             }
@@ -105,10 +105,7 @@ public class MultiLevelMap {
                 if (end == -1) break;
                 String key = p.substring(0, start);
                 String index = p.substring(start+1, end).trim();
-                if (index.length() == 0) break;
-                if (!util.isNumeric(index)) break;
-                int i = util.str2int(index);
-                if (i < 0) break;
+                if (index.length() == 0 || !util.isDigits(index)) break;
                 if (current.containsKey(key)) {
                     Object nextList = current.get(key);
                     if (nextList instanceof List) {
@@ -116,7 +113,8 @@ public class MultiLevelMap {
                         Object next = getListElement(indexes, (List<Object>) nextList);
                         if (n == len) {
                             return next;
-                        } else if (next instanceof Map) {
+                        }
+                        if (next instanceof Map) {
                             current = (Map<String, Object>) next;
                             continue;
                         }
@@ -160,8 +158,8 @@ public class MultiLevelMap {
         for (String p : segments) {
             n++;
             if (isListElement(p)) {
-                List<Integer> indexes = getIndexes(p.substring(p.indexOf('[')));
                 int sep = p.indexOf('[');
+                List<Integer> indexes = getIndexes(p.substring(sep));
                 String element = p.substring(0, sep);
                 Object parent = getElement(composite+element, map);
                 if (n == len) {
@@ -202,23 +200,22 @@ public class MultiLevelMap {
                     }
                 }
             }
-            composite.append(p);
-            composite.append('.');
+            composite.append(p).append('.');
         }
     }
 
     @SuppressWarnings("unchecked")
     private void setListElement(List<Integer> indexes, List<Object> data, Object value) {
-        List<Object> list = expandList(indexes, data);
+        List<Object> current = expandList(indexes, data);
         int len = indexes.size();
         for (int i=0; i < len; i++) {
             int idx = indexes.get(i);
             if (i == len - 1) {
-                list.set(idx, value);
+                current.set(idx, value);
             } else {
-                Object o = list.get(idx);
+                Object o = current.get(idx);
                 if (o instanceof List) {
-                    list = (List<Object>) o;
+                    current = (List<Object>) o;
                 }
             }
         }
@@ -226,26 +223,26 @@ public class MultiLevelMap {
 
     @SuppressWarnings("unchecked")
     private List<Object> expandList(List<Integer> indexes, List<Object> data) {
+        List<Object> current = data;
         int len = indexes.size();
-        List<Object> list = data;
         for (int i=0; i < len; i++) {
             int idx = indexes.get(i);
-            if (idx >= list.size()) {
-                int diff = idx - list.size();
+            if (idx >= current.size()) {
+                int diff = idx - current.size();
                 while (diff-- >= 0) {
-                    list.add(null);
+                    current.add(null);
                 }
             }
             if (i == len - 1) {
                 break;
             }
-            Object o = list.get(idx);
+            Object o = current.get(idx);
             if (o instanceof List) {
-                list = (List<Object>) o;
+                current = (List<Object>) o;
             } else {
                 List<Object> newList = new ArrayList<>();
-                list.set(idx, newList);
-                list = newList;
+                current.set(idx, newList);
+                current = newList;
             }
         }
         return data;

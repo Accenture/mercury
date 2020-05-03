@@ -257,7 +257,7 @@ public class Utility {
      */
     public List<String> split(String str, String chars, boolean empty) {
         List<String> rv = new ArrayList<>();
-        if (str == null) return rv;
+        if (str == null || chars == null) return rv;
         StringBuilder sb = new StringBuilder();
         boolean found;
         for (int i=0; i < str.length(); i++) {
