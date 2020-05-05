@@ -215,6 +215,30 @@ public class EventEnvelope {
     }
 
     /**
+     * A transaction trace should only be created by the rest-automation application
+     * or a service at the "edge".
+     *
+     * @param traceId unique ID for distributed tracing
+     * @return event envelope
+     */
+    public EventEnvelope setTraceId(String traceId) {
+        this.traceId = traceId;
+        return this;
+    }
+
+    /**
+     * A transaction trace should only be created by the rest-automation application
+     * or a service at the "edge".
+     *
+     * @param tracePath path at the edge such as HTTP method and URI
+     * @return event envelope
+     */
+    public EventEnvelope setTracePath(String tracePath) {
+        this.tracePath = tracePath;
+        return this;
+    }
+
+    /**
      * Optionally set a correlation-ID
      *
      * @param cid correlation-ID
@@ -362,6 +386,19 @@ public class EventEnvelope {
 
     public boolean isPoJoEnabled() {
         return pojo;
+    }
+
+    /**
+     * You should not set the object type normally.
+     * It will be automatically set when a PoJo is set as the body.
+     * This method is used by unit tests or other use cases.
+     *
+     * @param type of the body object
+     * @return this EventEnvelope
+     */
+    public EventEnvelope setType(String type) {
+        this.type = type;
+        return this;
     }
 
     /**
