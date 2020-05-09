@@ -26,9 +26,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.IOException;
 import java.util.*;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class MsgPackTest {
 
@@ -44,12 +42,12 @@ public class MsgPackTest {
         input.put(PayloadMapper.NOTHING, null);
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
-        assertTrue(o instanceof Map);
+        Assert.assertTrue(o instanceof Map);
         Map<String, Object> result = (Map<String, Object>) o;
         // MsgPack does not transport null elements in a map
-        assertFalse(result.containsKey(PayloadMapper.NOTHING));
+        Assert.assertFalse(result.containsKey(PayloadMapper.NOTHING));
         result.remove(PayloadMapper.NOTHING);
-        assertEquals(o, result);
+        Assert.assertEquals(o, result);
     }
 
     @Test
@@ -62,7 +60,7 @@ public class MsgPackTest {
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         // MsgPack transports null elements in an array list so that absolute sequencing can be preserved
-        assertEquals(input, o);
+        Assert.assertEquals(input, o);
     }
 
     @Test
@@ -71,7 +69,7 @@ public class MsgPackTest {
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         // date object is serialized as UTC string
-        assertEquals(Utility.getInstance().date2str(input), o);
+        Assert.assertEquals(Utility.getInstance().date2str(input), o);
     }
 
     @Test
@@ -83,11 +81,11 @@ public class MsgPackTest {
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         // successfully restored to PoJo
-        assertTrue(o instanceof PoJo);
+        Assert.assertTrue(o instanceof PoJo);
         PoJo result = (PoJo) o;
-        assertEquals(input.getNumber(), result.getNumber());
-        assertEquals(input.getName(), result.getName());
-        assertEquals(input.getAddress(), result.getAddress());
+        Assert.assertEquals(input.getNumber(), result.getNumber());
+        Assert.assertEquals(input.getName(), result.getName());
+        Assert.assertEquals(input.getAddress(), result.getAddress());
     }
 
 }

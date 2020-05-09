@@ -26,7 +26,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import org.junit.Assert;
 
 public class GenericTypeTest {
 
@@ -51,12 +51,12 @@ public class GenericTypeTest {
         result.load(b);
 
         Object o = result.getBody();
-        assertTrue(o instanceof ObjectWithGenericType);
+        Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
-        assertEquals(id, gs.getId());
+        Assert.assertEquals(id, gs.getId());
         PoJo content = gs.getContent();
-        assertNotNull(content);
-        assertEquals(name, content.getName());
+        Assert.assertNotNull(content);
+        Assert.assertEquals(name, content.getName());
     }
 
     @Test(expected=ClassCastException.class)
@@ -79,10 +79,10 @@ public class GenericTypeTest {
         result.load(b);
 
         Object o = result.getBody();
-        assertTrue(o instanceof ObjectWithGenericType);
+        Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
         // all fields except the ones with generic types can be deserialized correctly
-        assertEquals(id, gs.getId());
+        Assert.assertEquals(id, gs.getId());
         /*
          * without parametricType defined, this will throw ClassCastException because the value is a HashMap.
          *
@@ -91,7 +91,7 @@ public class GenericTypeTest {
          * Object content = gs.getContent();
          */
         PoJo content = gs.getContent();
-        assertNotNull(content);
+        Assert.assertNotNull(content);
     }
 
     @Test
@@ -117,12 +117,12 @@ public class GenericTypeTest {
 
         // When parametricType is incorrect, it will fall back to a map.
         Object o = result.getBody();
-        assertTrue(o instanceof Map);
+        Assert.assertTrue(o instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map) o);
-        assertEquals(name, map.getElement("content.name"));
+        Assert.assertEquals(name, map.getElement("content.name"));
         // numbers are encoded as string in map
-        assertEquals(id, util.str2int(map.getElement("id").toString()));
-        assertEquals(id, util.str2int(map.getElement("content.number").toString()));
+        Assert.assertEquals(id, util.str2int(map.getElement("id").toString()));
+        Assert.assertEquals(id, util.str2int(map.getElement("content.number").toString()));
     }
 
 }

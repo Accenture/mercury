@@ -30,7 +30,9 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
+import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,11 +45,15 @@ public class EventProducer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(EventProducer.class);
 
     private static final CryptoApi crypto = new CryptoApi();
+    private static final SimpleCache cache = SimpleCache.createCache("sticky.destinations", 60000);
     private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String SERVICE_MONITOR = "service.monitor";
     private static final String PRESENCE_MONITOR = "presence.monitor";
-    private static final String TO = "to";
-    private static final String BROADCAST = "broadcast";
+    private static final String ID = MultipartPayload.ID;
+    private static final String COUNT = MultipartPayload.COUNT;
+    private static final String TOTAL = MultipartPayload.TOTAL;
+    private static final String TO = MultipartPayload.TO;
+    private static final String BROADCAST = MultipartPayload.BROADCAST;
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
     private static final String TRUE = "true";
     private static final String FALSE = "false";
@@ -65,7 +71,7 @@ public class EventProducer implements LambdaFunction {
     private static long lastStarted = 0;
     private static long lastActive = System.currentTimeMillis();
     private static KafkaProducer<String, byte[]> producer;
-    private static String currentClientId = null;
+    private static String producerId;
     private static boolean isServiceMonitor, ready = false, abort = false;
     private static long seq = 0, totalEvents = 0;
 
@@ -101,13 +107,13 @@ public class EventProducer implements LambdaFunction {
     private void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
-            String id = Platform.getInstance().getOrigin()+"p"+(++seq);
+            String id = (Platform.getInstance().getOrigin()+"p"+(++seq)).substring(8);
             Properties properties = getProperties();
-            properties.put(ProducerConfig.CLIENT_ID_CONFIG, id.substring(8));
+            properties.put(ProducerConfig.CLIENT_ID_CONFIG, id);
             producer = new KafkaProducer<>(properties);
             lastStarted = System.currentTimeMillis();
-            currentClientId = properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG);
-            log.info("Producer {} ready", currentClientId);
+            producerId = properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG);
+            log.info("Producer {} ready", producerId);
         }
     }
 
@@ -115,11 +121,12 @@ public class EventProducer implements LambdaFunction {
         if (producer != null) {
             try {
                 producer.close();
-                log.info("Producer {} released, delivered: {}", currentClientId, totalEvents);
+                log.info("Producer {} released, delivered: {}", producerId, totalEvents);
             } catch (Exception e) {
                 // ok to ignore
             }
             producer = null;
+            producerId = null;
             lastStarted = 0;
             totalEvents = 0;
         }
@@ -166,7 +173,7 @@ public class EventProducer implements LambdaFunction {
             return true;
         }
         if (headers.containsKey(TO) && body instanceof byte[]) {
-            List<String> destinations = getDestinations(headers.get(TO), headers.containsKey(BROADCAST));
+            List<String> destinations = getDestinations(headers);
             if (destinations != null) {
                 String uuid = Utility.getInstance().getUuid();
                 byte[] payload = (byte[]) body;
@@ -201,11 +208,29 @@ public class EventProducer implements LambdaFunction {
         return true;
     }
 
-    private List<String> getDestinations(String to, boolean broadcast) {
+    @SuppressWarnings("unchecked")
+    private List<String> getDestinations(Map<String, String> headers) {
+        String to = headers.get(TO);
+        boolean broadcast = headers.containsKey(BROADCAST);
         // broadcast to all presence monitor instances?
         if (to.equals("*")) {
             String namespace = Platform.getInstance().getNamespace();
             return Collections.singletonList(namespace == null? PRESENCE_MONITOR : PRESENCE_MONITOR + "." + namespace);
+        }
+        String id = headers.get(ID);
+        String count = headers.get(COUNT);
+        String total = headers.get(TOTAL);
+        boolean isSegmented = id != null && count != null && total != null;
+        if (isSegmented) {
+            Object cached = cache.get(id);
+            if (cached instanceof List) {
+                // clear cache because this is the last block
+                if (count.equals(total)) {
+                    cache.remove(id);
+                }
+                log.debug("cached target {} for {} {} {}", cached, id, count, total);
+                return (List<String>) cached;
+            }
         }
         // normal message
         Platform platform = Platform.getInstance();
@@ -227,11 +252,18 @@ public class EventProducer implements LambdaFunction {
                 List<String> available = new ArrayList<>(targets.keySet());
                 if (!available.isEmpty()) {
                     if (broadcast) {
+                        if (isSegmented) {
+                            cache.put(id, available);
+                        }
                         return available;
                     } else {
                         String target = getNextAvailable(available);
                         if (target != null) {
-                            return Collections.singletonList(target);
+                            List<String> result = Collections.singletonList(target);
+                            if (isSegmented) {
+                                cache.put(id, result);
+                            }
+                            return result;
                         }
                     }
                 }

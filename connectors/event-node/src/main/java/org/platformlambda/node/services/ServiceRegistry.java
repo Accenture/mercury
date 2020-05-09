@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-
 public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction  {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
 

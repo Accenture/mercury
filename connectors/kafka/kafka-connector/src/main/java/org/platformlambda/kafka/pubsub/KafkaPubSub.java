@@ -61,8 +61,8 @@ public class KafkaPubSub implements PubSubProvider {
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private static long seq = 0, totalEvents = 0;
 
-    private Properties properties = new Properties();
-    private KafkaProducer<String, byte[]> producer;
+    private String producerId = null;
+    private KafkaProducer<String, byte[]> producer = null;
 
     public KafkaPubSub() {
         try {
@@ -191,10 +191,11 @@ public class KafkaPubSub implements PubSubProvider {
     private void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
-            String id = Platform.getInstance().getOrigin()+"ps"+(++seq);
+            String id = (Platform.getInstance().getOrigin()+"ps"+(++seq)).substring(8);
             Properties properties = getProperties();
-            properties.put(ProducerConfig.CLIENT_ID_CONFIG, id.substring(8));
+            properties.put(ProducerConfig.CLIENT_ID_CONFIG, id);
             producer = new KafkaProducer<>(properties);
+            producerId = properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG);
             log.info("Pub/Sub Producer {} ready", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG));
         }
     }
@@ -203,11 +204,12 @@ public class KafkaPubSub implements PubSubProvider {
         if (producer != null) {
             try {
                 producer.close();
-                log.info("Pub/Sub Producer {} released, delivered: {}", properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG), totalEvents);
+                log.info("Pub/Sub Producer {} released, delivered: {}", producerId, totalEvents);
             } catch (Exception e) {
                 // ok to ignore
             }
             producer = null;
+            producerId = null;
             totalEvents = 0;
         }
     }

@@ -20,8 +20,9 @@ package org.platformlambda.core.models;
 
 public class TypedPayload {
 
-    private String type, parametricType;
-    private Object payload;
+    private final String type;
+    private final Object payload;
+    private String parametricType;
 
     public TypedPayload(String type, Object payload) {
         this.type = type;

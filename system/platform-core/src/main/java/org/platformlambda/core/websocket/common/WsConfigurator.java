@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 
-
 public class WsConfigurator {
     private static final Logger log = LoggerFactory.getLogger(WsConfigurator.class);
 
@@ -39,7 +38,8 @@ public class WsConfigurator {
     private static boolean idleTimerLogged = false;
     private static boolean textSizeLogged = false;
     private static boolean binarySizeLogged = false;
-    private int idleTimeout, textSize, binarySize, maxBinaryPayload;
+    private final int textSize, binarySize, maxBinaryPayload;
+    private int idleTimeout;
     private static final WsConfigurator instance = new WsConfigurator();
 
     private WsConfigurator() {

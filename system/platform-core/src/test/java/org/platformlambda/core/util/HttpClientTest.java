@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.util;
 
-
 import com.google.api.client.http.*;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import org.junit.Test;
@@ -26,8 +25,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class HttpClientTest {
 
@@ -56,8 +54,8 @@ public class HttpClientTest {
         String statusMessage = response.getStatusMessage();
         InputStream in = response.getContent();
         String result = Utility.getInstance().stream2str(in);
-        assertTrue(result.startsWith("<!doctype html>"));
-        assertEquals(200, rc);
-        assertEquals("OK", statusMessage);
+        Assert.assertTrue(result.startsWith("<!doctype html>"));
+        Assert.assertEquals(200, rc);
+        Assert.assertEquals("OK", statusMessage);
     }
 }

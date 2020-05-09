@@ -53,11 +53,11 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String NODES = "nodes";
     private static final String JOIN = "join";
-    private boolean isServiceMonitor;
+    private final boolean isServiceMonitor;
 
     public TopicManager() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     @Override

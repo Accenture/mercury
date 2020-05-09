@@ -40,9 +40,9 @@ public class PresenceProducer implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String RESET = "reset";
     private static final String ORIGIN = "origin";
-    private HazelcastInstance client;
+    private final HazelcastInstance client;
+    private final String topic;
     private boolean ready = false, abort = false;
-    private String topic;
     private boolean online = true;
 
     public PresenceProducer(HazelcastInstance client, String topic) {

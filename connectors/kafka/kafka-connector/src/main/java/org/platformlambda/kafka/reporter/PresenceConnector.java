@@ -43,8 +43,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String SEQ = "seq";
     private static final String ALIVE = "keep-alive";
     private static final long MAX_WAIT = 8 * 1000;
-
-    private static PresenceConnector instance = new PresenceConnector();
+    private static final PresenceConnector instance = new PresenceConnector();
     public enum State {
         UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED, ERROR
     }

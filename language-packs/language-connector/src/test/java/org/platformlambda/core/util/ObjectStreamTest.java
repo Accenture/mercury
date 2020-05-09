@@ -26,8 +26,7 @@ import org.platformlambda.core.system.ObjectStreamWriter;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class ObjectStreamTest {
 
@@ -57,7 +56,7 @@ public class ObjectStreamTest {
         // remove the node-ID from the fully qualified route name
         String path = fullPath.substring(0, fullPath.indexOf('@'));
         Map<String, Object> localStreams = io.getLocalStreams();
-        assertTrue(localStreams.containsKey(path));
+        Assert.assertTrue(localStreams.containsKey(path));
         /*
          * read object from the event stream
          * (minimum timeout value is one second)
@@ -69,21 +68,21 @@ public class ObjectStreamTest {
                 for (Object data : in) {
                     i++;
                     if (i == 1) {
-                        assertEquals(messageOne, data);
+                        Assert.assertEquals(messageOne, data);
                     }
                     if (i == 2) {
-                        assertEquals(messageTwo, data);
+                        Assert.assertEquals(messageTwo, data);
                     }
                 }
             } catch (RuntimeException e) {
                 // iterator will timeout since the stream was not closed
-                assertTrue(e.getMessage().contains("timeout"));
-                assertTrue(in.isPending());
+                Assert.assertTrue(e.getMessage().contains("timeout"));
+                Assert.assertTrue(in.isPending());
                 break;
             }
         }
         // ensure that it has read the two messages
-        assertEquals(2, i);
+        Assert.assertEquals(2, i);
         // must close input stream to release resources
         in.close();
     }

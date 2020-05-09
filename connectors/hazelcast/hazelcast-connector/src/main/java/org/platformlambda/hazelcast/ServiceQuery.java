@@ -31,11 +31,11 @@ import java.util.List;
 import java.util.Map;
 
 public class ServiceQuery implements LambdaFunction {
-    private static String TYPE = ServiceDiscovery.TYPE;
-    private static String ROUTE = ServiceDiscovery.ROUTE;
-    private static String FIND = ServiceDiscovery.FIND;
-    private static String DOWNLOAD = "download";
-    private static String INFO = "info";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ROUTE = ServiceDiscovery.ROUTE;
+    private static final String FIND = ServiceDiscovery.FIND;
+    private static final String DOWNLOAD = "download";
+    private static final String INFO = "info";
 
     @Override
     @SuppressWarnings("unchecked")

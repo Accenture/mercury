@@ -22,7 +22,6 @@ import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.Utility;
@@ -46,14 +45,13 @@ public class ObjectStreamService implements LambdaFunction {
     private static final String NAME = "name";
     private static final String DESTROY = "destroy";
     private static final String STREAMS = "streams";
-    private ElasticQueue elasticQueue;
-    private String path;
+    private final ElasticQueue elasticQueue;
+    private final String path;
     private boolean writeEOF = false, readEOF = false;
 
     public ObjectStreamService() {
         this.path = STREAM+Utility.getInstance().getUuid();
-        File dir = new File(Utility.getInstance().getWorkFolder(), STREAMS);
-        this.elasticQueue = new ElasticQueue(dir, this.path);
+        this.elasticQueue = new ElasticQueue(new File(Utility.getInstance().getWorkFolder(), STREAMS), this.path);
     }
 
     public String getPath() {

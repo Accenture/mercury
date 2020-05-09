@@ -26,8 +26,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertNotNull;
+import org.junit.Assert;
 
 public class ElasticQueueTest {
 
@@ -61,8 +60,8 @@ public class ElasticQueueTest {
             event.setBody(input);
             spooler.write(event);
             EventEnvelope data = spooler.read();
-            assertNotNull(data);
-            assertEquals(input, data.getBody());
+            Assert.assertNotNull(data);
+            Assert.assertEquals(input, data.getBody());
         }
         /*
          * Test serialization of Java objects
@@ -81,16 +80,16 @@ public class ElasticQueueTest {
         for (int i = 0; i < ElasticQueue.MEMORY_BUFFER * 3; i++) {
             String input = baseText+i;
             EventEnvelope data = spooler.read();
-            assertNotNull(data);
-            assertTrue(data.getBody() instanceof PoJo);
+            Assert.assertNotNull(data);
+            Assert.assertTrue(data.getBody() instanceof PoJo);
             PoJo o = (PoJo) data.getBody();
-            assertEquals(input, o.getName());
+            Assert.assertEquals(input, o.getName());
         }
         // it should return null when there are no more messages to be read
         EventEnvelope nothing = spooler.read();
-        assertNull(nothing);
+        Assert.assertNull(nothing);
         // elastic queue should be automatically closed when all messages are consumed
-        assertTrue(spooler.isClosed());
+        Assert.assertTrue(spooler.isClosed());
         // closing again has no effect
         spooler.close();
         // remove elastic queue folder
@@ -101,8 +100,8 @@ public class ElasticQueueTest {
         }
         // finally, verify if the PoJo class name is cached
         ManagedCache cache = ManagedCache.getInstance(PayloadMapper.JAVA_CLASS_CACHE);
-        assertNotNull(cache);
-        assertTrue(cache.exists(PoJo.class.getName()));
+        Assert.assertNotNull(cache);
+        Assert.assertTrue(cache.exists(PoJo.class.getName()));
     }
 
 }

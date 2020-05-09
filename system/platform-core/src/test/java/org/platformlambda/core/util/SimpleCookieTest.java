@@ -4,8 +4,7 @@ import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.SimpleHttpCookie;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class SimpleCookieTest {
 
@@ -25,12 +24,12 @@ public class SimpleCookieTest {
     @Test
     public void validateCookie() {
         String cookie = createCookie().toString();
-        assertTrue(cookie.contains("Path=/;"));
-        assertTrue(cookie.contains("HttpOnly"));
-        assertTrue(cookie.contains("Secure;"));
-        assertTrue(cookie.contains("hello=world;"));
-        assertTrue(cookie.contains("Max-Age=60;"));
-        assertTrue(cookie.contains("GMT;"));
+        Assert.assertTrue(cookie.contains("Path=/;"));
+        Assert.assertTrue(cookie.contains("HttpOnly"));
+        Assert.assertTrue(cookie.contains("Secure;"));
+        Assert.assertTrue(cookie.contains("hello=world;"));
+        Assert.assertTrue(cookie.contains("Max-Age=60;"));
+        Assert.assertTrue(cookie.contains("GMT;"));
     }
 
     @Test
@@ -42,8 +41,8 @@ public class SimpleCookieTest {
         String HELLO = "hello";
         String WORLD = "world";
         event.setHeader(HELLO, WORLD);
-        assertTrue(event.getHeaders().get(SET_COOKIE).contains("|"));
-        assertFalse(event.getHeaders().get(HELLO).contains("|"));
+        Assert.assertTrue(event.getHeaders().get(SET_COOKIE).contains("|"));
+        Assert.assertFalse(event.getHeaders().get(HELLO).contains("|"));
     }
 
 }

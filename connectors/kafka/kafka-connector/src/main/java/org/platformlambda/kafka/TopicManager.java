@@ -74,7 +74,6 @@ public class TopicManager implements LambdaFunction {
             try {
                 admin.close();
                 log.info("AdminClient closed, processed: {}", count);
-
             } catch (Exception e) {
                 // ok to ignore
             }
@@ -227,7 +226,6 @@ public class TopicManager implements LambdaFunction {
                 } else {
                     log.error("Unable to delete topic {}", topic);
                 }
-
             } catch (InterruptedException | ExecutionException e) {
                 log.error("Unable to delete topic {} - {}", topic, e.getMessage());
             }

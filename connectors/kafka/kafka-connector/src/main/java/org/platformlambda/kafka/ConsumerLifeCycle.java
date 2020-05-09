@@ -15,7 +15,6 @@
     limitations under the License.
 
  */
-
 package org.platformlambda.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -34,9 +33,9 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
 
     private static final String TYPE = "type";
     private static final String INIT = "init";
+    private final boolean pubSub, serviceMonitor;
+    private final String topic;
     private boolean ready = false;
-    private boolean pubSub, serviceMonitor;
-    private String topic;
 
     public ConsumerLifeCycle(String topic, boolean pubSub) {
         this.topic = topic;

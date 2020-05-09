@@ -50,7 +50,7 @@ public class HazelcastSetup implements CloudSetup {
     private static HazelcastInstance client;
     private static String namespace;
     private static List<String> cluster;
-    private boolean isServiceMonitor;
+    private final boolean isServiceMonitor;
 
     public static HazelcastInstance getHazelcastClient() {
         return client;
@@ -58,7 +58,7 @@ public class HazelcastSetup implements CloudSetup {
 
     public HazelcastSetup() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     public static String getNamespace() {

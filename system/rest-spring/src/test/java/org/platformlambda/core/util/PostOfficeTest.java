@@ -33,8 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class PostOfficeTest {
 
@@ -71,9 +70,9 @@ public class PostOfficeTest {
         int input = 111;
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("hello.world", 500, input);
-        assertEquals(HashMap.class, response.getBody().getClass());
+        Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
-        assertEquals(input, result.get("body"));
+        Assert.assertEquals(input, result.get("body"));
     }
 
     @Test
@@ -90,17 +89,17 @@ public class PostOfficeTest {
         }
         List<EventEnvelope> results = po.request(parallelEvents, 500);
         // expect partial results of 2 items because the other two will timeout
-        assertEquals(2, results.size());
+        Assert.assertEquals(2, results.size());
         // check partial results
         for (EventEnvelope evt: results) {
-            assertTrue(evt.getBody() instanceof Map);
+            Assert.assertTrue(evt.getBody() instanceof Map);
             Map<String, Object> values = (Map<String, Object>) evt.getBody();
-            assertTrue(values.containsKey("body"));
+            Assert.assertTrue(values.containsKey("body"));
             Object v = values.get("body");
-            assertTrue(v instanceof Integer);
+            Assert.assertTrue(v instanceof Integer);
             int val = (int) v;
             // expect body as odd number because even number will timeout
-            assertTrue(val % 2 != 0);
+            Assert.assertTrue(val % 2 != 0);
         }
     }
 
@@ -111,9 +110,9 @@ public class PostOfficeTest {
         PostOffice po = PostOffice.getInstance();
         // with route substitution in the application.properties, hello.test will route to hello.world
         EventEnvelope response = po.request("hello.test", 500, input);
-        assertEquals(HashMap.class, response.getBody().getClass());
+        Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
-        assertEquals(input, result.get("body"));
+        Assert.assertEquals(input, result.get("body"));
     }
 
 }

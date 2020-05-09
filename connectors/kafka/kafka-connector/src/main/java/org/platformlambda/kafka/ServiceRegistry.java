@@ -25,7 +25,6 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
-import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +58,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String STOP = "stop";
     // static because this is a shared lambda function
     private static boolean isServiceMonitor = false, ready = false;
-    private static List<Map<String, String>> deferred = new ArrayList<>();
+    private static final List<Map<String, String>> deferred = new ArrayList<>();
     /*
      * routes: route_name -> (origin, personality)
      * origins: origin -> last seen
@@ -67,10 +66,8 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> origins = new ConcurrentHashMap<>();
     private static List<String> peers = new ArrayList<>();
-    private static String me;
 
     public ServiceRegistry() {
-        me = Platform.getInstance().getOrigin();
         AppConfigReader reader = AppConfigReader.getInstance();
         if ("true".equals(reader.getProperty("service.monitor", "false"))) {
             isServiceMonitor = true;
@@ -92,7 +89,7 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static boolean destinationExists(String origin) {
-        return origin.equals(me) || origins.containsKey(origin) || peers.contains(origin);
+        return origin.equals(Platform.getInstance().getOrigin()) || origins.containsKey(origin) || peers.contains(origin);
     }
 
     private String getChecksum() {

@@ -24,21 +24,17 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.websocket.common.MultipartPayload;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import org.junit.Assert;
 
 public class PayloadSegmentationTest {
-    private static final Logger log = LoggerFactory.getLogger(PayloadSegmentationTest.class);
-
     private static final String TEST_STRING = "123456789.";
-    private static final int CYCLE = 50000;
+    private static final int CYCLE = 30000;
 
     @Test
     public void multiPart() throws IOException, InterruptedException {
@@ -70,7 +66,7 @@ public class PayloadSegmentationTest {
                     }
                 } else {
                     bench.offer(b.length);
-                    assertEquals(b.length, sb.length());
+                    Assert.assertEquals(b.length, sb.length());
                 }
             }
             return true;
@@ -80,9 +76,9 @@ public class PayloadSegmentationTest {
         event.setTo(RECEIVER).setBody(Utility.getInstance().getUTF(sb.toString()));
         multipart.outgoing(RECEIVER, event);
         // wait for receiver to acknowledge message
-        Integer size = bench.poll(5000, TimeUnit.MILLISECONDS);
-        assertNotNull(size);
-        assertEquals((int) size, sb.length());
+        Integer size = bench.poll(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(size);
+        Assert.assertEquals((int) size, sb.length());
     }
 
 }

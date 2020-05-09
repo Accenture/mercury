@@ -33,13 +33,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class HttpConverterText implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
     private static final MediaType TEXT_CONTENT = new MediaType("text", "plain", Charset.forName("UTF-8"));
-    private static List<MediaType> types = new ArrayList<>();
+    private static final List<MediaType> types = Collections.singletonList(TEXT_CONTENT);
 
     @Override
     public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
@@ -55,9 +56,6 @@ public class HttpConverterText implements HttpMessageConverter<Object> {
 
     @Override
     public List<MediaType> getSupportedMediaTypes() {
-        if (types.isEmpty()) {
-            types.add(TEXT_CONTENT);
-        }
         return types;
     }
 

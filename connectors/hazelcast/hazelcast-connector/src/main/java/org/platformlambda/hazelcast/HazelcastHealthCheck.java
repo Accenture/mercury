@@ -43,12 +43,11 @@ public class HazelcastHealthCheck implements LambdaFunction {
     private static final String REPLY_TO = "reply_to";
     private static final String ORIGIN = "origin";
     private static final long TIMEOUT = 5000;
-    // static because this is a shared lambda function
-    private static boolean isServiceMonitor;
+    private final boolean isServiceMonitor;
 
     public HazelcastHealthCheck() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     @Override

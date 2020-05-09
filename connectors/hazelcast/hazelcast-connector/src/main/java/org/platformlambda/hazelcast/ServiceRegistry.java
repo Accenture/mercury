@@ -54,8 +54,6 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String PEERS = "peers";
     private static final String CHECKSUM = "checksum";
     private static final long APP_EXPIRY = 60 * 1000;
-    // static because this is a shared lambda function
-    private static boolean isServiceMonitor;
     /*
      * routes: route_name -> (origin, personality)
      * origins: origin -> last seen
@@ -63,12 +61,11 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ManagedCache origins = ManagedCache.createCache("peer.origins", 10000);
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
     private static List<String> peers = new ArrayList<>();
-    private static String me;
+    private final boolean isServiceMonitor;
 
     public ServiceRegistry() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
-        me = Platform.getInstance().getOrigin();
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     public static Map<String, Map<String, String>> getAllRoutes() {
@@ -86,7 +83,7 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static boolean destinationExists(String origin) {
-        return origin.equals(me) || origins.exists(origin) || peers.contains(origin);
+        return origin.equals(Platform.getInstance().getOrigin()) || origins.exists(origin) || peers.contains(origin);
     }
 
     private String getChecksum() {

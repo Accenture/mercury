@@ -41,7 +41,7 @@ public class PresenceHandler implements LambdaFunction {
     private static final String PUT = "put";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
-    private final static String initToken = UUID.randomUUID().toString();
+    private static final String initToken = UUID.randomUUID().toString();
 
     private static boolean ready = false;
     private int ignored = 0;

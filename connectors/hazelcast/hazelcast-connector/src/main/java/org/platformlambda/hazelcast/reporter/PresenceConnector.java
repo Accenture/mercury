@@ -40,9 +40,6 @@ public class PresenceConnector implements LambdaFunction {
     private static final String ALIVE = "keep-alive";
     private static final String SEQ = "seq";
     private static final long MAX_WAIT = 8 * 1000;
-
-    private static PresenceConnector instance = new PresenceConnector();
-
     public enum State {
         UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED, ERROR
     }
@@ -51,6 +48,7 @@ public class PresenceConnector implements LambdaFunction {
     private long connectTime = 0;
     private long aliveTime = 0, aliveSeq = 0;
     private boolean ready = false, checkingAlive = false;
+    private static final PresenceConnector instance = new PresenceConnector();
 
     private PresenceConnector() {
         // singleton

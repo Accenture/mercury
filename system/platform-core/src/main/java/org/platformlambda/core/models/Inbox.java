@@ -34,14 +34,14 @@ public class Inbox {
 
     private static final ConcurrentMap<String, Inbox> inboxes = new ConcurrentHashMap<>();
 
-    private ActorRef listener;
-    private String id;
+    private final ActorRef listener;
+    private final String id;
+    private final int n;
+    private final long begin = System.nanoTime();
+    private final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
     private EventEnvelope reply;
     private ConcurrentMap<String, EventEnvelope> replies;
     private AtomicInteger total;
-    private int n;
-    private long begin = System.nanoTime();
-    private BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
 
     /**
      * Inbox for one or more requests

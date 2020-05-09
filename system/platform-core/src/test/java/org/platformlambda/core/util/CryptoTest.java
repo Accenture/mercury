@@ -28,8 +28,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class CryptoTest {
     private static final Logger log = LoggerFactory.getLogger(CryptoTest.class);
@@ -55,7 +54,7 @@ public class CryptoTest {
         byte[] key = crypto.generateAesKey(strongCrypto? 256 : 128);
         byte[] encrypted = crypto.aesEncrypt(input.getBytes(), key);
         byte[] decrypted = crypto.aesDecrypt(encrypted, key);
-        assertEquals(input, new String(decrypted));
+        Assert.assertEquals(input, new String(decrypted));
     }
 
     @Test
@@ -70,7 +69,7 @@ public class CryptoTest {
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
         // cannot use assertEquals because we need to do byte-by-byte comparison
-        assertTrue(Arrays.equals(input, decrypted));
+        Assert.assertTrue(Arrays.equals(input, decrypted));
     }
 
     @Test
@@ -81,7 +80,7 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.dsaSign(data, pri);
         boolean result = crypto.dsaVerify(data, signature, pub);
-        assertTrue(result);
+        Assert.assertTrue(result);
     }
 
     @Test
@@ -92,18 +91,18 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.rsaSign(data, pri);
         boolean result = crypto.rsaVerify(data, signature, pub);
-        assertTrue(result);
+        Assert.assertTrue(result);
     }
 
     @Test
     public void hashTest() {
         String input = "hello world";
         byte[] hashed = crypto.getSHA256(input.getBytes());
-        assertEquals(32, hashed.length);
+        Assert.assertEquals(32, hashed.length);
         hashed = crypto.getSHA1(input.getBytes());
-        assertEquals(20, hashed.length);
+        Assert.assertEquals(20, hashed.length);
         hashed = crypto.getMd5(input.getBytes());
-        assertEquals(16, hashed.length);
+        Assert.assertEquals(16, hashed.length);
     }
 
     @Test
@@ -112,7 +111,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha1(key, message);
-        assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
     @Test
@@ -121,7 +120,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha256(key, message);
-        assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
 }

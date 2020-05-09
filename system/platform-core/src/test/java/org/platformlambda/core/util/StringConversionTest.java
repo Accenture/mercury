@@ -20,8 +20,7 @@ package org.platformlambda.core.util;
 
 import org.junit.Test;
 import java.io.IOException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class StringConversionTest {
 
@@ -33,16 +32,16 @@ public class StringConversionTest {
     public void base64() {
         String base64 = util.bytesToBase64(INPUT.getBytes(), true, false);
         // verify that it is a pretty-print output
-        assertTrue(base64.contains("\r\n"));
+        Assert.assertTrue(base64.contains("\r\n"));
         byte[] b = util.base64ToBytes(base64);
-        assertEquals(INPUT, new String(b));
+        Assert.assertEquals(INPUT, new String(b));
     }
 
     @Test
     public void hex() throws IOException {
         String hexString = util.bytes2hex(INPUT.getBytes());
         byte[] b = util.hex2bytes(hexString);
-        assertEquals(INPUT, new String(b));
+        Assert.assertEquals(INPUT, new String(b));
     }
 
 }

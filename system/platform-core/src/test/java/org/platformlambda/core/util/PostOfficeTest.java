@@ -33,8 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class PostOfficeTest {
 
@@ -71,9 +70,9 @@ public class PostOfficeTest {
         int input = 111;
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("hello.world", 500, input);
-        assertEquals(HashMap.class, response.getBody().getClass());
+        Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
-        assertEquals(input, result.get("body"));
+        Assert.assertEquals(input, result.get("body"));
     }
 
     @Test
@@ -88,28 +87,28 @@ public class PostOfficeTest {
         Platform platform = Platform.getInstance();
         LambdaFunction tier1 = (headers, body, instance) -> {
             PostOffice po = PostOffice.getInstance();
-            assertEquals(ROUTE_ONE, po.getRoute());
+            Assert.assertEquals(ROUTE_ONE, po.getRoute());
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
             result.put("body", body);
             result.put("instance", instance);
             result.put("origin", platform.getOrigin());
             // verify trace ID and path
-            assertEquals(TRACE_ID, po.getTraceId());
-            assertEquals(TRACE_PATH, po.getTrace().path);
+            Assert.assertEquals(TRACE_ID, po.getTraceId());
+            Assert.assertEquals(TRACE_PATH, po.getTrace().path);
             // annotate trace
             po.annotateTrace(SOME_KEY, SOME_VALUE);
             // send to level-2 service
             EventEnvelope response = po.request(ROUTE_TWO, 5000, "test");
-            assertEquals(TRACE_ID, response.getBody());
+            Assert.assertEquals(TRACE_ID, response.getBody());
             return result;
         };
         LambdaFunction tier2 = (headers, body, instance) -> {
             PostOffice po = PostOffice.getInstance();
-            assertEquals(ROUTE_TWO, po.getRoute());
-            assertEquals(TRACE_ID, po.getTraceId());
+            Assert.assertEquals(ROUTE_TWO, po.getRoute());
+            Assert.assertEquals(TRACE_ID, po.getTraceId());
             // annotations are local to a service and should not be transported to the next service
-            assertTrue(po.getTrace().annotations.isEmpty());
+            Assert.assertTrue(po.getTrace().annotations.isEmpty());
             return po.getTraceId();
         };
         platform.register(ROUTE_ONE, tier1, 1);
@@ -121,10 +120,10 @@ public class PostOfficeTest {
         event.setTrace(TRACE_ID, TRACE_PATH);
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request(event, 5000);
-        assertEquals(HashMap.class, response.getBody().getClass());
+        Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
-        assertTrue(result.containsKey("body"));
-        assertEquals(testMessage, result.get("body"));
+        Assert.assertTrue(result.containsKey("body"));
+        Assert.assertEquals(testMessage, result.get("body"));
     }
 
     @Test
@@ -141,17 +140,17 @@ public class PostOfficeTest {
         }
         List<EventEnvelope> results = po.request(parallelEvents, 500);
         // expect partial results of 2 items because the other two will timeout
-        assertEquals(2, results.size());
+        Assert.assertEquals(2, results.size());
         // check partial results
         for (EventEnvelope evt: results) {
-            assertTrue(evt.getBody() instanceof Map);
+            Assert.assertTrue(evt.getBody() instanceof Map);
             Map<String, Object> values = (Map<String, Object>) evt.getBody();
-            assertTrue(values.containsKey("body"));
+            Assert.assertTrue(values.containsKey("body"));
             Object v = values.get("body");
-            assertTrue(v instanceof Integer);
+            Assert.assertTrue(v instanceof Integer);
             int val = (int) v;
             // expect body as odd number because even number will timeout
-            assertTrue(val % 2 != 0);
+            Assert.assertTrue(val % 2 != 0);
         }
     }
 
@@ -162,9 +161,9 @@ public class PostOfficeTest {
         PostOffice po = PostOffice.getInstance();
         // with route substitution in the application.properties, hello.test will route to hello.world
         EventEnvelope response = po.request("hello.test", 500, input);
-        assertEquals(HashMap.class, response.getBody().getClass());
+        Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
-        assertEquals(input, result.get("body"));
+        Assert.assertEquals(input, result.get("body"));
     }
 
 }

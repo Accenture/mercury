@@ -7,7 +7,7 @@
     <artifactId>kafka-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.40</version>
+    <version>1.12.41</version>
     <name>Cloud connector for Kafka cluster</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,7 +29,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.40</version>
+            <version>1.12.41</version>
         </dependency>
 
         <dependency>

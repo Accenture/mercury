@@ -39,11 +39,10 @@ public class ServiceQueue extends AbstractActor {
     private static final StopSignal STOP = new StopSignal();
     private static final long SCHEDULED_STOP = 500;
 
-    private Platform platform = Platform.getInstance();
-    private ConcurrentLinkedQueue<ActorRef> pool = new ConcurrentLinkedQueue<>();
+    private final ElasticQueue elasticQueue;
+    private final String route;
+    private final ConcurrentLinkedQueue<ActorRef> pool = new ConcurrentLinkedQueue<>();
     private List<ActorRef> workers = new ArrayList<>();
-    private ElasticQueue elasticQueue;
-    private String route;
     private boolean buffering = true;
     private boolean started = false, stopped = false;
 
@@ -62,7 +61,7 @@ public class ServiceQueue extends AbstractActor {
         return receiveBuilder().match(ServiceDef.class, def -> {
             if (!started) {
                 started = true;
-                ActorSystem system = platform.getEventSystem();
+                ActorSystem system = Platform.getInstance().getEventSystem();
                 int instances = def.getConcurrency();
                 for (int i=0; i < instances; i++) {
                     int n = i + 1;

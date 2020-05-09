@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Assert;
 
 public class StringConversionTest {
     private static final Utility util = Utility.getInstance();
@@ -32,7 +32,7 @@ public class StringConversionTest {
         String input = "hello world";
         String base64 = util.bytesToBase64(input.getBytes());
         byte[] b = util.base64ToBytes(base64);
-        assertEquals(input, new String(b));
+        Assert.assertEquals(input, new String(b));
     }
 
     @Test
@@ -40,7 +40,7 @@ public class StringConversionTest {
         String input = "hello world";
         String hexString = util.bytes2hex(input.getBytes());
         byte[] b = util.hex2bytes(hexString);
-        assertEquals(input, new String(b));
+        Assert.assertEquals(input, new String(b));
     }
 
 }

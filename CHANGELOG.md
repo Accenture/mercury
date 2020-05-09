@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.44, 5/9/2020
+
+### Added
+
+For large payload in an event, the payload is automatically segmented into 64 KB segments.
+When there are more than one target application instances, the system ensures that the segments of the same event is delivered
+to exactly the same target.
+
+### Removed
+
+N/A
+
+### Changed
+
+Code cleaning to improve consistency
+
+---
 ## Version 1.12.40, 5/4/2020
 
 ### Added

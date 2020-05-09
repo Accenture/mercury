@@ -38,13 +38,13 @@ public class ElasticQueue {
     private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
     private static final byte DATA = 0x01;
     private static final byte EOF = 0x00;
+    private final File dir;
+    private final String id;
+    private final ConcurrentLinkedQueue<EventEnvelope> memory = new ConcurrentLinkedQueue<>();
     private int writeFileNumber, readFileNumber;
     private long readCounter, writeCounter;
-    private File dir;
-    private String id;
     private FileInputStream in;
     private boolean empty = false, createDir = false;
-    private ConcurrentLinkedQueue<EventEnvelope> memory = new ConcurrentLinkedQueue<>();
     private EventEnvelope peeked = null;
 
     /**

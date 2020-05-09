@@ -22,7 +22,6 @@ import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -52,10 +51,8 @@ public class LanguageRelay implements LambdaFunction {
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
-
+    private final String version;
     private static final LanguageRelay instance = new LanguageRelay();
-
-    private static String version;
 
     private LanguageRelay() {
         Utility util = Utility.getInstance();

@@ -28,8 +28,7 @@ import java.io.IOException;
 
 public class QueueFileWriter implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(QueueFileWriter.class);
-
-    private FileOutputStream out;
+    private final FileOutputStream out;
 
     public QueueFileWriter(File f) throws FileNotFoundException {
         out = getHandle(f);

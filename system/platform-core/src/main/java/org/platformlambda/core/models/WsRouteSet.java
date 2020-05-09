@@ -27,7 +27,7 @@ public class WsRouteSet {
     private static final AtomicInteger counter = new AtomicInteger(0);
     private static final CryptoApi crypto = new CryptoApi();
 
-    private String route, txPath;
+    private final String route, txPath;
 
     public WsRouteSet(String path) {
         // generate a 5-digit random number as identifier

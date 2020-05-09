@@ -19,9 +19,8 @@ import java.util.concurrent.TimeoutException;
 public class SimpleClientEndpoint {
     private static final Logger log = LoggerFactory.getLogger(SimpleClientEndpoint.class);
     private static final WsRegistry registry = WsRegistry.getInstance();
-
-    private LambdaFunction service;
-    private URI uri;
+    private final LambdaFunction service;
+    private final URI uri;
     private String route;
     private boolean open = false;
 

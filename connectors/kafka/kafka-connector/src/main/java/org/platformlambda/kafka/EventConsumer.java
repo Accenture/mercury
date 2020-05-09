@@ -45,7 +45,7 @@ public class EventConsumer extends Thread {
 
     private static final long FAST_POLL = 10;
     private static final long REGULAR_POLL = 60;
-    private ConsumerLifeCycle lifeCycle = null;
+    private ConsumerLifeCycle lifeCycle;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
     private boolean normal = true, pubSub = false;
@@ -66,8 +66,6 @@ public class EventConsumer extends Thread {
     private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
         AppConfigReader reader = AppConfigReader.getInstance();
         boolean isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
-        this.pubSub = pubSub;
-        this.topic = topic;
         String origin = Platform.getInstance().getOrigin();
         Properties prop = new Properties();
         prop.putAll(base);
@@ -102,7 +100,10 @@ public class EventConsumer extends Thread {
         }
         prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);
         prop.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class);
+        this.pubSub = pubSub;
+        this.topic = topic;
         this.consumer = new KafkaConsumer<>(prop);
+        this.lifeCycle = new ConsumerLifeCycle(topic, pubSub);
     }
 
     private long getEarliest(TopicPartition tp) {
@@ -120,7 +121,6 @@ public class EventConsumer extends Thread {
         boolean resetOffset = pubSub;
         long interval = pubSub? FAST_POLL : REGULAR_POLL;
         PostOffice po = PostOffice.getInstance();
-        lifeCycle = new ConsumerLifeCycle(topic, pubSub);
         consumer.subscribe(Collections.singletonList(topic), lifeCycle);
         log.info("Subscribed topic {}", topic);
         try {
@@ -165,12 +165,16 @@ public class EventConsumer extends Thread {
                     try {
                         message.load(record.value());
                         message.setEndOfRoute();
+                    } catch (Exception e) {
+                        log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                        continue;
+                    }
+                    try {
                         if (message.getTo() != null) {
                             po.send(message);
                         } else {
                             MultipartPayload.getInstance().incoming(message);
                         }
-
                     } catch (IOException e) {
                         log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                     }

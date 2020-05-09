@@ -42,13 +42,11 @@ public class WorkerQueue extends AbstractActor {
     private static final Utility util = Utility.getInstance();
     private static final String ORIGIN = "origin";
 
-    private PostOffice po = PostOffice.getInstance();
-    private String origin;
-    private ServiceDef def;
-    private boolean interceptor;
-    private boolean tracing;
-    private int instance;
-    private ActorRef manager;
+    private final String origin;
+    private final ServiceDef def;
+    private final boolean interceptor, tracing;
+    private final int instance;
+    private final  ActorRef manager;
     private boolean stopped = false;
 
     public static Props props(ServiceDef def, ActorRef manager, int instance) {
@@ -76,6 +74,7 @@ public class WorkerQueue extends AbstractActor {
                     /*
                      * Execute function as a future task
                      */
+                    PostOffice po = PostOffice.getInstance();
                     po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
                     ProcessStatus ps = processEvent(event);
                     /*
@@ -123,6 +122,7 @@ public class WorkerQueue extends AbstractActor {
     }
 
     private ProcessStatus processEvent(EventEnvelope event) {
+        PostOffice po = PostOffice.getInstance();
         LambdaFunction f = def.getFunction();
         try {
             /*

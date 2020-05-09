@@ -34,16 +34,13 @@ import org.springframework.lang.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class HttpConverterXml implements HttpMessageConverter<Object> {
     private static final Utility util = Utility.getInstance();
     private static final SimpleXmlWriter map2xml = new SimpleXmlWriter();
     private static final MediaType XML = new MediaType("application", "xml", Charset.forName("UTF-8"));
-    private static List<MediaType> types = new ArrayList<>();
+    private static final List<MediaType> types = Collections.singletonList(XML);
 
     @Override
     public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
@@ -59,9 +56,6 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
 
     @Override
     public List<MediaType> getSupportedMediaTypes() {
-        if (types.isEmpty()) {
-            types.add(XML);
-        }
         return types;
     }
 

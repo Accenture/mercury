@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-
 @Component
 public class RestLoader implements ServletContextInitializer {
     private static final Logger log = LoggerFactory.getLogger(RestLoader.class);

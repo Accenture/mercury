@@ -27,6 +27,8 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
+import org.platformlambda.core.util.SimpleCache;
+import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +43,12 @@ public class EventProducer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(EventProducer.class);
 
     private static final CryptoApi crypto = new CryptoApi();
-    private static final String TO = "to";
-    private static final String BROADCAST = "broadcast";
+    private static final SimpleCache cache = SimpleCache.createCache("sticky.destinations", 60000);
+    private static final String ID = MultipartPayload.ID;
+    private static final String COUNT = MultipartPayload.COUNT;
+    private static final String TOTAL = MultipartPayload.TOTAL;
+    private static final String TO = MultipartPayload.TO;
+    private static final String BROADCAST = MultipartPayload.BROADCAST;
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String LOOP_BACK = "loopback";
@@ -50,15 +56,17 @@ public class EventProducer implements LambdaFunction {
     private static final String REPLY_TO = "reply_to";
     private static final String ORIGIN = "origin";
     // static because this is a shared lambda function
-    private static HazelcastInstance client;
-    private static boolean isServiceMonitor, ready = false, abort = false;
-    private static String forMe;
+    private static boolean ready = false, abort = false;
+
+    private final HazelcastInstance client;
+    private final boolean isServiceMonitor;
+    private final String forMe;
 
     public EventProducer(HazelcastInstance client) {
         this.client = client;
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
-        forMe = "@"+Platform.getInstance().getOrigin();
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        this.forMe = "@"+Platform.getInstance().getOrigin();
     }
 
     @Override
@@ -76,7 +84,7 @@ public class EventProducer implements LambdaFunction {
             }
         }
         if (headers.containsKey(TO) && body instanceof byte[]) {
-            List<String> destinations = getDestinations(headers.get(TO), headers.containsKey(BROADCAST));
+            List<String> destinations = getDestinations(headers);
             if (destinations != null) {
                 byte[] payload = (byte[]) body;
                 if (destinations.isEmpty()) {
@@ -139,7 +147,25 @@ public class EventProducer implements LambdaFunction {
     }
 
 
-    private List<String> getDestinations(String to, boolean broadcast) {
+    @SuppressWarnings("unchecked")
+    private List<String> getDestinations(Map<String, String> headers) {
+        String to = headers.get(TO);
+        boolean broadcast = headers.containsKey(BROADCAST);
+        String id = headers.get(ID);
+        String count = headers.get(COUNT);
+        String total = headers.get(TOTAL);
+        boolean isSegmented = id != null && count != null && total != null;
+        if (isSegmented) {
+            Object cached = cache.get(id);
+            if (cached instanceof List) {
+                // clear cache because this is the last block
+                if (count.equals(total)) {
+                    cache.remove(id);
+                }
+                log.debug("cached target {} for {} {} {}", cached, id, count, total);
+                return (List<String>) cached;
+            }
+        }
         Platform platform = Platform.getInstance();
         if (to.contains("@")) {
             // direct addressing
@@ -159,11 +185,18 @@ public class EventProducer implements LambdaFunction {
                 List<String> available = new ArrayList<>(targets.keySet());
                 if (!available.isEmpty()) {
                     if (broadcast) {
+                        if (isSegmented) {
+                            cache.put(id, available);
+                        }
                         return available;
                     } else {
                         String target = getNextAvailable(available);
                         if (target != null) {
-                            return Collections.singletonList(target);
+                            List<String> result = Collections.singletonList(target);
+                            if (isSegmented) {
+                                cache.put(id, result);
+                            }
+                            return result;
                         }
                     }
                 }

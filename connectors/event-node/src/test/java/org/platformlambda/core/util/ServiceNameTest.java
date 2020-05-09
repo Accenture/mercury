@@ -20,7 +20,7 @@ package org.platformlambda.core.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import org.junit.Assert;
 
 public class ServiceNameTest {
 
@@ -32,9 +32,9 @@ public class ServiceNameTest {
         String invalid = "hello.wor?ld";
         String dotted = "..."+invalid;
         String filtered1 = util.filteredServiceName(invalid);
-        assertEquals(valid, filtered1);
+        Assert.assertEquals(valid, filtered1);
         String filtered2 = util.filteredServiceName(dotted);
-        assertEquals(valid, filtered2);
+        Assert.assertEquals(valid, filtered2);
     }
 
     @Test
@@ -42,9 +42,9 @@ public class ServiceNameTest {
         String windowsMetafile = "thumbs.db";
         String windowsExt = "hello.com";
         String valid = "com.hello";
-        assertTrue(util.reservedFilename(windowsMetafile));
-        assertTrue(util.reservedExtension(windowsExt));
-        assertFalse(util.reservedExtension(valid));
+        Assert.assertTrue(util.reservedFilename(windowsMetafile));
+        Assert.assertTrue(util.reservedExtension(windowsExt));
+        Assert.assertFalse(util.reservedExtension(valid));
 
     }
 

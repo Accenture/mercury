@@ -65,9 +65,9 @@ public class EventEnvelope {
     // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
+    private final Map<String, String> headers = new HashMap<>();
     private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
     private Integer status;
-    private Map<String, String> headers = new HashMap<>();
     private Object body;
     private Float executionTime, roundTrip;
     private boolean endOfRoute = false, binary = true, pojo = true;

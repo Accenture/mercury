@@ -39,9 +39,9 @@ public class ObjectStreamReader implements Iterable<Object>, Closeable {
     private static final String PENDING = ObjectStreamService.PENDING;
     private static final String CLOSE = ObjectStreamService.CLOSE;
 
-    private ObjectBlockReader iterator;
-    private long timeout;
-    private String streamId;
+    private final ObjectBlockReader iterator;
+    private final long timeout;
+    private final String streamId;
     private boolean closed = false;
 
     public ObjectStreamReader(String streamId, long timeout) {

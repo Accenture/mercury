@@ -58,7 +58,7 @@ public class KafkaSetup implements CloudSetup {
     private static EventConsumer consumer;
     private static String displayUrl = "unknown";
     private static boolean pingKafka = true;
-    private boolean isServiceMonitor;
+    private final boolean isServiceMonitor;
 
 
     public KafkaSetup() {

@@ -42,7 +42,6 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String PRESENCE_HANDLER = "presence.service";
     private static final String START = "start";
     private static final String RESET = "reset";
-    private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
@@ -50,14 +49,13 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static boolean ready = false;
     private ITopic<byte[]> topic = null;
     private String registrationId = null;
-    private String realTopic;
-    private String setupType = null;
-    private boolean isServiceMonitor;
+    private final String realTopic;
+    private final boolean isServiceMonitor;
 
     public TopicLifecycleListener(String realTopic) {
         this.realTopic = realTopic;
         AppConfigReader reader = AppConfigReader.getInstance();
-        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         // create a function to setup consumer asynchronously
         LambdaFunction f = (headers, body, instance) -> {
             setupConsumer(headers.get(TYPE));

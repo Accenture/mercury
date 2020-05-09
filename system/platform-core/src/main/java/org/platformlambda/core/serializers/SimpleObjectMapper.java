@@ -19,7 +19,6 @@
 package org.platformlambda.core.serializers;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import org.platformlambda.core.util.Utility;
 
@@ -31,13 +30,11 @@ import java.util.Map;
 
 public class SimpleObjectMapper {
 
-    private Gson mapGson, objGson;
-    private Utility util;
+    private final Gson mapGson, objGson;
 
     public SimpleObjectMapper(Gson mapGson, Gson objGson) {
         this.mapGson = mapGson;
         this.objGson = objGson;
-        this.util = Utility.getInstance();
     }
 
     public String writeValueAsString(Object value) {
@@ -50,6 +47,7 @@ public class SimpleObjectMapper {
 
     @SuppressWarnings("unchecked")
     public <T> T readValue(Object fromValue, Class<T> toValueType) {
+        Utility util = Utility.getInstance();
         // return original map
         boolean outputIsMap = isMap(toValueType);
         if (fromValue instanceof Map && outputIsMap) {
@@ -97,11 +95,14 @@ public class SimpleObjectMapper {
 
     public <T> T restoreGeneric(Object fromValue, Class<T> toValueType, Class<?>... args) {
         if (fromValue instanceof Map) {
-            return objGson.fromJson(objGson.toJsonTree(fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return objGson.fromJson(objGson.toJsonTree(fromValue),
+                    TypeToken.getParameterized(toValueType, args).getType());
         } else if (fromValue instanceof byte[]) {
-            return objGson.fromJson(util.getUTF((byte[]) fromValue), TypeToken.getParameterized(toValueType, args).getType());
+            return objGson.fromJson(Utility.getInstance().getUTF((byte[]) fromValue),
+                    TypeToken.getParameterized(toValueType, args).getType());
         } else {
-            throw new IllegalArgumentException("Unable to restore to "+fromValue.getClass().getName()+" because payload is not byte array or map");
+            throw new IllegalArgumentException("Unable to restore to "+fromValue.getClass().getName()+
+                    " because payload is not byte array or map");
         }
     }
 

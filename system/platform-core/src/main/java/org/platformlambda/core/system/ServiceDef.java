@@ -28,13 +28,13 @@ public class ServiceDef {
 
     private static final int MAX_INSTANCES = 1000;
 
-    private String route;
-    private LambdaFunction lambda;
-    private String id;
+    private final String route;
+    private final LambdaFunction lambda;
+    private final String id;
+    private final ActorRef manager;
+    private final Date created = new Date();
     private boolean isPrivate = false;
     private int instances = 1;
-    private ActorRef manager;
-    private Date created = new Date();
 
     public ServiceDef(String route, LambdaFunction lambda, ActorRef manager) {
         this.id = Utility.getInstance().getUuid();

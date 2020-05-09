@@ -45,7 +45,6 @@ public class KafkaHealthCheck implements LambdaFunction {
     private static final long TIMEOUT = 5000;
     // static because this is a shared lambda function
     private static boolean isServiceMonitor;
-    private static String statusMessage = "OK";
 
     public KafkaHealthCheck() {
         AppConfigReader reader = AppConfigReader.getInstance();
@@ -71,14 +70,13 @@ public class KafkaHealthCheck implements LambdaFunction {
                 if (response.getBody() instanceof List) {
                     List<String> list = (List<String>) response.getBody();
                     if (list.isEmpty()) {
-                        statusMessage =  "Kafka is healthy but it does not have any topics";
+                        return "Kafka is healthy but it does not have any topics";
                     } else {
-                        statusMessage =  "kafka is healthy and it contains " + list.size() + " " + (list.size() == 1 ? "topic" : "topics");
+                        return "kafka is healthy and it contains " + list.size() + " " + (list.size() == 1 ? "topic" : "topics");
                     }
                 } else {
                     throw new AppException(500, "Unable to list kafka topics");
                 }
-                return statusMessage;
 
             } else {
                 long begin = System.currentTimeMillis();

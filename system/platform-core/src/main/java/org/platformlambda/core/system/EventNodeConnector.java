@@ -60,9 +60,9 @@ public class EventNodeConnector implements LambdaFunction {
     private static final long MAX_ALIVE_WAIT = 8000;
     private static String publicKeyUserGroup;
 
+    private final String personalityType;
     private State state = State.UNASSIGNED;
     private String txPath = null;
-    private String personalityType;
     private byte[] challengeToken;
     private long handshakeStartTime = 0, aliveTime = 0, aliveSeq = 0;
     private boolean ready = false, checkingAlive = false;

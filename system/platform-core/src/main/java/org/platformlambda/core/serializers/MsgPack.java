@@ -85,7 +85,7 @@ public class MsgPack {
                 } else if (type == ValueType.ARRAY) {
                     return unpack(unpacker, new ArrayList<>());
                 } else {
-                    throw new MessageFormatException("Packed input should be Map<String, Object> or List<Object>");
+                    throw new MessageFormatException("Packed input should be Map or List, Actual: "+type);
                 }
             }
             unpacker.close();

@@ -33,7 +33,7 @@ public class ObjectStreamWriter implements Closeable {
     private static final String WRITE = ObjectStreamService.WRITE;
     private static final String EOF = ObjectStreamService.EOF;
 
-    private String streamId;
+    private final String streamId;
     private long timeout = 8000;
     private boolean closed = false;
 

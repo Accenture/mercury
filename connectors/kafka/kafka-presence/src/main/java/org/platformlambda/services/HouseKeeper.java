@@ -61,11 +61,9 @@ public class HouseKeeper implements LambdaFunction {
     private static final long ONE_MINUTE = 60 * 1000;
     // Topic expiry is 60 seconds, deletion is 5 minutes
     private static final long EXPIRY = 5 * ONE_MINUTE;
-
     private static final ConcurrentMap<String, Long> monitors = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, AppInfo> topics = new ConcurrentHashMap<>();
-
-    private long start;
+    private final long start;
 
     public HouseKeeper() {
         AppConfigReader reader = AppConfigReader.getInstance();

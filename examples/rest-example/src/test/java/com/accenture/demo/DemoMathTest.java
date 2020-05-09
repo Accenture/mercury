@@ -30,8 +30,7 @@ import com.accenture.examples.services.DemoMath;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import org.junit.Assert;
 
 public class DemoMathTest {
 
@@ -48,8 +47,8 @@ public class DemoMathTest {
 
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("math.addition", 5000, new Kv("a", a), new Kv("b", b));
-        assertFalse(response.hasError());
-        assertEquals(100 + 200, response.getBody());
+        Assert.assertFalse(response.hasError());
+        Assert.assertEquals(100 + 200, response.getBody());
 
     }
 

@@ -40,9 +40,7 @@ public class EventNodeManager extends Thread {
     private static final long WAIT_INTERVAL = 5000;
     private static final long MAX_HANDSHAKE_WAIT = 8000;
     private static final int IDLE_THRESHOLD = 10;
-
     private static long lastSeen = System.currentTimeMillis();
-
     private List<String> platformPaths = new ArrayList<>();
     private Session session;
     private long lastPending = 0, timer = 0;

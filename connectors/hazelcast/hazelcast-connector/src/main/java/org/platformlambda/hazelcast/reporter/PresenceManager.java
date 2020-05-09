@@ -24,6 +24,7 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.SimpleClientEndpoint;
 import org.platformlambda.core.websocket.common.WsConfigurator;
+import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +47,14 @@ public class PresenceManager extends Thread {
     private static long lastSeen = System.currentTimeMillis();
     private static boolean normal = true;
 
-    private List<String> platformPaths = new ArrayList<>();
+    private final String url;
+    private final List<String> platformPaths;
     private Session session;
-    private String url;
     private long lastPending = 0, timer = 0;
     
     public PresenceManager(String url) {
         this.url = url;
+        this.platformPaths = Utility.getInstance().split(url, ", ");
     }
 
     @Override
@@ -77,11 +79,6 @@ public class PresenceManager extends Thread {
         if (connector.isUnassigned()) {
             lastSeen = System.currentTimeMillis();
             long idleTimeout = WsConfigurator.getInstance().getIdleTimeout() * 1000;
-            if (url.contains(",")) {
-                platformPaths = Utility.getInstance().split(url, ", ");
-            } else {
-                platformPaths.add(url);
-            }
             /*
              * Immediate connect when running for the first time.
              * Thereafter, wait for 5 seconds and try again until it is connected.
@@ -146,10 +143,12 @@ public class PresenceManager extends Thread {
         } else {
             if (now - timer >= WAIT_INTERVAL) {
                 timer = System.currentTimeMillis();
-                try {
-                    connect();
-                } catch (Exception e) {
-                    log.error("Unexpected error when trying to connect {} - {}", platformPaths, e.getMessage());
+                if (TopicLifecycleListener.isReady()) {
+                    try {
+                        connect();
+                    } catch (Exception e) {
+                        log.error("Unexpected error when trying to connect {} - {}", platformPaths, e.getMessage());
+                    }
                 }
             }
         }

@@ -36,10 +36,9 @@ public class DistributedTrace implements LambdaFunction {
 
     private static final String DISTRIBUTED_TRACING = "distributed.trace.processor";
     private static final long INTERVAL = 5000;
+    private final String processor;
     private boolean found = false;
     private Long lastCheck = null;
-
-    private String processor;
 
     public DistributedTrace() {
         AppConfigReader config = AppConfigReader.getInstance();

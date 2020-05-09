@@ -29,8 +29,7 @@ import java.security.KeyPair;
 
 public class ServerPersonality {
     private static final Logger log = LoggerFactory.getLogger(ServerPersonality.class);
-
-    private static CryptoApi crypto = new CryptoApi();
+    private static final CryptoApi crypto = new CryptoApi();
     private static final ServerPersonality instance = new ServerPersonality();
 
     /**

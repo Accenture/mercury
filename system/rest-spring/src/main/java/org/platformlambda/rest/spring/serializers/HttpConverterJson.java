@@ -33,13 +33,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class HttpConverterJson implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
     private static final MediaType JSON = new MediaType("application", "json", Charset.forName("UTF-8"));
-    private static List<MediaType> types = new ArrayList<>();
+    private static final List<MediaType> types = Collections.singletonList(JSON);
 
     @Override
     public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
@@ -55,9 +56,6 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
 
     @Override
     public List<MediaType> getSupportedMediaTypes() {
-        if (types.isEmpty()) {
-            types.add(JSON);
-        }
         return types;
     }
 

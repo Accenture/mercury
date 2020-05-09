@@ -48,7 +48,7 @@ public class Platform {
     private static ActorSystem system;
     private static String lambdaId, namespace;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
-    private static Platform instance = new Platform();
+    private static final Platform instance = new Platform();
 
     private Platform() {
         // singleton

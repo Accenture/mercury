@@ -24,7 +24,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-
 public class SimpleXmlWriter {
 
     private final static String SPACES = "  ";

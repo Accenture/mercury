@@ -36,10 +36,9 @@ public class ManagedCache {
     private static final long FIVE_MINUTES = 5 * 60000;
     private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
-
-    private String name;
-    private long expiry, maxItems;
-    private Cache<String, Object> cache;
+    private final String name;
+    private final long expiry, maxItems;
+    private final Cache<String, Object> cache;
     private long lastWrite = 0, lastRead = 0, lastReset = System.currentTimeMillis();
 
     private ManagedCache(Cache<String, Object> cache, String name, long expiryMs, long maxItems) {

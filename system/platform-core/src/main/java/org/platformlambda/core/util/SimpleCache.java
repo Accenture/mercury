@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import org.platformlambda.core.models.EventBlocks;
 import org.platformlambda.core.models.TimedItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,21 +32,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * SimpleCache is a simple ConcurrentHashMap with automatic removal of inactive entries
  *
- * WARNING - You should not use this as a regular cache class because its memory consumption would expand without limit.
- * This class is mainly used by the MultipartPayload class for segmentation of large event payload.
+ * WARNING - You should NOT use this as a regular cache class because its memory consumption would expand without limit.
+ * This class is normally used by the MultipartPayload class for segmentation of large event payload.
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
-
     private static final long HOUSEKEEPING_INTERVAL = 10000;
     private static final long MIN_EXPIRY = HOUSEKEEPING_INTERVAL;
     private static final ConcurrentMap<String, SimpleCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
-
-    private String name;
-    private long expiry;
-
-    private ConcurrentMap<String, TimedItem> cache = new ConcurrentHashMap<>();
+    private final String name;
+    private final long expiry;
+    private final ConcurrentMap<String, TimedItem> cache = new ConcurrentHashMap<>();
 
     private SimpleCache(String name, long expiryMs) {
         this.name = name;
@@ -119,9 +117,25 @@ public class SimpleCache {
         }
         if (!expired.isEmpty()) {
             for (String k : expired) {
+                TimedItem item = cache.get(k);
+                //
+                /*
+                 * if the payload is EventBlocks, it should be cleared when it is consumed
+                 */
+                if (item.payload instanceof EventBlocks) {
+                    EventBlocks evt = (EventBlocks) item.payload;
+                    if (evt.getExpectedSize() != evt.size()) {
+                        log.error("Event segments {} expired - Expected size: {}, Actual: {}",
+                                evt.getId(), evt.getExpectedSize(), evt.size());
+                    } else {
+                        log.error("Event segments {} with {} block{} expired",
+                                evt.getId(), evt.getExpectedSize(), evt.getExpectedSize() == 1? "" : "s");
+                    }
+                }
                 remove(k);
             }
-            log.info("Total {} item{} expired", expired.size(), expired.size() == 1? "" : "s");
+            log.info("Total {} item{} expired, remaining: {}",
+                    expired.size(), expired.size() == 1? "" : "s", cache.size());
         }
     }
 
@@ -143,7 +157,7 @@ public class SimpleCache {
             while (normal) {
                 long now = System.currentTimeMillis();
                 // avoid scanning frequently
-                if (now - t1 > HOUSEKEEPING_INTERVAL) {
+                if (now - t1 > 2000) {//HOUSEKEEPING_INTERVAL) {
                     t1 = now;
                     // clean up cache collection
                     for (String key : cacheCollection.keySet()) {

@@ -32,7 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertTrue;
+import org.junit.Assert;
 
 public class XmlParserFeatureTest {
     private static final Logger log = LoggerFactory.getLogger(XmlParserFeatureTest.class);
@@ -65,10 +65,10 @@ public class XmlParserFeatureTest {
     public void featureTest() throws ParserConfigurationException, IOException, SAXException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         for (String feature: FEATURES_TO_ENABLE) {
-            assertTrue(setFeature(dbf, feature, true));
+            Assert.assertTrue(setFeature(dbf, feature, true));
         }
         for (String feature: FEATURES_TO_DISABLE) {
-            assertTrue(setFeature(dbf, feature, false));
+            Assert.assertTrue(setFeature(dbf, feature, false));
         }
         dbf.setXIncludeAware(false);
         dbf.setExpandEntityReferences(false);
@@ -85,7 +85,7 @@ public class XmlParserFeatureTest {
             Document doc = dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8)));
             doc.getDocumentElement().normalize();
         } catch (SAXParseException e) {
-            assertTrue(e.getMessage().contains("DOCTYPE is disallowed"));
+            Assert.assertTrue(e.getMessage().contains("DOCTYPE is disallowed"));
         }
     }
 
