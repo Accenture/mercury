@@ -49,7 +49,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class ObjectStreamIO {
 
-    private static final String STREAM_MANAGER = Platform.STREAM_MANAGER;
+    private static final String STREAM_MANAGER = PostOffice.STREAM_MANAGER;
     private static final String TYPE = "type";
     private static final String CREATE = "create";
     private static final String QUERY = "query";

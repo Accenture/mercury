@@ -92,7 +92,7 @@ public class WorkerQueue extends AbstractActor {
                              * this will not go into an endless loop.
                              */
                             EventEnvelope dt = new EventEnvelope();
-                            dt.setTo(Platform.DISTRIBUTED_TRACING).setBody(trace.annotations);
+                            dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(trace.annotations);
                             dt.setHeader("origin", origin);
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
                             dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);

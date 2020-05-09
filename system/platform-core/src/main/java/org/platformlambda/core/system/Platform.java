@@ -26,8 +26,6 @@ import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
-import org.platformlambda.core.services.DistributedTrace;
-import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +42,6 @@ public class Platform {
     private static final Logger log = LoggerFactory.getLogger(Platform.class);
     private static final ManagedCache cache = ManagedCache.createCache("system.log.cache", 30000);
     private static final CryptoApi crypto = new CryptoApi();
-
-    public static final String SHUTDOWN_SERVICE = "shutdown.service";
-    public static final String STREAM_MANAGER = "object.streams.io";
-    public static final String DISTRIBUTED_TRACING = "distributed.tracing";
-    private static final String ROUTE_MAPPER = ".route.mapper";
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
     private static final String LAMBDA = "lambda";
@@ -58,23 +51,7 @@ public class Platform {
     private static Platform instance = new Platform();
 
     private Platform() {
-        // initialize instance because the registration method needs it
-        instance = this;
-        // start built-in services
-        AppConfigReader config = AppConfigReader.getInstance();
-        try {
-            registerPrivate(SHUTDOWN_SERVICE, (headers, body, instance) -> {
-                log.info("Shutting down as per operator request");
-                System.exit(-2);
-               return true;
-            }, 1);
-            registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
-            // streaming becomes a standard feature since v1.12.0
-            registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
-
-        } catch (IOException e) {
-            log.error("Unable to create {} - {}", STREAM_MANAGER, e.getMessage());
-        }
+        // singleton
     }
 
     public static Platform getInstance() {
@@ -90,10 +67,6 @@ public class Platform {
 
     public String getName() {
         return Utility.getInstance().getPackageName();
-    }
-
-    public String getRouteManagerName() {
-        return getName()+ ROUTE_MAPPER;
     }
 
     /**

@@ -65,7 +65,7 @@ public class ShutdownServlet extends HttpServlet {
         }
         if (origin.equals(Platform.getInstance().getOrigin())) {
             EventEnvelope event = new EventEnvelope();
-            event.setTo(Platform.SHUTDOWN_SERVICE).setBody(Platform.SHUTDOWN_SERVICE);
+            event.setTo(PostOffice.SHUTDOWN_SERVICE).setBody(PostOffice.SHUTDOWN_SERVICE);
             PostOffice.getInstance().sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
             response.sendError(200, "This application will be shutdown in "+GRACE_PERIOD+" ms");
         } else {
@@ -75,7 +75,7 @@ public class ShutdownServlet extends HttpServlet {
                 return;
             }
             EventEnvelope event = new EventEnvelope();
-            event.setTo(Platform.SHUTDOWN_SERVICE+"@"+origin).setBody(Platform.SHUTDOWN_SERVICE);
+            event.setTo(PostOffice.SHUTDOWN_SERVICE+"@"+origin).setBody(PostOffice.SHUTDOWN_SERVICE);
             PostOffice.getInstance().sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
             response.sendError(200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
         }

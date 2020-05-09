@@ -23,6 +23,8 @@ import akka.actor.ActorSystem;
 import akka.actor.Cancellable;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
+import org.platformlambda.core.services.DistributedTrace;
+import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.CryptoApi;
@@ -46,6 +48,10 @@ public class PostOffice {
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String EVENT_NODE = "event.node";
+    public static final String STREAM_MANAGER = "object.streams.io";
+    public static final String DISTRIBUTED_TRACING = "distributed.tracing";
+    public static final String SHUTDOWN_SERVICE = "shutdown.service";
+    private static final String[] BUILT_IN = {STREAM_MANAGER, DISTRIBUTED_TRACING, SHUTDOWN_SERVICE};
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
@@ -57,15 +63,27 @@ public class PostOffice {
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
-        // guarantee that platform instance is loaded first
         Platform platform = Platform.getInstance();
-        log.info("{} {} loaded", platform.getName(), platform.getOrigin());
-        // load route substitution table if any
-        AppConfigReader config = AppConfigReader.getInstance();
-        eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
-        substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
-        if (substituteRoutes) {
-            loadRouteSubstitution();
+        try {
+            // start built-in services
+            platform.registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
+            platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
+            platform.registerPrivate(SHUTDOWN_SERVICE, (headers, body, instance) -> {
+                log.info("Shutting down as per operator request");
+                System.exit(-2);
+                return true;
+            }, 1);
+            log.info("Includes {}", Arrays.asList(BUILT_IN));
+            // load route substitution table if any
+            AppConfigReader config = AppConfigReader.getInstance();
+            eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
+            substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
+            if (substituteRoutes) {
+                loadRouteSubstitution();
+            }
+        } catch (IOException e) {
+            log.error("Unable to start - {}", e.getMessage());
+            System.exit(-1);
         }
     }
 

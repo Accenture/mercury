@@ -33,7 +33,7 @@ import java.util.Map;
 @ZeroTracing
 public class ObjectStreamService implements LambdaFunction {
 
-    private static final String STREAM_MANAGER = Platform.STREAM_MANAGER;
+    private static final String STREAM_MANAGER = PostOffice.STREAM_MANAGER;
     public static final String TYPE = "type";
     public static final String READ = "read";
     public static final String PEEK = "peek";

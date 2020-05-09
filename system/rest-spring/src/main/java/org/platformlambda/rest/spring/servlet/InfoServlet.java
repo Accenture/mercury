@@ -36,8 +36,6 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
-import static org.platformlambda.core.system.Platform.STREAM_MANAGER;
-
 @WebServlet("/info/*")
 public class InfoServlet extends HttpServlet {
 	private static final long serialVersionUID = 376901501172978505L;
@@ -160,7 +158,7 @@ public class InfoServlet extends HttpServlet {
             /*
              * check streams resources if any
              */
-            updateResult(STREAM_MANAGER, result);
+            updateResult(PostOffice.STREAM_MANAGER, result);
             updateResult(SYSTEM_INFO, result);
             result.put(TIME, new Date());
             result.put(ORIGIN, platform.getOrigin());
