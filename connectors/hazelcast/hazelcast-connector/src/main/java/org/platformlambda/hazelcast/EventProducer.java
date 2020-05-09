@@ -161,6 +161,9 @@ public class EventProducer implements LambdaFunction {
                 // clear cache because this is the last block
                 if (count.equals(total)) {
                     cache.remove(id);
+                } else {
+                    // reset expiry timer
+                    cache.put(id, cached);
                 }
                 log.debug("cached target {} for {} {} {}", cached, id, count, total);
                 return (List<String>) cached;
