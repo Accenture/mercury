@@ -57,6 +57,10 @@ public class PostOffice {
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
+        // guarantee that platform instance is loaded first
+        Platform platform = Platform.getInstance();
+        log.info("{} {} loaded", platform.getName(), platform.getOrigin());
+        // load route substitution table if any
         AppConfigReader config = AppConfigReader.getInstance();
         eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
         substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
