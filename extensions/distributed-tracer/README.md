@@ -24,6 +24,57 @@ In a cloud deployment, the URL will be defined by the cloud administrator.
 It will return a sample HTML page that connects to the aggregator's websocket service port and
 display the tracing information in real-time.
 
+## Sample raw trace metrics
+
+The following is a sample output when the browser hits the "hello.world" service provided by a python microservices.
+The trace shows that the event passes through 3 services: "hello.world" at the language-connector,  
+"hello.world" service in python script and "async.http.response" by the rest-automation system.
+
+```
+{
+  "trace": {
+    "path": "GET /api/hello/world",
+    "service": "async.http.response",
+    "success": true,
+    "origin": "2020051088c413a3a33c4d6082be287b1d51a0d8",
+    "start": "2020-05-10T23:44:19.290Z",
+    "exec_time": 0.418,
+    "id": "fee3d82fd3dd47fc883aefb61f2f2fe8"
+  },
+  "annotations": {},
+  "type": "trace"
+}
+{
+  "trace": {
+    "path": "GET /api/hello/world",
+    "service": "hello.world",
+    "success": true,
+    "origin": "py0356ba1413324686b2828439634a4d37",
+    "start": "2020-05-10T23:44:19.283Z",
+    "exec_time": 0.191,
+    "id": "fee3d82fd3dd47fc883aefb61f2f2fe8"
+  },
+  "annotations": {},
+  "type": "trace"
+}
+{
+  "trace": {
+    "path": "GET /api/hello/world",
+    "service": "hello.world",
+    "success": true,
+    "origin": "202005109b77436f7d1141078fd1a6d65b2bd7bf",
+    "start": "2020-05-10T23:44:19.278Z",
+    "exec_time": 0.218,
+    "id": "fee3d82fd3dd47fc883aefb61f2f2fe8"
+  },
+  "annotations": {
+    "version": "language-connector 1.12.41",
+    "target": "py0356ba1413324686b2828439634a4d37"
+  },
+  "type": "trace"
+}
+```
+
 ## UI application
 
 You may implement a UI tracer to connect to the aggregator's websocket service port to collect the tracing information.
@@ -33,3 +84,4 @@ such as Graphite or Grafana.
 
 If you want to do your own visualization, you may implement a single page application (React, Angular, etc.)
 to render and filter the tracing metrics data.
+

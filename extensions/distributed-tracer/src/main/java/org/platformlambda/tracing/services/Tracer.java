@@ -39,6 +39,7 @@ public class Tracer implements LambdaFunction {
     }
 
     private Map<String, Object> transform(Map<String, String> headers) {
+        // restore the original types for selected key-values
         Utility util = Utility.getInstance();
         Map<String, Object> result = new HashMap<>();
         for (String key: headers.keySet()) {

@@ -46,6 +46,7 @@ public class WsTrace implements LambdaFunction {
                     // the open event contains route, txPath, ip, path, query and token
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
+                    // TODO: implement authentication logic to validate the token
                     token = headers.get(WsEnvelope.TOKEN);
                     String ip = headers.get(WsEnvelope.IP);
                     String path = headers.get(WsEnvelope.PATH);

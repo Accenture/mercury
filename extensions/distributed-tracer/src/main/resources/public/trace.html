@@ -10,7 +10,7 @@
         /*
          * This is a sample javascript code to connect to a notification channel using websocket.
          * Please note that your browser application must implement the following:
-         * 1. Connection URL is /ws/trace/notification:{token}
+         * 1. Connection URL is /ws/trace/{access_token}
          *    where token should be an access token for the notification channel.
          * 2. Keep-alive protocol.
          */
@@ -85,9 +85,9 @@
 
             if ("WebSocket" in window) {
                 document.getElementById('message').style.display = "block";
-                var application = document.getElementById('app').value;
-                if (application.length == 0) {
-                    show(eventWithTimestamp("error", "missing application"));
+                var accessToken = document.getElementById('app').value;
+                if (accessToken.length == 0) {
+                    show(eventWithTimestamp("error", "missing access token"));
                     document.getElementById('resume').style.display = "inline";
                     document.getElementById('connect').style.display = "none"
                     return;
@@ -102,7 +102,7 @@
                 req['type'] = 'welcome';
                 // open a web socket
                 var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/trace/"+application);
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/trace/"+accessToken);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));
@@ -146,15 +146,15 @@
 <div class="container">
     <br/>
     <h4 style="color: #3cb371">Distributed Trace Monitor</h4>
-    Enter "notification:demo-token?id=your_name" here and click "Start Service".
+    Enter your access token and click "Start Service"
     <br/><br/>
     <form>
         <div class="input-group">
             <div class="input-group mb-3">
                 <div class="input-group-prepend">
-                    <span class="input-group-text">Application</span>
+                    <span class="input-group-text">Access Token</span>
                 </div>
-                <input id="app" type="text" class="form-control" name="app" placeholder="application:token">
+                <input id="app" type="text" class="form-control" name="app" placeholder="access-token">
             </div>
 
         </div>
