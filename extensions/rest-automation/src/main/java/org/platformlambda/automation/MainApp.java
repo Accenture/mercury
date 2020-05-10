@@ -52,7 +52,7 @@ public class MainApp implements EntryPoint {
     }
 
     @Override
-    public void start(String[] args) throws IOException {
+    public void start(String[] args) {
         /*
          * ServiceGateway will start first to load routing entries from rest.yaml
          * and start async.http.response service.
@@ -91,7 +91,7 @@ public class MainApp implements EntryPoint {
         log.info("Application started");
     }
 
-    private ConfigReader getConfig() {
+    private ConfigReader getConfig() throws IOException {
         AppConfigReader reader = AppConfigReader.getInstance();
         List<String> paths = Utility.getInstance().split(reader.getProperty("rest.automation.yaml",
                 "file:/tmp/config/rest.yaml, classpath:/rest.yaml"), ", ");
@@ -106,7 +106,7 @@ public class MainApp implements EntryPoint {
                 log.warn("Skipping {} - {}", p, e.getMessage());
             }
         }
-        return null;
+        throw new IOException("Endpoint configuration not found in "+paths);
     }
 
 }

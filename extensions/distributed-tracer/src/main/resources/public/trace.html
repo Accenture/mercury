@@ -10,9 +10,8 @@
         /*
          * This is a sample javascript code to connect to a notification channel using websocket.
          * Please note that your browser application must implement the following:
-         * 1. Connection URL is /ws/api/{notification}:{token}
-         *    where "notification" is the name of the sample notification backend app and
-         *    token should be an access token for the notification channel.
+         * 1. Connection URL is /ws/trace/notification:{token}
+         *    where token should be an access token for the notification channel.
          * 2. Keep-alive protocol.
          */
 
@@ -103,7 +102,7 @@
                 req['type'] = 'welcome';
                 // open a web socket
                 var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/api/"+application);
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/trace/"+application);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));
@@ -115,8 +114,14 @@
                 };
 
                 ws.onmessage = function(evt) {
-                    // TODO: put your business logic to handle the notification event here
-                    show(evt.data);
+                    data = JSON.parse(evt.data);
+                    if ('type' in data) {
+                        // ignore keep-alive echo event
+                        if (data['type'] != 'ping') {
+                            // TODO: handle the JSON object instead of just displaying the raw string
+                            show(evt.data);
+                        }
+                    }
                 };
 
                 ws.onclose = function(evt) {
@@ -139,18 +144,8 @@
 <body>
 
 <div class="container">
-
-    <h4 style="color: #3cb371">Notification Demo</h4>
-    This page demonstrates a browser connecting to a notification service in your application.
     <br/>
-    To run this demo, your backend application must include the "ws.notification"
-    and implement your own "ws.auth" services.
-    <br/>
-    The ws.notification and sample.ws.auth service are available as a template in
-    the websocket-notification-example application.
-    <br/><br/>
-    To try this demo, start the websocket-notification-example application.
-    <br/>
+    <h4 style="color: #3cb371">Distributed Trace Monitor</h4>
     Enter "notification:demo-token?id=your_name" here and click "Start Service".
     <br/><br/>
     <form>
