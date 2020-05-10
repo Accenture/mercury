@@ -26,8 +26,8 @@ display the tracing information in real-time.
 
 ## Sample raw trace metrics
 
-The following is a sample output when the browser hits the "hello.world" service provided by a python microservices.
-The trace shows that the event passes through 3 services: "hello.world" at the language-connector,  
+The following is a sample output when the browser hits the "hello.world" service provided by a python service.
+The trace shows that the event passes through 3 services: "hello.world" at the language-connector,
 "hello.world" service in python script and "async.http.response" by the rest-automation system.
 
 ```
