@@ -13,7 +13,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!-- Use Spring Boot as a parent to fetch the correct Jersey JAX-RS modules -->
+    <!-- Use Spring Boot as a parent to fetch the correct dependency versions -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
