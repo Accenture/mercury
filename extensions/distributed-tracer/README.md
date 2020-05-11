@@ -24,7 +24,7 @@ In a cloud deployment, the URL will be defined by the cloud administrator.
 It will return a sample HTML page that connects to the aggregator's websocket service port and
 display the tracing information in real-time.
 
-## Sample raw trace metrics
+## Sample trace metrics
 
 The following is a sample output when the browser hits the "hello.world" service provided by a python service.
 The trace shows that the event passes through 3 services: "hello.world" at the language-connector,
