@@ -52,6 +52,7 @@
                     <artifactId>spring-boot-starter-tomcat</artifactId>
                 </exclusion>
 
+                <!-- avoid dependencies that may have security vulnerabilities or other issues -->
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-core</artifactId>
@@ -92,6 +93,10 @@
                     <groupId>org.apache.logging.log4j</groupId>
                     <artifactId>log4j-to-slf4j</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.hibernate</groupId>
+                    <artifactId>hibernate-validator</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -119,6 +124,13 @@
             <groupId>com.fasterxml</groupId>
             <artifactId>classmate</artifactId>
             <version>1.5.1</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-validator -->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>6.1.5.Final</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxrs -->
