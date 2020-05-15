@@ -1,15 +1,15 @@
 {
     "apps":[
     {
-        "name":"event-node",
-        "cwd":"..",
+        "name":"kakfa",
+        "cwd":"../..",
         "script":"java",
         "args":[
             "-jar",
-            "connectors/event-node/target/event-node-1.12.41.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.50.jar"
         ],
         "watch":[
-            "connectors/event-node/target/event-node-1.12.41.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.50.jar"
         ],
         "node_args":[],
         "exec_interpreter":"",

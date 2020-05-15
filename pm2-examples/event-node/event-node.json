@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"event-node",
+        "cwd":"../..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "connectors/event-node/target/event-node-1.12.50.jar"
+        ],
+        "watch":[
+            "connectors/event-node/target/event-node-1.12.50.jar"
+        ],
+        "node_args":[],
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

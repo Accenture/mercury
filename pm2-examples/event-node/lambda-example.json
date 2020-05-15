@@ -1,0 +1,20 @@
+{
+    "apps":[
+    {
+        "name":"lambda-example",
+        "cwd":"../..",
+        "instances": 1,
+        "script":"java",
+        "args":[
+            "-jar",
+            "examples/lambda-example/target/lambda-example-1.12.50.jar"
+        ],
+        "watch":[
+            "examples/lambda-example/target/lambda-example-1.12.50.jar"
+        ],
+        "node_args":[], 
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

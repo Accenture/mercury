@@ -1,0 +1,19 @@
+{
+    "apps":[
+    {
+        "name":"rest-example",
+        "cwd":"../..",
+        "script":"java",
+        "args":[
+            "-jar",
+            "examples/rest-example/target/rest-example-1.12.50.jar"
+        ],
+        "watch":[
+            "examples/rest-example/target/rest-example-1.12.50.jar"
+        ],
+        "node_args":[], 
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

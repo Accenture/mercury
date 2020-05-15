@@ -2,14 +2,14 @@
     "apps":[
     {
         "name":"language-connector",
-        "cwd":"..",
+        "cwd":"../..",
         "script":"java",
         "args":[
             "-jar",
-            "language-packs/language-connector/target/language-connector-1.12.41.jar"
+            "language-packs/language-connector/target/language-connector-1.12.50.jar"
         ],
         "watch":[
-            "language-packs/language-connector/target/language-connector-1.12.41.jar"
+            "language-packs/language-connector/target/language-connector-1.12.50.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

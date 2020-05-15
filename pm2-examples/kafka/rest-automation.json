@@ -1,0 +1,21 @@
+{
+    "apps":[
+    {
+        "name":"rest-automation",
+        "cwd":"../..",
+        "script":"java",
+        "args":[
+            "-Dcloud.connector=kafka",
+            "-Dcloud.services=kafka.reporter",
+            "-jar",
+            "extensions/rest-automation/target/rest-automation-1.12.50.jar"
+        ],
+        "watch":[
+            "extensions/rest-automation/target/rest-automation-1.12.50.jar"
+        ],
+        "node_args":[], 
+        "exec_interpreter":"",
+        "exec_mode":"fork"
+     }
+   ]
+}

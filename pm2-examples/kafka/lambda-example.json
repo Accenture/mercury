@@ -2,15 +2,17 @@
     "apps":[
     {
         "name":"lambda-example",
-        "cwd":"..",
+        "cwd":"../..",
         "instances": 1,
         "script":"java",
         "args":[
+            "-Dcloud.connector=kafka",
+            "-Dcloud.services=kafka.reporter",
             "-jar",
-            "examples/lambda-example/target/lambda-example-1.12.41.jar"
+            "examples/lambda-example/target/lambda-example-1.12.50.jar"
         ],
         "watch":[
-            "examples/lambda-example/target/lambda-example-1.12.41.jar"
+            "examples/lambda-example/target/lambda-example-1.12.50.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
