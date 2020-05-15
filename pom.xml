@@ -1,0 +1,24 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+	                             http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.accenture.mercury</groupId>
+	<artifactId>parent-mercury</artifactId>
+	<packaging>pom</packaging>
+	<version>1.0</version>
+	<name>Parent Mercury</name>
+	<modules>
+		<module>system/platform-core</module>
+		<module>system/rest-spring</module>
+		<module>connectors/event-node</module>
+		<module>connectors/hazelcast/hazelcast-connector</module>
+		<module>connectors/hazelcast/hazelcast-presence</module>
+		<module>connectors/kafka/kafka-connector</module>
+		<module>connectors/kafka/kafka-presence</module>   
+		<module>extensions/api-playground</module>
+		<module>extensions/distributed-tracer</module>
+		<module>extensions/rest-automation</module>
+        </modules>
+  </project>
+
