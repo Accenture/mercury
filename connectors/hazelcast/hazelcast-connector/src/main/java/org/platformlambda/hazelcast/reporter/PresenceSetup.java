@@ -22,8 +22,12 @@ import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 @CloudService(name="hazelcast.reporter")
 public class PresenceSetup implements CloudSetup {
@@ -46,11 +50,9 @@ public class PresenceSetup implements CloudSetup {
             } else {
                 try {
                     String url = reader.getProperty(PRESENCE_MONITOR, "ws://127.0.0.1:8080/ws/presence");
-                    PresenceManager connection = new PresenceManager(url);
-                    connection.start();
-
+                    List<String> monitors = Utility.getInstance().split(url, ", ");
+                    new PersistentWsClient(PresenceConnector.getInstance(), monitors).start();
                 } catch (Exception e) {
-                    PresenceManager.shutdown();
                     log.error("Unable to start", e);
                     System.exit(-1);
                 }

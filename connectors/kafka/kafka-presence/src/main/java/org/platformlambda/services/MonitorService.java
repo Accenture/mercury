@@ -239,17 +239,17 @@ public class MonitorService implements LambdaFunction {
                                     log.info("Member registered {}", info);
                                     po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
                                 } else {
-                                    // clearing socket timeout with a round-trip text message
-                                    log.debug("{} is alive {}", token, info.get(SEQ));
-                                    po.send(txPath, ALIVE + " " + info.get(SEQ));
+                                    log.debug("Member {} is alive {}", token, info.get(SEQ));
                                 }
                             }
                         }
 
                     }
                     break;
+                case WsEnvelope.STRING:
+                    log.debug("{}", body);
+                    break;
                 default:
-                    // this should not happen
                     break;
             }
         }
@@ -260,7 +260,7 @@ public class MonitorService implements LambdaFunction {
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {
         Utility util = Utility.getInstance();
         for (String key : headers.keySet()) {
-            if (!key.equals(ID) && !key.equals(CREATED) && !key.equals(MONITOR)) {
+            if (!key.equals(ID) && !key.equals(MONITOR)) {
                 // normalize numbers
                 String value = headers.get(key);
                 if (util.isNumeric(value)) {

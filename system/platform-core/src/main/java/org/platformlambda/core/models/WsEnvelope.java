@@ -30,6 +30,7 @@ public class WsEnvelope {
     public static final String CLOSE = "close";
     public static final String BYTES = "bytes";
     public static final String STRING = "string";
+    public static final String MAP = "map";
     public static final String ROUTE = "route";
     public static final String TX_PATH = "tx_path";
     public static final String IP = "ip";

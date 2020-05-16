@@ -29,7 +29,7 @@ public class WsConfigurator {
     private static final Logger log = LoggerFactory.getLogger(WsConfigurator.class);
 
     private static final int CONTROL_BYTES = 200;
-    private static final int MIN_TIMEOUT = 10;
+    private static final int MIN_TIMEOUT = 20;
     private static final String DEFAULT_PAYLOAD_SIZE = "65536";
     private static final String DEFAULT_IDLE_TIMEOUT = "60";
     private static final String TEXT_SIZE = "websocket.text.size";

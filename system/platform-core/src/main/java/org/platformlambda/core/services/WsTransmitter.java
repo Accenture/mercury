@@ -25,14 +25,19 @@ import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.websocket.CloseReason;
 import javax.websocket.Session;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.util.Map;
 
 @ZeroTracing
 public class WsTransmitter implements LambdaFunction {
+    private static final Logger log = LoggerFactory.getLogger(WsTransmitter.class);
 
     private static final CryptoApi crypto = new CryptoApi();
     private static final Utility util = Utility.getInstance();
@@ -42,7 +47,21 @@ public class WsTransmitter implements LambdaFunction {
     private byte[] sessionKey;
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+        try {
+            send(headers, body);
+        } catch (RuntimeException | GeneralSecurityException e) {
+            /*
+             * Let the underlying websocket system handles the socket clean up.
+             * It is likely that the connection is closed before we can detect it.
+             * e.g. "IllegalStateException: Message will not be sent because the WebSocket session has been closed"
+             */
+            log.error("Unable to send websocket message - {}, {}", e.getClass().getSimpleName(), e.getMessage());
+        }
+        return null;
+    }
+
+    public void send(Map<String, String> headers, Object body) throws IOException, GeneralSecurityException {
         if (body == null && headers.containsKey(WsEnvelope.TYPE)) {
             if (WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
                 if (session != null && session.isOpen()) {
@@ -85,7 +104,6 @@ public class WsTransmitter implements LambdaFunction {
                 session.getBasicRemote().sendText(SimpleMapper.getInstance().getMapper().writeValueAsString(body));
             }
         }
-        return null;
     }
 
 }

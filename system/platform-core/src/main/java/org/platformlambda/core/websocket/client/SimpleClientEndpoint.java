@@ -21,7 +21,9 @@ public class SimpleClientEndpoint {
     private static final WsRegistry registry = WsRegistry.getInstance();
     private final LambdaFunction service;
     private final URI uri;
-    private String route;
+    private Session session;
+    private String route, txPath;
+    private long disconnectTime = 0;
     private boolean open = false;
 
     public SimpleClientEndpoint(LambdaFunction service, URI uri) {
@@ -29,12 +31,40 @@ public class SimpleClientEndpoint {
         this.uri = uri;
     }
 
+    public boolean isConnected() {
+        return open && session != null && session.isOpen();
+    }
+
+    public String getRoute() {
+        return route;
+    }
+
+    public String getTxPath() {
+        return txPath;
+    }
+
+    public URI getUri() {
+        return uri;
+    }
+
+    public boolean justDisconnected() {
+        return !isConnected() && System.currentTimeMillis() - disconnectTime < 5000;
+    }
+
+    public void close(CloseReason reason) throws IOException {
+        if (isConnected()) {
+            session.close(reason);
+        }
+    }
+
     @OnOpen
     public void onOpen(Session session) {
-        open = true;
+        this.open = true;
+        this.session = session;
         // create websocket routing metadata
         WsRouteSet rs = new WsRouteSet("ws.client");
-        route = rs.getRoute();
+        this.route = rs.getRoute();
+        this.txPath = rs.getTxPath();
         try {
             WsEnvelope envelope = new WsEnvelope(rs.getRoute(), rs.getTxPath(), uri.getHost(), uri.getPath(), uri.getQuery());
             // setup listener and transmitter
@@ -98,7 +128,9 @@ public class SimpleClientEndpoint {
 
     @OnClose
     public void onClose(Session session, CloseReason reason) {
-        open = false;
+        this.open = false;
+        this.session = null;
+        this.disconnectTime = System.currentTimeMillis();
         String route = registry.getRoute(session.getId());
         if (route != null) {
             WsEnvelope envelope = registry.get(route);

@@ -102,7 +102,6 @@ public class WsServer {
             session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Path /"+name+"/"+handle+" not available"));
             return;
         }
-
         Class<LambdaFunction> cls = lambdas.get(name);
         try {
             registry.createHandler(cls.getDeclaredConstructor().newInstance(), session);

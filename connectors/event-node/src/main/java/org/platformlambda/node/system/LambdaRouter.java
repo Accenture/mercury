@@ -87,10 +87,8 @@ public class LambdaRouter implements LambdaFunction {
     @SuppressWarnings("unchecked")
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         PostOffice po = PostOffice.getInstance();
         String route, txPath;
-
         switch(headers.get(WsEnvelope.TYPE)) {
             case WsEnvelope.OPEN:
                 // the open event contains route, txPath, ip, path, query and token
@@ -246,15 +244,9 @@ public class LambdaRouter implements LambdaFunction {
                 }
                 break;
             case WsEnvelope.STRING:
-                // the data event for string payload contains route and txPath
-                route = headers.get(WsEnvelope.ROUTE);
-                txPath = headers.get(WsEnvelope.TX_PATH);
-                // text message is used for keep-alive so just echo it back for a complete round trip
-                po.send(txPath, body);
+                log.debug("{}", body);
                 break;
             default:
-                // this should not happen
-                log.error("Invalid event {} {}", headers, body);
                 break;
         }
         return true;

@@ -46,7 +46,6 @@ public class WebsocketLoader implements ServletContextListener {
         ServletContext context = event.getServletContext();
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
-
         // At this point, the underlying ServerContainer should be loaded
         Object sc = context.getAttribute("javax.websocket.server.ServerContainer");
         if (sc instanceof ServerContainer) {

@@ -209,8 +209,10 @@ public class MonitorService implements LambdaFunction {
                             Map<String, Object> info = new HashMap<>();
                             String time = Utility.getInstance().date2str(new Date(), true);
                             info.put(CREATED, time);
+                            info.put(UPDATED, time);
                             info.put(MONITOR, platform.getOrigin());
                             info.put(ID, route);
+                            info.put(SEQ, 0);
                             route2token.put(route, token);
                             token2info.put(token, info);
                             token2txPath.put(token, txPath);
@@ -276,12 +278,13 @@ public class MonitorService implements LambdaFunction {
                                     po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
                                 } else {
                                     log.debug("Member {} is alive {}", token, info.get(SEQ));
-                                    po.send(txPath, ALIVE + " " + info.get(SEQ));
                                 }
                             }
                         }
                     }
                     break;
+                case WsEnvelope.STRING:
+                    log.debug("{}", body);
                 default:
                     // this should not happen
                     break;
@@ -292,7 +295,7 @@ public class MonitorService implements LambdaFunction {
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {
         Utility util = Utility.getInstance();
         for (String key : headers.keySet()) {
-            if (!key.equals(ID) && !key.equals(CREATED) && !key.equals(MONITOR)) {
+            if (!key.equals(ID) && !key.equals(MONITOR)) {
                 // normalize numbers
                 String value = headers.get(key);
                 if (util.isNumeric(value)) {

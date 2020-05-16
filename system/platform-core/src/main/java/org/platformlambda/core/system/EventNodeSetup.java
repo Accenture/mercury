@@ -20,10 +20,14 @@ package org.platformlambda.core.system;
 
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.models.CloudSetup;
+import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 
 @CloudConnector(name="event.node")
 public class EventNodeSetup implements CloudSetup {
@@ -41,7 +45,10 @@ public class EventNodeSetup implements CloudSetup {
             } else if (personality.getType() == ServerPersonality.Type.PLATFORM) {
                 throw new IOException("Unable to connect because you are already an event node");
             }
-            new EventNodeManager().start();
+            AppConfigReader config = AppConfigReader.getInstance();
+            String urlList = config.getProperty("event.node.path", "ws://127.0.0.1:8080/ws/events/");
+            List<String> urls = Utility.getInstance().split(urlList, ", ");
+            new PersistentWsClient(EventNodeConnector.getInstance(), urls).start();
             /*
              * When event node is used, it will resolve websocket txPaths dynamically.
              * For other cloud connectors, they will simply return "cloud.connector".

@@ -54,21 +54,18 @@ public class EventNodeConnector implements LambdaFunction {
     public static final String TOKEN = "token";
     public static final String ENCRYPT = "encrypt";
     private static final String EVENT_NODE = "EVENT NODE";
-    private static final String ALIVE = "keep-alive";
     private static final String PUBLIC_KEY_USER_GROUP = "public.key.user.group";
     private static final String PUBLIC_KEY_ID = "public.key.id";
-    private static final long MAX_ALIVE_WAIT = 8000;
     private static String publicKeyUserGroup;
 
     private final String personalityType;
     private State state = State.UNASSIGNED;
     private String txPath = null;
     private byte[] challengeToken;
-    private long handshakeStartTime = 0, aliveTime = 0, aliveSeq = 0;
-    private boolean ready = false, checkingAlive = false;
+    private boolean ready = false;
 
     public enum State {
-        UNASSIGNED, CONNECTING, CONNECTED, DISCONNECTED, ERROR
+        UNASSIGNED, CONNECTED, DISCONNECTED
     }
 
     private static final EventNodeConnector instance = new EventNodeConnector();
@@ -89,24 +86,12 @@ public class EventNodeConnector implements LambdaFunction {
         return instance;
     }
 
-    public void setState(State state) {
-        this.state = state;
-    }
-
-    public boolean isUnassigned() {
-        return state == State.UNASSIGNED;
-    }
-
     public boolean isConnected() {
         return state == State.CONNECTED;
     }
 
     public boolean isReady() {
         return ready;
-    }
-
-    public long getHandshakeStartTime() {
-        return handshakeStartTime;
     }
 
     public String getTxPath() {
@@ -116,7 +101,6 @@ public class EventNodeConnector implements LambdaFunction {
     @SuppressWarnings("unchecked")
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         WsRegistry registry = WsRegistry.getInstance();
         PostOffice po = PostOffice.getInstance();
         if (headers.containsKey(WsEnvelope.TYPE)) {
@@ -124,11 +108,8 @@ public class EventNodeConnector implements LambdaFunction {
                 case WsEnvelope.OPEN:
                     txPath = headers.get(WsEnvelope.TX_PATH);
                     ready = false;
-                    checkingAlive = false;
-                    aliveSeq = 0;
-                    handshakeStartTime = System.currentTimeMillis();
                     log.debug("Connected {}, {}, {}", headers.get(WsEnvelope.ROUTE), headers.get(WsEnvelope.IP), headers.get(WsEnvelope.PATH));
-                    setState(State.CONNECTED);
+                    state = State.CONNECTED;
                     EventEnvelope hello = new EventEnvelope();
                     hello.setHeader(WsEnvelope.TYPE, EventNodeConnector.HELLO);
                     if (publicKeyUserGroup != null) {
@@ -141,8 +122,7 @@ public class EventNodeConnector implements LambdaFunction {
                     break;
                 case WsEnvelope.CLOSE:
                     ready = false;
-                    checkingAlive = false;
-                    setState(State.DISCONNECTED);
+                    state = State.DISCONNECTED;
                     // release resources
                     log.debug("Disconnected {}", headers.get(WsEnvelope.ROUTE));
                     break;
@@ -162,7 +142,6 @@ public class EventNodeConnector implements LambdaFunction {
                                 return false;
                             }
                             MultipartPayload.getInstance().incoming(message);
-                            EventNodeManager.touch();
                         } else {
                             // handle handshake
                             EventEnvelope message = new EventEnvelope();
@@ -271,46 +250,14 @@ public class EventNodeConnector implements LambdaFunction {
                     }
                     break;
                 case WsEnvelope.STRING:
-                    String message = (String) body;
                     log.debug("{}", body);
-                    if (message.contains(ALIVE)) {
-                        aliveTime = System.currentTimeMillis();
-                        checkingAlive = false;
-                        EventNodeManager.touch();
-                    }
                     break;
                 default:
-                    // this should not happen
-                    log.error("Invalid event {} {}", headers, body);
                     break;
             }
         }
         return true;
     }
 
-    public void isAlive() {
-        if (checkingAlive && txPath != null && (System.currentTimeMillis() - aliveTime > MAX_ALIVE_WAIT)) {
-            String message = "Event node failed to keep alive in "+(MAX_ALIVE_WAIT / 1000)+" seconds";
-            log.error(message);
-            try {
-                util.closeConnection(txPath, CloseReason.CloseCodes.GOING_AWAY, message);
-            } catch (IOException e) {
-                // ok to ignore
-            }
-        }
-    }
-
-    public void keepAlive() {
-        if (txPath != null) {
-            checkingAlive = true;
-            aliveTime = System.currentTimeMillis();
-            aliveSeq++;
-            try {
-                PostOffice.getInstance().send(txPath, ALIVE+" "+aliveSeq);
-            } catch (IOException e) {
-                log.error("Unable to send keep alive to event node - {}", e.getMessage());
-            }
-        }
-    }
 
 }
