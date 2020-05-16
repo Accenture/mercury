@@ -28,7 +28,7 @@ Hope you enjoy this journey to improve the world.
 
 Best regards, the Mercury team, Accenture
 
-January 2020
+May 2020
 
 
 ## Rationale
@@ -179,7 +179,15 @@ The python language pack is available in https://github.com/Accenture/mercury-py
 
 `rest-automation`
 
-This extension package is a helper application that automates the creation of REST endpoints by configuration instead of code.
+This extension package is a system that automates the creation of REST endpoints by configuration instead of code.
+
+`distributed-tracer`
+
+This extension package is an example application that consolidates of distributed trace metrics.
+
+`websocket-notification`
+
+This extension package is an example application that demonstrates writing a websocket notification server.
 
 `lambda-example`
 
@@ -202,37 +210,16 @@ To get the system up and running, you should compile and build the foundation li
 
 ```bash
 # start a terminal and go to the mercury sandbox folder
-cd system/platform-core
-mvn clean install
-cd ../rest-spring
-mvn clean install
-cd ../../connectors/hazelcast/hazelcast-connector
-mvn clean install
-cd ../../../connectors/kafka/kafka-connector
 mvn clean install
 # close the terminal
 ```
 
-To build the rest-automation helper application:
+The platform-core, rest-spring, hazelcast-connector and kafka-connector are libraries and you can rebuild each one individually using
+`mvn clean install`
 
-```bash
-# start a terminal and go to the mercury sandbox folder
-cd extensions/rest-automation
-mvn clean package
-# close the terminal
-```
-
-To support Python and other programming languages, please build the language-connector application.
-
-```bash
-# start a terminal and go to the mercury sandbox folder
-cd language-packs/language-connector
-mvn clean package
-# close the terminal
-```
+The rest of the subprojects are executables that you can rebuild each one with `mvn clean package`.
 
 ## Getting started
-
 
 You can compile the rest-example as a microservices executable like this:
 

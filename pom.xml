@@ -15,10 +15,15 @@
 		<module>connectors/hazelcast/hazelcast-connector</module>
 		<module>connectors/hazelcast/hazelcast-presence</module>
 		<module>connectors/kafka/kafka-connector</module>
-		<module>connectors/kafka/kafka-presence</module>   
+		<module>connectors/kafka/kafka-presence</module>
+    <module>connectors/kafka/kafka-standalone</module>
 		<module>extensions/api-playground</module>
 		<module>extensions/distributed-tracer</module>
 		<module>extensions/rest-automation</module>
-        </modules>
-  </project>
+    <module>extensions/websocket-notification</module>
+    <module>language-packs/language-connector</module>
+    <module>examples/lambda-example</module>
+    <module>examples/rest-example</module>
+  </modules>
+</project>
 
