@@ -35,8 +35,8 @@
         <!-- https://mvnrepository.com/artifact/com.hazelcast/hazelcast-client -->
         <dependency>
             <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast-client</artifactId>
-            <version>3.12.5</version>
+            <artifactId>hazelcast</artifactId>
+            <version>4.0.1</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

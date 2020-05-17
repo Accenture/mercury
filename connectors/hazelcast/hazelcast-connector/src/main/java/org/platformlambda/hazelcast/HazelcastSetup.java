@@ -21,6 +21,7 @@ package org.platformlambda.hazelcast;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientConnectionStrategyConfig;
+import com.hazelcast.client.config.ClientFailoverConfig;
 import com.hazelcast.client.config.ConnectionRetryConfig;
 import com.hazelcast.core.HazelcastInstance;
 import org.platformlambda.core.annotations.CloudConnector;
@@ -102,12 +103,12 @@ public class HazelcastSetup implements CloudSetup {
         connectionStrategy.setReconnectMode(ClientConnectionStrategyConfig.ReconnectMode.ASYNC);
 
         ConnectionRetryConfig retryConfig = new ConnectionRetryConfig();
-        retryConfig.setEnabled(true);
         connectionStrategy.setConnectionRetryConfig(retryConfig);
 
         ClientConfig config = new ClientConfig();
         config.getNetworkConfig().addAddress(addrs);
         config.setConnectionStrategyConfig(connectionStrategy);
+
         client = HazelcastClient.newHazelcastClient(config);
         client.getCluster().addMembershipListener(new ClusterListener());
 

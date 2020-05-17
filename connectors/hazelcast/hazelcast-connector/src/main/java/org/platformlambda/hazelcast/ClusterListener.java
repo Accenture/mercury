@@ -18,10 +18,9 @@
 
 package org.platformlambda.hazelcast;
 
-import com.hazelcast.core.Member;
-import com.hazelcast.core.MemberAttributeEvent;
-import com.hazelcast.core.MembershipEvent;
-import com.hazelcast.core.MembershipListener;
+import com.hazelcast.cluster.Member;
+import com.hazelcast.cluster.MembershipEvent;
+import com.hazelcast.cluster.MembershipListener;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
@@ -49,21 +48,21 @@ public class ClusterListener implements MembershipListener {
     public static void setMembers(Set<Member> members) {
         for (Member m: members) {
             String now = Utility.getInstance().date2str(new Date());
-            nodes.put(m.getUuid(), m.getAddress().toString()+", "+now);
+            nodes.put(m.getUuid().toString(), m.getAddress().toString()+", "+now);
         }
     }
 
     @Override
     public void memberAdded(MembershipEvent event) {
         String now = Utility.getInstance().date2str(new Date());
-        nodes.put(event.getMember().getUuid(), event.getMember().getAddress().toString()+", "+now);
+        nodes.put(event.getMember().getUuid().toString(), event.getMember().getAddress().toString()+", "+now);
         log.info("Added {}", event.getMember());
         reloadClient();
     }
 
     @Override
     public void memberRemoved(MembershipEvent event) {
-        nodes.remove(event.getMember().getUuid());
+        nodes.remove(event.getMember().getUuid().toString());
         log.info("Removed {}", event.getMember());
         reloadClient();
     }
@@ -80,8 +79,4 @@ public class ClusterListener implements MembershipListener {
         }
     }
 
-    @Override
-    public void memberAttributeChanged(MemberAttributeEvent event) {
-        log.info("Updated {}", event);
-    }
 }

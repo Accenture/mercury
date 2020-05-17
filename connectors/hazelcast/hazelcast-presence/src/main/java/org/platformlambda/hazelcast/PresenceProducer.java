@@ -20,7 +20,7 @@ package org.platformlambda.hazelcast;
 
 import com.hazelcast.client.HazelcastClientOfflineException;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ITopic;
+import com.hazelcast.topic.ITopic;
 import org.platformlambda.MainApp;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;

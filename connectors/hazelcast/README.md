@@ -39,3 +39,7 @@ The presence monitor application for hazelcast is available in the `hazelcast-pr
 This application runs as a websocket server that all service container application instances will connect to.
 
 When a service application instance fails, the presence monitor will detect it and inform all other application instances to clear routing tables for the failed application instance.
+
+# Compatibillity
+
+This connector has been tested with Hazelcast version 4.0.1. It is not compatible with Hazelcast version 3 or older.

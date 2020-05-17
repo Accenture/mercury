@@ -149,7 +149,7 @@ The rest-spring library customizes and simplifies the use of Spring Boot as an a
 
 `hazelcast-connector`
 
-This connector library is designed to work with Hazelcast version 3.12 out of the box. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
+This connector library is designed to work with Hazelcast version 4.0.1 out of the box. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
 
 `hazelcast-presence`
 
@@ -159,7 +159,7 @@ The hazelcast-connector and hazelcast-presence is fully scalable.
 
 `kafka-connector`
 
-This connector library is designed to work with Kafka version 2.12-2.2.0 out of the box. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory.
+This connector library is designed to work with Kafka version 2.4.1 out of the box. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory.
 
 `kafka-presence`
 

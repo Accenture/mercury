@@ -18,7 +18,10 @@
 
 package org.platformlambda.hazelcast;
 
-import com.hazelcast.core.*;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.LifecycleEvent;
+import com.hazelcast.core.LifecycleListener;
+import com.hazelcast.topic.ITopic;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -30,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 public class TopicLifecycleListener implements LifecycleListener {
@@ -46,9 +50,9 @@ public class TopicLifecycleListener implements LifecycleListener {
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
 
-    private static boolean ready = false;
+    private static boolean ready = false, started = false;
     private ITopic<byte[]> topic = null;
-    private String registrationId = null;
+    private UUID registrationId = null;
     private final String realTopic;
     private final boolean isServiceMonitor;
 
@@ -101,19 +105,24 @@ public class TopicLifecycleListener implements LifecycleListener {
         topic = client.getReliableTopic(realTopic);
         registrationId = topic.addMessageListener(new EventConsumer());
         log.info("Event consumer {} for {} started", registrationId, realTopic);
-        ready = true;
         // reset connection with presence monitor to force syncing routing table
-        if (!isServiceMonitor) {
+        if (!isServiceMonitor && started) {
             PresenceConnector connector = PresenceConnector.getInstance();
             if (connector.isConnected() && connector.isReady()) {
                 connector.resetMonitor();
             }
         }
+        ready = true;
+        started = true;
     }
 
     @Override
     public void stateChanged(LifecycleEvent event) {
         PostOffice po = PostOffice.getInstance();
+        if (event.getState() == LifecycleEvent.LifecycleState.SHUTTING_DOWN) {
+            log.error("Stopping application because Hazelcast is no longer available");
+            System.exit(10);
+        } 
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_DISCONNECTED) {
             String origin = Platform.getInstance().getOrigin();
             ready = false;
@@ -142,5 +151,4 @@ public class TopicLifecycleListener implements LifecycleListener {
             }
         }
     }
-
 }

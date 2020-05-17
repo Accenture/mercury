@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.50, 5/14/2020
+## Version 1.12.50, 5/16/2020
 
 ### Added
 
@@ -21,7 +21,7 @@ N/A
 ### Changed
 
 1. Code cleaning to improve consistency
-2. Upgrade hibernate-validator to v6.1.5.Final
+2. Upgraded to hibernate-validator to v6.1.5.Final and Hazelcast version 4.0.1
 
 ---
 ## Version 1.12.40, 5/4/2020
