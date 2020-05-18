@@ -30,12 +30,17 @@ import org.slf4j.LoggerFactory;
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
 import javax.websocket.WebSocketContainer;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public class PersistentWsClient extends Thread {
+public class PersistentWsClient extends Thread implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(PersistentWsClient.class);
 
     private static final long WAIT_INTERVAL = 5000;
@@ -205,4 +210,8 @@ public class PersistentWsClient extends Thread {
         normal = false;
     }
 
+    @Override
+    public void close() {
+        this.shutdown();
+    }
 }
