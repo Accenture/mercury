@@ -34,11 +34,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PersistentWsClient extends Thread implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(PersistentWsClient.class);
@@ -205,13 +201,10 @@ public class PersistentWsClient extends Thread implements Closeable {
         }
     }
 
+    @Override
     public void close() {
         disconnect("Shutdown");
         normal = false;
     }
 
-    @Override
-    public void close() {
-        this.shutdown();
-    }
 }
