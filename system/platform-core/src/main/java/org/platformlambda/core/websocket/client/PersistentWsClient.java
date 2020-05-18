@@ -68,7 +68,7 @@ public class PersistentWsClient extends Thread {
 
     @Override
     public void run() {
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
         log.info("Started");
         long idleSeconds = WsConfigurator.getInstance().getIdleTimeout() - IDLE_THRESHOLD;
         long idleTimeout = (idleSeconds < IDLE_THRESHOLD? IDLE_THRESHOLD : idleSeconds) * 1000;
@@ -105,7 +105,7 @@ public class PersistentWsClient extends Thread {
         long now = System.currentTimeMillis();
         if (client != null && client.isConnected()) {
             if (condition != null && !condition.isReady()) {
-                close("Disconnect due to external condition");
+                disconnect("Disconnect due to external condition");
                 return;
             }
             timer = now;
@@ -189,7 +189,7 @@ public class PersistentWsClient extends Thread {
                 || message.contains("connection fail")? "Unreachable" : message;
     }
 
-    public void close(String reason) {
+    public void disconnect(String reason) {
         if (client != null && client.isConnected()) {
             try {
                 client.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, reason));
@@ -200,8 +200,8 @@ public class PersistentWsClient extends Thread {
         }
     }
 
-    public void shutdown() {
-        close("Shutdown");
+    public void close() {
+        disconnect("Shutdown");
         normal = false;
     }
 
