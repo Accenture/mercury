@@ -85,12 +85,9 @@ public class MonitorService implements LambdaFunction {
     public static void closeAllConnections() {
         Utility util = Utility.getInstance();
         Set<String> connections = token2txPath.keySet();
-        if (connections.isEmpty()) {
-            log.info("There are no application connections");
-        } else {
+        if (!connections.isEmpty()) {
             for (String token : connections) {
                 String txPath = token2txPath.get(token);
-                log.warn("Reset connection {}", txPath);
                 try {
                     util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, "Starting up");
                 } catch (IOException e) {

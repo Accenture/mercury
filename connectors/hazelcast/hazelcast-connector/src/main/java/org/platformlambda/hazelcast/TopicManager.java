@@ -114,7 +114,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) {
-        String nodes = HazelcastSetup.getNamespace()+NODES;
+        String nodes = HazelcastSetup.NAMESPACE+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         return map.containsKey(topic);
@@ -123,8 +123,8 @@ public class TopicManager implements LambdaFunction {
     private void createTopic(String topic) {
         if (!topicExists(topic)) {
             String now = Utility.getInstance().date2str(new Date(), true);
-            String nodes = HazelcastSetup.getNamespace()+NODES;
-            String realTopic = HazelcastSetup.getNamespace()+topic;
+            String nodes = HazelcastSetup.NAMESPACE+NODES;
+            String realTopic = HazelcastSetup.NAMESPACE+topic;
             HazelcastInstance client = HazelcastSetup.getHazelcastClient();
             IMap<String, byte[]> map = client.getMap(nodes);
             Map<String, String> metadata = new HashMap<>();
@@ -136,7 +136,7 @@ public class TopicManager implements LambdaFunction {
                 map.put(topic, msgPack.pack(metadata));
                 // create topic if not exists
                 client.getReliableTopic(realTopic);
-                log.info("Topic {} created", topic);
+                log.info("Topic {} created", realTopic);
             } catch (IOException e) {
                 // this does not happen
                 log.error("Unable to create topic {} - {}", topic, e.getMessage());
@@ -167,7 +167,7 @@ public class TopicManager implements LambdaFunction {
             }
         }
         metadata.put("updated", now);
-        String nodes = HazelcastSetup.getNamespace()+NODES;
+        String nodes = HazelcastSetup.NAMESPACE+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         try {
@@ -182,7 +182,7 @@ public class TopicManager implements LambdaFunction {
     @SuppressWarnings("unchecked")
     private Map<String, String> getTopic(String topic) throws IOException {
         if (topicExists(topic)) {
-            String nodes = HazelcastSetup.getNamespace()+NODES;
+            String nodes = HazelcastSetup.NAMESPACE+NODES;
             HazelcastInstance client = HazelcastSetup.getHazelcastClient();
             IMap<String, byte[]> map = client.getMap(nodes);
             return (Map<String, String>) msgPack.unpack(map.get(topic));
@@ -193,7 +193,7 @@ public class TopicManager implements LambdaFunction {
 
     private List<String> listTopics() {
         List<String> result = new ArrayList<>();
-        String nodes = HazelcastSetup.getNamespace()+NODES;
+        String nodes = HazelcastSetup.NAMESPACE+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         String namespace = Platform.getInstance().getNamespace();
@@ -212,7 +212,7 @@ public class TopicManager implements LambdaFunction {
     @SuppressWarnings("unchecked")
     private List<Map<String, String>> getTopics() throws IOException {
         List<Map<String, String>> result = new ArrayList<>();
-        String nodes = HazelcastSetup.getNamespace()+NODES;
+        String nodes = HazelcastSetup.NAMESPACE+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         String namespace = Platform.getInstance().getNamespace();
@@ -229,7 +229,7 @@ public class TopicManager implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     private Map<String, String> getTopicsWithTimestamp() throws IOException {
-        String nodes = HazelcastSetup.getNamespace()+NODES;
+        String nodes = HazelcastSetup.NAMESPACE+NODES;
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
         IMap<String, byte[]> map = client.getMap(nodes);
         Map<String, String> result = new HashMap<>();
@@ -249,8 +249,8 @@ public class TopicManager implements LambdaFunction {
 
     private void deleteTopic(String topic) {
         if (topicExists(topic)) {
-            String nodes = HazelcastSetup.getNamespace()+NODES;
-            String realTopic = HazelcastSetup.getNamespace()+topic;
+            String nodes = HazelcastSetup.NAMESPACE+NODES;
+            String realTopic = HazelcastSetup.NAMESPACE+topic;
             HazelcastInstance client = HazelcastSetup.getHazelcastClient();
             // remove topic from node list
             IMap<String, byte[]> map = client.getMap(nodes);

@@ -45,6 +45,7 @@ public class PersistentWsClient extends Thread {
     private static final String SEQ = "seq";
     final private List<String> wsUrls;
     final private LambdaFunction connector;
+    private ConnectorReady condition = null;
     private SimpleClientEndpoint client = null;
     private long connectTime = 0;
     private long aliveTime = 0, aliveSeq = 1;
@@ -59,6 +60,10 @@ public class PersistentWsClient extends Thread {
     public PersistentWsClient(LambdaFunction connector, List<String> wsUrls) {
         this.connector = connector;
         this.wsUrls = wsUrls;
+    }
+
+    public void setCondition(ConnectorReady condition) {
+        this.condition = condition;
     }
 
     @Override
@@ -99,6 +104,10 @@ public class PersistentWsClient extends Thread {
     private void manageConnection(long keepAliveInterval) {
         long now = System.currentTimeMillis();
         if (client != null && client.isConnected()) {
+            if (condition != null && !condition.isReady()) {
+                close("Disconnect due to external condition");
+                return;
+            }
             timer = now;
             if (now - aliveTime > keepAliveInterval) {
                 keepAlive();
@@ -112,7 +121,9 @@ public class PersistentWsClient extends Thread {
             if (now - timer >= WAIT_INTERVAL) {
                 timer = System.currentTimeMillis();
                 try {
-                    connect();
+                    if (condition != null && condition.isReady()) {
+                        connect();
+                    }
                 } catch (Exception e) {
                     log.error("Unexpected error when reconnect - {}", e.getMessage());
                 }
@@ -178,14 +189,19 @@ public class PersistentWsClient extends Thread {
                 || message.contains("connection fail")? "Unreachable" : message;
     }
 
-    public void shutdown() {
+    public void close(String reason) {
         if (client != null && client.isConnected()) {
             try {
-                client.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Shutdown"));
+                client.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, reason));
             } catch (IOException e) {
                 // ok to ignore
             }
+            client = null;
         }
+    }
+
+    public void shutdown() {
+        close("Shutdown");
         normal = false;
     }
 

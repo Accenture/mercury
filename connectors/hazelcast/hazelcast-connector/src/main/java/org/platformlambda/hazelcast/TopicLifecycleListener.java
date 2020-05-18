@@ -39,27 +39,28 @@ import java.util.concurrent.TimeoutException;
 public class TopicLifecycleListener implements LifecycleListener {
     private static final Logger log = LoggerFactory.getLogger(TopicLifecycleListener.class);
 
-    public static final String SETUP_CONSUMER = "hazelcast.connection.monitor";
-    public static final String CLUSTER_CHANGED = "cluster_changed";
+    private static final String SETUP_CONSUMER = HazelcastSetup.SETUP_CONSUMER;
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String SERVICE_REGISTRY = ServiceDiscovery.SERVICE_REGISTRY;
     private static final String PRESENCE_HANDLER = "presence.service";
     private static final String START = "start";
     private static final String RESET = "reset";
+    private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String ORIGIN = "origin";
     private static final String RESTORE = "restore";
 
-    private static boolean ready = false, started = false;
+    private static boolean ready = false, shutdown = false;
+    private static String realTopic;
+    private static boolean isServiceMonitor;
     private ITopic<byte[]> topic = null;
     private UUID registrationId = null;
-    private final String realTopic;
-    private final boolean isServiceMonitor;
+
 
     public TopicLifecycleListener(String realTopic) {
-        this.realTopic = realTopic;
+        TopicLifecycleListener.realTopic = realTopic;
         AppConfigReader reader = AppConfigReader.getInstance();
-        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         // create a function to setup consumer asynchronously
         LambdaFunction f = (headers, body, instance) -> {
             setupConsumer(headers.get(TYPE));
@@ -67,7 +68,6 @@ public class TopicLifecycleListener implements LifecycleListener {
         };
         try {
             Platform.getInstance().registerPrivate(SETUP_CONSUMER, f, 1);
-            PostOffice.getInstance().send(SETUP_CONSUMER, new Kv(TYPE, START));
         } catch (IOException e) {
             // this should not occur
         }
@@ -79,6 +79,13 @@ public class TopicLifecycleListener implements LifecycleListener {
 
     private void setupConsumer(String type) {
         ready = false;
+        if (RESTORE.equals(type)) {
+            shutdown = false;
+            // shutdown and re-connect to hazelcast
+            HazelcastSetup.connectToHazelcast();
+            topic = null;
+            shutdown = true;
+        }
         log.info("Hazelcast {}", type.toUpperCase());
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
@@ -106,20 +113,24 @@ public class TopicLifecycleListener implements LifecycleListener {
         registrationId = topic.addMessageListener(new EventConsumer());
         log.info("Event consumer {} for {} started", registrationId, realTopic);
         // reset connection with presence monitor to force syncing routing table
-        if (!isServiceMonitor && started) {
+        if (!isServiceMonitor) {
             PresenceConnector connector = PresenceConnector.getInstance();
             if (connector.isConnected() && connector.isReady()) {
-                connector.resetMonitor();
+                try {
+                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                } catch (IOException e) {
+                    log.error("Unable to inform peers that I have joined");
+                }
             }
         }
         ready = true;
-        started = true;
     }
 
     @Override
     public void stateChanged(LifecycleEvent event) {
         PostOffice po = PostOffice.getInstance();
-        if (event.getState() == LifecycleEvent.LifecycleState.SHUTTING_DOWN) {
+        if (event.getState() == LifecycleEvent.LifecycleState.SHUTTING_DOWN && shutdown) {
             log.error("Stopping application because Hazelcast is no longer available");
             System.exit(10);
         } 
@@ -139,6 +150,11 @@ public class TopicLifecycleListener implements LifecycleListener {
                 } catch (IOException e) {
                     log.error("Unable to reset routing table - {}", e.getMessage());
                 }
+            }
+            if (topic != null && registrationId != null) {
+                topic.removeMessageListener(registrationId);
+                log.info("Event consumer {} for {} stopped", registrationId, realTopic);
+                topic = null;
             }
         }
         if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_CONNECTED) {

@@ -58,12 +58,10 @@ public class EventProducer implements LambdaFunction {
     // static because this is a shared lambda function
     private static boolean ready = false, abort = false;
 
-    private final HazelcastInstance client;
     private final boolean isServiceMonitor;
     private final String forMe;
 
-    public EventProducer(HazelcastInstance client) {
-        this.client = client;
+    public EventProducer() {
         AppConfigReader reader = AppConfigReader.getInstance();
         this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         this.forMe = "@"+Platform.getInstance().getOrigin();
@@ -99,6 +97,7 @@ public class EventProducer implements LambdaFunction {
                         log.warn("Event dropped because route {} not found", headers.get(TO));
                     }
                 } else {
+                    HazelcastInstance client = HazelcastSetup.getHazelcastClient();
                     for (String dest : destinations) {
                         /*
                          * Automatic segmentation happens at the PostOffice level
@@ -106,7 +105,7 @@ public class EventProducer implements LambdaFunction {
                          *
                          * The EventConsumer at the receiving side will reconstruct the payload if needed.
                          */
-                        String realTopic = HazelcastSetup.getNamespace() + dest;
+                        String realTopic = HazelcastSetup.NAMESPACE + dest;
                         ITopic<byte[]> iTopic = client.getReliableTopic(realTopic);
                         iTopic.publish(payload);
                     }
@@ -124,8 +123,8 @@ public class EventProducer implements LambdaFunction {
          */
         if (replyTo.endsWith(forMe)) {
             EventEnvelope direct = new EventEnvelope().setTo(replyTo).setHeader(TYPE, PONG).setBody(true);
-            String realTopic = HazelcastSetup.getNamespace() + origin;
-            ITopic<byte[]> iTopic = client.getReliableTopic(realTopic);
+            String realTopic = HazelcastSetup.NAMESPACE + origin;
+            ITopic<byte[]> iTopic = HazelcastSetup.getHazelcastClient().getReliableTopic(realTopic);
             iTopic.publish(direct.toBytes());
         }
     }

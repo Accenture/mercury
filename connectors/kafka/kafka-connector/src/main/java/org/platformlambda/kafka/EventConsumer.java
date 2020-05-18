@@ -45,7 +45,6 @@ public class EventConsumer extends Thread {
 
     private static final long FAST_POLL = 10;
     private static final long REGULAR_POLL = 60;
-    private ConsumerLifeCycle lifeCycle;
     private String topic;
     private KafkaConsumer<String, byte[]> consumer;
     private boolean normal = true, pubSub = false;
@@ -57,10 +56,6 @@ public class EventConsumer extends Thread {
 
     public EventConsumer(Properties base, String topic, boolean pubSub, String... parameters) {
         initialize(base, topic, pubSub, parameters);
-    }
-
-    public ConsumerLifeCycle getLifeCycle() {
-        return lifeCycle;
     }
 
     private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
@@ -103,7 +98,6 @@ public class EventConsumer extends Thread {
         this.pubSub = pubSub;
         this.topic = topic;
         this.consumer = new KafkaConsumer<>(prop);
-        this.lifeCycle = new ConsumerLifeCycle(topic, pubSub);
     }
 
     private long getEarliest(TopicPartition tp) {
@@ -121,7 +115,7 @@ public class EventConsumer extends Thread {
         boolean resetOffset = pubSub;
         long interval = pubSub? FAST_POLL : REGULAR_POLL;
         PostOffice po = PostOffice.getInstance();
-        consumer.subscribe(Collections.singletonList(topic), lifeCycle);
+        consumer.subscribe(Collections.singletonList(topic), new ConsumerLifeCycle(topic, pubSub));
         log.info("Subscribed topic {}", topic);
         try {
             while (normal) {
@@ -129,7 +123,7 @@ public class EventConsumer extends Thread {
                 if (pubSub && offset > -1 && resetOffset) {
                     // wait until a partition is assigned
                     boolean scanOffset = true;
-                    if (lifeCycle.isReady()) {
+                    if (ConsumerLifeCycle.isReady()) {
                         Set<TopicPartition> p = consumer.assignment();
                         if (!p.isEmpty()) {
                             // must have at least one partition assigned

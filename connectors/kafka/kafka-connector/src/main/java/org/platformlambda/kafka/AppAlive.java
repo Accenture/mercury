@@ -52,7 +52,7 @@ public class AppAlive extends Thread {
         // the first message will be sent in 10 seconds
         long t0 = System.currentTimeMillis() - 10000;
         while (normal) {
-            if (KafkaSetup.isConsumerReady()) {
+            if (ConsumerLifeCycle.isReady()) {
                 long now = System.currentTimeMillis();
                 if (now - t0 > INTERVAL) {
                     t0 = now;

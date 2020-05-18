@@ -21,7 +21,6 @@ package org.platformlambda.hazelcast;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientConnectionStrategyConfig;
-import com.hazelcast.client.config.ClientFailoverConfig;
 import com.hazelcast.client.config.ConnectionRetryConfig;
 import com.hazelcast.core.HazelcastInstance;
 import org.platformlambda.core.annotations.CloudConnector;
@@ -38,20 +37,27 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 @CloudConnector(name="hazelcast")
 public class HazelcastSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(HazelcastSetup.class);
 
+    public static final String NAMESPACE = "ms-";
     public static final String MANAGER = "hazelcast.manager";
+    public static final String SETUP_CONSUMER = "hazelcast.connection.monitor";
+    private static final String MONITOR = "monitor";
     private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String START = "start";
     private static final String CLOUD_CHECK = "cloud.connector.health";
+    private static final long MAX_CLUSTER_WAIT = 5 * 60 * 1000;
 
     private static HazelcastInstance client;
-    private static String namespace;
+    private static UUID listenerId;
+    private static String realTopic;
     private static List<String> cluster;
-    private final boolean isServiceMonitor;
+    private static boolean isServiceMonitor;
 
     public static HazelcastInstance getHazelcastClient() {
         return client;
@@ -59,11 +65,7 @@ public class HazelcastSetup implements CloudSetup {
 
     public HazelcastSetup() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        this.isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
-    }
-
-    public static String getNamespace() {
-        return namespace;
+        isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
     public static List<String> getClusterList() {
@@ -74,15 +76,11 @@ public class HazelcastSetup implements CloudSetup {
     public void initialize() {
         Utility util = Utility.getInstance();
         AppConfigReader reader = AppConfigReader.getInstance();
-        // Since more than one application may use the same Hazelcast cluster, we use a namespace to prefix all queues and maps
-        namespace = reader.getProperty("hazelcast.namespace", "connector") + "-";
         // Hazelcast cluster is a list of domains or IP addresses
         cluster = util.split(reader.getProperty("hazelcast.cluster", "127.0.0.1:5701"), ", ");
-        String[] addrs = new String[cluster.size()];
         boolean reachable = false;
         for (int i=0; i < cluster.size(); i++) {
             String address = cluster.get(i);
-            addrs[i] = address;
             int colon = address.indexOf(':');
             if (colon > 1) {
                 String host = address.substring(0, colon);
@@ -99,44 +97,76 @@ public class HazelcastSetup implements CloudSetup {
             log.error("Hazelcast cluster {} is not reachable", cluster);
             System.exit(-1);
         }
-        ClientConnectionStrategyConfig connectionStrategy = new ClientConnectionStrategyConfig();
-        connectionStrategy.setReconnectMode(ClientConnectionStrategyConfig.ReconnectMode.ASYNC);
-
-        ConnectionRetryConfig retryConfig = new ConnectionRetryConfig();
-        connectionStrategy.setConnectionRetryConfig(retryConfig);
-
-        ClientConfig config = new ClientConfig();
-        config.getNetworkConfig().addAddress(addrs);
-        config.setConnectionStrategyConfig(connectionStrategy);
-
-        client = HazelcastClient.newHazelcastClient(config);
-        client.getCluster().addMembershipListener(new ClusterListener());
-
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String origin = platform.getOrigin();
+        connectToHazelcast();
         try {
             platform.registerPrivate(MANAGER, new TopicManager(), 1);
             if (!isServiceMonitor) {
+                // create a new topic and start keep alive
                 po.request(MANAGER, 10000, new Kv(TYPE, TopicManager.CREATE_TOPIC));
-                String realTopic = HazelcastSetup.getNamespace()+origin;
-                client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(realTopic));
-                // start topic keep alive
                 TopicKeepAlive alive = new TopicKeepAlive();
                 alive.start();
             }
-            platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(HazelcastSetup.getHazelcastClient()), 1);
+            platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
             // enable service discovery
             platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 1);
             platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.registerPrivate(CLOUD_CHECK, new HazelcastHealthCheck(), 2);
             platform.startCloudServices();
+            po.send(SETUP_CONSUMER, new Kv(TYPE, START));
 
         } catch (IOException | TimeoutException | AppException e) {
             log.error("Unable to setup Hazelcast connection", e);
             System.exit(-1);
         }
+    }
 
+    public static void connectToHazelcast() {
+        String topic = getRealTopic();
+        if (client != null) {
+            client.getLifecycleService().removeLifecycleListener(listenerId);
+            client.shutdown();
+        }
+        String[] address = new String[cluster.size()];
+        for (int i=0; i < cluster.size(); i++) {
+            address[i] = cluster.get(i);
+        }
+        ClientConnectionStrategyConfig connectionStrategy = new ClientConnectionStrategyConfig();
+        connectionStrategy.setReconnectMode(ClientConnectionStrategyConfig.ReconnectMode.ASYNC);
+        ConnectionRetryConfig retry = new ConnectionRetryConfig();
+        retry.setClusterConnectTimeoutMillis(MAX_CLUSTER_WAIT);
+        connectionStrategy.setConnectionRetryConfig(retry);
+        ClientConfig config = new ClientConfig();
+        config.getNetworkConfig().addAddress(address);
+        config.setConnectionStrategyConfig(connectionStrategy);
+        client = HazelcastClient.newHazelcastClient(config);
+        client.getCluster().addMembershipListener(new ClusterListener());
+        listenerId = client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(topic));
+        if (!isServiceMonitor) {
+            try {
+                // recover the topic
+                PostOffice.getInstance().request(MANAGER, 10000, new Kv(TYPE, TopicManager.CREATE_TOPIC));
+            } catch (IOException | TimeoutException | AppException e) {
+                log.error("Unable to create topic {} - {}", topic, e.getMessage());
+            }
+        }
+        log.info("Connected to hazelcast cluster and listening to {} ", topic);
+    }
+
+    public static String getRealTopic() {
+        if (realTopic == null) {
+            if (isServiceMonitor) {
+                realTopic = NAMESPACE + MONITOR;
+                String namespace = Platform.getInstance().getNamespace();
+                if (namespace != null) {
+                    realTopic += "." + namespace;
+                }
+            } else {
+                realTopic = NAMESPACE + Platform.getInstance().getOrigin();
+            }
+        }
+        return realTopic;
     }
 
 }

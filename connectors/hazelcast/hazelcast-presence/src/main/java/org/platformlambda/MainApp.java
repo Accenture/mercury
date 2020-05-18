@@ -70,14 +70,9 @@ public class MainApp implements EntryPoint {
          * setup presence.monitor topic producer and consumer
          */
         HazelcastInstance client = HazelcastSetup.getHazelcastClient();
-        String topic = HazelcastSetup.getNamespace()+MONITOR;
-        String namespace = Platform.getInstance().getNamespace();
-        if (namespace != null) {
-            topic += "."+namespace;
-        }
-        client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener(topic));
         // setup producer
-        platform.registerPrivate(PRESENCE_MONITOR, new PresenceProducer(client, topic), 1);
+        String realTopic = HazelcastSetup.getRealTopic();
+        platform.registerPrivate(PRESENCE_MONITOR, new PresenceProducer(realTopic), 1);
         // setup presence handler
         platform.registerPrivate(PRESENCE_HANDLER, new PresenceHandler(), 1);
         // ping connected application instances periodically

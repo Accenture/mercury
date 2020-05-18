@@ -40,13 +40,11 @@ public class PresenceProducer implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String RESET = "reset";
     private static final String ORIGIN = "origin";
-    private final HazelcastInstance client;
     private final String topic;
     private boolean ready = false, abort = false;
     private boolean online = true;
 
-    public PresenceProducer(HazelcastInstance client, String topic) {
-        this.client = client;
+    public PresenceProducer(String topic) {
         this.topic = topic;
     }
 
@@ -95,11 +93,16 @@ public class PresenceProducer implements LambdaFunction {
             return false;
         }
         if (body instanceof byte[]) {
-            byte[] payload = (byte[]) body;
-            ITopic<byte[]> iTopic = client.getReliableTopic(topic);
-            iTopic.publish(payload);
-            // successfully publish an event
-            online = true;
+            HazelcastInstance client = HazelcastSetup.getHazelcastClient();
+            if (client != null) {
+                byte[] payload = (byte[]) body;
+                ITopic<byte[]> iTopic = client.getReliableTopic(topic);
+                iTopic.publish(payload);
+                // successfully publish an event
+                online = true;
+            } else {
+                log.error("Unable to send event because hazelcast is not available");
+            }
         }
         return true;
     }

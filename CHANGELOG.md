@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+1. Payload segmentation
+
 For large payload in an event, the payload is automatically segmented into 64 KB segments.
 When there are more than one target application instances, the system ensures that the segments of the same event is delivered
 to exactly the same target.
+
+2. PersistentWsClient added - generalized persistent websocket client for Event Node, Kafka reporter and Hazelcast reporter.
 
 ### Removed
 

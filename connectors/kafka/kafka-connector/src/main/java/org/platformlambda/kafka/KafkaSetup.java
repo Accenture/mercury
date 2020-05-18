@@ -70,10 +70,6 @@ public class KafkaSetup implements CloudSetup {
         return displayUrl;
     }
 
-    public static boolean isConsumerReady() {
-        return consumer != null && consumer.getLifeCycle() != null && consumer.getLifeCycle().isReady();
-    }
-
     @SuppressWarnings("unchecked")
     public static Properties getKafkaProperties() {
         Platform platform = Platform.getInstance();

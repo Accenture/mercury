@@ -27,7 +27,6 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
@@ -133,17 +132,6 @@ public class PresenceConnector implements LambdaFunction {
 
     public boolean isReady() {
         return ready;
-    }
-
-    public void resetMonitor() {
-        if (isConnected() && isReady()) {
-            try {
-                Utility.getInstance().closeConnection(monitor, CloseReason.CloseCodes.GOING_AWAY,
-                        "Hazelcast restarted");
-            } catch (IOException e) {
-                // ok to ignore
-            }
-        }
     }
 
     private void sendAppInfo(long n, boolean alive) {

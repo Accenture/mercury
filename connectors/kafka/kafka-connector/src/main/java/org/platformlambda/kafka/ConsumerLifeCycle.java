@@ -35,7 +35,7 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
     private static final String INIT = "init";
     private final boolean pubSub, serviceMonitor;
     private final String topic;
-    private boolean ready = false;
+    private static boolean ready = false;
 
     public ConsumerLifeCycle(String topic, boolean pubSub) {
         this.topic = topic;
@@ -44,26 +44,28 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
         this.serviceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
     }
 
-    public boolean isReady() {
+    public static boolean isReady() {
         return ready;
     }
 
     @Override
     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
         if (!partitions.isEmpty()) {
-            ready = false;
             log.warn("Topic {} with {} partition{} revoked", topic, partitions.size(),
                     partitions.size() == 1 ? "" : "s");
+            if (!pubSub) {
+                ready = false;
+            }
         }
     }
 
     @Override
     public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
         if (!partitions.isEmpty()) {
-            ready = true;
             log.info("Topic {} with {} partition{} is ready", topic, partitions.size(),
                     partitions.size() == 1 ? "" : "s");
             if (!pubSub) {
+                ready = true;
                 // sending a loop-back message to tell the event consumer that the system is ready
                 if (!serviceMonitor && TopicManager.regularTopicFormat(topic)) {
                     try {

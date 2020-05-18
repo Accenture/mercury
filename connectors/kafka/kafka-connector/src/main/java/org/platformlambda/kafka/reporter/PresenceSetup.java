@@ -25,6 +25,7 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
+import org.platformlambda.kafka.ConsumerLifeCycle;
 import org.platformlambda.kafka.util.SetupUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,9 @@ public class PresenceSetup implements CloudSetup {
                         }
                     }
                     List<String> monitors = Utility.getInstance().split(url, ", ");
-                    new PersistentWsClient(PresenceConnector.getInstance(), monitors).start();
+                    PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
+                    ws.setCondition(ConsumerLifeCycle::isReady);
+                    ws.start();
 
                 } catch (Exception e) {
                     log.error("Unable to start", e);

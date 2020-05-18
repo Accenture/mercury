@@ -24,7 +24,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.KafkaSetup;
+import org.platformlambda.kafka.ConsumerLifeCycle;
 import org.platformlambda.kafka.PresenceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +93,7 @@ public class MonitorAlive extends Thread {
         int n = 0;
         while (n < 30) {
             n++;
-            if (KafkaSetup.isConsumerReady()) {
+            if (ConsumerLifeCycle.isReady()) {
                 EventEnvelope event = new EventEnvelope();
                 event.setTo(MainApp.PRESENCE_HANDLER);
                 event.setHeader(INIT, PresenceHandler.INIT_TOKEN);

@@ -53,13 +53,8 @@ public class HazelcastHealthCheck implements LambdaFunction {
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (INFO.equals(headers.get(TYPE))) {
-            String namespace = HazelcastSetup.getNamespace();
-            if (namespace.endsWith("-")) {
-                namespace = namespace.substring(0, namespace.length()-1);
-            }
             Map<String, Object> result = new HashMap<>();
             result.put("service", "hazelcast");
-            result.put("namespace", namespace);
             result.put("configured", HazelcastSetup.getClusterList());
             result.put("cluster", ClusterListener.getMembers());
             return result;
