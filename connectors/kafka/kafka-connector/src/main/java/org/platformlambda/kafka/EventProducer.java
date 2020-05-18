@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -104,29 +106,28 @@ public class EventProducer implements LambdaFunction {
         return properties;
     }
 
-    private void startProducer() {
+    private synchronized void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
             String id = (Platform.getInstance().getOrigin()+"p"+(++seq)).substring(8);
             Properties properties = getProperties();
             properties.put(ProducerConfig.CLIENT_ID_CONFIG, id);
             producer = new KafkaProducer<>(properties);
+            producerId = id;
             lastStarted = System.currentTimeMillis();
-            producerId = properties.getProperty(ProducerConfig.CLIENT_ID_CONFIG);
-            log.info("Producer {} ready", producerId);
+            log.info("Producer {} ready", id);
         }
     }
 
-    private void closeProducer() {
+    private synchronized void closeProducer() {
         if (producer != null) {
+            log.info("Producer {} released, delivered: {}", producerId, totalEvents);
             try {
                 producer.close();
-                log.info("Producer {} released, delivered: {}", producerId, totalEvents);
             } catch (Exception e) {
                 // ok to ignore
             }
             producer = null;
-            producerId = null;
             lastStarted = 0;
             totalEvents = 0;
         }

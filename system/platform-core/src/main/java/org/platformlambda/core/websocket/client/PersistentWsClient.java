@@ -44,7 +44,7 @@ public class PersistentWsClient extends Thread implements Closeable {
     private static final String TYPE = "type";
     private static final String ALIVE = "keep-alive";
     private static final String SEQ = "seq";
-    final private List<String> wsUrls;
+    final private List<String> urls;
     final private LambdaFunction connector;
     private ConnectorReady condition = null;
     private SimpleClientEndpoint client = null;
@@ -55,12 +55,12 @@ public class PersistentWsClient extends Thread implements Closeable {
 
     public PersistentWsClient(LambdaFunction connector, String url) {
         this.connector = connector;
-        this.wsUrls = Collections.singletonList(url);
+        this.urls = Collections.singletonList(url);
     }
 
-    public PersistentWsClient(LambdaFunction connector, List<String> wsUrls) {
+    public PersistentWsClient(LambdaFunction connector, List<String> urls) {
         this.connector = connector;
-        this.wsUrls = wsUrls;
+        this.urls = urls;
     }
 
     public void setCondition(ConnectorReady condition) {
@@ -77,7 +77,7 @@ public class PersistentWsClient extends Thread implements Closeable {
          * Immediate connect when running for the first time.
          * Thereafter, wait for 5 seconds and try again until it is connected.
          */
-        log.info("Connection list {}", wsUrls);
+        log.info("Connection list {}", urls);
         while (normal) {
             try {
                 manageConnection(idleTimeout / 2);
@@ -135,25 +135,29 @@ public class PersistentWsClient extends Thread implements Closeable {
     private void connect() {
         Platform platform = Platform.getInstance();
         if (connectTime == 0) {
-            List<String> urls = new ArrayList<>(wsUrls);
-            if (urls.size() > 1) {
-                Collections.shuffle(urls);
+            List<String> urlList = new ArrayList<>(this.urls);
+            if (urlList.size() > 1) {
+                Collections.shuffle(urlList);
             }
-            for (String path : urls) {
-                try {
-                    URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
+            for (String path : urlList) {
+                if (path.startsWith("ws://") || path.startsWith("wss://")) {
                     try {
-                        SimpleClientEndpoint client = new SimpleClientEndpoint(connector, uri);
-                        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                        container.connectToServer(client, uri);
-                        this.connectTime = System.currentTimeMillis();
-                        this.client = client;
-                        return; // exit after successful connection
-                    } catch (Exception e) {
-                        log.warn("{} {}", simplifiedError(e.getMessage()), uri);
+                        URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
+                        try {
+                            SimpleClientEndpoint client = new SimpleClientEndpoint(connector, uri);
+                            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                            container.connectToServer(client, uri);
+                            this.connectTime = System.currentTimeMillis();
+                            this.client = client;
+                            return; // exit after successful connection
+                        } catch (Exception e) {
+                            log.warn("{} {}", simplifiedError(e.getMessage()), uri);
+                        }
+                    } catch (URISyntaxException e) {
+                        log.error("Invalid event node URL {}", path);
                     }
-                } catch (URISyntaxException e) {
-                    log.error("Invalid event node URL {}", path);
+                } else {
+                    log.error("Invalid websocket URL {} ignored", path);
                 }
             }
         }
