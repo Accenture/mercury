@@ -8,7 +8,7 @@
 
     <packaging>jar</packaging>
     <version>1.12.50</version>
-    <name>Standalone kafka system for development and testing</name>
+    <name>Standalone kafka system for development</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

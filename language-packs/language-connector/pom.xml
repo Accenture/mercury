@@ -8,7 +8,7 @@
 
     <packaging>jar</packaging>
     <version>1.12.50</version>
-    <name>Language Connector for Python, Nodes.js and Go</name>
+    <name>Language Connector for Python and others</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
