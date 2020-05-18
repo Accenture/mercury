@@ -122,7 +122,11 @@ public class PersistentWsClient extends Thread implements Closeable {
             if (now - timer >= WAIT_INTERVAL) {
                 timer = System.currentTimeMillis();
                 try {
-                    if (condition != null && condition.isReady()) {
+                    /*
+                     * connect if there is no external condition.
+                     * Otherwise test if it is ready
+                     */
+                    if (condition == null || condition.isReady()) {
                         connect();
                     }
                 } catch (Exception e) {
