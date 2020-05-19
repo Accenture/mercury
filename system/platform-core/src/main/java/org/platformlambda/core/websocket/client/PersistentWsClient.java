@@ -46,7 +46,7 @@ public class PersistentWsClient extends Thread implements Closeable {
     private static final String SEQ = "seq";
     final private List<String> urls;
     final private LambdaFunction connector;
-    private ConnectorReady condition = null;
+    private ConnectorReady condition = () -> true;
     private SimpleClientEndpoint client = null;
     private long aliveTime = 0, aliveSeq = 1;
     private long timer = 0;
@@ -55,8 +55,6 @@ public class PersistentWsClient extends Thread implements Closeable {
     public PersistentWsClient(LambdaFunction connector, List<String> urls) {
         this.connector = connector;
         this.urls = urls;
-        // default condition is true
-        this.setCondition(() -> true);
     }
 
     public void setCondition(ConnectorReady condition) {
