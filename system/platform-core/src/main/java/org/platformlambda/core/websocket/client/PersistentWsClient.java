@@ -48,23 +48,21 @@ public class PersistentWsClient extends Thread implements Closeable {
     final private LambdaFunction connector;
     private ConnectorReady condition = null;
     private SimpleClientEndpoint client = null;
-    private long connectTime = 0;
     private long aliveTime = 0, aliveSeq = 1;
     private long timer = 0;
     private boolean normal = true;
 
-    public PersistentWsClient(LambdaFunction connector, String url) {
-        this.connector = connector;
-        this.urls = Collections.singletonList(url);
-    }
-
     public PersistentWsClient(LambdaFunction connector, List<String> urls) {
         this.connector = connector;
         this.urls = urls;
+        // default condition is true
+        this.setCondition(() -> true);
     }
 
     public void setCondition(ConnectorReady condition) {
-        this.condition = condition;
+        if (condition != null) {
+            this.condition = condition;
+        }
     }
 
     @Override
@@ -105,13 +103,13 @@ public class PersistentWsClient extends Thread implements Closeable {
     private void manageConnection(long keepAliveInterval) {
         long now = System.currentTimeMillis();
         if (client != null && client.isConnected()) {
-            if (condition != null && !condition.isReady()) {
+            if (condition.isReady()) {
+                timer = now;
+                if (now - aliveTime > keepAliveInterval) {
+                    keepAlive();
+                }
+            } else {
                 disconnect("Disconnect due to external condition");
-                return;
-            }
-            timer = now;
-            if (now - aliveTime > keepAliveInterval) {
-                keepAlive();
             }
         } else {
             if (client != null && client.justDisconnected()) {
@@ -120,13 +118,9 @@ public class PersistentWsClient extends Thread implements Closeable {
                 log.info("Just disconnected");
             }
             if (now - timer >= WAIT_INTERVAL) {
-                timer = System.currentTimeMillis();
                 try {
-                    /*
-                     * connect if there is no external condition.
-                     * Otherwise test if it is ready
-                     */
-                    if (condition == null || condition.isReady()) {
+                    if (condition.isReady()) {
+                        timer = now;
                         connect();
                     }
                 } catch (Exception e) {
@@ -138,34 +132,30 @@ public class PersistentWsClient extends Thread implements Closeable {
 
     private void connect() {
         Platform platform = Platform.getInstance();
-        if (connectTime == 0) {
-            List<String> urlList = new ArrayList<>(this.urls);
-            if (urlList.size() > 1) {
-                Collections.shuffle(urlList);
-            }
-            for (String path : urlList) {
-                if (path.startsWith("ws://") || path.startsWith("wss://")) {
+        List<String> urlList = new ArrayList<>(this.urls);
+        if (urlList.size() > 1) {
+            Collections.shuffle(urlList);
+        }
+        for (String path : urlList) {
+            if (path.startsWith("ws://") || path.startsWith("wss://")) {
+                try {
+                    URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
                     try {
-                        URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
-                        try {
-                            SimpleClientEndpoint client = new SimpleClientEndpoint(connector, uri);
-                            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                            container.connectToServer(client, uri);
-                            this.connectTime = System.currentTimeMillis();
-                            this.client = client;
-                            return; // exit after successful connection
-                        } catch (Exception e) {
-                            log.warn("{} {}", simplifiedError(e.getMessage()), uri);
-                        }
-                    } catch (URISyntaxException e) {
-                        log.error("Invalid event node URL {}", path);
+                        SimpleClientEndpoint client = new SimpleClientEndpoint(connector, uri);
+                        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                        container.connectToServer(client, uri);
+                        this.client = client;
+                        return; // exit after successful connection
+                    } catch (Exception e) {
+                        log.warn("{} {}", simplifiedError(e.getMessage()), uri);
                     }
-                } else {
-                    log.error("Invalid websocket URL {} ignored", path);
+                } catch (URISyntaxException e) {
+                    log.error("Invalid event node URL {}", path);
                 }
+            } else {
+                log.error("Invalid websocket URL {} ignored", path);
             }
         }
-        connectTime = 0;
     }
 
     private void keepAlive() {
