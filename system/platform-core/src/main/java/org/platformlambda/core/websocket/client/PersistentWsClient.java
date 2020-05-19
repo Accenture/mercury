@@ -104,7 +104,6 @@ public class PersistentWsClient extends Thread implements Closeable {
         long now = System.currentTimeMillis();
         if (client != null && client.isConnected()) {
             if (condition.isReady()) {
-                timer = now;
                 if (now - aliveTime > keepAliveInterval) {
                     keepAlive();
                 }
