@@ -22,18 +22,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CorsInfo {
-
     private static final String ACCESS_CONTROL_ORIGIN = "access-control-allow-origin";
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
-    private String origin;
-    public String id;
+    final private String origin;
     public Map<String, String> options = new HashMap<>();
     public Map<String, String> headers = new HashMap<>();
 
-    public CorsInfo(String id, Object origin) {
-        this.id = id;
-        this.origin = getOrigin(origin);
+    public CorsInfo(String origin) {
+        this.origin = origin != null &&
+                ("*".equals(origin) || origin.startsWith(HTTP) || origin.startsWith(HTTPS))? origin : null;
     }
 
     public String getOrigin(boolean isOption) {
@@ -60,16 +58,6 @@ public class CorsInfo {
         } else {
             headers.put(key, value);
         }
-    }
-
-    private String getOrigin(Object origin) {
-        if (origin instanceof String) {
-            String o = (String) origin;
-            if ("*".equals(o) || o.startsWith(HTTP) || o.startsWith(HTTPS)) {
-                return o;
-            }
-        }
-        return null;
     }
 
 }

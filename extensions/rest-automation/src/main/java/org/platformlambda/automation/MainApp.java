@@ -61,10 +61,11 @@ public class MainApp implements EntryPoint {
          */
         ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
         Platform platform = Platform.getInstance();
+
         try {
             ConfigReader config = getConfig();
             RoutingEntry routing = RoutingEntry.getInstance();
-            routing.load(config.getMap());
+            routing.load(config);
             WsEntry ws = WsEntry.getInstance();
             ws.load(config.getMap());
             // start service response handler
@@ -95,7 +96,6 @@ public class MainApp implements EntryPoint {
         AppConfigReader reader = AppConfigReader.getInstance();
         List<String> paths = Utility.getInstance().split(reader.getProperty("rest.automation.yaml",
                 "file:/tmp/config/rest.yaml, classpath:/rest.yaml"), ", ");
-
         for (String p: paths) {
             ConfigReader config = new ConfigReader();
             try {

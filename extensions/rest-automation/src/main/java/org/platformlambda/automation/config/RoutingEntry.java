@@ -23,6 +23,7 @@ import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.CorsInfo;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.automation.models.RouteInfo;
+import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,17 +67,15 @@ public class RoutingEntry {
     private static final int MIN_THRESHOLD = 5000;
     private static final int REG_THRESHOLD = 50000;
     private static final int MAX_THRESHOLD = 500000;
-
-    private Map<String, RouteInfo> routes = new HashMap<>();
-    private Map<String, Boolean> exactRoutes = new HashMap<>();
+    private static final Map<String, RouteInfo> routes = new HashMap<>();
+    private static final Map<String, Boolean> exactRoutes = new HashMap<>();
     // id -> {maps for options and headers}
-    private Map<String, CorsInfo> cors = new HashMap<>();
+    private static final Map<String, CorsInfo> cors = new HashMap<>();
     // id -> add, drop, keep
-    private Map<String, HeaderInfo> requestHeaderInfo = new HashMap<>();
-    private Map<String, HeaderInfo> responseHeaderInfo = new HashMap<>();
-    private List<String> urlPaths = new ArrayList<>();
-
-    private static RoutingEntry instance = new RoutingEntry();
+    private static final Map<String, HeaderInfo> requestHeaderInfo = new HashMap<>();
+    private static final Map<String, HeaderInfo> responseHeaderInfo = new HashMap<>();
+    private static final List<String> urlPaths = new ArrayList<>();
+    private static final RoutingEntry instance = new RoutingEntry();
 
     private RoutingEntry() {
         // singleton
@@ -187,8 +186,8 @@ public class RoutingEntry {
     }
 
     @SuppressWarnings("unchecked")
-    public void load(Map<String, Object> config) {
-        if (config.containsKey(HEADERS)) {
+    public void load(ConfigReader config) {
+        if (config.exists(HEADERS)) {
             Object headerList = config.get(HEADERS);
             if (headerList instanceof List) {
                 if (isMap((List<Object>) headerList)) {
@@ -201,11 +200,11 @@ public class RoutingEntry {
                 log.error("'headers' section must contain a list of configuration. Actual: {}", headerList.getClass().getSimpleName());
             }
         }
-        if (config.containsKey(CORS)) {
+        if (config.exists(CORS)) {
             Object corsList = config.get(CORS);
             if (corsList instanceof List) {
                 if (isMap((List<Object>) corsList)) {
-                    loadCors((List<Map<String, Object>>) corsList);
+                    loadCors(config);
                 } else {
                     log.error("'cors' section must be a list of Access-Control configuration where each entry is a map of id, options and headers");
                 }
@@ -214,7 +213,7 @@ public class RoutingEntry {
                 log.error("'cors' section must contain a list of Access-Control configuration. Actual: {}", corsList.getClass().getSimpleName());
             }
         }
-        if (config.containsKey(REST)) {
+        if (config.exists(REST)) {
             Object rest = config.get(REST);
             if (rest instanceof List) {
                 if (isMap((List<Object>) rest)) {
@@ -549,36 +548,38 @@ public class RoutingEntry {
         return stars.size() == 1;
     }
 
-    private void loadCors(List<Map<String, Object>> config) {
-        for (Map<String, Object> entry: config) {
-            if (entry.containsKey(ID) && entry.containsKey(OPTIONS) && entry.containsKey(HEADERS)
-                    && entry.get(ID) instanceof String) {
-                loadCorsEntry(entry);
+    private void loadCors(ConfigReader config) {
+        for (int idx = 0; config.exists(CORS+"["+idx+"]"); idx++) {
+            String id = config.getProperty(CORS+"["+idx+"]."+ID);
+            String origin = config.getProperty(CORS+"["+idx+"]."+ORIGIN);
+            Object options = config.get(CORS+"["+idx+"]."+OPTIONS);
+            Object headers = config.get(CORS+"["+idx+"]."+HEADERS);
+            if (id != null && options instanceof List && headers instanceof List) {
+                loadCorsEntry(id, origin, options, headers);
             } else {
-                log.error("Skipping invalid CORS definition {}", entry);
+                log.error("Skipping invalid CORS definition {}", config.get(CORS+"["+idx+"]"));
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void loadCorsEntry(Map<String, Object> entry) {
-        if (entry.get(OPTIONS) instanceof List && entry.get(HEADERS) instanceof List) {
-            String id = (String) entry.get(ID);
-            List<Object> options = (List<Object>) entry.get(OPTIONS);
-            List<Object> headers = (List<Object>) entry.get(HEADERS);
-            if (validCorsList(options) && validCorsList(headers)) {
-                CorsInfo info = new CorsInfo(id, entry.get(ORIGIN));
-                for (Object o: options) {
+    private void loadCorsEntry(String id, String origin, Object options, Object headers) {
+        if (options instanceof List && headers instanceof List) {
+            List<Object> optionList = (List<Object>) options;
+            List<Object> headerList = (List<Object>) headers;
+            if (validCorsList(optionList) && validCorsList(headerList)) {
+                CorsInfo info = new CorsInfo(origin);
+                for (Object o : optionList) {
                     info.addOption(o.toString());
                 }
-                for (Object h: headers) {
+                for (Object h : headerList) {
                     info.addHeader(h.toString());
                 }
                 cors.put(id, info);
                 log.info("Loaded {} CORS headers ({})", id, info.getOrigin(false));
-
             } else {
-                log.error("Skipping invalid CORS entry {}", entry);
+                log.error("Skipping invalid CORS entry id={}, origin={}, options={}, headers={}",
+                        id, origin, options, headers);
             }
         }
     }
@@ -632,7 +633,7 @@ public class RoutingEntry {
         Object go = isRequest? entry.get(REQUEST) : entry.get(RESPONSE);
         if (go instanceof Map) {
             Map<String, Object> group = (Map<String, Object>) go;
-            HeaderInfo info = new HeaderInfo(id);
+            HeaderInfo info = new HeaderInfo();
             if (group.get(ADD) instanceof List) {
                 List<Object> items = (List<Object>) group.get(ADD);
                 for (Object o : items) {
