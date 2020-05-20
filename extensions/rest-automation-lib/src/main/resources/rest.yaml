@@ -1,0 +1,142 @@
+#
+# REST automation is the recommended way to create REST endpoints properly
+#
+rest:
+  - service: "hello.world"
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH']
+    url: "/api/hello/world"
+    timeout: 10s
+    # optional authentication service which should return result as an EventEnvelope
+    # with session info in headers and true|false in body
+#    authentication: "v1.api.auth"
+    cors: cors_1
+    headers: header_1
+    # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
+    # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
+    # Default is 50000 bytes, min is 5000, max is 500000
+    threshold: 30000
+    # optionally, you can turn on Distributed Tracing
+    tracing: true
+
+  - service: "hello.world"
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/test/ok*"
+    # optional "upload" key if it is a multi-part file upload
+    upload: "file"
+    timeout: 15s
+    cors: cors_1
+    headers: header_1
+
+  - service: "hello.world"
+    trust_all_cert: true
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/nice/{task}/*"
+    timeout: 12
+    cors: cors_1
+    headers: header_1
+
+  #
+  # When service is a URL, it will relay HTTP or HTTPS requests.
+  # "trust_all_cert" and "url_rewrite" are optional.
+  #
+  # For target host with self-signed certificate, you may set "trust_all_cert" to true.
+  # trust_all_cert: true
+  #
+  # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
+  # e.g. url_rewrite: ['/api/v1', '/v1/api']
+  # In this example, "/api/v1" will be replaced with "/v1/api"
+  #
+  - service: "http://127.0.0.1:8100"
+    trust_all_cert: true
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/v1/*"
+    url_rewrite: ['/api/v1', '/api']
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+#
+# CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
+#
+# Access-Control-Allow-Origin must be "*" or domain name starting with "http://" or "https://"
+# The use of wildcard "*" should only be allowed for non-prod environments.
+#
+# For production, please add the "api.origin" key in the application.properties.
+# In this example, the api.origin value will be used to override the value
+# in "Access-Control-Allow-Origin".
+#
+cors:
+  - id: cors_1
+    # origin is optional. If present, it will replace Access-Control-Allow-Origin value in options and headers
+    origin: ${api.origin}
+    options:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Max-Age: 86400"
+    headers:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Allow-Credentials: true"
+
+#
+# add/drop/keep HTTP request and response headers
+#
+headers:
+  - id: header_1
+    request:
+      #
+      # headers to be inserted
+      #    add: ["hello-world: nice"]
+      #
+      # keep and drop are mutually exclusive where keep has precedent over drop
+      # i.e. when keep is not empty, it will drop all headers except those to be kept
+      # when keep is empty and drop is not, it will drop only the headers in the drop list
+      # e.g.
+      # keep: ['x-session-id', 'user-agent']
+      # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
+      #
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
+      
+    response:
+      #
+      # the system can filter the response headers set by a target service
+      # but it cannot remove any response headers set by the underlying servlet container.
+      # However, you may override non-essential headers using the "add" directive. e.g. the "server" header.
+      # i.e. don't touch essential headers such as content-length.
+      #
+      #     keep: ['only_this_header_and_drop_all']
+      #     drop: ['drop_only_these_headers', 'another_drop_header']
+      #
+      #      add: ["server: mercury 1.12"]
+      #
+      # You may want to add cache-control to disable browser and CDN caching.
+      # add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
+      #
+      add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
+
+#
+# WebSocket automation is designed primarily for real-time notification services
+# because it connects a stateful websocket connection to your stateless service.
+# (IMPORTANT - Stateless websocket services may not apply to other use cases)
+#
+# The ws.notification and sample.ws.auth service are available as a template
+# in the websocket-automation-example application.
+#
+# Tracing for incoming websocket messages is not supported because websocket is a stateful connection.
+# However, outgoing websocket events are tracked if tracing is turned on from the calling service.
+#
+websocket:
+  - service: "ws.notification"
+    #
+    # The web-socket URL is /ws/api/{application}:{token}?query_parameters
+    # The token and query parameters will be passed to the authentication service first.
+    #
+    application: "notification"
+    #
+    # The authentication service may insert session information in the headers
+    # before routing to the user provided service.
+    #
+    authentication: "sample.ws.auth"

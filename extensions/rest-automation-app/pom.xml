@@ -4,11 +4,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.platformlambda</groupId>
-    <artifactId>rest-automation</artifactId>
+    <artifactId>rest-automation-app</artifactId>
 
     <packaging>jar</packaging>
     <version>1.12.50</version>
-    <name>REST automation</name>
+    <name>REST automation application</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -25,6 +25,12 @@
     </repositories>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.platformlambda</groupId>
+            <artifactId>rest-automation</artifactId>
+            <version>1.12.50</version>
+        </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>

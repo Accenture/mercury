@@ -67,7 +67,7 @@ public class MainApp implements EntryPoint {
             RoutingEntry routing = RoutingEntry.getInstance();
             routing.load(config);
             WsEntry ws = WsEntry.getInstance();
-            ws.load(config.getMap());
+            ws.load(config);
             // start service response handler
             ConcurrentMap<String, AsyncContextHolder> contexts = ServiceGateway.getContexts();
             // "async.http.request" is deployed as PUBLIC to provide "HttpClient as a service"

@@ -2,6 +2,10 @@
 
 This is the recommended way to automate REST endpoint creation and routing for microservices that use the Mercury framework.
 
+## Library and Application
+
+The REST automation system consists a library module and an application. This sub-project is the library.
+
 ## REST endpoint creation
 
 Instead of creating REST endpoints programmatically, this application allows REST endpoints to be created declaratively.

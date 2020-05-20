@@ -8,10 +8,10 @@
             "-Dcloud.connector=kafka",
             "-Dcloud.services=kafka.reporter",
             "-jar",
-            "extensions/rest-automation/target/rest-automation-1.12.50.jar"
+            "extensions/rest-automation-app/target/rest-automation-app-1.12.50.jar"
         ],
         "watch":[
-            "extensions/rest-automation/target/rest-automation-1.12.50.jar"
+            "extensions/rest-automation-app/target/rest-automation-app-1.12.50.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

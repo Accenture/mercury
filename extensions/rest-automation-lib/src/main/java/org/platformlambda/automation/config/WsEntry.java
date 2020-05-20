@@ -19,6 +19,7 @@
 package org.platformlambda.automation.config;
 
 import org.platformlambda.automation.models.WsInfo;
+import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +55,8 @@ public class WsEntry {
     }
 
     @SuppressWarnings("unchecked")
-    public void load(Map<String, Object> config) {
-        if (config.containsKey(WEB_SOCKET)) {
+    public void load(ConfigReader config) {
+        if (config.exists(WEB_SOCKET)) {
             Utility util = Utility.getInstance();
             Object o = config.get(WEB_SOCKET);
             if (o instanceof List) {

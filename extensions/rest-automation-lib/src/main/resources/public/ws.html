@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Notification Demo</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" >
+
+    <script type="text/javascript">
+        /*
+         * This is a sample javascript code to connect to a notification channel using websocket.
+         * Please note that your browser application must implement the following:
+         * 1. Connection URL is /ws/api/{notification}:{token}
+         *    where "notification" is the name of the sample notification backend app and
+         *    token should be an access token for the notification channel.
+         * 2. Keep-alive protocol.
+         */
+
+        var msg = [];
+        var max_items = 15;
+        var connected = false;
+        var ws;
+        var ping = null;
+        /*
+         * KEEP-ALIVE PROTOCOL
+         *
+         * WebSocket connection is persistent and it is important to tell the backend that your browser application
+         * is not stalled. Keep-alive protocol also allows your browser app to detect if notification backend service
+         * is offline. When backend is offline, the browser app can inform the user and retry the connection later.
+         *
+         * The standard websocket timeout is 60 seconds. We recommend setting the keep-alive interval
+         * between 20-30 seconds.
+         */
+        var pingInterval = 20000;
+
+        function show(input) {
+            // push input as the first item in the array
+            msg.unshift(input);
+            while (msg.length > max_items) {
+                msg.pop();
+            }
+            var s = ''
+            for (i in msg) {
+                s += msg[i];
+                s += '\n';
+            }
+            document.getElementById('message').innerHTML = s;
+        }
+
+        function disconnectFromEdge() {
+            if (connected) {
+                ws.close();
+            } else {
+                show(eventWithTimestamp("error", "already disconnected"));
+            }
+        }
+
+        function keepAlive() {
+            if (connected) {
+                ws.send(eventWithTimestamp("ping", "keep alive"));
+                ping = setTimeout(keepAlive, pingInterval);
+            }
+        }
+
+        function eventWithTimestamp(msg_type, message) {
+            var s = {}
+            s['type'] = msg_type;
+            s['message'] = message;
+            s['time'] = getTimestamp();
+            return JSON.stringify(s);
+        }
+
+        function getTimestamp() {
+            var s = (new Date())+"";
+            var gmt = s.indexOf('GMT');
+            return gmt > 0? s.substring(0, gmt).trim() : s;
+        }
+
+        function resume() {
+            document.getElementById('message').style.display = "none";
+            document.getElementById('resume').style.display = "none";
+            document.getElementById('connect').style.display = "inline"
+        }
+
+        function connectToEdge() {
+
+            if ("WebSocket" in window) {
+                document.getElementById('message').style.display = "block";
+                var application = document.getElementById('app').value;
+                if (application.length == 0) {
+                    show(eventWithTimestamp("error", "missing application"));
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    return;
+                }
+                if (connected) {
+                    show(eventWithTimestamp("error", "already connected"));
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    return;
+                }
+                var req = {}
+                req['type'] = 'welcome';
+                // open a web socket
+                var protocol = window.location.protocol == "http:"? "ws" : "wss";
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/api/"+application);
+
+                ws.onopen = function() {
+                    show(eventWithTimestamp("info", "connected"));
+                    connected = true;
+                    ws.send(JSON.stringify(req));
+                    document.getElementById('connect').style.display = "none"
+                    document.getElementById('disconnect').style.display = "inline"
+                    ping = setTimeout(keepAlive, pingInterval);
+                };
+
+                ws.onmessage = function(evt) {
+                    // TODO: put your business logic to handle the notification event here
+                    show(evt.data);
+                };
+
+                ws.onclose = function(evt) {
+                    connected = false;
+                    clearTimeout(ping);
+                    show(eventWithTimestamp("info", "disconnected - ("+evt.code+") "+evt.reason));
+                    document.getElementById('message').style.display = "block";
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    document.getElementById('disconnect').style.display = "none";
+                };
+
+            }  else {
+                show("WebSocket NOT supported by your Browser");
+            }
+        }
+      </script>
+
+</head>
+<body>
+
+<div class="container">
+
+    <h4 style="color: #3cb371">Notification Demo</h4>
+    This page demonstrates a browser connecting to a notification service in your application.
+    <br/>
+    To run this demo, your backend application must include the "ws.notification"
+    and implement your own "ws.auth" services.
+    <br/>
+    The ws.notification and sample.ws.auth service are available as a template in
+    the websocket-notification-example application.
+    <br/><br/>
+    To try this demo, start the websocket-notification-example application.
+    <br/>
+    Enter "notification:demo-token?id=your_name" here and click "Start Service".
+    <br/><br/>
+    <form>
+        <div class="input-group">
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Application</span>
+                </div>
+                <input id="app" type="text" class="form-control" name="app" placeholder="application:token">
+            </div>
+
+        </div>
+    </form>
+    <div style="height: 10px"></div>
+    <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
+    <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+    <button id="resume" style="display: none" type="button" class="btn btn-warning" onclick="javascript:resume()">Continue</button>
+    <hr>
+    <pre id="message" class="border border-success rounded" style="background-color: #3c3c3c; color: white; display: none;"></pre>
+</div>
+
+</body>
+</html>
