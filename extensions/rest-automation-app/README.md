@@ -4,7 +4,7 @@ This is the recommended way to automate REST endpoint creation and routing for m
 
 ## Library and Application
 
-The REST automation system consists a library module and an application. This sub-project is a deployable application.
+The REST automation system consists of a library and an application. This sub-project is a deployable application.
 
 ## REST endpoint creation
 

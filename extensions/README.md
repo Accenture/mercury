@@ -10,7 +10,7 @@ The REST automation application is language neutual so you can write your busine
 
 ## Library and Application
 
-The REST automation system consists a library module and an application.
+The REST automation system consists of a library and an application.
 
 The REST automation application is a standalone application that you can use it as a simple REST to event automation gateway.
 
