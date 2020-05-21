@@ -1,5 +1,7 @@
 #
 # REST automation is the recommended way to create REST endpoints properly
+# Note that URL comparison is case insensitive but case sensitivity is preserved
+# for the original URL and path parameters
 #
 rest:
   - service: "hello.world"
@@ -28,7 +30,6 @@ rest:
     headers: header_1
 
   - service: "hello.world"
-    trust_all_cert: true
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
     timeout: 12

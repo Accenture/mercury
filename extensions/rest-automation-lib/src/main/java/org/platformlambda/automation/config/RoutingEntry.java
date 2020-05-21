@@ -93,11 +93,13 @@ public class RoutingEntry {
             sb.append('/');
             sb.append(p.trim());
         }
-        String normalizedUrl = sb.toString();
+        // do case insensitive matching for exact URL
+        String normalizedUrl = sb.toString().toLowerCase();
         String key = method+":"+normalizedUrl;
         if (exactRoutes.containsKey(normalizedUrl)) {
             return new AssignedRoute(routes.get(key));
         } else {
+            // then compare each segment in the URL, also with case insensitivity
             AssignedRoute similar = null;
             for (String u: urlPaths) {
                 AssignedRoute info = getMatchedRoute(input, method, u);
@@ -132,6 +134,7 @@ public class RoutingEntry {
     }
 
     private AssignedRoute getMatchedRoute(List<String> input, String method, String configured) {
+        // "configured" is a lower case URL in the routing entry
         String key = method+":"+configured;
         AssignedRoute result = new AssignedRoute(routes.get(key));
         Utility util = Utility.getInstance();
@@ -152,25 +155,27 @@ public class RoutingEntry {
         }
     }
 
-    private boolean matchRoute(List<String> input, List<String> configured, boolean wildcard) {
+    private boolean matchRoute(List<String> input, List<String> segments, boolean wildcard) {
+        // segment is lowercase parts of the configured URL
         if (wildcard) {
-            if (configured.size() > input.size()) {
+            if (segments.size() > input.size()) {
                 return false;
             }
         } else {
-            if (configured.size() != input.size()) {
+            if (segments.size() != input.size()) {
                 return false;
             }
         }
-        for (int i=0; i < configured.size(); i++) {
-            String configuredItem = configured.get(i);
+        for (int i=0; i < segments.size(); i++) {
+            String configuredItem = segments.get(i);
             if (configuredItem.startsWith("{") && configuredItem.endsWith("}")) {
                 continue;
             }
             if (configuredItem.equals("*")) {
                 continue;
             }
-            String inputItem = input.get(i);
+            // case insensitive comparision using lowercse
+            String inputItem = input.get(i).toLowerCase();
             if (configuredItem.endsWith("*")) {
                 String prefix = configuredItem.substring(0, configuredItem.length()-1);
                 if (inputItem.startsWith(prefix)) {
@@ -324,7 +329,8 @@ public class RoutingEntry {
             }
             String service = entry.get(SERVICE).toString().toLowerCase();
             List<String> methods = (List<String>) entry.get(METHODS);
-            String url = (String) entry.get(URL_LABEL);
+            // save case insensitive version of the URL
+            String url = entry.get(URL_LABEL).toString().toLowerCase();
             // drop query string when parsing URL
             if (url.contains("?")) {
                 url = url.substring(0, url.indexOf('?'));

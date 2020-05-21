@@ -26,6 +26,7 @@
 
     <dependencies>
 
+        <!-- since this is a library, we set the dependencies as "provided" so you can use newer dependencies -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
