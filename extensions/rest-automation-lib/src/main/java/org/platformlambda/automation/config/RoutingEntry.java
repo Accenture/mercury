@@ -174,7 +174,7 @@ public class RoutingEntry {
             if (configuredItem.equals("*")) {
                 continue;
             }
-            // case insensitive comparision using lowercse
+            // case insensitive comparison using lowercase
             String inputItem = input.get(i).toLowerCase();
             if (configuredItem.endsWith("*")) {
                 String prefix = configuredItem.substring(0, configuredItem.length()-1);
