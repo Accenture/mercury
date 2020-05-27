@@ -34,7 +34,13 @@ public class Tracer implements LambdaFunction {
         for (String path: txPaths) {
             po.send(path, data);
         }
-        log.info("trace={} annotation={}", headers, body);
+        /*
+         * do not log because the individual applications have already log the trace event.
+         * Otherwise, there would be duplicated log if we forward the log to a centralized logging system
+         * such as Splunk.
+         *
+         * log.info("trace={} annotation={}", headers, body);
+         */
         return true;
     }
 
