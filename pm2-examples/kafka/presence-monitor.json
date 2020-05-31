@@ -6,10 +6,10 @@
         "script":"java",
         "args":[
             "-jar",
-            "connectors/kafka/kafka-presence/target/kafka-presence-1.12.50.jar"
+            "connectors/kafka/kafka-presence/target/kafka-presence-1.12.51.jar"
         ],
         "watch":[
-            "connectors/kafka/kafka-presence/target/kafka-presence-1.12.50.jar"
+            "connectors/kafka/kafka-presence/target/kafka-presence-1.12.51.jar"
         ],
         "node_args":[],
         "exec_interpreter":"",

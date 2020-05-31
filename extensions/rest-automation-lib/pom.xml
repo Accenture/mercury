@@ -7,10 +7,20 @@
     <artifactId>rest-automation</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.50</version>
+    <version>1.12.51</version>
     <name>REST automation library</name>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.3.0.RELEASE</version>
+        <relativePath/>
+    </parent>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <hazelcast.version>4.0.1</hazelcast.version>
+        <java.version>1.8</java.version>
     </properties>
 
     <repositories>
@@ -30,7 +40,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.50</version>
+            <version>1.12.51</version>
             <scope>provided</scope>
         </dependency>
 
@@ -44,13 +54,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>1.12.50</version>
+            <version>1.12.51</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.12.50</version>
+            <version>1.12.51</version>
             <scope>provided</scope>
         </dependency>
 
@@ -58,7 +68,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -71,7 +80,6 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
-            <version>2.1</version>
             <scope>test</scope>
         </dependency>
 
@@ -89,7 +97,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -98,7 +105,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -111,7 +117,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.1.0</version>
                 <configuration>
                     <source>1.8</source>
                 </configuration>
@@ -124,7 +129,32 @@
                     </execution>
                 </executions>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>false</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.5</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 

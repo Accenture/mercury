@@ -1,0 +1,10 @@
+
+#
+# Optional services
+#
+jaxrs.example.enabled: true
+web.component.scan: com.accenture
+
+hello:
+  world:
+    array: [1, 2, 3]

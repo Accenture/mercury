@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
@@ -32,8 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
-
-import org.junit.Assert;
 
 public class PostOfficeTest {
 

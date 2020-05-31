@@ -30,16 +30,15 @@ import org.slf4j.LoggerFactory;
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
 import javax.websocket.WebSocketContainer;
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
-public class PersistentWsClient extends Thread implements Closeable {
+public class PersistentWsClient extends Thread implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PersistentWsClient.class);
 
-    private static final long WAIT_INTERVAL = 5000;
+    private static final long WAIT_INTERVAL = 10000;
     private static final int IDLE_THRESHOLD = 10;
     private static final String TYPE = "type";
     private static final String ALIVE = "keep-alive";
@@ -111,10 +110,10 @@ public class PersistentWsClient extends Thread implements Closeable {
         } else {
             if (client != null && client.justDisconnected()) {
                 client = null;
-                timer = 0;
+                // when it is just disconnected, we want to wait one cycle before reconnect
+                timer = now;
                 log.info("Just disconnected");
-            }
-            if (now - timer >= WAIT_INTERVAL) {
+            } else if (now - timer >= WAIT_INTERVAL) {
                 try {
                     if (condition.isReady()) {
                         timer = now;

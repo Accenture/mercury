@@ -56,8 +56,7 @@ public class Utility {
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
-    private static final String SPRING_BOOT_LIB_PATH = "/BOOT-INF/lib/*.jar";
-    private static final String LIB_PATH = "/lib/*.jar";
+    private static final String[] JAR_PATHS = {"/BOOT-INF/lib/*.jar", "/WEB-INF/lib/*.jar", "/WEB-INF/lib-provided/*.jar", "/lib/*.jar"};
     private static final String JAR = ".jar";
     private static final String POM_LOCATION = "pom.properties.location";
     private static final String POM_PROPERTIES = "/META-INF/maven/*/*/pom.properties";
@@ -102,29 +101,31 @@ public class Utility {
         return instance;
     }
 
+    private List<String> getJarList(String path) {
+        List<String> list = new ArrayList<>();
+        PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
+        try {
+            Resource[] res = resolver1.getResources(path);
+            for (Resource r : res) {
+                String name = r.getFilename();
+                if (name != null) {
+                    list.add(name.endsWith(JAR) ? name.substring(0, name.length() - JAR.length()) : name);
+                }
+            }
+        } catch (IOException e) {
+            // ok to ignore
+        }
+        return list;
+    }
+
     @SuppressWarnings("unchecked")
     private synchronized void scanLibInfo() {
         if (!loaded) {
             // Get basic application only once
             loaded = true;
             List<String> list = new ArrayList<>();
-            PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
-            // Search Spring Boot packager lib path for dependencies
-            Resource[] res1 = new Resource[0];
-            try {
-                res1 = resolver1.getResources(SPRING_BOOT_LIB_PATH);
-            } catch (IOException e) {
-                try {
-                    res1 = resolver1.getResources(LIB_PATH);
-                } catch (IOException e1) {
-                    // nothing we can do
-                }
-            }
-            for (Resource r : res1) {
-                String filename = r.getFilename();
-                if (filename != null) {
-                    list.add(filename.endsWith(JAR) ? filename.substring(0, filename.length() - JAR.length()) : filename);
-                }
+            for (String r: JAR_PATHS) {
+                list.addAll(getJarList(r));
             }
             /*
              * Sort the library names in ascending order.

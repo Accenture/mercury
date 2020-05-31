@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.51, 5/30/2020
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. The rest-spring library has been updated to support both JAR and WAR deployment
+2. All pom.xml files updated accordingly
+3. PersistentWsClient will back off for 10 seconds when disconnected by remote host
+
+---
 ## Version 1.12.50, 5/20/2020
 
 ### Added

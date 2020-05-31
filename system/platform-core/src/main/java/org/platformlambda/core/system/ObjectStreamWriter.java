@@ -22,12 +22,11 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.services.ObjectStreamService;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
-public class ObjectStreamWriter implements Closeable {
+public class ObjectStreamWriter implements AutoCloseable {
 
     private static final String TYPE = ObjectStreamService.TYPE;
     private static final String WRITE = ObjectStreamService.WRITE;

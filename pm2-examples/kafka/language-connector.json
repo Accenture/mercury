@@ -8,10 +8,10 @@
             "-Dcloud.connector=kafka",
             "-Dcloud.services=kafka.reporter",
             "-jar",
-            "language-packs/language-connector/target/language-connector-1.12.50.jar"
+            "language-packs/language-connector/target/language-connector-1.12.51.jar"
         ],
         "watch":[
-            "language-packs/language-connector/target/language-connector-1.12.50.jar"
+            "language-packs/language-connector/target/language-connector-1.12.51.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
