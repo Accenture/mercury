@@ -27,11 +27,14 @@ import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 
+import javax.servlet.ServletContext;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -65,12 +68,23 @@ public class InfoServlet extends HttpServlet {
     private static final String DOWNLOAD = "download";
     private static final String CLOUD_CONNECTOR = "cloud.connector";
     private static final String LIBRARY = "library";
+    private static final String DEPLOYMENT = "deployment";
     private static final String ROUTE_SUBSTITUTION = "route_substitution";
     private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
+    private static final String META_INF = "/META-INF/";
+    private static final String MANIFEST = "/META-INF/MANIFEST.MF";
+    private static final String IMPL_VERSION = "Implementation-Version";
+    private static final String WEB_INF = "/WEB-INF/";
+    private static final String[] JAR_PATHS = { "/WEB-INF/lib/", "/WEB-INF/lib-provided/" };
+    private static final String JAR = ".jar";
     private static final String TIME = "time";
     private static final String START = "start";
     private static final String CURRENT = "current";
     private static final Date START_TIME = new Date();
+    private static final Object ORDERLY_SCAN = new Object[0];
+    private static boolean loaded = false;
+    private static String deploymentMode = "unknown";
+    private static List<String> libraryList = new ArrayList<>();
     private static Boolean isServiceMonitor;
     private static boolean usingEventNode = true;
 
@@ -83,10 +97,16 @@ public class InfoServlet extends HttpServlet {
             isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
             usingEventNode = "event.node".equals(config.getProperty("cloud.connector"));
         }
+        if (!loaded) {
+            scanLibInfo(request.getServletContext());
+            loaded = true;
+        }
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> app = new HashMap<>();
-        VersionInfo info = Utility.getInstance().getVersionInfo();
+        Utility util = Utility.getInstance();
+        VersionInfo info = util.getVersionInfo();
         result.put(APP, app);
+        result.put(DEPLOYMENT, deploymentMode);
         /*
          * When running inside IDE, there are no information about libraries
          * so it is better to take the application name from the application.properties
@@ -95,7 +115,7 @@ public class InfoServlet extends HttpServlet {
         app.put(VERSION, info.getVersion());
         app.put(DESCRIPTION, description);
 
-        List<String> pathElements = Utility.getInstance().split(request.getPathInfo(), "/");
+        List<String> pathElements = util.split(request.getPathInfo(), "/");
         /*
          * add routing table information if any
          */
@@ -135,7 +155,7 @@ public class InfoServlet extends HttpServlet {
                 return;
             }
         } else if (pathElements.size() == 1 && LIB.equals(pathElements.get(0))) {
-            result.put(LIBRARY, Utility.getInstance().getLibraryList());
+            result.put(LIBRARY, libraryList);
 
         } else if (pathElements.isEmpty()) {
             // java VM information
@@ -176,6 +196,80 @@ public class InfoServlet extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("utf-8");
         response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
+    }
+
+    private List<String> getJarList(ServletContext context, String path) {
+        List<String> list = new ArrayList<>();
+        Set<String> filenames = context.getResourcePaths(path);
+        if (filenames != null) {
+            for (String name : filenames) {
+                String jar = name.startsWith(path)? name.substring(path.length()) : name;
+                list.add(jar.endsWith(JAR) ? jar.substring(0, jar.length() - JAR.length()) : jar);
+            }
+        }
+        return list;
+    }
+
+    private void scanLibInfo(ServletContext context) {
+        synchronized (ORDERLY_SCAN) {
+            Utility util = Utility.getInstance();
+            List<String> list = util.getLibraryList();
+            Set<String> resPaths = context.getResourcePaths("/");
+            if (list.isEmpty()) {
+                if (resPaths == null) {
+                    deploymentMode = "IDE";
+                } else {
+                    deploymentMode = "webapp";
+                    // get library list from webapp container
+                    if (resPaths.contains(WEB_INF)) {
+                        for (String p : JAR_PATHS) {
+                            list.addAll(getJarList(context, p));
+                        }
+                    }
+                    // get version number from MANIFEST.MF
+                    if (resPaths.contains(META_INF)) {
+                        VersionInfo info = util.getVersionInfo();
+                        String version = getVersion(context);
+                        if (version != null) {
+                            info.setVersion(version);
+                        }
+                    }
+                }
+            } else {
+                // get library list from JAR or WAR file
+                deploymentMode = resPaths == null ? "jar" : "war";
+            }
+            /*
+             * Sort the library names in ascending order
+             */
+            if (list.size() > 1) {
+                Collections.sort(list);
+            }
+            List<String> result = new ArrayList<>();
+            if (!list.isEmpty()) {
+                int size = list.size();
+                int n = 0;
+                for (String f : list) {
+                    result.add(util.zeroFill(++n, size) + ". " + f);
+                }
+                result.add("total: " + list.size());
+            }
+            libraryList = result;
+        }
+    }
+
+    private String getVersion(ServletContext context) {
+        InputStream in = context.getResourceAsStream(MANIFEST);
+        if (in != null) {
+            Properties p = new Properties();
+            try {
+                p.load(new ByteArrayInputStream(Utility.getInstance().stream2bytes(in)));
+                return p.getProperty(IMPL_VERSION);
+            } catch (IOException e) {
+                // nothing we can do
+            }
+        }
+        return null;
     }
 
     private void showRemoteRouting(String node, HttpServletResponse response) throws IOException {

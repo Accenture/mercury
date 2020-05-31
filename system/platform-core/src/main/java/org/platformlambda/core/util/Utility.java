@@ -56,7 +56,8 @@ public class Utility {
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
-    private static final String[] JAR_PATHS = {"/BOOT-INF/lib/*.jar", "/WEB-INF/lib/*.jar", "/WEB-INF/lib-provided/*.jar", "/lib/*.jar"};
+    private static final String[] JAR_PATHS = { "/BOOT-INF/lib/*.jar", "/WEB-INF/lib/*.jar",
+                                                "/WEB-INF/lib-provided/*.jar", "/lib/*.jar" };
     private static final String JAR = ".jar";
     private static final String POM_LOCATION = "pom.properties.location";
     private static final String POM_PROPERTIES = "/META-INF/maven/*/*/pom.properties";
@@ -86,10 +87,9 @@ public class Utility {
     private static final String INVALID_HEX = "Invalid hex string";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static final String ZEROS = "0000000000000000";
-    private static final String TOTAL = "Total";
-
+    private static final Object ORDERLY_SCAN = new Object[0];
     private static final VersionInfo versionInfo = new VersionInfo();
-    private static final List<String> libs = new ArrayList<>();
+    private static List<String> libs = new ArrayList<>();
     private static boolean loaded = false;
     private static final Utility instance = new Utility();
 
@@ -103,9 +103,9 @@ public class Utility {
 
     private List<String> getJarList(String path) {
         List<String> list = new ArrayList<>();
-        PathMatchingResourcePatternResolver resolver1 = new PathMatchingResourcePatternResolver();
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         try {
-            Resource[] res = resolver1.getResources(path);
+            Resource[] res = resolver.getResources(path);
             for (Resource r : res) {
                 String name = r.getFilename();
                 if (name != null) {
@@ -119,55 +119,46 @@ public class Utility {
     }
 
     @SuppressWarnings("unchecked")
-    private synchronized void scanLibInfo() {
+    private void scanLibInfo() {
         if (!loaded) {
-            // Get basic application only once
-            loaded = true;
-            List<String> list = new ArrayList<>();
-            for (String r: JAR_PATHS) {
-                list.addAll(getJarList(r));
-            }
-            /*
-             * Sort the library names in ascending order.
-             * Library listing is usually used by the application's Info admin endpoint.
-             */
-            if (list.size() > 1) {
-                Collections.sort(list);
-            }
-            if (!list.isEmpty()) {
-                int size = list.size();
-                int n = 0;
-                for (String f : list) {
-                    libs.add(zeroFill(++n, size) + ". " + f);
+            synchronized (ORDERLY_SCAN) {
+                List<String> list = new ArrayList<>();
+                for (String r : JAR_PATHS) {
+                    list.addAll(getJarList(r));
                 }
-                libs.add(TOTAL + ": " + list.size());
-            }
-            // Get default version info from application.properties
-            AppConfigReader reader = AppConfigReader.getInstance();
-            String name = filteredServiceName(reader.getProperty(SPRING_APPNAME, reader.getProperty(APPNAME, DEFAULT_APPNAME)));
-            versionInfo.setGroupId("unknown");
-            versionInfo.setArtifactId(name);
-            versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
-            // if not running in IDE, get version information from JAR
-            if (!libs.isEmpty()) {
-                // resolve it from /META-INF/maven/*/*/pom.properties
-                PathMatchingResourcePatternResolver resolver2 = new PathMatchingResourcePatternResolver();
-                try {
-                    Resource[] res2 = resolver2.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
-                    if (res2.length == 1) {
-                        Properties p = new Properties();
-                        p.load(new ByteArrayInputStream(stream2bytes(res2[0].getInputStream())));
-                        if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                            versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
-                                    .setGroupId(p.getProperty(GROUP_ID))
-                                    .setVersion(p.getProperty(VERSION));
+                if (list.size() > 1) {
+                    Collections.sort(list);
+                }
+                libs = list;
+                // Get default version info from application.properties
+                AppConfigReader reader = AppConfigReader.getInstance();
+                String name = filteredServiceName(reader.getProperty(SPRING_APPNAME,
+                        reader.getProperty(APPNAME, DEFAULT_APPNAME)));
+                versionInfo.setGroupId("");
+                versionInfo.setArtifactId(name);
+                versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
+                // if not running in IDE, get version information from JAR
+                if (!list.isEmpty()) {
+                    // resolve it from /META-INF/maven/*/*/pom.properties
+                    PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+                    try {
+                        Resource[] res = resolver.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
+                        if (res.length == 1) {
+                            Properties p = new Properties();
+                            p.load(new ByteArrayInputStream(stream2bytes(res[0].getInputStream())));
+                            if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
+                                versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
+                                        .setGroupId(p.getProperty(GROUP_ID))
+                                        .setVersion(p.getProperty(VERSION));
+                            }
                         }
-                    }
 
-                } catch (IOException e) {
-                    // nothing we can do
+                    } catch (IOException e) {
+                        // nothing we can do
+                    }
                 }
             }
+            loaded = true;
         }
     }
 
@@ -198,7 +189,8 @@ public class Utility {
 
     public File getWorkFolder() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(new File(normalizeFolder(reader.getProperty(WORK_FOLDER, LAMBDA_FOLDER_NAME))), getPackageName());
+        return new File(new File(normalizeFolder(reader.getProperty(WORK_FOLDER, LAMBDA_FOLDER_NAME))),
+                                 getPackageName());
     }
 
     public File getCloudFolder() {
@@ -208,7 +200,8 @@ public class Utility {
 
     public File getIdentityFolder() {
         AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(new File(normalizeFolder(reader.getProperty(IDENTITY_FOLDER, IDENTITY_FOLDER_NAME))), getPackageName());
+        return new File(new File(normalizeFolder(reader.getProperty(IDENTITY_FOLDER, IDENTITY_FOLDER_NAME))),
+                                 getPackageName());
     }
 
     private File getCredentialFolder() {
@@ -395,7 +388,8 @@ public class Utility {
         int minute = str2int(timestamp.substring(10, 12));
         int second = str2int(timestamp.substring(12, 14));
         int ms = str2int(timestamp.substring(14));
-        ZonedDateTime zdt = ZonedDateTime.of(year, month, day, hour, minute, second, ms * 1000000, UTC_TIME);
+        ZonedDateTime zdt = ZonedDateTime.of(year, month, day, hour, minute, second,
+                                ms * 1000000, UTC_TIME);
         return zdt.toInstant().toEpochMilli();
     }
 
@@ -865,7 +859,8 @@ public class Utility {
     }
 
     public byte[] base64ToBytes(String base64, boolean isUrl) {
-        String b64 = base64.contains("\n") ? base64.replace("\n", "").replace("\r", "") : base64;
+        String b64 = base64.contains("\n") ?  base64.replace("\n", "")
+                                                    .replace("\r", "") : base64;
         if (isUrl) {
             return Base64.getUrlDecoder().decode(b64);
         } else {
