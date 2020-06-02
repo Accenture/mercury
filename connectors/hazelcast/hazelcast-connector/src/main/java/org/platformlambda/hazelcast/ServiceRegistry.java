@@ -72,6 +72,14 @@ public class ServiceRegistry implements LambdaFunction {
         return new HashMap<>(routes);
     }
 
+    public static List<String> getInstances(String route) {
+        if (routes.containsKey(route)) {
+            return new ArrayList<>(routes.get(route).keySet());
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
     public static Set<String> getAllOrigins() {
         Set<String> result = new HashSet<>(peers);
         result.addAll(origins.getMap().keySet());

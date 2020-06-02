@@ -34,6 +34,7 @@ public class ServiceQuery implements LambdaFunction {
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String ROUTE = ServiceDiscovery.ROUTE;
     private static final String FIND = ServiceDiscovery.FIND;
+    private static final String SEARCH = ServiceDiscovery.SEARCH;
     private static final String DOWNLOAD = "download";
     private static final String INFO = "info";
 
@@ -77,6 +78,9 @@ public class ServiceQuery implements LambdaFunction {
                 return exists(route);
             }
 
+        } else if (SEARCH.equals(headers.get(TYPE)) && headers.containsKey(ROUTE)) {
+            return ServiceRegistry.getInstances(headers.get(ROUTE));
+            
         } else {
             throw new IllegalArgumentException("Usage: type=download, info or (type=find, route=route_name)");
         }

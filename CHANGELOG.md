@@ -6,11 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.51, 5/30/2020
+## Version 1.12.51, 6/2/2020
 
 ### Added
 
-N/A
+Added search method in Post Office to return a list of application instances.
+This allows a reactive service to detect its peers in a distributed system.
 
 ### Removed
 

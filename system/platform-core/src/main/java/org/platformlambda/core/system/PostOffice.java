@@ -885,21 +885,19 @@ public class PostOffice {
         // check if the remote services are reachable
         try {
             if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+                EventEnvelope response;
                 if (remoteServices.size() == 1) {
-                    EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                    response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
                             new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
                             new Kv(ServiceDiscovery.ROUTE, remoteServices.get(0)));
-                    if (response.getBody() instanceof Boolean) {
-                        return (Boolean) response.getBody();
-                    }
                 } else {
-                    EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                    response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
                             remoteServices,
                             new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
                             new Kv(ServiceDiscovery.ROUTE, "*"));
-                    if (response.getBody() instanceof Boolean) {
-                        return (Boolean) response.getBody();
-                    }
+                }
+                if (response.getBody() instanceof Boolean) {
+                    return (Boolean) response.getBody();
                 }
             }
         } catch (IOException | TimeoutException e) {
@@ -912,6 +910,40 @@ public class PostOffice {
             log.error("Unable to check route {} - ({}) {}", route, e.getStatus(), e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Search for all application instances that contain the service route
+     *
+     * @param route for a service
+     * @return list of application instances
+     */
+    @SuppressWarnings("unchecked")
+    public List<String> search(String route) {
+        Platform platform = Platform.getInstance();
+        String actualRoute = substituteRouteIfAny(route);
+        if (platform.hasRoute(actualRoute)) {
+            return Collections.singletonList(platform.getOrigin());
+        }
+        try {
+            if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+                EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                            new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.SEARCH),
+                            new Kv(ServiceDiscovery.ROUTE, actualRoute));
+                if (response.getBody() instanceof List) {
+                    return (List<String>) response.getBody();
+                }
+            }
+        } catch (IOException | TimeoutException e) {
+            /*
+             * This happens when the network connection is not ready.
+             * i.e. cloud.connector is available but system.service.query is not ready.
+             */
+        } catch (AppException e) {
+            // this should not occur
+            log.error("Unable to search route {} - ({}) {}", route, e.getStatus(), e.getMessage());
+        }
+        return Collections.emptyList();
     }
 
 }

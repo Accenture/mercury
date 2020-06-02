@@ -26,6 +26,7 @@ import java.util.*;
 
 public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
 
+    private static final String SEARCH = ServiceDiscovery.SEARCH;
     private static final String DOWNLOAD = "download";
 
     @Override
@@ -42,6 +43,14 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
             } else {
                 return exists(route);
             }
+        } else if (SEARCH.equals(headers.get(TYPE)) && headers.containsKey(ROUTE)) {
+            String route = headers.get(ROUTE);
+            if (routes.containsKey(route)) {
+                return new ArrayList<>(routes.get(route).keySet());
+            } else {
+                return Collections.emptyList();
+            }
+
         } else if (DOWNLOAD.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
             result.put("routes", routes);
@@ -51,6 +60,7 @@ public class ServiceQuery extends ServiceDiscovery implements LambdaFunction {
             }
             result.put("time", new Date());
             return result;
+
         } else {
             throw new IllegalArgumentException("Usage: headers (type: find), (route: route_name)");
         }

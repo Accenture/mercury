@@ -39,6 +39,7 @@ public class ServiceDiscovery {
     public static final String UNREGISTER = "unregister";
     public static final String TRUE = "true";
     public static final String FIND = "find";
+    public static final String SEARCH = "search";
 
     /*
      * lambda routing table
