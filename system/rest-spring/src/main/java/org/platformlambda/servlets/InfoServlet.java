@@ -70,7 +70,7 @@ public class InfoServlet extends HttpServlet {
     private static final String LIBRARY = "library";
     private static final String DEPLOYMENT = "deployment";
     private static final String ROUTE_SUBSTITUTION = "route_substitution";
-    private static int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
+    private static final int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
     private static final String META_INF = "/META-INF/";
     private static final String MANIFEST = "/META-INF/MANIFEST.MF";
     private static final String IMPL_VERSION = "Implementation-Version";

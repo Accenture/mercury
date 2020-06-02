@@ -18,8 +18,6 @@
 
 package org.platformlambda.servlets;
 
-import org.platformlambda.core.annotations.OptionalService;
-
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -28,7 +26,6 @@ import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 
 @WebServlet("/livenessprobe")
-@OptionalService("liveness.probe")
 public class LivenessProbe extends HttpServlet {
 
     private static final long serialVersionUID = -3607030982796747671L;
