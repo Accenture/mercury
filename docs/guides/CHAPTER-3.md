@@ -211,6 +211,37 @@ parallelEvents.add(event2);
 List<EventEnvelope> responses = po.request(parallelEvents, 3000);
 ```
 
+### Check if a target service is available
+
+To check if a target service is available, you can use the `exists` method.
+
+```java
+boolean po.exists(String... route);
+
+// input can be a single route or multiple routes
+// it will return true only when all routes are available
+// for examples
+
+if (po.exists("hello.world")) {
+    // do something
+}
+
+if (po.exists("hello.math", "v1.diff.equation")) {
+    // do other things
+}
+
+```
+This service discovery process is instantaneous using distributed routing table.
+
+### Get a list of application instances that provide a certain service
+
+The `search` method is usually used for leader election for a certain service
+if more than one app instance is available.
+
+```java
+List<String> originIDs = po.search(String route);
+```
+
 ### Pub/Sub for store-n-forward event streaming
 
 Native Pub/Sub will be automatically enabled if the underlying cloud connector supports it. e.g. Kafka.
@@ -246,28 +277,6 @@ To read the event stream of a topic from the beginning, you can set offset to "0
 
 The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do serialization yourself.
 The payload can be PoJo, Map or Java primitives.
-
-### Check if a target service is available
-
-To check if a target service is available, you can use the `exists` method.
-
-```java
-boolean po.exists(String... route);
-
-// input can be a single route or multiple routes
-// it will return true only when all routes are available
-// for examples
-
-if (po.exists("hello.world")) {
-    // do something
-}
-
-if (po.exists("hello.math", "v1.diff.equation")) {
-    // do other things
-}
-
-```
-This service discovery process is instantaneous using distributed routing table.
 
 
 | Chapter-4                                 | Home                                     |

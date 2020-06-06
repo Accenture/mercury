@@ -3,12 +3,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.accenture</groupId>
-    <artifactId>lambda-example</artifactId>
+    <groupId>org.platformlambda</groupId>
+    <artifactId>simple-scheduler</artifactId>
 
     <packaging>jar</packaging>
     <version>1.12.52</version>
-    <name>Example for simple microservices executable</name>
+    <name>Simple Scheduler</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -28,27 +28,27 @@
             <id>central</id>
             <url>https://repo1.maven.org/maven2/</url>
         </repository>
-        <!--        <repository>-->
-        <!--            <id>your-repo</id>-->
-        <!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
-        <!--        </repository>-->
+<!--        <repository>-->
+<!--            <id>your-repo</id>-->
+<!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
+<!--        </repository>-->
     </repositories>
 
     <dependencies>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>platform-core</artifactId>
+            <artifactId>rest-spring</artifactId>
             <version>1.12.52</version>
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
-             Not necessary if testing using Event Node.
+     Not necessary if testing using Event Node.
 
-             For convenience, both Kafka and Hazelcast connectors are added so
-             you can select the connector from command line without recompiling from source. 
+     For convenience, both Kafka and Hazelcast connectors are added so
+     you can select the connector from command line without recompiling from source.
 
-	         For production, please select only one cloud connector to reduce memory footprint. -->
+     For production, please select only one cloud connector to reduce memory footprint. -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
@@ -58,6 +58,13 @@
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
             <version>1.12.52</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>2.3.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
@@ -135,10 +142,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- DO NOT CHANGE THIS
+                     RestServer will find your Main Application(s) -->
                 <configuration>
-                    <!-- DO NOT CHANGE THIS
-                         AppStarter will find your Main Application(s) -->
-                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
+                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
                 </configuration>
                 <executions>
                     <execution>

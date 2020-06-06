@@ -1,0 +1,10 @@
+jobs:
+  # you can cancel a job from an admin endpoint and restart it anytime
+  - name: "demo"
+    description: "execute demo service every minute"
+    cron: "0 0/1 * 1/1 * ? *"
+    service: "hello.world"
+    # optional parameter to tell the service what to do
+    parameters:
+      hello: "world"
+

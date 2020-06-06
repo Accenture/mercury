@@ -21,6 +21,7 @@
         <module>connectors/kafka/kafka-presence</module>
         <module>connectors/kafka/kafka-standalone</module>
         <module>extensions/api-playground</module>
+        <module>extensions/simple-scheduler</module>
         <module>extensions/distributed-tracer</module>
         <module>extensions/rest-automation-app</module>
         <module>extensions/websocket-notification</module>
