@@ -40,124 +40,69 @@ public class AppStarter {
         if (!loaded) {
             loaded = true;
             log.info("Starting main applications");
-            AppStarter application = new AppStarter();
-            application.begin(args);
+            AppStarter begin = new AppStarter();
+            begin.doApps(args, false);
+            begin.doApps(args, true);
         }
     }
 
-    private void begin(String[] args) {
-        // preparation step is executed only once
-        startInitialSequence(args);
-        // find and execute MainApplication modules
-        int total = 0, skipped = 0;
-        SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-        Set<String> packages = scanner.getPackages(true);
-        for (String p : packages) {
-            List<Class<?>> services = scanner.getAnnotatedClasses(p, MainApplication.class);
-            for (Class<?> cls : services) {
-                if (Feature.isRequired(cls)) {
-                    try {
-                        Object o = cls.getDeclaredConstructor().newInstance();
-                        if (o instanceof EntryPoint) {
-                            // execute MainApplication module in a separate thread for non-blocking operation
-                            AppRunner app = new AppRunner((EntryPoint) o, args);
-                            app.start();
-                            total++;
-                        } else {
-                            log.error("Unable to start {} because it is not an instance of {}",
-                                    cls.getName(), EntryPoint.class.getName());
-                        }
-
-                    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                        log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
-                    }
-                } else {
-                    skipped++;
-                    log.info("Skipping optional main {}", cls);
-                }
-            }
-        }
-        if (total == 0) {
-            if (skipped == 0) {
-                log.error("MainApplication not found. Remember to annotate it with {} that implements {}",
-                        MainApplication.class.getName(), EntryPoint.class.getName());
-            } else {
-                log.error("Please enable at least one MainApplication module and try again");
-            }
-            System.exit(-1);
-        }
-    }
-
-    private void startInitialSequence(String[] args) {
+    private void doApps(String[] args, boolean main) {
         // find and execute optional preparation modules
         Utility util = Utility.getInstance();
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
+        int n = 0;
+        Map<String, Class<?>> steps = new HashMap<>();
         for (String p : packages) {
-            // sort loading sequence
-            int n = 0;
-            Map<String, Class<?>> steps = new HashMap<>();
-            List<Class<?>> services = scanner.getAnnotatedClasses(p, BeforeApplication.class);
+            List<Class<?>> services = scanner.getAnnotatedClasses(p, main?
+                                        MainApplication.class : BeforeApplication.class);
             for (Class<?> cls : services) {
                 if (Feature.isRequired(cls)) {
-                    n++;
-                    BeforeApplication before = cls.getAnnotation(BeforeApplication.class);
-                    int seq = Math.min(MAX_SEQ, before.sequence());
-                    String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(n, MAX_SEQ);
+                    int seq = getSequence(cls, main);
+                    String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(++n, MAX_SEQ);
                     steps.put(key, cls);
                 } else {
-                    log.debug("Skipping optional startup {}", cls);
+                    log.info("Skipping optional {}", cls);
                 }
             }
-            List<String> list = new ArrayList<>(steps.keySet());
-            if (list.size() > 1) {
-                Collections.sort(list);
-            }
-            for (String seq : list) {
-                Class<?> cls = steps.get(seq);
-                try {
-                    Object o = cls.getDeclaredConstructor().newInstance();
-                    if (o instanceof EntryPoint) {
-                        /*
-                         * execute preparation logic as a blocking operation
-                         * (e.g. setting up environment variable, override application.properties, etc.)
-                         */
-                        EntryPoint app = (EntryPoint) o;
-                        try {
-                            log.info("Starting {}", app.getClass().getName());
-                            app.start(args);
-                        } catch (Exception e) {
-                            log.error("Unable to run " + app.getClass().getName(), e);
-                        }
-                    } else {
-                        log.error("Unable to start {} because it is not an instance of {}",
-                                cls.getName(), EntryPoint.class.getName());
-                    }
+        }
+        executeOrderly(steps, args);
+    }
 
-                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                    log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
-                }
-            }
+    private int getSequence(Class<?> cls, boolean main) {
+        if (main) {
+            MainApplication before = cls.getAnnotation(MainApplication.class);
+            return Math.min(MAX_SEQ, before.sequence());
+        } else {
+            BeforeApplication before = cls.getAnnotation(BeforeApplication.class);
+            return Math.min(MAX_SEQ, before.sequence());
         }
     }
 
-    private class AppRunner extends Thread {
-
-        private EntryPoint app;
-        private String[] args;
-
-        public AppRunner(EntryPoint app, String[] args) {
-            this.app = app;
-            this.args = args;
+    private void executeOrderly(Map<String, Class<?>> steps, String[] args) {
+        List<String> list = new ArrayList<>(steps.keySet());
+        if (list.size() > 1) {
+            Collections.sort(list);
         }
-
-        @Override
-        public void run() {
+        for (String seq : list) {
+            Class<?> cls = steps.get(seq);
             try {
-                log.info("Starting {}", app.getClass().getName());
-                app.start(args);
-            } catch (Exception e) {
-                log.error("Unable to run "+app.getClass().getName(), e);
+                Object o = cls.getDeclaredConstructor().newInstance();
+                if (o instanceof EntryPoint) {
+                    EntryPoint app = (EntryPoint) o;
+                    try {
+                        log.info("Starting {}", app.getClass().getName());
+                        app.start(args);
+                    } catch (Exception e) {
+                        log.error("Unable to run " + app.getClass().getName(), e);
+                    }
+                } else {
+                    log.error("Unable to start {} because it is not an instance of {}",
+                            cls.getName(), EntryPoint.class.getName());
+                }
+
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+                log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
             }
         }
     }

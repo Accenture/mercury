@@ -21,8 +21,9 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
- * This indicates that the annotated class is the Main Application.
- * Note that the main application class should also implement the EntryPoint interface.
+ * This indicates that the annotated class is the BeforeApplication.
+ * Note that the "before application" class should also implement the EntryPoint interface.
+ * BeforeApplication modules are executed before MainApplication modules.
  *
  * Smaller sequence will be executed first
  * (please note that sequence 0 is reserved for config management)

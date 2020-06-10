@@ -6,12 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.52, 6/51/2020
+## Version 1.12.52, 6/10/2020
 
 ### Added
 
 1. new "search" method in Post Office to return a list of application instances for a service
 2. simple "cron" job scheduler as an extension project
+3. add "sequence" to MainApplication annotation for orderly execution when more than one MainApplication is available
 
 ### Removed
 
