@@ -32,7 +32,6 @@ import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,10 +46,16 @@ public class MainApp implements EntryPoint {
     public static final String ASYNC_HTTP_REQUEST = "async.http.request";
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
 
-    public static void main(String[] args) {
-        RestServer.main(args);
-    }
-
+    /**
+     * Starting point for rest-automation
+     *
+     * Note that this module will not start under IDE because
+     * mercury dependencies are scoped as "provided" in the pom.xml
+     *
+     * However, you can always test it with a simple unit test by executing RestServer.main(new String[0]);
+     *
+     * @param args command line arguments if any
+     */
     @Override
     public void start(String[] args) {
         /*
