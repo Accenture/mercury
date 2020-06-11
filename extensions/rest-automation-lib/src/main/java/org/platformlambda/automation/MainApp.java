@@ -27,6 +27,7 @@ import org.platformlambda.automation.servlets.ServiceGateway;
 import org.platformlambda.automation.util.AsyncTimeoutHandler;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;

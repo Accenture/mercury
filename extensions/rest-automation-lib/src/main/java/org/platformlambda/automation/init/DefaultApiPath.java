@@ -15,7 +15,7 @@
     limitations under the License.
 
  */
-package com.accenture.automation;
+package org.platformlambda.automation.init;
 
 import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.models.EntryPoint;

@@ -17,13 +17,13 @@
  */
 package com.accenture.automation;
 
-import org.platformlambda.core.annotations.BeforeApplication;
+import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@BeforeApplication(sequence = 3)
+@MainApplication(sequence=1)
 public class PrepareApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(PrepareApp.class);
 
@@ -39,12 +39,11 @@ public class PrepareApp implements EntryPoint {
     @Override
     public void start(String[] args) {
         /*
-         * The REST automation is a library with embedded startup modules.
+         * Since the startup sequence is 1, this module will start before
+         * the underlying rest-automation (which is configured as sequence=2) begins.
          *
-         * If you want to do additional preparation before application start,
-         * you may add your own code here.
-         * (Note: DO NOT change the BeforeApplication startup sequence to less than 3
-         *  to avoid interference with the REST automation startup process.)
+         * If you want to execute your preparation code after the rest-automation initialization,
+         * you can set sequence to a larger value.
          */
         log.info("Starting REST automation system");
     }
