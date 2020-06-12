@@ -162,11 +162,7 @@ public class EventEnvelope {
     }
 
     public Object getBody() {
-        if (optional) {
-            return body == null? Optional.empty() : Optional.of(body);
-        } else {
-            return body;
-        }
+        return optional? Optional.ofNullable(body) : body;
     }
 
     public EventEnvelope setId(String id) {
