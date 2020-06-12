@@ -36,6 +36,21 @@ public class PayloadMapperTest {
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void optionalTransport() throws IOException {
+        String text = "hello world";
+        Optional<Object> hello = Optional.of(text);
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(hello);
+        byte[] b = event1.toBytes();
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        Assert.assertTrue(event2.getBody() instanceof Optional);
+        Optional<Object> value = (Optional<Object>) event2.getBody();
+        Assert.assertEquals(text, value.get());
+    }
+
+    @Test
     public void pojoTransport() throws IOException {
         String name = "hello";
         PoJo pojo = new PoJo();

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class EventEnvelope {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
@@ -62,6 +63,8 @@ public class EventEnvelope {
     private static final String BROADCAST_LEVEL = "b";
     // ignore pojo
     private static final String IGNORE_POJO = "i";
+    // optional
+    private static final String OPTIONAL = "+";
     // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
@@ -70,7 +73,7 @@ public class EventEnvelope {
     private Integer status;
     private Object body;
     private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, binary = true, pojo = true;
+    private boolean endOfRoute = false, binary = true, pojo = true, optional = false;
     private int broadcastLevel = 0;
 
     public EventEnvelope() {
@@ -159,7 +162,11 @@ public class EventEnvelope {
     }
 
     public Object getBody() {
-        return body;
+        if (optional) {
+            return body == null? Optional.empty() : Optional.of(body);
+        } else {
+            return body;
+        }
     }
 
     public EventEnvelope setId(String id) {
@@ -312,8 +319,15 @@ public class EventEnvelope {
      * @param body Usually a PoJo, a Map or Java primitive
      * @return event envelope
      */
+    @SuppressWarnings("unchecked")
     public EventEnvelope setBody(Object body) {
-        this.body = body;
+        if (body instanceof Optional) {
+            Optional<Object> o = (Optional<Object>) body;
+            this.body = o.orElse(null);
+            this.optional = true;
+        } else {
+            this.body = body;
+        }
         return this;
     }
 
@@ -470,6 +484,9 @@ public class EventEnvelope {
             if (message.containsKey(IGNORE_POJO)) {
                 pojo = false;
             }
+            if (message.containsKey(OPTIONAL)) {
+                optional = true;
+            }
             if (message.containsKey(STATUS)) {
                 if (message.get(STATUS) instanceof Integer) {
                     status = (Integer) message.get(STATUS);
@@ -603,6 +620,9 @@ public class EventEnvelope {
         }
         if (!pojo) {
             message.put(IGNORE_POJO, true);
+        }
+        if (optional) {
+            message.put(OPTIONAL, true);
         }
         if (body != null) {
             if (type == null) {
