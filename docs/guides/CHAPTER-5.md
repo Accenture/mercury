@@ -5,7 +5,7 @@
 | application.name or spring.application.name | Application name                          | Yes      |
 | info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes      |
 | info.app.description                        | Something about application               | Yes      |
-| web.component.scan                          | your own package path(s)                  | Yes      |
+| web.component.scan                          | your own package path or parent path      | Yes      |
 | server.port                                 | e.g. 8083                                 | Yes*     |
 | spring.mvc.static-path-pattern              | /**                                       | Yes*     |
 | spring.resources.static-locations           | classpath:/public/                        | Yes*     |
