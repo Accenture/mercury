@@ -59,7 +59,7 @@ public class PostOffice {
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
-    private boolean eventNode, substituteRoutes;
+    private boolean eventNode;
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
@@ -77,8 +77,7 @@ public class PostOffice {
             // load route substitution table if any
             AppConfigReader config = AppConfigReader.getInstance();
             eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
-            substituteRoutes = config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true");
-            if (substituteRoutes) {
+            if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
                 loadRouteSubstitution();
             }
         } catch (IOException e) {
@@ -94,12 +93,11 @@ public class PostOffice {
     @SuppressWarnings("unchecked")
     private void loadRouteSubstitution() {
         AppConfigReader config = AppConfigReader.getInstance();
-        String file = config.getProperty(ROUTE_SUBSTITUTION_FILE);
-        if (file != null) {
-            // try loading from route-substitution.yaml first
-            ConfigReader reader = new ConfigReader();
+        String location = config.getProperty(ROUTE_SUBSTITUTION_FILE);
+        if (location != null) {
             try {
-                reader.load(file);
+                // try loading from location(s) given in route.substitution.file
+                ConfigReader reader = getRouteSubstitutionConfig(location);
                 Object o = reader.get(ROUTE_SUBSTITUTION);
                 if (o instanceof List) {
                     List<Object> list = (List<Object>) o;
@@ -137,6 +135,38 @@ public class PostOffice {
                 }
             }
         }
+    }
+
+    private void addRouteSubstitution(String original, String replacement) {
+        Utility util = Utility.getInstance();
+        if (util.validServiceName(original) && util.validServiceName(replacement)
+                && original.contains(".") && replacement.contains(".")) {
+            if (!original.equals(replacement) && !replacement.equals(reRoutes.get(original))) {
+                if (reRoutes.containsKey(replacement)) {
+                    throw new IllegalArgumentException("Nested route substitution not supported");
+                } else {
+                    reRoutes.put(original, replacement);
+                    log.info("Route substitution: {} -> {}", original, replacement);
+                }
+            }
+        } else {
+            throw new IllegalArgumentException("Invalid route names");
+        }
+    }
+
+    private ConfigReader getRouteSubstitutionConfig(String location) throws IOException {
+        List<String> paths = Utility.getInstance().split(location, ", ");
+        for (String p: paths) {
+            ConfigReader config = new ConfigReader();
+            try {
+                config.load(p);
+                log.info("Loading route substitutions from {}", p);
+                return config;
+            } catch (IOException e) {
+                log.warn("Skipping {} - {}", p, e.getMessage());
+            }
+        }
+        throw new IOException("Route substitutions not found in "+paths);
     }
 
     /**
@@ -508,27 +538,6 @@ public class PostOffice {
      */
     public void broadcast(EventEnvelope event) throws IOException {
         send(event.setBroadcastLevel(1));
-    }
-
-    public void addRouteSubstitution(String original, String replacement) {
-        if (substituteRoutes) {
-            Utility util = Utility.getInstance();
-            if (util.validServiceName(original) && util.validServiceName(replacement)
-                    && original.contains(".") && replacement.contains(".")) {
-                if (!original.equals(replacement) && !replacement.equals(reRoutes.get(original))) {
-                    if (reRoutes.containsKey(replacement)) {
-                        throw new IllegalArgumentException("Nested route substitution not supported");
-                    } else {
-                        reRoutes.put(original, replacement);
-                        log.info("Route substitution: {} -> {}", original, replacement);
-                    }
-                }
-            } else {
-                throw new IllegalArgumentException("Invalid route names");
-            }
-        } else {
-            throw new IllegalArgumentException("application.feature.route.substitution is not enabled");
-        }
     }
 
     public Map<String, String> getRouteSubstitutionList() {

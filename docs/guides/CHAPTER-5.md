@@ -28,7 +28,7 @@
 | info.api.key.label                          | X-Info-Key                                | Optional*|
 | info.api.key                                | some secret key (recommended to use UUID) | Optional*|
 | application.feature.route.substitution      | default false                             | Optional |
-| route.substitution                          | comma separated rules. e.g hi.here:v1.hi  | Optional |
+| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional |
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
 | kafka.replication.factor                    | 3                                         | Kafka    |
 | multi.tenancy.namespace                     | environment shortname                     | Optional |
@@ -65,7 +65,21 @@ body: key=the_shutdown_key&origin=originId
 
 # route substitution
 
-This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. e.g. "hello.world" maps to "v1.hello.world".
+This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. 
+
+Example parameters in application.properties
+```yaml
+application.feature.route.substitution=true
+# the system will load the first available file if more than one location is given
+route.substitution.file=file:/tmp/config/route-substitution.yaml , classpath:/route-substitution.yaml
+```
+
+Example route-substitution.yaml file
+```yaml
+route:
+  substitution:
+    - "hello.test -> hello.world"
+```
 
 # Kafka specific configuration
 
