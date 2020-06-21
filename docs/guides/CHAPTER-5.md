@@ -19,9 +19,6 @@
 | hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional |
 | hazelcast.namespace                         | your system name for multi-tenancy        | Optional |
 | snake.case.serialization                    | true (recommended)                        | Optional |
-| app.config.enabled                          | true (default false)                      | Optional |
-| app.config.key                              | comma separated list of key:secret        | Optional |
-| app.config.manager                          | e.g. http://127.0.0.1:8080/api/config     | Optional |
 | env.variables                               | e.g. MY_ENV:my.env                        | Optional |
 | safe.data.models                            | packages pointing to your PoJo classes    | Optional |
 | protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*|
