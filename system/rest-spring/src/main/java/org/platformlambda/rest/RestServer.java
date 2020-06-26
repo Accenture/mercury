@@ -39,6 +39,7 @@ public class RestServer extends SpringBootServletInitializer {
          * - this allows application to do preparation such as setting environment variables,
          *   overriding application.properties, etc.
          */
+        AppStarter.setWebApp(true);
         AppStarter.main(args);
         // start Spring Boot
         SpringApplication.run(RestServer.class, args);

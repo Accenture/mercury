@@ -24,8 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @MainApplication(sequence=1)
-public class PrepareApp implements EntryPoint {
-    private static final Logger log = LoggerFactory.getLogger(PrepareApp.class);
+public class RestAutomation implements EntryPoint {
+    private static final Logger log = LoggerFactory.getLogger(RestAutomation.class);
 
     /**
      * This main class is only used when testing the app from the IDE.
@@ -45,6 +45,6 @@ public class PrepareApp implements EntryPoint {
          * If you want to execute your preparation code after the rest-automation initialization,
          * you can set sequence to a larger value.
          */
-        log.info("Starting REST automation system");
+        log.info("Loading");
     }
 }

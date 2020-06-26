@@ -34,16 +34,30 @@ public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
 
     private static final int MAX_SEQ = 999;
-    private static boolean loaded = false;
+    private static boolean loaded = false, webapp = false;
+    private static String[] args = new String[0];
 
     public static void main(String[] args) {
         if (!loaded) {
             loaded = true;
-            log.info("Starting main applications");
+            AppStarter.args = args;
             AppStarter begin = new AppStarter();
             begin.doApps(args, false);
-            begin.doApps(args, true);
+            /*
+             * Do not start MainApplication(s) if this is a webapp
+             */
+            if (!webapp) {
+                begin.doApps(args, true);
+            }
         }
+    }
+
+    public static void setWebApp(boolean enable) {
+        AppStarter.webapp = enable;
+    }
+
+    public static String[] getArgs() {
+        return args;
     }
 
     private void doApps(String[] args, boolean main) {
@@ -66,7 +80,7 @@ public class AppStarter {
                 }
             }
         }
-        executeOrderly(steps, args);
+        executeOrderly(steps, args, main);
     }
 
     private int getSequence(Class<?> cls, boolean main) {
@@ -79,31 +93,35 @@ public class AppStarter {
         }
     }
 
-    private void executeOrderly(Map<String, Class<?>> steps, String[] args) {
+    private void executeOrderly(Map<String, Class<?>> steps, String[] args, boolean main) {
         List<String> list = new ArrayList<>(steps.keySet());
         if (list.size() > 1) {
             Collections.sort(list);
         }
+        int n = 0, error = 0;
         for (String seq : list) {
             Class<?> cls = steps.get(seq);
             try {
                 Object o = cls.getDeclaredConstructor().newInstance();
                 if (o instanceof EntryPoint) {
                     EntryPoint app = (EntryPoint) o;
-                    try {
-                        log.info("Starting {}", app.getClass().getName());
-                        app.start(args);
-                    } catch (Exception e) {
-                        log.error("Unable to run " + app.getClass().getName(), e);
-                    }
+                    log.info("Starting {}", app.getClass().getName());
+                    app.start(args);
+                    n++;
                 } else {
+                    error++;
                     log.error("Unable to start {} because it is not an instance of {}",
                             cls.getName(), EntryPoint.class.getName());
                 }
-
-            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            } catch (Exception e) {
+                error++;
                 log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
             }
+        }
+        if (main && error == 0 && n == 0) {
+            log.error("Missing MainApplication\n\n{}\n{}\n\n",
+                    "Did you forget to annotate your main module with @MainApplication that extends EntryPoint?",
+                    "and ensure the package parent is defined in 'web.component.scan' of application.properties.");
         }
     }
 

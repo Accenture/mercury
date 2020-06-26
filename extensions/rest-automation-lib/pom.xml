@@ -7,7 +7,7 @@
     <artifactId>rest-automation</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.52</version>
+    <version>1.12.53</version>
     <name>REST automation library</name>
 
     <parent>
@@ -40,7 +40,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.52</version>
+            <version>1.12.53</version>
             <scope>provided</scope>
         </dependency>
 
@@ -54,13 +54,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>1.12.52</version>
+            <version>1.12.53</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.12.52</version>
+            <version>1.12.53</version>
             <scope>provided</scope>
         </dependency>
 

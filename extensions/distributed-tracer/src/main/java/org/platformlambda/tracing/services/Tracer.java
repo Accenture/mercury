@@ -14,6 +14,8 @@ import java.util.Set;
 public class Tracer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(Tracer.class);
 
+    public static final String PATH = "path";
+    public static final String QUERY = "query";
     private static final String EXEC_TIME = "exec_time";
     private static final String SUCCESS = "success";
     private static final String STATUS = "status";
@@ -38,8 +40,6 @@ public class Tracer implements LambdaFunction {
          * do not log because the individual applications have already log the trace event.
          * Otherwise, there would be duplicated log if we forward the log to a centralized logging system
          * such as Splunk.
-         *
-         * log.info("trace={} annotation={}", headers, body);
          */
         return true;
     }
@@ -50,6 +50,18 @@ public class Tracer implements LambdaFunction {
         Map<String, Object> result = new HashMap<>();
         for (String key: headers.keySet()) {
             switch (key) {
+                case PATH:
+                    String path = headers.get(key);
+                    if (path.contains("?")) {
+                        int sep = path.indexOf('?');
+                        String p = path.substring(0, sep);
+                        String q = path.substring(sep+1);
+                        result.put(PATH, p);
+                        result.put(QUERY, q);
+                    } else {
+                        result.put(PATH, path);
+                    }
+                    break;
                 case SUCCESS:
                     result.put(key, "true".equalsIgnoreCase(headers.get(key)));
                     break;

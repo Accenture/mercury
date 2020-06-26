@@ -7,7 +7,7 @@
     <artifactId>hazelcast-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.52</version>
+    <version>1.12.53</version>
     <name>Cloud connector for Hazelcast cluster</name>
 
     <parent>
@@ -39,7 +39,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.52</version>
+            <version>1.12.53</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.hazelcast/hazelcast-client -->

@@ -37,8 +37,7 @@ import java.io.IOException;
 @MainApplication
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
-
-    public static final String CONFIG_MANAGER = "config.manager";
+    
     private static final String CONNECTOR_HEALTH = "cloud.connector.health";
 
     public static void main(String[] args) {

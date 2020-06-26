@@ -53,6 +53,7 @@ public class RestLoader implements ServletContextInitializer {
             // guarantee to do once
             loaded = true;
             // in case of WAR deployment, we cannot get command line arguments
+            AppStarter.setWebApp(true);
             AppStarter.main(new String[0]);
             // initialize mapper to improve start-up time
             log.info("Mapper {} loaded", SimpleMapper.getInstance());

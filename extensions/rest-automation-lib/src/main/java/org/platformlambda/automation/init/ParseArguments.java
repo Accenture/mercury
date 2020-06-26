@@ -23,6 +23,8 @@ import org.platformlambda.core.models.EntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
 @BeforeApplication(sequence = 1)
 public class ParseArguments implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(ParseArguments.class);
@@ -37,13 +39,14 @@ public class ParseArguments implements EntryPoint {
             for (int i=0; i < args.length; i++) {
                 if (args[i].equals(HTML_ARG)) {
                     if (i+1 < args.length) {
-                        String filePath = args[i+1];
-                        if (filePath.startsWith(FILE_PATH)) {
-                            System.setProperty(HTML_FOLDER, filePath);
-                            log.info("Using HTML folder at {}", filePath);
+                        String path = normalizePath(args[i+1]);
+                        if (folderExists(path)) {
+                            System.setProperty(HTML_FOLDER, path);
+                            log.info("Using HTML folder {}", path);
                         } else {
-                            log.error("Missing 'file:' prefix in file path - "+filePath);
+                            log.error("Invalid HTML folder path {}", path);
                         }
+
                     } else {
                         log.error("Missing html file path");
                     }
@@ -51,4 +54,18 @@ public class ParseArguments implements EntryPoint {
             }
         }
     }
+
+    private String normalizePath(String path) {
+        if (path.startsWith(FILE_PATH)) {
+            return path;
+        } else {
+            return FILE_PATH + (path.startsWith("/")? path.substring(1) : path);
+        }
+    }
+
+    private boolean folderExists(String path) {
+        File dir = new File(path.substring(FILE_PATH.length()-1));
+        return dir.exists() && dir.isDirectory();
+    }
+    
 }

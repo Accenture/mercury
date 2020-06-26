@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.53, 6/26/2020
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Application life-cycle management - User provided main application(s) will be started after Spring Boot declares web application ready. This ensures correct Spring autowiring or dependencies are available.
+
+---
 ## Version 1.12.52, 6/11/2020
 
 ### Added
