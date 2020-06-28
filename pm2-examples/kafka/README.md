@@ -20,7 +20,7 @@ They are mutually exclusive. The hazelcast and kafka process files are here as a
 
 # Starting multiple applications
 
-Once the applications are built, you can start them in this sequence
+Once the applications are built, you can start them in this sequence. Kafka and presence-monitor are pre-requisites for the user applications. The language-connector is a helper app or sidecar for non-Java applications. e.g. Python.
 
 ```
 pm2 start kafka.json
