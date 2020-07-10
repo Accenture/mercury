@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -210,8 +212,8 @@ public class WorkerQueue extends AbstractActor {
             }
             if (diff > 0) {
                 // adjust precision to 3 decimal points
-                String ms = String.format("%.3f", diff);
-                return new ProcessStatus(Float.parseFloat(ms));
+                BigDecimal ms = new BigDecimal(diff).setScale(3, RoundingMode.HALF_EVEN);
+                return new ProcessStatus(ms.floatValue());
             } else {
                 return new ProcessStatus(0);
             }

@@ -18,9 +18,11 @@
 
 package org.platformlambda.core.util;
 
-import org.junit.Test;
-import java.io.IOException;
 import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Date;
 
 public class StringConversionTest {
 
@@ -42,6 +44,24 @@ public class StringConversionTest {
         String hexString = util.bytes2hex(INPUT.getBytes());
         byte[] b = util.hex2bytes(hexString);
         Assert.assertEquals(INPUT, new String(b));
+    }
+
+    @Test
+    public void normalizeUtcTimestamp() {
+        Utility util = Utility.getInstance();
+        String expected = "2020-07-09T01:02:03.123Z";
+        String timestamp = "2020-07-09T01:02:03.12345678Z";
+        Date d = util.str2date(timestamp);
+        Assert.assertEquals(expected, util.date2str(util.str2date(timestamp)));
+        expected = "2020-07-09T01:02:03.120Z";
+        timestamp = "2020-07-09T01:02:03.12Z";
+        Assert.assertEquals(expected, util.date2str(util.str2date(timestamp)));
+        expected = "2020-07-09T01:02:03.100Z";
+        timestamp = "2020-07-09T01:02:03.1Z";
+        Assert.assertEquals(expected, util.date2str(util.str2date(timestamp)));
+        expected = "2020-07-09T01:02:03Z";
+        timestamp = "2020-07-09T01:02:03.000Z";
+        Assert.assertEquals(expected, util.date2str(util.str2date(timestamp)));
     }
 
 }

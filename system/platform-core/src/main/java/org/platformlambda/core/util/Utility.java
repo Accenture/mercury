@@ -757,7 +757,7 @@ public class Utility {
             if (sep == -1) {
                 sep = str.indexOf('-', 19);
             }
-            String ms = get3digitMs(sep > 0? str.substring(dot, sep) : str.substring(dot));
+            String ms = normalizeMs(sep > 0? str.substring(dot, sep) : str.substring(dot));
             // remove colon from timezone
             String timezone = sep == -1? "+0000" : str.substring(sep).replace(":", "");
             str = str.substring(0, dot) + ms + timezone;
@@ -786,13 +786,26 @@ public class Utility {
         return str.length() > 0;
     }
 
-    private String get3digitMs(String s) {
-        if (s.length() == 4) {
-            return s;
-        } else {
-            String ms = String.format("%.03f", Float.parseFloat(s));
-            return ms.substring(ms.indexOf('.'));
+    private String normalizeMs(String s) {
+        String result;
+        switch (s.length()) {
+            case 1:
+                result = ".000";
+                break;
+            case 2:
+                result = s+"00";
+                break;
+            case 3:
+                result = s+"0";
+                break;
+            case 4:
+                result = s;
+                break;
+            default:
+                // trim microseconds
+                result = s.substring(0, 4);
         }
+        return result;
     }
 
     //////////////////////////////////////

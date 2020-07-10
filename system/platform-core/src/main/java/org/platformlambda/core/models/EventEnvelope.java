@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -334,8 +336,8 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope setExecutionTime(float milliseconds) {
-        String ms = String.format("%.3f", milliseconds);
-        this.executionTime = Float.parseFloat(ms);
+        BigDecimal number = new BigDecimal(milliseconds).setScale(3, RoundingMode.HALF_EVEN);
+        this.executionTime = number.floatValue();
         return this;
     }
 
@@ -346,8 +348,8 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope setRoundTrip(float milliseconds) {
-        String ms = String.format("%.3f", milliseconds);
-        this.roundTrip = Float.parseFloat(ms);
+        BigDecimal number = new BigDecimal(milliseconds).setScale(3, RoundingMode.HALF_EVEN);
+        this.roundTrip = number.floatValue();
         return this;
     }
 
