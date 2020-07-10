@@ -60,7 +60,7 @@ public class ServiceResponseHandler implements LambdaFunction {
     private static final String RESULT = "result";
     private static final String ACCEPT_ANY = "*/*";
 
-    private ConcurrentMap<String, AsyncContextHolder> contexts;
+    private final ConcurrentMap<String, AsyncContextHolder> contexts;
 
     public ServiceResponseHandler(ConcurrentMap<String, AsyncContextHolder> contexts) {
         this.contexts = contexts;
@@ -172,8 +172,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                             Object resBody = event.getBody();
                             if (resBody == null && streamId != null) {
                                 ObjectStreamIO io = new ObjectStreamIO(streamId);
-                                ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout));
-                                try {
+                                try (ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout))) {
                                     OutputStream out = response.getOutputStream();
                                     for (Object block : in) {
                                         // update last access time
@@ -196,8 +195,6 @@ public class ServiceResponseHandler implements LambdaFunction {
                                     } else {
                                         response.sendError(500, e.getMessage());
                                     }
-                                } finally {
-                                    in.close();
                                 }
                                 // regular output
                             } else if (resBody instanceof Map) {

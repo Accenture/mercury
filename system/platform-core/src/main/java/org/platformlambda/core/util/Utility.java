@@ -787,25 +787,8 @@ public class Utility {
     }
 
     private String normalizeMs(String s) {
-        String result;
-        switch (s.length()) {
-            case 1:
-                result = ".000";
-                break;
-            case 2:
-                result = s+"00";
-                break;
-            case 3:
-                result = s+"0";
-                break;
-            case 4:
-                result = s;
-                break;
-            default:
-                // trim microseconds
-                result = s.substring(0, 4);
-        }
-        return result;
+        String result = s.length() < 4? s + "000" : s;
+        return result.length() == 4? result : result.substring(0, 4);
     }
 
     //////////////////////////////////////

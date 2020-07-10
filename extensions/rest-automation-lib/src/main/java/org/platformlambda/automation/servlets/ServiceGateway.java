@@ -404,6 +404,7 @@ public class ServiceGateway extends HttpServlet {
         // create HTTP async context
         AsyncContext context = request.startAsync(request, response);
         context.addListener(new AsyncHttpHandler(contexts, requestId));
+        context.setTimeout(-1);
         // save to context map
         AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
         holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);

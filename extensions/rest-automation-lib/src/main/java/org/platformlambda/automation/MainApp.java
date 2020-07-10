@@ -45,7 +45,6 @@ public class MainApp implements EntryPoint {
 
     public static final String ASYNC_HTTP_REQUEST = "async.http.request";
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
-
     /**
      * Starting point for rest-automation
      *

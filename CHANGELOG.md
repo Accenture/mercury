@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.54, 7/9/2020
+## Version 1.12.54, 7/10/2020
 
 ### Added
 
@@ -21,6 +21,8 @@ N/A
 Application life-cycle management - User provided main application(s) will be started after Spring Boot declares web application ready. This ensures correct Spring autowiring or dependencies are available.
 
 Bugfix for locale - String.format(float) returns comma as decimal point that breaks number parser. Replace with BigDecimal decimal point scaling.
+
+Bugfix for Tomcat 9.0.35 - Change Async servlet default timeout from 30 seconds to -1 so the system can handle the whole life-cycle directly.
 
 ---
 ## Version 1.12.52, 6/11/2020

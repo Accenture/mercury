@@ -29,8 +29,8 @@ import java.util.concurrent.ConcurrentMap;
 public class AsyncHttpHandler implements AsyncListener {
     private static final Logger log = LoggerFactory.getLogger(AsyncHttpHandler.class);
 
-    private ConcurrentMap<String, AsyncContextHolder> contexts;
-    private String id;
+    private final ConcurrentMap<String, AsyncContextHolder> contexts;
+    private final String id;
 
     public AsyncHttpHandler(ConcurrentMap<String, AsyncContextHolder> contexts, String id) {
         this.contexts = contexts;
@@ -47,8 +47,9 @@ public class AsyncHttpHandler implements AsyncListener {
 
     @Override
     public void onTimeout(AsyncEvent event) {
-        // this should not occur as we use our own async timeout handler
+        // this should not occur as we use our own async timeout handler to manage the life-cycle
         contexts.remove(id);
+        log.error("Async HTTP Context {} unexpectedly timeout after {} ms", id, event.getAsyncContext().getTimeout());
     }
 
     @Override
