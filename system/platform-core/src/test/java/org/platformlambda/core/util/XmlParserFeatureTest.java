@@ -61,7 +61,7 @@ public class XmlParserFeatureTest {
             "http://apache.org/xml/features/nonvalidating/load-external-dtd"
     };
 
-    @Test
+    @Test(expected=SAXParseException.class)
     public void featureTest() throws ParserConfigurationException, IOException, SAXException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         for (String feature: FEATURES_TO_ENABLE) {
@@ -73,20 +73,16 @@ public class XmlParserFeatureTest {
         dbf.setXIncludeAware(false);
         dbf.setExpandEntityReferences(false);
         /*
-         * guarantee that DOCTYPE feature is disabled
+         * Guarantee that DOCTYPE feature is disabled
          * XML sample from https://portswigger.net/web-security/xxe
          */
         String problematic = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                "<!DOCTYPE foo [ <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> ]>\n" +
-                "<stockCheck><productId>&xxe;</productId></stockCheck>";
-        try {
-            DocumentBuilder dBuilder = dbf.newDocumentBuilder();
-            dBuilder.setErrorHandler(null);
-            Document doc = dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8)));
-            doc.getDocumentElement().normalize();
-        } catch (SAXParseException e) {
-            Assert.assertTrue(e.getMessage().contains("DOCTYPE"));
-        }
+                             "<!DOCTYPE foo [ <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> ]>\n" +
+                             "<stockCheck><productId>&xxe;</productId></stockCheck>";
+        DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+        dBuilder.setErrorHandler(null);
+        Document doc = dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8)));
+        doc.getDocumentElement().normalize();
     }
 
     private boolean setFeature(DocumentBuilderFactory dbf, String feature, boolean enable) {
