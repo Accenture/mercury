@@ -422,6 +422,7 @@ public class ServiceGateway extends HttpServlet {
                 .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+Platform.getInstance().getOrigin());
         // enable distributed tracing if needed
         if (route.info.tracing) {
+            event.setFrom("http.request");
             event.setTrace(traceId, tracePath);
         }
         try {

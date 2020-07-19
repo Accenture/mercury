@@ -7,7 +7,7 @@
     <artifactId>rest-automation-app</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.54</version>
+    <version>1.12.55</version>
     <name>REST automation application</name>
 
     <parent>
@@ -39,13 +39,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-automation</artifactId>
-            <version>1.12.54</version>
+            <version>1.12.55</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.54</version>
+            <version>1.12.55</version>
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
@@ -58,12 +58,12 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>1.12.54</version>
+            <version>1.12.55</version>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.12.54</version>
+            <version>1.12.55</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

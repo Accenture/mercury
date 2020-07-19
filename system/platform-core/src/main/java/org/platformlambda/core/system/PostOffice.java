@@ -226,6 +226,16 @@ public class PostOffice {
     }
 
     /**
+     * Start tracing from current route
+     *
+     * @param traceId to identify a transaction
+     * @param tracePath for the transaction
+     */
+    public void startTracing(String traceId, String tracePath) {
+        traces.put(Thread.currentThread().getId(), new TraceInfo(getRoute(), traceId, tracePath));
+    }
+
+    /**
      * IMPORTANT: This method is reserved by the system. User application MUST NOT access this.
      * @return current trace info before it is stopped
      */

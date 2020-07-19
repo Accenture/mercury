@@ -146,19 +146,16 @@
 <div class="container">
     <br/>
     <h4 style="color: #3cb371">Distributed Trace Monitor</h4>
-    Enter your access token and click "Start Service"
+    Enter "demo" and click "Start Service"
     <br/><br/>
-    <form>
-        <div class="input-group">
-            <div class="input-group mb-3">
-                <div class="input-group-prepend">
-                    <span class="input-group-text">Access Token</span>
-                </div>
-                <input id="app" type="text" class="form-control" name="app" placeholder="access-token">
+    <div class="input-group">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Access Token</span>
             </div>
-
+            <input id="app" type="text" class="form-control" name="app" placeholder="demo">
         </div>
-    </form>
+    </div>
     <div style="height: 10px"></div>
     <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
     <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>

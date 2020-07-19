@@ -21,6 +21,7 @@ package org.platformlambda.core.util;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -28,18 +29,19 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class PostOfficeTest {
 
+    private final BlockingQueue<String> bench = new ArrayBlockingQueue<>(1);
+
     @BeforeClass
     public static void setup() throws IOException {
         Platform platform = Platform.getInstance();
-
         LambdaFunction echo = (headers, body, instance) -> {
             int c = body instanceof Integer? (int) body : 2;
             if (c % 2 == 0) {
@@ -55,6 +57,32 @@ public class PostOfficeTest {
             return result;
         };
         platform.register("hello.world", echo, 10);
+    }
+
+    @Test
+    public void eventHasFromAddress() throws IOException, InterruptedException {
+        String TRACE_ON = "trace";
+        String FIRST = "hello.world.1";
+        String SECOND = "hello.world.2";
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f1 = (headers, body, instance) -> {
+            if (TRACE_ON.equals(body)) {
+                po.startTracing("12345", "TRACE addr://test");
+            }
+            po.send(SECOND, true);
+            return Optional.empty();
+        };
+        platform.register(FIRST, f1, 1);
+        platform.register(SECOND, new SimpleInterceptor(), 1);
+        // without tracing
+        po.send(FIRST, Optional.empty());
+        String result = bench.poll(2, TimeUnit.SECONDS);
+        Assert.assertEquals(FIRST, result);
+        // with tracing
+        po.send(FIRST, TRACE_ON);
+        result = bench.poll(2, TimeUnit.SECONDS);
+        Assert.assertEquals(FIRST, result);
     }
 
     @Test(expected = TimeoutException.class)
@@ -163,6 +191,19 @@ public class PostOfficeTest {
         Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertEquals(input, result.get("body"));
+    }
+
+    @EventInterceptor
+    private class SimpleInterceptor implements LambdaFunction {
+
+        @Override
+        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+            if (body instanceof EventEnvelope) {
+                EventEnvelope event = (EventEnvelope) body;
+                bench.offer(event.getFrom());
+            }
+            return Optional.empty();
+        }
     }
 
 }

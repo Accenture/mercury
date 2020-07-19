@@ -101,6 +101,9 @@ public class WorkerQueue extends AbstractActor {
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
                             dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);
                             dt.setHeader("success", ps.success);
+                            if (event.getFrom() != null) {
+                                dt.setHeader("from", event.getFrom());
+                            }
                             if (ps.success) {
                                 dt.setHeader("exec_time", ps.executionTime);
                             } else {
