@@ -836,6 +836,16 @@ public class PostOffice {
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
+            // propagate trace info
+            TraceInfo trace = getTrace();
+            if (trace != null) {
+                if (trace.route != null && event.getFrom() == null) {
+                    event.setFrom(trace.route);
+                }
+                if (trace.id != null && trace.path != null) {
+                    event.setTrace(trace.id, trace.path);
+                }
+            }
             // insert sequence number as correlation ID if not present
             // so that the caller can correlate the service responses
             if (event.getCorrelationId() == null) {
