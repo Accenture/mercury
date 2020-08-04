@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>kafka-presence</artifactId>
     <packaging>jar</packaging>
-    <version>1.12.55</version>
+    <version>1.12.56</version>
     <name>kafka-presence-monitor</name>
 
     <parent>
@@ -37,13 +37,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>1.12.55</version>
+            <version>1.12.56</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.55</version>
+            <version>1.12.56</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
