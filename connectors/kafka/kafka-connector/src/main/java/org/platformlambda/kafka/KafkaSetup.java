@@ -55,11 +55,9 @@ public class KafkaSetup implements CloudSetup {
     private static final String TYPE = "type";
     private static final String CREATE_TOPIC = "create_topic";
     private static final String GET = "get";
-    private static EventConsumer consumer;
     private static String displayUrl = "unknown";
     private static boolean pingKafka = true;
     private final boolean isServiceMonitor;
-
 
     public KafkaSetup() {
         AppConfigReader reader = AppConfigReader.getInstance();
@@ -174,7 +172,7 @@ public class KafkaSetup implements CloudSetup {
                 }
             }
             // setup consumer and connect to Kafka
-            consumer = new EventConsumer(properties, topic);
+            EventConsumer consumer = new EventConsumer(properties, topic);
             consumer.start();
             Runtime.getRuntime().addShutdownHook(new Thread(consumer::shutdown));
             // enable service discovery

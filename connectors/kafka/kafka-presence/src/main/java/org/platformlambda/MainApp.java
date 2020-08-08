@@ -21,11 +21,13 @@ package org.platformlambda;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.kafka.PresenceHandler;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.services.*;
+import org.platformlambda.services.AdditionalInfo;
+import org.platformlambda.services.HouseKeeper;
+import org.platformlambda.services.MonitorAlive;
+import org.platformlambda.services.PingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +43,6 @@ public class MainApp implements EntryPoint {
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String MONITOR_ALIVE = "monitor_alive";
     private static final String ADDITIONAL_INFO = "additional.info";
-    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
 
     public static void main(String[] args) {
         RestServer.main(args);
@@ -53,7 +54,6 @@ public class MainApp implements EntryPoint {
 
         Platform platform = Platform.getInstance();
         platform.connectToCloud();
-        platform.waitForProvider(CLOUD_CONNECTOR, 20);
         platform.waitForProvider(MANAGER, 20);
         // start additional info service
         platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 3);

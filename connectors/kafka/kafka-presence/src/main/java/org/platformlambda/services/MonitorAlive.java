@@ -25,7 +25,6 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.kafka.ConsumerLifeCycle;
-import org.platformlambda.kafka.PresenceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +36,6 @@ public class MonitorAlive extends Thread {
 
     private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TO = "to";
-    private static final String INIT = "init";
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String TIMESTAMP = "timestamp";
@@ -47,8 +45,6 @@ public class MonitorAlive extends Thread {
 
     @Override
     public void run() {
-        // check Kafka readiness and initialize PresenceHandler
-        initializeKafka();
         // begin keep-alive
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
@@ -59,25 +55,27 @@ public class MonitorAlive extends Thread {
         // first cycle starts in 5 seconds
         long t0 = System.currentTimeMillis() - INTERVAL + 5000;
         while (normal) {
-            long now = System.currentTimeMillis();
-            if (now - t0 > INTERVAL) {
-                t0 = now;
-                /*
-                 * broadcast to all presence monitors
-                 */
-                EventEnvelope event = new EventEnvelope();
-                event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
-                event.setHeader(ORIGIN, origin);
-                event.setHeader(TYPE, MONITOR_ALIVE);
-                // token is used for leader election
-                // use sortable timestamp yyyymmddhhmmss
-                event.setHeader(TIMESTAMP, util.getTimestamp());
-                // send my connection list
-                event.setBody(new ArrayList<>(MonitorService.getConnections().keySet()));
-                try {
-                    po.send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
-                } catch (IOException e) {
-                    log.error("Unable to send keep-alive to other presence monitors - {}", e.getMessage());
+            if (ConsumerLifeCycle.isReady()) {
+                long now = System.currentTimeMillis();
+                if (now - t0 > INTERVAL) {
+                    t0 = now;
+                    /*
+                     * broadcast to all presence monitors
+                     */
+                    EventEnvelope event = new EventEnvelope();
+                    event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
+                    event.setHeader(ORIGIN, origin);
+                    event.setHeader(TYPE, MONITOR_ALIVE);
+                    // token is used for leader election
+                    // use sortable timestamp yyyymmddhhmmss
+                    event.setHeader(TIMESTAMP, util.getTimestamp());
+                    // send my connection list
+                    event.setBody(new ArrayList<>(MonitorService.getConnections().keySet()));
+                    try {
+                        po.send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
+                    } catch (IOException e) {
+                        log.error("Unable to send keep-alive to other presence monitors - {}", e.getMessage());
+                    }
                 }
             }
             try {
@@ -87,32 +85,6 @@ public class MonitorAlive extends Thread {
             }
         }
         log.info("Stopped");
-    }
-
-    private void initializeKafka() {
-        int n = 0;
-        while (n < 30) {
-            n++;
-            if (ConsumerLifeCycle.isReady()) {
-                EventEnvelope event = new EventEnvelope();
-                event.setTo(MainApp.PRESENCE_HANDLER);
-                event.setHeader(INIT, PresenceHandler.INIT_TOKEN);
-                // "*" tell the event producer to send the INIT_TOKEN to the presence monitor
-                try {
-                    PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
-                    break;
-                } catch (IOException e) {
-                    log.error("Unable to initialize kafka connection - {}", e.getMessage());
-                    System.exit(-1);
-                }
-            }
-            log.info("Waiting for kafka to get ready... {}", n);
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                // yield to the operating system
-            }
-        }
     }
 
     private void shutdown() {

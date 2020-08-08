@@ -15,37 +15,41 @@
     limitations under the License.
 
  */
+
 package org.platformlambda.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.common.TopicPartition;
 import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.AppConfigReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.TimeoutException;
 
 public class ConsumerLifeCycle implements ConsumerRebalanceListener {
     private static final Logger log = LoggerFactory.getLogger(ConsumerLifeCycle.class);
 
     private static final String TYPE = "type";
     private static final String INIT = "init";
-    private final boolean pubSub, serviceMonitor;
+    private final boolean pubSub;
     private final String topic;
-    private static boolean ready = false;
+    private static boolean ready = false, eventStreamReady = false;
 
     public ConsumerLifeCycle(String topic, boolean pubSub) {
         this.topic = topic;
         this.pubSub = pubSub;
-        AppConfigReader reader = AppConfigReader.getInstance();
-        this.serviceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+    }
+
+    public static void setEventStreamReady() {
+        eventStreamReady = true;
     }
 
     public static boolean isReady() {
-        return ready;
+        return ready && eventStreamReady;
     }
 
     @Override
@@ -66,13 +70,13 @@ public class ConsumerLifeCycle implements ConsumerRebalanceListener {
                     partitions.size() == 1 ? "" : "s");
             if (!pubSub) {
                 ready = true;
-                // sending a loop-back message to tell the event consumer that the system is ready
-                if (!serviceMonitor && TopicManager.regularTopicFormat(topic)) {
+                // send an initialization event to make sure the send/receive paths are ready
+                if (KafkaSetup.PRESENCE_MONITOR.equals(topic) || TopicManager.regularTopicFormat(topic)) {
                     try {
+                        Platform.getInstance().waitForProvider(PostOffice.CLOUD_CONNECTOR, 20);
                         PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(TYPE, INIT));
-                    } catch (IOException e) {
-                        log.error("Unable to send initialization request to {} - {}",
-                                PostOffice.CLOUD_CONNECTOR, e.getMessage());
+                    } catch (IOException |TimeoutException e) {
+                        log.error("Unable to initialize topic {} - {}", topic, e.getMessage());
                     }
                 }
             }

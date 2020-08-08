@@ -27,7 +27,6 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -35,14 +34,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
+    public static final String INIT_TOKEN = "INIT_"+UUID.randomUUID().toString();
     private static final long FAST_POLL = 10;
     private static final long REGULAR_POLL = 60;
     private String topic;
@@ -59,8 +56,6 @@ public class EventConsumer extends Thread {
     }
 
     private void initialize(Properties base, String topic, boolean pubSub, String... parameters) {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        boolean isServiceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
         String origin = Platform.getInstance().getOrigin();
         Properties prop = new Properties();
         prop.putAll(base);
@@ -107,6 +102,8 @@ public class EventConsumer extends Thread {
 
     @Override
     public void run() {
+        boolean ready = pubSub;
+        int outdatedEvents = 0;
         boolean resetOffset = pubSub;
         long interval = pubSub? FAST_POLL : REGULAR_POLL;
         PostOffice po = PostOffice.getInstance();
@@ -150,9 +147,32 @@ public class EventConsumer extends Thread {
                     }
                 }
                 for (ConsumerRecord<String, byte[]> record : records) {
+                    byte[] data = record.value();
+                    if (!ready) {
+                        /*
+                         * Since we reuse the same topic, we like to drop outdated events.
+                         * Anything before the initialization token event are outdated.
+                         */
+                        if (data.length == 0 && INIT_TOKEN.equals(record.key())) {
+                            ready = true;
+                            ConsumerLifeCycle.setEventStreamReady();
+                            if (outdatedEvents > 0) {
+                                log.warn("Total {} outdated event{} ignored", outdatedEvents, outdatedEvents == 1?  "" : "s");
+                            }
+                            log.info("Event streams ready");
+                        } else {
+                            outdatedEvents++;
+                        }
+                        continue;
+                    }
+                    // when event stream is reconnected
+                    if (data.length == 0 && INIT_TOKEN.equals(record.key())) {
+                        log.info("Event streams running");
+                        continue;
+                    }
                     EventEnvelope message = new EventEnvelope();
                     try {
-                        message.load(record.value());
+                        message.load(data);
                         message.setEndOfRoute();
                     } catch (Exception e) {
                         log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());

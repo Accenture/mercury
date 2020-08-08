@@ -18,7 +18,6 @@
 
 package org.platformlambda.kafka;
 
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -33,7 +32,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeoutException;
 
 public class ServiceRegistry implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
@@ -48,17 +46,14 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
     private static final String PEERS = "peers";
-    private static final String INIT = "init";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String RESTART = "restart";
-    private static final String READY = "ready";
     private static final String CHECKSUM = "checksum";
     private static final String PING = "ping";
     private static final String STOP = "stop";
     // static because this is a shared lambda function
-    private static boolean isServiceMonitor = false, ready = false;
-    private static final List<Map<String, String>> deferred = new ArrayList<>();
+    private static boolean isServiceMonitor = false;
     /*
      * routes: route_name -> (origin, personality)
      * origins: origin -> last seen
@@ -71,8 +66,6 @@ public class ServiceRegistry implements LambdaFunction {
         AppConfigReader reader = AppConfigReader.getInstance();
         if ("true".equals(reader.getProperty("service.monitor", "false"))) {
             isServiceMonitor = true;
-            // service monitor does not have a kafka consumer so there is no need to check for readiness
-            ready = true;
         }
     }
 
@@ -149,15 +142,12 @@ public class ServiceRegistry implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException, TimeoutException, AppException {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         if (isServiceMonitor) {
             // service monitor does not use global routing table
             return false;
         }
         String type = headers.get(TYPE);
-        if (READY.equals(type)) {
-            return ready;
-        }
         // peer events from presence monitor
         if (PEERS.equals(type) && body instanceof List) {
             PostOffice po = PostOffice.getInstance();
@@ -186,28 +176,6 @@ public class ServiceRegistry implements LambdaFunction {
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, member));
                     }
                 }
-            }
-        }
-        if (!ready) {
-            // detect if kafka consumer has received the first event
-            if (INIT.equals(type)) {
-                ready = true;
-                log.info("Event streams are ready");
-                if (!deferred.isEmpty()) {
-                    for (Map<String, String> request: deferred) {
-                        processEvent(request);
-                    }
-                    deferred.clear();
-                }
-                return true;
-            }
-            // defer processing
-            deferred.add(headers);
-            return false;
-        } else {
-            // ignore all subsequent INIT request
-            if (INIT.equals(type)) {
-                return true;
             }
         }
         return processEvent(headers);

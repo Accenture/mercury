@@ -30,6 +30,7 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.kafka.ConsumerLifeCycle;
 import org.platformlambda.kafka.PresenceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,7 @@ public class MonitorService implements LambdaFunction {
                     String ip = headers.get(WsEnvelope.IP);
                     log.info("Started {}, {}, node={}", route, ip, token);
                     // check if dependencies are ready
-                    if (PresenceHandler.isReady() && platform.hasRoute(CLOUD_CONNECTOR) && platform.hasRoute(MANAGER)
+                    if (ConsumerLifeCycle.isReady() && platform.hasRoute(CLOUD_CONNECTOR) && platform.hasRoute(MANAGER)
                             && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
                         // check if there is a corresponding kafka topic is available
                         boolean exists = false;

@@ -159,8 +159,8 @@ public class EventProducer implements LambdaFunction {
         }
         String type = headers.get(TYPE);
         if (type != null) {
-            if (INIT.equals(type) && !isServiceMonitor) {
-                initializeConsumer();
+            if (INIT.equals(type)) {
+                initChannel();
             }
             if (LOOP_BACK.equals(type) && headers.containsKey(REPLY_TO) && headers.containsKey(ORIGIN)) {
                 sendLoopback(headers.get(REPLY_TO), headers.get(ORIGIN));
@@ -294,16 +294,15 @@ public class EventProducer implements LambdaFunction {
         }
     }
 
-    private void initializeConsumer() {
+    private void initChannel() {
         startProducer();
         try {
-            String origin = Platform.getInstance().getOrigin();
-            String uuid = Utility.getInstance().getUuid();
-            EventEnvelope direct = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY).setHeader(TYPE, INIT);
-            producer.send(new ProducerRecord<>(origin, uuid, direct.toBytes())).get(20, TimeUnit.SECONDS);
+            String topic = isServiceMonitor? KafkaSetup.PRESENCE_MONITOR : Platform.getInstance().getOrigin();
+            producer.send(new ProducerRecord<>(topic, EventConsumer.INIT_TOKEN, new byte[0]))
+                    .get(20, TimeUnit.SECONDS);
             totalEvents++;
             lastActive = System.currentTimeMillis();
-            log.info("Tell event consumer to start with {}", origin);
+            log.info("Tell event consumer to start with {}", topic);
         } catch (Exception e) {
             /*
              * Unrecoverable error. Shutdown and let infrastructure to restart this app instance.

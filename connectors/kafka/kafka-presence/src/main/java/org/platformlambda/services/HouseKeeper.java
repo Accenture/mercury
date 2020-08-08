@@ -28,7 +28,6 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.PresenceHandler;
 import org.platformlambda.models.AppInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,7 +172,7 @@ public class HouseKeeper implements LambdaFunction {
                         }
                     }
 
-                } else if (body instanceof List && PresenceHandler.isReady()) {
+                } else if (body instanceof List) {
                     // compare connection list
                     Map<String, Object> connections = MonitorService.getConnections();
                     List<String> myConnections = new ArrayList<>(connections.keySet());
