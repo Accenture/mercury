@@ -6,10 +6,10 @@
         "script":"java",
         "args":[
             "-jar",
-            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.56.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.57.jar"
         ],
         "watch":[
-            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.56.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.57.jar"
         ],
         "node_args":[],
         "exec_interpreter":"",

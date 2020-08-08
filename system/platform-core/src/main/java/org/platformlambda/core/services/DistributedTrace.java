@@ -43,7 +43,7 @@ public class DistributedTrace implements LambdaFunction {
     public DistributedTrace() {
         AppConfigReader config = AppConfigReader.getInstance();
         this.processor = config.getProperty(DISTRIBUTED_TRACING, DISTRIBUTED_TRACING);
-        log.info("Optional {}", this.processor);
+        log.info("Reporting to '{}' if present", this.processor);
     }
 
     @Override

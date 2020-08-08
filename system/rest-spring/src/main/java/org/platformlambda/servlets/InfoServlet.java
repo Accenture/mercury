@@ -61,6 +61,7 @@ public class InfoServlet extends HttpServlet {
     private static final String ALLOCATED = "allocated";
     private static final String FREE = "free";
     private static final String ORIGIN = "origin";
+    private static final String APP_ID = "app_id";
     private static final String PERSONALITY = "personality";
     private static final String ROUTING = "routing";
     private static final String LIST_ROUTES = "routes";
@@ -183,6 +184,10 @@ public class InfoServlet extends HttpServlet {
             updateResult(PostOffice.STREAM_MANAGER, result);
             updateResult(SYSTEM_INFO, result);
             result.put(ORIGIN, platform.getOrigin());
+            String appId = platform.getConsistentAppId();
+            if (appId != null) {
+                result.put(APP_ID, appId);
+            }
             result.put(PERSONALITY, ServerPersonality.getInstance().getType().name());
             Map<String, Object> time = new HashMap<>();
             time.put(START, START_TIME);

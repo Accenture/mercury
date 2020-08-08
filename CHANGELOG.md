@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.57, 8/7/2020
+
+### Added
+
+Event stream systems like Kafka assume topic to be used long term. 
+This version adds support to reuse the same topic when an application instance restarts.
+
+You can create a predictable topic using unique application name and instance ID.
+For example, with Kubernetes, you can use the POD name as the unique application instance topic.
+
+### Removed
+
+N/A
+
+### Changed
+
+N/A
+
+---
 ## Version 1.12.56, 8/4/2020
 
 ### Added

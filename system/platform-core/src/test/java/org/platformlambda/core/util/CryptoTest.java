@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -27,8 +28,6 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.util.Arrays;
-
-import org.junit.Assert;
 
 public class CryptoTest {
     private static final Logger log = LoggerFactory.getLogger(CryptoTest.class);

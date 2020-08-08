@@ -6,7 +6,7 @@
 
     <groupId>org.platformlambda</groupId>
     <artifactId>rest-spring</artifactId>
-    <version>1.12.56</version>
+    <version>1.12.57</version>
     <packaging>jar</packaging>
 
     <name>rest-spring</name>
@@ -103,7 +103,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>1.12.56</version>
+            <version>1.12.57</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxrs -->
         <!-- DO NOT import resteasy-servlet-initializer because RestLoader will do the initialization -->

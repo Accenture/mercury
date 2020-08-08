@@ -84,14 +84,9 @@ public class EventConsumer extends Thread {
                 throw new IllegalArgumentException("Unable to start consumer for topic "+topic+" - number of parameters must be 2 or 3");
             }
         } else {
-            /*
-             * For presence monitor, we want to skip offset to the latest.
-             * For regular applications, we want to read from the beginning.
-             */
             prop.put(ConsumerConfig.CLIENT_ID_CONFIG, origin.substring(8));
             prop.put(ConsumerConfig.GROUP_ID_CONFIG, origin.substring(6));
-            prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, isServiceMonitor? "latest" : "earliest");
-            log.info("{} = {}", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, prop.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
+            prop.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         }
         prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);
         prop.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArrayDeserializer.class);

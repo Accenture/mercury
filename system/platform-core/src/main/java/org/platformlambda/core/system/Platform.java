@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -46,9 +47,10 @@ public class Platform {
     private static final StopSignal STOP = new StopSignal();
     private static final String LAMBDA = "lambda";
     private static ActorSystem system;
-    private static String lambdaId, namespace;
+    private static String originId, namespace;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static final Platform instance = new Platform();
+    private static String consistentAppId;
 
     private Platform() {
         // singleton
@@ -56,6 +58,37 @@ public class Platform {
 
     public static Platform getInstance() {
         return instance;
+    }
+
+    /**
+     * This will override the UUID in the originID.
+     * It should only be set before the application is started.
+     *
+     * For Kafka or similar event stream system, the best practice is to reuse the same topic name.
+     * We are using UUID as a temporary topic for each application instance.
+     *
+     * To reuse the same topic name, you may implement a "BeforeApplication" to collect
+     * platform specific application instance ID and override this value.
+     *
+     * e.g.
+     * For Kubernetes, please use the unique "pod" ID.
+     * For Cloud Foundry, you should use the unique application name and instance index number.
+     *
+     * IMPORTANT: You must use unique ID for each application instance otherwise service routing would fail.
+     *
+     * @param id unique application name and instance identifier
+     */
+    public static void setConsistentAppId(String id) {
+        if (Platform.consistentAppId == null) {
+            Platform.consistentAppId = id;
+            log.info("app_id set to {}", Platform.consistentAppId);
+        } else {
+            log.error("app_id is already set as {}", Platform.consistentAppId);
+        }
+    }
+
+    public String getConsistentAppId() {
+        return Platform.consistentAppId;
     }
 
     public ActorSystem getEventSystem() {
@@ -83,14 +116,19 @@ public class Platform {
      * @return unique origin ID
      */
     public String getOrigin() {
-        if (lambdaId == null) {
+        if (originId == null) {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             namespace = config.getProperty("multi.tenancy.namespace");
-            lambdaId = namespace == null? Utility.getInstance().getDateUuid() :
-                    Utility.getInstance().getDateUuid() + "." + util.filteredServiceName(namespace);
+            String id = util.getUuid();
+            if (Platform.consistentAppId != null) {
+                byte[] hash = crypto.getSHA256(util.getUTF(Platform.consistentAppId));
+                id = util.bytes2hex(hash).substring(0, id.length());
+            }
+            originId = util.getDateOnly(new Date()) +
+                        (namespace == null? id : id + "." + util.filteredServiceName(namespace));
         }
-        return lambdaId;
+        return originId;
     }
 
     public synchronized void startCloudServices() {
@@ -278,7 +316,7 @@ public class Platform {
         if (registry.containsKey(path)) {
             throw new IOException("Route "+path+" already exists");
         }
-        ActorRef manager = Platform.getInstance().getEventSystem().actorOf(ServiceQueue.props(path), path);
+        ActorRef manager = getEventSystem().actorOf(ServiceQueue.props(path), path);
         ServiceDef service = new ServiceDef(path, lambda, manager).setConcurrency(instances).setPrivate(isPrivate);
         // tell manager to start workers
         manager.tell(service, ActorRef.noSender());
