@@ -27,7 +27,6 @@ import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.hazelcast.PresenceHandler;
 import org.platformlambda.hazelcast.PresenceProducer;
-import org.platformlambda.hazelcast.TopicLifecycleListener;
 import org.platformlambda.rest.RestServer;
 import org.platformlambda.services.AdditionalInfo;
 import org.platformlambda.services.HouseKeeper;

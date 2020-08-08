@@ -26,6 +26,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.hazelcast.PresenceHandler;
 import org.platformlambda.hazelcast.TopicManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +103,7 @@ public class HouseKeeper implements LambdaFunction {
                         log.info("Detected expired topic {}", e);
                     }
                 }
-            } else if (body instanceof List) {
+            } else if (body instanceof List && PresenceHandler.isReady()) {
                 // compare connection list
                 Map<String, Object> connections = MonitorService.getConnections();
                 List<String> myConnections = new ArrayList<>(connections.keySet());
