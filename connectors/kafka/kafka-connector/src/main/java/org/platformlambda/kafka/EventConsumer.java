@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.*;
 
@@ -157,11 +158,21 @@ public class EventConsumer extends Thread {
                             ready = true;
                             ConsumerLifeCycle.setEventStreamReady();
                             if (outdatedEvents > 0) {
-                                log.warn("Total {} outdated event{} ignored", outdatedEvents, outdatedEvents == 1?  "" : "s");
+                                NumberFormat number = NumberFormat.getInstance();
+                                log.warn("Total {} outdated event{} ignored", number.format(outdatedEvents),
+                                         outdatedEvents == 1?  "" : "s");
                             }
                             log.info("Event streams ready");
                         } else {
                             outdatedEvents++;
+                            /*
+                             * print status for every 1,000 events to keep the user informed
+                             * (this is roughly 0.2 seconds)
+                             */
+                            if (outdatedEvents % 1000 == 0) {
+                                NumberFormat number = NumberFormat.getInstance();
+                                log.info("Skipping outdated {} events", number.format(outdatedEvents));
+                            }
                         }
                         continue;
                     }
