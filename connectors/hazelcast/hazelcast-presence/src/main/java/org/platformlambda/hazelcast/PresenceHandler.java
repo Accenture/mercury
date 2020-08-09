@@ -34,6 +34,7 @@ import java.util.UUID;
 public class PresenceHandler implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceHandler.class);
 
+    public static final String INIT_TOKEN = UUID.randomUUID().toString();
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String DOWNLOAD = "download";
@@ -41,17 +42,12 @@ public class PresenceHandler implements LambdaFunction {
     private static final String PUT = "put";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
-    private static final String initToken = UUID.randomUUID().toString();
 
     private static boolean ready = false;
     private int ignored = 0;
 
     public static boolean isReady() {
         return ready;
-    }
-
-    public static String getInitToken() {
-        return initToken;
     }
 
     @Override
@@ -63,11 +59,11 @@ public class PresenceHandler implements LambdaFunction {
              * Ignore all incoming event until the correct initialization message is created.
              */
             if (ready) {
-                if (getInitToken().equals(headers.get(INIT))) {
+                if (PresenceHandler.INIT_TOKEN.equals(headers.get(INIT))) {
                     log.info("System is healthy");
                 }
             } else {
-                if (getInitToken().equals(headers.get(INIT))) {
+                if (PresenceHandler.INIT_TOKEN.equals(headers.get(INIT))) {
                     ready = true;
                     if (ignored > 0) {
                         log.warn("Skipping {} outdated events", ignored);

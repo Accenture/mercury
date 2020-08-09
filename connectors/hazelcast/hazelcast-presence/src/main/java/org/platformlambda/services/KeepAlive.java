@@ -99,7 +99,7 @@ public class KeepAlive extends Thread {
             if (TopicLifecycleListener.isReady()) {
                 try {
                     EventEnvelope event = new EventEnvelope();
-                    event.setTo(MainApp.PRESENCE_HANDLER).setHeader(INIT, PresenceHandler.getInitToken());
+                    event.setTo(MainApp.PRESENCE_HANDLER).setHeader(INIT, PresenceHandler.INIT_TOKEN);
                     PostOffice.getInstance().send(MainApp.PRESENCE_MONITOR, event.toBytes());
                     log.info("Initialize hazelcast connection");
                     ready = true;

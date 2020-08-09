@@ -165,9 +165,12 @@ public class EventConsumer extends Thread {
                         }
                         continue;
                     }
-                    // when event stream is reconnected
-                    if (data.length == 0 && INIT_TOKEN.equals(record.key())) {
-                        log.info("Event streams running");
+                    // initialization events
+                    if (data.length == 0) {
+                        // when event stream is reconnected
+                        if (INIT_TOKEN.equals(record.key())) {
+                            log.info("Event streams running");
+                        }
                         continue;
                     }
                     EventEnvelope message = new EventEnvelope();
