@@ -47,7 +47,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String ORIGIN = ServiceDiscovery.ORIGIN;
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
-
+    private static final String TARGET = "target";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
     private static final String PING = "ping";
@@ -145,7 +145,7 @@ public class ServiceRegistry implements LambdaFunction {
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (isServiceMonitor) {
-            // service monitor does not use global routing table
+            // ignore requests since service monitor does not maintain routing table
             return false;
         }
         String type = headers.get(TYPE);
@@ -184,7 +184,6 @@ public class ServiceRegistry implements LambdaFunction {
         }
         if (PING.equals(type)) {
             broadcastChecksum(getChecksum());
-            log.info("Routing table integrity check");
             return true;
         }
         if (CHECKSUM.equals(type) && headers.containsKey(CHECKSUM) && headers.containsKey(ORIGIN)) {
@@ -194,10 +193,11 @@ public class ServiceRegistry implements LambdaFunction {
             String myChecksum = getChecksum();
             if (!origin.equals(myOrigin)) {
                 if (extChecksum.equals(myChecksum)) {
-                    log.debug("Routing table matches with {}, checksum {}", origin, extChecksum);
+                    log.debug("Routing table matches with {}, checksum={}", origin, extChecksum);
                 } else {
                     log.warn("Routing table checksum not matched. Syncing with {}", origin);
                     sendMyRoutes(origin);
+                    downloadFromPeer(origin);
                 }
             }
         }
@@ -314,16 +314,32 @@ public class ServiceRegistry implements LambdaFunction {
         }
     }
 
+    private void downloadFromPeer(String peer) throws IOException {
+        String origin = Platform.getInstance().getOrigin();
+        EventEnvelope request = new EventEnvelope();
+        request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + peer)
+                .setHeader(TYPE, JOIN).setHeader(ORIGIN, origin);
+        origins.put(peer, Utility.getInstance().date2str(new Date(), true));
+        PostOffice.getInstance().send(request);
+    }
+
     private void broadcastChecksum(String checkSum) throws IOException {
         PostOffice po = PostOffice.getInstance();
-        String myOrigin = Platform.getInstance().getOrigin();
+        String origin = Platform.getInstance().getOrigin();
         // broadcast to peers
-        for (String p : peers) {
-            if (!p.equals(myOrigin)) {
-                EventEnvelope request = new EventEnvelope();
-                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + p).setHeader(ORIGIN, myOrigin)
-                        .setHeader(TYPE, CHECKSUM).setHeader(CHECKSUM, checkSum);
-                po.send(request);
+        if (!peers.isEmpty()) {
+            List<String> myPeers = new ArrayList<>(peers);
+            myPeers.remove(origin);
+            if (myPeers.isEmpty()) {
+                log.info("No need to sync with peers because I am running alone");
+            } else {
+                log.info("Sending checksum {} to {}", checkSum, myPeers);
+                for (String p : myPeers) {
+                    EventEnvelope request = new EventEnvelope();
+                    request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + p).setHeader(ORIGIN, origin)
+                            .setHeader(TARGET, p).setHeader(TYPE, CHECKSUM).setHeader(CHECKSUM, checkSum);
+                    po.send(request);
+                }
             }
         }
     }

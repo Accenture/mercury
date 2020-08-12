@@ -41,6 +41,7 @@ public class PingScheduler extends Thread {
     private static final String LIST = "list";
     private static final String PING = "ping";
 
+    private static long t0 = System.currentTimeMillis();
     private static boolean normal = true;
 
     @SuppressWarnings("unchecked")
@@ -49,7 +50,6 @@ public class PingScheduler extends Thread {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
         PostOffice po = PostOffice.getInstance();
-        long t0 = System.currentTimeMillis();
         while(normal) {
             if (System.currentTimeMillis() - t0 > INTERVAL) {
                 t0 = System.currentTimeMillis();
@@ -58,11 +58,12 @@ public class PingScheduler extends Thread {
                     EventEnvelope response = po.request(MANAGER, 30000, new Kv(TYPE, LIST));
                     List<String> topics = response.getBody() instanceof List? (List<String>) response.getBody() : new ArrayList<>();
                     List<String> origins = MonitorService.getOrigins();
+                    List<String> targets = new ArrayList<>();
                     for (String p : origins) {
                         if (topics.contains(p)) {
                             try {
                                 po.send(ServiceDiscovery.SERVICE_REGISTRY + "@" + p, new Kv(TYPE, PING));
-                                log.info("ping {} ", p);
+                                targets.add(p);
                             } catch (IOException e) {
                                 log.error("Unable to ping {} - {}", p, e.getMessage());
                             }
@@ -70,6 +71,9 @@ public class PingScheduler extends Thread {
                             // this should not happen
                             log.error("{} is not a valid topic", p);
                         }
+                    }
+                    if (!targets.isEmpty()) {
+                        log.info("Ping {}", targets);
                     }
                 } catch (IOException | TimeoutException | AppException e) {
                     log.error("Ping aborted - {}", e.getMessage());
@@ -82,6 +86,11 @@ public class PingScheduler extends Thread {
             }
         }
         log.info("Stopped");
+    }
+
+    public static void ping() {
+        log.info("Ping requested by operator");
+        PingScheduler.t0 = System.currentTimeMillis() - INTERVAL;
     }
 
     private void shutdown() {
