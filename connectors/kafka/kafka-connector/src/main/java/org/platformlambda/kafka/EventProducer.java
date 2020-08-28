@@ -38,8 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -51,6 +49,7 @@ public class EventProducer implements LambdaFunction {
     private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String SERVICE_MONITOR = "service.monitor";
     private static final String PRESENCE_MONITOR = "presence.monitor";
+    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
@@ -61,6 +60,7 @@ public class EventProducer implements LambdaFunction {
     private static final String FALSE = "false";
     private static final String TYPE = "type";
     private static final String INIT = "init";
+    private static final String CONSUMER_READY = "consumer_ready";
     private static final String LOOP_BACK = "loopback";
     private static final String STOP = "stop";
     private static final String REPLY_TO = "reply_to";
@@ -76,6 +76,7 @@ public class EventProducer implements LambdaFunction {
     private static String producerId;
     private static boolean isServiceMonitor, ready = false, abort = false;
     private static long seq = 0, totalEvents = 0;
+    private String initRequest = null;
 
     public EventProducer() {
         final ProducerWatcher monitor = new ProducerWatcher();
@@ -161,6 +162,10 @@ public class EventProducer implements LambdaFunction {
         if (type != null) {
             if (INIT.equals(type)) {
                 initChannel();
+            }
+            if (CONSUMER_READY.equals(type) && initRequest != null) {
+                log.info("Paired with event consumer");
+                PostOffice.getInstance().cancelFutureEvent(initRequest);
             }
             if (LOOP_BACK.equals(type) && headers.containsKey(REPLY_TO) && headers.containsKey(ORIGIN)) {
                 sendLoopback(headers.get(REPLY_TO), headers.get(ORIGIN));
@@ -302,7 +307,12 @@ public class EventProducer implements LambdaFunction {
                     .get(20, TimeUnit.SECONDS);
             totalEvents++;
             lastActive = System.currentTimeMillis();
-            log.info("Tell event consumer to start with {}", topic);
+            log.info("Tell event consumer to pair with {}", topic);
+            // keep sending until the consumer confirms it is ready
+            EventEnvelope init = new EventEnvelope().setTo(CLOUD_CONNECTOR).setHeader(TYPE, INIT);
+            Date later = new Date(System.currentTimeMillis() + 5000);
+            initRequest = PostOffice.getInstance().sendLater(init, later);
+
         } catch (Exception e) {
             /*
              * Unrecoverable error. Shutdown and let infrastructure to restart this app instance.

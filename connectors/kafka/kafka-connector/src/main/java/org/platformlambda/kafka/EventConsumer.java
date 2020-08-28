@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -41,6 +42,9 @@ public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
     public static final String INIT_TOKEN = "INIT_"+UUID.randomUUID().toString();
+    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
+    private static final String TYPE = "type";
+    private static final String CONSUMER_READY = "consumer_ready";
     private static final long FAST_POLL = 10;
     private static final long REGULAR_POLL = 60;
     private String topic;
@@ -163,6 +167,7 @@ public class EventConsumer extends Thread {
                                          outdatedEvents == 1?  "" : "s");
                             }
                             log.info("Event streams ready");
+                            PostOffice.getInstance().send(CLOUD_CONNECTOR, new Kv(TYPE, CONSUMER_READY));
                         } else {
                             outdatedEvents++;
                             /*
@@ -181,6 +186,7 @@ public class EventConsumer extends Thread {
                         // when event stream is reconnected
                         if (INIT_TOKEN.equals(record.key())) {
                             log.info("Event streams running");
+                            PostOffice.getInstance().send(CLOUD_CONNECTOR, new Kv(TYPE, CONSUMER_READY));
                         }
                         continue;
                     }
