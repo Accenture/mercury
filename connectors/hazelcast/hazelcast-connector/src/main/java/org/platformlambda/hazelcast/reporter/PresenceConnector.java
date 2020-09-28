@@ -35,6 +35,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceConnector.class);
 
     private static final String TYPE = "type";
+    private static final String INSTANCE = "instance";
     private static final String ALIVE = "keep-alive";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
@@ -137,12 +138,16 @@ public class PresenceConnector implements LambdaFunction {
     private void sendAppInfo(long n, boolean alive) {
         if (monitor != null) {
             try {
+                String instance = Platform.getInstance().getConsistentAppId();
                 VersionInfo app = Utility.getInstance().getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, created).setHeader(SEQ, n)
                         .setHeader(NAME, Platform.getInstance().getName())
                         .setHeader(VERSION, app.getVersion())
                         .setHeader(TYPE, ServerPersonality.getInstance().getType());
+                if (instance != null) {
+                    info.setHeader(INSTANCE, Platform.getInstance().getConsistentAppId());
+                }
                 PostOffice.getInstance().send(monitor, info.toBytes());
 
             } catch (IOException e) {

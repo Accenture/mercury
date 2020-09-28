@@ -1,15 +1,15 @@
 {
     "apps":[
     {
-        "name":"kakfa",
+        "name":"kafka",
         "cwd":"../..",
         "script":"java",
         "args":[
             "-jar",
-            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.63.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.64.jar"
         ],
         "watch":[
-            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.63.jar"
+            "connectors/kafka/kafka-standalone/target/kafka-standalone-1.12.64.jar"
         ],
         "node_args":[],
         "exec_interpreter":"",

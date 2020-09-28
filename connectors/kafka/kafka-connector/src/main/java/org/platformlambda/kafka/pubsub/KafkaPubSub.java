@@ -188,7 +188,7 @@ public class KafkaPubSub implements PubSubProvider {
         }
     }
 
-    private void startProducer() {
+    private synchronized void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
             String id = (Platform.getInstance().getOrigin()+"ps"+(++seq)).substring(8);
@@ -200,7 +200,7 @@ public class KafkaPubSub implements PubSubProvider {
         }
     }
 
-    private void closeProducer() {
+    private synchronized void closeProducer() {
         if (producer != null) {
             try {
                 producer.close();

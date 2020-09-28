@@ -57,7 +57,7 @@ public class TopicManager implements LambdaFunction {
         return lastActive;
     }
 
-    private void startAdmin() {
+    private synchronized void startAdmin() {
         if (admin == null) {
             Properties properties = new Properties();
             properties.putAll(KafkaSetup.getKafkaProperties());
@@ -69,7 +69,7 @@ public class TopicManager implements LambdaFunction {
         lastActive = System.currentTimeMillis();
     }
 
-    private void stopAdmin() {
+    private synchronized void stopAdmin() {
         if (admin != null) {
             try {
                 admin.close();

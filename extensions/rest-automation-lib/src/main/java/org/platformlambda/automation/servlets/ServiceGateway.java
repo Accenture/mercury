@@ -259,6 +259,7 @@ public class ServiceGateway extends HttpServlet {
                 authRequest.setTo(route.info.authService).setBody(req.toMap());
                 // distributed tracing required?
                 if (route.info.tracing) {
+                    authRequest.setFrom("http.request");
                     authRequest.setTrace(traceId, tracePath);
                 }
                 EventEnvelope authResponse = po.request(authRequest, authTimeout);

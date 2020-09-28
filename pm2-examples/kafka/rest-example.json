@@ -8,10 +8,10 @@
             "-Dcloud.connector=kafka",
             "-Dcloud.services=kafka.reporter",
             "-jar",
-            "examples/rest-example/target/rest-example-1.12.63.jar"
+            "examples/rest-example/target/rest-example-1.12.64.jar"
         ],
         "watch":[
-            "examples/rest-example/target/rest-example-1.12.63.jar"
+            "examples/rest-example/target/rest-example-1.12.64.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

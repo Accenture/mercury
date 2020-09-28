@@ -7,10 +7,10 @@
         "script":"java",
         "args":[
             "-jar",
-            "examples/lambda-example/target/lambda-example-1.12.63.jar"
+            "examples/lambda-example/target/lambda-example-1.12.64.jar"
         ],
         "watch":[
-            "examples/lambda-example/target/lambda-example-1.12.63.jar"
+            "examples/lambda-example/target/lambda-example-1.12.64.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
