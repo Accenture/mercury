@@ -247,8 +247,7 @@ mvn clean install
 # close the terminal
 ```
 
-The platform-core, rest-spring, hazelcast-connector and kafka-connector are libraries and you can rebuild each one individually using
-`mvn clean install`
+The platform-core, rest-spring, hazelcast-connector and kafka-connector are libraries and you can rebuild each one individually using `mvn clean install`
 
 The rest of the subprojects are executables that you can rebuild each one with `mvn clean package`.
 
@@ -513,6 +512,51 @@ You may visit http://127.0.0.1:8080/info to see connection info. The output is a
 For Kafka, the presence monitor (`kafka-presence`) is using pub/sub for coordination among multiple instances of the presence monitors. This allows monitors to monitor each other for improved resilience. This is a distributed cluster design and not a master-slave arrangement.
 
 The Kafka-connector library also encapsulates native Kafka pub/sub feature so that your application can do pub/sub without tight coupling with Kafka. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-3.md)
+
+## Built-in service mesh
+
+The above demonstrates distributed applications using the built-in service mesh that leverages an event stream system like Hazelcast or Kafka.
+
+## Native pub/sub
+
+If you have selected a different service mesh, you can build the application without the built-in service mesh.
+
+This is done with the following parameter in application.properties:
+```java
+cloud.connector=none
+```
+
+If your service mesh does not support pub/sub, you can add native pub/sub to your application with a cloud service in application.properties:
+```java
+cloud.services=kafka.pubsub
+```
+
+"Native" means the system encapsulates the native pub/sub feature of the underlying kafka event stream system. The built-in publishers and listeners will do the heavy lifting for you in a consistent manner:
+
+Example:
+```java
+
+// setup your subscriber function
+LambdaFunction myFunction = (headers, body, instance) -> {
+  log.info("Got ---> {}", body);
+  return true;
+};
+
+PubSub ps = PubSub.getInstance();
+ps.waitForProvider(10); // if you run this code in MainApp before the pub/sub service is started
+
+ps.createTopic("some.kafka.topic"); // this ensures the topic is ready
+
+ps.subscribe("some.kafka.topic", myFunction, "client-101", "group-101");
+
+ps.publish("some.kafka.topic", null, "my test message");
+```
+
+If you run this application for the first time and you do not see the test message, the kafka topic has just been created automatically when your application runs. Due to racing condition, Kafka would skip the offset and you cannot see the first message. Just restart the application and you will see your test message.
+
+However, if you create the topic administratively before running this test app, your app will always show the first test message. This is a normal Kafka offset behavior.
+
+You may also notice that the Kafka client sets the read offset to the latest pointer. To read from the beginning, you may reset the read offset by adding a parameter "0" after the clientId and groupId in the subscribe statement above.
 
 ## Write your own microservices
 
