@@ -34,13 +34,12 @@ public class FileDownload implements LambdaFunction {
         String ip = request.getRemoteIp();
         log.info("URI={}, ip={}, queries={}, cookies={}", uri, ip, queries, cookies);
 
-        ObjectStreamIO producer = new ObjectStreamIO(60);
-        ObjectStreamWriter out = producer.getOutputStream();
         try (InputStream in = FileDownload.class.getResourceAsStream("/helloworld.txt")) {
             if (in == null) {
                 throw new AppException(404, "helloworld.txt not found");
             }
-
+            ObjectStreamIO producer = new ObjectStreamIO(60);
+            ObjectStreamWriter out = producer.getOutputStream();
             // send file as an event stream
             int len, total = 0;
             byte[] buffer = new byte[1024];
