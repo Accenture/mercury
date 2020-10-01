@@ -18,7 +18,7 @@
 
 package org.platformlambda.kafka;
 
-import org.platformlambda.core.annotations.CloudConnector;
+import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.Utility;
@@ -30,21 +30,19 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * IMPORTANT:
- * This cloud connector provides native pub/sub service only.
+ * This cloud service provides native pub/sub service only.
  * This allows the user application to run as a standalone executable and
  * communicate with each other purely using native pub/sub.
  *
- * For real-time and pub/sub use cases, please use the "kafka" connector (KafkaSetup.java).
+ * For real-time and pub/sub use cases, please use the "kafka" connector.
  * It uses Kafka as a service mesh and offers native pub/sub service.
  */
-@CloudConnector(name="kafka.pubsub")
+@CloudService(name="kafka.pubsub")
 public class PubSubSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(PubSubSetup.class);
 
     @Override
     public void initialize() {
-        // simply register
         if (!PubSub.getInstance().featureEnabled()) {
             Properties p = KafkaSetup.getKafkaProperties();
             String brokerUrls = p.getProperty(KafkaSetup.BROKER_URL);

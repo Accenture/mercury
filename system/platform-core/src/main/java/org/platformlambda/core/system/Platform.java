@@ -182,10 +182,18 @@ public class Platform {
             }
             AppConfigReader reader = AppConfigReader.getInstance();
             String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, PostOffice.EVENT_NODE);
-            SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-            List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
-            if (!startService(name, services, true)) {
-                log.error("Cloud connector ({}) not found", name);
+            if ("none".equalsIgnoreCase(name)) {
+                /*
+                 * Usually cloud services are started when a cloud connector initializes.
+                 * Without a cloud connector, we can just start cloud services automatically.
+                 */
+                startCloudServices();
+            } else {
+                SimpleClassScanner scanner = SimpleClassScanner.getInstance();
+                List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
+                if (!startService(name, services, true)) {
+                    log.error("Cloud connector ({}) not found", name);
+                }
             }
         }
     }
