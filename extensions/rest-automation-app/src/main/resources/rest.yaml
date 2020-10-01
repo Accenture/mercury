@@ -28,9 +28,15 @@ rest:
     headers: header_1
 
   - service: "hello.world"
-    trust_all_cert: true
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
+    timeout: 12
+    cors: cors_1
+    headers: header_1
+
+  - service: "hello.download"
+    methods: ['GET']
+    url: "/api/hello/download"
     timeout: 12
     cors: cors_1
     headers: header_1

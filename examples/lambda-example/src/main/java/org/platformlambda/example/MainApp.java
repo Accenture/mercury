@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.services.FileDownload;
 import org.platformlambda.services.HelloGeneric;
 import org.platformlambda.services.HelloPoJo;
 import org.slf4j.Logger;
@@ -59,6 +60,7 @@ public class MainApp implements EntryPoint {
         platform.register("hello.world", echo, 10);
         platform.register("hello.pojo", new HelloPoJo(), 5);
         platform.register("hello.generic", new HelloGeneric(), 5);
+        platform.register("hello.download", new FileDownload(), 5);
 
         // connect to cloud according to "cloud.connector" in application.properties
         platform.connectToCloud();

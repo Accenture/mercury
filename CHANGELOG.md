@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-"kafka.pubsub" is added as a cloud service
+1. "kafka.pubsub" is added as a cloud service
+2. File download example in the lambda-example project
 
 ### Removed
 

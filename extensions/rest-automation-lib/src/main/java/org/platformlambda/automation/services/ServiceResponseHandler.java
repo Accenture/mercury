@@ -172,8 +172,9 @@ public class ServiceResponseHandler implements LambdaFunction {
                             Object resBody = event.getBody();
                             if (resBody == null && streamId != null) {
                                 ObjectStreamIO io = new ObjectStreamIO(streamId);
+                                OutputStream out = response.getOutputStream();
                                 try (ObjectStreamReader in = io.getInputStream(getReadTimeout(timeoutOverride, holder.timeout))) {
-                                    OutputStream out = response.getOutputStream();
+
                                     for (Object block : in) {
                                         // update last access time
                                         holder.touch();
@@ -189,12 +190,9 @@ public class ServiceResponseHandler implements LambdaFunction {
                                         }
                                     }
                                 } catch (IOException | RuntimeException e) {
-                                    log.warn("{} output stream {} interrupted - {}", holder.url, streamId, e.getMessage());
-                                    if (e.getMessage().contains("timeout")) {
-                                        response.sendError(408, e.getMessage());
-                                    } else {
-                                        response.sendError(500, e.getMessage());
-                                    }
+                                    log.warn("{} {} interrupted - {}", holder.url, streamId, e.getMessage());
+                                    response.setStatus(e.getMessage().contains("timeout")? 408 : 500);
+                                    out.write(util.getUTF(e.getMessage()));
                                 }
                                 // regular output
                             } else if (resBody instanceof Map) {

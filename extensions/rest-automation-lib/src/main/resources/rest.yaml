@@ -57,6 +57,13 @@ rest:
     headers: header_1
     tracing: true
 
+  - service: "hello.download"
+    methods: ['GET']
+    url: "/api/hello/download"
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
 #
