@@ -26,6 +26,7 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.core.websocket.common.WsConfigurator;
@@ -44,7 +45,6 @@ public class KafkaPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(KafkaPubSub.class);
 
     private static final String MANAGER = KafkaSetup.MANAGER;
-    private static final String PUBLISHER = "system.pubsub.producer";
     private static final String TYPE = "type";
     private static final String PRESENCE_MONITOR = KafkaSetup.PRESENCE_MONITOR;
     private static final String CREATE_TOPIC = "create_topic";
@@ -66,7 +66,11 @@ public class KafkaPubSub implements PubSubProvider {
 
     public KafkaPubSub() {
         try {
-            Platform.getInstance().registerPrivate(PUBLISHER, new Publisher(), 1);
+            Platform platform = Platform.getInstance();
+            // start Kafka Topic Manager
+            platform.registerPrivate(MANAGER, new TopicManager(), 1);
+            // start publisher service
+            platform.registerPrivate(PubSub.PUBLISHER, new Publisher(), 1);
         } catch (IOException e) {
             log.error("Unable to start pub/sub producer - {}", e.getMessage());
         }
@@ -182,7 +186,7 @@ public class KafkaPubSub implements PubSubProvider {
             PostOffice po = PostOffice.getInstance();
             po.request(MANAGER, 20000, new Kv(TYPE, LEAVE), new Kv(ORIGIN, topic));
             // retire the current instance of producer that may have reference to the topic
-            po.send(PUBLISHER, new Kv(TYPE, STOP));
+            po.send(PubSub.PUBLISHER, new Kv(TYPE, STOP));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -251,7 +255,7 @@ public class KafkaPubSub implements PubSubProvider {
         }
         byte[] payload = event.toBytes();
         // this will guarantee that events are published orderly, keeping event sequencing for each topic
-        po.send(PUBLISHER, payload, new Kv(TYPE, PUB_SUB), new Kv(ID, event.getId()),
+        po.send(PubSub.PUBLISHER, payload, new Kv(TYPE, PUB_SUB), new Kv(ID, event.getId()),
                                         new Kv(DEST, event.getTo()), new Kv(TOPIC, topic));
     }
 

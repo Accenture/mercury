@@ -28,14 +28,47 @@ Hope you enjoy this journey to improve the world.
 
 Best regards, the Mercury team, Accenture
 
-May 2020
-
+September 2020
 
 ## Rationale
 
 The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need to modernize service-oriented architecture and to transform monolithic applications as manageable and reusable pieces, it was first mentioned in 2011 to advocate an architectural style that defines an application as a set of loosely coupled single purpose services.
 
 Classical model of microservices architecture often focuses in the use of REST as interface and the self-containment of data and process. Oftentimes, there is a need for inter-service communication because one service may consume another service. Usually this is done with a service broker. This is an elegant architectural concept. However, many production systems face operational challenges. In reality, it is quite difficult to decompose a solution down to functional level. This applies to both green field development or application modernization. As a result, many microservices modules are indeed smaller subsystems. Within a microservice, business logic is tightly coupled with 3rd party and open sources libraries including cloud platform client components and drivers. This is suboptimal.
+
+## User friendly reactive programming
+
+`Summary`
+- Completely and natively event driven
+- Fully open source - Apache license - https://github.com/Accenture/mercury
+- Simple configuration and simple API hides all the scaffolding code
+- Code naturally, without worrying about asynchrony
+- Naturally code in functional style, which makes code very portable
+- Mix and match languages - currently Java and Python are supported, Node.js is WIP
+- Built-in distributed tracing
+- Avoid going to the network when running in the same process - shown to be a huge performance boost for latency critical applications
+- Doesn't require all services to adopt, will provide the same benefits to those that do adopt it
+- Learn and start coding in less than 1 hr
+
+`Benefits`
+- Developer productivity - both authoring and maintenance
+- Improves latency of calls within the same process
+- Enables fully reactive implementations
+- Scalability
+- Portability of code between containers and clouds
+- Observability - know who is calling who and when, know where you are in workflows
+- Improves future-proofing: as better eventing libraries/frameworks/platforms become available, they can be brought in without changing a line of code
+
+`Features`
+- Multiple languages supported - currently Java and Python are supported, Node.js is WIP
+- Plug in your favorite event stream. Popular ones are already supported.
+- Multiple eventing patterns supported - pub/sub, broadcast, command, etc.
+- REST APIs for event-based services
+- Built in distributed tracing
+
+`Gnarly Use Cases solved with Mercury`
+- Workflows with event-based architecture, utilizing Saga pattern
+- Namespaces in event stream (e.g. Kafka)
 
 ## Architecture principles
 
@@ -227,7 +260,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -Dcloud.connector=none -jar target/rest-example-1.12.64.jar
+java -Dcloud.connector=none -jar target/rest-example-1.12.65.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -281,20 +314,20 @@ For simplicity, we are going to use the Event Node system to emulate a cloud env
 cd mercury/connectors
 cd event-node
 mvn clean package
-java -jar target/event-node-1.12.64.jar
+java -jar target/event-node-1.12.65.jar
 # the Event Node system will run. It emulates an event stream system.
 
 # Open another terminal and go to the project root
 cd mercury/examples
 cd lambda-example
 mvn clean package
-java -Dcloud.connector=event.node -jar target/lambda-example-1.12.64.jar
+java -Dcloud.connector=event.node -jar target/lambda-example-1.12.65.jar
 # the lambda-example microservices module will run and connect to the event node
 
 # Go to the terminal that runs the rest-example earlier
 Ctrl-C to quit the rest-example application
 # Then run the rest-example again with cloud.connector set to event.node
-java -Dcloud.connector=event.node -jar target/rest-example-1.12.64.jar
+java -Dcloud.connector=event.node -jar target/rest-example-1.12.65.jar
 # without the "-Dcloud.connector" parameter override, the rest-example will run and connect to a hazelcast cluster.
 
 ```
@@ -343,7 +376,7 @@ Members {size:1, ver:1} [
 cd mercury/connectors
 cd hazelcast/hazelcast-presence
 mvn clean package
-java -jar target/hazelcast-presence-1.12.64.jar
+java -jar target/hazelcast-presence-1.12.65.jar
 # this will start the "presence monitor" that will connect to the hazelcast cluster.
 ```
 
@@ -351,11 +384,11 @@ java -jar target/hazelcast-presence-1.12.64.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.64.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.65.jar
 # the lambda-example will connect to the hazelcast cluster and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.64.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.65.jar
 # the rest-example will also connect to the hazelcast cluster and the "presence monitor"
 
 ```
@@ -380,7 +413,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 123,
         "type" : "APP",
         "updated" : "2018-12-21T17:51:01Z",
-        "version" : "1.12.64"
+        "version" : "1.12.65"
       },
       "201812215ff40bbc36004637ac8cd18debf5cf95" : {
         "created" : "2018-12-21T17:11:49Z",
@@ -389,7 +422,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 117,
         "type" : "WEB",
         "updated" : "2018-12-21T17:50:55Z",
-        "version" : "1.12.64"
+        "version" : "1.12.65"
       }
     },
     "topics" : [ "201812215ff40bbc36004637ac8cd18debf5cf95", "201812213aed6381e8b543d48f3f288f64207019" ],
@@ -401,7 +434,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
   "app" : {
     "description" : "Presence Monitor",
     "name" : "hazelcast-presence",
-    "version" : "1.12.64"
+    "version" : "1.12.65"
   },
   "memory" : {
     "allocated" : "737,673,216",
@@ -448,11 +481,11 @@ For rapid development and prototyping, we have implemented a convenient standalo
 cd mercury/connectors
 cd kafka/kafka-standalone
 mvn clean package
-java -jar target/kafka-standalone-1.12.64.jar
+java -jar target/kafka-standalone-1.12.65.jar
 # this will start a standalone kafka server with embedded zookeeper
 cd ../kafka-presence
 mvn clean package
-java -jar target/kafka-presence-1.12.64.jar
+java -jar target/kafka-presence-1.12.65.jar
 # this will start the "presence monitor" that will connect to the kafka cluster.
 ```
 
@@ -460,11 +493,11 @@ java -jar target/kafka-presence-1.12.64.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.64.jar
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.65.jar
 # the lambda-example will connect to the kafka server and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.64.jar
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.65.jar
 # the rest-example will also connect to the kafka server and the "presence monitor"
 
 ```
@@ -529,10 +562,10 @@ You may create individual process.json for each executable and start them one-by
         "script":"java",
         "args":[
             "-jar",
-            "/full_qualified_path/event-node-1.12.64.jar"
+            "/full_qualified_path/event-node-1.12.65.jar"
         ],
         "watch":[
-            "/full_qualified_path/event-node-1.12.64.jar"
+            "/full_qualified_path/event-node-1.12.65.jar"
         ],
         "node_args":[],
         "log_date_format":"YYYY-MM-DD HH:mm Z",

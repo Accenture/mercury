@@ -49,9 +49,9 @@ public class KafkaSetup implements CloudSetup {
     public static final String MANAGER = "kafka.manager";
     public static final String PRESENCE_MONITOR = "presence.monitor";
     public static final String KAFKA_PROPERTIES_PROVIDER = "kafka.properties.provider";
+    public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final String ORIGIN = "origin";
-    private static final String BROKER_URL = "bootstrap.servers";
     private static final String TYPE = "type";
     private static final String CREATE_TOPIC = "create_topic";
     private static final String GET = "get";
@@ -157,7 +157,6 @@ public class KafkaSetup implements CloudSetup {
             Platform platform = Platform.getInstance();
             log.info("Starting kafka producer module");
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
-            platform.registerPrivate(MANAGER, new TopicManager(), 1);
             String origin = platform.getOrigin();
             log.info("Starting kafka consumer module");
             String namespace = Platform.getInstance().getNamespace();

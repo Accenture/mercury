@@ -47,8 +47,8 @@ import java.util.concurrent.TimeoutException;
 public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);
 
-    private PubSubProvider provider;
-    private boolean verified = false;
+    public static final String PUBLISHER = "system.pubsub.producer";
+    private static PubSubProvider provider;
     private static final PubSub instance = new PubSub();
 
     private PubSub() {
@@ -66,7 +66,15 @@ public class PubSub {
      * @param pubSub provider
      */
     public void enableFeature(PubSubProvider pubSub) {
-        this.provider = pubSub;
+        if (pubSub == null) {
+            throw new IllegalArgumentException("Missing provider");
+        }
+        if (PubSub.provider == null) {
+            PubSub.provider = pubSub;
+            log.info("Provider {} loaded", PubSub.provider);
+        } else {
+            log.error("Provider {} is already loaded", PubSub.provider);
+        }
     }
 
     /**
@@ -75,15 +83,6 @@ public class PubSub {
      * @return true or false
      */
     public boolean featureEnabled() {
-        if (!verified) {
-            try {
-                Platform.getInstance().waitForProvider(PostOffice.CLOUD_CONNECTOR, 30);
-                verified = true;
-            } catch (TimeoutException e) {
-                log.warn("{} not ready", PostOffice.CLOUD_CONNECTOR);
-                return false;
-            }
-        }
         return provider != null;
     }
 
@@ -91,6 +90,10 @@ public class PubSub {
         if (!featureEnabled()) {
             throw new IOException("Pub/sub feature not implemented in cloud connector");
         }
+    }
+
+    public void waitForProvider(int seconds) throws TimeoutException {
+        Platform.getInstance().waitForProvider(PUBLISHER, seconds);
     }
 
     /**
