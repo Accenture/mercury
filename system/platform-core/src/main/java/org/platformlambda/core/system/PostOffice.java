@@ -207,12 +207,14 @@ public class PostOffice {
      *
      * @param key of the annotation
      * @param value of the annotation
+     * @return post office instance
      */
-    public void annotateTrace(String key, String value) {
+    public PostOffice annotateTrace(String key, String value) {
         TraceInfo info = traces.get(Thread.currentThread().getId());
         if (info != null) {
             info.annotate(key, value);
         }
+        return this;
     }
 
     /**
