@@ -42,31 +42,45 @@ public class WsFilter implements Filter {
     private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
     private static final String LOCALHOST = "127.0.0.1";
+    private static final String X_INFO_KEY = "X-Info-Key";
 
     private static boolean loaded = false;
     private static List<String> protectedRestEndpoints = new ArrayList<>();
-    private static String apiKeyLabel, infoApiKey;
+    private static List<String> indexPageList = new ArrayList<>();
+    private static String indexPage = "index.html";
+    private static String infoApiKey;
     private static Boolean hstsRequired;
 
     @Override
     public void init(FilterConfig filterConfig) {
         if (!loaded) {
             loaded = true;
+            Utility util = Utility.getInstance();
             AppConfigReader reader = AppConfigReader.getInstance();
             // by default, HSTS header is enabled
             hstsRequired = "true".equals(reader.getProperty("hsts.feature", "true"));
             log.info("HSTS (RFC-6797) feature {}", hstsRequired? "enabled" : "disabled");
+            // index.html redirection
+            indexPage = reader.getProperty("index.page", "index.html");
+            String indexList = reader.getProperty("index.redirection");
+            if (indexList != null) {
+                List<String> normalizedList = new ArrayList<>();
+                util.split(indexList, ", ").forEach((s) -> { normalizedList.add(s.endsWith("/")? s : s + "/"); });
+                indexPageList = normalizedList;
+                log.info("Index page redirection - {}", indexPageList);
+            }
+            // protected info pages
             String endpoints = reader.getProperty("protected.info.endpoints");
             if (endpoints != null) {
-                protectedRestEndpoints = Utility.getInstance().split(endpoints, ", ");
-                Utility util = Utility.getInstance();
-                apiKeyLabel = reader.getProperty("info.api.key.label", "X-Info-Key");
+                protectedRestEndpoints = util.split(endpoints, ", ");
                 infoApiKey = reader.getProperty("info.api.key");
                 if (infoApiKey == null) {
+                    // randomize secret key because it is not configured
                     infoApiKey = util.getUuid();
-                    log.error("{} disabled because info.api.key is missing in application.properties or INFO_API_KEY in environment", endpoints);
+                    log.error("{} disabled because info.api.key is not configured", protectedRestEndpoints);
+                } else {
+                    log.info("{} loaded to protect {}", X_INFO_KEY, protectedRestEndpoints);
                 }
-                log.info("Started. {} loaded.", apiKeyLabel);
             }
         }
     }
@@ -91,8 +105,22 @@ public class WsFilter implements Filter {
                 if (hstsRequired && HTTPS.equals(req.getHeader(PROTOCOL))) {
                     res.setHeader(TRANSPORT_SECURITY_KEY, TRANSPORT_SECURITY_VALUE);
                 }
+                // perform redirection to index page if needed
+                if (!indexPageList.isEmpty()) {
+                    String uri = req.getRequestURI();
+                    if (!uri.endsWith("/")) {
+                        uri += "/";
+                    }
+                    for (String index : indexPageList) {
+                        if (uri.equalsIgnoreCase(index)) {
+                            res.sendRedirect(uri+indexPage);
+                            return;
+                        }
+                    }
+                }
+                // is page protected?
                 if (isProtected(req)) {
-                    String apiKey = req.getHeader(apiKeyLabel);
+                    String apiKey = req.getHeader(X_INFO_KEY);
                     if (apiKey == null) {
                         res.sendError(404, "Not found");
                         return;

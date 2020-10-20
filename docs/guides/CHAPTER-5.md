@@ -22,9 +22,10 @@
 | env.variables                               | e.g. MY_ENV:my.env                        | Optional |
 | safe.data.models                            | packages pointing to your PoJo classes    | Optional |
 | protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*|
-| info.api.key.label                          | X-Info-Key                                | Optional*|
 | info.api.key                                | some secret key (recommended to use UUID) | Optional*|
-| application.feature.route.substitution      | default false                             | Optional |
+| index.redirection                           | comma separated list of URI paths         | Optional*|
+| index.page                                  | default value is index.html               | Optional*|
+| application.feature.route.substitution      | default value is false                    | Optional |
 | route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional |
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
 | kafka.replication.factor                    | 3                                         | Kafka    |
@@ -48,7 +49,7 @@ You can get an instance of the serializer with `SimpleMapper.getInstance().getWh
 
 # info.api.key
 
-This is used to authenticate HTTP requests to the "protected.info.endpoints".
+When "protected.info.endpoints" are configured, you must provide this secret in the "X-Info-Key" header when accessing the protected endpoints. 
 
 # app.shutdown.key
 
