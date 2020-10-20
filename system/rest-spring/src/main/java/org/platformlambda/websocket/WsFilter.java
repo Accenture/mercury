@@ -113,7 +113,8 @@ public class WsFilter implements Filter {
                     }
                     for (String index : indexPageList) {
                         if (uri.equalsIgnoreCase(index)) {
-                            res.sendRedirect(uri+indexPage);
+                            String q = req.getQueryString();
+                            res.sendRedirect(uri+indexPage + (q == null? "" : "?"+q));
                             return;
                         }
                     }
