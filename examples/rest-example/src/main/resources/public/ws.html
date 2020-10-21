@@ -113,7 +113,7 @@
                 req['type'] = 'welcome';
                 // open a web socket
                 var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/demo/"+accessToken);
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/hello/"+accessToken);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));
