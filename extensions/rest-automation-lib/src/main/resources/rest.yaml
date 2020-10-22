@@ -5,7 +5,7 @@
 #
 rest:
   - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH']
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     timeout: 10s
     # optional authentication service which should return result as an EventEnvelope
@@ -80,13 +80,13 @@ cors:
     origin: ${api.origin}
     options:
       - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
-      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Trace-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Max-Age: 86400"
     headers:
       - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
-      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Trace-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Allow-Credentials: true"
 
 #
