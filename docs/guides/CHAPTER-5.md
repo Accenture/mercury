@@ -1,38 +1,40 @@
 # application.properties
 
 | Key                                         | Value                                     | Required |
-| :-------------------------------------------|:------------------------------------------|:--------:|
-| application.name or spring.application.name | Application name                          | Yes      |
-| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes      |
-| info.app.description                        | Something about application               | Yes      |
-| web.component.scan                          | your own package path or parent path      | Yes      |
-| server.port                                 | e.g. 8083                                 | Yes*     |
-| spring.mvc.static-path-pattern              | /**                                       | Yes*     |
-| spring.resources.static-locations           | classpath:/public/                        | Yes*     |
-| jax.rs.application.path                     | /api                                      | Optional*|
-| show.env.variables                          | comma separated list of variable names    | Optional*|
-| show.application.properties                 | comma separated list of property names    | Optional*|
-| cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional |
-| cloud.services                              | e.g. hazelcast.reporter                   | Optional |
-| presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional |
-| event.node.path                             | e.g. ws://127.0.0.1:8080/ws/events        | Optional |
-| hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional |
-| hazelcast.namespace                         | your system name for multi-tenancy        | Optional |
-| snake.case.serialization                    | true (recommended)                        | Optional |
-| env.variables                               | e.g. MY_ENV:my.env                        | Optional |
-| safe.data.models                            | packages pointing to your PoJo classes    | Optional |
-| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*|
-| info.api.key                                | some secret key (recommended to use UUID) | Optional*|
-| index.redirection                           | comma separated list of URI paths         | Optional*|
-| index.page                                  | default value is index.html               | Optional*|
-| application.feature.route.substitution      | default value is false                    | Optional |
-| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional |
-| kafka.client.properties                     | classpath:/kafka.properties               | Kafka    |
-| kafka.replication.factor                    | 3                                         | Kafka    |
-| multi.tenancy.namespace                     | environment shortname                     | Optional |
-| app.shutdown.key                            | secret key to shutdown app instance       | Optional |
+| :-------------------------------------------|:------------------------------------------|:---------:|
+| application.name or spring.application.name | Application name                          | Yes       |
+| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
+| info.app.description                        | Something about application               | Yes       |
+| web.component.scan                          | your own package path or parent path      | Yes       |
+| server.port                                 | e.g. 8083                                 | Yes*      |
+| spring.mvc.static-path-pattern              | /**                                       | Yes*      |
+| spring.resources.static-locations           | classpath:/public/                        | Yes*      |
+| jax.rs.application.path                     | /api                                      | Optional*1|
+| show.env.variables                          | comma separated list of variable names    | Optional*1|
+| show.application.properties                 | comma separated list of property names    | Optional*1|
+| cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional  |
+| cloud.services                              | e.g. hazelcast.reporter                   | Optional  |
+| presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional  |
+| event.node.path                             | e.g. ws://127.0.0.1:8080/ws/events        | Optional  |
+| hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional  |
+| hazelcast.namespace                         | your system name for multi-tenancy        | Optional  |
+| snake.case.serialization                    | true (recommended)                        | Optional  |
+| env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
+| safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
+| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
+| info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
+| trace.http.header                           | comma separated list traceId labels       | *2        |
+| index.redirection                           | comma separated list of URI paths         | Optional*1|
+| index.page                                  | default value is index.html               | Optional*1|
+| application.feature.route.substitution      | default value is false                    | Optional  |
+| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
+| kafka.client.properties                     | classpath:/kafka.properties               | Kafka     |
+| kafka.replication.factor                    | 3                                         | Kafka     |
+| multi.tenancy.namespace                     | environment shortname                     | Optional  |
+| app.shutdown.key                            | secret key to shutdown app instance       | Optional  |
 
-`*` - when using the "rest-spring" library
+`*1` - when using the "rest-spring" library
+`*2` - applies to the REST automation helper application only
 
 # safe.data.models
 
@@ -50,6 +52,18 @@ You can get an instance of the serializer with `SimpleMapper.getInstance().getWh
 # info.api.key
 
 When "protected.info.endpoints" are configured, you must provide this secret in the "X-Info-Key" header when accessing the protected endpoints. 
+
+# trace.http.header
+
+Identify the HTTP header for traceId. When configured with more than one label, the system will retrieve traceID from the
+corresponding HTTP header and propagate it through the transaction that may be served by multiple services.
+
+If traceId is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
+
+e.g. 
+X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+or
+X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
 
 # app.shutdown.key
 

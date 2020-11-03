@@ -54,7 +54,6 @@ public class HttpRelay implements LambdaFunction {
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final ConcurrentMap<String, HttpRequestFactory> httpFactory = new ConcurrentHashMap<>();
 
-    private static final String X_TRACE_ID = ServiceGateway.X_TRACE_ID;
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
@@ -89,8 +88,9 @@ public class HttpRelay implements LambdaFunction {
             String temp = reader.getProperty("app.temp.dir", "/tmp/downloads");
             tempDir = new File(temp);
             if (!tempDir.exists()) {
-                tempDir.mkdirs();
-                log.info("Temporary work directory {} created", tempDir);
+                if (tempDir.mkdirs()) {
+                    log.info("Temporary work directory {} created", tempDir);
+                }
             }
             Housekeeper housekeeper = new Housekeeper(tempDir);
             housekeeper.start();
@@ -102,17 +102,12 @@ public class HttpRelay implements LambdaFunction {
         if (httpFactory.containsKey(key)) {
             return httpFactory.get(key);
         }
-        if (trustAll) {
-            HttpRequestFactory factory = new NetHttpTransport.Builder().doNotValidateCertificate().build().createRequestFactory();
-            httpFactory.put(key, factory);
-            log.info("Loaded HTTP factory {}", key);
-            return factory;
-        } else {
-            HttpRequestFactory factory = new NetHttpTransport().createRequestFactory();
-            httpFactory.put(key, factory);
-            log.info("Loaded HTTP factory {}", key);
-            return factory;
-        }
+        HttpRequestFactory factory = trustAll?
+                new NetHttpTransport.Builder().doNotValidateCertificate().build().createRequestFactory() :
+                new NetHttpTransport().createRequestFactory();
+        httpFactory.put(key, factory);
+        log.info("Loaded HTTP factory {}", key);
+        return factory;
     }
 
     @Override
@@ -227,7 +222,7 @@ public class HttpRelay implements LambdaFunction {
             // propagate X-Trace-Id when forwarding the HTTP request
             String traceId = po.getTraceId();
             if (traceId != null) {
-                httpHeaders.set(X_TRACE_ID, traceId);
+                httpHeaders.set(ServiceGateway.getDefaultTraceIdLabel(), traceId);
                 update = true;
             }
             // set cookies if any
@@ -349,10 +344,11 @@ public class HttpRelay implements LambdaFunction {
                     response.disconnect();
                 }
                 if (temp != null) {
-                    temp.delete();
+                    if (!temp.delete()) {
+                        log.error("unable to delete temp file {}", temp);
+                    }
                 }
             }
-
         }
         throw new IllegalArgumentException("Invalid request");
     }
@@ -383,7 +379,7 @@ public class HttpRelay implements LambdaFunction {
 
     private String getContentDisposition(String tag, String filename) {
         return String.format("form-data; name=\"%s\"; filename=\"%s\"",
-                tag, filename.replace("\"", "\'"));
+                tag, filename.replace("\"", "'"));
     }
 
     private String getUrl(String host, String url) {
@@ -396,7 +392,6 @@ public class HttpRelay implements LambdaFunction {
         FileOutputStream out = new FileOutputStream(temp);
         ObjectStreamIO consumer = new ObjectStreamIO(streamId);
         ObjectStreamReader in = consumer.getInputStream(timeout);
-        int i = 0;
         while (!in.isEof()) {
             try {
                 for (Object block : in) {

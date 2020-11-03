@@ -34,6 +34,7 @@ import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.ObjectStreamWriter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +58,6 @@ public class ServiceGateway extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(ServiceGateway.class);
 
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
-    public static final String X_TRACE_ID = "X-Trace-Id";
     private static final String PROTOCOL = "x-forwarded-proto";
     private static final String HTTPS = "https";
     private static final String UTF_8 = "utf-8";
@@ -72,7 +72,26 @@ public class ServiceGateway extends HttpServlet {
     private static final int BUFFER_SIZE = 2048;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
+    private static String defaultTraceIdLabel;
+    private static final List<String> traceIdLabels = new ArrayList<>();
     private static boolean ready = false;
+
+    public ServiceGateway() {
+        if (defaultTraceIdLabel == null) {
+            Utility util = Utility.getInstance();
+            AppConfigReader config = AppConfigReader.getInstance();
+            List<String> labels = util.split(config.getProperty("trace.http.header"), ", ");
+            if (labels.isEmpty()) {
+                labels.add("X-Trace-Id");
+            }
+            defaultTraceIdLabel = labels.get(0);
+            traceIdLabels.addAll(labels);
+        }
+    }
+
+    public static String getDefaultTraceIdLabel() {
+        return defaultTraceIdLabel;
+    }
 
     public static ConcurrentMap<String, AsyncContextHolder> getContexts() {
         return contexts;
@@ -238,17 +257,13 @@ public class ServiceGateway extends HttpServlet {
         String tracePath = null;
         // Set trace header if needed
         if (route.info.tracing) {
-            /*
-             * Use X-Trace-Id from HTTP request headers if any.
-             * Otherwise, generate a unique ID.
-             */
-            String httpTrace = request.getHeader(X_TRACE_ID);
-            traceId = httpTrace == null? util.getUuid() : httpTrace;
+            List<String> traceHeader = getTraceId(request);
+            traceId = traceHeader.get(1);
             tracePath = method + " " + url;
             if (queryString != null) {
                 tracePath += "?" + queryString;
             }
-            response.setHeader(X_TRACE_ID, traceId);
+            response.setHeader(traceHeader.get(0), traceHeader.get(1));
         }
         // authentication required?
         if (route.info.authService != null) {
@@ -432,6 +447,27 @@ public class ServiceGateway extends HttpServlet {
             response.sendError(400, e.getMessage());
             context.complete();
         }
+    }
+
+    /**
+     * Get X-Trace-Id from HTTP request headers if any.
+     * Otherwise generate a unique ID.
+     *
+     * @param request HTTP
+     * @return traceLabel and traceId
+     */
+    private List<String> getTraceId(HttpServletRequest request) {
+        List<String> result = new ArrayList<>();
+        for (String label: traceIdLabels) {
+            String id = request.getHeader(label);
+            if (id != null) {
+                result.add(label);
+                result.add(id);
+            }
+        }
+        result.add(getDefaultTraceIdLabel());
+        result.add(Utility.getInstance().getUuid());
+        return result;
     }
 
 }
