@@ -86,6 +86,7 @@ public class ServiceGateway extends HttpServlet {
             }
             defaultTraceIdLabel = labels.get(0);
             traceIdLabels.addAll(labels);
+            log.info("HTTP trace headers {}", traceIdLabels);
         }
     }
 
