@@ -632,6 +632,10 @@ With the Mercury framework, distributed tracing does not require coding at appli
 To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of
 the rest-automation helper application.
 
+## Kafka compatibility
+
+As of December 2020, Mercury has been tested and deployed with Apache Kafka, Confluent Kafka, IBM Event Streams / Message Hub and Microsoft Azure Event Hubs.
+
 ## Other consideration
 
 - Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. https://en.wikipedia.org/wiki/ISO_8601
