@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 1. "kafka.pubsub" is added as a cloud service
 2. File download example in the lambda-example project
+3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
 
 ### Removed
 

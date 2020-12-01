@@ -22,6 +22,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
@@ -29,6 +30,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.ProcessStatus;
 import org.platformlambda.core.models.TraceInfo;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +55,17 @@ public class WorkerQueue extends AbstractActor {
     private final int instance;
     private final  ActorRef manager;
     private boolean stopped = false;
+    private static String traceLogHeader;
 
     public static Props props(ServiceDef def, ActorRef manager, int instance) {
         return Props.create(WorkerQueue.class, () -> new WorkerQueue(def, manager, instance));
     }
 
     public WorkerQueue(ServiceDef def, ActorRef manager, int instance) {
+        if (traceLogHeader == null) {
+            AppConfigReader config = AppConfigReader.getInstance();
+            traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
+        }
         this.def = def;
         this.instance = instance;
         this.manager = manager;
@@ -81,11 +88,12 @@ public class WorkerQueue extends AbstractActor {
                      */
                     PostOffice po = PostOffice.getInstance();
                     po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
+                    if (event.getTraceId() != null) {
+                        ThreadContext.put(traceLogHeader, event.getTraceId());
+                    }
                     ProcessStatus ps = processEvent(event);
-                    /*
-                     * Skip trace logging if zero tracing
-                     */
                     TraceInfo trace = po.stopTracing();
+                    ThreadContext.remove(traceLogHeader);
                     if (tracing && trace != null && trace.id != null && trace.path != null) {
                         try {
                             /*

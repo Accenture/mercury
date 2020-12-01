@@ -24,6 +24,7 @@
 | protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
 | info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
 | trace.http.header                           | comma separated list traceId labels       | *2        |
+| trace.log.header                            | default value is X-Trace-Id               | Optional  |
 | index.redirection                           | comma separated list of URI paths         | Optional*1|
 | index.page                                  | default value is index.html               | Optional*1|
 | application.feature.route.substitution      | default value is false                    | Optional  |
@@ -64,6 +65,18 @@ e.g.
 X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
 or
 X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+
+# trace.log.header
+
+If tracing is enabled for a transaction, this will insert the trace-ID into the logger's ThreadContext using the trace.log.header.
+
+Note that trace.log.header is case sensitive and you must put the corresponding value in log4j2.xml.
+The default value is "X-Trace-Id" if this parameter is not provided in application.properties.
+e.g.
+
+```xml
+<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
+```
 
 # app.shutdown.key
 
