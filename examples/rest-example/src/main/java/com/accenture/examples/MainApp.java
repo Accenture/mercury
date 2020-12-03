@@ -23,7 +23,10 @@ import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.kafka.PubSubSetup;
+import org.platformlambda.kafka.pubsub.KafkaPubSub;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +72,7 @@ public class MainApp implements EntryPoint {
         platform.register("math.addition", new DemoMath(), 5);
 
         /*
-         * for local testing using event node:
+         * For local testing using event node:
          *
          * 1. set these parameters in application.properties
          *    cloud.connector=event.node
@@ -80,7 +83,8 @@ public class MainApp implements EntryPoint {
          */
 
         /*
-         * if you have your own custom cloud service modules
+         * In distributed mode, cloud services are started automatically when you connect to cloud.
+         * In standalone mode, you can start cloud services programmatically.
          */
         // platform.startCloudServices();
 

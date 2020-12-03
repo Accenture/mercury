@@ -14,9 +14,10 @@
         <logger name="org.apache.kafka.streams.StreamsConfig" level="WARN" />
         <logger name="org.apache.kafka.streams.processor.internals.StreamThread" level="WARN" />
         <logger name="org.apache.kafka.streams.KafkaStreams" level="WARN" />
+        <!-- To inspect configuration, change kafka client config classes to INFO  -->
         <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="ERROR" />
-        <logger name="org.apache.kafka.clients.admin.AdminClientConfig" level="WARN" />
-        <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="WARN" />
+        <logger name="org.apache.kafka.clients.admin.AdminClientConfig" level="ERROR" />
+        <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="ERROR" />
         <logger name="org.apache.kafka.clients.producer.KafkaProducer" level="WARN" />
         <logger name="org.apache.kafka.clients.Metadata" level="WARN" />
         <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN" />

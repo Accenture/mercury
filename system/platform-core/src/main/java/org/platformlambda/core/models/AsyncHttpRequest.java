@@ -43,7 +43,7 @@ public class AsyncHttpRequest {
     private static final String FILE_NAME = "filename";
     private static final String CONTENT_LENGTH = "size";
     private static final String TRUST_ALL_CERT = "trust_all_cert";
-    private static final String RELAY = "relay";
+    private static final String TARGET_HOST = "host";
 
     private String method;
     private String queryString;
@@ -58,7 +58,7 @@ public class AsyncHttpRequest {
     private Object body;
     private String streamRoute;
     private String fileName;
-    private String relay;
+    private String targetHost;
     private boolean trustAllCert = false;
     private boolean https = false;
     private int contentLength = -1;
@@ -248,11 +248,11 @@ public class AsyncHttpRequest {
         return queryParams;
     }
 
-    public String getRelay() {
-        return relay;
+    public String getTargetHost() {
+        return targetHost;
     }
 
-    public AsyncHttpRequest setRelay(String host) {
+    public AsyncHttpRequest setTargetHost(String host) {
         if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             try {
                 URL u = new URL(host);
@@ -265,7 +265,7 @@ public class AsyncHttpRequest {
             } catch (MalformedURLException e) {
                 throw new IllegalArgumentException("Invalid host - "+e.getMessage());
             }
-            this.relay = host;
+            this.targetHost = host;
             return this;
         } else {
             throw new IllegalArgumentException("Invalid host - must starts with "+HTTP_PROTOCOL+" or "+HTTPS_PROTOCOL);
@@ -408,8 +408,8 @@ public class AsyncHttpRequest {
          * This is used by the rest-automation "async.http.request" service
          * when forwarding HTTP request to a target HTTP endpoint.
          */
-        if (relay != null) {
-            result.put(RELAY, relay);
+        if (targetHost != null) {
+            result.put(TARGET_HOST, targetHost);
             result.put(TRUST_ALL_CERT, trustAllCert);
         }
         return result;
@@ -474,8 +474,8 @@ public class AsyncHttpRequest {
             if (map.containsKey(HTTPS)) {
                 https = (boolean) map.get(HTTPS);
             }
-            if (map.containsKey(RELAY)) {
-                relay = (String) map.get(RELAY);
+            if (map.containsKey(TARGET_HOST)) {
+                targetHost = (String) map.get(TARGET_HOST);
             }
             if (map.containsKey(TRUST_ALL_CERT)) {
                 trustAllCert = (boolean) map.get(TRUST_ALL_CERT);

@@ -543,12 +543,17 @@ LambdaFunction myFunction = (headers, body, instance) -> {
 };
 
 PubSub ps = PubSub.getInstance();
-ps.waitForProvider(10); // if you run this code in MainApp before the pub/sub service is started
-
-ps.createTopic("some.kafka.topic"); // this ensures the topic is ready
-
+/*
+ * Pub/sub service starts asynchronously.
+ * If your runs pub/sub code before the container is completely initialized, 
+ * you may want to "waitForProvider" for a few seconds.
+ */
+ps.waitForProvider(10); 
+// this creates a topic with one partition
+ps.createTopic("some.kafka.topic", 1); 
+// this subscribe the topic with your function
 ps.subscribe("some.kafka.topic", myFunction, "client-101", "group-101");
-
+// this publishes an event to the topic
 ps.publish("some.kafka.topic", null, "my test message");
 ```
 

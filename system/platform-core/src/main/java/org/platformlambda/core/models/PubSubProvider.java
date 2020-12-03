@@ -31,6 +31,8 @@ public interface PubSubProvider {
 
     boolean createTopic(String topic) throws IOException;
 
+    boolean createTopic(String topic, int partitions) throws IOException;
+
     void deleteTopic(String topic) throws IOException;
 
     void publish(String topic, Map<String, String> headers, Object body) throws IOException;
@@ -40,6 +42,8 @@ public interface PubSubProvider {
     void unsubscribe(String topic) throws IOException;
 
     boolean exists(String topic) throws IOException;
+
+    int partitionCount(String topic) throws IOException;
 
     List<String> list() throws IOException;
 

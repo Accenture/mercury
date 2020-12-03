@@ -109,6 +109,19 @@ public class PubSub {
     }
 
     /**
+     * Create a topic before publishing
+     *
+     * @param topic for a store-n-forward pub/sub channel
+     * @param partitions to be created for this topic
+     * @return true when topic is successfully created
+     * @throws IOException in case the topic cannot be created
+     */
+    public boolean createTopic(String topic, int partitions) throws IOException {
+        checkFeature();
+        return provider.createTopic(topic, partitions);
+    }
+
+    /**
      * Delete a topic
      *
      * @param topic for a store-n-forward pub/sub channel
@@ -166,6 +179,11 @@ public class PubSub {
     public boolean exists(String topic) throws IOException {
         checkFeature();
         return provider.exists(topic);
+    }
+
+    public int partitionCount(String topic) throws IOException {
+        checkFeature();
+        return provider.partitionCount(topic);
     }
 
     /**

@@ -114,13 +114,13 @@ public class HttpRelay implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         Utility util = Utility.getInstance();
         AsyncHttpRequest request = new AsyncHttpRequest(body);
-        String relay = request.getRelay();
-        if (relay != null) {
+        String targetHost = request.getTargetHost();
+        if (targetHost != null) {
             // select a http request factory
             HttpRequestFactory factory = getHttpFactory(instance, request.isTrustAllCert());
             // construct target URL
             String qs = request.getQueryString();
-            String url = getUrl(relay, request.getUrl()) + (qs == null? "" : "?"+qs);
+            String url = getUrl(targetHost, request.getUrl()) + (qs == null? "" : "?"+qs);
             boolean multipartUpload = false;
             // get request body if any
             HttpContent content = null;
@@ -320,7 +320,7 @@ public class HttpRelay implements LambdaFunction {
                                     resContentType.startsWith("application/javascript") ||
                                     resContentType.startsWith("text/javascript") ) {
                             /*
-                             * For API relay, the content-types are usually JSON or XML.
+                             * For API targetHost, the content-types are usually JSON or XML.
                              * HTML, CSS and JS are here as a best effort to return text content.
                              */
                             return resEvent.setBody(util.getUTF(b).trim());
@@ -349,8 +349,10 @@ public class HttpRelay implements LambdaFunction {
                     }
                 }
             }
+        } else {
+            throw new IllegalArgumentException("Missing target host. e.g. https://hostname");
         }
-        throw new IllegalArgumentException("Invalid request");
+
     }
 
     private void setResponseHeaders(EventEnvelope event, HttpHeaders headers) {

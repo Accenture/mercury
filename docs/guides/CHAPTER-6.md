@@ -9,12 +9,13 @@ This means you can make a HTTP request without using a HttpClient.
 For example, a simple HTTP GET request may look like this:
 
 ```java
+// the target URL is constructed from the relay 
 PostOffice po = PostOffice.getInstance();
 AsyncHttpRequest req = new AsyncHttpRequest();
 req.setMethod("GET");
 req.setHeader("accept", "application/json");
 req.setUrl("/api/search?keywords="+body);
-req.setRelay("https://service_provider_host");
+req.setTargetHost("https://service_provider_host");
 try {
     EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
     log.info("GOT {} {}", res.getHeaders(), res.getBody());
@@ -48,7 +49,7 @@ req.setMethod("POST");
 req.setHeader("accept", "application/json");
 req.setHeader("content-type", "application/json");
 req.setUrl("/api/book/new_book/12345");
-req.setRelay("https://service_provider_host");
+req.setTargetHost("https://service_provider_host");
 req.setBody(keyValues);
 // where keyValues is a HashMap
 ```
@@ -85,7 +86,7 @@ AsyncHttpRequest req = new AsyncHttpRequest();
 req.setMethod("GET");
 req.setHeader("accept", "application/json");
 req.setUrl("/api/search?keywords="+body);
-req.setRelay("https://service_provider_host");
+req.setTargetHost("https://service_provider_host");
 EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
 Map<String, String> resHeaders = res.getHeaders();
 if (resHeaders.containsKey("stream")) {

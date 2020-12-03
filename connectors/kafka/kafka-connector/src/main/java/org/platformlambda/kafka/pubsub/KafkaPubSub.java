@@ -46,6 +46,7 @@ public class KafkaPubSub implements PubSubProvider {
 
     private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String TYPE = "type";
+    private static final String PARTITIONS = "partitions";
     private static final String PRESENCE_MONITOR = KafkaSetup.PRESENCE_MONITOR;
     private static final String CREATE_TOPIC = "create_topic";
     private static final String PUB_SUB = "pub_sub";
@@ -163,10 +164,15 @@ public class KafkaPubSub implements PubSubProvider {
 
     @Override
     public boolean createTopic(String topic) throws IOException {
+        return createTopic(topic, 1);
+    }
+
+    @Override
+    public boolean createTopic(String topic, int partitions) throws IOException {
         validateTopicName(topic);
         try {
             EventEnvelope init = PostOffice.getInstance().request(MANAGER, 20000,
-                                                                new Kv(TYPE, CREATE_TOPIC), new Kv(ORIGIN, topic));
+                    new Kv(TYPE, CREATE_TOPIC), new Kv(ORIGIN, topic), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
             } else {
@@ -299,12 +305,28 @@ public class KafkaPubSub implements PubSubProvider {
     public boolean exists(String topic) throws IOException {
         validateTopicName(topic);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, EXISTS),
+            EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, EXISTS),
                                                                     new Kv(ORIGIN, topic), new Kv(PUB_SUB, true));
-            if (init.getBody() instanceof Boolean) {
-                return (Boolean) init.getBody();
+            if (response.getBody() instanceof Boolean) {
+                return (Boolean) response.getBody();
             } else {
                 return false;
+            }
+        } catch (TimeoutException | AppException e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    @Override
+    public int partitionCount(String topic) throws IOException {
+        validateTopicName(topic);
+        try {
+            EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, PARTITIONS),
+                    new Kv(ORIGIN, topic));
+            if (response.getBody() instanceof Integer) {
+                return (Integer) response.getBody();
+            } else {
+                return -1;
             }
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());

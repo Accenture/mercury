@@ -140,7 +140,6 @@ public class ServiceGateway extends HttpServlet {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void routeRequest(String url, AssignedRoute route, HttpServletRequest request, HttpServletResponse response) throws IOException {
         request.setCharacterEncoding(UTF_8);
         response.setCharacterEncoding(UTF_8);
@@ -200,7 +199,7 @@ public class ServiceGateway extends HttpServlet {
         }
         req.setUrl(httpUtil.normalizeUrl(url, route.info.urlRewrite));
         if (route.info.host != null) {
-            req.setRelay(route.info.host);
+            req.setTargetHost(route.info.host);
             req.setTrustAllCert(route.info.trustAllCert);
         }
         req.setMethod(method);
@@ -269,7 +268,7 @@ public class ServiceGateway extends HttpServlet {
         // authentication required?
         if (route.info.authService != null) {
             try {
-                long authTimeout = route.info.timeoutSeconds * 1000;
+                long authTimeout = route.info.timeoutSeconds * 1000L;
                 EventEnvelope authRequest = new EventEnvelope();
                 // the AsyncHttpRequest is sent as a map
                 authRequest.setTo(route.info.authService).setBody(req.toMap());
@@ -423,7 +422,7 @@ public class ServiceGateway extends HttpServlet {
         context.addListener(new AsyncHttpHandler(contexts, requestId));
         context.setTimeout(-1);
         // save to context map
-        AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000);
+        AsyncContextHolder holder = new AsyncContextHolder(context, route.info.timeoutSeconds * 1000L);
         holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);
         String acceptContent = request.getHeader(ACCEPT);
         if (acceptContent != null) {

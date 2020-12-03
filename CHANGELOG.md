@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. "kafka.pubsub" is added as a cloud service
 2. File download example in the lambda-example project
 3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
+4. Add API to pub/sub engine to support creation of topic with partitions
 
 ### Removed
 
@@ -20,10 +21,8 @@ N/A
 
 ### Changed
 
-Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when
-application is deployed without using Kafka as a service mesh. 
-
-i.e. standalone apps can talk to each other using native pub/sub.
+1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is deployed without using Kafka as a service mesh. i.e. standalone apps can talk to each other using native pub/sub.
+2. Rename "relay" to "targetHost" in AsyncHttpRequest data model
 
 ---
 ## Version 1.12.64, 9/28/2020

@@ -35,6 +35,7 @@ public class TopicManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
 
     private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String PARTITIONS = "partitions";
     private static final String ORIGIN = "origin";
     private static final String CREATE_TOPIC = "create_topic";
     private static final String LEAVE = "leave";
@@ -100,9 +101,14 @@ public class TopicManager implements LambdaFunction {
                 boolean valid = headers.containsKey(PUB_SUB) || regularTopicFormat(origin);
                 return valid && topicExists(origin);
             }
+            if (PARTITIONS.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
+                String origin = headers.get(ORIGIN);
+                return topicPartitions(origin);
+            }
             // if origin is not specified, it will create the dedicated topic for a new application that is starting up
             if (CREATE_TOPIC.equals(headers.get(TYPE))) {
-                createTopic(headers.containsKey(ORIGIN)? headers.get(ORIGIN) : Platform.getInstance().getOrigin());
+                createTopic(headers.containsKey(ORIGIN)? headers.get(ORIGIN) : Platform.getInstance().getOrigin(),
+                        headers.containsKey(PARTITIONS)? Utility.getInstance().str2int(headers.get(PARTITIONS)) : 1);
                 return true;
             }
             // delete topic when an application instance expires
@@ -118,9 +124,13 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) {
+        return topicPartitions(topic) != -1;
+    }
+
+    private int topicPartitions(String topic) {
         startAdmin();
-        DescribeTopicsResult topicMetadata = admin.describeTopics(Arrays.asList(topic));
-        boolean found = false;
+        DescribeTopicsResult topicMetadata = admin.describeTopics(Collections.singletonList(topic));
+        int partitions = -1;
         try {
             Map<String, TopicDescription> result = topicMetadata.all().get();
             count++;
@@ -128,15 +138,14 @@ public class TopicManager implements LambdaFunction {
                 for (String k: result.keySet()) {
                     TopicDescription desc = result.get(k);
                     if (desc.name().equals(topic)) {
-                        found = true;
-                        break;
+                        return desc.partitions().size();
                     }
                 }
             }
-            return found;
+            return partitions;
         } catch (Exception e) {
             // InvalidTopicException is a RunTimeException so it is better to catch all exceptions
-            return false;
+            return -1;
         }
     }
 
@@ -166,15 +175,15 @@ public class TopicManager implements LambdaFunction {
         return replicationFactor;
     }
 
-    private void createTopic(String topic) {
+    private void createTopic(String topic, int partitions) {
         startAdmin();
         try {
-            if (topicExists(topic)) {
-                log.info("Topic {} already exists", topic);
-            } else {
+            int currentPartitions = topicPartitions(topic);
+            if (currentPartitions == -1) {
                 int replication = getReplicationFactor();
+                int partitionCount = Math.max(1, partitions);
                 CreateTopicsResult createTask = admin.createTopics(
-                        Collections.singletonList(new NewTopic(topic, 1, (short) replication)));
+                        Collections.singletonList(new NewTopic(topic, partitionCount, (short) replication)));
                 createTask.all().get();
                 count++;
                 // check if creation is successful
@@ -190,11 +199,15 @@ public class TopicManager implements LambdaFunction {
                     }
                 }
                 if (found) {
-                    log.info("Created topic {} with replication factor of {}", topic, replication);
+                    log.info("Created topic {} with {} partition{}, replication factor of {}",
+                            topic, partitionCount, partitionCount == 1? "" : "s", replication);
                 } else {
                     log.error("Unable to create topic {}", topic);
                     System.exit(-1);
                 }
+            } else {
+                log.warn("Topic {} with {} partition{} already exists", topic, currentPartitions,
+                        currentPartitions == 1? "" : "s");
             }
         } catch (InterruptedException  | ExecutionException e) {
             log.error("Unable to create topic {} - {}", topic, e.getMessage());
