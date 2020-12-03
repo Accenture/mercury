@@ -201,10 +201,11 @@ public class ServiceRegistry implements LambdaFunction {
                 }
             }
         }
-        return processEvent(headers);
+        return processEvent(headers, body);
     }
 
-    private Object processEvent(Map<String, String> headers) throws IOException, TimeoutException, AppException {
+    @SuppressWarnings("unchecked")
+    private Object processEvent(Map<String, String> headers, Object body) throws IOException, TimeoutException, AppException {
         String type = headers.get(TYPE);
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
@@ -248,17 +249,28 @@ public class ServiceRegistry implements LambdaFunction {
                 removeRoutesFromOrigin(origin);
             }
         }
-        // add a route
-        if (ADD.equals(type) && headers.containsKey(ROUTE)
-                && headers.containsKey(ORIGIN) && headers.containsKey(PERSONALITY)) {
-            String route = headers.get(ROUTE);
+        // add route
+        if (ADD.equals(type) && headers.containsKey(ORIGIN)) {
             String origin = headers.get(ORIGIN);
-            String personality = headers.get(PERSONALITY);
-            if (origin.equals(Platform.getInstance().getOrigin())) {
-                broadcast(origin, route, personality, ADD);
+            if (headers.containsKey(ROUTE) && headers.containsKey(PERSONALITY)) {
+                // add a single route
+                String route = headers.get(ROUTE);
+                String personality = headers.get(PERSONALITY);
+                if (origin.equals(Platform.getInstance().getOrigin())) {
+                    broadcast(origin, route, personality, ADD);
+                }
+                // add to routing table
+                addRoute(origin, route, personality);
+            } else if (body instanceof Map) {
+                // add a list of routes
+                Map<String, String> routeMap = (Map<String, String>) body;
+                int count = routeMap.size();
+                log.info("Loading {} route{} from {}", count, count == 1? "" : "s", origin);
+                for (String route: routeMap.keySet()) {
+                    String personality = routeMap.get(route);
+                    addRoute(origin, route, personality);
+                }
             }
-            // add to routing table
-            addRoute(origin, route, personality);
         }
         // clear a route
         if (UNREGISTER.equals(type) && headers.containsKey(ROUTE) && headers.containsKey(ORIGIN)) {
@@ -276,17 +288,18 @@ public class ServiceRegistry implements LambdaFunction {
     private void sendMyRoutes(String origin) throws IOException {
         PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
+        Map<String, String> routeMap = new HashMap<>();
         for (String r : routes.keySet()) {
             ConcurrentMap<String, String> originMap = routes.get(r);
             if (originMap.containsKey(myOrigin)) {
-                String personality = originMap.get(myOrigin);
-                EventEnvelope request = new EventEnvelope();
-                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + origin)
-                        .setHeader(TYPE, ADD)
-                        .setHeader(ORIGIN, myOrigin)
-                        .setHeader(ROUTE, r).setHeader(PERSONALITY, personality);
-                po.send(request);
+                routeMap.put(r, originMap.get(myOrigin));
             }
+        }
+        if (!routeMap.isEmpty()) {
+            EventEnvelope request = new EventEnvelope();
+            request.setTo(ServiceDiscovery.SERVICE_REGISTRY + "@" + origin)
+                    .setHeader(TYPE, ADD).setHeader(ORIGIN, myOrigin).setBody(routeMap);
+            po.send(request);
         }
     }
 

@@ -21,8 +21,9 @@ N/A
 
 ### Changed
 
-1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in standalone mode.
+1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in standalone mode
 2. Rename "relay" to "targetHost" in AsyncHttpRequest data model
+3. Enhanced routing table distribution by sending a complete list of route tables, thus reducing network admin traffic.
 
 ---
 ## Version 1.12.64, 9/28/2020
