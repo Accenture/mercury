@@ -21,7 +21,7 @@ N/A
 
 ### Changed
 
-1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is deployed without using Kafka as a service mesh. i.e. standalone apps can talk to each other using native pub/sub.
+1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in standalone mode.
 2. Rename "relay" to "targetHost" in AsyncHttpRequest data model
 
 ---
