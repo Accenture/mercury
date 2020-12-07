@@ -24,9 +24,13 @@ import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.TargetRoute;
-import org.platformlambda.core.util.*;
+import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.CryptoApi;
+import org.platformlambda.core.util.ManagedCache;
+import org.platformlambda.core.util.SimpleClassScanner;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -259,7 +263,7 @@ public class Platform {
      * @param instances for concurrent processing of events
      * @throws IOException in case of duplicated registration
      */
-    public void register(String route, LambdaFunction lambda, int instances) throws IOException {
+    public void register(String route, TypedLambdaFunction lambda, int instances) throws IOException {
         register(route, lambda, false, instances);
     }
 
@@ -272,7 +276,7 @@ public class Platform {
      * @param instances for concurrent processing of events
      * @throws IOException in case of duplicated registration
      */
-    public void registerPrivate(String route, LambdaFunction lambda, int instances) throws IOException {
+    public void registerPrivate(String route, TypedLambdaFunction lambda, int instances) throws IOException {
         register(route, lambda, true, instances);
     }
 
@@ -295,7 +299,7 @@ public class Platform {
         }
     }
 
-    private void register(String route, LambdaFunction lambda, Boolean isPrivate, Integer instances)
+    private void register(String route, TypedLambdaFunction lambda, Boolean isPrivate, Integer instances)
             throws IOException {
         if (route == null) {
             throw new IOException("Missing service routing path");

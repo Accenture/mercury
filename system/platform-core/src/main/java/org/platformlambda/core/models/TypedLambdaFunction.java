@@ -20,7 +20,7 @@ package org.platformlambda.core.models;
 
 import java.util.Map;
 
-public interface LambdaFunction extends TypedLambdaFunction<Object, Object> {
+public interface TypedLambdaFunction<T, R> {
 
-    Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception;
+    R handleEvent(Map<String, String> headers, T body, int instance) throws Exception;
 }
