@@ -64,7 +64,7 @@ public class MainApp implements EntryPoint {
 Alternatively, for typed body and response without casting you can use TypedLambdaFunction<T, R>:
 
 ```
-    TypedLambdaFunction<String, Map<String, Object>> lambda = (headers, body, instance) -> {
+    TypedLambdaFunction<String, Map<String, String>> lambda = (headers, body, instance) -> {
         Map<String, String> result = new HashMap<>();
         result.put("body", body);
         return result;
