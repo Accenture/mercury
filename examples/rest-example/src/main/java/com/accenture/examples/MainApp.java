@@ -21,7 +21,7 @@ package com.accenture.examples;
 import com.accenture.examples.services.DemoMath;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.rest.RestServer;
@@ -47,7 +47,7 @@ public class MainApp implements EntryPoint {
 
         Platform platform = Platform.getInstance();
         // you can write simple service using anonymous function
-        LambdaFunction echo = (headers, body, instance) -> {
+        TypedLambdaFunction<Map<String, Object>, Map<String, Object>> echo = (headers, body, instance) -> {
             /*
              * Uncomment the "log.info" statement if you want to see this service receiving the event.
              * (Note that logging takes time so it will affect your function execution time.)
@@ -56,9 +56,9 @@ public class MainApp implements EntryPoint {
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
+            result.put("headers", headers.toString());
             result.put("body", body);
-            result.put("instance", instance);
+            result.put("instance", String.valueOf(instance));
             result.put("origin", platform.getOrigin());
             return result;
         };

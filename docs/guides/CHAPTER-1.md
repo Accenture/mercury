@@ -61,6 +61,16 @@ public class MainApp implements EntryPoint {
 
 ```
 
+Alternatively, for typed body and response without casting you can use TypedLambdaFunction<T, R>:
+
+```
+    TypedLambdaFunction<String, Map<String, String>> lambda = (headers, body, instance) -> {
+        Map<String, String> result = new HashMap<>();
+        result.put("body", body);
+        return result;
+    };
+```
+
 ## Calling a function
 
 Unlike traditional programming, you call a function by sending an event instead of calling its method. Mercury resolves routing automatically so events are delivered correctly no matter where the target function is, in the same memory space or another computer elsewhere in the network.

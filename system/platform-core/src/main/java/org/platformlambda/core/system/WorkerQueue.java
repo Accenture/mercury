@@ -27,9 +27,9 @@ import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.ProcessStatus;
 import org.platformlambda.core.models.TraceInfo;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -139,7 +139,7 @@ public class WorkerQueue extends AbstractActor {
 
     private ProcessStatus processEvent(EventEnvelope event) {
         PostOffice po = PostOffice.getInstance();
-        LambdaFunction f = def.getFunction();
+        TypedLambdaFunction f = def.getFunction();
         try {
             /*
              * Interceptor can read any input (i.e. including case for empty headers and null body).
