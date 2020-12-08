@@ -49,7 +49,7 @@ public class HelloWorld {
 
         PostOffice po = PostOffice.getInstance();
         Map<String, Object> forward = new HashMap<>();
-        forward.put("time", new Date());
+        forward.put("x-time", new Date());
 
         Enumeration<String> headers = request.getHeaderNames();
         while (headers.hasMoreElements()) {

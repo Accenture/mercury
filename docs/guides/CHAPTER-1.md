@@ -61,7 +61,7 @@ public class MainApp implements EntryPoint {
 
 ```
 
-Alternatively, for typed body and response without casting you can use TypedLambdaFunction<T, R>:
+Alternatively, for typed body and response without casting you can use TypedLambdaFunction<I, O> where I and O stand for input and output class respectively.
 
 ```
     TypedLambdaFunction<String, Map<String, String>> lambda = (headers, body, instance) -> {

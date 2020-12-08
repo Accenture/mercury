@@ -44,7 +44,7 @@ public class HelloConcurrent {
         PostOffice po = PostOffice.getInstance();
 
         Map<String, Object> forwardHeaders = new HashMap<>();
-        forwardHeaders.put("time", new Date());
+        forwardHeaders.put("x-time", new Date());
 
         Enumeration<String> headers = request.getHeaderNames();
         while (headers.hasMoreElements()) {

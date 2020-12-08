@@ -56,7 +56,7 @@ public class MainApp implements EntryPoint {
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers.toString());
+            result.put("headers", headers);
             result.put("body", body);
             result.put("instance", String.valueOf(instance));
             result.put("origin", platform.getOrigin());
@@ -67,7 +67,6 @@ public class MainApp implements EntryPoint {
         platform.register("hello.world", echo, 20);
         // Suppose DemoMath is more complex so we write it as a Java class implementing the LambdaFunction interface.
         platform.register("math.addition", new DemoMath(), 5);
-
         /*
          * For local testing using event node:
          *
