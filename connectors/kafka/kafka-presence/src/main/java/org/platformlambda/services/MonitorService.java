@@ -57,6 +57,7 @@ public class MonitorService implements LambdaFunction {
     private static final String ALIVE = "keep-alive";
     private static final String INFO = "info";
     private static final String TYPE = "type";
+    private static final String VERSION = "version";
     private static final String LEAVE = "leave";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
@@ -238,7 +239,9 @@ public class MonitorService implements LambdaFunction {
                                 if (isInfo) {
                                     // tell the connected application instance to proceed
                                     log.info("Member registered {}", info);
-                                    po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
+                                    Utility util = Utility.getInstance();
+                                    po.send(txPath, new EventEnvelope().setTo(READY)
+                                            .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
                                 } else {
                                     log.debug("Member {} is alive {}", token, info.get(SEQ));
                                 }

@@ -50,7 +50,7 @@ public class MonitorService implements LambdaFunction {
     private static final String MANAGER = MainApp.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String READY = "ready";
-
+    private static final String VERSION = "version";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
     private static final String PUT = "put";
@@ -147,7 +147,6 @@ public class MonitorService implements LambdaFunction {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
         try {
             handleEvent(headers, body);
@@ -272,7 +271,9 @@ public class MonitorService implements LambdaFunction {
                                 po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
                                 if (isInfo) {
                                     log.info("Member registered {}", info);
-                                    po.send(txPath, new EventEnvelope().setTo(READY).toBytes());
+                                    Utility util = Utility.getInstance();
+                                    po.send(txPath, new EventEnvelope().setTo(READY)
+                                            .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
                                 } else {
                                     log.debug("Member {} is alive {}", token, info.get(SEQ));
                                 }

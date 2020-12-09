@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.12.65, 9/30/2020
+## Version 1.12.65, 12/9/2020
 
 ### Added
 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2. File download example in the lambda-example project
 3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
 4. Add API to pub/sub engine to support creation of topic with partitions
+5. TypedLambdaFunction is added so that developer can predefine input and output classes in a service without casting
 
 ### Removed
 

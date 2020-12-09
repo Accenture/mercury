@@ -45,6 +45,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String ORIGIN = ServiceDiscovery.ORIGIN;
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
+    private static final String VERSION = "version";
     private static final String PEERS = "peers";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
@@ -211,7 +212,10 @@ public class ServiceRegistry implements LambdaFunction {
             String origin = headers.get(ORIGIN);
             origins.put(origin, Utility.getInstance().date2str(new Date(), true));
             if (origin.equals(myOrigin)) {
-                addNode();
+                if (headers.containsKey(VERSION)) {
+                    log.info("Presence monitor v"+headers.get(VERSION)+" detected");
+                }
+                registerMyRoutes();
                 broadcast(origin, null, null, JOIN);
             } else {
                 // send routing table of this node to the newly joined node
@@ -397,7 +401,7 @@ public class ServiceRegistry implements LambdaFunction {
         origins.remove(origin);
     }
 
-    private void addNode() throws IOException {
+    private void registerMyRoutes() {
         Platform platform = Platform.getInstance();
         String origin = platform.getOrigin();
         // copy local registry to global registry
@@ -407,7 +411,6 @@ public class ServiceRegistry implements LambdaFunction {
             ServiceDef def = routingTable.get(r);
             if (!def.isPrivate()) {
                 addRoute(origin, def.getRoute(), personality);
-                broadcast(origin, def.getRoute(), personality, ADD);
             }
         }
     }

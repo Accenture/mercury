@@ -103,8 +103,11 @@ public class PresenceConnector implements LambdaFunction {
                     if (READY.equals(event.getTo())) {
                         ready = true;
                         log.info("Activated {}", route);
+                        String platformVersion = event.getHeaders().getOrDefault(VERSION, "1.0");
                         // tell peers that this server has joined
-                        po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()));
+                        po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                                new Kv(VERSION, platformVersion),
+                                new Kv(ORIGIN, platform.getOrigin()));
                     } else {
                         po.send(event);
                     }
