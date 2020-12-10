@@ -137,6 +137,7 @@ public class WorkerQueue extends AbstractActor {
         }).build();
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private ProcessStatus processEvent(EventEnvelope event) {
         PostOffice po = PostOffice.getInstance();
         TypedLambdaFunction f = def.getFunction();
@@ -150,6 +151,7 @@ public class WorkerQueue extends AbstractActor {
             /*
              * If the service is an interceptor, we will pass the original event envelope instead of the message body.
              */
+
             Object result = ping? null : f.handleEvent(event.getHeaders(), interceptor ? event : event.getBody(), instance);
             float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
             String replyTo = event.getReplyTo();

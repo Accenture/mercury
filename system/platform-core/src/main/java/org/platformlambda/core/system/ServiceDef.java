@@ -29,6 +29,7 @@ public class ServiceDef {
     private static final int MAX_INSTANCES = 1000;
 
     private final String route;
+    @SuppressWarnings("rawtypes")
     private final TypedLambdaFunction lambda;
     private final String id;
     private final ActorRef manager;
@@ -36,6 +37,7 @@ public class ServiceDef {
     private boolean isPrivate = false;
     private int instances = 1;
 
+    @SuppressWarnings("rawtypes")
     public ServiceDef(String route, TypedLambdaFunction lambda, ActorRef manager) {
         this.id = Utility.getInstance().getUuid();
         this.route = route;
@@ -59,6 +61,7 @@ public class ServiceDef {
         return manager;
     }
 
+    @SuppressWarnings("rawtypes")
     public TypedLambdaFunction getFunction() {
         return lambda;
     }

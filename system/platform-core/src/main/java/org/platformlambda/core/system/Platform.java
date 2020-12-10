@@ -263,6 +263,7 @@ public class Platform {
      * @param instances for concurrent processing of events
      * @throws IOException in case of duplicated registration
      */
+    @SuppressWarnings("rawtypes")
     public void register(String route, TypedLambdaFunction lambda, int instances) throws IOException {
         register(route, lambda, false, instances);
     }
@@ -276,6 +277,7 @@ public class Platform {
      * @param instances for concurrent processing of events
      * @throws IOException in case of duplicated registration
      */
+    @SuppressWarnings("rawtypes")
     public void registerPrivate(String route, TypedLambdaFunction lambda, int instances) throws IOException {
         register(route, lambda, true, instances);
     }
@@ -299,6 +301,7 @@ public class Platform {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     private void register(String route, TypedLambdaFunction lambda, Boolean isPrivate, Integer instances)
             throws IOException {
         if (route == null) {
