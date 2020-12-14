@@ -44,16 +44,11 @@ build:
 .test_and_coverage:
     stage: test
     needs: ['build']
-    script:
-        - mvn $MAVEN_CLI_OPTS test -f system/platform-core
-        - ls -la system/platform-core/target/surefire-reports
-        - cat system/platform-core/target/site/jacoco/index.html
-        - mv system/platform-core/target/site/jacoco jacoco
     coverage: '/Total.*?([0-9]{1,3})%/'
     artifacts:
         reports:
             junit:
-                - /**/target/surefire-reports/TEST-*.xml
+                - $CI_PROJECT_DIR/**/target/surefire-reports/TEST-*.xml
         paths:
             - jacoco
         expire_in: 30 days
@@ -69,7 +64,7 @@ platform_test:
 rest_test:
   extends: .test_and_coverage
   script:
-      - mvn $MAVEN_CLI_OPTS test -f system/platform-core
+      - mvn $MAVEN_CLI_OPTS test -f system/rest-spring
 
 connector_eventnode_test:
   extends: .test_and_coverage
