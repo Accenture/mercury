@@ -74,7 +74,7 @@ submodules_test:
 .publish:
   stage: deploy
   dependencies: ['build', 'submodules_test']
-  needs: ['build']
+  needs: ['build', 'submodules_test']
 
 snapshot:
   script:
