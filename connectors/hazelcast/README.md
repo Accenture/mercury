@@ -30,7 +30,7 @@ cloud.connector=hazelcast
 cloud.services=hazelcast.reporter
 presence.monitor=ws://{HOST:PORT}:8080/ws/presence
 ```
-The presence.monitor may contain more than one URL with comma separator. For production, you should deploy 2 to 3 presence monitor application instances for resilience. When more than one instance of presence monitor is deployed, they will detect each other and coordinate among themselves. There is no master/slave relationship. All presence monitors run as equal peers.
+The presence.monitor may contain more than one URL with comma separator. For production, you should deploy 2 to 3 presence monitor application instances for resilience. When more than one instance of presence monitor is deployed, they will detect each other and coordinate among themselves. There is no primary/secondary relationship. All presence monitors run as equal peers.
 
 # Presence monitor
 
