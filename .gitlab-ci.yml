@@ -38,6 +38,16 @@ build:
         paths:
             - $CI_PROJECT_DIR/.m2/repository
 
+build-submodules:
+    stage: build
+    script:
+        - mvn $MAVEN_CLI_OPTS clean compile install
+    # cache:
+    #     key: $CI_PIPELINE_IID
+    #     policy: push # this is the only job that needs to publish to the cache, therefore it is overriding the policy
+    #     paths:
+    #         - $CI_PROJECT_DIR/.m2/repository
+
 
 ############################
 # TEST
@@ -96,6 +106,11 @@ connector_kafka_standalone_test:
   extends: .test_and_coverage
   script:
       - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-standalone
+
+submodules_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test 
 
 
 ############################
