@@ -1,7 +1,7 @@
 image: maven:3.6.1-jdk-8
 
 variables:
-    MAVEN_CLI_OPTS: "--show-version"
+    MAVEN_CLI_OPTS: "--show-version -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd@HH:mm:ss,SSS"
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Djava.awt.headless=true"
 
 cache:
@@ -12,29 +12,38 @@ cache:
 
 include:
     - template: Code-Quality.gitlab-ci.yml
-  
- 
+
+
 stages:
     - build
     - test
     - package
     - deploy
-    
+
 build:
     stage: build
     script:
         - mvn $MAVEN_CLI_OPTS clean compile install -f system/platform-core
         - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/event-node
         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-connector
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-presence
         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-connector
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-presence
+        - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-standalone
     cache:
         key: $CI_PIPELINE_IID
         policy: push # this is the only job that needs to publish to the cache, therefore it is overriding the policy
         paths:
             - $CI_PROJECT_DIR/.m2/repository
-            
-test_and_coverage:
+
+
+############################
+# TEST
+
+.test_and_coverage:
     stage: test
+    needs: ['build']
     script:
         - mvn $MAVEN_CLI_OPTS test -f system/platform-core
         - ls -la system/platform-core/target/surefire-reports
@@ -44,27 +53,78 @@ test_and_coverage:
     artifacts:
         reports:
             junit:
-                - system/platform-core/target/surefire-reports/TEST-*.xml
+                - /**/target/surefire-reports/TEST-*.xml
         paths:
             - jacoco
         expire_in: 30 days
 
- 
-javadoc: 
+platform_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f system/platform-core
+      - ls -la system/platform-core/target/surefire-reports
+      - cat system/platform-core/target/site/jacoco/index.html
+      - mv system/platform-core/target/site/jacoco jacoco
+
+rest_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f system/platform-core
+
+connector_eventnode_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/event-node
+
+connector_hazelcast_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/hazelcast/hazelcast-connector
+
+connector_hazelcast_presence_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/hazelcast/hazelcast-presence
+
+connector_kafka_connector_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-connector
+
+connector_kafka_presence_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-presence
+
+connector_kafka_standalone_test:
+  extends: .test_and_coverage
+  script:
+      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-standalone
+
+
+
+############################
+# JavaDoc
+
+javadoc:
     stage: package
-    script: 
+    dependencies:
+        - build
+    needs: ['build']
+    script:
         - mvn $MAVEN_CLI_OPTS javadoc:javadoc -f system/platform-core
         - mv system/platform-core/target/site/apidocs apidocs
     artifacts:
         paths:
             - apidocs
         expire_in: 30 days
-        
+
 pages:
     stage: deploy
     dependencies:
-        - test_and_coverage
+        - platform_test
         - javadoc
+    needs: ['platform_test', 'javadoc']
     script:
         - mkdir -p public/coverage public/docs
         - mv jacoco/* public/coverage
@@ -73,4 +133,3 @@ pages:
         paths:
         - public
         expire_in: 90 days
- 
