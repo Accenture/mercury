@@ -102,6 +102,25 @@ connector_kafka_standalone_test:
       - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-standalone
 
 
+############################
+# Publish
+
+.publish:
+  stage: deploy
+  dependencies: ['build']
+  needs: ['build']
+
+snapshot:
+  script:
+    - echo "Publish snapshot"
+    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -f system/platform-core
+
+release:
+  script:
+    - echo "Publish release"
+    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f system/platform-core
+  only:
+    - tags
 
 ############################
 # JavaDoc
