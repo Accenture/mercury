@@ -77,11 +77,13 @@ submodules_test:
   needs: ['build', 'submodules_test']
 
 snapshot:
+  extends: .publish
   script:
     - echo "Publish snapshot"
     - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests
 
 release:
+  extends: .publish
   script:
     - echo "Publish release"
     - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f
