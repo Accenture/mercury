@@ -65,17 +65,17 @@ public class JobExecutor implements Job {
              *
              * This would avoid duplicated execution of a scheduled job.
              */
-            final boolean master;
+            final boolean primary;
             String me = Platform.getInstance().getOrigin();
             PostOffice po = PostOffice.getInstance();
             List<String> peers = po.search(SCHEDULER_SERVICE);
             if (peers.size() > 1) {
                 Collections.sort(peers);
-                master = me.equals(peers.get(0));
+                primary = me.equals(peers.get(0));
             } else {
-                master = true;
+                primary = true;
             }
-            if (master) {
+            if (primary) {
                 if (po.exists(job.service)) {
                     try {
                         po.send(event);

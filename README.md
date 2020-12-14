@@ -509,7 +509,7 @@ The "cloud.connector=kafka" and "cloud.services=kafka.reporter" parameter overri
 
 You may visit http://127.0.0.1:8080/info to see connection info. The output is almost the same as Hazelcast demo except you will also find "pub/sub" topic for the presence monitor.
 
-For Kafka, the presence monitor (`kafka-presence`) is using pub/sub for coordination among multiple instances of the presence monitors. This allows monitors to monitor each other for improved resilience. This is a distributed cluster design and not a master-slave arrangement.
+For Kafka, the presence monitor (`kafka-presence`) is using pub/sub for coordination among multiple instances of the presence monitors. This allows monitors to monitor each other for improved resilience. This is a distributed cluster design and not a primary-secondary arrangement.
 
 The Kafka-connector library also encapsulates native Kafka pub/sub feature so that your application can do pub/sub without tight coupling with Kafka. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-3.md)
 
