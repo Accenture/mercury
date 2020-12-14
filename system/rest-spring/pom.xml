@@ -13,9 +13,9 @@
     <description>Preconfigured spring boot with proper serializers, exception handlers and loaders</description>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.3.3.RELEASE</version>
+        <groupId>org.platformlambda</groupId>
+        <artifactId>mercury-parent</artifactId>
+        <version>1.12-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
