@@ -41,6 +41,7 @@ stages:
 build:
     stage: build
     script:
+        - mvn $MAVEN_CLI_OPTS clean compile install -f system/parent
         - mvn $MAVEN_CLI_OPTS clean compile install
     cache:
         key: $CI_PIPELINE_IID
