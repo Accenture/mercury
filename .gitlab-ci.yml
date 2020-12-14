@@ -108,12 +108,12 @@ connector_kafka_standalone_test:
 snapshot:
   script:
     - echo "Publish snapshot"
-    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -f system/platform-core
+    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests
 
 release:
   script:
     - echo "Publish release"
-    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f system/platform-core
+    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f 
   only:
     - tags
 
