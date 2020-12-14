@@ -20,23 +20,6 @@ stages:
     - package
     - deploy
 
-# build:
-#     stage: build
-#     script:
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f system/parent
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f system/platform-core
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f system/rest-spring
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/event-node
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-connector
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/hazelcast/hazelcast-presence
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-connector
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-presence
-#         - mvn $MAVEN_CLI_OPTS clean compile install -f connectors/kafka/kafka-standalone
-#     cache:
-#         key: $CI_PIPELINE_IID
-#         policy: push # this is the only job that needs to publish to the cache, therefore it is overriding the policy
-#         paths:
-#             - $CI_PROJECT_DIR/.m2/repository
 
 build:
     stage: build
@@ -65,6 +48,10 @@ build:
             - jacoco
         expire_in: 30 days
 
+
+# just test platform core
+# TODO: is it possible to generate coverage report across all modules?
+# The current coverage report is only for the platform core submodule
 platform_test:
   extends: .test_and_coverage
   script:
@@ -73,45 +60,12 @@ platform_test:
       - cat system/platform-core/target/site/jacoco/index.html
       - mv system/platform-core/target/site/jacoco jacoco
 
-rest_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f system/rest-spring
 
-connector_eventnode_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/event-node
-
-connector_hazelcast_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/hazelcast/hazelcast-connector
-
-connector_hazelcast_presence_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/hazelcast/hazelcast-presence
-
-connector_kafka_connector_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-connector
-
-connector_kafka_presence_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-presence
-
-connector_kafka_standalone_test:
-  extends: .test_and_coverage
-  script:
-      - mvn $MAVEN_CLI_OPTS test -f connectors/kafka/kafka-standalone
-
+# test all modules
 submodules_test:
   extends: .test_and_coverage
   script:
-      - mvn $MAVEN_CLI_OPTS test 
+      - mvn $MAVEN_CLI_OPTS test
 
 
 ############################
@@ -119,7 +73,7 @@ submodules_test:
 
 .publish:
   stage: deploy
-  dependencies: ['build']
+  dependencies: ['build', 'submodules_test']
   needs: ['build']
 
 snapshot:
@@ -130,7 +84,7 @@ snapshot:
 release:
   script:
     - echo "Publish release"
-    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f 
+    - mvn $MAVEN_CLI_OPTS deploy -s .gitlab_maven_settings.xml -DskipTests -Drevision=$CI_COMMIT_TAG -f
   only:
     - tags
 
