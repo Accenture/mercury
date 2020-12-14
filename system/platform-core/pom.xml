@@ -7,9 +7,10 @@
     <artifactId>platform-core</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.12.65</version>
+    <version>${revision}</version>
     <name>Mercury core library</name>
     <properties>
+        <revision>1.12-SNAPSHOT</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

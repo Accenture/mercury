@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>hazelcast-presence</artifactId>
     <packaging>jar</packaging>
-    <version>1.12.65</version>
+    <version>${revision}</version>
     <name>hazelcast-presence-monitor</name>
 
     <parent>
@@ -16,6 +16,7 @@
     </parent>
 
     <properties>
+        <revision>1.12-SNAPSHOT</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <hazelcast.version>4.0.1</hazelcast.version>
         <java.version>1.8</java.version>
@@ -37,13 +38,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>1.12.65</version>
+            <version>1.12-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>1.12.65</version>
+            <version>1.12-SNAPSHOT</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
