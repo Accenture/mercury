@@ -6,7 +6,16 @@
     <groupId>com.accenture.mercury</groupId>
     <artifactId>parent-mercury</artifactId>
     <packaging>pom</packaging>
-    <version>1.0.0</version>
+
+    <!-- Dynamic Versioning  -->
+    <!-- Using ${revision} allows the version number to be overriden
+    by using the `-Drevision=...` flag.
+    (e.g. mvn package -DskipTests -Drevision=1.12.66 ) -->
+    <version>${revision}</version>
+    <properties>
+        <revision>1.12-SNAPSHOT</revision>
+    </properties>
+
     <name>Parent Mercury</name>
     <modules>
         <!-- Libraries -->
@@ -30,6 +39,7 @@
         <module>examples/rest-example</module>
     </modules>
 
+    <!-- Configure releases to GitLab Maven Registry -->
     <distributionManagement>
       <repository>
         <id>gitlab-maven</id>
