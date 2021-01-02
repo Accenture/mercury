@@ -311,7 +311,7 @@ public class SimpleMapper {
     }
 
     @VisibleForTesting
-    Object typedNumber(JsonPrimitive p) {
+    public Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.
          * This is a best effort to keep the numbers as int, long, float or double.
