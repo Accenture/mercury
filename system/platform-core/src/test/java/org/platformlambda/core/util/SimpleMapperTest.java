@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import com.google.gson.JsonPrimitive;
 import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -29,7 +30,24 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 public class SimpleMapperTest {
+
+    @Test
+    public void typedNumber_shouldMapDouble() {
+        final JsonPrimitive number = new JsonPrimitive("99999999.123456789");
+        Object result = SimpleMapper.getInstance().typedNumber(number);
+        assertThat(result, is(99999999.123456789));
+    }
+
+    @Test
+    public void typedNumber_shouldMapFloat() {
+        final JsonPrimitive number = new JsonPrimitive("1.1234567");
+        Object result = SimpleMapper.getInstance().typedNumber(number);
+        assertThat(result, is(1.1234567));
+    }
 
     @Test
     @SuppressWarnings("unchecked")
