@@ -19,6 +19,7 @@
 package org.platformlambda.core.serializers;
 
 import com.google.gson.*;
+import org.msgpack.core.annotations.VisibleForTesting;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -309,19 +310,15 @@ public class SimpleMapper {
         return result;
     }
 
-    private Object typedNumber(JsonPrimitive p) {
+    @VisibleForTesting
+    public Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.
          * This is a best effort to keep the numbers as int, long, float or double.
          */
         String number = p.getAsString();
         if (number.contains(".")) {
-            double n = p.getAsDouble();
-            if (n < Float.MIN_VALUE || n > Float.MAX_VALUE) {
-                return n;
-            } else {
-                return (float) n;
-            }
+            return p.getAsDouble();
         } else {
             long n = p.getAsLong();
             if (n < Integer.MIN_VALUE || n > Integer.MAX_VALUE) {
