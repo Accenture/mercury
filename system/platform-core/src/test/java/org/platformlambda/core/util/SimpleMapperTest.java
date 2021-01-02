@@ -37,16 +37,16 @@ public class SimpleMapperTest {
 
     @Test
     public void typedNumber_shouldMapDouble() {
-        final JsonPrimitive number = new JsonPrimitive("99999999.123456789");
+        final JsonPrimitive number = new JsonPrimitive("1.12345678");
         Object result = SimpleMapper.getInstance().typedNumber(number);
-        assertThat(result, is(99999999.123456789));
+        assertThat(result, is(1.12345678d));
     }
 
     @Test
     public void typedNumber_shouldMapFloat() {
-        final JsonPrimitive number = new JsonPrimitive("1.1234567");
+        final JsonPrimitive number = new JsonPrimitive("1.12");
         Object result = SimpleMapper.getInstance().typedNumber(number);
-        assertThat(result, is(1.1234567));
+        assertThat(result, is(1.12d));
     }
 
     @Test

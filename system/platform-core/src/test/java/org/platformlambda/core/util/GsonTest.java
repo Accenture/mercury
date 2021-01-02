@@ -42,9 +42,9 @@ public class GsonTest {
         // small long number will be converted to integer
         Assert.assertEquals(Integer.class, m.get("small_long").getClass());
         Assert.assertEquals(Long.class, m.get("long_number").getClass());
-        Assert.assertEquals(Float.class, m.get("float_number").getClass());
+        Assert.assertEquals(Double.class, m.get("float_number").getClass());
         // small double number will be converted to float
-        Assert.assertEquals(Float.class, m.get("small_double").getClass());
+        Assert.assertEquals(Double.class, m.get("small_double").getClass());
         // small double number will be converted to float
         Assert.assertEquals(Double.class, m.get("double_number").getClass());
         Assert.assertEquals(obj.name, m.get("name"));
