@@ -314,18 +314,13 @@ public class SimpleMapper {
     public Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.
-         * This is a best effort to keep the numbers as int, long, float or double.
+         * This is a best effort to return numbers as Double or Long to avoid loss of precision.
          */
         String number = p.getAsString();
         if (number.contains(".")) {
             return p.getAsDouble();
         } else {
-            long n = p.getAsLong();
-            if (n < Integer.MIN_VALUE || n > Integer.MAX_VALUE) {
-                return n;
-            } else {
-                return (int) n;
-            }
+            return p.getAsLong();
         }
     }
 

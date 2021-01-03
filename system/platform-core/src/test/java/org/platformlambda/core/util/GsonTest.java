@@ -38,9 +38,9 @@ public class GsonTest {
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
         Map m = mapper.readValue(obj, Map.class);
         Assert.assertEquals(String.class, m.get("date").getClass());
-        Assert.assertEquals(Integer.class, m.get("number").getClass());
+        Assert.assertEquals(Long.class, m.get("number").getClass());
         // small long number will be converted to integer
-        Assert.assertEquals(Integer.class, m.get("small_long").getClass());
+        Assert.assertEquals(Long.class, m.get("small_long").getClass());
         Assert.assertEquals(Long.class, m.get("long_number").getClass());
         Assert.assertEquals(Double.class, m.get("float_number").getClass());
         // small double number will be converted to float

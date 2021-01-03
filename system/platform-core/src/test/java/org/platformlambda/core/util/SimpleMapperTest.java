@@ -36,14 +36,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class SimpleMapperTest {
 
     @Test
-    public void typedNumber_shouldMapDouble() {
+    public void typedNumberShouldMapDouble() {
         final JsonPrimitive number = new JsonPrimitive("1.12345678");
         Object result = SimpleMapper.getInstance().typedNumber(number);
         assertThat(result, is(1.12345678d));
     }
 
     @Test
-    public void typedNumber_shouldMapFloat() {
+    public void typedNumberShouldMapFloat() {
         final JsonPrimitive number = new JsonPrimitive("1.12");
         Object result = SimpleMapper.getInstance().typedNumber(number);
         assertThat(result, is(1.12d));
@@ -52,9 +52,7 @@ public class SimpleMapperTest {
     @Test
     @SuppressWarnings("unchecked")
     public void mapperSerializationTest() {
-
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
-
         Date now = new Date();
         String iso8601 = Utility.getInstance().date2str(now);
         Map<String, Object> map = new HashMap<>();
