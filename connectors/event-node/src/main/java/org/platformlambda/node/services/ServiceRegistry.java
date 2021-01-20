@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,13 +18,18 @@
 
 package org.platformlambda.node.services;
 
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaClient;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TargetRoute;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.system.EventNodeConnector;
+import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +38,9 @@ import java.util.concurrent.ConcurrentMap;
 
 public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction  {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
+
+    private static final String NOTIFICATION_MANAGER = "notification.manager";
+    private static final String LEAVE = "leave";
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
@@ -76,6 +84,17 @@ public class ServiceRegistry extends ServiceDiscovery implements LambdaFunction 
             clients.remove(origin);
             if (client != null) {
                 log.info("{}.{} disconnected", client.personality, origin);
+            }
+            try {
+                TargetRoute target = PostOffice.getInstance().discover(NOTIFICATION_MANAGER, true);
+                EventEnvelope evt = new EventEnvelope();
+                evt.setTo(NOTIFICATION_MANAGER);
+                evt.setHeader(TYPE, LEAVE).setHeader(ORIGIN, origin);
+                for (String p: target.getTxPaths()) {
+                    MultipartPayload.getInstance().outgoing(p, evt);
+                }
+            } catch (IOException e) {
+                // ok to ignore
             }
             return true;
         }

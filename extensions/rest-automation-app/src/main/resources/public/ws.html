@@ -26,12 +26,12 @@
          *
          * WebSocket connection is persistent and it is important to tell the backend that your browser application
          * is not stalled. Keep-alive protocol also allows your browser app to detect if notification backend service
-         * is offline. When backend is offline, the browser app can inform the user and retry the connection later.
+         * is offline. When backend is offline, the browser app can inform the user and retry the connection.
          *
          * The standard websocket timeout is 60 seconds. We recommend setting the keep-alive interval
          * between 20-30 seconds.
          */
-        var pingInterval = 20000;
+        var pingInterval = 30000;
 
         function show(input) {
             // push input as the first item in the array
@@ -51,13 +51,49 @@
             if (connected) {
                 ws.close();
             } else {
-                show(eventWithTimestamp("error", "already disconnected"));
+                show(eventWithTimestamp("error", "Already disconnected"));
+            }
+        }
+
+        function subscribeTopic(add) {
+            var topic = document.getElementById('topic').value.trim();
+            if (topic.length == 0) {
+               show(eventWithTimestamp("error", "Missing topic"));
+            } else {
+                var s = {}
+                s['type'] = add? 'subscribe' : 'unsubscribe';
+                s['topic'] = topic;
+                ws.send(JSON.stringify(s, null, 2));
+            }
+        }
+
+        function publishTopic() {
+            var topicMessage = document.getElementById('topic').value.trim();
+            if (topicMessage.length == 0) {
+               show(eventWithTimestamp("error", "Missing topic:message"));
+            } else {
+                var colon = topicMessage.indexOf(':');
+                if (colon > 0 && topicMessage.length) {
+                    var topic = topicMessage.substring(0, colon).trim();
+                    var message = topicMessage.substring(colon+1).trim();
+                    if (topic.length == 0 || message.length == 0) {
+                       show(eventWithTimestamp("error", "Input format should be topic:message"));
+                    } else {
+                        var s = {}
+                        s['type'] = 'publish';
+                        s['topic'] = topic;
+                        s['message'] = message;
+                        ws.send(JSON.stringify(s, null, 2));
+                    }
+                } else {
+                    show(eventWithTimestamp("error", "Input format should be topic:message"));
+                }
             }
         }
 
         function keepAlive() {
             if (connected) {
-                ws.send(eventWithTimestamp("ping", "keep alive"));
+                ws.send(eventWithTimestamp("hello", "keep alive"));
                 ping = setTimeout(keepAlive, pingInterval);
             }
         }
@@ -66,14 +102,8 @@
             var s = {}
             s['type'] = msg_type;
             s['message'] = message;
-            s['time'] = getTimestamp();
-            return JSON.stringify(s);
-        }
-
-        function getTimestamp() {
-            var s = (new Date())+"";
-            var gmt = s.indexOf('GMT');
-            return gmt > 0? s.substring(0, gmt).trim() : s;
+            s['time'] = (new Date()).toISOString();
+            return JSON.stringify(s, null, 2);
         }
 
         function resume() {
@@ -86,9 +116,9 @@
 
             if ("WebSocket" in window) {
                 document.getElementById('message').style.display = "block";
-                var application = document.getElementById('app').value;
-                if (application.length == 0) {
-                    show(eventWithTimestamp("error", "missing application"));
+                var token = document.getElementById('token').value;
+                if (token.length == 0) {
+                    show(eventWithTimestamp("error", "missing token"));
                     document.getElementById('resume').style.display = "inline";
                     document.getElementById('connect').style.display = "none"
                     return;
@@ -99,16 +129,13 @@
                     document.getElementById('connect').style.display = "none"
                     return;
                 }
-                var req = {}
-                req['type'] = 'welcome';
                 // open a web socket
                 var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/api/"+application);
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/api/notification:"+token);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));
                     connected = true;
-                    ws.send(JSON.stringify(req));
                     document.getElementById('connect').style.display = "none"
                     document.getElementById('disconnect').style.display = "inline"
                     ping = setTimeout(keepAlive, pingInterval);
@@ -141,32 +168,40 @@
 <div class="container">
 
     <h4 style="color: #3cb371">Notification Demo</h4>
-    This page demonstrates a browser connecting to a notification service in your application.
+    To run this demo, get a websocket access token from "/api/ws/token" and use the token value in the input box.
     <br/>
-    To run this demo, your backend application must include the "ws.notification"
-    and implement your own "ws.auth" services.
+    Enter the token value here and click "Start Service".
     <br/>
-    The ws.notification and sample.ws.auth service are available as a template in
-    the websocket-notification-example application.
+    Once connected, you can subscribe/unsubscribe or publish to any notification topic.
     <br/><br/>
-    To try this demo, start the websocket-notification-example application.
-    <br/>
-    Enter "notification:demo-token?id=your_name" here and click "Start Service".
-    <br/><br/>
-    <form>
+    <div id="connect">
         <div class="input-group">
             <div class="input-group mb-3">
                 <div class="input-group-prepend">
-                    <span class="input-group-text">Application</span>
+                    <span class="input-group-text">Token</span>
                 </div>
-                <input id="app" type="text" class="form-control" name="app" placeholder="application:token">
+                <input id="token" type="text" class="form-control" name="app" placeholder="token value here">
             </div>
-
         </div>
-    </form>
-    <div style="height: 10px"></div>
-    <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
-    <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+        <div style="height: 10px"></div>
+        <button type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
+    </div>
+    <div id="disconnect" style="display: none">
+        <div class="input-group">
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <span class="input-group-text">Topic</span>
+                </div>
+                <input id="topic" type="text" class="form-control" name="topic" placeholder="topic or topic:message">
+            </div>
+        </div>
+        <div style="height: 10px"></div>
+        <button type="button" class="btn btn-primary" onclick="javascript:subscribeTopic(true)">Subscribe</button>
+        <button type="button" class="btn btn-secondary" onclick="javascript:subscribeTopic(false)">Unsubscribe</button>
+        <button type="button" class="btn btn-primary" onclick="javascript:publishTopic()">Publish</button>
+        <button type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+    </div>
+
     <button id="resume" style="display: none" type="button" class="btn btn-warning" onclick="javascript:resume()">Continue</button>
     <hr>
     <pre id="message" class="border border-success rounded" style="background-color: #3c3c3c; color: white; display: none;"></pre>

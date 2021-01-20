@@ -28,7 +28,7 @@ Hope you enjoy this journey to improve the world.
 
 Best regards, the Mercury team, Accenture
 
-September 2020
+January 2021
 
 ## Rationale
 
@@ -218,18 +218,17 @@ This extension package is a system that automates the creation of REST endpoints
 
 This extension package is an example application that consolidates of distributed trace metrics.
 
-`websocket-notification`
-
-This extension package is an example application that demonstrates writing a websocket notification server.
-
 `lambda-example`
 
 This is an example project to illustrate writing microservices without using an HTTP application server.
 
 `rest-example`
 
-If you wish to write your own REST endpoints programmatically instead of using the rest-automation helper application, you may use this example project as a template.
+If your application module needs info and health admin endpoints, you may want to use this example project as a template.
 
+It encapsulates Spring Boot, automates JSON/XML/PoJo serialization and simplfies application development. It also allows you to write custom REST endpoints using WebServlet and JAX-RS REST annotations. 
+
+For rapid application development, we do recommend you to use the REST automation system to define REST endpoints by configuration rather than code.
 
 ## Before you start
 
@@ -259,7 +258,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -Dcloud.connector=none -jar target/rest-example-1.12.65.jar
+java -Dcloud.connector=none -jar target/rest-example-1.12.66.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -313,20 +312,20 @@ For simplicity, we are going to use the Event Node system to emulate a cloud env
 cd mercury/connectors
 cd event-node
 mvn clean package
-java -jar target/event-node-1.12.65.jar
+java -jar target/event-node-1.12.66.jar
 # the Event Node system will run. It emulates an event stream system.
 
 # Open another terminal and go to the project root
 cd mercury/examples
 cd lambda-example
 mvn clean package
-java -Dcloud.connector=event.node -jar target/lambda-example-1.12.65.jar
+java -Dcloud.connector=event.node -jar target/lambda-example-1.12.66.jar
 # the lambda-example microservices module will run and connect to the event node
 
 # Go to the terminal that runs the rest-example earlier
 Ctrl-C to quit the rest-example application
 # Then run the rest-example again with cloud.connector set to event.node
-java -Dcloud.connector=event.node -jar target/rest-example-1.12.65.jar
+java -Dcloud.connector=event.node -jar target/rest-example-1.12.66.jar
 # without the "-Dcloud.connector" parameter override, the rest-example will run and connect to a hazelcast cluster.
 
 ```
@@ -375,7 +374,7 @@ Members {size:1, ver:1} [
 cd mercury/connectors
 cd hazelcast/hazelcast-presence
 mvn clean package
-java -jar target/hazelcast-presence-1.12.65.jar
+java -jar target/hazelcast-presence-1.12.66.jar
 # this will start the "presence monitor" that will connect to the hazelcast cluster.
 ```
 
@@ -383,11 +382,11 @@ java -jar target/hazelcast-presence-1.12.65.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.65.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.66.jar
 # the lambda-example will connect to the hazelcast cluster and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.65.jar
+java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.66.jar
 # the rest-example will also connect to the hazelcast cluster and the "presence monitor"
 
 ```
@@ -412,7 +411,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 123,
         "type" : "APP",
         "updated" : "2018-12-21T17:51:01Z",
-        "version" : "1.12.65"
+        "version" : "1.12.66"
       },
       "201812215ff40bbc36004637ac8cd18debf5cf95" : {
         "created" : "2018-12-21T17:11:49Z",
@@ -421,7 +420,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
         "seq" : 117,
         "type" : "WEB",
         "updated" : "2018-12-21T17:50:55Z",
-        "version" : "1.12.65"
+        "version" : "1.12.66"
       }
     },
     "topics" : [ "201812215ff40bbc36004637ac8cd18debf5cf95", "201812213aed6381e8b543d48f3f288f64207019" ],
@@ -433,7 +432,7 @@ You may visit http://127.0.0.1:8080/info to see connection info. It may look lik
   "app" : {
     "description" : "Presence Monitor",
     "name" : "hazelcast-presence",
-    "version" : "1.12.65"
+    "version" : "1.12.66"
   },
   "memory" : {
     "allocated" : "737,673,216",
@@ -480,11 +479,11 @@ For rapid development and prototyping, we have implemented a convenient standalo
 cd mercury/connectors
 cd kafka/kafka-standalone
 mvn clean package
-java -jar target/kafka-standalone-1.12.65.jar
+java -jar target/kafka-standalone-1.12.66.jar
 # this will start a standalone kafka server with embedded zookeeper
 cd ../kafka-presence
 mvn clean package
-java -jar target/kafka-presence-1.12.65.jar
+java -jar target/kafka-presence-1.12.66.jar
 # this will start the "presence monitor" that will connect to the kafka cluster.
 ```
 
@@ -492,11 +491,11 @@ java -jar target/kafka-presence-1.12.65.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.65.jar
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.66.jar
 # the lambda-example will connect to the kafka server and the "presence monitor"
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.65.jar
+java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.66.jar
 # the rest-example will also connect to the kafka server and the "presence monitor"
 
 ```
@@ -593,6 +592,8 @@ ENTRYPOINT ["java","-jar","your-app-name.jar"]
 
 Change the exposed port numnber and application name accordingly. Then build the docker image and publish it to a docker registry so you can deploy from there using Kubernetes or alike.
 
+For security reason, you may want to customize the docker file to use non-priliveged Unix user account. Please consult your company's enterprise architecture team for container management policy.
+
 ## VM or bare metal deployment
 
 If you are deploying the application executables in a VM or bare metal, we recommend using a cross-platform process manager.
@@ -611,10 +612,10 @@ You may create individual process.json for each executable and start them one-by
         "script":"java",
         "args":[
             "-jar",
-            "/full_qualified_path/event-node-1.12.65.jar"
+            "/full_qualified_path/event-node-1.12.66.jar"
         ],
         "watch":[
-            "/full_qualified_path/event-node-1.12.65.jar"
+            "/full_qualified_path/event-node-1.12.66.jar"
         ],
         "node_args":[],
         "log_date_format":"YYYY-MM-DD HH:mm Z",
@@ -628,18 +629,18 @@ You may create individual process.json for each executable and start them one-by
 ## Distributed tracing
 
 Microservices are likely to be deployed in a multi-tier environment.
-As a result, a single transaction would pass through multiple layers of services.
+As a result, a single transaction may pass through multiple services.
 
 Distributed tracing allows us to visualize the complete service path for each transaction.
 This enables easy trouble shooting for large scale applications.
 
-With the Mercury framework, distributed tracing does not require coding at application level.
+With the Mercury framework, distributed tracing does not require code at application level.
 To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of
 the rest-automation helper application.
 
 ## Kafka compatibility
 
-As of December 2020, Mercury has been tested and deployed with Apache Kafka, Confluent Kafka, IBM Event Streams / Message Hub and Microsoft Azure Event Hubs.
+As of December 2020, Mercury has been tested and deployed with Apache Kafka, Confluent Kafka, IBM Event Streams (aka Message Hub) and Microsoft Azure Event Hubs.
 
 ## Other consideration
 

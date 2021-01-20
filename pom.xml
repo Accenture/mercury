@@ -24,7 +24,6 @@
         <module>extensions/simple-scheduler</module>
         <module>extensions/distributed-tracer</module>
         <module>extensions/rest-automation-app</module>
-        <module>extensions/websocket-notification</module>
         <module>language-packs/language-connector</module>
         <module>examples/lambda-example</module>
         <module>examples/rest-example</module>

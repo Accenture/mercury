@@ -86,9 +86,7 @@ public class TopicListener implements LambdaFunction {
         for (String route: distributionList.keySet()) {
             EventEnvelope event = new EventEnvelope();
             event.setTo(route).setBody(body);
-            for (String h : headers.keySet()) {
-                event.setHeader(h, headers.get(h));
-            }
+            event.setHeaders(headers);
             if (broadcast) {
                 // broadcast to application instances that have the target route
                 PostOffice.getInstance().broadcast(event);

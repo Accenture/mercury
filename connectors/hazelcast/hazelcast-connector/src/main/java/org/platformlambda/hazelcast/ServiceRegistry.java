@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
 
     private static final CryptoApi crypto = new CryptoApi();
+    private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String PERSONALITY = EventNodeConnector.PERSONALITY;
     private static final String TYPE = ServiceDiscovery.TYPE;
@@ -207,10 +208,12 @@ public class ServiceRegistry implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     private Object processEvent(Map<String, String> headers, Object body) throws IOException, TimeoutException, AppException {
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
         String type = headers.get(TYPE);
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
-            String myOrigin = Platform.getInstance().getOrigin();
+            String myOrigin = platform.getOrigin();
             String origin = headers.get(ORIGIN);
             origins.put(origin, Utility.getInstance().date2str(new Date(), true));
             if (origin.equals(myOrigin)) {
@@ -227,12 +230,15 @@ public class ServiceRegistry implements LambdaFunction {
                 }
                 sendMyRoutes(origin);
             }
+            if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, headers.get(ORIGIN)));
+            }
         }
         // when a node leaves
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
             // remove corresponding entries from routing table
             String origin = headers.get(ORIGIN);
-            if (origin.equals(Platform.getInstance().getOrigin())) {
+            if (origin.equals(platform.getOrigin())) {
                 // this happens when the service-monitor is down
                 Set<String> all = getAllOrigins();
                 for (String o : all) {
@@ -252,6 +258,9 @@ public class ServiceRegistry implements LambdaFunction {
                 }
                 removeRoutesFromOrigin(origin);
             }
+            if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, LEAVE), new Kv(ORIGIN, headers.get(ORIGIN)));
+            }
         }
         // add route
         if (ADD.equals(type) && headers.containsKey(ORIGIN)) {
@@ -260,7 +269,7 @@ public class ServiceRegistry implements LambdaFunction {
                 // add a single route
                 String route = headers.get(ROUTE);
                 String personality = headers.get(PERSONALITY);
-                if (origin.equals(Platform.getInstance().getOrigin())) {
+                if (origin.equals(platform.getOrigin())) {
                     broadcast(origin, route, personality, ADD);
                 }
                 // add to routing table
@@ -280,7 +289,7 @@ public class ServiceRegistry implements LambdaFunction {
         if (UNREGISTER.equals(type) && headers.containsKey(ROUTE) && headers.containsKey(ORIGIN)) {
             String route = headers.get(ROUTE);
             String origin = headers.get(ORIGIN);
-            if (origin.equals(Platform.getInstance().getOrigin())) {
+            if (origin.equals(platform.getOrigin())) {
                 broadcast(origin, route, null, UNREGISTER);
             }
             // remove from routing table

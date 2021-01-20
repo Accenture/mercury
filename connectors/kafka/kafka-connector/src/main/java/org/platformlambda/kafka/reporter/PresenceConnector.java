@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -92,7 +92,8 @@ public class PresenceConnector implements LambdaFunction {
                     state = State.DISCONNECTED;
                     log.info("Disconnected {}", route);
                     // tell service registry to clear routing table
-                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, platform.getOrigin()));
+                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
+                            new Kv(ORIGIN, platform.getOrigin()));
                     break;
                 case WsEnvelope.BYTES:
                     route = headers.get(WsEnvelope.ROUTE);

@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.12.66, 1/15/2021
+
+### Added
+
+1. A simple websocket notification service is integrated into the REST automation system
+2. Seamless migration feature is added to the REST automation system
+
+### Removed
+
+Legacy websocket notification example application
+
+### Changed
+
+N/A
+
+---
 ## Version 1.12.65, 12/9/2020
 
 ### Added

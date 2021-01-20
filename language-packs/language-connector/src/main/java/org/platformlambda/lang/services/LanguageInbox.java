@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -70,10 +70,7 @@ public class LanguageInbox implements LambdaFunction {
                         relay.setStatus(event.getStatus());
                     }
                     relay.setBody(event.getBody());
-                    Map<String, String> eventHeaders = event.getHeaders();
-                    for (String h: eventHeaders.keySet()) {
-                        relay.setHeader(h, eventHeaders.get(h));
-                    }
+                    relay.setHeaders(event.getHeaders());
                     if (event.getExecutionTime() > -1) {
                         relay.setExecutionTime(event.getExecutionTime());
                     }

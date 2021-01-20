@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 package org.platformlambda.automation.servlets;
 
-import org.platformlambda.automation.MainApp;
+import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.AsyncContextHolder;
@@ -63,7 +63,7 @@ public class ServiceGateway extends HttpServlet {
     private static final String UTF_8 = "utf-8";
     private static final String BASE_PATH = "/api";
     private static final String COOKIE = "cookie";
-    private static final String ASYNC_HTTP_RESPONSE = MainApp.ASYNC_HTTP_RESPONSE;
+    private static final String ASYNC_HTTP_RESPONSE = MainModule.ASYNC_HTTP_RESPONSE;
     private static final String OPTIONS = "OPTIONS";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
@@ -182,13 +182,14 @@ public class ServiceGateway extends HttpServlet {
         // check if target service is available
         PostOffice po = PostOffice.getInstance();
         if (route.info.authService == null) {
-            if (!po.exists(route.info.service)) {
-                response.sendError(503, "Service " + route.info.service + " not reachable");
+            if (!po.exists(route.info.primary)) {
+                response.sendError(503, "Service " + route.info.primary + " not reachable");
                 return;
             }
         } else {
-            if (!po.exists(route.info.service, route.info.authService)) {
-                response.sendError(503, "Service " + route.info.service + " or " + route.info.authService + " not reachable");
+            if (!po.exists(route.info.primary, route.info.authService)) {
+                response.sendError(503, "Service " + route.info.primary + " or " +
+                        route.info.authService + " not reachable");
                 return;
             }
         }
@@ -433,8 +434,9 @@ public class ServiceGateway extends HttpServlet {
          * Forward the AsyncHttpRequest to the target service.
          * It is delivered as a map so it is more generic
          */
+        Map<String, Object> requestBody = req.toMap();
         EventEnvelope event = new EventEnvelope();
-        event.setTo(route.info.service).setBody(req.toMap())
+        event.setTo(route.info.primary).setBody(requestBody)
                 .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+Platform.getInstance().getOrigin());
         // enable distributed tracing if needed
         if (route.info.tracing) {
@@ -446,6 +448,23 @@ public class ServiceGateway extends HttpServlet {
         } catch (IOException e) {
             response.sendError(400, e.getMessage());
             context.complete();
+        }
+        // copying to secondary services if any
+        if (route.info.services.size() > 1) {
+            for (String secondary: route.info.services) {
+                if (!secondary.equals(route.info.primary)) {
+                    EventEnvelope copy = new EventEnvelope().setTo(secondary).setBody(requestBody);
+                    if (route.info.tracing) {
+                        copy.setFrom("http.request");
+                        copy.setTrace(traceId, tracePath);
+                    }
+                    try {
+                        po.send(copy);
+                    } catch (Exception e) {
+                        log.warn("Unable to copy event to secondary - {}", e.getMessage());
+                    }
+                }
+            }
         }
     }
 

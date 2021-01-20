@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -181,7 +181,7 @@ public class PersistentWsClient extends Thread implements AutoCloseable {
     private String simplifiedError(String error) {
         String message = error.contains(":") ? error.substring(error.lastIndexOf(':')+1).trim() : error;
         return message.equals("no further information") || message.contains("null")
-                || message.contains("connection fail")? "Unreachable" : message;
+                || message.contains("fail")? "Unreachable" : message;
     }
 
     public void disconnect(String reason) {

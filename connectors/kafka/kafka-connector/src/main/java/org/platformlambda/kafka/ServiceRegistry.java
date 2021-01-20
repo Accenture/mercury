@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
 
     private static final CryptoApi crypto = new CryptoApi();
+    private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
     private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String PERSONALITY = EventNodeConnector.PERSONALITY;
@@ -185,6 +186,7 @@ public class ServiceRegistry implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     private Object processEvent(Map<String, String> headers, Object body) throws IOException {
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String type = headers.get(TYPE);
         if (PING.equals(type)) {
@@ -192,7 +194,7 @@ public class ServiceRegistry implements LambdaFunction {
             return true;
         }
         if (CHECKSUM.equals(type) && headers.containsKey(CHECKSUM) && headers.containsKey(ORIGIN)) {
-            String myOrigin = Platform.getInstance().getOrigin();
+            String myOrigin = platform.getOrigin();
             String origin = headers.get(ORIGIN);
             String extChecksum = headers.get(CHECKSUM);
             String myChecksum = getChecksum();
@@ -208,7 +210,7 @@ public class ServiceRegistry implements LambdaFunction {
         }
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
-            String myOrigin = Platform.getInstance().getOrigin();
+            String myOrigin = platform.getOrigin();
             String origin = headers.get(ORIGIN);
             origins.put(origin, Utility.getInstance().date2str(new Date(), true));
             if (origin.equals(myOrigin)) {
@@ -217,6 +219,9 @@ public class ServiceRegistry implements LambdaFunction {
                 }
                 registerMyRoutes();
                 broadcast(origin, null, null, JOIN);
+                if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                    po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
+                }
             } else {
                 // send routing table of this node to the newly joined node
                 if (!peers.contains(origin)) {
@@ -239,7 +244,7 @@ public class ServiceRegistry implements LambdaFunction {
             po.send(MANAGER, new Kv(TYPE, STOP));
             // remove corresponding entries from routing table
             String origin = headers.get(ORIGIN);
-            if (origin.equals(Platform.getInstance().getOrigin())) {
+            if (origin.equals(platform.getOrigin())) {
                 // this happens when the service-monitor is down
                 List<String> all = new ArrayList<>(origins.keySet());
                 for (String o : all) {
@@ -255,6 +260,9 @@ public class ServiceRegistry implements LambdaFunction {
                 }
                 removeRoutesFromOrigin(origin);
             }
+            if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, LEAVE), new Kv(ORIGIN, headers.get(ORIGIN)));
+            }
         }
         // add route
         if (ADD.equals(type) && headers.containsKey(ORIGIN)) {
@@ -263,7 +271,7 @@ public class ServiceRegistry implements LambdaFunction {
                 // add a single route
                 String route = headers.get(ROUTE);
                 String personality = headers.get(PERSONALITY);
-                if (origin.equals(Platform.getInstance().getOrigin())) {
+                if (origin.equals(platform.getOrigin())) {
                     broadcast(origin, route, personality, ADD);
                 }
                 // add to routing table
@@ -283,7 +291,7 @@ public class ServiceRegistry implements LambdaFunction {
         if (UNREGISTER.equals(type) && headers.containsKey(ROUTE) && headers.containsKey(ORIGIN)) {
             String route = headers.get(ROUTE);
             String origin = headers.get(ORIGIN);
-            if (origin.equals(Platform.getInstance().getOrigin())) {
+            if (origin.equals(platform.getOrigin())) {
                 broadcast(origin, route, null, UNREGISTER);
             }
             // remove from routing table

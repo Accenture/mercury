@@ -1,163 +1,105 @@
-# application.properties
+# REST and websocket
 
-| Key                                         | Value                                     | Required |
-| :-------------------------------------------|:------------------------------------------|:---------:|
-| application.name or spring.application.name | Application name                          | Yes       |
-| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
-| info.app.description                        | Something about application               | Yes       |
-| web.component.scan                          | your own package path or parent path      | Yes       |
-| server.port                                 | e.g. 8083                                 | Yes*      |
-| spring.mvc.static-path-pattern              | /**                                       | Yes*      |
-| spring.resources.static-locations           | classpath:/public/                        | Yes*      |
-| jax.rs.application.path                     | /api                                      | Optional*1|
-| show.env.variables                          | comma separated list of variable names    | Optional*1|
-| show.application.properties                 | comma separated list of property names    | Optional*1|
-| cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional  |
-| cloud.services                              | e.g. hazelcast.reporter                   | Optional  |
-| presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional  |
-| event.node.path                             | e.g. ws://127.0.0.1:8080/ws/events        | Optional  |
-| hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional  |
-| hazelcast.namespace                         | your system name for multi-tenancy        | Optional  |
-| snake.case.serialization                    | true (recommended)                        | Optional  |
-| env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
-| safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
-| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
-| info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
-| trace.http.header                           | comma separated list traceId labels       | *2        |
-| trace.log.header                            | default value is X-Trace-Id               | Optional  |
-| index.redirection                           | comma separated list of URI paths         | Optional*1|
-| index.page                                  | default value is index.html               | Optional*1|
-| application.feature.route.substitution      | default value is false                    | Optional  |
-| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| kafka.client.properties                     | classpath:/kafka.properties               | Kafka     |
-| kafka.replication.factor                    | 3                                         | Kafka     |
-| multi.tenancy.namespace                     | environment shortname                     | Optional  |
-| app.shutdown.key                            | secret key to shutdown app instance       | Optional  |
+In chapter 4, we have described the use of the REST automation system to define REST and websocket endpoints by configuation.
 
-`*1` - when using the "rest-spring" library
-`*2` - applies to the REST automation helper application only
+This chapter describes the programmatic ways to write REST and websocket endpoints when there is a need to use traditional means.
 
-# safe.data.models
+REST and websocket are supported in the `rest-spring` module. You may use the `rest-example` as a template to try out.
 
-PoJo may execute Java code. As a result, it is possible to inject malicious code that does harm when deserializing a PoJo.
-This security risk applies to any JSON serialization engine.
+## 3 ways to write REST endpoints
 
-For added security and peace of mind, you may want to white list your PoJo package paths.
-When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController, Servlets will respect this setting and enforce PoJo white listing.
+You can write REST endpoints in 3 different fashions:
 
-Usually you do not need to use the serializer in your code because it is much better to deal with PoJo in your IDE.
-However, if there is a genuine need to do low level coding, you may use the pre-configured serializer so that the serialization behavior is consistent.
+1. JAX-RS annotation
+2. Spring REST controller
+3. Java Servlet
 
-You can get an instance of the serializer with `SimpleMapper.getInstance().getWhiteListMapper()`.
+### JAX-RS annotated endpoints
 
-# info.api.key
+You class should include the `@Path(String pathPrefix)` annotation. Set pathPrefix accordingly. 
 
-When "protected.info.endpoints" are configured, you must provide this secret in the "X-Info-Key" header when accessing the protected endpoints. 
+All JAX-RS REST endpoints are prefixed with "/api". If your pathPrefix is "/hello". The path is "/api/hello".
 
-# trace.http.header
+In your REST endpoint method, you should use another `@Path` to indicate any additional path information. Note that you can use `{pathParam}` in the URL path.
+If you have pathParam, please add `@PathParam` parameter annotation to the argument in your method.
 
-Identify the HTTP header for traceId. When configured with more than one label, the system will retrieve traceID from the
-corresponding HTTP header and propagate it through the transaction that may be served by multiple services.
+You can set the HTTP method in the method with `@GET`, `@POST`, `@PUT`, `@DELETE`, etc.
+and specify content types in `@Consumes` and `@Produces` method annotation.
 
-If traceId is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
+If you want your REST endpoint to be optional when a property in the application.properties exists, annotate your class with `OptionalService`.
 
-e.g. 
-X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
-or
-X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+Please refer to example code in `rest-example` and the [JAX-RS reference site](https://jersey.github.io/) for details.
 
-# trace.log.header
+### Java Servlet
 
-If tracing is enabled for a transaction, this will insert the trace-ID into the logger's ThreadContext using the trace.log.header.
+For low level control, you can use the `@WebServlet(String urlPath)` to annotate your Servlet class that must extend the `HttpServlet` class.
 
-Note that trace.log.header is case sensitive and you must put the corresponding value in log4j2.xml.
-The default value is "X-Trace-Id" if this parameter is not provided in application.properties.
-e.g.
+If you want your Java Servlet to be optional when a property in the application.properties exists, annotate your class with `OptionalService`.
 
-```xml
-<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
-```
+### Spring REST controller
 
-# app.shutdown.key
+If you are more familar with the Spring framework, you may use Spring REST controller. Note that this will create tight coupling and make your code less portable.
 
-If this parameter is given, the shutdown endpoint will be activated.
-```
-POST /shutdown
+Please refer to [Spring documentation](https://spring.io/guides/gs/rest-service/) for details. Note that Spring REST controllers are installed in the URL root path.
 
-content-type: "application/x-www-form-urlencoded"
-body: key=the_shutdown_key&origin=originId
-```
+## Websocket service
 
-# route substitution
+You can use `@WebSocketService(handlerName)` to annotate a websocket service that implements the `LambdaFunction` interface. Your websocket service function becomes the incoming event handler for websocket. The system will automatically create an outgoing message handler that works with your websocket service.
 
-This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. 
+Please refer to the sample code `WsEchoDemo` in the `rest-example`.
 
-Example parameters in application.properties
-```yaml
-application.feature.route.substitution=true
-# the system will load the first available file if more than one location is given
-route.substitution.file=file:/tmp/config/route-substitution.yaml , classpath:/route-substitution.yaml
-```
+Mercury is 100% event-driven. This includes websocket service. The sample code includes example for OPEN, CLOSE, BYTES and TEXT events. In the OPEN event, you can detect the query parameter and token.
 
-Example route-substitution.yaml file
-```yaml
-route:
-  substitution:
-    - "hello.test -> hello.world"
-```
-
-# Kafka specific configuration
-
-If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to externalize kafka.properties.
-It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
-
-Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an external config file.
-
-You want also use the embedded config file as a backup like this:
+For standardization, websocket service uses a URL path as follows:
 
 ```
-# this is the configuration used by the kafka.presence monitor
-kafka.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
+ws://host:port/ws/{handlerName}/{token}
 ```
+The websocket client application or browser that connects to the websocket service must provide the "token" which is usually used for authentication.
 
-`kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
-If the available number of kafka brokers are more than the replication factor, it will use the given replication factor.
-Otherwise, the system will fall back to a smaller value and this optimization may not work in production.
-Therefore, please discuss with your DevOps administrator for the optimal replication factor value.
+IMPORTANT: websocket does not support custom HTTP headers for authentication. As a result, we usually use an authentication token in the URL or query parameter. For the Mercury framework, we recommend the use of a token as a URL suffix. Typically, a user logs on to your application with a REST endpoint like "/login" and then a session cookie is created. The browser may then use the sessionId as a token in the websocket connection.
 
-```
-Number of replicated copies = replication factor - 1
-```
+`Websocket idle timeout` - there is a one-minute idle timeout for all websocket connection. To keep the websocket connection alive, you may send a message to the websocket service. For example, sending a BYTES or TEXT message to the service with some agreed protocol.
 
-# presence monitor
-
-The event node is a platform-in-a-box to emulate a network event stream in the same developer's laptop.
-
-For production, you would be using Kafka or Hazelcast as the event stream. In this case, you will deploy a "presence monitor" in the system.
-
-You can then configure a "presence reporter" in your service module to report to the presence monitor. It uses websocket "presence" technology to inform the monitor when your module fails so that a new instance can be started.
-
-# multi-tenancy for event stream systems
-
-Since version 1.12.10, multi-tenancy is supported for hazelcast and kafka.
-This is a convenient feature for non-prod environments to share a single event stream system.
-For production, you should use a separate event stream cluster.
-
-To enable multi-tenancy support, set the following parameters in application.properties like this:
+`Disconnect a client websocket connection` - To disconnect a client websocket, you may use the Utility class as follows:
 
 ```
-# set a name for the environment. e.g. "dev"
-# you can use any environment variable to map to a namespace. e.g. RUNTIME_ENV
-multi.tenancy.namespace=dev
-env.variables=RUNTIME_ENV:multi.tenancy.namespace
+void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException;
 ```
+The txPath is available to the websocket service mentioned earlier.
 
-# Spring Boot
+## Calling other microservices functions
 
-The foundation code uses Spring Boot in the "rest-spring" library. For loose coupling, we use the `@MainApplication` as a replacement for the `SpringApplication`. Please refer to the MainApp class in the "rest-example" project.
-This allows us to use any REST application server when technology evolves.
+You may call other microservices functions from your REST and websocket endpoints using the `send` or `request` methods of the Post Office.
 
-If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
+## Static contents for HTML, CSS and Javascript
 
-[Table of Contents](TABLE-OF-CONTENTS.md)
+Under the hood, we are using Spring Boot. Therefore you may put static contents under the "/public" folder in the project's "resources". The static contents will be bundled with your executable application JAR when you do `mvn clean package`.
 
+## Loose coupling with Spring Boot
+
+The Mercury framework is loosely coupled with Spring Boot to support REST and websocket endpoints. The light-weight application server for Spring Boot can be Tomcat, Jetty or Undertow.
+
+Unless you have a reason to use proprietary features of Spring Boot or Spring framework directly, we recommend you avoid using Spring specific features. We have optimized Spring Boot with custom serializers and exception handlers in the `rest-spring` module.
+
+If you know what you are doing, you can use Spring Boot feature directly with the exception of the `@SpringApplication` annotation because we use the `@MainApplication` to hide the complexity of the application server. You can change the behavior of Spring Boot including auto-config classes using the `application.properties` file in the resources folder in the maven project.
+
+We are currently using Tomcat. If your organization prefers Jetty or Undertow, please adjust the pom.xml file in the `rest-spring` and `platform-core` projects.
+
+## application.properties
+
+In additon to the parameters defined by Spring Boot, the Mercury framework uses the following parameters.
+
+1. web.component.scan - you should add your organizaton packages as a comma separated list to tell Mercury to scan for your packages.
+2. snake.case.serialization - we recommend the use of snake case for modern API
+3. safe.data.models - Optional. For higher security, you may specify a list of safe data models to be accepted by the serialization engine. This is to protect against hidden "evil" Java classes in certain open sources that you have not vetted directly.
+4. protected.info.endpoints - Optional. You may protect certain "known" REST endpoints such as "/info" or "/env" from unauthorized access. It uses a simple API key set in the environment.
+5. env.variables - parameters in the application.properties are automatically overriden by Java properties. To allow some environment variables to override your run-time parameters, you may define them in this parameter.
+6. application.feature.streaming - By default, this optional feature is turned off. If you need streaming feature, set this to true.
+7. spring.application.name/application.name, info.app.version and info.app.description - please update these application name and information before you start your project. spring.application.name and application.name can be used interchangeably.
+
+---
+
+| Chapter-6                                | Home                                     |
+| :---------------------------------------:|:----------------------------------------:|
+| [application.properties](CHAPTER-6.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|

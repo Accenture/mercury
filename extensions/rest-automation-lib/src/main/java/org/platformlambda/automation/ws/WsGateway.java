@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,14 +18,17 @@
 
 package org.platformlambda.automation.ws;
 
+import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.WsInfo;
+import org.platformlambda.automation.models.WsMetadata;
+import org.platformlambda.automation.services.NotificationManager;
 import org.platformlambda.core.annotations.WebSocketService;
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -36,12 +39,9 @@ import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeoutException;
 
 @WebSocketService("api")
 public class WsGateway implements LambdaFunction {
@@ -52,16 +52,38 @@ public class WsGateway implements LambdaFunction {
     private static final String CLOSE = WsEnvelope.CLOSE;
     private static final String ROUTE = WsEnvelope.ROUTE;
     private static final String IP = WsEnvelope.IP;
+    private static final String ORIGIN = "origin";
     private static final String TX_PATH = WsEnvelope.TX_PATH;
     private static final String QUERY = WsEnvelope.QUERY;
     private static final String BYTES = WsEnvelope.BYTES;
     private static final String STRING = WsEnvelope.STRING;
-    private static final String TEXT = "text";
+    private static final String MESSAGE = "message";
     private static final String TOKEN = WsEnvelope.TOKEN;
-    private static final String AUTHENTICATION = "authentication";
     private static final String APPLICATION = "application";
+    private static final String CLEAR = "clear";
+    private static final String HELLO = "hello";
+    private static final String TIME = "time";
+    private static final String TOPIC = "topic";
+    private static final String SUBSCRIBE = "subscribe";
+    private static final String UNSUBSCRIBE = "unsubscribe";
+    private static final String PUBLISH = "publish";
+
     // route -> info
-    private static final ConcurrentMap<String, WsInfo> route2WsInfo = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, WsMetadata> connections = new ConcurrentHashMap<>();
+
+    public static void closeAllConnections() {
+        Utility util = Utility.getInstance();
+        List<String> keys = new ArrayList<>(connections.keySet());
+        for (String k: keys) {
+            WsMetadata md = connections.get(k);
+            try {
+                util.closeConnection(md.txPath, CloseReason.CloseCodes.GOING_AWAY,
+                        "Service temporarily unavailable");
+            } catch (IOException e) {
+                // ok to ignore
+            }
+        }
+    }
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
@@ -73,8 +95,11 @@ public class WsGateway implements LambdaFunction {
             if (CLOSE.equals(type)) {
                 handleClose(headers);
             }
-            if (STRING.equals(type) || BYTES.equals(type)) {
-                handleMessage(headers, body);
+            if (BYTES.equals(type)) {
+                log.warn("Websocket byte message ignored - {}", headers);
+            }
+            if (STRING.equals(type) && body instanceof String) {
+                handleMessage(headers, ((String) body).trim());
             }
         }
         // nothing to return because this is asynchronous
@@ -82,125 +107,164 @@ public class WsGateway implements LambdaFunction {
     }
 
     private void handleOpen(Map<String, String> headers) throws IOException {
-        String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
+        String route = headers.get(ROUTE);
+        String txPath = headers.get(TX_PATH);
+        if (!NotificationManager.isReady()) {
+            util.closeConnection(txPath, CloseReason.CloseCodes.GOING_AWAY,
+                    "Service temporarily unavailable");
+            return;
+        }
+        String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
         WsEntry wsEntry = WsEntry.getInstance();
         if (wsEntry.isEmpty()) {
-            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT,
+            util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
                     "WebSocket service not enabled");
             return;
         }
         // the open event contains route, txPath, ip, path, query and token
         String ip = headers.get(IP);
-        String identifier = headers.get(TOKEN);
+        String identifier = headers.get(TOKEN).toLowerCase();
         int colon = identifier.indexOf(':');
         if (colon == -1) {
-            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT,
-                    "URL must end with {application}:{session_id}");
+            util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
+                    "URL must end with {application}:{token}");
             return;
         }
-        String app = identifier.substring(0, colon);
-        WsInfo wsInfo = wsEntry.getRoute(app);
-        if (wsInfo == null) {
-            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT,
+        String app = identifier.substring(0, colon).trim();
+        String token = identifier.substring(colon+1).trim();
+        WsInfo info = wsEntry.getInfo(app);
+        if (info == null) {
+            util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
                     "WebSocket application "+app+" not found");
             return;
         }
-        String token = identifier.substring(colon+1);
-        Map<String, Object> request = new HashMap<>();
-        Map<String, String> parameters = getQueryParameters(headers.get(QUERY));
-        request.put(QUERY, parameters);
-        request.put(APPLICATION, app);
-        request.put(TOKEN, token);
-        request.put(IP, ip);
-        if (!po.exists(wsInfo.authService, wsInfo.userService)) {
-            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT,
-                    "Service "+wsInfo.authService+" or "+wsInfo.userService+" not reachable");
+        String permitted = NotificationManager.getApplication(token);
+        if (!app.equals(permitted)) {
+            util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT, "Invalid access token");
             return;
         }
-        String authError = null;
-        Map<String, String> authResponseHeaders = new HashMap<>();
-        try {
-            EventEnvelope authResult = po.request(wsInfo.authService, 5000, request,
-                    new Kv(TYPE, AUTHENTICATION),
-                    new Kv(ROUTE, headers.get(ROUTE)), new Kv(TX_PATH, headers.get(TX_PATH)));
-            if (Boolean.TRUE.equals(authResult.getBody())) {
-                authResponseHeaders = authResult.getHeaders();
-            } else {
-                authError = "Unauthorized";
-            }
-        } catch (IOException | TimeoutException e) {
-            authError = e.getMessage();
-            log.error("WebSocket authentication - {}", authError);
-        } catch (AppException e) {
-            authError = e.getMessage();
+        log.info("Started route={}, ip={}, app={}", route, ip, app);
+        WsMetadata md = new WsMetadata(info.application, info.recipient, txPath, info.publish, info.subscribe);
+        connections.put(route, md);
+        po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLEAR), new Kv(TOKEN, token));
+        if (!WsEntry.NONE_PROVIDED.equals(info.recipient)) {
+            Map<String, Object> event = new HashMap<>();
+            event.put(QUERY, getQueryParameters(headers.get(QUERY)));
+            event.put(APPLICATION, info.application);
+            event.put(IP, ip);
+            event.put(ORIGIN, origin);
+            event.put(TX_PATH, txPath + "@" + origin);
+            po.send(new EventEnvelope().setTo(info.recipient).setBody(event).setHeader(TYPE, OPEN));
         }
-        if (authError != null) {
-            util.closeConnection(headers.get(TX_PATH), CloseReason.CloseCodes.CANNOT_ACCEPT, authError);
-            return;
-        }
-        // remove credentials from request parameters before sending to the user service
-        request.remove(TOKEN);
-        // save routing information
-        route2WsInfo.put(headers.get(ROUTE), wsInfo);
-        EventEnvelope forward = new EventEnvelope();
-        forward.setTo(wsInfo.userService).setBody(request).setHeader(TYPE, OPEN);
-        forward.setHeader(ROUTE, headers.get(ROUTE)+"@"+origin);
-        forward.setHeader(TX_PATH, headers.get(TX_PATH)+"@"+origin);
-        /*
-         * Upon successful authentication, the user-defined authentication service should insert
-         * relevant session metadata. e.g. user ID.
-         *
-         * The user service must understand the session metadata that the user-defined authentication
-         * service provides. e.g. authenticated user ID may be provided in the "X-User" header.
-         */
-        for (String h: authResponseHeaders.keySet()) {
-            // for consistency with HTTP headers, these user defined headers are also case insensitive.
-            forward.setHeader(h.toLowerCase(), authResponseHeaders.get(h));
-        }
-        po.send(forward);
-        log.info("Started {}, {}, {}", headers.get(ROUTE), ip, app);
     }
 
     private void handleClose(Map<String, String> headers) throws IOException {
-        forwardEvent(headers, null);
-        route2WsInfo.remove(headers.get(ROUTE));
-        log.info("Stopping {}", headers.get(ROUTE));
-    }
-
-    private void handleMessage(Map<String, String> headers, Object body) throws IOException {
-        Utility util = Utility.getInstance();
-        if (!forwardEvent(headers, body)) {
-            WsInfo service = route2WsInfo.get(headers.get(ROUTE));
-            if (service != null) {
-                util.closeConnection(headers.get(TX_PATH),
-                        CloseReason.CloseCodes.GOING_AWAY, service.userService+" offline");
-            }
-        }
-    }
-
-    private boolean forwardEvent(Map<String, String> headers, Object body) throws IOException {
         String origin = Platform.getInstance().getOrigin();
-        WsInfo forward = route2WsInfo.get(headers.get(ROUTE));
-        if (forward != null) {
-            String fullRoute = headers.get(ROUTE)+"@"+origin;
-            String fullTxPath = headers.get(TX_PATH)+"@"+origin;
-            PostOffice po = PostOffice.getInstance();
-            // check if the target service is available
-            if (po.exists(forward.userService)) {
-                if (CLOSE.equals(headers.get(TYPE))) {
-                    PostOffice.getInstance().send(forward.userService,
-                            new Kv(TYPE, headers.get(TYPE)), new Kv(ROUTE, fullRoute));
-                } else if (body != null) {
-                    PostOffice.getInstance().send(forward.userService, body,
-                            new Kv(TYPE, BYTES.equals(headers.get(TYPE)) ? BYTES : TEXT),
-                            new Kv(ROUTE, fullRoute), new Kv(TX_PATH, fullTxPath));
-                }
-                return true;
+        PostOffice po = PostOffice.getInstance();
+        String route = headers.get(ROUTE);
+        log.info("Stopping {}", route);
+        WsMetadata md = connections.get(route);
+        if (md != null) {
+            String target = md.txPath + "@" + origin;
+            // tell notification manager to clear routing entries
+            po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLOSE), new Kv(TX_PATH, target));
+            if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
+                connections.remove(route);
+                Map<String, Object> event = new HashMap<>();
+                event.put(APPLICATION, md.application);
+                event.put(ORIGIN, origin);
+                event.put(TX_PATH, target);
+                po.send(new EventEnvelope().setTo(md.recipient).setBody(event).setHeader(TYPE, CLOSE));
             }
         }
-        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMessage(Map<String, String> headers, String body) throws IOException {
+        String origin = Platform.getInstance().getOrigin();
+        PostOffice po = PostOffice.getInstance();
+        String route = headers.get(ROUTE);
+        String txPath = headers.get(TX_PATH);
+        WsMetadata md = connections.get(route);
+        if (md != null) {
+            if (body.startsWith("{") && body.endsWith("}")) {
+                Map<String, Object> message = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
+                if (HELLO.equals(message.get(TYPE))) {
+                    po.send(txPath, body);
+                    return;
+                }
+                if (SUBSCRIBE.equals(message.get(TYPE)) || UNSUBSCRIBE.equals(message.get(TYPE))) {
+                    if (!md.subscribe) {
+                        sendResponse(txPath, "error", "Subscribe feature not enabled for this connection");
+                    } else {
+                        if (message.containsKey(TOPIC)) {
+                            String topic = message.get(TOPIC).toString();
+                            subscribeTopic(message.get(TYPE).toString(), txPath, topic);
+                        } else {
+                            sendResponse(txPath, "error", "Missing topic");
+                        }
+                    }
+                    return;
+                }
+                if (PUBLISH.equals(message.get(TYPE))) {
+                    if (!md.publish) {
+                        sendResponse(txPath, "error", "Publish feature not enabled for this connection");
+                    } else {
+                        if (message.containsKey(TOPIC) && message.containsKey(MESSAGE)) {
+                            publishTopic(txPath, message.get(TOPIC).toString(), message.get(MESSAGE).toString());
+                        } else {
+                            sendResponse(txPath, "error", "Input format should be topic:message");
+                        }
+                    }
+                    return;
+                }
+            }
+            if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
+                po.send(md.recipient, body, new Kv(TYPE, MESSAGE), new Kv(APPLICATION, md.application),
+                        new Kv(ORIGIN, origin), new Kv(TX_PATH, md.txPath + "@" + origin));
+            }
+        }
+    }
+
+    private void publishTopic(String txPath, String topic, String message) throws IOException {
+        PostOffice po = PostOffice.getInstance();
+        Utility util = Utility.getInstance();
+        if (util.validServiceName(topic)) {
+            po.send(MainModule.NOTIFICATION_MANAGER, message, new Kv(TYPE, PUBLISH), new Kv(TOPIC, topic));
+            sendResponse(txPath, "publish", "sending message to "+topic);
+
+        } else {
+            sendResponse(txPath, "error", "Invalid topic");
+        }
+    }
+
+    private void subscribeTopic(String type, String txPath, String topic) throws IOException {
+        String origin = Platform.getInstance().getOrigin();
+        PostOffice po = PostOffice.getInstance();
+        Utility util = Utility.getInstance();
+        if (util.validServiceName(topic)) {
+            po.broadcast(MainModule.NOTIFICATION_MANAGER,
+                    new Kv(TYPE, type), new Kv(ORIGIN, origin),
+                    new Kv(TOPIC, topic), new Kv(TX_PATH, txPath));
+            sendResponse(txPath, type, "topic "+topic);
+
+        } else {
+            sendResponse(txPath, "error", "Invalid topic");
+        }
+    }
+
+    private void sendResponse(String txPath, String type, String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put(TYPE, type);
+        response.put(MESSAGE, message);
+        response.put(TIME, new Date());
+        try {
+            PostOffice.getInstance().send(txPath, response);
+        } catch (IOException e) {
+            // ok to ignore
+        }
     }
 
     private Map<String, String> getQueryParameters(String query) throws UnsupportedEncodingException {

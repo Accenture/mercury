@@ -73,6 +73,8 @@ To do this, you can ask the platform to connect to the cloud.
 platform.connectToCloud();
 ```
 
+---
+
 | Chapter-3                              | Home                                     |
 | :-------------------------------------:|:----------------------------------------:|
 | [Post Office API](CHAPTER-3.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|

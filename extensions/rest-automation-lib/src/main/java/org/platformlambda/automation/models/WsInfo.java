@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ package org.platformlambda.automation.models;
 
 public class WsInfo {
 
-    public String appName, authService, userService;
+    public String application, recipient;
+    public Boolean publish, subscribe;
 
-    public WsInfo(String appName, String authService, String userService) {
-        this.appName = appName;
-        this.authService = authService;
-        this.userService = userService;
+    public WsInfo(String application, String recipient, boolean publish, boolean subscribe) {
+        this.application = application;
+        this.recipient = recipient;
+        this.publish = publish;
+        this.subscribe = subscribe;
     }
 }

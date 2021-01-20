@@ -133,6 +133,7 @@ A function is invoked when an event happens. Before the event arrives, the funct
 
 All functions are running in parallel without special coding. Behind the curtain, the system uses Java futures and asynchronous event loops for very efficient function execution.
 
+---
 
 | Chapter-2                           | Home                                     |
 | :----------------------------------:|:----------------------------------------:|

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ import java.util.List;
 
 public class RouteInfo {
 
-    public String url, service, authService, corsId, requestTransformId, responseTransformId;
+    public String url, authService, corsId, requestTransformId, responseTransformId, primary;
+    public List<String> services;
     public int threshold = 50000;
     public boolean tracing = false;
     public List<String> methods;

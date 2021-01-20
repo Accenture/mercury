@@ -1,118 +1,167 @@
-# Additional features
+# application.properties
 
-## HttpClient as a service
+| Key                                         | Value                                     | Required  |
+| :-------------------------------------------|:------------------------------------------|:----------|
+| application.name or spring.application.name | Application name                          | Yes       |
+| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
+| info.app.description                        | Something about application               | Yes       |
+| web.component.scan                          | your own package path or parent path      | Yes       |
+| server.port                                 | e.g. 8083                                 | Yes*      |
+| spring.mvc.static-path-pattern              | /**                                       | Yes*      |
+| spring.resources.static-locations           | classpath:/public/                        | Yes*      |
+| jax.rs.application.path                     | /api                                      | Optional*1|
+| show.env.variables                          | comma separated list of variable names    | Optional*1|
+| show.application.properties                 | comma separated list of property names    | Optional*1|
+| cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional  |
+| cloud.services                              | e.g. hazelcast.reporter                   | Optional  |
+| presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional  |
+| event.node.path                             | e.g. ws://127.0.0.1:8080/ws/events        | Optional  |
+| hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional  |
+| hazelcast.namespace                         | your system name for multi-tenancy        | Optional  |
+| snake.case.serialization                    | true (recommended)                        | Optional  |
+| env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
+| safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
+| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
+| info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
+| trace.http.header                           | comma separated list traceId labels       | *2        |
+| trace.log.header                            | default value is X-Trace-Id               | Optional  |
+| index.redirection                           | comma separated list of URI paths         | Optional*1|
+| index.page                                  | default value is index.html               | Optional*1|
+| application.feature.route.substitution      | default value is false                    | Optional  |
+| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
+| kafka.client.properties                     | classpath:/kafka.properties               | Kafka     |
+| kafka.replication.factor                    | 3                                         | Kafka     |
+| multi.tenancy.namespace                     | environment shortname                     | Optional  |
+| app.shutdown.key                            | secret key to shutdown app instance       | Optional  |
 
-Starting from version 1.12.30, the rest-automation system, when deployed, will provide the "async.http.request" service.
+`*1` - when using the "rest-spring" library
+`*2` - applies to the REST automation helper application only
 
-This means you can make a HTTP request without using a HttpClient.
+# safe.data.models
 
-For example, a simple HTTP GET request may look like this:
+PoJo may execute Java code. As a result, it is possible to inject malicious code that does harm when deserializing a PoJo.
+This security risk applies to any JSON serialization engine.
 
-```java
-// the target URL is constructed from the relay 
-PostOffice po = PostOffice.getInstance();
-AsyncHttpRequest req = new AsyncHttpRequest();
-req.setMethod("GET");
-req.setHeader("accept", "application/json");
-req.setUrl("/api/search?keywords="+body);
-req.setTargetHost("https://service_provider_host");
-try {
-    EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
-    log.info("GOT {} {}", res.getHeaders(), res.getBody());
-    /*
-     * res.getHeaders() contains HTTP response headers
-     * res.getBody() is the HTTP response body
-     *
-     * Note that the HTTP body will be provided as be set a HashMap
-     * if the input content-type is application/json or application/xml.
-     */ 
-    // process HTTP response here (HTTP-200)
-    
-} catch (AppException e) {
-    log.error("Rejected by service provider HTTP-{} {}", 
-               e.getStatus(), e.getMessage().replace("\n", ""));
-    // handle exception here
-}
-```
-In the above example, we are using RPC method. You may also use callback method for handling the HTTP response.
+For added security and peace of mind, you may want to white list your PoJo package paths.
+When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController, Servlets will respect this setting and enforce PoJo white listing.
 
-## Sending HTTP request body for HTTP PUT, POST and PATCH methods
+Usually you do not need to use the serializer in your code because it is much better to deal with PoJo in your IDE.
+However, if there is a genuine need to do low level coding, you may use the pre-configured serializer so that the serialization behavior is consistent.
 
-For most cases, you can just set a HashMap into the request body and specify content-type as JSON or XML.
-The system will perform serialization properly.
+You can get an instance of the serializer with `SimpleMapper.getInstance().getWhiteListMapper()`.
 
-Example code may look like this:
+# info.api.key
 
-```java
-AsyncHttpRequest req = new AsyncHttpRequest();
-req.setMethod("POST");
-req.setHeader("accept", "application/json");
-req.setHeader("content-type", "application/json");
-req.setUrl("/api/book/new_book/12345");
-req.setTargetHost("https://service_provider_host");
-req.setBody(keyValues);
-// where keyValues is a HashMap
-```
+When "protected.info.endpoints" are configured, you must provide this secret in the "X-Info-Key" header when accessing the protected endpoints. 
 
-## Sending HTTP request body as a stream
+# trace.http.header
 
-For larger payload, you may use streaming method. See sample code below:
+Identify the HTTP header for traceId. When configured with more than one label, the system will retrieve traceID from the
+corresponding HTTP header and propagate it through the transaction that may be served by multiple services.
 
-```java
-int len;
-byte[] buffer = new byte[BUFFER_SIZE];
-BufferedInputStream in = new BufferedInputStream(someFileInputStream);
-ObjectStreamIO stream = new ObjectStreamIO(timeoutInSeconds);
-ObjectStreamWriter out = stream.getOutputStream();
-while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-    out.write(buffer, 0, len);
-}
-// closing the output stream would save an EOF mark in the stream
-out.close();
-// update the AsyncHttpRequest object
-req.setStreamRoute(stream.getRoute());
-```
+If traceId is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
 
-## Handle HTTP response body stream
+e.g. 
+X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+or
+X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
 
-If content length is not given, the response body will be received as a stream.
+# trace.log.header
 
-Your application should check if the HTTP response headers contains a "stream" header.
-Sample code to read the stream may look like this:
+If tracing is enabled for a transaction, this will insert the trace-ID into the logger's ThreadContext using the trace.log.header.
 
-```java
-PostOffice po = PostOffice.getInstance();
-AsyncHttpRequest req = new AsyncHttpRequest();
-req.setMethod("GET");
-req.setHeader("accept", "application/json");
-req.setUrl("/api/search?keywords="+body);
-req.setTargetHost("https://service_provider_host");
-EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
-Map<String, String> resHeaders = res.getHeaders();
-if (resHeaders.containsKey("stream")) {
-    ObjectStreamIO consumer = new ObjectStreamIO(resHeaders.get("stream"));
-    /*
-     * For demonstration, we are using ByteArrayOutputStream.
-     * For production code, you should stream the input to persistent storage
-     * or handle the input stream directly.
-     */
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ObjectStreamReader in = consumer.getInputStream(1000);
-    for (Object d: in) {
-        if (d instanceof byte[]) {
-            out.write((byte[]) d);
-        }
-    }
-    // remember to close the input stream
-    in.close();
-    // handle the result
-    byte[] result = out.toByteArray();
-}
+Note that trace.log.header is case sensitive and you must put the corresponding value in log4j2.xml.
+The default value is "X-Trace-Id" if this parameter is not provided in application.properties.
+e.g.
+
+```xml
+<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
 ```
 
-## Content length for HTTP request
+# app.shutdown.key
 
-`Important` - Do not set the "content-length" HTTP header because the system will automatically compute the correct content-length for small payload.
-For large payload, it will use the chunking method.
+If this parameter is given, the shutdown endpoint will be activated.
+```
+POST /shutdown
 
-The system may use data compression and thus manually setting content length for HTTP request body would result in unpredictable side-effect.
+content-type: "application/x-www-form-urlencoded"
+body: key=the_shutdown_key&origin=originId
+```
+
+# route substitution
+
+This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. 
+
+Example parameters in application.properties
+```yaml
+application.feature.route.substitution=true
+# the system will load the first available file if more than one location is given
+route.substitution.file=file:/tmp/config/route-substitution.yaml , classpath:/route-substitution.yaml
+```
+
+Example route-substitution.yaml file
+```yaml
+route:
+  substitution:
+    - "hello.test -> hello.world"
+```
+
+# Kafka specific configuration
+
+If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to externalize kafka.properties.
+It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
+
+Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an external config file.
+
+You want also use the embedded config file as a backup like this:
+
+```
+# this is the configuration used by the kafka.presence monitor
+kafka.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
+```
+
+`kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
+If the available number of kafka brokers are more than the replication factor, it will use the given replication factor.
+Otherwise, the system will fall back to a smaller value and this optimization may not work in production.
+Therefore, please discuss with your DevOps administrator for the optimal replication factor value.
+
+```
+Number of replicated copies = replication factor - 1
+```
+
+# presence monitor
+
+The event node is a platform-in-a-box to emulate a network event stream in the same developer's laptop.
+
+For production, you would be using Kafka or Hazelcast as the event stream. In this case, you will deploy a "presence monitor" in the system.
+
+You can then configure a "presence reporter" in your service module to report to the presence monitor. It uses websocket "presence" technology to inform the monitor when your module fails so that a new instance can be started.
+
+# multi-tenancy for event stream systems
+
+Since version 1.12.10, multi-tenancy is supported for hazelcast and kafka.
+This is a convenient feature for non-prod environments to share a single event stream system.
+For production, you should use a separate event stream cluster.
+
+To enable multi-tenancy support, set the following parameters in application.properties like this:
+
+```
+# set a name for the environment. e.g. "dev"
+# you can use any environment variable to map to a namespace. e.g. RUNTIME_ENV
+multi.tenancy.namespace=dev
+env.variables=RUNTIME_ENV:multi.tenancy.namespace
+```
+
+# Spring Boot
+
+The foundation code uses Spring Boot in the "rest-spring" library. For loose coupling, we use the `@MainApplication` as a replacement for the `SpringApplication`. Please refer to the MainApp class in the "rest-example" project.
+This allows us to use any REST application server when technology evolves.
+
+If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
+
+---
+
+| Chapter-7                                | Home                                     |
+| :---------------------------------------:|:----------------------------------------:|
+| [Reserved route names](CHAPTER-7.md)     | [Table of Contents](TABLE-OF-CONTENTS.md)|
+

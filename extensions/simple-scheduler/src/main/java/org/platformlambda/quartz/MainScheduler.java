@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -98,9 +98,7 @@ public class MainScheduler implements EntryPoint {
         ScheduledJob j = getJob(id);
         if (j != null && j.stopTime == null) {
             EventEnvelope event = new EventEnvelope().setTo(j.service);
-            for (String k : j.parameters.keySet()) {
-                event.setHeader(k, j.parameters.get(k));
-            }
+            event.setHeaders(j.parameters);
             try {
                 PostOffice.getInstance().send(event);
                 j.lastExecution = new Date();

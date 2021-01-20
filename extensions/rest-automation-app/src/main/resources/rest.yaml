@@ -1,14 +1,41 @@
 #
 # REST automation is the recommended way to create REST endpoints properly
+# Note that URL comparison is case insensitive but case sensitivity is preserved
+# for the original URL and path parameters
 #
 rest:
+  # The REST automation system includes a built-in websocket notification system.
+  # If you want to enable this feature, you must add the ws.token.issuer service as
+  # shown in this example. For added security, please enable authentication and point
+  # it to a user defined authentication service that may authenticate the user credentials
+  # and validate that the user is allowed to use a specific websocket application.
+  #
+  # the "ws.token.issuer" and "ws.notification" are reserved by the system for
+  # websocket connection token issuance and notification topic query services
+  #
+  - service: "ws.token.issuer"
+    methods: ['GET']
+    url: "/api/ws/token/{application}"
+    #    authentication: "v1.api.auth"
+    tracing: true
+  - service: "ws.notification"
+    methods: ['GET']
+    url: "/api/notification"
+    #    authentication: "v1.api.auth"
+    tracing: true
+  - service: "ws.notification"
+    methods: ['GET']
+    url: "/api/notification/{topic}"
+    #    authentication: "v1.api.auth"
+    tracing: true
+
   - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH']
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     timeout: 10s
     # optional authentication service which should return result as an EventEnvelope
-    # with session info in headers and true|false in body
-#    authentication: "v1.api.auth"
+    # with session info in headers and true or false in body
+    #    authentication: "v1.api.auth"
     cors: cors_1
     headers: header_1
     # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
@@ -34,13 +61,6 @@ rest:
     cors: cors_1
     headers: header_1
 
-  - service: "hello.download"
-    methods: ['GET']
-    url: "/api/hello/download"
-    timeout: 12
-    cors: cors_1
-    headers: header_1
-
   #
   # When service is a URL, it will relay HTTP or HTTPS requests.
   # "trust_all_cert" and "url_rewrite" are optional.
@@ -62,6 +82,13 @@ rest:
     headers: header_1
     tracing: true
 
+  - service: "hello.download"
+    methods: ['GET']
+    url: "/api/hello/download"
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
 #
@@ -78,12 +105,12 @@ cors:
     origin: ${api.origin}
     options:
       - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Max-Age: 86400"
     headers:
       - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Allow-Credentials: true"
 
@@ -105,7 +132,7 @@ headers:
       # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
       #
       drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
-      
+
     response:
       #
       # the system can filter the response headers set by a target service
@@ -124,25 +151,29 @@ headers:
       add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
 
 #
-# WebSocket automation is designed primarily for real-time notification services
-# because it connects a stateful websocket connection to your stateless service.
-# (IMPORTANT - Stateless websocket services may not apply to other use cases)
+# WebSocket automation is designed primarily for real-time notification.
+# However, you may also use it to receive messages from a browser or external application.
 #
-# The ws.notification and sample.ws.auth service are available as a template
-# in the websocket-automation-example application.
+# You can also send notification events using the NotificationService API
+# Please refer to user guide for details.
+# https://github.com/Accenture/mercury/tree/master/docs/guides
 #
-# Tracing for incoming websocket messages is not supported because websocket is a stateful connection.
-# However, outgoing websocket events are tracked if tracing is turned on from the calling service.
+# The format of a valid web-socket URL is /ws/api/{application}:{token}?query_parameters
+#
+# In the following example entry, the application name is "notification".
+# You can use the websocket connection with or without notification feature.
+# If you want notification feature, set "subscribe" to true and your UI can send subscription API via
+# a websocket connecton. If you allow the UI to send notification events to other browsers, you can turn on "publish".
+#
+# If you want to handle the input programmatically at the backend, you can set a "recipient" route name
+# that points to a custom function that you provide.
+#
+# When publish/subscribe features are set to false, you must provide a "recipient" function otherwise
+# the websocket becomes a "no-op" connection, thus wasting networking resources.
 #
 websocket:
-  - service: "ws.notification"
-    #
-    # The web-socket URL is /ws/api/{application}:{token}?query_parameters
-    # The token and query parameters will be passed to the authentication service first.
-    #
-    application: "notification"
-    #
-    # The authentication service may insert session information in the headers
-    # before routing to the user provided service.
-    #
-    authentication: "sample.ws.auth"
+  - application: "notification"
+    publish: true
+    subscribe: true
+#    recipient: "my.ws.handler"
+

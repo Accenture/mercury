@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -58,11 +58,7 @@ public class DistributedTrace implements LambdaFunction {
             log.info("trace={}, annotations={}", trace.getHeaders(), trace.getBody());
             if (found) {
                 EventEnvelope event = new EventEnvelope();
-                event.setTo(processor).setBody(trace.getBody());
-                Map<String, String> map = trace.getHeaders();
-                for (String h: map.keySet()) {
-                    event.setHeader(h, map.get(h));
-                }
+                event.setTo(processor).setBody(trace.getBody()).setHeaders(trace.getHeaders());
                 try {
                     PostOffice.getInstance().send(event);
                 } catch (Exception e) {

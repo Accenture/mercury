@@ -278,6 +278,7 @@ To read the event stream of a topic from the beginning, you can set offset to "0
 The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do serialization yourself.
 The payload can be PoJo, Map or Java primitives.
 
+---
 
 | Chapter-4                                 | Home                                     |
 | :----------------------------------------:|:----------------------------------------:|

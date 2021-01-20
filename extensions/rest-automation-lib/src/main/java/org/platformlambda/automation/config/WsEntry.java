@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -31,10 +31,12 @@ import java.util.Map;
 public class WsEntry {
     private static final Logger log = LoggerFactory.getLogger(WsEntry.class);
 
+    public static final String NONE_PROVIDED = "none.provided";
     private static final String WEB_SOCKET = "websocket";
-    private static final String SERVICE = "service";
+    private static final String RECIPIENT = "recipient";
+    private static final String PUBLISH = "publish";
+    private static final String SUBSCRIBE = "subscribe";
     private static final String APPLICATION = "application";
-    private static final String AUTH = "authentication";
 
     private static final Map<String, WsInfo> routingTable = new HashMap<>();
 
@@ -50,7 +52,7 @@ public class WsEntry {
         return routingTable.isEmpty();
     }
 
-    public WsInfo getRoute(String app) {
+    public WsInfo getInfo(String app) {
         return routingTable.get(app);
     }
 
@@ -64,28 +66,32 @@ public class WsEntry {
                 for (Object e: entries) {
                     if (e instanceof Map) {
                         Map<String, Object> entry = (Map<String, Object>) e;
-                        if (entry.containsKey(SERVICE) && entry.containsKey(APPLICATION) && entry.containsKey(AUTH)) {
-                            String app = entry.get(APPLICATION).toString().trim();
-                            String auth = entry.get(AUTH).toString().trim();
-                            String service = entry.get(SERVICE).toString().trim();
-                            if (util.validServiceName(service) && util.validServiceName(auth) &&
-                                    service.contains(".") && auth.contains(".")){
+                        if (entry.containsKey(APPLICATION)) {
+                            String app = entry.get(APPLICATION).toString().toLowerCase().trim();
+                            String recipient = entry.getOrDefault(RECIPIENT, NONE_PROVIDED).toString().toLowerCase().trim();
+                            boolean publish = "true".equals(entry.getOrDefault(PUBLISH, "false").toString());
+                            boolean subscribe = "true".equals(entry.getOrDefault(SUBSCRIBE, "false").toString());
+                            if (util.validServiceName(recipient) && recipient.contains(".")) {
                                 if (app.contains("*")) {
                                     log.warn("Wild card not allowed in application name in WebSocket entry - {}", e);
                                 } else {
                                     if (routingTable.containsKey(app)) {
                                         log.warn("Skipping duplicated WebSocket entry {}", e);
                                     } else {
-                                        routingTable.put(app, new WsInfo(app, auth, service));
-                                        log.info("WebSocket /ws/api/{}:{} -> {} -> {}", app, "{token}", auth, service);
+                                        if (NONE_PROVIDED.equals(recipient) && !publish && !subscribe) {
+                                            log.warn("Skipping no-op WebSocket entry {}", e);
+                                        } else {
+                                            routingTable.put(app, new WsInfo(app, recipient, publish, subscribe));
+                                            log.info("WebSocket /ws/api/{}:{}, recipient: {}, publish: {}, subscribe: {}",
+                                                    app, "{token}", recipient, publish, subscribe);
+                                        }
                                     }
                                 }
                             } else {
-                                log.warn("Invalid user or authentication service name in WebSocket entry - {}", e);
+                                log.warn("Invalid recipient service name in WebSocket entry - {}", e);
                             }
                         } else {
-                            log.warn("WebSocket entry is missing {}, {} or {} - skipping {}",
-                                    SERVICE, APPLICATION, AUTH, e);
+                            log.warn("WebSocket entry is missing {} - skipping {}", APPLICATION, e);
                         }
 
                     } else {

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -45,6 +45,11 @@ public class EventNodeConnector implements LambdaFunction {
     private static final Utility util = Utility.getInstance();
     private static final MsgPack msgPack = new MsgPack();
 
+    private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ORIGIN = ServiceDiscovery.ORIGIN;
+    private static final String JOIN = "join";
+    private static final String LEAVE = "leave";
     public static final String HELLO = "hello";
     public static final String CHALLENGE = "challenge";
     public static final String RESPONSE = "response";
@@ -101,8 +106,9 @@ public class EventNodeConnector implements LambdaFunction {
     @SuppressWarnings("unchecked")
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        WsRegistry registry = WsRegistry.getInstance();
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
+        WsRegistry registry = WsRegistry.getInstance();
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
@@ -125,6 +131,9 @@ public class EventNodeConnector implements LambdaFunction {
                     state = State.DISCONNECTED;
                     // release resources
                     log.debug("Disconnected {}", headers.get(WsEnvelope.ROUTE));
+                    if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                        po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, LEAVE), new Kv(ORIGIN, platform.getOrigin()));
+                    }
                     break;
                 case WsEnvelope.BYTES:
                     WsEnvelope envelope = registry.get(headers.get(WsEnvelope.ROUTE));
@@ -230,7 +239,6 @@ public class EventNodeConnector implements LambdaFunction {
                                     // upload routing table
                                     ServerPersonality personality = ServerPersonality.getInstance();
                                     if (personality.getType() != ServerPersonality.Type.PLATFORM) {
-                                        Platform platform = Platform.getInstance();
                                         ConcurrentMap<String, ServiceDef> routes = platform.getLocalRoutingTable();
                                         for (String r : routes.keySet()) {
                                             ServiceDef def = routes.get(r);
@@ -243,6 +251,9 @@ public class EventNodeConnector implements LambdaFunction {
                                                 log.info("{} registered with {}", def.getRoute(), EVENT_NODE);
                                             }
                                         }
+                                    }
+                                    if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
+                                        po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()));
                                     }
                                 }
                             }

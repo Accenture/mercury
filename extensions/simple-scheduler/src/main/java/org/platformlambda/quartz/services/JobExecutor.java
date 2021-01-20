@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -53,9 +53,7 @@ public class JobExecutor implements Job {
         if (job != null) {
             EventEnvelope event = new EventEnvelope().setTo(job.service);
             event.setTrace(event.getId(), "JOB /schedule/"+job.name);
-            for (String k : job.parameters.keySet()) {
-                event.setHeader(k, job.parameters.get(k));
-            }
+            event.setHeaders(job.parameters);
             /*
              * Leader election protocol
              * ------------------------

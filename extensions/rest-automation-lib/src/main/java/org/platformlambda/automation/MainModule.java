@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@ package org.platformlambda.automation;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.AsyncContextHolder;
+import org.platformlambda.automation.services.NotificationManager;
+import org.platformlambda.automation.services.NotificationQuery;
 import org.platformlambda.automation.services.ServiceResponseHandler;
+import org.platformlambda.automation.services.WsTokenIssuer;
 import org.platformlambda.automation.servlets.HttpRelay;
 import org.platformlambda.automation.servlets.ServiceGateway;
 import org.platformlambda.automation.util.AsyncTimeoutHandler;
@@ -32,6 +35,7 @@ import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +44,18 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
 @MainApplication(sequence=2)
-public class MainApp implements EntryPoint {
-    private static final Logger log = LoggerFactory.getLogger(MainApp.class);
+public class MainModule implements EntryPoint {
+    private static final Logger log = LoggerFactory.getLogger(MainModule.class);
 
     public static final String ASYNC_HTTP_REQUEST = "async.http.request";
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
+    public static final String NOTIFICATION_MANAGER = "notification.manager";
+    private static final String WS_TOKEN_ISSUER = "ws.token.issuer";
+    private static final String NOTIFICATION_QUERY = "ws.notification";
+
+    public static void main(String[] args) {
+        RestServer.main(args);
+    }
 
     /**
      * Starting point for rest-automation
@@ -86,6 +97,11 @@ public class MainApp implements EntryPoint {
             timeoutHandler.start();
             // ready to serve
             ServiceGateway.setReady();
+            // start a generic notification service
+            platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
+            platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);
+            platform.registerPrivate(NOTIFICATION_QUERY, new NotificationQuery(), 10);
+
         } catch (Exception e) {
             log.error("Unable to start", e);
             System.exit(-1);

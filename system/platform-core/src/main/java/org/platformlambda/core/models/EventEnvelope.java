@@ -1,5 +1,5 @@
 /*
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
@@ -311,6 +311,16 @@ public class EventEnvelope {
         return this;
     }
 
+    public EventEnvelope setHeaders(Map<String, String> headers) {
+        // make a shallow copy
+        if (headers != null) {
+            for (String h : headers.keySet()) {
+                this.setHeader(h, headers.get(h));
+            }
+        }
+        return this;
+    }
+
     /**
      * Set payload
      *
@@ -493,10 +503,7 @@ public class EventEnvelope {
                 }
             }
             if (message.containsKey(HEADERS)) {
-                Map<String, String> map = (Map<String, String>) message.get(HEADERS);
-                for (String h: map.keySet()) {
-                    setHeader(h, map.get(h));
-                }
+                setHeaders((Map<String, String>) message.get(HEADERS));
             }
             if (message.containsKey(END_ROUTE)) {
                 endOfRoute = (Boolean) message.get(END_ROUTE);

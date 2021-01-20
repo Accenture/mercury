@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2020 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 package org.platformlambda.automation.config;
 
-import org.platformlambda.automation.MainApp;
+import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.CorsInfo;
 import org.platformlambda.automation.models.HeaderInfo;
@@ -35,7 +35,7 @@ import java.util.*;
 public class RoutingEntry {
     private static final Logger log = LoggerFactory.getLogger(RoutingEntry.class);
 
-    private static final String ASYNC_HTTP_REQUEST = MainApp.ASYNC_HTTP_REQUEST;
+    private static final String ASYNC_HTTP_REQUEST = MainModule.ASYNC_HTTP_REQUEST;
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
     private static final String REST = "rest";
@@ -45,6 +45,7 @@ public class RoutingEntry {
     private static final String THRESHOLD = "threshold";
     private static final String TRACING = "tracing";
     private static final String SERVICE = "service";
+    private static final String PRIMARY = "primary";
     private static final String METHODS = "methods";
     private static final String URL_LABEL = "url";
     private static final String ID = "id";
@@ -288,12 +289,53 @@ public class RoutingEntry {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private List<String> validateServiceList(Object svcList) {
+        Utility util = Utility.getInstance();
+        List<String> list = svcList instanceof String?
+                Collections.singletonList((String) svcList) : (List<String>) svcList;
+        List<String> result = new ArrayList<>();
+        for (String item: list) {
+            String service = item.trim().toLowerCase();
+            if (!service.isEmpty() && !result.contains(service)) {
+                result.add(service);
+            }
+        }
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException("Missing service");
+        }
+        String firstItem = result.get(0);
+        if (firstItem.startsWith(HTTP) || firstItem.startsWith(HTTPS)) {
+            if (result.size() > 1) {
+                throw new IllegalArgumentException("HTTP relay supports a single URL only");
+            }
+            return result;
+        }
+        for (String item: result) {
+            if (item.startsWith(HTTP) || item.startsWith(HTTPS)) {
+                throw new IllegalArgumentException("Cannot mix HTTP and service target");
+            }
+            if (!util.validServiceName(item) || !item.contains(".")) {
+                throw new IllegalArgumentException("Invalid service name");
+            }
+        }
+        return result;
+    }
+
 
     @SuppressWarnings("unchecked")
     private void loadRestEntry(Map<String, Object> entry, boolean exact) {
         Utility util = Utility.getInstance();
         RouteInfo info = new RouteInfo();
-        if (entry.get(SERVICE) instanceof String && entry.get(METHODS) instanceof List) {
+        if ((entry.get(SERVICE) instanceof String || entry.get(SERVICE) instanceof List) &&
+                entry.get(METHODS) instanceof List) {
+            try {
+                info.services = validateServiceList(entry.get(SERVICE));
+            } catch (IllegalArgumentException e) {
+                log.error("Skipping entry {} - {}", entry, e.getMessage());
+                return;
+            }
+            info.primary = info.services.get(0);
             // default multipart label for upload is "file"
             if (entry.containsKey(UPLOAD) && entry.get(UPLOAD) instanceof String) {
                 String upload = ((String) entry.get(UPLOAD)).trim();
@@ -327,7 +369,6 @@ public class RoutingEntry {
                     info.tracing = true;
                 }
             }
-            String service = entry.get(SERVICE).toString().toLowerCase();
             List<String> methods = (List<String>) entry.get(METHODS);
             // save case insensitive version of the URL
             String url = entry.get(URL_LABEL).toString().toLowerCase();
@@ -383,101 +424,93 @@ public class RoutingEntry {
                     return;
                 }
             }
-            // URL rewrite
-            if (entry.containsKey(URL_REWRITE)) {
-                if (entry.get(URL_REWRITE) instanceof List) {
-                    List<String> urlRewrite = (List<String>) entry.get(URL_REWRITE);
-                    if (urlRewrite.size() == 2) {
-                        info.urlRewrite = urlRewrite;
+            if (info.primary.startsWith(HTTP) || info.primary.startsWith(HTTPS)) {
+                // URL rewrite
+                if (entry.containsKey(URL_REWRITE)) {
+                    if (entry.get(URL_REWRITE) instanceof List) {
+                        List<String> urlRewrite = (List<String>) entry.get(URL_REWRITE);
+                        if (urlRewrite.size() == 2) {
+                            info.urlRewrite = urlRewrite;
+                        } else {
+                            log.error("Skipping entry with invalid {} - {}. It should contain a list of 2 prefixes",
+                                    URL_REWRITE, urlRewrite);
+                            return;
+                        }
                     } else {
-                        log.error("Skipping entry with invalid {} - {}. It should contain a list of 2 prefixes",
-                                URL_REWRITE, service);
+                        log.error("Skipping entry with invalid {} - {}, expected: List<String>, actual: {}",
+                                URL_REWRITE, entry.get(URL_REWRITE), entry.get(URL_REWRITE).getClass().getSimpleName());
                         return;
                     }
-                } else {
-                    log.error("Skipping entry with invalid {} - {}, expected: List<String>, actual: {}",
-                            URL_REWRITE, service, entry.get(URL_REWRITE).getClass().getSimpleName());
-                    return;
                 }
-            }
-            boolean isHttp = false;
-            if (service.startsWith(HTTP) || service.startsWith(HTTPS)) {
                 try {
-                    URL u = new URL(service);
+                    URL u = new URL(info.primary);
                     if (!u.getPath().isEmpty()) {
-                        log.error("Skipping entry with invalid service URL {} - Must not contain path", service);
+                        log.error("Skipping entry with invalid service URL {} - Must not contain path", info.primary);
                         return;
                     }
                     if (u.getQuery() != null) {
-                        log.error("Skipping entry with invalid service URL {} - Must not contain query", service);
+                        log.error("Skipping entry with invalid service URL {} - Must not contain query", info.primary);
                         return;
                     }
-                    isHttp = true;
-                    if (service.startsWith(HTTPS) && entry.containsKey(TRUST_ALL_CERT) &&
+                    if (info.primary.startsWith(HTTPS) && entry.containsKey(TRUST_ALL_CERT) &&
                                 "true".equalsIgnoreCase(entry.get(TRUST_ALL_CERT).toString())) {
                         info.trustAllCert = true;
-                        log.warn("Be careful - {}=true for {}", TRUST_ALL_CERT, service);
+                        log.warn("Be careful - {}=true for {}", TRUST_ALL_CERT, info.primary);
                     }
-                    if (service.startsWith(HTTP) && entry.containsKey(TRUST_ALL_CERT)) {
-                        log.warn("{}=true for {} is not relevant - Do you meant https?", TRUST_ALL_CERT, service);
+                    if (info.primary.startsWith(HTTP) && entry.containsKey(TRUST_ALL_CERT)) {
+                        log.warn("{}=true for {} is not relevant - Do you meant https?", TRUST_ALL_CERT, info.primary);
                     }
+                    // set primary to ASYNC_HTTP_REQUEST
+                    info.host = info.primary;
+                    info.primary = ASYNC_HTTP_REQUEST;
 
                 } catch (MalformedURLException e) {
-                    log.error("Skipping entry with invalid service URL {} - {}", service, e.getMessage());
+                    log.error("Skipping entry with invalid service URL {} - {}", info.primary, e.getMessage());
                     return;
                 }
+
             } else {
                 if (entry.containsKey(TRUST_ALL_CERT)) {
-                    log.warn("{}=true for {} is not relevant", TRUST_ALL_CERT, service);
+                    log.warn("{}=true for {} is not relevant", TRUST_ALL_CERT, info.primary);
                 }
             }
-            if (!isHttp && !util.validServiceName(service)) {
-                log.error("Skipping entry with invalid service name {}", entry);
-            } else {
-                if (isHttp) {
-                    info.service = ASYNC_HTTP_REQUEST;
-                    info.host = service;
-                } else {
-                    info.service = service;
+            if (validMethods(methods)) {
+                info.methods = methods;
+                if (exact) {
+                    exactRoutes.put(url, true);
                 }
-                if (validMethods(methods)) {
-                    info.methods = methods;
-                    if (exact) {
-                        exactRoutes.put(url, true);
+                String nUrl = getUrl(url, exact);
+                if (nUrl == null) {
+                    log.error("Skipping invalid entry {}", entry);
+                } else {
+                    info.url = nUrl;
+                    List<String> allMethods = new ArrayList<>(methods);
+                    if (!allMethods.contains(OPTIONS_METHOD)) {
+                        allMethods.add(OPTIONS_METHOD);
                     }
-                    String nUrl = getUrl(url, exact);
-                    if (nUrl == null) {
-                        log.error("Skipping invalid entry {}", entry);
-                    } else {
-                        info.url = nUrl;
-                        List<String> allMethods = new ArrayList<>(methods);
-                        if (!allMethods.contains(OPTIONS_METHOD)) {
-                            allMethods.add(OPTIONS_METHOD);
-                        }
-                        for (String m: allMethods) {
-                            String key = m+":"+nUrl;
-                            if (routes.containsKey(key)) {
-                                if (!m.equals(OPTIONS_METHOD)) {
-                                    log.error("Skipping duplicated method and URL {}", key);
-                                }
+                    for (String m: allMethods) {
+                        String key = m+":"+nUrl;
+                        if (routes.containsKey(key)) {
+                            if (!m.equals(OPTIONS_METHOD)) {
+                                log.error("Skipping duplicated method and URL {}", key);
+                            }
+                        } else {
+                            routes.put(key, info);
+                            // OPTIONS method is not traced
+                            if (m.equals(OPTIONS_METHOD)) {
+                                log.info("{} {} -> {}, timeout={}s", m, nUrl, info.services, info.timeoutSeconds);
+                            } else if (info.authService != null) {
+                                log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
+                                        m, nUrl, info.authService, info.services, info.timeoutSeconds, info.tracing);
                             } else {
-                                routes.put(key, info);
-                                // OPTIONS method is not traced
-                                if (m.equals(OPTIONS_METHOD)) {
-                                    log.info("{} {} -> {}, timeout={}s", m, nUrl, service, info.timeoutSeconds);
-                                } else if (info.authService != null) {
-                                    log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
-                                            m, nUrl, info.authService, service, info.timeoutSeconds, info.tracing);
-                                } else {
-                                    log.info("{} {} -> {}, timeout={}s, tracing={}",
-                                            m, nUrl, service, info.timeoutSeconds, info.tracing);
-                                }
+                                log.info("{} {} -> {}, timeout={}s, tracing={}",
+                                        m, nUrl, info.services, info.timeoutSeconds, info.tracing);
                             }
                         }
                     }
-                } else {
-                    log.error("Skipping entry with invalid method {}", entry);
                 }
+            } else {
+                log.error("Skipping entry with invalid method {}", entry);
             }
 
         } else {

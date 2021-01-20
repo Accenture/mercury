@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -59,10 +59,8 @@ public class DeferredDelivery implements LambdaFunction {
                     EventEnvelope deferred = new EventEnvelope();
                     deferred.setTo(route);
                     if (map.containsKey(HEADERS)) {
-                        Map<String, String> relayHeaders = (Map<String, String>) map.get(HEADERS);
-                        for (String h: relayHeaders.keySet()) {
-                            deferred.setHeader(h, relayHeaders.get(h));
-                        }
+                        // relay headers
+                        deferred.setHeaders((Map<String, String>) map.get(HEADERS));
                     }
                     if (map.containsKey(BODY)) {
                         deferred.setBody(map.get(BODY));

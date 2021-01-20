@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2019 Accenture Technology
+    Copyright 2018-2021 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,16 +19,9 @@
 package org.platformlambda.node.system;
 
 import org.platformlambda.core.annotations.WebSocketService;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.serializers.MsgPack;
-import org.platformlambda.core.system.ServiceDiscovery;
-import org.platformlambda.core.system.EventNodeConnector;
-import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.system.WsRegistry;
+import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -56,6 +49,11 @@ public class LambdaRouter implements LambdaFunction {
     private static final String ENCRYPT_EVENT_STREAM = "encrypt.event.stream";
     private static final String PUBLIC_KEY_USER_GROUP = "public.key.user.group";
     private static final String PUBLIC_KEY_ID = "public.key.id";
+    private static final String NOTIFICATION_MANAGER = "notification.manager";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ORIGIN = ServiceDiscovery.ORIGIN;
+    private static final String JOIN = "join";
+    private static final String LEAVE = "leave";
     private static final String TRUE = Boolean.TRUE.toString();
     private static final String FALSE = Boolean.FALSE.toString();
     private static Boolean strongCrypto, secureTransport;
@@ -109,6 +107,7 @@ public class LambdaRouter implements LambdaFunction {
                         new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.REMOVE),
                         new Kv(ServiceDiscovery.ORIGIN, headers.get(WsEnvelope.TOKEN)));
                 ready = false;
+                notifyManagerIfAny(LEAVE, headers.get(WsEnvelope.TOKEN));
                 break;
             case WsEnvelope.BYTES:
                 route = headers.get(WsEnvelope.ROUTE);
@@ -238,7 +237,7 @@ public class LambdaRouter implements LambdaFunction {
                                         new Kv(WsEnvelope.ENCRYPT, util.bytesToBase64(envelope.sessionKey)));
                                 log.info("{}.{} secure transport enabled", personality, envelope.origin);
                             }
-
+                            notifyManagerIfAny(JOIN, envelope.origin);
                         }
                     }
                 }
@@ -250,6 +249,21 @@ public class LambdaRouter implements LambdaFunction {
                 break;
         }
         return true;
+    }
+
+    private void notifyManagerIfAny(String type, String origin) {
+        PostOffice po = PostOffice.getInstance();
+        try {
+            TargetRoute target = po.discover(NOTIFICATION_MANAGER, true);
+            EventEnvelope evt = new EventEnvelope();
+            evt.setTo(NOTIFICATION_MANAGER);
+            evt.setHeader(TYPE, type).setHeader(ORIGIN, origin);
+            for (String p: target.getTxPaths()) {
+                MultipartPayload.getInstance().outgoing(p, evt);
+            }
+        } catch (IOException e) {
+            // ok to ignore
+        }
     }
 
     private byte[] getLambdaPublicKey(String filename) {
