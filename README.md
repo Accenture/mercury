@@ -638,6 +638,12 @@ With the Mercury framework, distributed tracing does not require code at applica
 To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of
 the rest-automation helper application.
 
+## JDK compatibility
+
+The Mercury project has been tested with OpenJDK version 8 to 14.
+
+OpenJDK 15 would break under mvn version 3.6.3. However, you can build the project with OpenJDK 8 to 14 and run it under OpenJDK 15. We will update this when this known problem is resolved.
+
 ## Kafka compatibility
 
 As of December 2020, Mercury has been tested and deployed with Apache Kafka, Confluent Kafka, IBM Event Streams (aka Message Hub) and Microsoft Azure Event Hubs.
