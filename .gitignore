@@ -1,5 +1,7 @@
 *.class
 .DS_STORE
+# ignore sbt because we are using maven
+build.sbt
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp
@@ -15,6 +17,7 @@ hs_err_pid*
 bin
 target
 logs
+project
 .project
 .classpath
 .settings
@@ -23,4 +26,3 @@ logs
 .idea
 .history
 *.iml
-
