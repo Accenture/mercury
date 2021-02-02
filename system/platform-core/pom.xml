@@ -9,9 +9,6 @@
     <packaging>jar</packaging>
     <version>1.12.66</version>
     <name>Mercury core library</name>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
 
     <!-- Use Spring Boot as a parent to fetch the correct Spring Framework modules -->
     <parent>
@@ -20,6 +17,13 @@
         <version>2.4.2</version>
         <relativePath/>
     </parent>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <hazelcast.version>4.0.1</hazelcast.version>
+        <kafka.version>2.7.0</kafka.version>
+        <java.version>1.8</java.version>
+    </properties>
 
     <repositories>
         <repository>

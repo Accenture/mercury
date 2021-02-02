@@ -20,6 +20,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <hazelcast.version>4.0.1</hazelcast.version>
+        <kafka.version>2.7.0</kafka.version>
         <java.version>1.8</java.version>
     </properties>
 
@@ -45,7 +46,6 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-	    <version>2.7.0</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
