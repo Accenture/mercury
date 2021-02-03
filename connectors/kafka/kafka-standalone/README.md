@@ -11,6 +11,17 @@ The Kafka standalone server runs in Mac and Linux environments. When running in 
 If you really need to run the Kafka standalone server in a Windows laptop, please run the kafka presence monitor with `delete.topic.enable` set to `false`.  e.g.
 
 ```
-java -Ddelete.topic.enable=false -jar target\kafka-presence-1.11.40.jar
+java -Ddelete.topic.enable=false -jar target\kafka-presence-1.11.66.jar
 ```
 If delete.topic.enable is set to false, the presence monitor's housekeeper will not delete expired topics.
+
+## Using docker
+
+If you are using Windows machine and you have "Docker for Windows" installed, the best way to run this kafka standalone server is to dockerize it.
+
+```
+docker build -t kafka-standalone .
+docker run -p 9092:9092 -p 2181:2181 kafka-standalone
+```
+
+After this step, you can start/stop it from the Docker Desktop app.
