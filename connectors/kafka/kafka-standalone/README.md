@@ -8,12 +8,7 @@ Note that when you restart the Kafka standalone server, all topics will be delet
 
 The Kafka standalone server runs in Mac and Linux environments. When running in Windows environment, it will crash when the presence monitor tries to delete an expired topic.
 
-If you really need to run the Kafka standalone server in a Windows laptop, please run the kafka presence monitor with `delete.topic.enable` set to `false`.  e.g.
-
-```
-java -Ddelete.topic.enable=false -jar target\kafka-presence-1.11.66.jar
-```
-If delete.topic.enable is set to false, the presence monitor's housekeeper will not delete expired topics.
+If you really need to run the Kafka standalone server in a Windows laptop, please dockerize the kafka standalone application as follows.
 
 ## Using docker
 

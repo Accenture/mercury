@@ -22,7 +22,7 @@ They are mutually exclusive. The hazelcast and kafka process files are here as a
 
 Once the applications are built, you can start them in this sequence. Kafka and presence-monitor are pre-requisites for the user applications. The language-connector is a helper app or sidecar for non-Java applications. e.g. Python.
 
-```
+```bash
 pm2 start kafka.json
 pm2 start presence-monitor.json
 pm2 start rest-automation.json
