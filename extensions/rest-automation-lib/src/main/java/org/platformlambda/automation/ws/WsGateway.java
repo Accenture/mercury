@@ -156,7 +156,8 @@ public class WsGateway implements LambdaFunction {
             event.put(IP, ip);
             event.put(ORIGIN, origin);
             event.put(TX_PATH, txPath + "@" + origin);
-            po.send(new EventEnvelope().setTo(info.recipient).setBody(event).setHeader(TYPE, OPEN));
+            // broadcast to multiple instance of the recipient service
+            po.broadcast(new EventEnvelope().setTo(info.recipient).setBody(event).setHeader(TYPE, OPEN));
         }
     }
 
@@ -176,7 +177,8 @@ public class WsGateway implements LambdaFunction {
                 event.put(APPLICATION, md.application);
                 event.put(ORIGIN, origin);
                 event.put(TX_PATH, target);
-                po.send(new EventEnvelope().setTo(md.recipient).setBody(event).setHeader(TYPE, CLOSE));
+                // broadcast to multiple instance of the recipient service
+                po.broadcast(new EventEnvelope().setTo(md.recipient).setBody(event).setHeader(TYPE, CLOSE));
             }
         }
     }
@@ -189,11 +191,18 @@ public class WsGateway implements LambdaFunction {
         String txPath = headers.get(TX_PATH);
         WsMetadata md = connections.get(route);
         if (md != null) {
+            if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
+                try {
+                    po.send(md.recipient, body, new Kv(TYPE, MESSAGE), new Kv(APPLICATION, md.application),
+                            new Kv(ORIGIN, origin), new Kv(TX_PATH, md.txPath + "@" + origin));
+                } catch (IOException e) {
+                    log.warn("Message not delivered to {} - {}", md.recipient, e.getMessage());
+                }
+            }
             if (body.startsWith("{") && body.endsWith("}")) {
                 Map<String, Object> message = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
                 if (HELLO.equals(message.get(TYPE))) {
                     po.send(txPath, body);
-                    return;
                 }
                 if (SUBSCRIBE.equals(message.get(TYPE)) || UNSUBSCRIBE.equals(message.get(TYPE))) {
                     if (!md.subscribe) {
@@ -206,7 +215,6 @@ public class WsGateway implements LambdaFunction {
                             sendResponse(txPath, "error", "Missing topic");
                         }
                     }
-                    return;
                 }
                 if (PUBLISH.equals(message.get(TYPE))) {
                     if (!md.publish) {
@@ -218,12 +226,7 @@ public class WsGateway implements LambdaFunction {
                             sendResponse(txPath, "error", "Input format should be topic:message");
                         }
                     }
-                    return;
                 }
-            }
-            if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
-                po.send(md.recipient, body, new Kv(TYPE, MESSAGE), new Kv(APPLICATION, md.application),
-                        new Kv(ORIGIN, origin), new Kv(TX_PATH, md.txPath + "@" + origin));
             }
         }
     }
