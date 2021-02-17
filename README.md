@@ -562,6 +562,38 @@ However, if you create the topic administratively before running this test app, 
 
 You may also notice that the Kafka client sets the read offset to the latest pointer. To read from the beginning, you may reset the read offset by adding a parameter "0" after the clientId and groupId in the subscribe statement above.
 
+## Work nicely with reactive frameworks
+
+Mercury provides a stream abstraction that can be used with reactive frameworks.
+
+For example, developers using Spring reactor with Mercury may setup a stream between two app modules 
+within the same container or in different containers like this:
+
+```java
+// at the producer app container
+ObjectStreamIO producer = new ObjectStreamIO(TIMEOUT_IN_SECONDS);
+ObjectStreamWriter out = producer.getOutputStream();
+out.write("hello"); // you can send text, bytes, Map or PoJo
+out.write("world");
+out.close(); // to indicate end-of-stream
+        
+String streamId = producer.getRoute();
+// deliver the streamId to the consumer using PostOffice
+//
+// at the consumer app container
+ObjectStreamIO consumer = new ObjectStreamIO(streamId);
+ObjectStreamReader in = consumer.getInputStream(TIMEOUT_IN_MILLISECONDS);
+Flux.fromIterable(in).log()
+    .doOnNext((d) -> {
+        // handle data block
+    }).doOnError((e) -> {
+        // handle exception
+    }).doOnComplete(() -> {
+        // handle completion
+        in.close(); // close I/O stream
+    }).subscribeOn(Schedulers.parallel()).subscribe();
+```
+
 ## Write your own microservices
 
 You may use the lambda-example and rest-example as templates to write your own applications.
