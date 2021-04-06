@@ -36,8 +36,7 @@
 | app.partitions.per.topic                    | Max Kafka partitions per topic            | Optional  |
 | max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
 | max.closed.user.groups                      | Number of closed user groups              | Optional  |
-| closed.user.group                           | Closed user group number for the app      | Optional  |
-|                                             | (default=1)                               |           |
+| closed.user.group                           | Closed user group (default 1) for the app | Optional  |
 
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation helper application only
