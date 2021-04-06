@@ -245,9 +245,6 @@ the REST automation helper application.
 Before you build this application, you should follow the README in the top level project to build the Mercury 
 libraries (platform-core, rest-core, rest-spring, kafka-connector, hazelcast-connector).
 
-If you use the Event Node "platform-in-box" for dev and test, you can simply build the Event Node and run it in 
-a command terminal.
-
 Then you can build this helper app and run with:
 ```
 java -Dcloud.connector=event.node target/rest-automation...jar

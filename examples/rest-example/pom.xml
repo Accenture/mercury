@@ -43,7 +43,6 @@
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
-             Not necessary if testing using Event Node.
 
              For convenience, both Kafka and Hazelcast connectors are added so
              you can select the connector from command line without recompiling from source. 

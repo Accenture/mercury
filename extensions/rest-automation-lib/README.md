@@ -246,9 +246,6 @@ the REST automation helper application.
 Before you build this application, you should follow the README in the top level project to build the Mercury 
 libraries (platform-core, rest-core, rest-spring, kafka-connector, hazelcast-connector).
 
-If you use the Event Node "platform-in-box" for dev and test, you can simply build the Event Node and run it in 
-a command terminal.
-
 Then you can build this helper app and run with:
 ```
 java -Dcloud.connector=event.node target/rest-automation...jar
@@ -541,15 +538,17 @@ If your application does not support websocket notification channel, you can rem
 
 # Test drive the REST automation system
 
-You can test drive the REST automation by deploying the event-node application, the rest-automation-app and the 
-lamdba-example. The quickest way to try that is to use the pm2-example/event-node or pm2-example/kafka start up scripts.
+You can test drive the REST automation by deploying kafka-standalone, kafka-presence, the rest-automation-app and the
+lamdba-example. The quickest way to try that is to use the pm2-example/kafka start up scripts.
 
-For event node, you can start a demo system with:
+You can start a demo system with:
 ```bash
-pm2 start event-node.json
+pm2 start kafka.json
+pm2 start presence-monitor.json
 pm2 start lambda-example.json
 pm2 start rest-automation.json
 ```
+
 Then you can visit the demo page at http://127.0.0.1:8100/api/hello/world
 
 This will send a HTTP request to the REST automation application that will turn the HTTP request into an event for 

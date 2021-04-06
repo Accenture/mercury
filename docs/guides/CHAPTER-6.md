@@ -135,11 +135,10 @@ Number of replicated copies = replication factor - 1
 
 # presence monitor
 
-The event node is a platform-in-a-box to emulate a network event stream in the same developer's laptop.
+You will deploy a "presence monitor" to assign topics to any connected user application instances. 
 
-For production, you would be using Kafka or Hazelcast as the event stream. In this case, you will deploy a "presence monitor" in the system.
-
-You can then configure a "presence reporter" in your service module to report to the presence monitor. It uses websocket "presence" technology to inform the monitor when your module fails so that a new instance can be started.
+Your user application instances will connect to the presence monitor using websocket. 
+When an application instance fails, the presence monitor can detect it immediately so that its peer application instances can update the routing table.
 
 # Spring Boot
 

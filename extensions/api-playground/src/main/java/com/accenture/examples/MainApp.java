@@ -65,25 +65,6 @@ public class MainApp implements EntryPoint {
         // Each deployment unit can be scaled horizontally by the cloud.
         platform.register("hello.world", echo, 20);
 
-        /*
-         * for local testing using event node:
-         *
-         * 1. set these parameters in application.properties
-         *    cloud.connector=event.node
-         *    event.node.path=ws://127.0.0.1:8080/ws/events/
-         *
-         * 2. platform.connectToCloud() - this will connect to event node
-         *
-         */
-
-        /*
-         * if you have your own custom cloud service modules
-         */
-        // platform.startCloudServices();
-
-        // connect to the network event streams so it can automatically discover other services
-//        platform.connectToCloud();
-
         log.info("Application started");
     }
 

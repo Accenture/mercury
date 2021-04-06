@@ -113,8 +113,8 @@ The source tree contains a "test" branch. You can use the "Test" annotation and 
 ## End to end test drive
 
 1. Compile and install the platform-core, rest-core and rest-spring projects as libraries locally using "mvn clean install" in the 3 projects.
-2. Compile and package the "Event Node" cloud emulator with "mvn clean package" for local test. Run it in a command terminal using "java -jar target\event-node-(version).jar"
+2. Compile and run the kafka-standalone app. Then compile and run the kafka-presence app to connect to Kafka.
 3. Compile and package this lambda-example project with "mvn clean package". Run it in a command terminal.
 4. Compile and package this rest-example project with "mvn clean package". Run it in a command terminal.
-5. Visit http://127.0.0.1:8083/api/hello/pojo/1 to try out end-to-end test from the rest-example app to the lambda-example app via the Event Node.
+5. Visit http://127.0.0.1:8083/api/hello/pojo/1 to try out end-to-end test from the rest-example app to the lambda-example app via Kafka.
 6. Visit http://127.0.0.1:8083/api/hello/world to try out local demo service.

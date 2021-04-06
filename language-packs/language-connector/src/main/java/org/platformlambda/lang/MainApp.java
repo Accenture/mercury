@@ -35,23 +35,11 @@ public class MainApp implements EntryPoint {
     @Override
     public void start(String[] args) throws Exception {
         ServerPersonality.getInstance().setType(ServerPersonality.Type.APP);
-        Platform platform = Platform.getInstance();
         /*
          * get ready to accept language pack client connections
          */
         LanguageConnector.initialize();
-        /*
-         * for local testing using event node:
-         *
-         * 1. set these parameters in application.properties
-         *    cloud.connector=event.node
-         *    event.node.path=ws://127.0.0.1:8080/ws/events/
-         *
-         * 2. platform.connectToCloud() - this will connect to event node
-         *
-         */
-        // connect to the network event streams so it can automatically discover other services
-         platform.connectToCloud();
+        Platform.getInstance().connectToCloud();
     }
 
 }

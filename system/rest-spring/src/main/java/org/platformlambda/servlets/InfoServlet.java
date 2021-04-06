@@ -87,7 +87,6 @@ public class InfoServlet extends HttpServlet {
     private static String deploymentMode = "unknown";
     private static List<String> libraryList = new ArrayList<>();
     private static Boolean isServiceMonitor;
-    private static boolean usingEventNode = true;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -96,7 +95,6 @@ public class InfoServlet extends HttpServlet {
         String description = config.getProperty(APP_DESCRIPTION, platform.getName());
         if (isServiceMonitor == null) {
             isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
-            usingEventNode = "event.node".equals(config.getProperty("cloud.connector"));
         }
         if (!loaded) {
             scanLibInfo(request.getServletContext());
@@ -127,10 +125,6 @@ public class InfoServlet extends HttpServlet {
             }
             String node = request.getParameter(ORIGIN);
             if (node != null) {
-                if (usingEventNode) {
-                    response.sendError(400, "Remote routing table is not shown when using Event Node");
-                    return;
-                }
                 if (isServiceMonitor) {
                     response.sendError(400, "Remote routing table is not shown when using Presence Monitor");
                     return;
@@ -345,7 +339,7 @@ public class InfoServlet extends HttpServlet {
                 response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 8000,
                                 new Kv(ORIGIN, platform.getOrigin()), new Kv(TYPE, DOWNLOAD));
             } catch (IOException e) {
-                // event node is down - just return local routing table
+                // just return local routing table
                 return getLocalRouting();
             }
             if (response.getBody() instanceof Map) {
