@@ -12,7 +12,6 @@
         <!-- Libraries -->
         <module>system/platform-core</module>
         <module>system/rest-spring</module>
-        <module>connectors/event-node</module>
         <module>connectors/hazelcast/hazelcast-connector</module>
         <module>connectors/kafka/kafka-connector</module>
         <module>extensions/rest-automation-lib</module>

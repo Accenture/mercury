@@ -1,6 +1,6 @@
 # application.properties
 
-| Key                                         | Value                                     | Required  |
+| Key                                         | Value (example)                           | Required  |
 | :-------------------------------------------|:------------------------------------------|:----------|
 | application.name or spring.application.name | Application name                          | Yes       |
 | info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
@@ -12,12 +12,9 @@
 | jax.rs.application.path                     | /api                                      | Optional*1|
 | show.env.variables                          | comma separated list of variable names    | Optional*1|
 | show.application.properties                 | comma separated list of property names    | Optional*1|
-| cloud.connector                             | event.node, hazelcast, kafka, etc.        | Optional  |
-| cloud.services                              | e.g. hazelcast.reporter                   | Optional  |
-| presence.monitor                            | e.g. ws://127.0.0.1:8080/ws/presence      | Optional  |
-| event.node.path                             | e.g. ws://127.0.0.1:8080/ws/events        | Optional  |
+| cloud.connector                             | kafka, hazelcast, none, etc.              | Optional  |
+| cloud.services                              | e.g. some.interesting.service             | Optional  |
 | hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional  |
-| hazelcast.namespace                         | your system name for multi-tenancy        | Optional  |
 | snake.case.serialization                    | true (recommended)                        | Optional  |
 | env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
 | safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
@@ -31,8 +28,16 @@
 | route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
 | kafka.client.properties                     | classpath:/kafka.properties               | Kafka     |
 | kafka.replication.factor                    | 3                                         | Kafka     |
-| multi.tenancy.namespace                     | environment shortname                     | Optional  |
 | app.shutdown.key                            | secret key to shutdown app instance       | Optional  |
+| default.app.group.id                        | kafka groupId for the app instance        | Optional  |
+| default.monitor.group.id                    | kafka groupId for the presence-monitor    | Optional  |
+| monitor.topic                               | kafka topic for the presence-monitor      | Optional  |
+| app.topic.prefix                            | multiplex (default value, DO NOT change)  | Optional  |
+| app.partitions.per.topic                    | Max Kafka partitions per topic            | Optional  |
+| max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
+| max.closed.user.groups                      | Number of closed user groups              | Optional  |
+| closed.user.group                           | Closed user group number for the app      | Optional  |
+|                                             | (default=1)                               |           |
 
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation helper application only
@@ -136,21 +141,6 @@ The event node is a platform-in-a-box to emulate a network event stream in the s
 For production, you would be using Kafka or Hazelcast as the event stream. In this case, you will deploy a "presence monitor" in the system.
 
 You can then configure a "presence reporter" in your service module to report to the presence monitor. It uses websocket "presence" technology to inform the monitor when your module fails so that a new instance can be started.
-
-# multi-tenancy for event stream systems
-
-Since version 1.12.10, multi-tenancy is supported for hazelcast and kafka.
-This is a convenient feature for non-prod environments to share a single event stream system.
-For production, you should use a separate event stream cluster.
-
-To enable multi-tenancy support, set the following parameters in application.properties like this:
-
-```
-# set a name for the environment. e.g. "dev"
-# you can use any environment variable to map to a namespace. e.g. RUNTIME_ENV
-multi.tenancy.namespace=dev
-env.variables=RUNTIME_ENV:multi.tenancy.namespace
-```
 
 # Spring Boot
 

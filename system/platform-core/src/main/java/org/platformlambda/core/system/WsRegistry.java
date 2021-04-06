@@ -126,8 +126,6 @@ public class WsRegistry {
                     sessionToRoute.remove(sessionId);
                     // remove references
                     envelope.session = null;
-                    envelope.sessionKey = null;
-                    envelope.publicKey = null;
                     log.info("Session-{} ({}, {}) released", sessionId, envelope.route, envelope.txPath);
                 }
             }

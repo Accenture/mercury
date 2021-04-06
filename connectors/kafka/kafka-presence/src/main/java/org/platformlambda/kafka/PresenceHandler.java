@@ -19,54 +19,100 @@
 package org.platformlambda.kafka;
 
 import org.platformlambda.MainApp;
-import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
+import org.platformlambda.services.MonitorAlive;
 import org.platformlambda.services.MonitorService;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Map;
 
 public class PresenceHandler implements LambdaFunction {
+    private static final String MONITOR_PARTITION = KafkaSetup.MONITOR_PARTITION;
     private static final String TYPE = "type";
+    private static final String TOPIC = "topic";
+    private static final String ALIVE = "keep-alive";
     private static final String DOWNLOAD = "download";
-    private static final String TO = "to";
     private static final String PUT = "put";
+    private static final String MULTIPLES = "multiples";
     private static final String DELETE = "del";
+    private static final String RELEASE_TOPIC = "release_topic";
     private static final String ORIGIN = "origin";
+    private static final String INIT = "init";
+    private static final String TIMESTAMP = "timestamp";
+    private static boolean ready = false;
 
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+        Utility util = Utility.getInstance();
+        PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
-        if (headers.containsKey(ORIGIN)) {
-            if (headers.containsKey(TYPE)) {
-                if (PUT.equals(headers.get(TYPE)) && body instanceof Map) {
-                    MonitorService.updateNodeInfo(headers.get(ORIGIN), (Map<String, Object>) body);
-                }
-                if (DELETE.equals(headers.get(TYPE))) {
-                    MonitorService.deleteNodeInfo(headers.get(ORIGIN));
-                }
-                if (DOWNLOAD.equals(headers.get(TYPE))) {
-                    if (!myOrigin.equals(headers.get(ORIGIN))) {
-                        // download request from a new presence monitor
-                        Map<String, Object> connections = MonitorService.getConnections();
-                        for (String node: connections.keySet()) {
-                            Object info = connections.get(node);
-                            EventEnvelope event = new EventEnvelope();
-                            event.setTo(MainApp.PRESENCE_HANDLER);
-                            event.setHeader(ORIGIN, node);
-                            event.setHeader(TYPE, PUT);
-                            event.setBody(info);
-                            PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
-                        }
-                    }
+        if (headers.containsKey(ORIGIN) && headers.containsKey(TYPE)) {
+            String type = headers.get(TYPE);
+            if (!ready) {
+                if (INIT.equals(type) && myOrigin.equals(headers.get(ORIGIN))) {
+                    MonitorService.setReady();
+                    MonitorAlive.setReady();
+                    // download monitor list
+                    po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, new ArrayList<String>(),
+                            new Kv(ORIGIN, myOrigin),
+                            new Kv(TYPE, INIT), new Kv(TIMESTAMP, util.getTimestamp()));
+                    // download connection list
+                    po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION,
+                            new Kv(TYPE, DOWNLOAD), new Kv(ORIGIN, myOrigin));
+                    ready = true;
+                } else {
+                    // ignore other event until consumer is initialized
+                    return false;
                 }
             }
+            if (PUT.equals(type) && headers.containsKey(ORIGIN) && body instanceof Map) {
+                if (headers.containsKey(MULTIPLES)) {
+                    String monitorOrigin = headers.get(ORIGIN);
+                    if (!myOrigin.equals(monitorOrigin)) {
+                        Map<String, Map<String, Object>> connections = (Map<String, Map<String, Object>>) body;
+                        for (String appOrigin: connections.keySet()) {
+                            Map<String, Object> metadata = connections.get(appOrigin);
+                            MonitorService.updateNodeInfo(appOrigin, metadata);
+                            if (metadata.containsKey(TOPIC)) {
+                                po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE),
+                                        new Kv(TOPIC, metadata.get(TOPIC)), new Kv(ORIGIN, appOrigin));
+                            }
+                        }
+                    }
+                } else {
+                    String appOrigin = headers.get(ORIGIN);
+                    Map<String, Object> metadata = (Map<String, Object>) body;
+                    MonitorService.updateNodeInfo(appOrigin, metadata);
+                    if (metadata.containsKey(TOPIC)) {
+                        po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE),
+                                new Kv(TOPIC, metadata.get(TOPIC)), new Kv(ORIGIN, appOrigin));
+                    }
+                }
+                return true;
+            }
+            if (DELETE.equals(type)) {
+                MonitorService.deleteNodeInfo(headers.get(ORIGIN));
+                po.send(MainApp.TOPIC_CONTROLLER, new Kv(ORIGIN, headers.get(ORIGIN)), new Kv(TYPE, RELEASE_TOPIC));
+                return true;
+            }
+            if (DOWNLOAD.equals(type)) {
+                // download request from a new presence monitor
+                if (!myOrigin.equals(headers.get(ORIGIN))) {
+                    po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION, MonitorService.getConnections(),
+                            new Kv(TYPE, PUT), new Kv(ORIGIN, myOrigin), new Kv(MULTIPLES, true));
+                }
+                // tell topic controller to do download
+                po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, DOWNLOAD), new Kv(ORIGIN, myOrigin));
+                return true;
+            }
         }
-        return true;
+        return false;
     }
 
 }

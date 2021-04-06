@@ -12,12 +12,11 @@ Please do not use them in your application functions as it would disrupt the nor
 | system.service.registry       | Distributed routing registry           | cloud connectors                 |
 | system.service.query          | Distributed routing query              | cloud connectors                 |
 | cloud.connector.health        | Cloud connector health service         | cloud connectors and rest-spring |
-| additional.info               | Info endpoint helper                   | cloud connectors                 |
+| additional.info               | Additional info service                | cloud connectors                 |
 | kafka.manager                 | Kafka manager service                  | Kafka cloud connector            |
+| hazelcast.manager             | Hazelcast manager service              | Hazelcast cloud connector        |
 | presence.service              | Presence reporter service              | cloud connectors                 |
 | presence.housekeeper          | Presence housekeeper service           | cloud connectors                 |
-| hazelcast.manager             | Hazelcast manager service              | Hazelcast cloud connector        |
-| hazelcast.connection.monitor  | Hazelcast connection service           | Hazelcast cloud connector        |
 | cloud.connector               | Cloud event emitter                    | Cloud connectors                 |
 | async.http.request            | HTTP request event handler             | REST automation system           |
 | async.http.response           | HTTP response event handler            | REST automation system           |

@@ -20,25 +20,14 @@ package org.platformlambda.core.models;
 
 import akka.actor.ActorRef;
 
-import java.util.List;
-
 public class TargetRoute {
 
-    private List<String> txPaths = null;
-    private ActorRef actor = null;
-    private boolean cloud = false;
-
-    public TargetRoute(List<String> txPaths) {
-        this.txPaths = txPaths;
-    }
+    private final ActorRef actor;
+    private final boolean cloud;
 
     public TargetRoute(ActorRef actor, boolean cloud) {
         this.actor = actor;
         this.cloud = cloud;
-    }
-
-    public boolean isEventNode() {
-        return txPaths != null;
     }
 
     public boolean isCloud() {
@@ -47,10 +36,6 @@ public class TargetRoute {
 
     public ActorRef getActor() {
         return actor;
-    }
-
-    public List<String> getTxPaths() {
-        return txPaths;
     }
 
 }

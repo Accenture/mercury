@@ -19,23 +19,29 @@
 package org.platformlambda.hazelcast.reporter;
 
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.system.*;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.hazelcast.AppAlive;
+import org.platformlambda.hazelcast.HazelcastSetup;
+import org.platformlambda.hazelcast.InitialLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PresenceConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceConnector.class);
 
+    private static final String APP_GROUP = HazelcastSetup.APP_GROUP;
     private static final String TYPE = "type";
+    private static final String INIT = "init";
     private static final String INSTANCE = "instance";
+    private static final String LOOP_BACK = "loopback";
+    private static final String REPLY_TO = "reply_to";
     private static final String ALIVE = "keep-alive";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
@@ -46,22 +52,40 @@ public class PresenceConnector implements LambdaFunction {
     private static final String CREATED = "created";
     private static final String NAME = "name";
     private static final String VERSION = "version";
-    final private String created;
+    private static final String GROUP = "group";
+    private static final String TOPIC = "topic";
+    private static final PresenceConnector instance = new PresenceConnector();
+    private final String created, monitorTopic;
     public enum State {
         UNASSIGNED, CONNECTED, DISCONNECTED
     }
+    private final int closedUserGroup;
     private State state = State.UNASSIGNED;
     private String monitor;
     private long seq = 1;
     private boolean ready = false;
-    private static final PresenceConnector instance = new PresenceConnector();
+    private String topicPartition = null;
 
     private PresenceConnector() {
+        Utility util = Utility.getInstance();
+        AppConfigReader config = AppConfigReader.getInstance();
+        monitorTopic = config.getProperty("monitor.topic", "service.monitor");
         created = Utility.getInstance().date2str(new Date(), true);
+        int maxGroups = Math.min(30,
+                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
+        closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
+        if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
+            log.error("closed.user.group is invalid. Please select a number from 1 to "+maxGroups);
+            System.exit(-1);
+        }
     }
 
     public static PresenceConnector getInstance() {
         return instance;
+    }
+
+    public String getTopic() {
+        return topicPartition;
     }
 
     @SuppressWarnings("unchecked")
@@ -81,7 +105,6 @@ public class PresenceConnector implements LambdaFunction {
                     monitor = headers.get(WsEnvelope.TX_PATH);
                     ready = false;
                     state = State.CONNECTED;
-                    // register basic application info
                     sendAppInfo(seq++, false);
                     log.info("Connected {}, {}, {}", route, ip, path);
                     break;
@@ -92,21 +115,27 @@ public class PresenceConnector implements LambdaFunction {
                     ready = false;
                     state = State.DISCONNECTED;
                     log.info("Disconnected {}", route);
+                    if (topicPartition != null) {
+                        closeConsumer();
+                    }
                     // tell service registry to clear routing table
-                    PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
-                            new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
+                            new Kv(ORIGIN, platform.getOrigin()));
                     break;
                 case WsEnvelope.BYTES:
                     route = headers.get(WsEnvelope.ROUTE);
                     EventEnvelope event = new EventEnvelope();
                     event.load((byte[]) body);
-                    if (READY.equals(event.getTo())) {
+                    if (READY.equals(event.getTo()) && event.getHeaders().containsKey(VERSION) &&
+                            event.getHeaders().containsKey(TOPIC)) {
                         ready = true;
                         log.info("Activated {}", route);
-                        String platformVersion = event.getHeaders().getOrDefault(VERSION, "1.0");
+                        String platformVersion = event.getHeaders().get(VERSION);
+                        topicPartition = event.getHeaders().get(TOPIC);
+                        startConsumer();
                         // tell peers that this server has joined
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
-                                new Kv(VERSION, platformVersion),
+                                new Kv(VERSION, platformVersion), new Kv(TOPIC, topicPartition),
                                 new Kv(ORIGIN, platform.getOrigin()));
                     } else {
                         po.send(event);
@@ -145,9 +174,13 @@ public class PresenceConnector implements LambdaFunction {
                 VersionInfo app = Utility.getInstance().getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, created).setHeader(SEQ, n)
-                        .setHeader(NAME, Platform.getInstance().getName())
-                        .setHeader(VERSION, app.getVersion())
-                        .setHeader(TYPE, ServerPersonality.getInstance().getType());
+                    .setHeader(NAME, Platform.getInstance().getName())
+                    .setHeader(VERSION, app.getVersion())
+                    .setHeader(GROUP, closedUserGroup)
+                    .setHeader(TYPE, ServerPersonality.getInstance().getType());
+                if (topicPartition != null) {
+                    info.setHeader(TOPIC, topicPartition);
+                }
                 if (instance != null) {
                     info.setHeader(INSTANCE, Platform.getInstance().getConsistentAppId());
                 }
@@ -156,6 +189,62 @@ public class PresenceConnector implements LambdaFunction {
             } catch (IOException e) {
                 log.error("Unable to send application info to presence monitor - {}", e.getMessage());
             }
+        }
+    }
+
+    private void startConsumer() throws IOException {
+        if (topicPartition != null && topicPartition.contains("-")) {
+            AppConfigReader config = AppConfigReader.getInstance();
+            Platform platform = Platform.getInstance();
+            PostOffice po = PostOffice.getInstance();
+            PubSub ps = PubSub.getInstance();
+            Utility util = Utility.getInstance();
+            int hyphen = topicPartition.lastIndexOf('-');
+            String topic = topicPartition.substring(0, hyphen);
+            int partition = util.str2int(topicPartition.substring(hyphen + 1));
+            String groupId = config.getProperty("default.app.group.id", "defaultAppGroup");
+            String clientId = platform.getOrigin();
+            // subscribe to closed user group
+            final AtomicBoolean topicPending = new AtomicBoolean(true);
+            LambdaFunction topicControl = (headers, body, instance) -> {
+                if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && topicPending.get()) {
+                    topicPending.set(false);
+                    po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
+                            new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()), new Kv(TOPIC, topicPartition));
+                }
+                return true;
+            };
+            ps.subscribe(monitorTopic, closedUserGroup, topicControl, clientId+"-1", groupId,
+                        String.valueOf(InitialLoad.INITIALIZE));
+            // subscribe to assigned topic and partition
+            final AtomicBoolean appPending = new AtomicBoolean(true);
+            LambdaFunction appControl = (headers, body, instance) -> {
+                if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO)) {
+                    po.send(headers.get(REPLY_TO), true);
+                }
+                if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && appPending.get()) {
+                    appPending.set(false);
+                    log.info("Connected to Closed User Group {}", closedUserGroup);
+                }
+                return true;
+            };
+            ps.subscribe(topic, partition, appControl, clientId+"-2", groupId,
+                            String.valueOf(InitialLoad.INITIALIZE));
+            AppAlive.setReady(true);
+        }
+    }
+
+    private void closeConsumer() throws IOException {
+        if (topicPartition != null && topicPartition.contains("-")) {
+            PubSub ps = PubSub.getInstance();
+            Utility util = Utility.getInstance();
+            int hyphen = topicPartition.lastIndexOf('-');
+            String topic = topicPartition.substring(0, hyphen);
+            int partition = util.str2int(topicPartition.substring(hyphen + 1));
+            ps.unsubscribe(topic, partition);
+            ps.unsubscribe(monitorTopic, 1);
+            topicPartition = null;
+            AppAlive.setReady(false);
         }
     }
 

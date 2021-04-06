@@ -534,16 +534,7 @@ public class EventEnvelope {
                         }
                         body = converter.decode(typed);
                     } catch (Exception e) {
-                        /*
-                         * When the EventEnvelope is being relayed, the event node does not have the PoJo class
-                         * so this will throw exception. Therefore, the object type must be preserved.
-                         *
-                         * The target microservice should be able to restore the object properly
-                         * assuming source and target have the same PoJo class definition.
-                         */
-                        if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                            log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
-                        }
+                        log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
                         type = (String) message.get(OBJ_TYPE);
                         body = message.get(BODY);
                     }

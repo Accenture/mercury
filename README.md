@@ -4,37 +4,37 @@
 
 The Mercury project is created with one primary objective - `to make software easy to write, read, test, deploy, scale and manage`.
 
-To this end, it introduces the concept of platform abstraction and takes event driven programming to the next level of simplicity.
+It introduces the concept of platform abstraction and takes event driven programming to the next level of simplicity and sophistication.
 
-Everything can be expressed as anonymous functions and they communicate with each other using events. However, event driven and reactive programming can be challenging. The Mercury framework hides all the complexity of event driven and reactive patterns and the magic of inter-service communication.
+Everything can be expressed as anonymous functions and they communicate with each other using events. This includes turning synchronous HTTP requests and responses into async events using the REST automation system. However, event driven and reactive programming can be challenging. The Mercury framework hides all the complexity of event driven and reactive patterns and the magic of inter-service communication.
 
-If you want digital decoupling, this is the technology that you should invest 30 minutes of your time to try it out.
+If you want digital decoupling, this is the technology that you should invest 30 minutes of your time to get familiar with.
 
-The pre-requisites are very minimal. The foundation technology requires only Java 1.8 JDK (Oracle or OpenJDK) and the Maven build system ("mvn"). Docker/Kubernetes are optional. The application modules that you create using the Mercury framework will run in bare metal, VM and any cloud environments.
+The pre-requisites are minimal. The foundation technology requires only Java (OpenJDK 8 to 14) and the Maven build system ("mvn"). Docker/Kubernetes are optional. The application modules that you create using the Mercury framework will run in bare metal, VM and any cloud environments.
 
 This project is created by architects and computer scientists who have spent years to perfect software decoupling, scalability and resilience, high performance and massively parallel processing,
 
 With a very high level of decoupling, you can focus in writing business logic without distraction.
 
-Since everything can be expressed as anonymous function, the framework itself is written using this approach. All the cloud connectors and language packs are microservices that are written as anonymous functions. In this way, you can add new connectors, plugins and language packs as you like. The framework is extensible.
+Since everything can be expressed as anonymous functions, the framework itself is written using this approach, including the cloud connectors and language pack in the project. In this way, you can add new connectors, plugins and language packs as you like. The framework is extensible.
 
-The concept is simple. You write your business logic as anonymous functions and packaged them in one or more executables. These executables may be composed as Docker images or alike. You can then deploy them. The containers communicate with each other through an event stream system like Hazelcast or Kafka.
+The concept is simple. You write your business logic as anonymous functions and packaged them in one or more executables. These executables may be composed as Docker images or alike for deployment. The services in the containers communicate with each other using "service route names".
 
-We make the event stream system works as a service mesh. Functions will talk to each other magically without configuration.
+Mercury supports unlimited service route names on top of event stream and messaging systems such as Kafka and Hazelcast. While we make the event stream system works as a service mesh, Mercury can be used in standalone mode for applications to use pub/sub directly.
 
-If you have your own preference of a different event stream system, you can follow the Hazelcast connector as an example to build your own connector.
+In fact, you can encapsulate other event stream or even enterprise service bus (ESB) with Mercury. Just use the Kafka and Hazelcast connectors as examples. It would make your ESB runs like an event stream system for RPC, async, callback, streaming, pipeline and pub/sub use cases.
 
-Hope you enjoy this journey to improve the world.
+Hope you enjoy Mercury for your projects.
 
 Best regards, the Mercury team, Accenture
 
-January 2021
+April 2021
 
 ## Rationale
 
-The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need to modernize service-oriented architecture and to transform monolithic applications as manageable and reusable pieces, it was first mentioned in 2011 to advocate an architectural style that defines an application as a set of loosely coupled single purpose services.
+The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need to modernize service-oriented architecture and to transform monolithic applications as manageable and reusable pieces, it was first mentioned in 2011 for an architectural style that defines an application as a set of loosely coupled single purpose services.
 
-Classical model of microservices architecture often focuses in the use of REST as interface and the self-containment of data and process. Oftentimes, there is a need for inter-service communication because one service may consume another service. Usually this is done with a service broker. This is an elegant architectural concept. However, many production systems face operational challenges. In reality, it is quite difficult to decompose a solution down to functional level. This applies to both green field development or application modernization. As a result, many microservices modules are indeed smaller subsystems. Within a microservice, business logic is tightly coupled with 3rd party and open sources libraries including cloud platform client components and drivers. This is suboptimal.
+Classical model of microservices architecture often focuses in the use of REST as interface and the self-containment of data and process. Oftentimes, there is a need for inter-service communication because one service may consume another service. Usually this is done with a service broker. This is an elegant architectural concept. However, many production systems face operational challenges. In reality, it is quite difficult to decompose a solution down to functional level. This applies to both green field development or application modernization. As a result, many microservices modules are indeed smaller subsystems. Within a traditional microservice, business logic is tightly coupled with 3rd party and open sources libraries including cloud platform client components and drivers. This is suboptimal.
 
 ## User friendly reactive programming
 
@@ -44,11 +44,11 @@ Classical model of microservices architecture often focuses in the use of REST a
 - Simple configuration and simple API hides all the scaffolding code
 - Code naturally, without worrying about asynchrony
 - Naturally code in functional style, which makes code very portable
-- Mix and match languages - currently Java and Python are supported, Node.js is WIP
+- Mix and match languages - currently Java and Python are supported, Node.js and dotnet are WIP
 - Built-in distributed tracing
-- Avoid going to the network when running in the same process - shown to be a huge performance boost for latency critical applications
+- Avoid going to the network when running in the same process, a huge performance boost for latency critical applications
 - Doesn't require all services to adopt, will provide the same benefits to those that do adopt it
-- Learn and start coding in less than 1 hr
+- Learn and start coding in less than one hour
 
 `Benefits`
 - Developer productivity - both authoring and maintenance
@@ -57,18 +57,18 @@ Classical model of microservices architecture often focuses in the use of REST a
 - Scalability
 - Portability of code between containers and clouds
 - Observability - know who is calling who and when, know where you are in workflows
-- Improves future-proofing: as better eventing libraries/frameworks/platforms become available, they can be brought in without changing a line of code
+- Improves future-proofing - as better eventing libraries/frameworks/platforms become available, they can be brought in without changing a line of code
 
 `Features`
-- Multiple languages supported - currently Java and Python are supported, Node.js is WIP
+- Multiple languages supported - currently Java and Python are supported, Node.js and dotnet are WIP
 - Plug in your favorite event stream. Popular ones are already supported.
 - Multiple eventing patterns supported - pub/sub, broadcast, command, etc.
-- REST APIs for event-based services
+- REST automation for event-based services
 - Built in distributed tracing
 
 `Gnarly Use Cases solved with Mercury`
 - Workflows with event-based architecture, utilizing Saga pattern
-- Namespaces in event stream (e.g. Kafka)
+- Support of "closed user groups" for added security
 
 ## Architecture principles
 
@@ -99,7 +99,7 @@ This simplifies software development and unit tests.
 ### Terminology
 
 1. `Microservices` - Generally, we use this term to refer to an architectural pattern where business logic is encapsulated in a bounded context, the unit of service is minimalist and services are consumed in an event driven manner.
-2. `Microservices function` or simply `function` - This refers to the smallest unit that encapsulates business logic or 3rd party library. For best practice, we advocate clear separation of business logic from proprietary libraries. By wrapping 3rd party libaries as functions, we can keep the event API intact when switching to an alternative library.
+2. `Microservices function` or simply `function` - This refers to the smallest unit that encapsulates business logic or 3rd party library. As a best practice, we advocate clear separation of business logic from proprietary libraries. By wrapping 3rd party libaries as functions, we can keep the event API intact when switching to an alternative library.
 3. `Microservices module` or `microservice` - This refers to a single unit of deployment that contains at least one public function and optionally some private functions. All functions communicate with each others through a memory based event stream system within the module. Each microservices module can be independently deployed and scaled.
 4. `Microservices application` - It is a collection of microservices modules running together as a single application.
 5. `User facing endpoints` - This refers to public API for REST, websocket or other communication protocols.
@@ -109,17 +109,19 @@ This simplifies software development and unit tests.
 9. `Streaming events` - This refers to continuous flow of events from one function to another. Note that streaming can be either real-time or store-n-forward.
 10. `public function` - This means the function is visible to all application containers and instances in the system.
 11. `private function` - This means the function is visible only to functions in the same memory space inside an application instance.
+12. `route name` - Each service can be uniquely identified with a name.
+13. `closed user groups` - Conceptually, we treat the underlying event stream system as a conduit where one group of application instances can be logically separated from another group. 
 
 ### Post Office
 
-The Mercury framework is a SDK with some cloud connectors and language packs. There are two small sets of API for the Platform and the Post Office systems. The Platform API allows you to programmatically register functions with "route names". The Post Office API is used to send events from one service to another.
+The Mercury framework is a SDK with some cloud connectors and language packs, mainly the Platform and the Post Office APIs. The Platform API allows you to programmatically register functions with "route names". The Post Office API is used to send events from one service to another.
 
 For example, the following codelet sends the text "hello world" from the caller to the function registered as "v1.some.service".
 
 ```java
 //-------------------------------------------------
 
-// SERVICE in one container
+// an example service in container-1
 Platform platform = Platform.getInstance();
 
 LambdaFunction f = (headers, body, instance) -> {
@@ -131,12 +133,14 @@ platform.register("v1.some.service", f, 1);
 
 //-------------------------------------------------
 
-// USER in another container
+// sending events from container-2
 PostOffice po = PostOffice.getInstance();
+
+// making a RPC call
 EventEnvelope response = po.request("v1.some.service", 1000, "hello world");
 System.out.println("I got response here..."+response.getBody());
 
-// the above is an RPC call. For async call, it would be something like this:
+// making a drop-and-forget async call
 po.send("v1.some.service", "hello world");
 
 //-------------------------------------------------
@@ -149,7 +153,7 @@ po.send("v1.some.service", "hello world");
 - Asynchronous `e.g. Drop-n-forget and long queries`
 - Call back `e.g. Progressive rendering`
 - Pipeline `e.g. Work-flow application`
-- Streaming `e.g. Data ingest`
+- Streaming `e.g. Continuous data feed`
 - Broadcast `e.g. Concurrent processing of the same dataset with different outcomes`
 
 
@@ -157,9 +161,9 @@ po.send("v1.some.service", "hello world");
 
 The Mercury framework includes the following:
 1. system `platform-core and rest-spring`
-2. connectors `event-node, hazelcast, kafka...`
+2. connectors `kafka, hazelcast, ...`
 3. language packs `python, node.js...`
-4. extensions `rest-automation...`
+4. extensions `rest-automation, api-playground, ...`
 5. documentation `architecture and user guides`
 6. examples `code samples / templates for creating microservices with or without REST endpoints`
 
@@ -168,43 +172,36 @@ The Mercury framework includes the following:
 
 `platform core`
 
-With Mercury, any software module can be expressed as a Java anonymous functions or a Java class that implements the LambdaFunction interface.
+With Mercury, any software module can be expressed as an anonymous functions or a Java class that implements the LambdaFunction interface.
 
 The platform core library enables the following:
 1. High level of decoupling - You may write business logic as anonymous functions that run concurrently and independently. In addition to business logic, you may also encapsulate platform components and databases as anonymous functions.
-2. Event driven programming - Each function is addressable with a unique route name and they communicate by sending events.
-You make request from one function to another by making a service call through some simple Mercury Post Office API.
+2. Event driven programming - Each function is addressable with a unique "route name" and they communicate by sending events. You make request from one function to another by making a service call through some simple Mercury Post Office API.
 3. One or more functions can be packaged together as a microservice executable, usually deployed as a Docker image or similar container technology.
 
 `rest-spring`
 
 The rest-spring library customizes and simplifies the use of Spring Boot as an application container to hold functions. This includes preconfigured message serializers and exception handlers.
 
-`hazelcast-connector`
-
-This connector library is designed to work with Hazelcast version 4.0.1 out of the box. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
-
-`hazelcast-presence`
-
-This project can be compiled into an executable JAR. This is the "presence monitor" for Hazelcast. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Hazelcast to cluster themselves. With the hazelcast-connector library, your application can send events to other application instances thru a Hazelcast cluster.
-
-The hazelcast-connector and hazelcast-presence is fully scalable.
-
 `kafka-connector`
 
-This connector library is designed to work with Kafka version 2.4.1 out of the box. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory.
+This connector library is designed to work with Kafka version 2.7.0 out of the box that you add it into your application's pom.xml. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory. The standalone Kafka server is a convenient tool for application development and tests in the developer's laptop.
 
 `kafka-presence`
 
-This project can be compiled into an executable JAR. This is the "presence monitor" for Kafka. Your application instances will report to one of the presence monitors (2 to 3 monitor instances are good enough for large installations), and the monitors use Kafka to cluster themselves. With the kafka-connector library, your application can send events to other application instances thru a Kafka cluster.
+The "presence monitor" manages mapping of Kafka topics and detects when an application instance is offline. Your application instances will report to the presence monitors (2 to 3 monitor instances are enough for large installations). Kafka topics are persistent and the presence monitors can reassign unused topics to application instances.
 
-The kafka-connector and kafka-presence is fully scalable.
+The kafka-presence system is fully scalable.
 
-`event-node`
+`hazelcast-connector`
 
-For ease of software development, the Event Node project can be compiled into an executable JAR. It emulates an event stream system (i.e. the event stream itself such as Kafka and Hazelcast) and the presence monitor.
+This connector library is designed to work with Hazelcast version 4.2 out of the box that you add it into your application's pom.xml. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
 
-The Event Node is not designed for production purpose. It is a convenient tool for software development in a single laptop.
+`hazelcast-presence`
+
+The "presence monitor" manages mapping of Hazelcast topics and detects when an application instance is offline. Your application instances will report to the presence monitors (2 to 3 monitor instances are enough for large installations). Hazelcast topics are maintained in memory and the presence monitors can recreate them when the Hazelcast cluster is restarted.
+
+The hazelcast-presence system is fully scalable.
 
 `language-connector`
 
@@ -212,21 +209,21 @@ The python language pack is available in https://github.com/Accenture/mercury-py
 
 `rest-automation`
 
-This extension package is a system that automates the creation of REST endpoints by configuration instead of code.
+This extension package is a system that automates the creation of REST endpoints by configuration instead of code. Not only it eliminates the repetitive work of writing REST endpoints, it makes HTTP completely non-blocking.
 
 `distributed-tracer`
 
-This extension package is an example application that consolidates of distributed trace metrics.
+This extension package is an example application that consolidates distributed trace metrics.
 
 `lambda-example`
 
-This is an example project to illustrate writing microservices without using an HTTP application server.
+This is an example project to illustrate writing microservices without any HTTP application server.
 
 `rest-example`
 
 If your application module needs info and health admin endpoints, you may want to use this example project as a template.
 
-It encapsulates Spring Boot, automates JSON/XML/PoJo serialization and simplfies application development. It also allows you to write custom REST endpoints using WebServlet and JAX-RS REST annotations. 
+It encapsulates Spring Boot, automates JSON/XML/PoJo serialization and simplfies application development. It also allows you to write custom REST endpoints using WebServlet and JAX-RS REST annotations.
 
 For rapid application development, we do recommend you to use the REST automation system to define REST endpoints by configuration rather than code.
 
@@ -238,7 +235,7 @@ git clone https://github.com/Accenture/mercury.git
 cd mercury
 ```
 
-To get the system up and running, you should compile and build the foundation libraries from sources. This will install the libraries into your ".m2/repository/org/platformlambda" folder. For your convenience, we will be publishing these libraries into a public repository at a later time.
+To get the system up and running, you should compile and build the foundation libraries from sources. This will install the libraries into your ".m2/repository/org/platformlambda" folder.
 
 ```bash
 # start a terminal and go to the mercury sandbox folder
@@ -258,7 +255,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -Dcloud.connector=none -jar target/rest-example-1.12.66.jar
+java -jar target/rest-example-1.13.0.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -301,240 +298,171 @@ To demonstrate concurrent processing, you may visit http://127.0.0.1:8083/api/he
 
 Now try http://127.0.0.1:8083/api/hello/pojo/1
 
-This will return a HTTP-500 "Route hello.pojo not found" error. This is expected behavior because the "hello.pojo" service is not available in the rest-example container.
+This will return a HTTP-500 "Route hello.pojo not found" error. This is expected behavior because the "hello.pojo" service is not available in the rest-example container. Let's walk thru distributed and scalable application in the next section.
 
-### Scalable application using Event Node for prototyping
+### Scalable application using Kafka
 
-Now it is time to build a scalable application using an event stream system. 
-For simplicity, we are going to use the Event Node system to emulate a cloud environment.
-
-```bash
-cd mercury/connectors
-cd event-node
-mvn clean package
-java -jar target/event-node-1.12.66.jar
-# the Event Node system will run. It emulates an event stream system.
-
-# Open another terminal and go to the project root
-cd mercury/examples
-cd lambda-example
-mvn clean package
-java -Dcloud.connector=event.node -jar target/lambda-example-1.12.66.jar
-# the lambda-example microservices module will run and connect to the event node
-
-# Go to the terminal that runs the rest-example earlier
-Ctrl-C to quit the rest-example application
-# Then run the rest-example again with cloud.connector set to event.node
-java -Dcloud.connector=event.node -jar target/rest-example-1.12.66.jar
-# without the "-Dcloud.connector" parameter override, the rest-example will run and connect to a hazelcast cluster.
-
-```
-
-Try http://127.0.0.1:8083/api/hello/pojo/1 again. You will see response like this:
-
-```json
-{
-  "address" : "100 World Blvd, Planet Earth",
-  "date" : "2018-12-21T16:56:29.774Z",
-  "id" : 1,
-  "instance" : 1,
-  "name" : "Simple PoJo class",
-  "origin" : "2018122125cea36ffffc42729cffd416d35f92b4"
-}
-```
-
-Congratulations! You have just created a network of microservices and consume the "hello.pojo" service thru a network event stream system.
-
-If you run another instance of the lambda-example in a different terminal and try the endpoint http://127.0.0.1:8083/api/hello/pojo/1 again, you will see the "origin" of the response changes. This illustrates that the system is load balancing your request to multiple containers.
-
-### Scalable application using Hazelcast
-
-The Event Node is designed for rapid prototyping so the event stream system is emulated in one laptop.
-
-Now Ctrl-C all terminals to quit the demo. We are going to do it again with Hazelcast as the event stream system.
-
-- Download Hazelcast from https://hazelcast.org/download/
-- Go to the "bin" folder of the unzipped folder.
-- start hazelcast with "start.bat" for Windows or "./start.sh" for Mac and Linux. The Hazelcast system will start.
-
-You will see member list like this in the terminal.
-
-```
-Members {size:1, ver:1} [
-	Member [10.227.179.104]:5701 - 3c253cd0-13eb-4919-aa67-b75d22c86408 this
-]
-```
-
-- copy the hazelcast folder to another folder.
-- start the second copy of hazelcast. A cluster of 2 hazelcast nodes will form right away. They serve ports 5701 and 5702. The member list will have 2 entries.
-
-- Build the hazelcast-presence project
+For development and testing, you can start a standalone Kafka server.
 
 ```bash
-cd mercury/connectors
-cd hazelcast/hazelcast-presence
+# start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
+cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/hazelcast-presence-1.12.66.jar
-# this will start the "presence monitor" that will connect to the hazelcast cluster.
+java -jar target/kafka-standalone-1.13.0.jar
+# this will run a standalone Kafka server in the foreground
 ```
 
-- Run the lambda-example and rest-example again
+The next step is to start the "presence-monitor" application.
+
+```bash
+# start another terminal and go to kafka-presence folder
+cd mercury/connectors/kafka/kafka-presence/
+mvn clean package
+java -jar target/kafka-presence-1.13.0.jar
+# this will run the presence monitor at port 8080 in the foreground
+
+# when an application instance is started, it connects to the presence monitor to obtain an available topic.
+# you will see log similar to the following:
+Adding member 20210405aa0220674e404169a5ec158a99714da6
+Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 begins RSVP
+multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 1.13.0
+Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 finished RSVP
+```
+
+Optionally, if you want to test resilience of the presence monitor, you can start another instance like this:
+```bash
+# start another terminal and go to kafka-presence folder
+cd mercury/connectors/kafka/kafka-presence/
+mvn clean package
+java -Dserver.port=8081 -jar target/kafka-presence-1.13.0.jar
+# this will run the presence monitor at port 8081 in the foreground
+```
+
+- You can then run the lambda-example and rest-example applications
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/lambda-example-1.12.66.jar
-# the lambda-example will connect to the hazelcast cluster and the "presence monitor"
+java -Dcloud.connector=kafka -jar target/lambda-example-1.13.0.jar
+# the lambda-example will connect to the "presence monitor", obtain a Kafka topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter -jar target/rest-example-1.12.66.jar
-# the rest-example will also connect to the hazelcast cluster and the "presence monitor"
+java -Dcloud.connector=kafka -jar target/rest-example-1.13.0.jar
+# the rest-example will also connect to the "presence monitor", obtain a Kafka topic and connect to Kafka
+
+# the lambda-example and rest-example apps will show the topic assignment like this
+presence.monitor, partition 1 ready
+multiplex.0001, partition 0 ready
 
 ```
 
-You may visit http://127.0.0.1:8083/api/hello/pojo/1. The output is exactly the same as the earlier demo.
-
-The "cloud.connector=hazelcast" and "cloud.services=hazelcast.reporter" parameter overrides the application.properties in the rest-example and lambda-example projects so they can select Hazelcast instead of the Event Node.
-
-- Get additional info from the presence monitor
-
-You may visit http://127.0.0.1:8080/info to see connection info. It may look like this:
-
+You may visit http://127.0.0.1:8083/api/hello/pojo/1 with a browser, you will see output like this:
 
 ```json
 {
-  "additional.info" : {
-    "connections" : {
-      "201812213aed6381e8b543d48f3f288f64207019" : {
-        "created" : "2018-12-21T17:09:54Z",
-        "monitor" : "20181221012a5f4614c3443280936b78ff032e51",
-        "name" : "lambda-example",
-        "seq" : 123,
-        "type" : "APP",
-        "updated" : "2018-12-21T17:51:01Z",
-        "version" : "1.12.66"
+  "id": 1,
+  "name": "Simple PoJo class",
+  "address": "100 World Blvd, Planet Earth",
+  "date": "2021-04-05T22:13:38.351Z",
+  "instance": 1,
+  "origin": "20210405aa0220674e404169a5ec158a99714da6"
+}
+```
+
+This means the rest-example app accepts the HTTP request and sends the request event to the lambda-example app which in turns return the response event as shown above.
+
+The "cloud.connector=kafka" parameter overrides the application.properties in the rest-example and lambda-example projects so they can select Kafka as the service mesh.
+
+- Get additional info from the presence monitor
+
+You may visit http://127.0.0.1:8080 and select "info". It may look like this:
+
+```json
+{
+  "app": {
+    "name": "kafka-presence",
+    "description": "Presence Monitor",
+    "version": "1.13.0"
+  },
+  "object.streams.io": {},
+  "memory": {
+    "max": "6,675,234,816",
+    "free": "38,218,272",
+    "allocated": "59,768,832"
+  },
+  "personality": "RESOURCES",
+  "additional.info": {
+    "total": {
+      "topics": 2,
+      "connections": 2
+    },
+    "virtual.topics": [
+      "multiplex.0001-000 -> 20210405a35e446f23cb41ab99f7016aef0846ad, rest-example v1.13.0",
+      "multiplex.0001-001 -> 20210405aa0220674e404169a5ec158a99714da6, lambda-example v1.13.0"
+    ],
+    "topics": [
+      "multiplex.0001 (32)",
+      "presence.monitor (11)"
+    ],
+    "connections": {
+      "20210405a35e446f23cb41ab99f7016aef0846ad": {
+        "created": "2021-04-05T22:11:22Z",
+        "name": "rest-example",
+        "topic": "multiplex.0001-000",
+        "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
+        "type": "WEB",
+        "updated": "2021-04-05T22:16:48Z",
+        "version": "1.13.0",
+        "seq": 15,
+        "group": 1
       },
-      "201812215ff40bbc36004637ac8cd18debf5cf95" : {
-        "created" : "2018-12-21T17:11:49Z",
-        "monitor" : "20181221012a5f4614c3443280936b78ff032e51",
-        "name" : "rest-example",
-        "seq" : 117,
-        "type" : "WEB",
-        "updated" : "2018-12-21T17:50:55Z",
-        "version" : "1.12.66"
+      "20210405aa0220674e404169a5ec158a99714da6": {
+        "created": "2021-04-05T22:13:00Z",
+        "name": "lambda-example",
+        "topic": "multiplex.0001-001",
+        "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
+        "type": "APP",
+        "updated": "2021-04-05T22:16:46Z",
+        "version": "1.13.0",
+        "seq": 11,
+        "group": 1
       }
     },
-    "topics" : [ "201812215ff40bbc36004637ac8cd18debf5cf95", "201812213aed6381e8b543d48f3f288f64207019" ],
-    "total" : {
-      "connections" : 2,
-      "topics" : 2
+    "monitors": {
+      "20210405209f8e20ed3f4c0a80b035a50273b922": "2021-04-05T22:16:56.095Z"
     }
   },
-  "app" : {
-    "description" : "Presence Monitor",
-    "name" : "hazelcast-presence",
-    "version" : "1.12.66"
+  "vm": {
+    "java_vm_version": "14.0.2+12-Ubuntu-120.04",
+    "java_runtime_version": "14.0.2+12-Ubuntu-120.04",
+    "java_version": "14.0.2"
   },
-  "memory" : {
-    "allocated" : "737,673,216",
-    "free" : "326,572,008",
-    "max" : "3,817,865,216",
-    "total" : "3,406,764,008"
+  "origin": "20210405209f8e20ed3f4c0a80b035a50273b922",
+  "time": {
+    "current": "2021-04-05T22:17:06.705Z",
+    "start": "2021-04-05T22:07:26.178Z"
   },
-  "origin" : "20181221012a5f4614c3443280936b78ff032e51",
-  "time" : "2018-12-21T17:51:08.808Z",
-  "vm" : {
-    "java_runtime_version" : "1.8.0_171-b11",
-    "java_version" : "1.8.0_171",
-    "java_vm_version" : "25.171-b11"
-  }
+  "deployment": "jar"
 }
 ```
-
-You may also check the health status of the presence monitor by visiting http://127.0.0.1:8080/health
-
-```json
-{
-  "status" : "UP",
-  "upstream" : [ {
-    "cluster" : [ "127.0.0.1:5701", "127.0.0.1:5702" ],
-    "message" : "Loopback test took 1 ms; presence-monitor connected.",
-    "namespace" : "connector",
-    "required" : true,
-    "route" : "cloud.connector.health",
-    "service" : "hazelcast",
-    "statusCode" : 200
-  } ]
-}
-```
-
-## Scalable application using kafka
-
-Hazelcast is a distributed memory grid and is ideal for real-time application. For applications that require both real-time and store-n-forward pub/sub use cases, you may want to explore the use of Event Stream systems. We have developed a Kafka cloud connector for this purpose.
-
-For rapid development and prototyping, we have implemented a convenient standalone Kafka server.
-
-- Now let's build the kafka-standalone and kafka-presence projects
-
-```bash
-cd mercury/connectors
-cd kafka/kafka-standalone
-mvn clean package
-java -jar target/kafka-standalone-1.12.66.jar
-# this will start a standalone kafka server with embedded zookeeper
-cd ../kafka-presence
-mvn clean package
-java -jar target/kafka-presence-1.12.66.jar
-# this will start the "presence monitor" that will connect to the kafka cluster.
-```
-
-- Run the lambda-example and rest-example again
-
-```bash
-# go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/lambda-example-1.12.66.jar
-# the lambda-example will connect to the kafka server and the "presence monitor"
-
-# go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter -jar target/rest-example-1.12.66.jar
-# the rest-example will also connect to the kafka server and the "presence monitor"
-
-```
-
-You may visit http://127.0.0.1:8083/api/hello/pojo/1. The output is exactly the same as the Hazelcast demo.
-
-The "cloud.connector=kafka" and "cloud.services=kafka.reporter" parameter overrides the application.properties in the rest-example and lambda-example projects so they can select Kafka instead of Hazelcast.
-
-- Get additional info from the presence monitor
-
-You may visit http://127.0.0.1:8080/info to see connection info. The output is almost the same as Hazelcast demo except you will also find "pub/sub" topic for the presence monitor.
-
-For Kafka, the presence monitor (`kafka-presence`) is using pub/sub for coordination among multiple instances of the presence monitors. This allows monitors to monitor each other for improved resilience. This is a distributed cluster design and not a primary-secondary arrangement.
-
-The Kafka-connector library also encapsulates native Kafka pub/sub feature so that your application can do pub/sub without tight coupling with Kafka. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-3.md)
 
 ## Built-in service mesh
 
-The above demonstrates distributed applications using the built-in service mesh that leverages an event stream system like Hazelcast or Kafka.
+The above demonstrates distributed applications using Kafka as a service mesh.
 
 ## Native pub/sub
 
-If you have selected a different service mesh, you can build the application without the built-in service mesh.
+You can also use Mercury with other service mesh of your choice. In this case, you can use the built-in pub/sub APIs of Mercury for your app to communicate with Kafka and other event stream systems.
 
-This is done with the following parameter in application.properties:
+To enable Kafka pub/sub without using it as a service mesh, use these parameters in application.properties
 ```java
 cloud.connector=none
-```
-
-If your service mesh does not support pub/sub, you can add native pub/sub to your application with a cloud service in application.properties:
-```java
 cloud.services=kafka.pubsub
 ```
 
-"Native" means the system encapsulates the native pub/sub feature of the underlying kafka event stream system. The built-in publishers and listeners will do the heavy lifting for you in a consistent manner:
+"Native" means the system encapsulates the native pub/sub feature of the underlying event stream system. The built-in publishers and listeners will do the heavy lifting for you in a consistent manner. Note that Kafka supports rewinding read "offset" so that your application can read older messages. In Hazelcast, the older events are dropped after delivery.
 
 Example:
 ```java
-
 // setup your subscriber function
 LambdaFunction myFunction = (headers, body, instance) -> {
   log.info("Got ---> {}", body);
@@ -556,9 +484,9 @@ ps.subscribe("some.kafka.topic", myFunction, "client-101", "group-101");
 ps.publish("some.kafka.topic", null, "my test message");
 ```
 
-If you run this application for the first time and you do not see the test message, the kafka topic has just been created automatically when your application runs. Due to racing condition, Kafka would skip the offset and you cannot see the first message. Just restart the application and you will see your test message.
+If you run this application for the first time and you do not see the test message, the kafka topic has just been created  when your application starts. Due to racing condition, Kafka would skip the offset and you cannot see the first message. Just restart the application and you will see your test message.
 
-However, if you create the topic administratively before running this test app, your app will always show the first test message. This is a normal Kafka offset behavior.
+However, if you create the topic administratively before running this test app, your app will always show the first test message. This is a normal Kafka behavior.
 
 You may also notice that the Kafka client sets the read offset to the latest pointer. To read from the beginning, you may reset the read offset by adding a parameter "0" after the clientId and groupId in the subscribe statement above.
 
@@ -610,7 +538,7 @@ If there is a need for data persistence, use external databases or cloud storage
 
 ## Dockerfile
 
-Creating a docker image from the executable is very easy. First you need to build your application as an executable with the command `mvn clean package`. The executable JAR is then available in the target directory.
+Creating a docker image from the executable is easy. First you need to build your application as an executable with the command `mvn clean package`. The executable JAR is then available in the target directory.
 
 The Dockerfile may look like this:
 
@@ -631,44 +559,19 @@ For security reason, you may want to customize the docker file to use non-priliv
 If you are deploying the application executables in a VM or bare metal, we recommend using a cross-platform process manager.
 The system has been tested with "pm2" (https://www.npmjs.com/package/pm2).
 
-A sample process.json file is shown below. Please edit the file accordingly. You may add "-D" or "-X" parameters before the "-jar" parameter. To start the application executable, please do `pm2 start process.json`.
+A sample process.json file is shown below. Please edit the file accordingly. You may add "-D" or "-X" parameters before the "-jar" parameter. To start the application executable, please do `pm2 start my-app.json`.
 
 You may create individual process.json for each executable and start them one-by-one. You can then monitor the processes with `pm2 list` or `pm2 monit`.
 
-```json
-{
-    "apps":[
-    {
-        "name":"event-node",
-        "cwd":".",
-        "script":"java",
-        "args":[
-            "-jar",
-            "/full_qualified_path/event-node-1.12.66.jar"
-        ],
-        "watch":[
-            "/full_qualified_path/event-node-1.12.66.jar"
-        ],
-        "node_args":[],
-        "log_date_format":"YYYY-MM-DD HH:mm Z",
-        "exec_interpreter":"",
-        "exec_mode":"fork"
-     }
-   ]
-}
-```
+To deploy using pm2, please browse the pm2-example folder as a starting point.
 
 ## Distributed tracing
 
-Microservices are likely to be deployed in a multi-tier environment.
-As a result, a single transaction may pass through multiple services.
+Microservices are likely to be deployed in a multi-tier environment. As a result, a single transaction may pass through multiple services.
 
-Distributed tracing allows us to visualize the complete service path for each transaction.
-This enables easy trouble shooting for large scale applications.
+Distributed tracing allows us to visualize the complete service path for each transaction. This enables easy trouble shooting for large scale applications.
 
-With the Mercury framework, distributed tracing does not require code at application level.
-To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of
-the rest-automation helper application.
+With the Mercury framework, distributed tracing does not require code at application level. To enable this feature, you can simply set "tracing=true" in the rest.yaml configuration of the rest-automation application.
 
 ## JDK compatibility
 

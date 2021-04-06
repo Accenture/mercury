@@ -37,9 +37,15 @@ public interface PubSubProvider {
 
     void publish(String topic, Map<String, String> headers, Object body) throws IOException;
 
+    void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException;
+
     void subscribe(String topic, LambdaFunction listener, String... parameters) throws IOException;
 
+    void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException;
+
     void unsubscribe(String topic) throws IOException;
+
+    void unsubscribe(String topic, int partition) throws IOException;
 
     boolean exists(String topic) throws IOException;
 

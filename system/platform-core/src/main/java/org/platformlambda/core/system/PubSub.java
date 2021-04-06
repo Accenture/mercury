@@ -146,6 +146,20 @@ public class PubSub {
     }
 
     /**
+     * Publish an event to a topic
+     *
+     * @param topic for a store-n-forward pub/sub channel
+     * @param partition to publish
+     * @param headers key-value pairs
+     * @param body PoJo, Java primitive (Boolean, Integer, Long, String), Map, List of Strings,
+     * @throws IOException in case the event cannot be published or the topic is not found
+     */
+    public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
+        checkFeature();
+        provider.publish(topic, partition, headers, body);
+    }
+
+    /**
      * Subscribe to a topic
      *
      * @param topic for a store-n-forward pub/sub channel
@@ -159,7 +173,21 @@ public class PubSub {
     }
 
     /**
-     * Unsubscribe from a topic. This will detach the registered lambda function.
+     * Subscribe to a topic
+     *
+     * @param topic for a store-n-forward pub/sub channel
+     * @param partition to be subscribed
+     * @param listener function to collect event events
+     * @param parameters optional parameters that are cloud connector specific
+     * @throws IOException in case topic is not yet created
+     */
+    public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
+        checkFeature();
+        provider.subscribe(topic, partition, listener, parameters);
+    }
+
+    /**
+     * Unsubscribe from a topic. This will detach the registered lambda function
      *
      * @param topic for a store-n-forward pub/sub channel
      * @throws IOException in case topic was not subscribed
@@ -167,6 +195,17 @@ public class PubSub {
     public void unsubscribe(String topic) throws IOException {
         checkFeature();
         provider.unsubscribe(topic);
+    }
+
+    /**
+     * Unsubscribe from a topic. This will detach the registered lambda function
+     * @param topic for a store-n-forward pub/sub channel
+     * @param partition to be unsubscribed
+     * @throws IOException in case topic was not subscribed
+     */
+    public void unsubscribe(String topic, int partition) throws IOException {
+        checkFeature();
+        provider.unsubscribe(topic, partition);
     }
 
     /**

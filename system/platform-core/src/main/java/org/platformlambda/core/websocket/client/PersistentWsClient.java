@@ -133,6 +133,7 @@ public class PersistentWsClient extends Thread implements AutoCloseable {
             Collections.shuffle(urlList);
         }
         for (String path : urlList) {
+            boolean valid = true;
             if (path.startsWith("ws://") || path.startsWith("wss://")) {
                 try {
                     URI uri = new URI((path.endsWith("/") ? path : path + "/") + platform.getOrigin());
@@ -146,9 +147,12 @@ public class PersistentWsClient extends Thread implements AutoCloseable {
                         log.warn("{} {}", simplifiedError(e.getMessage()), uri);
                     }
                 } catch (URISyntaxException e) {
-                    log.error("Invalid event node URL {}", path);
+                    valid = false;
                 }
             } else {
+                valid = false;
+            }
+            if (!valid) {
                 log.error("Invalid websocket URL {} ignored", path);
             }
         }

@@ -39,9 +39,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 public class Platform {
     private static final Logger log = LoggerFactory.getLogger(Platform.class);
@@ -50,8 +48,9 @@ public class Platform {
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final StopSignal STOP = new StopSignal();
     private static final String LAMBDA = "lambda";
+    private static final String PERSONALITY = "personality";
     private static ActorSystem system;
-    private static String originId, namespace;
+    private static String originId;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static final Platform instance = new Platform();
     private static String consistentAppId;
@@ -107,14 +106,6 @@ public class Platform {
     }
 
     /**
-     * Namespace will be null if multi.tenancy.namespace is not configured in application.properties
-     * @return namespace
-     */
-    public String getNamespace() {
-        return namespace;
-    }
-
-    /**
      * Origin ID is the unique identifier for an application instance.
      *
      * @return unique origin ID
@@ -122,15 +113,12 @@ public class Platform {
     public String getOrigin() {
         if (originId == null) {
             Utility util = Utility.getInstance();
-            AppConfigReader config = AppConfigReader.getInstance();
-            namespace = config.getProperty("multi.tenancy.namespace");
             String id = util.getUuid();
             if (Platform.consistentAppId != null) {
                 byte[] hash = crypto.getSHA256(util.getUTF(Platform.consistentAppId));
                 id = util.bytes2hex(hash).substring(0, id.length());
             }
-            originId = util.getDateOnly(new Date()) +
-                        (namespace == null? id : id + "." + util.filteredServiceName(namespace));
+            originId = util.getDateOnly(new Date()) + id;
         }
         return originId;
     }
@@ -185,14 +173,8 @@ public class Platform {
                 personality.setType(ServerPersonality.Type.APP);
             }
             AppConfigReader reader = AppConfigReader.getInstance();
-            String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, PostOffice.EVENT_NODE);
-            if ("none".equalsIgnoreCase(name)) {
-                /*
-                 * Usually cloud services are started when a cloud connector initializes.
-                 * Without a cloud connector, we can just start cloud services automatically.
-                 */
-                startCloudServices();
-            } else {
+            String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, "none");
+            if (!"none".equalsIgnoreCase(name)) {
                 SimpleClassScanner scanner = SimpleClassScanner.getInstance();
                 List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
                 if (!startService(name, services, true)) {
@@ -296,9 +278,7 @@ public class Platform {
         // set it to public
         service.setPrivate(false);
         log.info("Converted {} to PUBLIC", route);
-        if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-            advertiseRoute(route);
-        }
+        advertiseRoute(route);
     }
 
     @SuppressWarnings("rawtypes")
@@ -331,10 +311,20 @@ public class Platform {
         if (registry.containsKey(path)) {
             throw new IOException("Route "+path+" already exists");
         }
-        ActorRef manager = getEventSystem().actorOf(ServiceQueue.props(path), path);
-        ServiceDef service = new ServiceDef(path, lambda, manager).setConcurrency(instances).setPrivate(isPrivate);
-        // tell manager to start workers
-        manager.tell(service, ActorRef.noSender());
+        ServiceDef service = new ServiceDef(path, lambda).setConcurrency(instances).setPrivate(isPrivate);
+        ActorRef manager = getEventSystem().actorOf(ServiceQueue.props(service), path);
+        service.setManager(manager);
+        // wait for service initialization
+        BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);
+        long t1 = System.currentTimeMillis();
+        manager.tell(signal, ActorRef.noSender());
+        try {
+            signal.poll(800, TimeUnit.MILLISECONDS);
+            log.debug("{} created in {} ms", path, System.currentTimeMillis() - t1);
+        } catch (InterruptedException e) {
+            // this may indicate that the underlying event system is not healthy
+            log.error("{} took longer to initialize", path);
+        }
         // save into local registry
         registry.put(path, service);
         // automatically set personality if not defined
@@ -342,7 +332,7 @@ public class Platform {
         if (personality.getType() == ServerPersonality.Type.UNDEFINED) {
             personality.setType(ServerPersonality.Type.APP);
         }
-        if (!isPrivate && personality.getType() != ServerPersonality.Type.PLATFORM) {
+        if (!isPrivate) {
             advertiseRoute(route);
         }
     }
@@ -350,51 +340,24 @@ public class Platform {
     private void advertiseRoute(String route) throws IOException {
         TargetRoute cloud = PostOffice.getInstance().getCloudRoute();
         if (cloud != null) {
-            boolean tell = false;
-            if (cloud.isEventNode()) {
-                // if platform connection is ready, register to the event node
-                EventNodeConnector connector = EventNodeConnector.getInstance();
-                if (connector.isConnected() && connector.isReady()) {
-                    // event node does not have local buffering so we can only send when it is connected
-                    tell = true;
-                }
-            } else {
-                // MQ has local buffering so we can send any time
-                tell = true;
-            }
-            if (tell) {
-                PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
-                        new Kv(EventNodeConnector.PERSONALITY, ServerPersonality.getInstance().getType().name()),
-                        new Kv(ServiceDiscovery.ROUTE, route),
-                        new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
-                        new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.ADD));
-            }
+            PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
+                    new Kv(PERSONALITY, ServerPersonality.getInstance().getType().name()),
+                    new Kv(ServiceDiscovery.ROUTE, route),
+                    new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
+                    new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.ADD));
         }
     }
 
     public void release(String route) throws IOException {
         if (route != null && registry.containsKey(route)) {
             ServiceDef def = registry.get(route);
-            if (!def.isPrivate() && ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
+            if (!def.isPrivate()) {
                 TargetRoute cloud = PostOffice.getInstance().getCloudRoute();
                 if (cloud != null) {
-                    boolean tell = false;
-                    if (cloud.isEventNode()) {
-                        EventNodeConnector connector = EventNodeConnector.getInstance();
-                        if (connector.isConnected() && connector.isReady()) {
-                            // event node does not have local buffering so we can only send when it is connected
-                            tell = true;
-                        }
-                    } else {
-                        // MQ has local buffering so we can send any time
-                        tell = true;
-                    }
-                    if (tell) {
-                        PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
-                                new Kv(ServiceDiscovery.ROUTE, route),
-                                new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
-                                new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.UNREGISTER));
-                    }
+                    PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
+                            new Kv(ServiceDiscovery.ROUTE, route),
+                            new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
+                            new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.UNREGISTER));
                 }
             }
             ActorRef manager = getManager(route);
@@ -427,7 +390,9 @@ public class Platform {
                 } catch (InterruptedException e) {
                     // ok to ignore
                 }
-                logRecently("info", "Waiting for " + provider + " to get ready... " + count);
+                if (count > 1) {
+                    logRecently("info", "Waiting for " + provider + " to get ready... " + count);
+                }
                 // taking too much time?
                 if (++count >= cycles) {
                     String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";

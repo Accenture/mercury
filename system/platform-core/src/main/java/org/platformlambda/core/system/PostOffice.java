@@ -27,7 +27,6 @@ import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.services.ObjectStreamManager;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
-import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -47,7 +46,6 @@ public class PostOffice {
     public static final int ONE_MILLISECOND = 1000000;
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
-    public static final String EVENT_NODE = "event.node";
     public static final String STREAM_MANAGER = "object.streams.io";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     public static final String SHUTDOWN_SERVICE = "shutdown.service";
@@ -55,11 +53,9 @@ public class PostOffice {
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
-    private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
-    private boolean eventNode;
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
@@ -76,7 +72,6 @@ public class PostOffice {
             log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
             AppConfigReader config = AppConfigReader.getInstance();
-            eventNode = EVENT_NODE.equals(config.getProperty(CLOUD_CONNECTOR, EVENT_NODE));
             if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
                 loadRouteSubstitution();
             }
@@ -262,7 +257,6 @@ public class PostOffice {
      */
     public TargetRoute discover(String to, boolean endOfRoute) throws IOException {
         Platform platform = Platform.getInstance();
-        boolean eventNode = ServerPersonality.getInstance().getType() == ServerPersonality.Type.PLATFORM;
         if (to.contains("@")) {
             int at = to.indexOf('@');
             if (at > 0) {
@@ -272,28 +266,12 @@ public class PostOffice {
                     if (platform.hasRoute(target)) {
                         return new TargetRoute(platform.getManager(target), false);
                     }
-                } else {
-                    // resolve from lambda routing table if it is the event node itself
-                    if (eventNode) {
-                        String txPath = ServiceDiscovery.getTxPath(origin);
-                        if (platform.hasRoute(txPath)) {
-                            return new TargetRoute(Collections.singletonList(txPath));
-                        }
-                    }
                 }
             }
 
         } else {
             if (platform.hasRoute(to)) {
                 return new TargetRoute(platform.getManager(to), false);
-            } else {
-                // resolve from lambda routing table if it is the event node itself
-                if (eventNode) {
-                    List<String> txPaths = ServiceDiscovery.getAllPaths(to);
-                    if (txPaths != null) {
-                        return new TargetRoute(txPaths);
-                    }
-                }
             }
         }
         /*
@@ -310,20 +288,9 @@ public class PostOffice {
     }
 
     public TargetRoute getCloudRoute() {
-        if (eventNode) {
-            // avoid loopback if it is the event node itself
-            if (ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
-                EventNodeConnector connector = EventNodeConnector.getInstance();
-                if (connector.isConnected() && connector.isReady()) {
-                    return new TargetRoute(Collections.singletonList(connector.getTxPath()));
-                }
-            }
-        } else {
-            // cloud connector is not an event node
-            Platform platform = Platform.getInstance();
-            if (platform.hasRoute(CLOUD_CONNECTOR)) {
-                return new TargetRoute(platform.getManager(CLOUD_CONNECTOR), true);
-            }
+        Platform platform = Platform.getInstance();
+        if (platform.hasRoute(CLOUD_CONNECTOR)) {
+            return new TargetRoute(platform.getManager(CLOUD_CONNECTOR), true);
         }
         return null;
     }
@@ -611,35 +578,18 @@ public class PostOffice {
             }
         }
         TargetRoute target = discover(to, event.isEndOfRoute());
-        if (target.isEventNode()) {
-            if (!target.getTxPaths().isEmpty()) {
-                /*
-                 * Case 1 - An application instance sends a broadcast event thru the Event Node (broadcast level 1)
-                 * Case 2 - Event Node sends a broadcast event to target application instances (broadcast level 2)
-                 */
-                if (event.getBroadcastLevel() > 0) {
-                    event.setBroadcastLevel(event.getBroadcastLevel()+1);
-                    for (String p: target.getTxPaths()) {
-                        MultipartPayload.getInstance().outgoing(p, event);
-                    }
-                } else {
-                    int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
-                    MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
-                }
-            }
-        } else if (target.isCloud()) {
+        if (target.isCloud()) {
             /*
              * If broadcast, set broadcast level to 3 because the event will be sent
              * to the target by the cloud connector directly
              */
             MultipartPayload.getInstance().outgoing(target.getActor(),
-                    event.getBroadcastLevel() >  0? event.setBroadcastLevel(3) : event);
+                    event.getBroadcastLevel() > 0? event.setBroadcastLevel(3) : event);
         } else {
             /*
-             * The target is the same memory space. We will route it to the event node or cloud connector if broadcast.
+             * The target is the same memory space. We will route it to the cloud connector if broadcast.
              */
-            if (Platform.isCloudSelected() && event.getBroadcastLevel() == 1 && !to.equals(CLOUD_CONNECTOR) &&
-                    ServerPersonality.getInstance().getType() != ServerPersonality.Type.PLATFORM) {
+            if (Platform.isCloudSelected() && event.getBroadcastLevel() == 1 && !to.equals(CLOUD_CONNECTOR)) {
                 TargetRoute cloud = getCloudRoute();
                 if (cloud != null) {
                     if (cloud.isCloud()) {
@@ -648,12 +598,6 @@ public class PostOffice {
                          * to the target by the cloud connector directly
                          */
                         MultipartPayload.getInstance().outgoing(cloud.getActor(), event.setBroadcastLevel(3));
-                    } else if (cloud.isEventNode() && cloud.getTxPaths().size() == 1) {
-                        /*
-                         * If broadcast, set broadcast level to 2 because the event will be sent
-                         * to an event node for further processing
-                         */
-                        MultipartPayload.getInstance().outgoing(cloud.getTxPaths().get(0), event.setBroadcastLevel(2));
                     }
                 } else {
                     // set broadcast level to 3 for language pack clients if any
@@ -788,12 +732,7 @@ public class PostOffice {
         event.setReplyTo(inbox.getId()+"@"+platform.getOrigin());
         // broadcast is not possible with RPC call
         event.setBroadcastLevel(0);
-        if (target.isEventNode()) {
-            if (!target.getTxPaths().isEmpty()) {
-                int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
-                MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
-            }
-        } else if (target.isCloud()) {
+        if (target.isCloud()) {
             MultipartPayload.getInstance().outgoing(target.getActor(), event);
         } else {
             target.getActor().tell(event, ActorRef.noSender());
@@ -863,12 +802,7 @@ public class PostOffice {
             TargetRoute target = destinations.get(n);
             event.setBroadcastLevel(0);
             event.setReplyTo(replyTo);
-            if (target.isEventNode()) {
-                if (!target.getTxPaths().isEmpty()) {
-                    int selected = target.getTxPaths().size() > 1? crypto.nextInt(target.getTxPaths().size()) : 0;
-                    MultipartPayload.getInstance().outgoing(target.getTxPaths().get(selected), event);
-                }
-            } else if (target.isCloud()) {
+            if (target.isCloud()) {
                 MultipartPayload.getInstance().outgoing(target.getActor(), event);
             } else {
                 target.getActor().tell(event, ActorRef.noSender());
@@ -885,11 +819,8 @@ public class PostOffice {
     /**
      * Check if a route exists.
      *
-     * Normally, the response should be instantaneous because the cloud connector
+     * The response should be instantaneous because the cloud connector
      * is designed to maintain a distributed routing table.
-     *
-     * However, when using Event Node as the cloud emulator, it would make a network call
-     * to discover the route.
      *
      * @param route name of the target service
      * @return true or false

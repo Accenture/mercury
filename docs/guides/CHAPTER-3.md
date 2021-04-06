@@ -254,11 +254,16 @@ Following are some useful pub/sub API:
 ```java
 public boolean featureEnabled();
 public boolean createTopic(String topic) throws IOException;
+public boolean createTopic(String topic, int partitions) throws IOException;
 public void deleteTopic(String topic) throws IOException;
 public void publish(String topic, Map<String, String> headers, Object body) throws IOException;
+public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException;
 public void subscribe(String topic, LambdaFunction listener, String... parameters) throws IOException;
+public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException;
 public void unsubscribe(String topic) throws IOException;
+public void unsubscribe(String topic, int partition) throws IOException;
 public boolean exists(String topic) throws IOException;
+public int partitionCount(String topic) throws IOException;
 public List<String> list() throws IOException;
 
 ```

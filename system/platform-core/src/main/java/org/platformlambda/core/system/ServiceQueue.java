@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -46,32 +47,32 @@ public class ServiceQueue extends AbstractActor {
     private boolean buffering = true;
     private boolean started = false, stopped = false;
 
-    public static Props props(String route) {
-        return Props.create(ServiceQueue.class, () -> new ServiceQueue(route));
+    public static Props props(ServiceDef service) {
+        return Props.create(ServiceQueue.class, () -> new ServiceQueue(service));
     }
 
-    public ServiceQueue(String route) {
-        this.route = route;
+    public ServiceQueue(ServiceDef service) {
+        this.route = service.getRoute();
         String origin = Platform.getInstance().getOrigin();
-        this.elasticQueue = new ElasticQueue(new File(Utility.getInstance().getWorkFolder(), QUEUES), route+"-"+origin);
+        File workerFolder = Utility.getInstance().getWorkFolder();
+        this.elasticQueue = new ElasticQueue(new File(workerFolder, QUEUES),this.route+"-"+origin);
+        // create workers
+        ActorSystem system = Platform.getInstance().getEventSystem();
+        int instances = service.getConcurrency();
+        for (int i=0; i < instances; i++) {
+            int n = i + 1;
+            workers.add(system.actorOf(
+                        WorkerQueue.props(service, getSelf(), n),getSelf().path().name()+"@"+n));
+        }
+        log.info("{} {} with {} instance{} started", service.isPrivate()? "PRIVATE" : "PUBLIC",
+                route, instances, instances == 1 ? "" : "s");
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Receive createReceive() {
-        return receiveBuilder().match(ServiceDef.class, def -> {
-            if (!started) {
-                started = true;
-                ActorSystem system = Platform.getInstance().getEventSystem();
-                int instances = def.getConcurrency();
-                for (int i=0; i < instances; i++) {
-                    int n = i + 1;
-                    ActorRef worker = system.actorOf(WorkerQueue.props(def, getSelf(), n), getSelf().path().name()+"@"+n);
-                    workers.add(worker);
-                }
-                log.info("{} {} with {} instance{} started", def.isPrivate()? "PRIVATE" : "PUBLIC",
-                        route, instances, instances == 1 ? "" : "s");
-            }
-
+        return receiveBuilder().match(BlockingQueue.class, signal -> {
+            signal.offer(true);
         }).match(ReadySignal.class, signal -> {
             if (!stopped) {
                 log.debug(getSender().path().name() + " is ready");

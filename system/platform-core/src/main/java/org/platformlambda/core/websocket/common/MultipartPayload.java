@@ -41,6 +41,7 @@ public class MultipartPayload {
     public static final String TO = "to";
     public static final String BROADCAST = "broadcast";
     public static final int OVERHEAD = 256;
+    private static final String TO_MONITOR = "@monitor";
     private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
     private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
     private static final MultipartPayload instance = new MultipartPayload();
@@ -56,7 +57,11 @@ public class MultipartPayload {
     public void incoming(EventEnvelope message) throws IOException {
         Map<String, String> control = message.getHeaders();
         if (message.getTo() != null) {
-            // normal event
+            String to = message.getTo();
+            // remove special routing qualifier for presence monitor events
+            if (to.contains(TO_MONITOR)) {
+                message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
+            }
             PostOffice.getInstance().send(message);
         } else if (control.size() == 3 && control.containsKey(ID)
                 && control.containsKey(COUNT) && control.containsKey(TOTAL)) {

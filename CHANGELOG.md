@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 1.13.0, 4/5/2021
+
+### Added
+
+N/A
+
+### Removed
+
+1. Event Node event stream emulator has been retired. You may use standalone Kafka server as a replacement for development and testing in your laptop.
+2. Multi-tenancy namespace configuration has been retired. It is replaced by the "closed user group" feature.
+
+### Changed
+
+Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
+
+---
 ## Version 1.12.66, 1/15/2021
 
 ### Added

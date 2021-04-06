@@ -143,7 +143,7 @@ public class PayloadMapper {
     private Class<?> getClassByName(String name) {
         Object cached = cache.get(name);
         if (cached instanceof Class) {
-            return (Class) cached;
+            return (Class<?>) cached;
         }
         if (cached instanceof Boolean) {
             return null;

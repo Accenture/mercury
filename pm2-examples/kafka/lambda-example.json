@@ -7,12 +7,11 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
-            "-Dcloud.services=kafka.reporter",
             "-jar",
-            "examples/lambda-example/target/lambda-example-1.12.66.jar"
+            "examples/lambda-example/target/lambda-example-1.13.0.jar"
         ],
         "watch":[
-            "examples/lambda-example/target/lambda-example-1.12.66.jar"
+            "examples/lambda-example/target/lambda-example-1.13.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

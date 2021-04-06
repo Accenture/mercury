@@ -6,12 +6,11 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
-            "-Dcloud.services=kafka.reporter",
             "-jar",
-            "examples/rest-example/target/rest-example-1.12.66.jar"
+            "examples/rest-example/target/rest-example-1.13.0.jar"
         ],
         "watch":[
-            "examples/rest-example/target/rest-example-1.12.66.jar"
+            "examples/rest-example/target/rest-example-1.13.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

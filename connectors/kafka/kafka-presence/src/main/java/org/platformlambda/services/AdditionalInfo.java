@@ -18,32 +18,23 @@
 
 package org.platformlambda.services;
 
-import org.platformlambda.MainApp;
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.Utility;
-import org.platformlambda.models.AppInfo;
+import org.platformlambda.core.system.PubSub;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeoutException;
 
 public class AdditionalInfo implements LambdaFunction {
 
-    private static final String MANAGER = MainApp.MANAGER;
     private static final String QUERY = "query";
     private static final String TYPE = "type";
-    private static final String LIST = "list";
     private static final String ID = "id";
-    private static final String PUB_SUB = "pub_sub";
-    private static final long EXPIRY = 60 * 1000;
+    private static final String NAME = "name";
+    private static final String VERSION = "version";
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws TimeoutException, IOException, AppException {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         if (QUERY.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
             // connection list
@@ -55,75 +46,57 @@ public class AdditionalInfo implements LambdaFunction {
             result.put("connections", connections);
             result.put("monitors", HouseKeeper.getMonitors());
             // topic list
-            List<String> topics = getTopics(false);
-            Utility util = Utility.getInstance();
-            long now = System.currentTimeMillis();
-            List<String> liveTopicList = new ArrayList<>();
-            List<String> expiredTopicList = new ArrayList<>();
-            for (String t: topics) {
-                AppInfo info = HouseKeeper.getAppInfo(t);
-                if (info != null) {
-                    if (now - info.lastSeen > EXPIRY) {
-                        expiredTopicList.add(info.appName+"|"+
-                                util.date2str(new Date(info.lastSeen), true)+"|"+t+"|"+info.source);
-                    } else {
-                        liveTopicList.add(info.appName+"|"+
-                                util.date2str(new Date(info.lastSeen), true)+"|"+t+"|"+info.source);
-                    }
-                }
-            }
-            List<String> liveTopics = sortedTopicList(liveTopicList);
-            List<String> expiredTopics = sortedTopicList(expiredTopicList);
-            result.put("live_topics", liveTopics);
-            result.put("expired_topics", expiredTopics);
-            List<String> pubSub = getTopics(true);
-            result.put("pub_sub", pubSub);
+            List<String> pubSub = getTopics();
+            result.put("topics", pubSub);
             // totals
             Map<String, Object> counts = new HashMap<>();
             counts.put("connections", connections.size());
-            counts.put("pub_sub", pubSub.size());
-            counts.put("live_topics", liveTopics.size());
-            counts.put("expired_topics", expiredTopics.size());
+            counts.put("topics", pubSub.size());
             result.put("total", counts);
+            List<String> vTopics = new ArrayList<>();
+            Map<String, String> topics = TopicController.getAssignedTopics();
+            for (String t: topics.keySet()) {
+                String value = topics.get(t);
+                Object c = connections.get(value);
+                if (c instanceof Map) {
+                    Map<String, Object> cm = (Map<String, Object>) c;
+                    if (cm.containsKey(NAME)) {
+                        value += ", " + cm.get(NAME);
+                    }
+                    if (cm.containsKey(VERSION)) {
+                        value += " v" + cm.get(VERSION);
+                    }
+                }
+                vTopics.add(t+" -> "+value);
+            }
+            if (vTopics.size() > 1) {
+                Collections.sort(vTopics);
+            }
+            result.put("virtual.topics", vTopics);
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");
         }
     }
 
-    private List<String> sortedTopicList(List<String> list) {
-        Utility util = Utility.getInstance();
-        if (list.size() > 1) {
-            Collections.sort(list);
-        }
-        List<String> result = new ArrayList<>();
-        for (String item: list) {
-            List<String> parts = util.split(item, "|");
-            if (parts.size() == 4) {
-                result.add(parts.get(2)+", "+parts.get(1)+", "+parts.get(0)+" via "+parts.get(3));
-            } else {
-                result.add(item);
-            }
-        }
-        return result;
-    }
-
     private Map<String, Object> filterInfo(Map<String, Object> info) {
         Map<String, Object> result = new HashMap<>();
         for (String key : info.keySet()) {
             if (!key.equals(ID)) {
-            result.put(key, info.get(key));
+                result.put(key, info.get(key));
             }
         }
         return result;
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> getTopics(boolean pubSub) throws TimeoutException, IOException, AppException {
-        PostOffice po = PostOffice.getInstance();
-        EventEnvelope res = pubSub? po.request(MANAGER, 15000, new Kv(TYPE, LIST), new Kv(PUB_SUB, true)) :
-                                    po.request(MANAGER, 15000, new Kv(TYPE, LIST));
-        return res.getBody() instanceof List? (List<String>) res.getBody() : new ArrayList<>();
+    private List<String> getTopics() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        List<String> topics = ps.list();
+        List<String> result = new ArrayList<>();
+        for (String t: topics) {
+            result.add(t+" ("+ps.partitionCount(t)+")");
+        }
+        return result;
     }
 
 }

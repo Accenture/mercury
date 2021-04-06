@@ -55,6 +55,7 @@ public class ObjectStreamIO {
     private static final String QUERY = "query";
     private static final String STREAM_PREFIX = "stream.";
     private static final String EXPIRY_SEC = "expiry_seconds";
+    private static final long STREAM_MANAGER_TIMEOUT = 10000;
     private String route;
     private ObjectStreamWriter writer;
     private ObjectStreamReader reader;
@@ -90,7 +91,7 @@ public class ObjectStreamIO {
 
     private void createStream() throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, 5000,
+            EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, STREAM_MANAGER_TIMEOUT,
                     new Kv(TYPE, CREATE), new Kv(EXPIRY_SEC, expirySeconds));
             if (response.getBody() instanceof String) {
                 String name = (String) response.getBody();
@@ -127,7 +128,8 @@ public class ObjectStreamIO {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getLocalStreams() throws IOException {
         try {
-            EventEnvelope query = PostOffice.getInstance().request(STREAM_MANAGER, 5000, new Kv(TYPE, QUERY));
+            PostOffice po = PostOffice.getInstance();
+            EventEnvelope query = po.request(STREAM_MANAGER, STREAM_MANAGER_TIMEOUT, new Kv(TYPE, QUERY));
             return query.getBody() instanceof Map? (Map<String, Object>) query.getBody() : Collections.emptyMap();
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
@@ -137,7 +139,7 @@ public class ObjectStreamIO {
     public void close() throws IOException {
         if (!inputClosed) {
             inputClosed = true;
-            ObjectStreamReader stream = getInputStream(5000);
+            ObjectStreamReader stream = getInputStream(STREAM_MANAGER_TIMEOUT);
             stream.close();
         }
     }

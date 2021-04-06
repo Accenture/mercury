@@ -19,62 +19,57 @@
 package org.platformlambda.services;
 
 import org.platformlambda.MainApp;
-import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.ConsumerLifeCycle;
+import org.platformlambda.kafka.KafkaSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MonitorAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(MonitorAlive.class);
 
+    private static final String MONITOR_PARTITION = KafkaSetup.MONITOR_PARTITION;
     private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
-    private static final String TO = "to";
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String TIMESTAMP = "timestamp";
     private static final long INTERVAL = 20 * 1000;
+    private static boolean ready = false;
+    private static long t0 = 0;
+    private boolean normal = true;
 
-    private static boolean normal = true;
+    public static void setReady() {
+        MonitorAlive.ready = true;
+        MonitorAlive.t0 = 0;
+    }
 
     @Override
     public void run() {
-        // begin keep-alive
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
         Utility util = Utility.getInstance();
         String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
-        // first cycle starts in 5 seconds
-        long t0 = System.currentTimeMillis() - INTERVAL + 5000;
         while (normal) {
-            if (ConsumerLifeCycle.isReady()) {
-                long now = System.currentTimeMillis();
-                if (now - t0 > INTERVAL) {
-                    t0 = now;
-                    /*
-                     * broadcast to all presence monitors
-                     */
-                    EventEnvelope event = new EventEnvelope();
-                    event.setTo(MainApp.PRESENCE_HOUSEKEEPER);
-                    event.setHeader(ORIGIN, origin);
-                    event.setHeader(TYPE, MONITOR_ALIVE);
-                    // token is used for leader election
-                    // use sortable timestamp yyyymmddhhmmss
-                    event.setHeader(TIMESTAMP, util.getTimestamp());
-                    // send my connection list
-                    event.setBody(new ArrayList<>(MonitorService.getConnections().keySet()));
+            long now = System.currentTimeMillis();
+            if (now - t0 > INTERVAL) {
+                t0 = now;
+                if (MonitorAlive.ready) {
                     try {
-                        po.send(PostOffice.CLOUD_CONNECTOR, event.toBytes(), new Kv(TO, "*"));
+                        // broadcast to all presence monitors
+                        List<String> payload = new ArrayList<>(MonitorService.getConnections().keySet());
+                        po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, payload, new Kv(ORIGIN, origin),
+                                new Kv(TYPE, MONITOR_ALIVE),
+                                new Kv(TIMESTAMP, util.getTimestamp()));
                     } catch (IOException e) {
-                        log.error("Unable to send keep-alive to other presence monitors - {}", e.getMessage());
+                        log.error("Unable to send keep-alive - {}", e.getMessage());
                     }
                 }
             }

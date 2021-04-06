@@ -6,12 +6,11 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
-            "-Dcloud.services=kafka.reporter",
             "-jar",
-            "extensions/rest-automation-app/target/rest-automation-app-1.12.66.jar"
+            "extensions/rest-automation-app/target/rest-automation-app-1.13.0.jar"
         ],
         "watch":[
-            "extensions/rest-automation-app/target/rest-automation-app-1.12.66.jar"
+            "extensions/rest-automation-app/target/rest-automation-app-1.13.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

@@ -70,15 +70,7 @@ public class Utility {
     private static final String APP_VERSION = "info.app.version";
     private static final String DEFAULT_APP_VERSION = "0.0.0";
     private static final String WORK_FOLDER = "application.work.location";
-    private static final String CLOUD_FOLDER = "cloud.work.location";
-    private static final String IDENTITY_FOLDER = "application.identity.location";
-    private static final String CREDENTIALS_FOLDER = "application.credentials.location";
     private static final String LAMBDA_FOLDER_NAME = "/tmp/lambda/apps";
-    private static final String CLOUD_FOLDER_NAME = "/tmp/lambda/cloud";
-    private static final String IDENTITY_FOLDER_NAME = "/tmp/lambda/identities";
-    private static final String CREDENTIALS_FOLDER_NAME = "/tmp/lambda/credentials";
-    private static final String NODES = "nodes";
-    private static final String LAMBDAS = "lambdas";
     private static final String[] RESERVED_FILENAMES = {"thumbs.db"};
     private static final String[] RESERVED_EXTENSIONS = {
             ".con", ".prn", ".aux", ".nul", ".com", ".exe",
@@ -191,30 +183,6 @@ public class Utility {
         AppConfigReader reader = AppConfigReader.getInstance();
         return new File(new File(normalizeFolder(reader.getProperty(WORK_FOLDER, LAMBDA_FOLDER_NAME))),
                                  getPackageName());
-    }
-
-    public File getCloudFolder() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(normalizeFolder(reader.getProperty(CLOUD_FOLDER, CLOUD_FOLDER_NAME)));
-    }
-
-    public File getIdentityFolder() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(new File(normalizeFolder(reader.getProperty(IDENTITY_FOLDER, IDENTITY_FOLDER_NAME))),
-                                 getPackageName());
-    }
-
-    private File getCredentialFolder() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(normalizeFolder(reader.getProperty(CREDENTIALS_FOLDER, CREDENTIALS_FOLDER_NAME)));
-    }
-
-    public File getEventNodeCredentials() {
-        return new File(getCredentialFolder(), NODES);
-    }
-
-    public File getLambdaCredentials() {
-        return new File(getCredentialFolder(), LAMBDAS);
     }
 
     public String getUuid() {

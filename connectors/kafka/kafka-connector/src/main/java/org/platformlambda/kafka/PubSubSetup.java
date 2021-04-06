@@ -35,7 +35,8 @@ import java.util.Properties;
  * communicate with each other purely using native pub/sub.
  *
  * For real-time and pub/sub use cases, please use the "kafka" connector.
- * It uses Kafka as a service mesh and offers native pub/sub service.
+ * It offers native pub/sub service and also uses Kafka as a service mesh
+ * to support topic virtualization and closed user groups.
  */
 @CloudService(name="kafka.pubsub")
 public class PubSubSetup implements CloudSetup {

@@ -322,4 +322,25 @@ public class PayloadMapperTest {
         return false;
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void listOfPoJo() throws ClassNotFoundException {
+        List<PoJo> input = new ArrayList<>();
+        PoJo a = new PoJo();
+        a.setName("hello");
+        a.setDate(new Date());
+        input.add(a);
+        PoJo b = new PoJo();
+        b.setName("world");
+        b.setDate(new Date());
+        input.add(b);
+        /*
+         * For simplicity, list of PoJo is not supported.
+         * This will throw IllegalArgumentException when trying to serialize.
+         *
+         * Please use a parent class to wrap it for transport over the network
+         * between sender and recipient service.
+         */
+        converter.encode(input, true);
+    }
+
 }

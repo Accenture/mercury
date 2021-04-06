@@ -1,10 +1,10 @@
-# Technology roadmap for 2020
+# Technology roadmap for 2021
 
 ## Language Packs
 
 The first language pack has been released with v1.11.38 for Python.
 
-Upcoming language packs are Node.js and Go. 
+Upcoming language packs are Node.js and DotNet. 
 
 To enable PolyGlot development, you can run the "language-connector" service application as a "side-car" so that language packs can use a very thin pipe to connect to the platform-core and the side-car will do the heavy lifting.
 

@@ -23,7 +23,6 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.WsRegistry;
-import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +38,9 @@ import java.util.Map;
 public class WsTransmitter implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(WsTransmitter.class);
 
-    private static final CryptoApi crypto = new CryptoApi();
-    private static final Utility util = Utility.getInstance();
     public static final String STATUS = "status";
     public static final String MESSAGE = "message";
     private Session session;
-    private byte[] sessionKey;
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
@@ -75,7 +71,6 @@ public class WsTransmitter implements LambdaFunction {
                 }
                 // remove references
                 session = null;
-                sessionKey = null;
             }
             if (WsEnvelope.OPEN.equals(headers.get(WsEnvelope.TYPE))
                     && headers.containsKey(WsEnvelope.ROUTE)) {
@@ -84,15 +79,10 @@ public class WsTransmitter implements LambdaFunction {
                     session = WsRegistry.getInstance().getSession(envelope.route);
                 }
             }
-            if (WsEnvelope.ENCRYPT.equals(headers.get(WsEnvelope.TYPE)) && session != null
-                    && headers.containsKey(WsEnvelope.ENCRYPT)) {
-                sessionKey = util.base64ToBytes(headers.get(WsEnvelope.ENCRYPT));
-            }
 
         } else if (body instanceof byte[]) {
             if (session != null && session.isOpen()) {
-                byte[] bytes = sessionKey != null ? crypto.aesEncrypt((byte[]) body, sessionKey) : (byte[]) body;
-                session.getBasicRemote().sendBinary(ByteBuffer.wrap(bytes));
+                session.getBasicRemote().sendBinary(ByteBuffer.wrap((byte[]) body));
             }
 
         } else if (body instanceof String) {

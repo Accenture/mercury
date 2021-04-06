@@ -18,10 +18,8 @@
 
 package org.platformlambda.services;
 
-import com.hazelcast.client.HazelcastClientOfflineException;
 import org.platformlambda.MainApp;
 import org.platformlambda.core.annotations.WebSocketService;
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -31,8 +29,8 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.hazelcast.PresenceHandler;
-import org.platformlambda.hazelcast.TopicLifecycleListener;
+import org.platformlambda.hazelcast.HazelcastSetup;
+import org.platformlambda.models.PendingConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,18 +39,15 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeoutException;
 
 @WebSocketService("presence")
 public class MonitorService implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
 
+    private static final String MONITOR_PARTITION = HazelcastSetup.MONITOR_PARTITION;
     private static final String MANAGER = MainApp.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
-    private static final String READY = "ready";
-    private static final String VERSION = "version";
-    private static final String LIST = "list";
-    private static final String EXISTS = "exists";
+    private static final String APP_GROUP = HazelcastSetup.APP_GROUP;
     private static final String PUT = "put";
     private static final String ALIVE = "keep-alive";
     private static final String INFO = "info";
@@ -62,36 +57,47 @@ public class MonitorService implements LambdaFunction {
     private static final String ORIGIN = "origin";
     private static final String ID = "id";
     private static final String SEQ = "seq";
+    private static final String GROUP = "group";
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
-    private static final String PEERS = "peers";
-    private static final String RESET = "reset";
+    private static final String GET_TOPIC = "get_topic";
+    private static final String TX_PATH = "tx_path";
     private static final long EXPIRY = 60 * 1000;
-    private boolean online = true;
+    private static final long STALLED_CONNECTION = 20 * 1000;
+    private static boolean ready = false;
 
     // websocket route to user application origin-ID. Websocket routes for this presence monitor instance only
-    private static final ConcurrentMap<String, String> route2token = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> route2origin = new ConcurrentHashMap<>();
+    // pending connections of TxPaths to monitor if handshake is done within a reasonable time
+    private static final ConcurrentMap<String, PendingConnection> pendingConnections = new ConcurrentHashMap<>();
     // connection list of user applications to this presence monitor instance
-    private static final ConcurrentMap<String, Map<String, Object>> token2info = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, String> token2txPath = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Map<String, Object>> myConnections = new ConcurrentHashMap<>();
     // user application connections for the whole system
-    private static final ManagedCache connectionInfo = ManagedCache.createCache("app.ws.info", EXPIRY);
+    private static final ManagedCache connectionInfo = ManagedCache.createCache("app.presence.list", EXPIRY);
+
+    public static void setReady() {
+        MonitorService.ready = true;
+    }
 
     public static Map<String, Object> getConnections() {
         return new HashMap<>(connectionInfo.getMap());
     }
 
-    public static void closeAllConnections() {
+    public static void clearStalledConnection() {
         Utility util = Utility.getInstance();
-        Set<String> connections = token2txPath.keySet();
-        if (!connections.isEmpty()) {
-            for (String token : connections) {
-                String txPath = token2txPath.get(token);
+        List<String> pendingList = new ArrayList<>(pendingConnections.keySet());
+        long now = System.currentTimeMillis();
+        for (String route: pendingList) {
+            PendingConnection conn = pendingConnections.get(route);
+            if (now - conn.created > STALLED_CONNECTION) {
+                String txPath = conn.txPath;
                 try {
-                    util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, "Starting up");
+                    log.info("Closing stalled connection {}", route);
+                    pendingConnections.remove(route);
+                    util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT, "Invalid protocol");
                 } catch (IOException e) {
-                    log.warn("Unable to close connection {}", txPath);
+                    // ok to ignore
                 }
             }
         }
@@ -103,145 +109,86 @@ public class MonitorService implements LambdaFunction {
             if (o instanceof Map) {
                 if (!info.equals(o)) {
                     connectionInfo.put(origin, info);
-                    log.debug("Updating {}", origin);
+                    log.debug("Updating member {}", origin);
                 }
             }
         } else {
             connectionInfo.put(origin, info);
-            log.info("Adding {}", origin);
-            notifyConnectedApps();
+            log.info("Adding member {}", origin);
         }
     }
 
     public static void deleteNodeInfo(String origin) {
         if (connectionInfo.exists(origin)) {
             connectionInfo.remove(origin);
-            log.info("Removing {}", origin);
-            notifyConnectedApps();
-        }
-    }
-
-    public static List<String> getOrigins() {
-        return new ArrayList<>(route2token.values());
-    }
-
-    private static void notifyConnectedApps() {
-        if (!token2txPath.isEmpty()) {
-            PostOffice po = PostOffice.getInstance();
-            Map<String, Object> connections = connectionInfo.getMap();
-            List<String> list = new ArrayList<>(connections.keySet());
-            for (String token: token2txPath.keySet()) {
-                String txPath = token2txPath.get(token);
-                EventEnvelope event = new EventEnvelope();
-                event.setTo(ServiceDiscovery.SERVICE_REGISTRY);
-                event.setHeader(ORIGIN, token);
-                event.setHeader(TYPE, PEERS);
-                event.setBody(list);
-                try {
-                    po.send(txPath, event.toBytes());
-                } catch (IOException e) {
-                    log.error("Unable to update peer list to {} - {}", token, e.getMessage());
-                }
-            }
-        }
-    }
-
-    @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
-        try {
-            handleEvent(headers, body);
-            online = true;
-            return true;
-        } catch (Exception e) {
-            if (e instanceof HazelcastClientOfflineException) {
-                if (online) {
-                    online = false;
-                    try {
-                        PostOffice.getInstance().send(MainApp.PRESENCE_HANDLER,
-                                new Kv(TYPE, RESET), new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-                    } catch (IOException ok) {
-                        // ok to ignore
-                    }
-                }
-            } else {
-                log.error("{} - {}", e.getClass().getName(), e.getMessage());
-            }
-            return false;
+            log.info("Removing member {}", origin);
         }
     }
 
     @SuppressWarnings("unchecked")
-    public void handleEvent(Map<String, String> headers, Object body) throws IOException {
+    public static Object getInfo(String origin, String key) {
+        if (connectionInfo.exists(origin)) {
+            Object data = connectionInfo.get(origin);
+            if (data instanceof Map) {
+                Map<String, Object> metadata = (Map<String, Object>) data;
+                return metadata.get(key);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String route, token, txPath;
+        String route, appOrigin, txPath;
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
                     // the open event contains route, txPath, ip, path, query and token
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    token = headers.get(WsEnvelope.TOKEN);
+                    appOrigin = headers.get(WsEnvelope.TOKEN);
                     String ip = headers.get(WsEnvelope.IP);
-                    log.info("Started {}, {}, node={}", route, ip, token);
+                    log.info("Started {}, {}, {}", route, ip, appOrigin);
                     // check if dependencies are ready
-                    if (PresenceHandler.isReady() && TopicLifecycleListener.isReady() &&
-                            platform.hasRoute(CLOUD_CONNECTOR) && platform.hasRoute(MANAGER) &&
-                            platform.hasRoute(MainApp.PRESENCE_MONITOR) &&
-                            platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
-                        // check if there is a corresponding message hub is available
-                        boolean exists = false;
-                        if (validTopicId(token)) {
-                            try {
-                                EventEnvelope response = po.request(MANAGER, 10000, new Kv(TYPE, EXISTS), new Kv(ORIGIN, token));
-                                if (response.getBody() instanceof Boolean) {
-                                    exists = (Boolean) response.getBody();
-                                }
-                            } catch (TimeoutException | AppException e) {
-                                log.error("Unable to check if topic {} exists - {}", token, e.getMessage());
-                            }
-                        }
-                        if (exists) {
-                            Map<String, Object> info = new HashMap<>();
-                            String time = Utility.getInstance().date2str(new Date(), true);
-                            info.put(CREATED, time);
-                            info.put(UPDATED, time);
-                            info.put(MONITOR, platform.getOrigin());
-                            info.put(ID, route);
-                            info.put(SEQ, 0);
-                            route2token.put(route, token);
-                            token2info.put(token, info);
-                            token2txPath.put(token, txPath);
-                        } else {
-                            Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.PROTOCOL_ERROR, "Unauthorized");
-                        }
+                    if (MonitorService.ready && platform.hasRoute(CLOUD_CONNECTOR) &&
+                            platform.hasRoute(MANAGER) && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
+                        Map<String, Object> info = new HashMap<>();
+                        String time = util.date2str(new Date(), true);
+                        info.put(CREATED, time);
+                        info.put(UPDATED, time);
+                        info.put(MONITOR, platform.getOrigin());
+                        info.put(ID, route);
+                        info.put(SEQ, 0);
+                        route2origin.put(route, appOrigin);
+                        myConnections.put(appOrigin, info);
+                        pendingConnections.put(route, new PendingConnection(route, txPath));
+
                     } else {
-                        Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,"Starting up");
+                        util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,"Starting up");
                     }
                     break;
                 case WsEnvelope.CLOSE:
                     // the close event contains only the route for this websocket
                     route = headers.get(WsEnvelope.ROUTE);
-                    token = headers.get(WsEnvelope.TOKEN);
-                    route2token.remove(route);
-                    token2info.remove(token);
-                    token2txPath.remove(token);
-                    log.info("Stopped {}, node={}", route, token);
-                    if (connectionInfo.exists(token)) {
-                        Object o = connectionInfo.get(token);
+                    appOrigin = headers.get(WsEnvelope.TOKEN);
+                    route2origin.remove(route);
+                    myConnections.remove(appOrigin);
+                    pendingConnections.remove(route);
+                    log.info("Stopped {}, {}", route, appOrigin);
+                    if (connectionInfo.exists(appOrigin)) {
+                        Object o = connectionInfo.get(appOrigin);
                         if (o instanceof Map) {
                             Map<String, Object> info = (Map<String, Object>) o;
-                            if (route.equals(info.get("id"))) {
-                                /*
-                                 * broadcast to all presence monitors
-                                 */
-                                EventEnvelope event = new EventEnvelope();
-                                event.setTo(MainApp.PRESENCE_HANDLER);
-                                event.setHeader(ORIGIN, token);
-                                event.setHeader(TYPE, DELETE);
-                                po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
+                            if (route.equals(info.get(ID)) && info.get(GROUP) instanceof Integer) {
+                                // broadcast to presence monitors
+                                po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION,
+                                        new Kv(TYPE, DELETE), new Kv(ORIGIN, appOrigin));
                                 // tell all nodes to drop this node
-                                broadcastLeaveEvent(token);
+                                leaveGroup(appOrigin, (int) info.get(GROUP));
                             }
                         }
                     }
@@ -250,44 +197,57 @@ public class MonitorService implements LambdaFunction {
                     // the data event for byteArray payload contains route and txPath
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    token = route2token.get(route);
-                    if (body instanceof byte[] && token != null && token2info.containsKey(token)) {
+                    appOrigin = route2origin.get(route);
+                    if (body instanceof byte[] && appOrigin != null && myConnections.containsKey(appOrigin)) {
                         EventEnvelope command = new EventEnvelope();
                         command.load((byte[]) body);
-                        boolean isInfo = INFO.equals(command.getTo());
-                        boolean isAlive = ALIVE.equals(command.getTo());
-                        if (token2info.containsKey(token)) {
-                            Map<String, Object> info = token2info.get(token);
-                            if (isInfo || isAlive) {
+                        boolean register = INFO.equals(command.getTo());
+                        boolean alive = ALIVE.equals(command.getTo());
+                        if (myConnections.containsKey(appOrigin)) {
+                            Map<String, Object> info = myConnections.get(appOrigin);
+                            if (register || alive) {
                                 updateInfo(info, command.getHeaders());
-                                /*
-                                 * broadcast to all presence monitors
-                                 */
-                                EventEnvelope event = new EventEnvelope();
-                                event.setTo(MainApp.PRESENCE_HANDLER);
-                                event.setHeader(ORIGIN, token);
-                                event.setHeader(TYPE, PUT);
-                                event.setBody(info);
-                                po.send(MainApp.PRESENCE_MONITOR, event.toBytes());
-                                if (isInfo) {
-                                    log.info("Member registered {}", info);
-                                    Utility util = Utility.getInstance();
-                                    po.send(txPath, new EventEnvelope().setTo(READY)
-                                            .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
+                                // broadcast to all presence monitors
+                                po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION, info,
+                                        new Kv(TYPE, PUT), new Kv(ORIGIN, appOrigin));
+                                if (register) {
+                                    // tell the connected application instance to proceed
+                                    pendingConnections.remove(route);
+                                    log.info("Member registered {}", getMemberInfo(appOrigin, info));
+                                    po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, GET_TOPIC),
+                                            new Kv(TX_PATH, txPath), new Kv(ORIGIN, appOrigin));
                                 } else {
-                                    log.debug("Member {} is alive {}", token, info.get(SEQ));
+                                    log.debug("Member {} is alive {}", appOrigin, info.get(SEQ));
                                 }
                             }
                         }
+
                     }
                     break;
                 case WsEnvelope.STRING:
                     log.debug("{}", body);
+                    break;
                 default:
-                    // this should not happen
                     break;
             }
         }
+        // nothing to return because this is asynchronous
+        return null;
+    }
+
+    private String getMemberInfo(String origin, Map<String, Object> info) {
+        StringBuilder sb = new StringBuilder();
+        for (String k: info.keySet()) {
+            String v = info.get(k).toString();
+            sb.append(k);
+            sb.append('=');
+            sb.append(v);
+            sb.append(", ");
+        }
+        sb.append(ORIGIN);
+        sb.append('=');
+        sb.append(origin);
+        return sb.toString();
     }
 
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {
@@ -305,75 +265,22 @@ public class MonitorService implements LambdaFunction {
             }
         }
         // save timestamp without milliseconds
-        info.put(UPDATED, Utility.getInstance().date2str(new Date(), true));
+        info.put(UPDATED, util.date2str(new Date(), true));
     }
 
-    private void broadcastLeaveEvent(String closedApp) {
+    private void leaveGroup(String closedApp, int groupId) {
         try {
-            PostOffice po = PostOffice.getInstance();
-            List<String> peers = getPeers();
-            // and broadcast the leave event to all nodes
-            for (String p : peers) {
-                if (!p.equals(closedApp)) {
-                    po.send(ServiceDiscovery.SERVICE_REGISTRY + "@" + p, new Kv(TYPE, LEAVE), new Kv(ORIGIN, closedApp));
-                    log.info("tell {} that {} has left", p, closedApp);
-                }
+            if (groupId < 1) {
+                throw new IllegalArgumentException("Invalid closed user group ("+groupId+")");
             }
+            // send leave event to the closed user group
+            PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + groupId,
+                                        new Kv(TYPE, LEAVE), new Kv(ORIGIN, closedApp));
+            log.info("tell group {} that {} has left", groupId, closedApp);
 
         } catch (Exception e) {
-            log.error("Unable to broadcast leave event for {} - {}", closedApp, e.getMessage());
+            log.error("Unable to send leave event to group {} - {}", closedApp, e.getMessage());
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<String> getPeers() throws IOException, TimeoutException, AppException {
-        List<String> peers = new ArrayList<>();
-        PostOffice po = PostOffice.getInstance();
-        // check topic list
-        EventEnvelope list = po.request(MANAGER, 20000, new Kv(TYPE, LIST));
-        if (list.getBody() instanceof List) {
-            List<String> topics = (List<String>) list.getBody();
-            if (!topics.isEmpty()) {
-                for (String t : topics) {
-                    // check if topic is active
-                    if (connectionInfo.exists(t)) {
-                        peers.add(t);
-                    }
-                }
-            }
-        }
-        return peers;
-    }
-
-    /**
-     * Validate a topic ID
-     *
-     * @param topic in format of yyyymmdd uuid
-     * @return true if valid
-     */
-    private boolean validTopicId(String topic) {
-        Platform platform = Platform.getInstance();
-        if (topic.length() != platform.getOrigin().length()) {
-            return false;
-        }
-        String uuid = topic.substring(8);
-        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
-            return false;
-        }
-        // drop namespace before validation
-        if (platform.getNamespace() != null) {
-            int dot = uuid.lastIndexOf('.');
-            if (dot > 1) {
-                uuid = uuid.substring(0, dot);
-            }
-        }
-        // application instance ID should be hexadecimal
-        for (int i=0; i < uuid.length(); i++) {
-            if (uuid.charAt(i) >= '0' && uuid.charAt(i) <= '9') continue;
-            if (uuid.charAt(i) >= 'a' && uuid.charAt(i) <= 'f') continue;
-            return false;
-        }
-        return true;
     }
 
 }

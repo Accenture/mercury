@@ -32,17 +32,16 @@ public class ServiceDef {
     @SuppressWarnings("rawtypes")
     private final TypedLambdaFunction lambda;
     private final String id;
-    private final ActorRef manager;
+    private ActorRef manager;
     private final Date created = new Date();
     private boolean isPrivate = false;
     private int instances = 1;
 
     @SuppressWarnings("rawtypes")
-    public ServiceDef(String route, TypedLambdaFunction lambda, ActorRef manager) {
+    public ServiceDef(String route, TypedLambdaFunction lambda) {
         this.id = Utility.getInstance().getUuid();
         this.route = route;
         this.lambda = lambda;
-        this.manager = manager;
     }
 
     public String getId() {
@@ -55,10 +54,6 @@ public class ServiceDef {
 
     public String getRoute() {
         return route;
-    }
-
-    public ActorRef getManager() {
-        return manager;
     }
 
     @SuppressWarnings("rawtypes")
@@ -86,6 +81,14 @@ public class ServiceDef {
             this.isPrivate = isPrivate;
         }
         return this;
+    }
+
+    public ActorRef getManager() {
+        return manager;
+    }
+
+    public void setManager(ActorRef manager) {
+        this.manager = manager;
     }
 
 }

@@ -92,7 +92,6 @@ public class ObjectStreamTest {
         Assert.assertEquals(2, i);
         // must close input stream to release resources
         in.close();
-
     }
 
 }

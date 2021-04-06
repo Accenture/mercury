@@ -37,13 +37,11 @@ public class WsEnvelope {
     public static final String PATH = "path";
     public static final String QUERY = "query";
     public static final String TOKEN = "token";
-    public static final String ENCRYPT = "encrypt";
     public static final String CLOSE_CODE = "close_code";
     public static final String CLOSE_REASON = "close_reason";
 
     public String route, txPath, ip, path, query, origin;
     public Session session;
-    public byte[] sessionKey, publicKey;
     public boolean encrypt = false;
 
     public WsEnvelope(String route, String txPath, String ip, String path, String query) {
@@ -54,10 +52,7 @@ public class WsEnvelope {
         this.query = query;
         // this assumes origin is the last element in the URL path
         List<String> elements = Utility.getInstance().split(path, "/");
-        /*
-         * For event node, the last segment is the origin of the calling lambda application.
-         * For user websockets, this is usually used as the access token.
-         */
+        // the last segment is usually used as the access token
         this.origin = elements.get(elements.size()-1);
     }
 

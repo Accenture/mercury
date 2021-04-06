@@ -6,12 +6,11 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
-            "-Dcloud.services=kafka.reporter",
             "-jar",
-            "language-packs/language-connector/target/language-connector-1.12.66.jar"
+            "language-packs/language-connector/target/language-connector-1.13.0.jar"
         ],
         "watch":[
-            "language-packs/language-connector/target/language-connector-1.12.66.jar"
+            "language-packs/language-connector/target/language-connector-1.13.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

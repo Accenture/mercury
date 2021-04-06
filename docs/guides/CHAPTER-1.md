@@ -13,7 +13,7 @@ Please follow the [README](../../README.md) file in the project root to build th
 ## Writing your first microservices function
 
 Your first function may look like this using Java 1.8 anonymous function syntax:
-```
+```java
 LambdaFunction f = (headers, body, instance) -> {
 	// do some business logic
 	return something
@@ -39,7 +39,7 @@ In the following example, when the application unit starts, it creates a microse
 Application units are horizontally scalable. Within the application unit, you may specify concurrent "workers". This provides horizontal and verticial scalability respectively.
 
 
-```
+```java
 @MainApplication
 public class MainApp implements EntryPoint {
   
@@ -63,7 +63,7 @@ public class MainApp implements EntryPoint {
 
 Alternatively, for typed body and response without casting you can use TypedLambdaFunction<I, O> where I and O stand for input and output class respectively.
 
-```
+```java
     TypedLambdaFunction<String, Map<String, String>> lambda = (headers, body, instance) -> {
         Map<String, String> result = new HashMap<>();
         result.put("body", body);
@@ -89,7 +89,7 @@ You can call the function from another function or a REST endpoint. The latter c
 
 The following example forwards a request from the REST endpoint (`GET /api/hello/world`) to the "hello.world" service. Note that there are basic performance metrics from the response object.
 
-```
+```java
 @Path("/hello")
 public class MyRestEndpoint {
 

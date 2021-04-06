@@ -152,11 +152,9 @@ public class ObjectStreamManager implements LambdaFunction {
 
         @Override
         public void run() {
-
             log.info("Started");
             Utility util = Utility.getInstance();
-            Platform platform = Platform.getInstance();
-            long t1 = System.currentTimeMillis();
+            long t1 = System.currentTimeMillis() - INTERVAL;
             while (normal) {
                 long now = System.currentTimeMillis();
                 // scan every 10 seconds
@@ -179,7 +177,7 @@ public class ObjectStreamManager implements LambdaFunction {
                                     log.error("Unable to release {} - {}", id, e.getMessage());
                                     streams.remove(id);
                                     try {
-                                        platform.release(id);
+                                        Platform.getInstance().release(id);
                                     } catch (IOException ex) {
                                         // this should not occur
                                     }
