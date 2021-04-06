@@ -20,7 +20,7 @@ Since everything can be expressed as anonymous functions, the framework itself i
 
 The concept is simple. You write your business logic as anonymous functions and packaged them in one or more executables. These executables may be composed as Docker images or alike for deployment. The services in the containers communicate with each other using "service route names".
 
-Mercury supports unlimited service route names on top of event stream and messaging systems such as Kafka and Hazelcast. While we make the event stream system works as a service mesh, Mercury can be used in standalone mode for applications to use pub/sub directly.
+Mercury supports unlimited service route names on top of event stream and messaging systems such as Kafka and Hazelcast. While we make the event stream system works as a service mesh, Mercury can be used in standalone mode for applications that use pub/sub directly.
 
 In fact, you can encapsulate other event stream or even enterprise service bus (ESB) with Mercury. Just use the Kafka and Hazelcast connectors as examples. It would make your ESB runs like an event stream system for RPC, async, callback, streaming, pipeline and pub/sub use cases.
 
