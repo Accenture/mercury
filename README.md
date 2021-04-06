@@ -40,7 +40,7 @@ Classical model of microservices architecture often focuses in the use of REST a
 
 `Summary`
 - Completely and natively event driven
-- Fully open source - Apache license - https://github.com/Accenture/mercury
+- Fully open source - Apache-2.0 license
 - Simple configuration and simple API hides all the scaffolding code
 - Code naturally, without worrying about asynchrony
 - Naturally code in functional style, which makes code very portable
