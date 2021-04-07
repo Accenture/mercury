@@ -43,6 +43,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String ROUTE = ServiceDiscovery.ROUTE;
     private static final String ORIGIN = ServiceDiscovery.ORIGIN;
+    private static final String IS_FINAL = "final";
     private static final String TOPIC = "topic";
     private static final String UNREGISTER = ServiceDiscovery.UNREGISTER;
     private static final String ADD = ServiceDiscovery.ADD;
@@ -184,11 +185,11 @@ public class ServiceRegistry implements LambdaFunction {
                 String personality = headers.get(PERSONALITY);
                 // add to routing table
                 addRoute(origin, route, personality);
-                if (origin.equals(myOrigin)) {
+                if (origin.equals(myOrigin) && !headers.containsKey(IS_FINAL)) {
                     // broadcast to peers
                     EventEnvelope request = new EventEnvelope();
                     request.setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
-                            .setHeaders(headers);
+                            .setHeaders(headers).setHeader(IS_FINAL, true);
                     po.send(request);
                 }
 
@@ -220,6 +221,13 @@ public class ServiceRegistry implements LambdaFunction {
             String origin = headers.get(ORIGIN);
             // remove from routing table
             removeRoute(origin, route);
+            if (origin.equals(myOrigin) && !headers.containsKey(IS_FINAL)) {
+                // broadcast to peers
+                EventEnvelope request = new EventEnvelope();
+                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
+                        .setHeaders(headers).setHeader(IS_FINAL, true);
+                po.send(request);
+            }
         }
         return true;
     }
