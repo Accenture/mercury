@@ -24,8 +24,6 @@ Mercury supports unlimited service route names on top of event stream and messag
 
 In fact, you can encapsulate other event stream or even enterprise service bus (ESB) with Mercury. Just use the Kafka and Hazelcast connectors as examples. It would make your ESB runs like an event stream system for RPC, async, callback, streaming, pipeline and pub/sub use cases.
 
-Hope you enjoy Mercury for your projects.
-
 Best regards, the Mercury team, Accenture
 
 April 2021
@@ -321,7 +319,7 @@ mvn clean package
 java -jar target/kafka-presence-1.13.0.jar
 # this will run the presence monitor at port 8080 in the foreground
 
-# when an application instance is started, it connects to the presence monitor to obtain an available topic.
+# when an application instance is started, it connects to the presence monitor to get topic.
 # you will see log similar to the following:
 Adding member 20210405aa0220674e404169a5ec158a99714da6
 Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 begins RSVP
@@ -343,11 +341,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-1.13.0.jar
 ```bash
 # go to the lambda-example project folder in one terminal
 java -Dcloud.connector=kafka -jar target/lambda-example-1.13.0.jar
-# the lambda-example will connect to the "presence monitor", obtain a Kafka topic and connect to Kafka
+# the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
 java -Dcloud.connector=kafka -jar target/rest-example-1.13.0.jar
-# the rest-example will also connect to the "presence monitor", obtain a Kafka topic and connect to Kafka
+# the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this
 presence.monitor, partition 1 ready
