@@ -27,18 +27,21 @@ Include this dependency in the pom.xml of your application:
 In the application.properties config file in the application's resources folder:
 ```
 cloud.connector=kafka
-cloud.services=kafka.reporter
-presence.monitor=ws://{HOST:PORT}:8080/ws/presence
 ```
-The presence.monitor may contain more than one URL with comma separator. For production, you should deploy 2 to 3 presence monitor application instances for resilience. When more than one instance of presence monitor is deployed, they will detect each other and coordinate among themselves. There is no primary/secondary relationship. All presence monitors run as equal peers.
+
+The default configuration for presence monitor is available in the kafka-connector's resources folder. The config file is called "presence.properties". To override this default, you can either create a new presence.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
+
+```
+url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
+```
 
 # Presence monitor
 
-The presence monitor application for hazelcast is available in the `kafka-presence` folder.
+The presence monitor application for kafka is available in the `kafka-presence` folder.
 
-This application runs as a websocket server that all service container application instances will connect to.
+This application runs as a websocket server that all service container application instances will report to.
 
-When a service application instance fails, the presence monitor will detect it and inform all other application instances to clear routing tables for the failed application instance.
+When a service application instance fails, the presence monitor will detect it and inform all other application instances to clear routing entries for the failed application instance.
 
 # Kafka-standalone
 
