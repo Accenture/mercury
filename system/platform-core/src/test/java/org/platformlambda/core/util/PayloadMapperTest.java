@@ -47,6 +47,7 @@ public class PayloadMapperTest {
         event2.load(b);
         Assert.assertTrue(event2.getBody() instanceof Optional);
         Optional<Object> value = (Optional<Object>) event2.getBody();
+        Assert.assertTrue(value.isPresent());
         Assert.assertEquals(text, value.get());
     }
 

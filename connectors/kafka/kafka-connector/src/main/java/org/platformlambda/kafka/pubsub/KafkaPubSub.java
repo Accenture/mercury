@@ -22,9 +22,13 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
+import org.platformlambda.core.serializers.MsgPack;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -43,6 +47,7 @@ import java.util.concurrent.*;
 public class KafkaPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(KafkaPubSub.class);
 
+    private static final MsgPack msgPack = new MsgPack();
     private static final String MANAGER = KafkaSetup.MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
@@ -79,14 +84,12 @@ public class KafkaPubSub implements PubSubProvider {
         return properties;
     }
 
-    private void sendEvent(String topic, int partition, String id, byte[] payload, String dest) throws IOException {
-        Utility util = Utility.getInstance();
+    private void sendEvent(String topic, int partition, String id,
+                           List<Header> headers, byte[] payload, boolean isEvent) throws IOException {
         startProducer();
         try {
-            List<Header> headers = dest == null? null :
-                    Collections.singletonList(new RecordHeader(EventProducer.RECIPIENT, util.getUTF(dest)));
-            // perform segmentation for large payload
-            if (payload.length > MAX_PAYLOAD) {
+            // Segmentation for large payload supported for embedded event only
+            if (isEvent && payload.length > MAX_PAYLOAD) {
                 int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
                 for (int i = 0; i < total; i++) {
@@ -256,25 +259,40 @@ public class KafkaPubSub implements PubSubProvider {
     @Override
     public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
         validateTopicName(topic);
+        Utility util = Utility.getInstance();
+        Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         EventEnvelope event = new EventEnvelope();
-        if (headers.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
-            sendEvent(topic, partition, event.getId(), (byte[]) body, headers.get(EventProducer.RECIPIENT));
-        } else {
-            PostOffice po = PostOffice.getInstance();
-            event.setTo(topic);
-            event.setHeaders(headers);
-            event.setBody(body);
-            // propagate trace info
-            TraceInfo trace = po.getTrace();
-            if (trace != null) {
-                if (trace.route != null && event.getFrom() == null) {
-                    event.setFrom(trace.route);
-                }
-                if (trace.id != null && trace.path != null) {
-                    event.setTrace(trace.id, trace.path);
-                }
+        List<Header> headerList = new ArrayList<>();
+        if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
+            headerList.add(new RecordHeader(EventProducer.EMBED_EVENT, util.getUTF("1")));
+            String recipient = eventHeaders.get(EventProducer.RECIPIENT);
+            if (recipient != null) {
+                headerList.add(new RecordHeader(EventProducer.RECIPIENT, util.getUTF(recipient)));
             }
-            sendEvent(topic, partition, event.getId(), event.toBytes(), null);
+            sendEvent(topic, partition, event.getId(), headerList, (byte[]) body, true);
+        } else {
+            for (String h: eventHeaders.keySet()) {
+                headerList.add(new RecordHeader(h, util.getUTF(eventHeaders.get(h))));
+            }
+            final byte[] payload;
+            if (body instanceof byte[]) {
+                payload = (byte[]) body;
+                headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.BYTES_DATA)));
+            } else if (body instanceof String) {
+                payload = util.getUTF((String) body);
+                headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.TEXT_DATA)));
+            } else if (body instanceof Map) {
+                payload = msgPack.pack(body);
+                headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.MAP_DATA)));
+            } else if (body instanceof List) {
+                payload = msgPack.pack(body);
+                headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.LIST_DATA)));
+            } else {
+                // other primitive and PoJo are serialized as JSON string
+                payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
+                headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.TEXT_DATA)));
+            }
+            sendEvent(topic, partition, event.getId(), headerList, payload, false);
         }
     }
 

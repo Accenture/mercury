@@ -4,6 +4,8 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.topic.ITopic;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
+import org.platformlambda.core.serializers.MsgPack;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -22,6 +24,7 @@ import java.util.concurrent.*;
 public class HazelcastPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(HazelcastPubSub.class);
 
+    private static final MsgPack msgPack = new MsgPack();
     private static final String MANAGER = HazelcastSetup.MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
@@ -34,7 +37,6 @@ public class HazelcastPubSub implements PubSubProvider {
     private static final String ORIGIN = "origin";
     private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - 256;
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
-    private static long seq = 0, totalEvents = 0;
 
     public HazelcastPubSub() {
         try {
@@ -106,35 +108,41 @@ public class HazelcastPubSub implements PubSubProvider {
     @Override
     public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
         validateTopicName(topic);
+        Utility util = Utility.getInstance();
+        Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         EventEnvelope event = new EventEnvelope();
-        if (headers.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
-            sendEvent(topic, partition, event.getId(), (byte[]) body, headers.get(EventProducer.RECIPIENT));
+        if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
+            sendEvent(topic, partition, event.getId(), eventHeaders, (byte[]) body, true);
         } else {
-            PostOffice po = PostOffice.getInstance();
-            event.setTo(topic);
-            event.setHeaders(headers);
-            event.setBody(body);
-            // propagate trace info
-            TraceInfo trace = po.getTrace();
-            if (trace != null) {
-                if (trace.route != null && event.getFrom() == null) {
-                    event.setFrom(trace.route);
-                }
-                if (trace.id != null && trace.path != null) {
-                    event.setTrace(trace.id, trace.path);
-                }
+            final byte[] payload;
+            if (body instanceof byte[]) {
+                payload = (byte[]) body;
+                eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
+            } else if (body instanceof String) {
+                payload = util.getUTF((String) body);
+                eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.TEXT_DATA);
+            } else if (body instanceof Map) {
+                payload = msgPack.pack(body);
+                eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.MAP_DATA);
+            } else if (body instanceof List) {
+                payload = msgPack.pack(body);
+                eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.LIST_DATA);
+            } else {
+                // other primitive and PoJo are serialized as JSON string
+                payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
+                eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.TEXT_DATA);
             }
-            sendEvent(topic, partition, event.getId(), event.toBytes(), null);
+            sendEvent(topic, partition, event.getId(), eventHeaders, payload, false);
         }
     }
 
-    private void sendEvent(String topic, int partition, String id, byte[] payload, String dest) throws IOException {
-        Utility util = Utility.getInstance();
+    private void sendEvent(String topic, int partition, String id,
+                           Map<String, String> headers, byte[] payload, boolean isEvent) throws IOException {
         HazelcastInstance client = HazelcastSetup.getClient();
         String realTopic = partition < 0? topic : topic+"-"+partition;
         ITopic<Map<String, Object>> iTopic = client.getReliableTopic(realTopic);
-        // perform segmentation for large payload
-        if (payload.length > MAX_PAYLOAD) {
+        // Segmentation for large payload supported for embedded event only
+        if (isEvent && payload.length > MAX_PAYLOAD) {
             int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
             ByteArrayInputStream in = new ByteArrayInputStream(payload);
             for (int i = 0; i < total; i++) {
@@ -146,27 +154,17 @@ public class HazelcastPubSub implements PubSubProvider {
                 byte[] segment = new byte[MAX_PAYLOAD];
                 int size = in.read(segment);
                 block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
-                Map<String, Object> headers = new HashMap<>();
-                if (dest != null) {
-                    headers.put(EventProducer.RECIPIENT, dest);
-                }
                 Map<String, Object> event = new HashMap<>();
                 event.put(HEADERS, headers);
                 event.put(BODY, block.toBytes());
                 iTopic.publish(event);
-                totalEvents++;
                 log.info("Sending block {} of {} to {}", i + 1, total, topic);
             }
         } else {
-            Map<String, Object> headers = new HashMap<>();
-            if (dest != null) {
-                headers.put(EventProducer.RECIPIENT, dest);
-            }
             Map<String, Object> event = new HashMap<>();
             event.put(HEADERS, headers);
             event.put(BODY, payload);
             iTopic.publish(event);
-            totalEvents++;
         }
     }
 

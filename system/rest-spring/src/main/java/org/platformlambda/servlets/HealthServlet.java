@@ -58,7 +58,7 @@ public class HealthServlet extends HttpServlet {
     private static final String REQUIRED = "required";
     private static final String UPSTREAM = "upstream";
     private static final String NOT_FOUND = "not found";
-    private static final String PLEASE_CHECK = "Please check: ";
+    private static final String PLEASE_CHECK = "Please check - ";
     private static List<String> requiredServices = new ArrayList<>();
     private static List<String> optionalServices = new ArrayList<>();
     private static boolean loaded = false;

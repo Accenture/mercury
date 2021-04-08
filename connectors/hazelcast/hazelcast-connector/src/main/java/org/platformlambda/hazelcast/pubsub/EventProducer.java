@@ -33,8 +33,13 @@ import java.util.*;
 public class EventProducer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(EventProducer.class);
 
-    public static final String EMBED_EVENT = "_evt";
-    public static final String RECIPIENT = "_rx";
+    public static final String EMBED_EVENT = "_event_";
+    public static final String RECIPIENT = "_rx_";
+    public static final String DATA_TYPE = "_data_";
+    public static final String TEXT_DATA = "text";
+    public static final String BYTES_DATA = "bytes";
+    public static final String MAP_DATA = "map";
+    public static final String LIST_DATA = "list";
     private static final SimpleCache cache = SimpleCache.createCache("sticky.destinations", 60000);
     private static final String ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;

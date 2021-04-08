@@ -25,9 +25,11 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -43,6 +45,7 @@ import java.util.*;
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
+    private static final MsgPack msgPack = new MsgPack();
     private static final String TYPE = InitialLoad.TYPE;
     private static final String INIT = InitialLoad.INIT;
     private static final String TOKEN = InitialLoad.TOKEN;
@@ -149,15 +152,12 @@ public class EventConsumer extends Thread {
                     }
                 }
                 for (ConsumerRecord<String, byte[]> record : records) {
-                    String recipient = null;
-                    for (Header h: record.headers()) {
-                        if (EventProducer.RECIPIENT.equals(h.key())) {
-                            String r = util.getUTF(h.value());
-                            if (!r.contains(MONITOR)) {
-                                recipient = r;
-                            }
-                            break;
-                        }
+                    Map<String, String> originalHeaders = getSimpleHeaders(record.headers());
+                    String dataType = originalHeaders.getOrDefault(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
+                    boolean embedEvent = originalHeaders.containsKey(EventProducer.EMBED_EVENT);
+                    String recipient = originalHeaders.get(EventProducer.RECIPIENT);
+                    if (recipient != null && recipient.contains(MONITOR)) {
+                        recipient = null;
                     }
                     if (recipient != null && !recipient.equals(origin)) {
                         // this is an error case when two consumers listen to the same partition
@@ -166,41 +166,56 @@ public class EventConsumer extends Thread {
                     }
                     byte[] data = record.value();
                     EventEnvelope message = new EventEnvelope();
-                    try {
-                        message.load(data);
-                        message.setEndOfRoute();
-                    } catch (Exception e) {
-                        log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
-                        continue;
-                    }
-                    if (offset == INITIALIZE) {
-                        Map<String, String> headers = message.getHeaders();
-                        if (INIT.equals(message.getBody()) && INIT.equals(headers.get(TYPE)) &&
-                                INIT_TOKEN.equals(headers.get(TOKEN))) {
-                            initialLoad.close();
-                            initialLoad = null;
-                            offset = -1;
-                            if (skipped > 0) {
-                                log.info("Skipped {} outdated event{}", skipped, skipped == 1? "" : "s");
-                            }
-                        } else {
-                            skipped++;
+                    if (embedEvent) {
+                        // payload is an embedded event
+                        try {
+                            message.load(data);
+                            message.setEndOfRoute();
+                        } catch (Exception e) {
+                            log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
                             continue;
                         }
-                    }
-                    try {
-                        String to = message.getTo();
-                        if (to != null) {
-                            // remove special routing qualifier for presence monitor events
-                            if (to.contains(TO_MONITOR)) {
-                                message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
+                        try {
+                            String to = message.getTo();
+                            if (to != null) {
+                                // remove special routing qualifier for presence monitor events
+                                if (to.contains(TO_MONITOR)) {
+                                    message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
+                                }
+                                po.send(message);
+                            } else {
+                                MultipartPayload.getInstance().incoming(message);
                             }
-                            po.send(message);
-                        } else {
-                            MultipartPayload.getInstance().incoming(message);
+                        } catch (Exception e) {
+                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                         }
-                    } catch (IOException e) {
-                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                    } else {
+                        if (offset == INITIALIZE) {
+                            if (INIT.equals(originalHeaders.get(TYPE)) &&
+                                    INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
+                                initialLoad.close();
+                                initialLoad = null;
+                                offset = -1;
+                                if (skipped > 0) {
+                                    log.info("Skipped {} outdated event{}", skipped, skipped == 1 ? "" : "s");
+                                }
+                            } else {
+                                skipped++;
+                                continue;
+                            }
+                        }
+                        // transport the headers and payload in original form
+                        try {
+                            if (EventProducer.TEXT_DATA.equals(dataType)) {
+                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(util.getUTF(data)));
+                            } else if (EventProducer.MAP_DATA.equals(dataType) || EventProducer.LIST_DATA.equals(dataType)) {
+                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(msgPack.unpack(data)));
+                            } else {
+                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(data));
+                            }
+                        } catch (Exception e) {
+                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                        }
                     }
                 }
             }
@@ -226,6 +241,15 @@ public class EventConsumer extends Thread {
                 initialLoad.close();
             }
         }
+    }
+
+    private Map<String, String> getSimpleHeaders(Headers headers) {
+        Utility util = Utility.getInstance();
+        Map<String, String> result = new HashMap<>();
+        for (Header h: headers) {
+            result.put(h.key(), util.getUTF(h.value()));
+        }
+        return result;
     }
 
     public void shutdown() {

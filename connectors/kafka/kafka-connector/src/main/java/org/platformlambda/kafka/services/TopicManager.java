@@ -21,14 +21,17 @@ package org.platformlambda.kafka.services;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.kafka.KafkaSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -42,22 +45,32 @@ public class TopicManager implements LambdaFunction {
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
+    private static final String STOP = "stop";
     private static Integer replicationFactor;
 
+    private static boolean startMonitor = true;
     private AdminClient admin;
-    private int count = 0;
+    private long lastAccess = 0;
+    private int count = 0, seq = 0;
 
     public TopicManager() {
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopAdmin));
+        if (startMonitor) {
+            startMonitor = false;
+            InactivityMonitor monitor = new InactivityMonitor();
+            monitor.start();
+        }
     }
 
     private synchronized void startAdmin() {
         if (admin == null) {
+            seq++;
             Properties properties = new Properties();
             properties.putAll(KafkaSetup.getKafkaProperties());
-            properties.put(AdminClientConfig.CLIENT_ID_CONFIG, "admin-"+ Platform.getInstance().getOrigin());
+            properties.put(AdminClientConfig.CLIENT_ID_CONFIG, "admin-"+ Platform.getInstance().getOrigin()+"-"+seq);
             admin = AdminClient.create(properties);
-            log.info("AdminClient ready");
+            log.info("AdminClient-{} ready", seq);
+            lastAccess = System.currentTimeMillis();
         }
     }
 
@@ -65,7 +78,7 @@ public class TopicManager implements LambdaFunction {
         if (admin != null) {
             try {
                 admin.close();
-                log.info("AdminClient closed, processed: {}", count);
+                log.info("AdminClient-{} closed, processed: {}", seq, count);
             } catch (Exception e) {
                 // ok to ignore
             }
@@ -102,6 +115,9 @@ public class TopicManager implements LambdaFunction {
                 }
                 return true;
             }
+            if (STOP.equals(headers.get(TYPE))) {
+                stopAdmin();
+            }
         }
         return false;
     }
@@ -112,6 +128,7 @@ public class TopicManager implements LambdaFunction {
 
     private int topicPartitions(String topic) {
         startAdmin();
+        lastAccess = System.currentTimeMillis();
         DescribeTopicsResult topicMetadata = admin.describeTopics(Collections.singletonList(topic));
         try {
             Map<String, TopicDescription> result = topicMetadata.all().get();
@@ -158,6 +175,7 @@ public class TopicManager implements LambdaFunction {
 
     private void createTopic(String topic, int partitions) {
         startAdmin();
+        lastAccess = System.currentTimeMillis();
         try {
             int currentPartitions = topicPartitions(topic);
             if (currentPartitions == -1) {
@@ -199,6 +217,7 @@ public class TopicManager implements LambdaFunction {
     private void deleteTopic(String topic) {
         if (topicExists(topic)) {
             startAdmin();
+            lastAccess = System.currentTimeMillis();
             DeleteTopicsResult deleteTask = admin.deleteTopics(Collections.singletonList(topic));
             try {
                 deleteTask.all().get();
@@ -239,6 +258,46 @@ public class TopicManager implements LambdaFunction {
             stopAdmin();
         }
         return result;
+    }
+
+    private class InactivityMonitor extends Thread {
+
+        private boolean normal = true;
+
+        public InactivityMonitor() {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+        }
+
+        @Override
+        public void run() {
+            final long INTERVAL = 20 * 1000;
+            final long IDLE = 60 * 1000;
+            long t0 = System.currentTimeMillis();
+            while (normal) {
+                long now = System.currentTimeMillis();
+                if (now - t0 > INTERVAL) {
+                    t0 = now;
+                    if (admin != null && now - lastAccess > IDLE) {
+                        try {
+                            PostOffice.getInstance().send(KafkaSetup.MANAGER, new Kv(TYPE, STOP));
+                        } catch (IOException e) {
+                            // ok to ignore
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
+                }
+            }
+            log.info("Stopped");
+        }
+
+        private void shutdown() {
+            normal = true;
+        }
+
     }
 
 }

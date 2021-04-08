@@ -50,6 +50,16 @@ public class SimpleMapperTest {
     }
 
     @Test
+    public void primitiveDataTest() {
+        final boolean bol = true;
+        Object bolString = SimpleMapper.getInstance().getMapper().writeValueAsString(bol);
+        Assert.assertEquals("true", bolString);
+        final int n = 1;
+        Object intString = SimpleMapper.getInstance().getMapper().writeValueAsString(n);
+        Assert.assertEquals("1", intString);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void mapperSerializationTest() {
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
