@@ -110,9 +110,8 @@ public class HazelcastPubSub implements PubSubProvider {
         validateTopicName(topic);
         Utility util = Utility.getInstance();
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
-        EventEnvelope event = new EventEnvelope();
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
-            sendEvent(topic, partition, event.getId(), eventHeaders, (byte[]) body, true);
+            sendEvent(topic, partition, eventHeaders, (byte[]) body);
         } else {
             final byte[] payload;
             if (body instanceof byte[]) {
@@ -132,39 +131,21 @@ public class HazelcastPubSub implements PubSubProvider {
                 payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.TEXT_DATA);
             }
-            sendEvent(topic, partition, event.getId(), eventHeaders, payload, false);
+            sendEvent(topic, partition, eventHeaders, payload);
         }
     }
 
-    private void sendEvent(String topic, int partition, String id,
-                           Map<String, String> headers, byte[] payload, boolean isEvent) throws IOException {
-        HazelcastInstance client = HazelcastSetup.getClient();
-        String realTopic = partition < 0? topic : topic+"-"+partition;
-        ITopic<Map<String, Object>> iTopic = client.getReliableTopic(realTopic);
-        // Segmentation for large payload supported for embedded event only
-        if (isEvent && payload.length > MAX_PAYLOAD) {
-            int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
-            ByteArrayInputStream in = new ByteArrayInputStream(payload);
-            for (int i = 0; i < total; i++) {
-                // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
-                EventEnvelope block = new EventEnvelope();
-                block.setHeader(MultipartPayload.ID, id);
-                block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
-                block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
-                byte[] segment = new byte[MAX_PAYLOAD];
-                int size = in.read(segment);
-                block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
-                Map<String, Object> event = new HashMap<>();
-                event.put(HEADERS, headers);
-                event.put(BODY, block.toBytes());
-                iTopic.publish(event);
-                log.info("Sending block {} of {} to {}", i + 1, total, topic);
-            }
-        } else {
+    private void sendEvent(String topic, int partition, Map<String, String> headers, byte[] payload) {
+        String realTopic = partition < 0 ? topic : topic + "-" + partition;
+        try {
+            HazelcastInstance client = HazelcastSetup.getClient();
+            ITopic<Map<String, Object>> iTopic = client.getReliableTopic(realTopic);
             Map<String, Object> event = new HashMap<>();
             event.put(HEADERS, headers);
             event.put(BODY, payload);
             iTopic.publish(event);
+        } catch (Exception e) {
+            log.error("Unable to publish event to {} - {}", realTopic, e.getMessage());
         }
     }
 

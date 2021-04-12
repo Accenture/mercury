@@ -85,45 +85,25 @@ public class KafkaPubSub implements PubSubProvider {
         return properties;
     }
 
-    private void sendEvent(String topic, int partition, String id,
-                           List<Header> headers, byte[] payload, boolean isEvent) throws IOException {
+    private void sendEvent(String topic, int partition, List<Header> headers, byte[] payload) {
         startProducer();
         try {
-            // Segmentation for large payload supported for embedded event only
-            if (isEvent && payload.length > MAX_PAYLOAD) {
-                int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
-                ByteArrayInputStream in = new ByteArrayInputStream(payload);
-                for (int i = 0; i < total; i++) {
-                    // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
-                    EventEnvelope block = new EventEnvelope();
-                    block.setHeader(MultipartPayload.ID, id);
-                    block.setHeader(MultipartPayload.COUNT, String.valueOf(i + 1));
-                    block.setHeader(MultipartPayload.TOTAL, String.valueOf(total));
-                    byte[] segment = new byte[MAX_PAYLOAD];
-                    int size = in.read(segment);
-                    block.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
-                    if (partition < 0) {
-                        producer.send(new ProducerRecord<>(topic, id + i, block.toBytes()))
-                                .get(10000, TimeUnit.MILLISECONDS);
-                    } else {
-                        producer.send(new ProducerRecord<>(topic, partition,id + i, block.toBytes(), headers))
-                                .get(10000, TimeUnit.MILLISECONDS);
-                    }
-                    totalEvents++;
-                    log.info("Sending block {} of {} to {}", i + 1, total, topic);
-                }
+            String id = Utility.getInstance().getUuid();
+            if (partition < 0) {
+                producer.send(new ProducerRecord<>(topic, id, payload))
+                        .get(10000, TimeUnit.MILLISECONDS);
             } else {
-                if (partition < 0) {
-                    producer.send(new ProducerRecord<>(topic, id, payload))
-                            .get(10000, TimeUnit.MILLISECONDS);
-                } else {
-                    producer.send(new ProducerRecord<>(topic, partition, id, payload, headers))
-                            .get(10000, TimeUnit.MILLISECONDS);
-                }
-                totalEvents++;
+                producer.send(new ProducerRecord<>(topic, partition, id, payload, headers))
+                        .get(10000, TimeUnit.MILLISECONDS);
             }
+            totalEvents++;
+
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            log.error("Unable to publish event to {} - {}", topic, e.getMessage());
+            if (partition < 0) {
+                log.error("Unable to publish event to {} - {}", topic, e.getMessage());
+            } else {
+                log.error("Unable to publish event to {} partition {} - {}", topic, partition, e.getMessage());
+            }
             closeProducer();
         }
     }
@@ -262,7 +242,6 @@ public class KafkaPubSub implements PubSubProvider {
         validateTopicName(topic);
         Utility util = Utility.getInstance();
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
-        EventEnvelope event = new EventEnvelope();
         List<Header> headerList = new ArrayList<>();
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
             headerList.add(new RecordHeader(EventProducer.EMBED_EVENT, util.getUTF("1")));
@@ -270,7 +249,7 @@ public class KafkaPubSub implements PubSubProvider {
             if (recipient != null) {
                 headerList.add(new RecordHeader(EventProducer.RECIPIENT, util.getUTF(recipient)));
             }
-            sendEvent(topic, partition, event.getId(), headerList, (byte[]) body, true);
+            sendEvent(topic, partition, headerList, (byte[]) body);
         } else {
             for (String h: eventHeaders.keySet()) {
                 headerList.add(new RecordHeader(h, util.getUTF(eventHeaders.get(h))));
@@ -293,7 +272,7 @@ public class KafkaPubSub implements PubSubProvider {
                 payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
                 headerList.add(new RecordHeader(EventProducer.DATA_TYPE, util.getUTF(EventProducer.TEXT_DATA)));
             }
-            sendEvent(topic, partition, event.getId(), headerList, payload, false);
+            sendEvent(topic, partition, headerList, payload);
         }
     }
 

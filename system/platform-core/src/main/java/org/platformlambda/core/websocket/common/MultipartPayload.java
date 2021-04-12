@@ -154,7 +154,8 @@ public class MultipartPayload {
                         out.setHeader(BROADCAST, "1");
                     }
                     dest.tell(out, ActorRef.noSender());
-                    log.debug("Sending block {} of {} to {} - {} bytes", i + 1, total, event.getTo(), size);
+                    log.debug("Sending block {} of {} to {} as {} - {} bytes", i + 1, total, event.getTo(),
+                            event.getId(), size);
                 }
 
             } else {

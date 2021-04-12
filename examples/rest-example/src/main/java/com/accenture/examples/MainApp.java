@@ -52,7 +52,7 @@ public class MainApp implements EntryPoint {
              * Uncomment the "log.info" statement if you want to see this service receiving the event.
              * (Note that logging takes time so it will affect your function execution time.)
              */
-//             log.info("echo @"+instance+" received - "+headers+", "+body);
+//             log.info("echo #"+instance+" got a request");
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
