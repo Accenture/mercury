@@ -38,7 +38,6 @@ import org.platformlambda.kafka.InitialLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 
@@ -46,6 +45,7 @@ public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
     private static final MsgPack msgPack = new MsgPack();
+    private static final String OFFSET = "_offset_";
     private static final String TYPE = InitialLoad.TYPE;
     private static final String INIT = InitialLoad.INIT;
     private static final String TOKEN = InitialLoad.TOKEN;
@@ -76,7 +76,7 @@ public class EventConsumer extends Thread {
              */
             if (parameters.length == 3) {
                 Utility util = Utility.getInstance();
-                offset = util.str2int(parameters[2]);
+                offset = util.str2long(parameters[2]);
             }
         } else {
             throw new IllegalArgumentException("Unable to start consumer for " + topic +
@@ -107,6 +107,7 @@ public class EventConsumer extends Thread {
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
+        String consumerTopic = topic + (partition < 0? "" : "." + partition);
         if (partition < 0) {
             consumer.subscribe(Collections.singletonList(topic));
             log.info("Subscribed {}", topic);
@@ -207,12 +208,21 @@ public class EventConsumer extends Thread {
                         // transport the headers and payload in original form
                         try {
                             if (EventProducer.TEXT_DATA.equals(dataType)) {
-                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(util.getUTF(data)));
-                            } else if (EventProducer.MAP_DATA.equals(dataType) || EventProducer.LIST_DATA.equals(dataType)) {
-                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(msgPack.unpack(data)));
+                                message.setHeaders(originalHeaders).setBody(util.getUTF(data));
+                            } else if (EventProducer.MAP_DATA.equals(dataType) ||
+                                    EventProducer.LIST_DATA.equals(dataType)) {
+                                message.setHeaders(originalHeaders).setBody(msgPack.unpack(data));
                             } else {
-                                po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(data));
+                                message.setHeaders(originalHeaders).setBody(data);
                             }
+                            /*
+                             * Offset is only meaningful when listening to a specific partition.
+                             * This allows user application to reposition offset when required.
+                             */
+                            if (partition >= 0) {
+                                message.setHeader(OFFSET, String.valueOf(record.offset()));
+                            }
+                            po.send(message.setTo(consumerTopic));
                         } catch (Exception e) {
                             log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                         }

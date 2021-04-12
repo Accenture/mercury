@@ -40,7 +40,7 @@ public class TopicManager implements LambdaFunction {
 
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
-    private static final String ORIGIN = "origin";
+    private static final String TOPIC = "topic";
     private static final String CREATE = "create";
     private static final String DELETE = "delete";
     private static final String LIST = "list";
@@ -93,23 +93,23 @@ public class TopicManager implements LambdaFunction {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
             }
-            if (EXISTS.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
-                String origin = headers.get(ORIGIN);
+            if (EXISTS.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
+                String origin = headers.get(TOPIC);
                 return topicExists(origin);
             }
-            if (PARTITIONS.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
-                String origin = headers.get(ORIGIN);
+            if (PARTITIONS.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
+                String origin = headers.get(TOPIC);
                 return topicPartitions(origin);
             }
             // if origin is not specified, it will create the dedicated topic for a new application that is starting up
-            if (CREATE.equals(headers.get(TYPE))) {
-                createTopic(headers.containsKey(ORIGIN)? headers.get(ORIGIN) : Platform.getInstance().getOrigin(),
+            if (CREATE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
+                createTopic(headers.get(TOPIC),
                         headers.containsKey(PARTITIONS)? Utility.getInstance().str2int(headers.get(PARTITIONS)) : 1);
                 return true;
             }
             // delete topic when an application instance expires
-            if (DELETE.equals(headers.get(TYPE)) && headers.containsKey(ORIGIN)) {
-                String origin = headers.get(ORIGIN);
+            if (DELETE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
+                String origin = headers.get(TOPIC);
                 if (topicExists(origin)) {
                     deleteTopic(origin);
                 }

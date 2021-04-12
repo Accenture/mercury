@@ -42,6 +42,9 @@ public class PayloadSegmentationTest {
          * Generate large payload of over 64 KB
          * (for this test, we generate 500,000 bytes)
          */
+        Utility util = Utility.getInstance();
+        String OFFSET = "_offset_";
+        long offset = 12345;
         StringBuilder sb = new StringBuilder();
         for (int i=0; i < CYCLE; i++) {
             sb.append(TEST_STRING);
@@ -52,6 +55,9 @@ public class PayloadSegmentationTest {
         Platform platform = Platform.getInstance();
         // create function to receive large payload
         LambdaFunction f = (headers, body, instance) -> {
+            if (headers.containsKey(OFFSET)) {
+                Assert.assertEquals(offset, util.str2long(headers.get(OFFSET)));
+            }
             if (body instanceof byte[]) {
                 byte[] b = (byte[]) body;
                 if (headers.containsKey("to")) {
@@ -62,7 +68,7 @@ public class PayloadSegmentationTest {
                         PostOffice.getInstance().send(e);
                     } else {
                         // segmented payload
-                        multipart.incoming(e);
+                        multipart.incoming(e, 12345);
                     }
                 } else {
                     bench.offer(b.length);

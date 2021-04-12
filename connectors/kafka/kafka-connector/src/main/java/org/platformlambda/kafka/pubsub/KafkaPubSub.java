@@ -22,11 +22,12 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.*;
+import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
@@ -55,7 +56,7 @@ public class KafkaPubSub implements PubSubProvider {
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
     private static final String DELETE = "delete";
-    private static final String ORIGIN = "origin";
+    private static final String TOPIC = "topic";
     private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - 256;
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private static long seq = 0, totalEvents = 0;
@@ -149,6 +150,11 @@ public class KafkaPubSub implements PubSubProvider {
     }
 
     @Override
+    public boolean createQueue(String queue) throws IOException {
+        throw new IOException("Feature not implemented - Re-balancing of a queue can be done with topic and groupId");
+    }
+
+    @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
     }
@@ -158,7 +164,7 @@ public class KafkaPubSub implements PubSubProvider {
         validateTopicName(topic);
         try {
             EventEnvelope init = PostOffice.getInstance().request(MANAGER, 20000,
-                                    new Kv(TYPE, CREATE), new Kv(ORIGIN, topic), new Kv(PARTITIONS, partitions));
+                                    new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
             } else {
@@ -172,7 +178,7 @@ public class KafkaPubSub implements PubSubProvider {
     @Override
     public void deleteTopic(String topic) throws IOException {
         try {
-            PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(ORIGIN, topic));
+            PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -183,7 +189,7 @@ public class KafkaPubSub implements PubSubProvider {
         validateTopicName(topic);
         try {
             EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
-                                        new Kv(TYPE, EXISTS), new Kv(ORIGIN, topic));
+                                        new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Boolean) {
                 return (Boolean) response.getBody();
             } else {
@@ -199,7 +205,7 @@ public class KafkaPubSub implements PubSubProvider {
         validateTopicName(topic);
         try {
             EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
-                                        new Kv(TYPE, PARTITIONS), new Kv(ORIGIN, topic));
+                                        new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Integer) {
                 return (Integer) response.getBody();
             } else {
@@ -304,20 +310,18 @@ public class KafkaPubSub implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         validateTopicName(topic);
+        String topicPartition = topic + (partition < 0? "" : "." + partition);
         if (parameters.length == 2 || parameters.length == 3) {
             if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
                 throw new IOException("topic offset must be numeric");
             }
-            if (Platform.getInstance().hasRoute(topic)) {
-                throw new IOException(topic+" is already used");
-            }
-            if (subscribers.containsKey(topic)) {
-                throw new IOException(topic+" is already subscribed");
+            if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
+                throw new IOException(topicPartition+" is already subscribed");
             }
             EventConsumer consumer = new EventConsumer(getProperties(), topic, partition, parameters);
             consumer.start();
-            Platform.getInstance().registerPrivate(topic, listener, 1);
-            subscribers.put(topic + (partition < 0? "" : "-" + partition), consumer);
+            Platform.getInstance().registerPrivate(topicPartition, listener, 1);
+            subscribers.put(topicPartition, consumer);
         } else {
             throw new IOException("Check parameters: clientId, groupId and optional offset pointer");
         }
@@ -330,17 +334,17 @@ public class KafkaPubSub implements PubSubProvider {
 
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
-        String topicPartition = topic + (partition < 0? "" : "-" + partition);
+        String topicPartition = topic + (partition < 0? "" : "." + partition);
         validateTopicName(topic);
         Platform platform = Platform.getInstance();
-        if (platform.hasRoute(topic) && subscribers.containsKey(topicPartition)) {
+        if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);
-            platform.release(topic);
+            platform.release(topicPartition);
             subscribers.remove(topicPartition);
             consumer.shutdown();
         } else {
             if (partition > -1) {
-                throw new IOException(topic + " at partition-" + partition +
+                throw new IOException(topicPartition +
                         " has not been subscribed by this application instance");
             } else {
                 throw new IOException(topic + " has not been subscribed by this application instance");

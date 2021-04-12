@@ -35,9 +35,10 @@ import java.util.Map;
 
 public class MultipartPayload {
     private static final Logger log = LoggerFactory.getLogger(MultipartPayload.class);
-    public static final String ID = "id";
-    public static final String COUNT = "count";
-    public static final String TOTAL = "total";
+    public static final String OFFSET = "_offset_";
+    public static final String ID = "_id_";
+    public static final String COUNT = "_blk_";
+    public static final String TOTAL = "_max_";
     public static final String TO = "to";
     public static final String BROADCAST = "broadcast";
     public static final int OVERHEAD = 256;
@@ -55,6 +56,11 @@ public class MultipartPayload {
     }
 
     public void incoming(EventEnvelope message) throws IOException {
+        incoming(message, -1);
+    }
+
+    public void incoming(EventEnvelope message, long offset) throws IOException {
+        PostOffice po = PostOffice.getInstance();
         Map<String, String> control = message.getHeaders();
         if (message.getTo() != null) {
             String to = message.getTo();
@@ -62,9 +68,12 @@ public class MultipartPayload {
             if (to.contains(TO_MONITOR)) {
                 message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
             }
-            PostOffice.getInstance().send(message);
-        } else if (control.size() == 3 && control.containsKey(ID)
-                && control.containsKey(COUNT) && control.containsKey(TOTAL)) {
+            if (offset >= 0) {
+                message.setHeader(OFFSET, offset);
+            }
+            po.send(message);
+        } else if (isDataBlock(control) && control.containsKey(ID) &&
+                control.containsKey(COUNT) && control.containsKey(TOTAL)) {
             // segmented incoming event
             Utility util = Utility.getInstance();
             String id = control.get(ID);
@@ -82,14 +91,27 @@ public class MultipartPayload {
                     if (total == segments.size()) {
                         EventEnvelope reconstructed = new EventEnvelope();
                         reconstructed.load(segments.toBytes());
+                        if (offset >= 0) {
+                            reconstructed.setHeader(OFFSET, offset);
+                        }
                         cache.remove(id);
-                        PostOffice.getInstance().send(reconstructed);
+                        po.send(reconstructed);
                     } else {
                         cache.put(id, segments);
                     }
                 }
             }
         }
+    }
+
+    private boolean isDataBlock(Map<String, String> control) {
+        int n = 0;
+        for (String k: control.keySet()) {
+            if (k.startsWith("_") && k.endsWith("_") && k.length() > 2) {
+                n++;
+            }
+        }
+        return control.size() == n;
     }
 
     public void outgoing(String dest, EventEnvelope event) throws IOException {

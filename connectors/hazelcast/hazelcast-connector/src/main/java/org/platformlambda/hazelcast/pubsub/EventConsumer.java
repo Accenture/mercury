@@ -33,7 +33,6 @@ import org.platformlambda.hazelcast.InitialLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -98,6 +97,8 @@ public class EventConsumer extends Thread {
 
     private class EventListener implements MessageListener<Map<String, Object>> {
 
+        private final String consumerTopic = topic + (partition < 0? "" : "." + partition);
+
         @SuppressWarnings("unchecked")
         @Override
         public void onMessage(Message<Map<String, Object>> evt) {
@@ -161,12 +162,13 @@ public class EventConsumer extends Thread {
                     // transport the headers and payload in original form
                     try {
                         if (EventProducer.TEXT_DATA.equals(dataType)) {
-                            po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(util.getUTF(data)));
+                            message.setHeaders(originalHeaders).setBody(util.getUTF(data));
                         } else if (EventProducer.MAP_DATA.equals(dataType) || EventProducer.LIST_DATA.equals(dataType)) {
-                            po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(msgPack.unpack(data)));
+                            message.setHeaders(originalHeaders).setBody(msgPack.unpack(data));
                         } else {
-                            po.send(message.setTo(topic).setHeaders(originalHeaders).setBody(data));
+                            message.setHeaders(originalHeaders).setBody(data);
                         }
+                        po.send(message.setTo(consumerTopic));
                     } catch (Exception e) {
                         log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                     }
