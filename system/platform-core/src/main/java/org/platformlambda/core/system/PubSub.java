@@ -97,18 +97,6 @@ public class PubSub {
     }
 
     /**
-     * Create a queue before publishing
-     *
-     * @param queue for a messaging system, not usually available in pub/sub system
-     * @return true when queue is successfully created
-     * @throws IOException in case the queue cannot be created
-     */
-    public boolean createQueue(String queue) throws IOException {
-        checkFeature();
-        return provider.createQueue(queue);
-    }
-
-    /**
      * Create a topic before publishing
      *
      * @param topic for a store-n-forward pub/sub channel

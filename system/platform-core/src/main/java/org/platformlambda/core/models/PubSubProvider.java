@@ -29,8 +29,6 @@ import java.util.concurrent.TimeoutException;
  */
 public interface PubSubProvider {
 
-    boolean createQueue(String queue) throws IOException;
-
     boolean createTopic(String topic) throws IOException;
 
     boolean createTopic(String topic, int partitions) throws IOException;

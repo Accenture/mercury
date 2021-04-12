@@ -71,12 +71,6 @@ public class HazelcastPubSub implements PubSubProvider {
     }
 
     @Override
-    public boolean createQueue(String queue) throws IOException {
-        // TODO: implement queue feature
-        throw new IOException("This feature will be implemented in next iteration");
-    }
-
-    @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
     }

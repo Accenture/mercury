@@ -150,11 +150,6 @@ public class KafkaPubSub implements PubSubProvider {
     }
 
     @Override
-    public boolean createQueue(String queue) throws IOException {
-        throw new IOException("Feature not implemented - Re-balancing of a queue can be done with topic and groupId");
-    }
-
-    @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
     }
