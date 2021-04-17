@@ -13,10 +13,12 @@
         <module>system/platform-core</module>
         <module>system/rest-spring</module>
         <module>connectors/hazelcast/hazelcast-connector</module>
+        <module>connectors/activemq/activemq-connector</module>
         <module>connectors/kafka/kafka-connector</module>
-        <module>extensions/rest-automation-lib</module>
+	<module>extensions/rest-automation-lib</module>
         <!-- Executables -->
-        <module>connectors/hazelcast/hazelcast-presence</module>
+	<module>connectors/hazelcast/hazelcast-presence</module>
+	<module>connectors/activemq/activemq-presence</module>
         <module>connectors/kafka/kafka-presence</module>
         <module>connectors/kafka/kafka-standalone</module>
         <module>extensions/api-playground</module>

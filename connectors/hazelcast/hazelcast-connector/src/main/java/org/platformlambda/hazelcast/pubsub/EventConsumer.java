@@ -62,7 +62,10 @@ public class EventConsumer extends Thread {
         this.topic = topic;
         this.partition = partition;
         Utility util = Utility.getInstance();
-        // ignore groupId and clientId. Detect if INITIALIZE is provided.
+        /*
+         * Ignore groupId and clientId as they are specific to Kafka only.
+         * Just detect if INITIALIZE is provided.
+         */
         if (parameters != null) {
             for (String p: parameters) {
                 long offset = util.str2long(p);
@@ -111,7 +114,7 @@ public class EventConsumer extends Thread {
             if (h instanceof Map && p instanceof byte[]) {
                 Map<String, String> originalHeaders = getSimpleHeaders((Map<String, Object>) h);
                 byte[] data = (byte[]) p;
-                Object dataType = originalHeaders.getOrDefault(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
+                String dataType = originalHeaders.getOrDefault(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
                 boolean embedEvent = originalHeaders.containsKey(EventProducer.EMBED_EVENT);
                 String recipient = originalHeaders.get(EventProducer.RECIPIENT);
                 if (recipient != null && recipient.contains(MONITOR)) {
@@ -148,7 +151,7 @@ public class EventConsumer extends Thread {
                     if (offset == INITIALIZE) {
                         if (INIT.equals(originalHeaders.get(TYPE)) &&
                                 INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
-                            initialLoad.close();
+                            initialLoad.complete();
                             initialLoad = null;
                             offset = -1;
                             if (skipped > 0) {

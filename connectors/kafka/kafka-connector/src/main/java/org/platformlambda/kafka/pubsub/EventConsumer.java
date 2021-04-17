@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
@@ -57,7 +58,7 @@ public class EventConsumer extends Thread {
     private final int partition;
     private final KafkaConsumer<String, byte[]> consumer;
     private InitialLoad initialLoad;
-    private boolean normal = true;
+    private final AtomicBoolean normal = new AtomicBoolean(true);
     private int skipped = 0;
     private long offset = -1;
 
@@ -116,8 +117,8 @@ public class EventConsumer extends Thread {
             log.info("Subscribed {}, partition-{}", topic, partition);
         }
         try {
-            while (normal) {
-                long interval = reset? 15 : 60;
+            while (normal.get()) {
+                long interval = reset? 15 : 30;
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(interval));
                 if (reset) {
                     Set<TopicPartition> p = consumer.assignment();
@@ -194,7 +195,7 @@ public class EventConsumer extends Thread {
                         if (offset == INITIALIZE) {
                             if (INIT.equals(originalHeaders.get(TYPE)) &&
                                     INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
-                                initialLoad.close();
+                                initialLoad.complete();
                                 initialLoad = null;
                                 offset = -1;
                                 if (skipped > 0) {
@@ -231,13 +232,10 @@ public class EventConsumer extends Thread {
             }
         } catch (Exception e) {
             if (e instanceof WakeupException) {
-                log.info("Stopping listener for {}", topic);
+                log.info("Stopping listener for {}", consumerTopic);
             } else {
-                /*
-                 * We will let the cloud restarts the application instance automatically.
-                 * There is nothing we can do.
-                 */
-                log.error("Unrecoverable event stream error for {} - {} {}", topic, e.getClass(), e.getMessage());
+                // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
+                log.error("Event stream error for {} - {} {}", consumerTopic, e.getClass(), e.getMessage());
                 System.exit(10);
             }
         } finally {
@@ -263,8 +261,8 @@ public class EventConsumer extends Thread {
     }
 
     public void shutdown() {
-        if (normal) {
-            normal = false;
+        if (normal.get()) {
+            normal.set(false);
             consumer.wakeup();
         }
     }

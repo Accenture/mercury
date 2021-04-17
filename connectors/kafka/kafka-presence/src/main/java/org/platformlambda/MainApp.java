@@ -26,6 +26,7 @@ import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.kafka.InitialLoad;
+import org.platformlambda.kafka.KafkaSetup;
 import org.platformlambda.kafka.PresenceHandler;
 import org.platformlambda.rest.RestServer;
 import org.platformlambda.services.*;
@@ -40,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
-    public static final String MANAGER = "kafka.manager";
+    public static final String MANAGER = KafkaSetup.MANAGER;
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String TOPIC_CONTROLLER = "topic.controller";

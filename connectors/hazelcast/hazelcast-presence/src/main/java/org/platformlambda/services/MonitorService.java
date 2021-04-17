@@ -109,19 +109,18 @@ public class MonitorService implements LambdaFunction {
             if (o instanceof Map) {
                 if (!info.equals(o)) {
                     connectionInfo.put(origin, info);
-                    log.debug("Updating member {}", origin);
                 }
             }
         } else {
             connectionInfo.put(origin, info);
-            log.info("Adding member {}", origin);
+            log.info("Member {} joined", origin);
         }
     }
 
     public static void deleteNodeInfo(String origin) {
         if (connectionInfo.exists(origin)) {
             connectionInfo.remove(origin);
-            log.info("Removing member {}", origin);
+            log.info("Member {} left", origin);
         }
     }
 

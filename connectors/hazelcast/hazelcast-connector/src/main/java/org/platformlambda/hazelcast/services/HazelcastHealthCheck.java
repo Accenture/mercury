@@ -46,8 +46,7 @@ public class HazelcastHealthCheck implements LambdaFunction {
     private static final String ORIGIN = "origin";
     private static final String LIST = "list";
     private static final long TIMEOUT = 5000;
-    // static because this is a shared lambda function
-    private static boolean presenceMonitor;
+    private final boolean presenceMonitor;
 
     public HazelcastHealthCheck() {
         AppConfigReader reader = AppConfigReader.getInstance();
@@ -69,13 +68,15 @@ public class HazelcastHealthCheck implements LambdaFunction {
             if (presenceMonitor) {
                 // Since service monitor does not have a topic, we can just list all topics
                 PostOffice po = PostOffice.getInstance();
-                EventEnvelope response = po.request(MANAGER, TIMEOUT, new Kv(TYPE, LIST), new Kv(ORIGIN, Platform.getInstance().getOrigin()));
+                EventEnvelope response = po.request(MANAGER, TIMEOUT, new Kv(TYPE, LIST),
+                        new Kv(ORIGIN, Platform.getInstance().getOrigin()));
                 if (response.getBody() instanceof List) {
                     List<String> list = (List<String>) response.getBody();
                     if (list.isEmpty()) {
                         return "Hazelcast is healthy but it does not have any topics";
                     } else {
-                        return "Hazelcast is healthy and it contains " + list.size() + " " + (list.size() == 1 ? "topic" : "topics");
+                        return "Hazelcast is healthy and it contains " +
+                                list.size() + " " + (list.size() == 1 ? "topic" : "topics");
                     }
                 } else {
                     throw new AppException(500, "Unable to list topics");

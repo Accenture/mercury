@@ -47,7 +47,7 @@
              For convenience, both Kafka and Hazelcast connectors are added so
              you can select the connector from command line without recompiling from source. 
 
-	         For production, please select only one cloud connector to reduce memory footprint. -->
+	         For production, please select only one cloud connector to reduce dependency footprint. -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>

@@ -34,6 +34,7 @@ import java.util.Map;
 public class PresenceHandler implements LambdaFunction {
     private static final String MONITOR_PARTITION = KafkaSetup.MONITOR_PARTITION;
     private static final String TYPE = "type";
+    private static final String NAME = "name";
     private static final String TOPIC = "topic";
     private static final String ALIVE = "keep-alive";
     private static final String DOWNLOAD = "download";
@@ -80,7 +81,7 @@ public class PresenceHandler implements LambdaFunction {
                             Map<String, Object> metadata = connections.get(appOrigin);
                             MonitorService.updateNodeInfo(appOrigin, metadata);
                             if (metadata.containsKey(TOPIC)) {
-                                po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE),
+                                po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE), new Kv(NAME, metadata.get(NAME)),
                                         new Kv(TOPIC, metadata.get(TOPIC)), new Kv(ORIGIN, appOrigin));
                             }
                         }
@@ -90,7 +91,7 @@ public class PresenceHandler implements LambdaFunction {
                     Map<String, Object> metadata = (Map<String, Object>) body;
                     MonitorService.updateNodeInfo(appOrigin, metadata);
                     if (metadata.containsKey(TOPIC)) {
-                        po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE),
+                        po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE), new Kv(NAME, metadata.get(NAME)),
                                 new Kv(TOPIC, metadata.get(TOPIC)), new Kv(ORIGIN, appOrigin));
                     }
                 }

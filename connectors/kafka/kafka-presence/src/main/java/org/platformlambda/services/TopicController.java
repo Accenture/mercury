@@ -51,9 +51,9 @@ public class TopicController implements LambdaFunction {
     // topic RSVP protocol
     private static RsvpProcessor rsvpProcessor;
     private static final ConcurrentMap<String, TopicRequest> rsvpMap = new ConcurrentHashMap<>();
-    private static final long RSVP_TIMEOUT = 15 * 1000;
+    private static final long RSVP_TIMEOUT = 12 * 1000;
     private static String rsvpHolder;
-    private static long rsvpLock = 0;
+    private static long rsvpLock = System.currentTimeMillis();
     private static List<String> allTopics;
     private final int partitionCount, maxVirtualTopics;
 
@@ -127,12 +127,15 @@ public class TopicController implements LambdaFunction {
         String myOrigin = Platform.getInstance().getOrigin();
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
-            if (ALIVE.equals(type) && headers.containsKey(TOPIC) && headers.containsKey(ORIGIN)) {
-                // check for duplicated assignment during topic transition
-                activeTopics.put(headers.get(TOPIC), System.currentTimeMillis());
-                topicStore.put(headers.get(TOPIC), headers.get(ORIGIN));
-                log.debug("{} {} active", headers.get(TOPIC), headers.get(ORIGIN));
-                eliminateDuplicate(headers.get(TOPIC), headers.get(ORIGIN));
+            if (ALIVE.equals(type) && headers.containsKey(TOPIC) && headers.containsKey(ORIGIN) &&
+                    headers.containsKey(NAME)) {
+                String topic = headers.get(TOPIC);
+                if (!activeTopics.containsKey(topic)) {
+                    log.info("{} -> {}, {}", headers.get(TOPIC), headers.get(ORIGIN), headers.get(NAME));
+                }
+                activeTopics.put(topic, System.currentTimeMillis());
+                topicStore.put(topic, headers.get(ORIGIN));
+                eliminateDuplicate(topic, headers.get(ORIGIN));
                 return true;
             }
             if (RSVP.equals(type) && headers.containsKey(MONITOR)) {

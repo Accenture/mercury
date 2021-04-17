@@ -33,14 +33,11 @@ import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.common.MultipartPayload;
-import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.kafka.KafkaSetup;
 import org.platformlambda.kafka.services.TopicManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -57,7 +54,6 @@ public class KafkaPubSub implements PubSubProvider {
     private static final String EXISTS = "exists";
     private static final String DELETE = "delete";
     private static final String TOPIC = "topic";
-    private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - 256;
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private static long seq = 0, totalEvents = 0;
 
@@ -86,25 +82,29 @@ public class KafkaPubSub implements PubSubProvider {
     }
 
     private void sendEvent(String topic, int partition, List<Header> headers, byte[] payload) {
+        String topicPartition = topic + (partition < 0? "" : "." + partition);
         startProducer();
         try {
+            long t1 = System.currentTimeMillis();
             String id = Utility.getInstance().getUuid();
             if (partition < 0) {
                 producer.send(new ProducerRecord<>(topic, id, payload))
-                        .get(10000, TimeUnit.MILLISECONDS);
+                        .get(20, TimeUnit.SECONDS);
             } else {
                 producer.send(new ProducerRecord<>(topic, partition, id, payload, headers))
-                        .get(10000, TimeUnit.MILLISECONDS);
+                        .get(20, TimeUnit.SECONDS);
+            }
+            long diff = System.currentTimeMillis() - t1;
+            if (diff > 5000) {
+                log.error("Kafka is slow - took {} ms to send to {}", diff, topicPartition);
             }
             totalEvents++;
 
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            if (partition < 0) {
-                log.error("Unable to publish event to {} - {}", topic, e.getMessage());
-            } else {
-                log.error("Unable to publish event to {} partition {} - {}", topic, partition, e.getMessage());
-            }
+            // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
+            log.error("Unable to publish event to {} - {}", topicPartition, e.getMessage());
             closeProducer();
+            System.exit(20);
         }
     }
 

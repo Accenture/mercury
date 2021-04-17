@@ -3,23 +3,28 @@ package org.platformlambda.hazelcast.pubsub;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.topic.ITopic;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.*;
+import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.common.MultipartPayload;
-import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.hazelcast.services.TopicManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeoutException;
 
 public class HazelcastPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(HazelcastPubSub.class);
@@ -35,7 +40,6 @@ public class HazelcastPubSub implements PubSubProvider {
     private static final String EXISTS = "exists";
     private static final String DELETE = "delete";
     private static final String TOPIC = "topic";
-    private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - 256;
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
 
     public HazelcastPubSub() {
@@ -146,6 +150,8 @@ public class HazelcastPubSub implements PubSubProvider {
             iTopic.publish(event);
         } catch (Exception e) {
             log.error("Unable to publish event to {} - {}", realTopic, e.getMessage());
+            // just let the platform such as Kubernetes to restart the application instance
+            System.exit(12);
         }
     }
 
@@ -247,6 +253,9 @@ public class HazelcastPubSub implements PubSubProvider {
     }
 
     private void shutdown() {
-        // TODO
+        for (String topic: subscribers.keySet()) {
+            EventConsumer consumer = subscribers.get(topic);
+            consumer.shutdown();
+        }
     }
 }

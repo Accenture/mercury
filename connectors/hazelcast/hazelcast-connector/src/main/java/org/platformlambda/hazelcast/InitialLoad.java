@@ -66,7 +66,11 @@ public class InitialLoad extends Thread {
                 // ok to ignore
             }
         }
+    }
+
+    public void complete() {
         log.info("{}, partition {} ready", topic, partition);
+        close();
     }
 
     public void close() {
