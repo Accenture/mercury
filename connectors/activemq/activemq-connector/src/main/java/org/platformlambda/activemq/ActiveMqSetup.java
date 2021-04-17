@@ -64,7 +64,7 @@ public class ActiveMqSetup implements CloudSetup {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         List<String> cluster = util.split(config.getProperty(ACTIVEMQ_CLUSTER,
-                "tcp://127.0.0.1:7222"), ", ");
+                "tcp://127.0.0.1:61616"), ", ");
         displayUrl = cluster.toString();
         boolean reachable = false;
         for (String address : cluster) {
