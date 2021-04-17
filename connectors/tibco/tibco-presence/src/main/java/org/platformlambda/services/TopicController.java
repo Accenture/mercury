@@ -164,11 +164,15 @@ public class TopicController implements LambdaFunction {
             if (CONFIRM_TOPIC.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
                 String topic = headers.get(TOPIC);
                 String appOrigin = headers.get(ORIGIN);
-                topicStore.put(topic, appOrigin);
-                activeTopics.put(topic, System.currentTimeMillis());
                 Object appName = MonitorService.getInfo(appOrigin, NAME);
                 Object version = MonitorService.getInfo(appOrigin, VERSION);
-                log.info("{} assigned to {} {}, {}", topic, appOrigin, appName, version);
+                topicStore.put(topic, appOrigin);
+                activeTopics.put(topic, System.currentTimeMillis());
+                if (appName != null) {
+                    log.info("{} assigned to {} {}, {}", topic, appOrigin, appName, version);
+                } else {
+                    log.warn("{} reserved by {} but not reachable", topic, appOrigin);
+                }
                 return true;
             }
             if (RELEASE_TOPIC.equals(type) && headers.containsKey(ORIGIN)) {

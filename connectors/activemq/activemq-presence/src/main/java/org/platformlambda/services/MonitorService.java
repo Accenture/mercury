@@ -113,7 +113,7 @@ public class MonitorService implements LambdaFunction {
             }
         } else {
             connectionInfo.put(origin, info);
-            log.info("Member {} joined", origin);
+            log.info("Member {} joins", origin);
         }
     }
 

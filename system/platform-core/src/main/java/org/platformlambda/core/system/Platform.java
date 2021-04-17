@@ -340,8 +340,9 @@ public class Platform {
     private void advertiseRoute(String route) throws IOException {
         TargetRoute cloud = PostOffice.getInstance().getCloudRoute();
         if (cloud != null) {
+            String personality = Platform.getInstance().getName()+", "+ServerPersonality.getInstance().getType().name();
             PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY,
-                    new Kv(PERSONALITY, ServerPersonality.getInstance().getType().name()),
+                    new Kv(PERSONALITY, personality),
                     new Kv(ServiceDiscovery.ROUTE, route),
                     new Kv(ServiceDiscovery.ORIGIN, getOrigin()),
                     new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.ADD));

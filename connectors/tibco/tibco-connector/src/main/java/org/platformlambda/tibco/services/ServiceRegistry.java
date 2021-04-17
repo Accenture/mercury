@@ -268,7 +268,7 @@ public class ServiceRegistry implements LambdaFunction {
         } else {
             originMap.put(origin, personality);
             origins.put(origin, Utility.getInstance().date2str(new Date(), true));
-            log.info("{} {}.{} registered", route, personality, origin);
+            log.info("{} ({}.{}) registered", route, personality, origin);
             return true;
         }
     }
@@ -301,10 +301,10 @@ public class ServiceRegistry implements LambdaFunction {
 
     private void registerMyRoutes() {
         Platform platform = Platform.getInstance();
+        String personality = platform.getName()+", "+ServerPersonality.getInstance().getType().name();
         String origin = platform.getOrigin();
         // copy local registry to global registry
         ConcurrentMap<String, ServiceDef> routingTable = platform.getLocalRoutingTable();
-        String personality = ServerPersonality.getInstance().getType().toString();
         for (String r: routingTable.keySet()) {
             ServiceDef def = routingTable.get(r);
             if (!def.isPrivate()) {
