@@ -59,6 +59,12 @@ The default configuration for kafka is available in the kafka-connector's resour
 bootstrap.servers=127.0.0.1:9092
 ```
 
+For cloud deployment, there are 3 ways to override the kafka.properties configuration.
+
+1. Your DevOps script can create the kafka.properties when building the application image or save the kafka.properties in "/tmp/config" before starting the application
+2. You can write a "BeforeApplication" module to construct and write the kafka.properties and deposit it in "/tmp/config". BeforeApplication modules run before an application starts.
+3. You can write a cloud connector wrapper using the "CloudConnector" class and point the "original" back to "kafka". When your application select cloud.connector as your cloud connector wrapper, the wrapper will run before the kafka connector is executed.
+
 # Presence monitor
 
 The presence monitor application for kafka is available in the `kafka-presence` folder.

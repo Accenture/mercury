@@ -54,6 +54,12 @@ admin.id=admin
 admin.password=
 ```
 
+For cloud deployment, there are 3 ways to override the activemq.properties configuration.
+
+1. Your DevOps script can create the activemq.properties when building the application image or save the activemq.properties in "/tmp/config" before starting the application
+2. You can write a "BeforeApplication" module to construct and write the activemq.properties and deposit it in "/tmp/config". BeforeApplication modules run before an application starts.
+3. You can write a cloud connector wrapper using the "CloudConnector" class and point the "original" back to "activemq". When your application select cloud.connector as your cloud connector wrapper, the wrapper will run before the activemq connector is executed.
+
 # Presence monitor
 
 The presence monitor application for activemq is available in the `activemq-presence` folder.

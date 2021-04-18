@@ -52,6 +52,12 @@ admin.id=admin
 admin.password=
 ```
 
+For cloud deployment, there are 3 ways to override the tibco.properties configuration.
+
+1. Your DevOps script can create the tibco.properties when building the application image or save the tibco.properties in "/tmp/config" before starting the application
+2. You can write a "BeforeApplication" module to construct and write the tibco.properties and deposit it in "/tmp/config". BeforeApplication modules run before an application starts.
+3. You can write a cloud connector wrapper using the "CloudConnector" class and point the "original" back to "tibco". When your application select cloud.connector as your cloud connector wrapper, the wrapper will run before the tibco connector is executed.
+
 # Presence monitor
 
 The presence monitor application for tibco is available in the `tibco-presence` folder.
