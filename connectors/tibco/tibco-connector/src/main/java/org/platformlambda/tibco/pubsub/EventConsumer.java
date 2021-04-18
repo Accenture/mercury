@@ -34,6 +34,9 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
@@ -45,6 +48,7 @@ public class EventConsumer extends Thread {
     private static final long INITIALIZE = InitialLoad.INITIALIZE;
     private static final String MONITOR = "monitor";
     private static final String TO_MONITOR = "@"+MONITOR;
+    private final BlockingQueue<Boolean> completion = new ArrayBlockingQueue<>(1);
     private final String INIT_TOKEN = UUID.randomUUID().toString();
     private final String topic;
     private final int partition;
@@ -86,25 +90,39 @@ public class EventConsumer extends Thread {
             Topic destination = session.createTopic(realTopic);
             messageConsumer = session.createConsumer(destination);
             messageConsumer.setMessageListener(new EventListener());
+            log.info("Event consumer for {} started", realTopic);
 
         } catch (JMSException e) {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
-        log.info("Event consumer for {} started", realTopic);
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+        waitForCompletion();
+        try {
+            messageConsumer.close();
+            session.close();
+            log.info("Event consumer for {} closed", realTopic);
+        } catch (JMSException e) {
+            log.error("Unable to close consumer - {}", e.getMessage());
+        }
+        messageConsumer = null;
+        session = null;
+    }
+
+    private void waitForCompletion() {
+        try {
+            Boolean status = completion.poll(1, TimeUnit.SECONDS);
+            if (status == null) {
+                waitForCompletion();
+            }
+        } catch (InterruptedException e) {
+            // ok to ignore
+        }
     }
 
     public void shutdown() {
-        if (messageConsumer != null && session != null) {
-            try {
-                messageConsumer.close();
-                session.close();
-                log.info("Event consumer for {} closed", partition < 0 ? topic : topic + "." + partition);
-            } catch (JMSException e) {
-                log.error("Unable to close consumer - {}", e.getMessage());
-            }
-            messageConsumer = null;
-            session = null;
+        if (completion.isEmpty()) {
+            completion.offer(true);
         }
     }
 
