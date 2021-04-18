@@ -1,6 +1,13 @@
 package org.platformlambda.activemq;
 
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.platformlambda.activemq.pubsub.ActiveMqPubSub;
+import org.platformlambda.activemq.pubsub.EventProducer;
+import org.platformlambda.activemq.reporter.PresenceConnector;
+import org.platformlambda.activemq.services.ActiveMqHealthCheck;
+import org.platformlambda.activemq.services.ServiceQuery;
+import org.platformlambda.activemq.services.ServiceRegistry;
+import org.platformlambda.activemq.util.ConfigUtil;
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.Platform;
@@ -11,13 +18,6 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
-import org.platformlambda.activemq.pubsub.EventProducer;
-import org.platformlambda.activemq.pubsub.ActiveMqPubSub;
-import org.platformlambda.activemq.reporter.PresenceConnector;
-import org.platformlambda.activemq.services.ActiveMqHealthCheck;
-import org.platformlambda.activemq.services.ServiceQuery;
-import org.platformlambda.activemq.services.ServiceRegistry;
-import org.platformlambda.activemq.util.ConfigUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +26,7 @@ import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 @CloudConnector(name="activemq")
 public class ActiveMqSetup implements CloudSetup {
@@ -34,10 +35,11 @@ public class ActiveMqSetup implements CloudSetup {
     public static final String APP_GROUP = "@monitor-";
     public static final String MONITOR_PARTITION = APP_GROUP +"0";
     public static final String MANAGER = "activemq.manager";
+    public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
-    private static final String ACTIVEMQ_CLUSTER = "activemq.cluster";
-    private static final String USER_ID = "activemq.user.id";
-    private static final String USER_PWD = "activemq.user.password";
+    private static final String USER_ID = "user.id";
+    private static final String USER_PWD = "user.password";
+    private static Properties properties;
     private static Connection connection;
     private static String displayUrl = "unknown";
 
@@ -45,27 +47,60 @@ public class ActiveMqSetup implements CloudSetup {
         return displayUrl;
     }
 
-    public static Connection getConnection() throws JMSException {
+    public static Properties getClusterProperties() {
+        return properties;
+    }
+
+    public static synchronized Connection getConnection() throws JMSException {
         if (connection == null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            // ActiveMQ cluster is a comma separated list of domains or IP addresses
-            String cluster = reader.getProperty(ACTIVEMQ_CLUSTER, "tcp://127.0.0.1:61616");
-            String userId = reader.getProperty(USER_ID, "");
-            String password = reader.getProperty(USER_PWD, "");
+            String cluster = properties.getProperty(BROKER_URL, "tcp://127.0.0.1:61616");
+            String userId = properties.getProperty(USER_ID, "");
+            String password = properties.getProperty(USER_PWD, "");
             ConnectionFactory factory = new ActiveMQConnectionFactory(cluster);
             connection = factory.createConnection(userId, password);
+            connection.setExceptionListener((e) -> {
+                String error = e.getMessage();
+                log.error("Tibco cluster exception - {}", error);
+                if (error != null && (error.contains("terminated") || error.contains("disconnect"))) {
+                    ActiveMqSetup.stopConnection();
+                    System.exit(10);
+                }
+            });
             connection.start();
+            log.info("Connection started - {}", cluster);
         }
         return connection;
+    }
+
+    public static synchronized void stopConnection() {
+        if (connection != null) {
+            try {
+                connection.stop();
+                connection = null;
+                log.info("Connection stopped");
+            } catch (JMSException e) {
+                // ok to ignore
+            }
+        }
     }
 
     @Override
     public void initialize() {
         Utility util = Utility.getInstance();
-        AppConfigReader config = AppConfigReader.getInstance();
-        List<String> cluster = util.split(config.getProperty(ACTIVEMQ_CLUSTER,
-                "tcp://127.0.0.1:61616"), ", ");
-        displayUrl = cluster.toString();
+        ConfigReader clusterConfig = null;
+        try {
+            clusterConfig = ConfigUtil.getConfig("activemq.client.properties",
+                    "file:/tmp/config/activemq.properties,classpath:/activemq.properties");
+        } catch (IOException e) {
+            log.error("Unable to find activemq.properties - {}", e.getMessage());
+            System.exit(-1);
+        }
+        properties = new Properties();
+        for (String k : clusterConfig.getMap().keySet()) {
+            properties.setProperty(k, clusterConfig.getProperty(k));
+        }
+        displayUrl = properties.getProperty(BROKER_URL);
+        List<String> cluster = util.split(displayUrl, ", ");
         boolean reachable = false;
         for (String address : cluster) {
             int start = address.lastIndexOf('/');
@@ -89,6 +124,7 @@ public class ActiveMqSetup implements CloudSetup {
             Platform platform = Platform.getInstance();
             PubSub ps = PubSub.getInstance();
             ps.enableFeature(new ActiveMqPubSub());
+            AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
                 ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",

@@ -30,14 +30,28 @@ The cloud-connector for activemq is provided as a reference. It is not included 
 ```
 
 In the application.properties config file in the application's resources folder:
-```
+```java
 cloud.connector=activemq
 ```
+
+# Default presence monitor configuration
 
 The default configuration for presence monitor is available in the activemq-connector's resources folder. The config file is called "presence.properties". To override this default, you can either create a new presence.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
 
 ```
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
+```
+
+# Default ActiveMQ artemis configuration
+
+The default configuration for activemq is available in the activemq-connector's resources folder. The config file is called "activemq.properties". To override this default, you can either create a new activemq.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
+
+```
+bootstrap.servers=tcp://127.0.0.1:61616
+user.id=user
+user.password=
+admin.id=admin
+admin.password=
 ```
 
 # Presence monitor
@@ -55,9 +69,9 @@ cd activemq-presence
 mvn clean package
 ```
 
-# ActiveMQ Artemis server
+# ActiveMQ artemis server
 
-ActiveMQ Artemis server is available from https://activemq.apache.org/components/artemis/download/
+ActiveMQ artemis server is available from https://activemq.apache.org/components/artemis/download/
 
 # Create a new instance of Artemis server
 
@@ -72,17 +86,3 @@ Creating ActiveMQ Artemis instance at: C:\sandbox\apache-artemis-2.17.0\bin\merc
 For development and testing, please select anonymous access.
 
 If you do not select anonymous access, please update the application.properties of the activemq-presence, lambda-example and rest-example projects to update the user and admin ID and passwords.
-
-# cloud connector specific parameters
-
-Please update the following parameters in the application.properties file if your application uses the activemq cloud connector.
-
-```java
-cloud.connector=activemq
-# please change these parameter values accordingly
-activemq.cluster=tcp://127.0.0.1:61616
-activemq.user.id=user
-activemq.user.password=tbd
-activemq.admin.id=admin
-activemq.admin.password=tbd
-```

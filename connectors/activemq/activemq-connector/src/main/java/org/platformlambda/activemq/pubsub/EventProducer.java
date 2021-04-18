@@ -18,8 +18,11 @@
 
 package org.platformlambda.activemq.pubsub;
 
+import org.platformlambda.activemq.reporter.PresenceConnector;
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
@@ -46,10 +49,16 @@ public class EventProducer implements LambdaFunction {
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final String TO = MultipartPayload.TO;
     private static final String BROADCAST = MultipartPayload.BROADCAST;
+    private static final String PUBLISHER = PresenceConnector.PUBLISHER;
+    private static final String TYPE = "type";
+    private static final String STOP = "stop";
  
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (headers.containsKey(TO) && body instanceof byte[]) {
+        if (STOP.equals(headers.get(TYPE))) {
+            // forward the stop request to publisher
+            PostOffice.getInstance().send(PUBLISHER, new Kv(TYPE, STOP));
+        } else if (headers.containsKey(TO) && body instanceof byte[]) {
             List<String> destinations = getDestinations(headers);
             if (destinations != null) {
                 PubSub ps = PubSub.getInstance();

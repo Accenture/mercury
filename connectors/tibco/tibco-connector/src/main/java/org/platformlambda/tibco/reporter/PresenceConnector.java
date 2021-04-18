@@ -36,9 +36,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PresenceConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceConnector.class);
 
+    public static final String PUBLISHER = "event.publisher";
     private static final String APP_GROUP = TibcoSetup.APP_GROUP;
     private static final String TYPE = "type";
     private static final String INIT = "init";
+    private static final String STOP = "stop";
     private static final String INSTANCE = "instance";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
@@ -246,6 +248,8 @@ public class PresenceConnector implements LambdaFunction {
             topicPartition = null;
             AppAlive.setReady(false);
         }
+        // close publisher
+        PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(TYPE, STOP));
     }
 
 }

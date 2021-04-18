@@ -88,6 +88,7 @@ public class EventConsumer extends Thread {
         iTopic = client.getReliableTopic(realTopic);
         registrationId = iTopic.addMessageListener(new EventListener());
         log.info("Event consumer {} for {} started", registrationId, realTopic);
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     public void shutdown() {

@@ -25,14 +25,38 @@ Include this dependency in the pom.xml of your application:
 ```
 
 In the application.properties config file in the application's resources folder:
-```
+```java
 cloud.connector=kafka
 ```
+
+# Default presence monitor configuration
 
 The default configuration for presence monitor is available in the kafka-connector's resources folder. The config file is called "presence.properties". To override this default, you can either create a new presence.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
 
 ```
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
+```
+
+# Default kafka configuration
+
+The default configuration for kafka is available in the kafka-connector's resources folder. The config file is called "kafka.properties". To override this default, you can either create a new kafka.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
+
+```
+#security.protocol=SASL_SSL
+#sasl.mechanism=PLAIN
+#sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username={CHANGE_THIS} password={CHANGE_THIS};
+#ssl.protocol=TLSv1.2
+#ssl.enabled.protocols=TLSv1.2
+#ssl.endpoint.identification.algorithm=HTTPS
+#request.timeout.ms=15000
+#retry.backoff.ms=1000
+#reconnect.backoff.max.ms=5000
+#reconnect.backoff.ms=1000
+#bootstrap.servers={host1:port1}:9092,{host2:port2}:9092
+#
+# Sample config for dev and testing using a standalone kafka server
+#
+bootstrap.servers=127.0.0.1:9092
 ```
 
 # Presence monitor

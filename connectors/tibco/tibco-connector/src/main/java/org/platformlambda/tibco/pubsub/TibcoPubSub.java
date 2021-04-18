@@ -11,6 +11,7 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.tibco.TibcoSetup;
+import org.platformlambda.tibco.reporter.PresenceConnector;
 import org.platformlambda.tibco.services.TopicManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +31,9 @@ public class TibcoPubSub implements PubSubProvider {
 
     private static final MsgPack msgPack = new MsgPack();
     private static final String MANAGER = TibcoSetup.MANAGER;
-    private static final String PUBLISHER = "event.publisher";
+    private static final String PUBLISHER = PresenceConnector.PUBLISHER;
     private static final String TYPE = "type";
+    private static final String STOP = "stop";
     private static final String PARTITIONS = "partitions";
     private static final String PARTITION = "partition";
     private static final String BODY = "body";
@@ -41,19 +43,21 @@ public class TibcoPubSub implements PubSubProvider {
     private static final String DELETE = "delete";
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
-    private final Session primarySession, secondarySession;
+    private Session primarySession, secondarySession;
 
     @SuppressWarnings("unchecked")
     public TibcoPubSub() throws JMSException {
 
         LambdaFunction publisher = (headers, body, instance) -> {
-            if (body instanceof Map) {
+            if (STOP.equals(headers.get(TYPE))) {
+                stopConnection();
+            } else if (body instanceof Map) {
                 Map<String, Object> data = (Map<String, Object>) body;
                 Object topic = data.get(TOPIC);
                 Object partition = data.get(PARTITION);
                 Object payload = data.get(BODY);
                 if (topic instanceof String && partition instanceof Integer && payload instanceof byte[]) {
-                    sendEvent((String) topic, (int) partition, headers, (byte[]) payload);
+                    sendEvent(false, (String) topic, (int) partition, headers, (byte[]) payload);
                 }
             }
             return true;
@@ -67,11 +71,39 @@ public class TibcoPubSub implements PubSubProvider {
         } catch (IOException e) {
             log.error("Unable to start producer - {}", e.getMessage());
         }
-        Connection connection = TibcoSetup.getConnection();
-        primarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
-        secondarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
         // clean up subscribers when application stops
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    }
+
+    private void startSession(boolean primary) throws JMSException {
+        if (primary) {
+            if (primarySession == null) {
+                Connection connection = TibcoSetup.getConnection();
+                primarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
+                log.debug("Primary session started");
+            }
+        } else {
+            if (secondarySession == null) {
+                Connection connection = TibcoSetup.getConnection();
+                secondarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
+                log.debug("Secondary session started");
+            }
+        }
+    }
+
+    private void stopConnection() throws JMSException {
+        if (primarySession != null) {
+            primarySession.close();
+            primarySession = null;
+            log.debug("Primary session stopped");
+        }
+
+        if (secondarySession != null) {
+            secondarySession.close();
+            secondarySession = null;
+            log.debug("Secondary session stopped");
+        }
+        TibcoSetup.stopConnection();
     }
 
     private void validateTopicName(String route) throws IOException {
@@ -137,7 +169,7 @@ public class TibcoPubSub implements PubSubProvider {
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
             // embedded events are sent by the EventPublisher thread
-            sendEvent(primarySession, topic, partition, eventHeaders, (byte[]) body);
+            sendEvent(true, topic, partition, eventHeaders, (byte[]) body);
         } else {
             final byte[] payload;
             if (body instanceof byte[]) {
@@ -170,13 +202,11 @@ public class TibcoPubSub implements PubSubProvider {
         }
     }
 
-    private void sendEvent(String topic, int partition, Map<String, String> headers, byte[] payload) {
-        sendEvent(secondarySession, topic, partition, headers, payload);
-    }
-
-    private void sendEvent(Session session, String topic, int partition, Map<String, String> headers, byte[] payload) {
+    private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, byte[] payload) {
         String realTopic = partition < 0 ? topic : topic + "." + partition;
         try {
+            startSession(primary);
+            Session session = primary? primarySession : secondarySession;
             Topic destination = session.createTopic(realTopic);
             MessageProducer producer = session.createProducer(destination);
             BytesMessage message = session.createBytesMessage();

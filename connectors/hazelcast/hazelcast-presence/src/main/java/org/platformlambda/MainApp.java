@@ -103,7 +103,7 @@ public class MainApp implements EntryPoint {
             }
             return true;
         };
-        String groupId = config.getProperty("default.monitor.group.id", "defaultMonitorGroup");
+        String groupId = config.getProperty("default.monitor.group.id", "monitorGroup");
         ps.subscribe(monitorTopic, 0, service, clientId, groupId, String.valueOf(InitialLoad.INITIALIZE));
         log.info("Started");
     }

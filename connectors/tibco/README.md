@@ -28,14 +28,28 @@ The cloud-connector for Tibco is provided as a reference. It is not included in 
 ```
 
 In the application.properties config file in the application's resources folder:
-```
+```java
 cloud.connector=tibco
 ```
+
+# Default presence monitor configuration
 
 The default configuration for presence monitor is available in the tibco-connector's resources folder. The config file is called "presence.properties". To override this default, you can either create a new presence.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
 
 ```
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
+```
+
+# Default Tibco configuration
+
+The default configuration for tibco is available in the tibco-connector's resources folder. The config file is called "tibco.properties". To override this default, you can either create a new tibco.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
+
+```
+bootstrap.servers=tcp://127.0.0.1:7222
+user.id=user
+user.password=
+admin.id=admin
+admin.password=
 ```
 
 # Presence monitor
@@ -57,9 +71,9 @@ mvn clean package
 
 Tibco server is available from https://www.tibco.com/products/tibco-messaging/downloads
 
-# Preparing tibco library dependencies
+# Preparing Tibco library dependencies
 
-The Tibco connector is not part of the regular build. It will not compile until you install the following tibco library files into your local ".m2" repository.
+The Tibco connector is not part of the regular build. It will not compile until you install the following tibco library files into your local ".m2" repository. Do not mix-n-match with other JMS 2.0 API library.
 
 This setup procedure assumes TIBCO EMS 8.6.0 with JMS 2.0. Please modify the version numbers if you download a different TIBCO release.
 
@@ -74,20 +88,6 @@ mvn install:install-file -Dfile=jms-2.0.jar -DgroupId=com.tibco.ems -DartifactId
 mvn install:install-file -Dfile=tibjms.jar -DgroupId=com.tibco.ems -DartifactId=tibjms -Dversion=8.6.0 -Dpackaging=jar
 
 mvn install:install-file -Dfile=tibjmsadmin.jar -DgroupId=com.tibco.ems -DartifactId=tibjms-admin -Dversion=8.6.0 -Dpackaging=jar
-
-# cloud connector specific parameters
-
-Please update the following parameters in the application.properties file if your application uses the activemq cloud connector.
-
-```java
-cloud.connector=tibco
-# please change these parameter values accordingly
-tibco.cluster=tcp://127.0.0.1:7222
-tibco.user.id=
-tibco.user.password=
-tibco.admin.id=admin
-tibco.admin.password=
-```
 
 # Tibco server license
 

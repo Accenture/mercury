@@ -3,8 +3,8 @@ package org.platformlambda.activemq.services;
 import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.api.core.management.ManagementHelper;
 import org.apache.activemq.artemis.api.core.management.ResourceNames;
+import org.platformlambda.activemq.ActiveMqSetup;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class TopicManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
@@ -23,9 +24,8 @@ public class TopicManager implements LambdaFunction {
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
-    private static final String ACTIVEMQ_CLUSTER = "activemq.cluster";
-    private static final String ADMIN_ID = "activemq.admin.id";
-    private static final String ADMIN_PWD = "activemq.admin.password";
+    private static final String USER_ID = "admin.id";
+    private static final String USER_PWD = "admin.password";
     private static final String ACTIVEMQ_MANAGEMENT = "activemq.management";
     private static final String[] ACTIVEMQ_RESERVED = {"DLQ", "ExpiryQueue"};
     private static final String ACTIVEMQ_PREFIX = "activemq.";
@@ -36,11 +36,10 @@ public class TopicManager implements LambdaFunction {
 
     public TopicManager() throws Exception {
         if (session == null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            // ActiveMQ cluster is a comma separated list of domains or IP addresses
-            String cluster = reader.getProperty(ACTIVEMQ_CLUSTER, "tcp://127.0.0.1:61616");
-            String userId = reader.getProperty(ADMIN_ID, "");
-            String password = reader.getProperty(ADMIN_PWD, "");
+            Properties properties = ActiveMqSetup.getClusterProperties();
+            String cluster = properties.getProperty(ActiveMqSetup.BROKER_URL, "tcp://127.0.0.1:61616");
+            String userId = properties.getProperty(USER_ID, "");
+            String password = properties.getProperty(USER_PWD, "");
             ServerLocator locator = ActiveMQClient.createServerLocator(cluster);
             ClientSessionFactory factory2 = locator.createSessionFactory();
             session = factory2.createSession(userId, password,

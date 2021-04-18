@@ -29,6 +29,7 @@ import javax.jms.JMSException;
 import javax.jms.Session;
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 @CloudConnector(name="tibco")
 public class TibcoSetup implements CloudSetup {
@@ -39,10 +40,12 @@ public class TibcoSetup implements CloudSetup {
     public static final String MANAGER = "tibco.manager";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final String TIBCO_CLUSTER = "tibco.cluster";
-    private static final String USER_ID = "tibco.user.id";
-    private static final String USER_PWD = "tibco.user.password";
-    private static final String ADMIN_ID = "tibco.admin.id";
-    private static final String ADMIN_PWD = "tibco.admin.password";
+    public static final String BROKER_URL = "bootstrap.servers";
+    private static final String USER_ID = "user.id";
+    private static final String USER_PWD = "user.password";
+    private static final String ADMIN_ID = "admin.id";
+    private static final String ADMIN_PWD = "admin.password";
+    private static Properties properties;
     private static Connection connection;
     private static TibjmsAdmin adminClient;
     private static String displayUrl = "unknown";
@@ -51,27 +54,44 @@ public class TibcoSetup implements CloudSetup {
         return displayUrl;
     }
 
-    public static Connection getConnection() throws JMSException {
+    public static synchronized Connection getConnection() throws JMSException {
         if (connection == null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            // Tibco EMS cluster is a comma separated list of domains or IP addresses
-            String cluster = reader.getProperty(TIBCO_CLUSTER, "tcp://127.0.0.1:7222");
-            String userId = reader.getProperty(USER_ID, "");
-            String password = reader.getProperty(USER_PWD, "");
+            String cluster = properties.getProperty(BROKER_URL, "tcp://127.0.0.1:7222");
+            String userId = properties.getProperty(USER_ID, "");
+            String password = properties.getProperty(USER_PWD, "");
             ConnectionFactory factory = new TibjmsConnectionFactory(cluster);
             connection = factory.createConnection(userId, password);
+            connection.setExceptionListener((e) -> {
+                String error = e.getMessage();
+                log.error("Tibco cluster exception - {}", error);
+                if (error != null && (error.contains("terminated") || error.contains("disconnect"))) {
+                    TibcoSetup.stopConnection();
+                    System.exit(10);
+                }
+            });
             connection.start();
+            log.info("Connection started - {}", cluster);
         }
         return connection;
     }
 
-    public static TibjmsAdmin getAdminClient() throws TibjmsAdminException {
+    public static synchronized void stopConnection() {
+        if (connection != null) {
+            try {
+                connection.stop();
+                connection = null;
+                log.info("Connection stopped");
+            } catch (JMSException e) {
+                // ok to ignore
+            }
+        }
+    }
+
+    public static synchronized TibjmsAdmin getAdminClient() throws TibjmsAdminException {
         if (adminClient == null) {
-            AppConfigReader reader = AppConfigReader.getInstance();
-            // Tibco EMS cluster is a comma separated list of domains or IP addresses
-            String cluster = reader.getProperty(TIBCO_CLUSTER, "tcp://127.0.0.1:7222");
-            String userId = reader.getProperty(ADMIN_ID, "");
-            String password = reader.getProperty(ADMIN_PWD, "");
+            String cluster = properties.getProperty(BROKER_URL, "tcp://127.0.0.1:7222");
+            String userId = properties.getProperty(USER_ID, "");
+            String password = properties.getProperty(USER_PWD, "");
             adminClient = new TibjmsAdmin(cluster, userId, password);
         }
         return adminClient;
@@ -80,10 +100,20 @@ public class TibcoSetup implements CloudSetup {
     @Override
     public void initialize() {
         Utility util = Utility.getInstance();
-        AppConfigReader config = AppConfigReader.getInstance();
-        List<String> cluster = util.split(config.getProperty(TIBCO_CLUSTER,
-                "tcp://127.0.0.1:7222"), ", ");
-        displayUrl = cluster.toString();
+        ConfigReader clusterConfig = null;
+        try {
+            clusterConfig = ConfigUtil.getConfig("tibco.client.properties",
+                    "file:/tmp/config/tibco.properties,classpath:/tibco.properties");
+        } catch (IOException e) {
+            log.error("Unable to find tibco.properties - {}", e.getMessage());
+            System.exit(-1);
+        }
+        properties = new Properties();
+        for (String k : clusterConfig.getMap().keySet()) {
+            properties.setProperty(k, clusterConfig.getProperty(k));
+        }
+        displayUrl = properties.getProperty(BROKER_URL);
+        List<String> cluster = util.split(displayUrl, ", ");
         boolean reachable = false;
         for (String address : cluster) {
             int start = address.lastIndexOf('/');
@@ -107,6 +137,7 @@ public class TibcoSetup implements CloudSetup {
             Platform platform = Platform.getInstance();
             PubSub ps = PubSub.getInstance();
             ps.enableFeature(new TibcoPubSub());
+            AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
                 ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",

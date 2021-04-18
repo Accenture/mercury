@@ -18,13 +18,13 @@
 
 package org.platformlambda.activemq.reporter;
 
+import org.platformlambda.activemq.ActiveMqSetup;
+import org.platformlambda.activemq.AppAlive;
+import org.platformlambda.activemq.InitialLoad;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.activemq.AppAlive;
-import org.platformlambda.activemq.ActiveMqSetup;
-import org.platformlambda.activemq.InitialLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +36,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PresenceConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceConnector.class);
 
+    public static final String PUBLISHER = "event.publisher";
     private static final String APP_GROUP = ActiveMqSetup.APP_GROUP;
     private static final String TYPE = "type";
     private static final String INIT = "init";
+    private static final String STOP = "stop";
     private static final String INSTANCE = "instance";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
@@ -202,7 +204,7 @@ public class PresenceConnector implements LambdaFunction {
             int hyphen = topicPartition.lastIndexOf('-');
             String topic = topicPartition.substring(0, hyphen);
             int partition = util.str2int(topicPartition.substring(hyphen + 1));
-            String groupId = config.getProperty("default.app.group.id", "defaultAppGroup");
+            String groupId = config.getProperty("default.app.group.id", "appGroup");
             String clientId = platform.getOrigin();
             // subscribe to closed user group
             final AtomicBoolean topicPending = new AtomicBoolean(true);
@@ -246,6 +248,8 @@ public class PresenceConnector implements LambdaFunction {
             topicPartition = null;
             AppAlive.setReady(false);
         }
+        // close publisher
+        PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(TYPE, STOP));
     }
 
 }

@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 @CloudConnector(name="hazelcast")
 public class HazelcastSetup implements CloudSetup {
@@ -36,8 +37,10 @@ public class HazelcastSetup implements CloudSetup {
     public static final String APP_GROUP = "@monitor-";
     public static final String MONITOR_PARTITION = APP_GROUP +"0";
     public static final String MANAGER = "hazelcast.manager";
+    public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final long MAX_CLUSTER_WAIT = 5 * 60 * 1000;
+    private static Properties properties;
     private static HazelcastInstance client;
     private static String displayUrl = "unknown";
 
@@ -45,13 +48,10 @@ public class HazelcastSetup implements CloudSetup {
         return displayUrl;
     }
 
-    public static HazelcastInstance getClient() {
+    public static synchronized HazelcastInstance getClient() {
         if (client == null) {
             Utility util = Utility.getInstance();
-            AppConfigReader reader = AppConfigReader.getInstance();
-            // Hazelcast cluster is a list of domains or IP addresses
-            List<String> cluster = util.split(reader.getProperty("hazelcast.cluster",
-                                    "127.0.0.1:5701"), ", ");
+            List<String> cluster = util.split(properties.getProperty(BROKER_URL), ", ");
             String[] address = new String[cluster.size()];
             for (int i=0; i < cluster.size(); i++) {
                 address[i] = cluster.get(i);
@@ -80,13 +80,23 @@ public class HazelcastSetup implements CloudSetup {
     @Override
     public void initialize() {
         Utility util = Utility.getInstance();
-        AppConfigReader config = AppConfigReader.getInstance();
-        List<String> cluster = util.split(config.getProperty("hazelcast.cluster",
-                        "127.0.0.1:5701"), ", ");
-        displayUrl = cluster.toString();
+        ConfigReader clusterConfig = null;
+        try {
+            clusterConfig = ConfigUtil.getConfig("hazelcast.client.properties",
+                    "file:/tmp/config/hazelcast.properties,classpath:/hazelcast.properties");
+        } catch (IOException e) {
+            log.error("Unable to find hazelcast.properties - {}", e.getMessage());
+            System.exit(-1);
+        }
+        properties = new Properties();
+        for (String k : clusterConfig.getMap().keySet()) {
+            properties.setProperty(k, clusterConfig.getProperty(k));
+        }
+        displayUrl = properties.getProperty(BROKER_URL);
+        List<String> cluster = util.split(displayUrl, ", ");
         boolean reachable = false;
         for (String address : cluster) {
-            int colon = address.indexOf(':');
+            int colon = address.lastIndexOf(':');
             if (colon > 1) {
                 String host = address.substring(0, colon);
                 int port = util.str2int(address.substring(colon + 1));
@@ -106,6 +116,7 @@ public class HazelcastSetup implements CloudSetup {
             Platform platform = Platform.getInstance();
             PubSub ps = PubSub.getInstance();
             ps.enableFeature(new HazelcastPubSub());
+            AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
                 ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",

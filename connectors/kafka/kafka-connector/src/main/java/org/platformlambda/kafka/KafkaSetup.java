@@ -59,7 +59,7 @@ public class KafkaSetup implements CloudSetup {
         return displayUrl;
     }
 
-    public static Properties getKafkaProperties() {
+    public static synchronized Properties getKafkaProperties() {
         if (properties == null) {
             properties = new Properties();
             /*
