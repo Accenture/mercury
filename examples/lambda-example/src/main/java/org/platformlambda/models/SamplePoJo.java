@@ -27,6 +27,7 @@ public class SamplePoJo {
     private String address;
     private Date date;
     private int instance;
+    private int seq;
     private String origin;
 
     public SamplePoJo() {
@@ -88,5 +89,13 @@ public class SamplePoJo {
 
     public void setOrigin(String origin) {
         this.origin = origin;
+    }
+
+    public int getSeq() {
+        return seq;
+    }
+
+    public void setSeq(int seq) {
+        this.seq = seq;
     }
 }

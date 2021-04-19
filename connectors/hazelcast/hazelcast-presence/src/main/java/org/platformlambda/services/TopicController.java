@@ -9,6 +9,7 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.hazelcast.HazelcastSetup;
 import org.platformlambda.models.TopicRequest;
@@ -24,14 +25,13 @@ import java.util.concurrent.ConcurrentMap;
 public class TopicController implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicController.class);
 
+    private static final CryptoApi crypto = new CryptoApi();
     private static final String MONITOR_PARTITION = HazelcastSetup.MONITOR_PARTITION;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String NAME = "name";
     private static final String MONITOR = "monitor";
-    private static final String DOWNLOAD = "download";
     private static final String ALIVE = "keep-alive";
-    private static final String PUT = "put";
     private static final String JOIN = "join";
     private static final String READY = "ready";
     private static final String VERSION = "version";
@@ -52,8 +52,10 @@ public class TopicController implements LambdaFunction {
     private static RsvpProcessor rsvpProcessor;
     private static final ConcurrentMap<String, TopicRequest> rsvpMap = new ConcurrentHashMap<>();
     private static final long RSVP_TIMEOUT = 12 * 1000;
+    private static final long RSVP_PAUSE = 2 * 1000;
     private static String rsvpHolder;
     private static long rsvpLock = System.currentTimeMillis();
+    private static long lastRsvp = 0;
     private static List<String> allTopics;
     private final int partitionCount, maxVirtualTopics;
 
@@ -97,7 +99,7 @@ public class TopicController implements LambdaFunction {
         return Platform.getInstance().getOrigin().equals(origin) ? "me" : "peer";
     }
 
-    private String getTopic(String origin) {
+    public static String getTopic(String origin) {
         for (String t: allTopics) {
             String appOrigin = topicStore.get(t);
             if (appOrigin.equals(origin)) {
@@ -106,20 +108,7 @@ public class TopicController implements LambdaFunction {
         }
         return null;
     }
-
-    private void eliminateDuplicate(String topic, String origin) {
-        List<String> topicList = new ArrayList<>(topicStore.keySet());
-        for (String t: topicList) {
-            String appOrigin = topicStore.get(t);
-            if (appOrigin.equals(origin) && !t.equals(topic)) {
-                topicStore.put(t, AVAILABLE);
-                activeTopics.remove(t);
-                log.info("{} expired", t);
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
+    
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         long now = System.currentTimeMillis();
@@ -135,7 +124,6 @@ public class TopicController implements LambdaFunction {
                 }
                 activeTopics.put(topic, System.currentTimeMillis());
                 topicStore.put(topic, headers.get(ORIGIN));
-                eliminateDuplicate(topic, headers.get(ORIGIN));
                 return true;
             }
             if (RSVP.equals(type) && headers.containsKey(MONITOR)) {
@@ -153,7 +141,7 @@ public class TopicController implements LambdaFunction {
             if (GET_TOPIC.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TX_PATH)) {
                 String appOrigin = headers.get(ORIGIN);
                 rsvpMap.put(appOrigin, new TopicRequest(appOrigin, headers.get(TX_PATH)));
-                if (now - rsvpLock > RSVP_TIMEOUT) {
+                if (now - lastRsvp > RSVP_PAUSE && now - rsvpLock > RSVP_TIMEOUT) {
                     rsvpLock = now;
                     po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION, new Kv(TYPE, RSVP),
                             new Kv(MONITOR, myOrigin));
@@ -184,20 +172,6 @@ public class TopicController implements LambdaFunction {
                     return true;
                 }
             }
-            if (PUT.equals(type) && body instanceof Map) {
-                if (!myOrigin.equals(headers.get(ORIGIN))) {
-                    restoreAssignedTopics((Map<String, String>) body);
-                }
-                return true;
-            }
-            // download request from a new presence monitor
-            if (DOWNLOAD.equals(type)) {
-                if (!myOrigin.equals(headers.get(ORIGIN))) {
-                    po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION, getAssignedTopics(),
-                            new Kv(TYPE, PUT), new Kv(ORIGIN, myOrigin));
-                }
-                return true;
-            }
         }
         return false;
     }
@@ -222,15 +196,6 @@ public class TopicController implements LambdaFunction {
             }
         }
         return assigned;
-    }
-
-    private void restoreAssignedTopics(Map<String, String> assigned) {
-        for (String item: assigned.keySet()) {
-            if (item.contains("-")) {
-                topicStore.put(item, assigned.get(item));
-                log.debug("Saving {}", item);
-            }
-        }
     }
 
     private class RsvpProcessor extends Thread {
@@ -285,17 +250,18 @@ public class TopicController implements LambdaFunction {
                             }
                         }
                         // finished RSVP
+                        lastRsvp = now;
                         try {
                             po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION, new Kv(TYPE, RSVP_COMPLETE),
                                     new Kv(MONITOR, myOrigin));
                         } catch (IOException e) {
                             // ok to ignore
                         }
-                        rsvpHolder = null;
-                        rsvpLock = 0;
 
                     } else {
-                        if (now - rsvpLock > RSVP_TIMEOUT) {
+                        if (now - lastRsvp > RSVP_PAUSE && now - rsvpLock > RSVP_TIMEOUT) {
+                            // release lock and request for RSVP
+                            rsvpLock = now;
                             try {
                                 po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION, new Kv(TYPE, RSVP),
                                         new Kv(MONITOR, myOrigin));
@@ -327,11 +293,10 @@ public class TopicController implements LambdaFunction {
                     }
                 }
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1000 + crypto.nextInt(1000));
                 } catch (InterruptedException e) {
                     // ok to ignore
                 }
-
             }
             log.info("RSVP processor stopped");
         }

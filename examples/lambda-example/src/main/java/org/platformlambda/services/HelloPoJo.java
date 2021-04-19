@@ -28,9 +28,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HelloPoJo implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HelloPoJo.class);
+
+    private static final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException, IOException {
@@ -46,6 +49,7 @@ public class HelloPoJo implements LambdaFunction {
             // set instance count and service origin ID to show that the object comes from a different instance
             mock.setInstance(instance);
             mock.setOrigin(Platform.getInstance().getOrigin());
+            mock.setSeq(counter.incrementAndGet());
             log.info("Pojo delivered by instance #{}", instance);
             return mock;
         } else {

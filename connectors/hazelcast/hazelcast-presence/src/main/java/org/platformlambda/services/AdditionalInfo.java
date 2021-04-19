@@ -73,6 +73,7 @@ public class AdditionalInfo implements LambdaFunction {
                 Collections.sort(vTopics);
             }
             result.put("virtual.topics", vTopics);
+            counts.put("virtual.topics", vTopics.size());
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");

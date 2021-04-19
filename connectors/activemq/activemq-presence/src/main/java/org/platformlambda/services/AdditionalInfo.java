@@ -41,7 +41,6 @@ public class AdditionalInfo implements LambdaFunction {
         monitorPrefix = config.getProperty("monitor.topic", "service.monitor") + ".";
     }
 
-
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
@@ -83,6 +82,7 @@ public class AdditionalInfo implements LambdaFunction {
                 Collections.sort(vTopics);
             }
             result.put("virtual.topics", vTopics);
+            counts.put("virtual.topics", vTopics.size());
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");

@@ -26,9 +26,11 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.services.MonitorAlive;
 import org.platformlambda.services.MonitorService;
+import org.platformlambda.services.TopicController;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class PresenceHandler implements LambdaFunction {
@@ -105,11 +107,22 @@ public class PresenceHandler implements LambdaFunction {
             if (DOWNLOAD.equals(type)) {
                 // download request from a new presence monitor
                 if (!myOrigin.equals(headers.get(ORIGIN))) {
-                    po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION, MonitorService.getConnections(),
-                            new Kv(TYPE, PUT), new Kv(ORIGIN, myOrigin), new Kv(MULTIPLES, true));
+                    Map<String, Object> connections = MonitorService.getConnections();
+                    if (!connections.isEmpty()) {
+                        List<String> connectionList = new ArrayList<>(connections.keySet());
+                        for (String appOrigin: connectionList) {
+                            Object o = connections.get(appOrigin);
+                            String topic = TopicController.getTopic(appOrigin);
+                            if (topic != null && o instanceof Map) {
+                                Map<String, Object> metadata = (Map<String, Object>) o;
+                                metadata.put(TOPIC, topic);
+                                connections.put(appOrigin, metadata);
+                            }
+                        }
+                        po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION, connections,
+                                new Kv(TYPE, PUT), new Kv(ORIGIN, myOrigin), new Kv(MULTIPLES, true));
+                    }
                 }
-                // tell topic controller to do download
-                po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, DOWNLOAD), new Kv(ORIGIN, myOrigin));
                 return true;
             }
         }
