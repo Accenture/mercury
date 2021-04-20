@@ -161,7 +161,6 @@ public class KafkaPubSub implements PubSubProvider {
 
     @Override
     public boolean exists(String topic) throws IOException {
-        validateTopicName(topic);
         try {
             EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
                                         new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
@@ -177,7 +176,6 @@ public class KafkaPubSub implements PubSubProvider {
 
     @Override
     public int partitionCount(String topic) throws IOException {
-        validateTopicName(topic);
         try {
             EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
                                         new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
@@ -309,7 +307,6 @@ public class KafkaPubSub implements PubSubProvider {
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
         String topicPartition = topic + (partition < 0? "" : "." + partition);
-        validateTopicName(topic);
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);
