@@ -32,8 +32,8 @@ public class AdditionalInfo implements LambdaFunction {
     private static final String NAME = "name";
     private static final String VERSION = "version";
 
-    @Override
     @SuppressWarnings("unchecked")
+    @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         if (QUERY.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
@@ -53,31 +53,61 @@ public class AdditionalInfo implements LambdaFunction {
             counts.put("connections", connections.size());
             counts.put("topics", pubSub.size());
             result.put("total", counts);
-            List<String> vTopics = new ArrayList<>();
-            Map<String, String> topics = TopicController.getAssignedTopics();
-            for (String t: topics.keySet()) {
-                String value = topics.get(t);
-                Object c = connections.get(value);
-                if (c instanceof Map) {
-                    Map<String, Object> cm = (Map<String, Object>) c;
-                    if (cm.containsKey(NAME)) {
-                        value += ", " + cm.get(NAME);
-                    }
-                    if (cm.containsKey(VERSION)) {
-                        value += " v" + cm.get(VERSION);
-                    }
-                }
-                vTopics.add(t+" -> "+value);
-            }
-            if (vTopics.size() > 1) {
-                Collections.sort(vTopics);
-            }
+            List<String> vTopics = getVirtualTopics(connections);
             result.put("virtual.topics", vTopics);
             counts.put("virtual.topics", vTopics.size());
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> getVirtualTopics(Map<String, Object> connections) {
+        Map<String, String> topics = TopicController.getAssignedTopics();
+        Map<String, List<String>> members = new HashMap<>();
+        for (String t: topics.keySet()) {
+            String member = topics.get(t);
+            List<String> memberTopics = members.getOrDefault(member, new ArrayList<>());
+            memberTopics.add(t);
+            members.put(member, memberTopics);
+        }
+        List<String> vTopics = new ArrayList<>();
+        for (String m: members.keySet()) {
+            String list = list2Str(members.get(m));
+            String signature = m;
+            Object c = connections.get(m);
+            if (c instanceof Map) {
+                Map<String, Object> cm = (Map<String, Object>) c;
+                if (cm.containsKey(NAME)) {
+                    signature += ", " + cm.get(NAME);
+                }
+                if (cm.containsKey(VERSION)) {
+                    signature += " v" + cm.get(VERSION);
+                }
+            }
+            vTopics.add(list+" -> "+signature);
+        }
+        if (vTopics.size() > 1) {
+            Collections.sort(vTopics);
+        }
+        return vTopics;
+    }
+
+    private String list2Str(List<String> list) {
+        if (list.isEmpty()) {
+            return "?";
+        }
+        if (list.size() == 1) {
+            return list.get(0);
+        }
+        Collections.sort(list);
+        StringBuilder sb = new StringBuilder();
+        for (String item: list) {
+            sb.append(item);
+            sb.append(", ");
+        }
+        return sb.substring(0, sb.length()-2);
     }
 
     private Map<String, Object> filterInfo(Map<String, Object> info) {

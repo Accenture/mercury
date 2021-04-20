@@ -124,7 +124,6 @@ public class TopicController implements LambdaFunction {
                 }
                 activeTopics.put(topic, System.currentTimeMillis());
                 topicStore.put(topic, headers.get(ORIGIN));
-                releaseTopic(topic, headers.get(ORIGIN));
                 return true;
             }
             if (RSVP.equals(type) && headers.containsKey(MONITOR)) {
@@ -186,17 +185,6 @@ public class TopicController implements LambdaFunction {
             }
         }
         throw new IOException("All virtual topics ("+ maxVirtualTopics +") are busy");
-    }
-
-    private void releaseTopic(String topic, String origin) {
-        List<String> topicList = new ArrayList<>(topicStore.keySet());
-        for (String t: topicList) {
-            String appOrigin = topicStore.get(t);
-            if (appOrigin.equals(origin) && !t.equals(topic)) {
-                topicStore.put(t, "available "+Utility.getInstance().date2str(new Date()));
-                log.info("{} returned by {}", t, origin);
-            }
-        }
     }
 
     public static Map<String, String> getAssignedTopics() {
