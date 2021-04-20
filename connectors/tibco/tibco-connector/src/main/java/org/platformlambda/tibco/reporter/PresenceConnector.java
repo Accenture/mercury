@@ -204,7 +204,7 @@ public class PresenceConnector implements LambdaFunction {
             int hyphen = topicPartition.lastIndexOf('-');
             String topic = topicPartition.substring(0, hyphen);
             int partition = util.str2int(topicPartition.substring(hyphen + 1));
-            String groupId = config.getProperty("default.app.group.id", "defaultAppGroup");
+            String groupId = config.getProperty("default.app.group.id", "appGroup");
             String clientId = platform.getOrigin();
             // subscribe to closed user group
             final AtomicBoolean topicPending = new AtomicBoolean(true);
