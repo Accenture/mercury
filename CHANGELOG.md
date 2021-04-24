@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.13.0, 4/16/2021
+## Version 1.13.0, 4/23/2021
 
 ### Added
 
@@ -19,7 +19,8 @@ Added ActiveMQ and Tibco connectors
 
 ### Changed
 
-Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
+1. Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
+2. Updated ConfigReader to make consistent with Spring value substitution logic for application properties
 
 ---
 ## Version 1.12.66, 1/15/2021

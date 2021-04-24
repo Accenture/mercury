@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.util;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -26,26 +27,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.junit.Assert;
-
 public class ConfigReaderTest {
 
     @Test
     public void environmentVarSubstitution() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.properties");
-        /*
-         * the original value in test.properties for "path" is "hello world".
-         * However, it should be replaced by the environment variable "PATH" automatically.
-         */
         String path = System.getenv("PATH");
-        Assert.assertEquals(path, reader.getProperty("path"));
-        /*
-         * test environment variable mapping
-         * env.variables=PATH:path.too
-         * path.too=hello world
-         */
-        Assert.assertEquals(path, reader.getProperty("path.too"));
+        Assert.assertEquals(path, reader.getProperty("hello.world"));
+    }
+
+    @Test
+    public void systemPropertySubstitution() throws IOException {
+        final String HELLO = "HELLO";
+        System.setProperty("sample.system.property", HELLO);
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        Assert.assertEquals(HELLO, reader.getProperty("my.system.property"));
+    }
+
+    @Test
+    public void getValueFromParent() throws IOException {
+        AppConfigReader parent = AppConfigReader.getInstance();
+        String parentValue = parent.getProperty("cloud.connector");
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String subordinateValue = reader.getProperty("my.cloud.connector");
+        Assert.assertEquals(parentValue, subordinateValue);
+    }
+
+    @Test
+    public void getDefaultValue() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("another.key");
+        Assert.assertEquals("12345", value);
+    }
+
+    @Test
+    public void loopedKeyIsNull() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("recursive.key");
+        Assert.assertNull(value);
     }
 
     @SuppressWarnings("unchecked")
@@ -53,21 +77,24 @@ public class ConfigReaderTest {
     public void dotFormatterTest() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
-        MultiLevelMap formatter = new MultiLevelMap(reader.getMap());
-        Object o = formatter.getElement("hello.world");
+        Object o = reader.get("hello.world");
         Assert.assertEquals("some value", o);
-        o = formatter.getElement("hello.multiline");
+        o = reader.get("hello.multiline");
         Assert.assertTrue(o instanceof String);
         Assert.assertTrue(o.toString().contains("\n"));
-        o = formatter.getElement("hello.array");
+        List<String> lines = Utility.getInstance().split(o.toString(), "\n");
+        Assert.assertEquals(2, lines.size());
+        Assert.assertEquals("line one", lines.get(0));
+        Assert.assertEquals("line two", lines.get(1));
+        o = reader.get("hello.array");
         Assert.assertTrue(o instanceof ArrayList);
         List<String> elements = (List<String>) o;
         Assert.assertEquals(2, elements.size());
         Assert.assertEquals("hi", elements.get(0));
         Assert.assertEquals("this is great", elements.get(1));
-        o = formatter.getElement("hello.array[0]");
+        o = reader.get("hello.array[0]");
         Assert.assertEquals("hi", o);
-        o = formatter.getElement("hello.array[1]");
+        o = reader.get("hello.array[1]");
         Assert.assertEquals("this is great", o);
     }
 
@@ -90,8 +117,13 @@ public class ConfigReaderTest {
 
     @Test
     public void appConfigTest() {
+        // AppConfigReader will combine both application.properties and application.yml
         AppConfigReader reader = AppConfigReader.getInstance();
+        // application.name is stored in "application.properties"
         Assert.assertEquals("rest-spring", reader.getProperty("spring.application.name"));
+        // hello.world is stored in "application.yml"
+        Object o = reader.get("hello.world");
+        Assert.assertTrue(o instanceof Map);
     }
 
     @Test

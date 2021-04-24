@@ -33,34 +33,43 @@ public class ConfigReaderTest {
     public void environmentVarSubstitution() throws IOException {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.properties");
-        /*
-         * the original value in test.properties for "path" is "hello world".
-         * However, it should be replaced by the environment variable "PATH" automatically.
-         */
         String path = System.getenv("PATH");
-        Assert.assertEquals(path, reader.getProperty("path"));
-        /*
-         * test environment variable mapping
-         *
-         * env.variables=PATH:path.too
-         * path.too=hello world
-         */
-        Assert.assertEquals(path, reader.getProperty("path.too"));
-        /*
-         * Test application.properties
-         * (In the following example, "PATH:path" can be replaced by "PATH"
-         *  since the upper case environment variable is the same as the property key)
-         *
-         * env.variables=PATH:path
-         * path=hello world
-         */
-        AppConfigReader config = AppConfigReader.getInstance();
-        Assert.assertEquals(path, config.getProperty("path"));
-        /*
-         * Test string substitution from application.yml
-         */
-        Object r = reader.get("hello.world");
-        Assert.assertEquals("message", r);
+        Assert.assertEquals(path, reader.getProperty("hello.world"));
+    }
+
+    @Test
+    public void systemPropertySubstitution() throws IOException {
+        final String HELLO = "HELLO";
+        System.setProperty("sample.system.property", HELLO);
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        Assert.assertEquals(HELLO, reader.getProperty("my.system.property"));
+    }
+
+    @Test
+    public void getValueFromParent() throws IOException {
+        AppConfigReader parent = AppConfigReader.getInstance();
+        String parentValue = parent.getProperty("cloud.connector");
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String subordinateValue = reader.getProperty("my.cloud.connector");
+        Assert.assertEquals(parentValue, subordinateValue);
+    }
+
+    @Test
+    public void getDefaultValue() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("another.key");
+        Assert.assertEquals("12345", value);
+    }
+
+    @Test
+    public void loopedKeyIsNull() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("recursive.key");
+        Assert.assertNull(value);
     }
 
     @SuppressWarnings("unchecked")

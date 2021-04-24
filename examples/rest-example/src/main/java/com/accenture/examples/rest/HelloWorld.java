@@ -69,5 +69,5 @@ public class HelloWorld {
         result.put("round_trip", response.getRoundTrip());
         return result;
     }
-
+    
 }

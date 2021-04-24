@@ -36,7 +36,6 @@ public class ConfigReader implements ConfigBase {
     private static final String YML = ".yml";
     private static final String YAML = ".yaml";
     private static final String PROPERTIES = ".properties";
-    private static final String ENV_VARIABLES = "env.variables";
     /*
      * A normalized map has composite keys expanded into simple key.
      * e.g. "hello.world: 1" becomes "hello: world: 1"
@@ -44,7 +43,6 @@ public class ConfigReader implements ConfigBase {
     private boolean isNormalized = true;
     private Map<String, Object> properties = new HashMap<>();
     private MultiLevelMap config = new MultiLevelMap(new HashMap<>());
-    private Map<String, String> envVars = new HashMap<>();
 
     public boolean isNormalizedMap() {
         return isNormalized;
@@ -55,7 +53,38 @@ public class ConfigReader implements ConfigBase {
             return null;
         }
         String v = getSystemProperty(key);
-        return v != null? v : (isNormalized? config.getElement(key) : properties.get(key));
+        if (v != null) {
+            return v;
+        }
+        Object value = isNormalized? config.getElement(key) : properties.get(key);
+        if (value instanceof String) {
+            String s = (String) value;
+            if (s.startsWith("${") && s.endsWith("}")) {
+                return getEnvVariable(s);
+            }
+        }
+        return value;
+    }
+
+    private String getEnvVariable(String s) {
+        if (s.startsWith("${") && s.endsWith("}")) {
+            String key = s.substring(2, s.length()-1).trim();
+            String def = null;
+            if (key.contains(":")) {
+                int colon = key.indexOf(':');
+                String k = key.substring(0, colon);
+                def = key.substring(colon+1);
+                key = k;
+            }
+            String property = System.getenv(key);
+            if (property != null) {
+                return property;
+            }
+            return System.getProperty(key, def);
+
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -71,16 +100,17 @@ public class ConfigReader implements ConfigBase {
         }
         String v = getSystemProperty(key);
         Object value = v != null? v : (isNormalized? config.getElement(key) : properties.get(key));
-        // get value substitution from application.yml and/or application.properties
         if (value instanceof String) {
             String s = (String) value;
             if (s.startsWith("${") && s.endsWith("}")) {
                 String k = s.substring(2, s.length()-1).trim();
-                if (k.length() > 0) {
-                    Object replacement = AppConfigReader.getInstance().get(k);
-                    if (replacement != null) {
-                        return replacement;
+                if (!k.isEmpty()) {
+                    if (key.equals(k)) {
+                        return null;
                     }
+                    // get replacement from parent or environment variable
+                    Object replacement = AppConfigReader.getInstance().get(k);
+                    return replacement != null? replacement : getEnvVariable(s);
                 }
             }
         }
@@ -88,11 +118,10 @@ public class ConfigReader implements ConfigBase {
     }
 
     public String getSystemProperty(String key) {
-        if (key == null || key.length() == 0) {
+        if (key.isEmpty()) {
             return null;
         }
-        String value = System.getProperty(key);
-        return value != null? value : (envVars.containsKey(key)? System.getenv(envVars.get(key)) : null);
+        return System.getProperty(key);
     }
 
     @Override
@@ -136,7 +165,7 @@ public class ConfigReader implements ConfigBase {
         if (path.startsWith(CLASSPATH)) {
             in = ConfigReader.class.getResourceAsStream(path.substring(CLASSPATH.length()));
         } else if (path.startsWith(FILEPATH)) {
-            in = new FileInputStream(new File(path.substring(FILEPATH.length())));
+            in = new FileInputStream(path.substring(FILEPATH.length()));
         } else {
             in = ConfigReader.class.getResourceAsStream(path);
         }
@@ -151,13 +180,11 @@ public class ConfigReader implements ConfigBase {
                 enforceKeysAsText(m);
                 config = new MultiLevelMap(normalizeMap(m));
                 isNormalized = true;
-
             } else if (path.endsWith(JSON)) {
                 Map<String, Object> m = SimpleMapper.getInstance().getMapper().readValue(in, Map.class);
                 enforceKeysAsText(m);
                 config = new MultiLevelMap(normalizeMap(m));
                 isNormalized = true;
-
             } else if (path.endsWith(PROPERTIES)) {
                 properties = new HashMap<>();
                 Properties p = new Properties();
@@ -166,11 +193,6 @@ public class ConfigReader implements ConfigBase {
                     properties.put(k.toString(), p.get(k));
                 }
                 isNormalized = false;
-            }
-            // load environment variables if any
-            Object o = isNormalized? config.getElement(ENV_VARIABLES) : properties.get(ENV_VARIABLES);
-            if (o != null) {
-                envVars = getEnvVars(o);
             }
         } finally {
             try {
@@ -183,38 +205,8 @@ public class ConfigReader implements ConfigBase {
 
     public void load(Map<String, Object> map) {
         enforceKeysAsText(map);
-        // load environment variables if any
-        Object o = config.getElement(ENV_VARIABLES);
-        if (o != null) {
-            envVars = getEnvVars(o);
-        }
         config = new MultiLevelMap(normalizeMap(map));
         isNormalized = true;
-    }
-
-    private Map<String, String> getEnvVars(Object o) {
-        Map<String, String> result = new HashMap<>();
-        String[] vars = o.toString().split(",");
-        for (String v : vars) {
-            String s = v.trim();
-            if (s.length() > 0) {
-                if (s.contains(":")) {
-                    // custom mapping
-                    int colon = s.indexOf(':');
-                    String part1 = s.substring(0, colon).trim();
-                    String part2 = s.substring(colon + 1).trim();
-                    if (part1.length() > 0 && part2.length() > 0) {
-                        result.put(part2, part1);
-                    } else {
-                        log.error("Invalid environment variable definition {}, format SOME_VAR:some.var", s);
-                    }
-                } else {
-                    // default mapping: variable name = Environment Variable to lower case and replace UNDERSCORE with DOT characters
-                    result.put(s.toLowerCase().replace('_', ','), s);
-                }
-            }
-        }
-        return result;
     }
 
     private Map<String, Object> normalizeMap(Map<String, Object> map) {
