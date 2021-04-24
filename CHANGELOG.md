@@ -20,7 +20,7 @@ Added ActiveMQ and Tibco connectors
 ### Changed
 
 1. Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
-2. Updated ConfigReader to make consistent with Spring value substitution logic for application properties
+2. Updated ConfigReader to make it consistent with Spring value substitution logic for application properties
 
 ---
 ## Version 1.12.66, 1/15/2021
