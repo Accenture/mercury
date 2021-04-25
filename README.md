@@ -238,7 +238,6 @@ To get the system up and running, you should compile and build the foundation li
 ```bash
 # start a terminal and go to the mercury sandbox folder
 mvn clean install
-# close the terminal
 ```
 
 The platform-core, rest-spring, hazelcast-connector and kafka-connector are libraries and you can rebuild each one individually using `mvn clean install`
