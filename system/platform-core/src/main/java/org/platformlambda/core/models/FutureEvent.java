@@ -18,19 +18,17 @@
 
 package org.platformlambda.core.models;
 
-import akka.actor.Cancellable;
-
 import java.util.Date;
 
 public class FutureEvent {
 
-    public Cancellable task;
     public Date time;
     public String to;
+    public long taskId;
 
-    public FutureEvent(String to, Cancellable task, Date time) {
+    public FutureEvent(String to, long taskId, Date time) {
         this.to = to;
-        this.task = task;
+        this.taskId = taskId;
         this.time = time;
     }
 

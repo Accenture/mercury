@@ -1,4 +1,4 @@
-﻿# Mercury - rapid software development for microservices
+# Mercury - rapid software development for microservices
 
 ## Welcome to the Mercury project
 

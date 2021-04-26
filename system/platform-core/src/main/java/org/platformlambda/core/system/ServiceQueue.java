@@ -18,13 +18,14 @@
 
 package org.platformlambda.core.system;
 
-import akka.actor.*;
-import org.platformlambda.core.models.EventEnvelope;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,123 +33,128 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 
-public class ServiceQueue extends AbstractActor {
+public class ServiceQueue {
     private static final Logger log = LoggerFactory.getLogger(ServiceQueue.class);
     private static final String QUEUES = "queues";
-    private static final StopSignal STOP = new StopSignal();
-    private static final long SCHEDULED_STOP = 500;
-
+    private static final String INIT = "init:";
+    private static final String READY = "ready:";
     private final ElasticQueue elasticQueue;
     private final String route;
-    private final ConcurrentLinkedQueue<ActorRef> pool = new ConcurrentLinkedQueue<>();
-    private List<ActorRef> workers = new ArrayList<>();
+    private final EventBus system;
+    private final ConcurrentLinkedQueue<String> pool = new ConcurrentLinkedQueue<>();
+    private final List<WorkerQueue> workers = new ArrayList<>();
+    private MessageConsumer<Object> consumer;
     private boolean buffering = true;
-    private boolean started = false, stopped = false;
-
-    public static Props props(ServiceDef service) {
-        return Props.create(ServiceQueue.class, () -> new ServiceQueue(service));
-    }
+    private boolean stopped = false;
 
     public ServiceQueue(ServiceDef service) {
         this.route = service.getRoute();
         String origin = Platform.getInstance().getOrigin();
         File workerFolder = Utility.getInstance().getWorkFolder();
         this.elasticQueue = new ElasticQueue(new File(workerFolder, QUEUES),this.route+"-"+origin);
+        // create consumer
+        system = Platform.getInstance().getEventSystem();
+        consumer = system.localConsumer(service.getRoute(), new ServiceHandler());
         // create workers
-        ActorSystem system = Platform.getInstance().getEventSystem();
         int instances = service.getConcurrency();
         for (int i=0; i < instances; i++) {
             int n = i + 1;
-            workers.add(system.actorOf(
-                        WorkerQueue.props(service, getSelf(), n),getSelf().path().name()+"@"+n));
+            WorkerQueue worker = new WorkerQueue(service, route+"@"+n, n);
+            workers.add(worker);
         }
         log.info("{} {} with {} instance{} started", service.isPrivate()? "PRIVATE" : "PUBLIC",
                 route, instances, instances == 1 ? "" : "s");
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public Receive createReceive() {
-        return receiveBuilder().match(BlockingQueue.class, signal -> {
-            signal.offer(true);
-        }).match(ReadySignal.class, signal -> {
-            if (!stopped) {
-                log.debug(getSender().path().name() + " is ready");
-                pool.offer(getSender());
-                if (buffering) {
-                    try {
-                        EventEnvelope event = elasticQueue.read();
-                        if (event == null) {
-                            // Close elastic queue when all messages are cleared
-                            buffering = false;
-                            elasticQueue.close();
-                        } else {
-                            // Guarantees that there is an available worker
-                            ActorRef next = pool.poll();
-                            if (next != null) {
-                                next.tell(event, getSelf());
-                            }
-                        }
-                    } catch (IOException e) {
-                        // this should not happen
-                        log.error("Unable to read elastic queue " + elasticQueue.getId(), e);
-                    }
-                }
-            }
-
-        }).match(EventEnvelope.class, event -> {
-            if (!stopped) {
-                if (buffering) {
-                    // Once elastic queue is started, we will continue buffering.
-                    elasticQueue.write(event);
-                } else {
-                    ActorRef next = pool.peek();
-                    if (next == null) {
-                        // Start persistent queue when no workers are available
-                        buffering = true;
-                        elasticQueue.write(event);
-                    } else {
-                        // Guarantees that there is an available worker
-                        next = pool.poll();
-                        if (next != null) {
-                            next.tell(event, getSelf());
-                        }
-                    }
-                }
-            }
-
-        }).match(StopSignal.class, signal -> {
-            if (!stopped) {
-                // stop processing events
-                stopped = true;
-                log.debug("Stopping {} with {} of {} workers in pool", getSelf().path().name(), pool.size(), workers.size());
-                // stop workers
-                for (ActorRef w: workers) {
-                    w.tell(STOP, ActorRef.noSender());
-                }
-                pool.clear();
-                workers = new ArrayList<>();
-                // give a little bit of time to ignore incoming messages that are already queued
-                final ActorSystem system = Platform.getInstance().getEventSystem();
-                system.scheduler().scheduleOnce(Duration.create(SCHEDULED_STOP, TimeUnit.MILLISECONDS), () -> {
-                    getSelf().tell(PoisonPill.getInstance(), ActorRef.noSender());
-                }, system.dispatcher());
-            }
-
-        }).build();
+    public String getRoute() {
+        return route;
     }
 
-    @Override
-    public void postStop() {
-        // close elastic queue
-        if (!elasticQueue.isClosed()) {
-            elasticQueue.close();
+    public void stop() {
+        if (consumer != null && consumer.isRegistered()) {
+            // stopping worker
+            for (WorkerQueue worker: workers) {
+                worker.stop();
+            }
+            // closing elastic queue
+            if (!elasticQueue.isClosed()) {
+                elasticQueue.close();
+            }
+            // remove elastic queue folder
+            elasticQueue.destroy();
+            // closing consumer
+            consumer.unregister();
+            consumer = null;
+            stopped = true;
+            log.info("{} stopped", route);
         }
-        // remove elastic queue folder
-        elasticQueue.destroy();
-        log.info("{} stopped", getSelf().path().name());
+    }
+
+    @SuppressWarnings("unchecked")
+    private class ServiceHandler implements Handler<Message<Object>> {
+
+        @Override
+        public void handle(Message<Object> message) {
+            Object body = message.body();
+            if (body instanceof String) {
+                String text = (String) body;
+                if (text.startsWith(INIT)) {
+                    String uuid = text.substring(INIT.length());
+                    BlockingQueue<Boolean> signal = Platform.getInstance().getServiceToken(uuid);
+                    if (signal != null) {
+                        signal.offer(true);
+                    }
+                }
+                if (text.startsWith(READY)) {
+                    String sender = text.substring(READY.length());
+                    if (!stopped) {
+                        pool.offer(sender);
+                        if (buffering) {
+                            try {
+                                byte[] event = elasticQueue.read();
+                                if (event == null) {
+                                    // Close elastic queue when all messages are cleared
+                                    buffering = false;
+                                    elasticQueue.close();
+                                } else {
+                                    // Guarantees that there is an available worker
+                                    String next = pool.poll();
+                                    if (next != null) {
+                                        system.send(next, event);
+                                    }
+                                }
+                            } catch (IOException e) {
+                                // this should not happen
+                                log.error("Unable to read elastic queue " + elasticQueue.getId(), e);
+                            }
+                        }
+                    }
+                }
+            }
+            if (body instanceof byte[]) {
+                byte[] event = (byte[]) body;
+                if (!stopped) {
+                    if (buffering) {
+                        // Once elastic queue is started, we will continue buffering.
+                        elasticQueue.write(event);
+                    } else {
+                        String next = pool.peek();
+                        if (next == null) {
+                            // Start persistent queue when no workers are available
+                            buffering = true;
+                            elasticQueue.write(event);
+                        } else {
+                            // Guarantees that there is an available worker
+                            next = pool.poll();
+                            if (next != null) {
+                                system.send(next, event);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
 }

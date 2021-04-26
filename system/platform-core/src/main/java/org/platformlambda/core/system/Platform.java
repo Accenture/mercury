@@ -18,19 +18,15 @@
 
 package org.platformlambda.core.system;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.TargetRoute;
 import org.platformlambda.core.models.TypedLambdaFunction;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.CryptoApi;
-import org.platformlambda.core.util.ManagedCache;
-import org.platformlambda.core.util.SimpleClassScanner;
-import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,28 +35,36 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 
 public class Platform {
     private static final Logger log = LoggerFactory.getLogger(Platform.class);
     private static final ManagedCache cache = ManagedCache.createCache("system.log.cache", 30000);
     private static final CryptoApi crypto = new CryptoApi();
+    private static final ConcurrentMap<String, BlockingQueue<Boolean>> serviceTokens = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
-    private static final StopSignal STOP = new StopSignal();
-    private static final String LAMBDA = "lambda";
     private static final String PERSONALITY = "personality";
-    private static ActorSystem system;
+    private static final String INIT = "init:";
     private static String originId;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static final Platform instance = new Platform();
     private static String consistentAppId;
+    private final Vertx vertx;
+    private final EventBus system;
 
     private Platform() {
         // singleton
+        vertx = Vertx.vertx();
+        system = vertx.eventBus();
     }
 
     public static Platform getInstance() {
         return instance;
+    }
+
+    public BlockingQueue<Boolean> getServiceToken(String id) {
+        return serviceTokens.get(id);
     }
 
     /**
@@ -94,10 +98,11 @@ public class Platform {
         return Platform.consistentAppId;
     }
 
-    public ActorSystem getEventSystem() {
-        if (system == null) {
-            system = ActorSystem.create(LAMBDA);
-        }
+    public Vertx getVertx() {
+        return vertx;
+    }
+
+    public EventBus getEventSystem() {
         return system;
     }
 
@@ -312,19 +317,19 @@ public class Platform {
             throw new IOException("Route "+path+" already exists");
         }
         ServiceDef service = new ServiceDef(path, lambda).setConcurrency(instances).setPrivate(isPrivate);
-        ActorRef manager = getEventSystem().actorOf(ServiceQueue.props(service), path);
+        ServiceQueue manager = new ServiceQueue(service);
         service.setManager(manager);
         // wait for service initialization
+        String uuid = UUID.randomUUID().toString();
         BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);
-        long t1 = System.currentTimeMillis();
-        manager.tell(signal, ActorRef.noSender());
+        serviceTokens.put(uuid, signal);
+        system.send(service.getRoute(), INIT+uuid);
         try {
-            signal.poll(800, TimeUnit.MILLISECONDS);
-            log.debug("{} created in {} ms", path, System.currentTimeMillis() - t1);
+            signal.poll(2, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            // this may indicate that the underlying event system is not healthy
-            log.error("{} took longer to initialize", path);
+            log.error("{} took longer to initialize - the event system may be unhealthy", path);
         }
+        serviceTokens.remove(uuid);
         // save into local registry
         registry.put(path, service);
         // automatically set personality if not defined
@@ -361,10 +366,10 @@ public class Platform {
                             new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.UNREGISTER));
                 }
             }
-            ActorRef manager = getManager(route);
+            ServiceQueue manager = getManager(route);
             if (manager != null) {
                 registry.remove(route);
-                manager.tell(STOP, ActorRef.noSender());
+                manager.stop();
             }
 
         } else {
@@ -376,7 +381,7 @@ public class Platform {
         return route != null && registry.containsKey(route);
     }
 
-    public ActorRef getManager(String route) {
+    public ServiceQueue getManager(String route) {
         return route != null && registry.containsKey(route)? registry.get(route).getManager() : null;
     }
 

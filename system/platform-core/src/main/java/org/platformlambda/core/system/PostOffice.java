@@ -18,9 +18,8 @@
 
 package org.platformlambda.core.system;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Cancellable;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.services.DistributedTrace;
@@ -31,13 +30,11 @@ import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class PostOffice {
@@ -435,16 +432,15 @@ public class PostOffice {
         discover(to, event.isEndOfRoute());
         log.debug("Future event to {} in {} ms", to, interval);
         // schedule the event delivery
-        ActorSystem system = Platform.getInstance().getEventSystem();
-        Cancellable task = system.scheduler().scheduleOnce(Duration.create(interval, TimeUnit.MILLISECONDS), () -> {
+        Vertx vertx = Platform.getInstance().getVertx();
+        long taskId = vertx.setTimer(interval, (id) -> {
             try {
-                futureEvents.remove(event.getId());
-                send(event);
+                PostOffice.getInstance().send(event);
             } catch (IOException e) {
                 log.error("Deferred delivery to {} failed - {}", event.getTo(), e.getMessage());
             }
-        }, system.dispatcher());
-        futureEvents.put(event.getId(), new FutureEvent(to, task, future));
+        });
+        futureEvents.put(event.getId(), new FutureEvent(event.getTo(), taskId, future));
         return event.getId();
     }
 
@@ -456,7 +452,8 @@ public class PostOffice {
     public void cancelFutureEvent(String id) {
         FutureEvent event = futureEvents.get(id);
         if (event != null) {
-            event.task.cancel();
+            Vertx vertx = Platform.getInstance().getVertx();
+            vertx.cancelTimer(event.taskId);
             futureEvents.remove(id);
             log.info("Future event {} to {} at {} canceled", id, event.to, Utility.getInstance().date2str(event.time));
         }
@@ -570,9 +567,8 @@ public class PostOffice {
                 Inbox inbox = Inbox.getHolder(cid);
                 if (inbox != null) {
                     event.setReplyTo(cid);
-                    ActorRef listener = inbox.getListener();
                     // It is a reply message to an inbox and broadcast level should be cleared
-                    listener.tell(event.setBroadcastLevel(0), ActorRef.noSender());
+                    Platform.getInstance().getEventSystem().send(inbox.getId(), event.setBroadcastLevel(0).toBytes());
                     return;
                 }
             }
@@ -583,9 +579,10 @@ public class PostOffice {
              * If broadcast, set broadcast level to 3 because the event will be sent
              * to the target by the cloud connector directly
              */
-            MultipartPayload.getInstance().outgoing(target.getActor(),
+            MultipartPayload.getInstance().outgoing(target.getManager(),
                     event.getBroadcastLevel() > 0? event.setBroadcastLevel(3) : event);
         } else {
+            EventBus system = Platform.getInstance().getEventSystem();
             /*
              * The target is the same memory space. We will route it to the cloud connector if broadcast.
              */
@@ -597,15 +594,16 @@ public class PostOffice {
                          * If broadcast, set broadcast level to 3 because the event will be sent
                          * to the target by the cloud connector directly
                          */
-                        MultipartPayload.getInstance().outgoing(cloud.getActor(), event.setBroadcastLevel(3));
+                        MultipartPayload.getInstance().outgoing(cloud.getManager(), event.setBroadcastLevel(3));
                     }
                 } else {
                     // set broadcast level to 3 for language pack clients if any
-                    target.getActor().tell(event.setBroadcastLevel(3), ActorRef.noSender());
+                    system.send(target.getManager().getRoute(), event.setBroadcastLevel(3).toBytes());
                 }
             } else {
                 // set broadcast level to 3 for language pack clients if any
-                target.getActor().tell(event.getBroadcastLevel() > 0? event.setBroadcastLevel(3) : event, ActorRef.noSender());
+                EventEnvelope out = event.getBroadcastLevel() > 0? event.setBroadcastLevel(3) : event;
+                system.send(target.getManager().getRoute(), out.toBytes());
             }
         }
     }
@@ -733,9 +731,9 @@ public class PostOffice {
         // broadcast is not possible with RPC call
         event.setBroadcastLevel(0);
         if (target.isCloud()) {
-            MultipartPayload.getInstance().outgoing(target.getActor(), event);
+            MultipartPayload.getInstance().outgoing(target.getManager(), event);
         } else {
-            target.getActor().tell(event, ActorRef.noSender());
+            platform.getEventSystem().send(target.getManager().getRoute(), event.toBytes());
         }
         // wait for response
         inbox.waitForResponse(timeout < 10? 10 : timeout);
@@ -795,6 +793,7 @@ public class PostOffice {
             destinations.add(discover(to, event.isEndOfRoute()));
         }
         Platform platform = Platform.getInstance();
+        EventBus system = platform.getEventSystem();
         Inbox inbox = new Inbox(events.size());
         String replyTo = inbox.getId()+"@"+platform.getOrigin();
         int n = 0;
@@ -803,9 +802,9 @@ public class PostOffice {
             event.setBroadcastLevel(0);
             event.setReplyTo(replyTo);
             if (target.isCloud()) {
-                MultipartPayload.getInstance().outgoing(target.getActor(), event);
+                MultipartPayload.getInstance().outgoing(target.getManager(), event);
             } else {
-                target.getActor().tell(event, ActorRef.noSender());
+                system.send(target.getManager().getRoute(), event.toBytes());
             }
             n++;
         }

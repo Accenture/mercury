@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.system;
 
-import akka.actor.ActorRef;
 import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.Utility;
 
@@ -32,7 +31,7 @@ public class ServiceDef {
     @SuppressWarnings("rawtypes")
     private final TypedLambdaFunction lambda;
     private final String id;
-    private ActorRef manager;
+    private ServiceQueue manager;
     private final Date created = new Date();
     private boolean isPrivate = false;
     private int instances = 1;
@@ -83,11 +82,11 @@ public class ServiceDef {
         return this;
     }
 
-    public ActorRef getManager() {
+    public ServiceQueue getManager() {
         return manager;
     }
 
-    public void setManager(ActorRef manager) {
+    public void setManager(ServiceQueue manager) {
         this.manager = manager;
     }
 

@@ -18,30 +18,33 @@
 
 package org.platformlambda.core.models;
 
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
-import org.platformlambda.core.system.InboxListener;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Inbox {
+    private static final Logger log = LoggerFactory.getLogger(Inbox.class);
 
     private static final ConcurrentMap<String, Inbox> inboxes = new ConcurrentHashMap<>();
-
-    private final ActorRef listener;
+    private final MessageConsumer<byte[]> listener;
     private final String id;
     private final int n;
     private final long begin = System.nanoTime();
+    private final AtomicInteger total = new AtomicInteger(1);
     private final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
     private EventEnvelope reply;
     private ConcurrentMap<String, EventEnvelope> replies;
-    private AtomicInteger total;
 
     /**
      * Inbox for one or more requests
@@ -49,14 +52,14 @@ public class Inbox {
      */
     public Inbox(int n) {
         if (n > 1) {
-            total = new AtomicInteger(n);
+            total.set(n);
             replies = new ConcurrentHashMap<>();
             this.n = n;
         } else {
             this.n = 1;
         }
         this.id = "r."+ Utility.getInstance().getUuid();
-        this.listener = Platform.getInstance().getEventSystem().actorOf(InboxListener.props(), this.id);
+        this.listener = Platform.getInstance().getEventSystem().localConsumer(this.id, new InboxHandler());
         Inbox.inboxes.put(id, this);
     }
 
@@ -86,10 +89,6 @@ public class Inbox {
             results.add(reply);
         }
         return results;
-    }
-
-    public ActorRef getListener() {
-        return listener;
     }
 
     private void setReply(EventEnvelope reply) {
@@ -127,7 +126,26 @@ public class Inbox {
 
     public void close() {
         Inbox.inboxes.remove(id);
-        listener.tell(PoisonPill.getInstance(), ActorRef.noSender());
+        if (listener.isRegistered()) {
+            listener.unregister();
+        }
+    }
+
+    private class InboxHandler implements Handler<Message<byte[]>> {
+
+        @Override
+        public void handle(Message<byte[]> message) {
+            EventEnvelope event = new EventEnvelope();
+            try {
+                event.load(message.body());
+                String inboxId = event.getReplyTo();
+                if (inboxId != null) {
+                    Inbox.saveResponse(inboxId, event);
+                }
+            } catch (IOException e) {
+                log.error("Unable to decode event - {}", e.getMessage());
+            }
+        }
     }
 
 }

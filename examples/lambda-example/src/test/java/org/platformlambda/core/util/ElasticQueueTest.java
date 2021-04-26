@@ -31,6 +31,38 @@ import org.junit.Assert;
 public class ElasticQueueTest {
 
     @Test
+    public void peeking() throws IOException {
+        String firstItem = "hello world 1";
+        String secondItem = "hello world 2";
+        // temp queue directory
+        File dir = new File("fifo");
+        ElasticQueue spooler = new ElasticQueue(dir, "peek");
+        spooler.write(new EventEnvelope().setBody(firstItem).toBytes());
+        spooler.write(new EventEnvelope().setBody(secondItem).toBytes());
+
+        byte[] b = spooler.peek();
+        EventEnvelope first = new EventEnvelope();
+        first.load(b);
+        Assert.assertEquals(firstItem, first.getBody());
+
+        b = spooler.read();
+        EventEnvelope firstAgain = new EventEnvelope();
+        firstAgain.load(b);
+        Assert.assertEquals(firstItem, firstAgain.getBody());
+
+        b = spooler.read();
+        EventEnvelope second = new EventEnvelope();
+        second.load(b);
+        Assert.assertEquals(secondItem, second.getBody());
+        Assert.assertNull(spooler.peek());
+        Assert.assertNull(spooler.read());
+        // elastic queue should be automatically closed when all messages are consumed
+        Assert.assertTrue(spooler.isClosed());
+        // remove elastic queue folder
+        spooler.destroy();
+    }
+
+    @Test
     public void normalPayload() throws IOException {
         readWrite("normal", 10);
     }
@@ -58,13 +90,15 @@ public class ElasticQueueTest {
             EventEnvelope event = new EventEnvelope();
             event.setTo(target);
             event.setBody(input);
-            spooler.write(event);
-            EventEnvelope data = spooler.read();
-            Assert.assertNotNull(data);
+            spooler.write(event.toBytes());
+            byte[] b = spooler.read();
+            Assert.assertNotNull(b);
+            EventEnvelope data = new EventEnvelope();
+            data.load(b);
             Assert.assertEquals(input, data.getBody());
         }
         /*
-         * Test serialization of Java objects
+         * Test overflow to temporary storage
          * by writing a larger number of messages to force buffering to disk
          */
         for (int i = 0; i < ElasticQueue.MEMORY_BUFFER * 3; i++) {
@@ -74,19 +108,21 @@ public class ElasticQueueTest {
             event.setTo(target);
             pojo.setName(input);
             event.setBody(pojo);
-            spooler.write(event);
+            spooler.write(event.toBytes());
         }
         // then read the messages
         for (int i = 0; i < ElasticQueue.MEMORY_BUFFER * 3; i++) {
             String input = baseText+i;
-            EventEnvelope data = spooler.read();
+            byte[] b = spooler.read();
+            EventEnvelope data = new EventEnvelope();
+            data.load(b);
             Assert.assertNotNull(data);
             Assert.assertTrue(data.getBody() instanceof PoJo);
             PoJo o = (PoJo) data.getBody();
             Assert.assertEquals(input, o.getName());
         }
         // it should return null when there are no more messages to be read
-        EventEnvelope nothing = spooler.read();
+        byte[] nothing = spooler.read();
         Assert.assertNull(nothing);
         // elastic queue should be automatically closed when all messages are consumed
         Assert.assertTrue(spooler.isClosed());

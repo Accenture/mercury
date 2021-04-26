@@ -17,11 +17,12 @@
  */
 package org.platformlambda.core.websocket.common;
 
-import akka.actor.ActorRef;
+import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.models.EventBlocks;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServiceQueue;
 import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -121,10 +122,11 @@ public class MultipartPayload {
         }
     }
 
-    public void outgoing(ActorRef dest, EventEnvelope event) throws IOException {
+    public void outgoing(ServiceQueue dest, EventEnvelope event) throws IOException {
         if (dest != null && event != null) {
             event.setEndOfRoute();
             byte[] payload = event.toBytes();
+            EventBus system = Platform.getInstance().getEventSystem();
             if (payload.length > MAX_PAYLOAD) {
                 int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
@@ -153,7 +155,7 @@ public class MultipartPayload {
                         // tell a cloud connector that this event should be broadcast
                         out.setHeader(BROADCAST, "1");
                     }
-                    dest.tell(out, ActorRef.noSender());
+                    system.send(dest.getRoute(), out.toBytes());
                     log.debug("Sending block {} of {} to {} as {} - {} bytes", i + 1, total, event.getTo(),
                             event.getId(), size);
                 }
@@ -164,7 +166,7 @@ public class MultipartPayload {
                     // tell a cloud connector that this event should be broadcast
                     out.setHeader(BROADCAST, "1");
                 }
-                dest.tell(out, ActorRef.noSender());
+                system.send(dest.getRoute(), out.toBytes());
             }
         }
     }

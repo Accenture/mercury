@@ -27,6 +27,7 @@ import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.Utility;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
 @ZeroTracing
@@ -85,9 +86,11 @@ public class ObjectStreamService implements LambdaFunction {
                 if (readEOF) {
                     return new EventEnvelope().setHeader(TYPE, EOF);
                 } else {
-                    EventEnvelope data = elasticQueue.peek();
+                    byte[] b = elasticQueue.peek();
                     ObjectStreamManager.touch(path);
-                    if (data != null) {
+                    if (b != null) {
+                        EventEnvelope data = new EventEnvelope();
+                        data.load(b);
                         if (EOF.equals(data.getHeaders().get(TYPE))) {
                             readEOF = true;
                             return new EventEnvelope().setHeader(TYPE, EOF);
@@ -104,9 +107,11 @@ public class ObjectStreamService implements LambdaFunction {
                 if (readEOF) {
                     return new EventEnvelope().setHeader(TYPE, EOF);
                 } else {
-                    EventEnvelope data = elasticQueue.read();
+                    byte[] b = elasticQueue.read();
                     ObjectStreamManager.touch(path);
-                    if (data != null) {
+                    if (b != null) {
+                        EventEnvelope data = new EventEnvelope();
+                        data.load(b);
                         if (EOF.equals(data.getHeaders().get(TYPE))) {
                             readEOF = true;
                             return new EventEnvelope().setHeader(TYPE, EOF);
@@ -132,7 +137,11 @@ public class ObjectStreamService implements LambdaFunction {
     }
 
     private void write(EventEnvelope event) {
-        elasticQueue.write(event);
+        try {
+            elasticQueue.write(event.toBytes());
+        } catch (IOException e) {
+            // ok to ignore as this case does not exist
+        }
         ObjectStreamManager.touch(path);
     }
 

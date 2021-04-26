@@ -18,18 +18,15 @@
 
 package org.platformlambda.core.system;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.ProcessStatus;
-import org.platformlambda.core.models.TraceInfo;
-import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -42,99 +39,47 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class WorkerQueue extends AbstractActor {
+public class WorkerQueue {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueue.class);
     private static final ExecutorService executor = Executors.newCachedThreadPool();
-    private static final ReadySignal READY = new ReadySignal();
     private static final Utility util = Utility.getInstance();
     private static final String ORIGIN = "origin";
-
+    private static final String READY = "ready:";
     private final String origin;
     private final ServiceDef def;
+    private final String route;
+    private final EventBus system;
     private final boolean interceptor, tracing;
     private final int instance;
-    private final  ActorRef manager;
+    private MessageConsumer<byte[]> consumer;
     private boolean stopped = false;
     private static String traceLogHeader;
 
-    public static Props props(ServiceDef def, ActorRef manager, int instance) {
-        return Props.create(WorkerQueue.class, () -> new WorkerQueue(def, manager, instance));
-    }
-
-    public WorkerQueue(ServiceDef def, ActorRef manager, int instance) {
+    public WorkerQueue(ServiceDef def, String route, int instance) {
         if (traceLogHeader == null) {
             AppConfigReader config = AppConfigReader.getInstance();
             traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
         }
         this.def = def;
         this.instance = instance;
-        this.manager = manager;
+        this.route = route;
+        system = Platform.getInstance().getEventSystem();
+        consumer = system.localConsumer(route, new WorkerHandler());
         this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
         this.tracing = def.getFunction().getClass().getAnnotation(ZeroTracing.class) == null;
         this.origin = Platform.getInstance().getOrigin();
         // tell manager that this worker is ready to process a new event
-        manager.tell(READY, getSelf());
-        log.debug("{} started", getSelf().path().name());
+        system.send(def.getRoute(), READY+route);
+        log.debug("{} started", route);
     }
 
-    @Override
-    public Receive createReceive() {
-        return receiveBuilder().match(EventEnvelope.class, event -> {
-            if (!stopped) {
-                final ActorRef self = getSelf();
-                executor.submit(()->{
-                    /*
-                     * Execute function as a future task
-                     */
-                    PostOffice po = PostOffice.getInstance();
-                    po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
-                    if (event.getTraceId() != null) {
-                        ThreadContext.put(traceLogHeader, event.getTraceId());
-                    }
-                    ProcessStatus ps = processEvent(event);
-                    TraceInfo trace = po.stopTracing();
-                    ThreadContext.remove(traceLogHeader);
-                    if (tracing && trace != null && trace.id != null && trace.path != null) {
-                        try {
-                            /*
-                             * Send the trace info and processing status to
-                             * distributed tracing for logging.
-                             *
-                             * Since tracing has been stopped, this guarantees
-                             * this will not go into an endless loop.
-                             */
-                            EventEnvelope dt = new EventEnvelope();
-                            dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(trace.annotations);
-                            dt.setHeader("origin", origin);
-                            dt.setHeader("id", trace.id).setHeader("path", trace.path);
-                            dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);
-                            dt.setHeader("success", ps.success);
-                            if (event.getFrom() != null) {
-                                dt.setHeader("from", event.getFrom());
-                            }
-                            if (ps.success) {
-                                dt.setHeader("exec_time", ps.executionTime);
-                            } else {
-                                dt.setHeader("status", ps.status).setHeader("exception", ps.exception);
-                            }
-                            po.send(dt);
-                        } catch (Exception e) {
-                            log.error("Unable to send distributed tracing - {}", e.getMessage());
-                        }
-                    }
-                    /*
-                     * Send a ready signal to inform the system this worker is ready for next event.
-                     * This guarantee that this future task is executed orderly
-                     */
-                    manager.tell(READY, self);
-                });
-            }
-
-        }).match(StopSignal.class, signal -> {
+    public void stop() {
+        if (consumer != null && consumer.isRegistered()) {
+            consumer.unregister();
+            consumer = null;
             stopped = true;
-            getSelf().tell(PoisonPill.getInstance(), ActorRef.noSender());
-
-        }).build();
+            log.debug("{} stopped", route);
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -261,22 +206,80 @@ public class WorkerQueue extends AbstractActor {
                 try {
                     po.send(response);
                 } catch (Exception nested) {
-                    log.warn("Unhandled exception when sending reply from {} - {}", getSelf().path().name(), nested.getMessage());
+                    log.warn("Unhandled exception when sending reply from {} - {}", route, nested.getMessage());
                 }
             } else {
                 if (status >= 500) {
-                    log.error("Unhandled exception for "+getSelf().path().name(), ex);
+                    log.error("Unhandled exception for "+route, ex);
                 } else {
-                    log.warn("Unhandled exception for {} - {}", getSelf().path().name(), ex.getMessage());
+                    log.warn("Unhandled exception for {} - {}", route, ex.getMessage());
                 }
             }
             return new ProcessStatus(status, e.getMessage());
         }
     }
 
-    @Override
-    public void postStop() {
-        log.debug("{} stopped", getSelf().path().name());
+    private class WorkerHandler implements Handler<Message<byte[]>> {
+
+        @Override
+        public void handle(Message<byte[]> message) {
+            if (!stopped) {
+                EventEnvelope event = new EventEnvelope();
+                try {
+                    event.load(message.body());
+                } catch (IOException e) {
+                    log.error("Unable to decode event - {}", e.getMessage());
+                    return;
+                }
+                executor.submit(()->{
+                    /*
+                     * Execute function as a future task
+                     */
+                    PostOffice po = PostOffice.getInstance();
+                    po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
+                    if (event.getTraceId() != null) {
+                        ThreadContext.put(traceLogHeader, event.getTraceId());
+                    }
+                    ProcessStatus ps = processEvent(event);
+                    TraceInfo trace = po.stopTracing();
+                    ThreadContext.remove(traceLogHeader);
+                    if (tracing && trace != null && trace.id != null && trace.path != null) {
+                        try {
+                            /*
+                             * Send the trace info and processing status to
+                             * distributed tracing for logging.
+                             *
+                             * Since tracing has been stopped, this guarantees
+                             * this will not go into an endless loop.
+                             */
+                            EventEnvelope dt = new EventEnvelope();
+                            dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(trace.annotations);
+                            dt.setHeader("origin", origin);
+                            dt.setHeader("id", trace.id).setHeader("path", trace.path);
+                            dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);
+                            dt.setHeader("success", ps.success);
+                            if (event.getFrom() != null) {
+                                dt.setHeader("from", event.getFrom());
+                            }
+                            if (ps.success) {
+                                dt.setHeader("exec_time", ps.executionTime);
+                            } else {
+                                dt.setHeader("status", ps.status).setHeader("exception", ps.exception);
+                            }
+                            po.send(dt);
+                        } catch (Exception e) {
+                            log.error("Unable to send distributed tracing - {}", e.getMessage());
+                        }
+                    }
+                    /*
+                     * Send a ready signal to inform the system this worker is ready for next event.
+                     * This guarantee that this future task is executed orderly
+                     */
+                    system.send(def.getRoute(), READY+route);
+                });
+            }
+
+        }
     }
 
 }

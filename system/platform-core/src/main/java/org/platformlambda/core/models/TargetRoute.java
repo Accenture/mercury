@@ -18,15 +18,15 @@
 
 package org.platformlambda.core.models;
 
-import akka.actor.ActorRef;
+import org.platformlambda.core.system.ServiceQueue;
 
 public class TargetRoute {
 
-    private final ActorRef actor;
+    private final ServiceQueue manager;
     private final boolean cloud;
 
-    public TargetRoute(ActorRef actor, boolean cloud) {
-        this.actor = actor;
+    public TargetRoute(ServiceQueue manager, boolean cloud) {
+        this.manager = manager;
         this.cloud = cloud;
     }
 
@@ -34,8 +34,8 @@ public class TargetRoute {
         return cloud;
     }
 
-    public ActorRef getActor() {
-        return actor;
+    public ServiceQueue getManager() {
+        return manager;
     }
 
 }

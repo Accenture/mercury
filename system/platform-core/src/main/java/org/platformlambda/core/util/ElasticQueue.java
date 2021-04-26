@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.util;
 
-import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.QueueFileWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +39,12 @@ public class ElasticQueue {
     private static final byte EOF = 0x00;
     private final File dir;
     private final String id;
-    private final ConcurrentLinkedQueue<EventEnvelope> memory = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<byte[]> memory = new ConcurrentLinkedQueue<>();
     private int writeFileNumber, readFileNumber;
     private long readCounter, writeCounter;
     private FileInputStream in;
     private boolean empty = false, createDir = false;
-    private EventEnvelope peeked = null;
+    private byte[] peeked = null;
 
     /**
      * Two-stage elastic queue using memory and disk
@@ -102,7 +101,7 @@ public class ElasticQueue {
         }
     }
 
-    public void write(EventEnvelope event) {
+    public void write(byte[] event) {
         if (writeCounter < MEMORY_BUFFER) {
             // for highest performance, save to memory for the first few blocks
             memory.offer(event);
@@ -117,12 +116,10 @@ public class ElasticQueue {
             File f = new File(dir, QUEUE + writeFileNumber);
             long len = f.exists() ? f.length() : 0;
             try (QueueFileWriter out = new QueueFileWriter(f)) {
-                // serialize to bytes
-                byte[] b = event.toBytes();
                 out.write(DATA);
-                out.write(util.int2bytes(b.length));
-                out.write(b);
-                len += b.length;
+                out.write(util.int2bytes(event.length));
+                out.write(event);
+                len += event.length;
                 if (len >= MAX_FILE_SIZE) {
                     // write EOF indicator and increment file sequence
                     out.write(EOF);
@@ -138,7 +135,7 @@ public class ElasticQueue {
 
     }
 
-    public EventEnvelope peek() throws IOException {
+    public byte[] peek() throws IOException {
         if (peeked != null) {
             return peeked;
         }
@@ -146,9 +143,9 @@ public class ElasticQueue {
         return peeked;
     }
 
-    public EventEnvelope read() throws IOException {
+    public byte[] read() throws IOException {
         if (peeked != null) {
-            EventEnvelope result = peeked;
+            byte[] result = peeked;
             peeked = null;
             return result;
         }
@@ -158,7 +155,7 @@ public class ElasticQueue {
             return null;
         }
         if (readCounter < MEMORY_BUFFER) {
-            EventEnvelope event = memory.poll();
+            byte[] event = memory.poll();
             if (event != null) {
                 readCounter++;
             }
@@ -205,7 +202,7 @@ public class ElasticQueue {
             throw new IOException("Corrupted queue for "+ id);
         }
         readCounter++;
-        return new EventEnvelope(result);
+        return result;
     }
 
 }
