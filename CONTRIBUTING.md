@@ -13,6 +13,8 @@ This project and everyone participating in it is governed by our
 [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 Please report unacceptable behavior to Kevin Bader, who is the current project maintainer.
 
+Please ensure you adhere to our Inclusive Language Guidelines, which can be found here: [Accenture Inclusive Language Guidelines](https://www.accenture.com/us-en/blogs/software-engineering-blog/inclusive-technical-writing)
+
 ## What should I know before I get started?
 
 We follow the [standard GitHub workflow](https://guides.github.com/introduction/flow/).
