@@ -47,6 +47,15 @@ public class ConfigReaderTest {
     }
 
     @Test
+    public void systemPropertyIsAlwaysAvailable() {
+        final String NON_EXIST_PROPERTY = "parameter.not.found.in.application.properties";
+        final String HELLO = "HELLO";
+        System.setProperty(NON_EXIST_PROPERTY, HELLO);
+        AppConfigReader config = AppConfigReader.getInstance();
+        Assert.assertEquals(HELLO, config.getProperty(NON_EXIST_PROPERTY));
+    }
+
+    @Test
     public void getValueFromParent() throws IOException {
         AppConfigReader parent = AppConfigReader.getInstance();
         String parentValue = parent.getProperty("cloud.connector");

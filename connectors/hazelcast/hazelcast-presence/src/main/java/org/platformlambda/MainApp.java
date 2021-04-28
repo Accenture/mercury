@@ -47,6 +47,8 @@ public class MainApp implements EntryPoint {
     public static final String TOPIC_CONTROLLER = "topic.controller";
     public static final String MONITOR_ALIVE = "monitor_alive";
     private static final String ADDITIONAL_INFO = "additional.info";
+    private static final String LOOP_BACK = "loopback";
+    private static final String REPLY_TO = "reply_to";
     private static final String INIT = InitialLoad.INIT;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
@@ -96,7 +98,9 @@ public class MainApp implements EntryPoint {
         String clientId = platform.getOrigin();
         final AtomicBoolean pending = new AtomicBoolean(true);
         LambdaFunction service = (headers, body, instance) -> {
-            // handle initialization request when app starts
+            if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
+                po.send(headers.get(REPLY_TO), true);
+            }
             if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && pending.get()) {
                 pending.set(false);
                 po.send(PRESENCE_HANDLER, new Kv(TYPE, INIT), new Kv(ORIGIN, platform.getOrigin()));

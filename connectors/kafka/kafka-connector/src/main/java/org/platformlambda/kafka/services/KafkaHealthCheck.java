@@ -31,6 +31,7 @@ import org.platformlambda.core.util.Utility;
 import org.platformlambda.kafka.KafkaSetup;
 import org.platformlambda.kafka.reporter.PresenceConnector;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,79 +48,90 @@ public class KafkaHealthCheck implements LambdaFunction {
     private static final String LIST = "list";
     private static final long TIMEOUT = 5000;
     private final boolean presenceMonitor;
+    private final String monitorTopicPartition;
 
     public KafkaHealthCheck() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        presenceMonitor = "true".equals(reader.getProperty("service.monitor", "false"));
+        AppConfigReader config = AppConfigReader.getInstance();
+        presenceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
+        monitorTopicPartition = config.getProperty("monitor.topic", "service.monitor") + "-0";
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
         if (INFO.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
             result.put("service", "kafka");
             result.put("href", KafkaSetup.getDisplayUrl());
             return result;
         }
-
         if (HEALTH.equals(headers.get(TYPE))) {
             if (presenceMonitor) {
-                // Since service monitor does not have a topic, we can just list all topics
                 PostOffice po = PostOffice.getInstance();
                 EventEnvelope response = po.request(MANAGER, TIMEOUT, new Kv(TYPE, LIST),
                         new Kv(ORIGIN, Platform.getInstance().getOrigin()));
                 if (response.getBody() instanceof List) {
-                    List<String> list = (List<String>) response.getBody();
-                    if (list.isEmpty()) {
-                        return "Kafka is healthy but it does not have any topics";
+                    List<String> topicList = (List<String>) response.getBody();
+                    String message;
+                    if (topicList.isEmpty()) {
+                        message = "System does not have any topics";
                     } else {
-                        return "kafka is healthy and it contains " +
-                                list.size() + " " + (list.size() == 1 ? "topic" : "topics");
+                        message = "System contains " +
+                                topicList.size() + " " + (topicList.size() == 1 ? "topic" : "topics");
                     }
+                    String echo = doLoopbackTest(monitorTopicPartition);
+                    return echo+"; "+message;
+
                 } else {
                     throw new AppException(500, "Unable to list topics");
                 }
 
             } else {
-                String topicPartition = PresenceConnector.getInstance().getTopic();
-                String topic = getTopic(topicPartition);
-                int partition = getPartition(topicPartition);
-                long begin = System.currentTimeMillis();
-                // wait for reply
-                PubSub ps = PubSub.getInstance();
-                String me = Platform.getInstance().getOrigin();
-                Inbox inbox = new Inbox(1);
-                // String topic, int partition, Map<String, String> headers, Object body
-                Map<String, String> parameters = new HashMap<>();
-                parameters.put(REPLY_TO, inbox.getId()+"@"+me);
-                ps.publish(topic, partition, parameters, LOOP_BACK);
-                inbox.waitForResponse(TIMEOUT);
-                EventEnvelope pong = inbox.getReply();
-                inbox.close();
-                if (pong == null) {
-                    throw new AppException(408, "Loopback test timeout for " + TIMEOUT + " ms");
-                }
-                if (pong.hasError()) {
-                    throw new AppException(pong.getStatus(), pong.getError());
-                }
-                if (pong.getBody() instanceof Boolean) {
-                    Boolean pingOk = (Boolean) pong.getBody();
-                    if (pingOk) {
-                        long diff = System.currentTimeMillis() - begin;
-                        String loopback = "Loopback test took " + diff + " ms";
-                        PresenceConnector connector = PresenceConnector.getInstance();
-                        boolean ready = connector.isConnected() && connector.isReady();
-                        return loopback+"; "+(ready? "connected" : "offline");
+                PresenceConnector connector = PresenceConnector.getInstance();
+                boolean ready = connector.isConnected() && connector.isReady();
+                if (ready) {
+                    String topicPartition = PresenceConnector.getInstance().getTopic();
+                    if (topicPartition != null) {
+                        return doLoopbackTest(topicPartition);
                     }
                 }
-                throw new AppException(500, "Loopback test failed");
+                return "offline";
             }
         } else {
             throw new IllegalArgumentException("Usage: type=health");
         }
+    }
 
+    private String doLoopbackTest(String topicPartition) throws AppException, IOException {
+        String topic = getTopic(topicPartition);
+        int partition = getPartition(topicPartition);
+        long begin = System.currentTimeMillis();
+        // wait for reply
+        PubSub ps = PubSub.getInstance();
+        String me = Platform.getInstance().getOrigin();
+        Inbox inbox = new Inbox(1);
+        // String topic, int partition, Map<String, String> headers, Object body
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put(REPLY_TO, inbox.getId()+"@"+me);
+        parameters.put(ORIGIN, me);
+        ps.publish(topic, partition, parameters, LOOP_BACK);
+        inbox.waitForResponse(TIMEOUT);
+        EventEnvelope pong = inbox.getReply();
+        inbox.close();
+        if (pong == null) {
+            throw new AppException(408, "Loopback test timeout for " + TIMEOUT + " ms");
+        }
+        if (pong.hasError()) {
+            throw new AppException(pong.getStatus(), pong.getError());
+        }
+        if (pong.getBody() instanceof Boolean) {
+            Boolean pingOk = (Boolean) pong.getBody();
+            if (pingOk) {
+                long diff = System.currentTimeMillis() - begin;
+                return "Loopback test took " + diff + " ms";
+            }
+        }
+        throw new AppException(500, "Loopback test failed");
     }
 
     private String getTopic(String topicPartition) {

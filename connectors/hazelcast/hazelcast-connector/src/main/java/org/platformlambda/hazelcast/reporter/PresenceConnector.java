@@ -219,7 +219,7 @@ public class PresenceConnector implements LambdaFunction {
             // subscribe to assigned topic and partition
             final AtomicBoolean appPending = new AtomicBoolean(true);
             LambdaFunction appControl = (headers, body, instance) -> {
-                if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO)) {
+                if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
                     po.send(headers.get(REPLY_TO), true);
                 }
                 if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && appPending.get()) {

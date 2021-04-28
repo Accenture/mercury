@@ -2,6 +2,7 @@
 .DS_STORE
 # ignore sbt because we are using maven
 build.sbt
+maven-publish.xml
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp
