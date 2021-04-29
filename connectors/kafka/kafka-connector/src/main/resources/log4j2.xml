@@ -9,5 +9,15 @@
         <Root level="${env:LOG_LEVEL:-INFO}" additivity="false">
             <AppenderRef ref="console" />
         </Root>
+        <logger name="org.apache.kafka.streams.processor.internals.StreamThread" level="WARN" />
+        <logger name="org.apache.kafka.streams.KafkaStreams" level="WARN" />
+        <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="ERROR" />
+        <logger name="org.apache.kafka.clients.admin.AdminClientConfig" level="ERROR" />
+        <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="ERROR" />
+        <logger name="org.apache.kafka.clients.producer.KafkaProducer" level="WARN" />
+        <logger name="org.apache.kafka.common.metrics.Metrics" level="WARN" />
+        <logger name="org.apache.kafka.clients.Metadata" level="WARN" />
+        <logger name="org.apache.kafka.clients.NetworkClient" level="WARN" />
+        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN" />
     </Loggers>
 </Configuration>
