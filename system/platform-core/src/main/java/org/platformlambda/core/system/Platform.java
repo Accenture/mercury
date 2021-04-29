@@ -49,7 +49,7 @@ public class Platform {
     private static String originId;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
     private static final Platform instance = new Platform();
-    private static String consistentAppId;
+    private static String appId;
     private final Vertx vertx;
     private final EventBus system;
 
@@ -68,34 +68,24 @@ public class Platform {
     }
 
     /**
-     * This will override the UUID in the originID.
-     * It should only be set before the application is started.
+     * IMPORTANT: If this OPTIONAL value is set, the origin ID will be derived from this value.
      *
-     * For Kafka or similar event stream system, the best practice is to reuse the same topic name.
-     * We are using UUID as a temporary topic for each application instance.
-     *
-     * To reuse the same topic name, you may implement a "BeforeApplication" to collect
-     * platform specific application instance ID and override this value.
-     *
-     * e.g.
-     * For Kubernetes, please use the unique "pod" ID.
-     * For Cloud Foundry, you should use the unique application name and instance index number.
-     *
-     * IMPORTANT: You must use unique ID for each application instance otherwise service routing would fail.
+     * You MUST use unique ID for each application instance otherwise service routing would fail.
+     * e.g. applicationName + timestamp + user.name
      *
      * @param id unique application name and instance identifier
      */
-    public static void setConsistentAppId(String id) {
-        if (Platform.consistentAppId == null) {
-            Platform.consistentAppId = id;
-            log.info("app_id set to {}", Platform.consistentAppId);
+    public static void setAppId(String id) {
+        if (Platform.appId == null) {
+            Platform.appId = id;
+            log.info("app_id set to {}", Platform.appId);
         } else {
-            log.error("app_id is already set as {}", Platform.consistentAppId);
+            log.error("app_id is already set as {}", Platform.appId);
         }
     }
 
-    public String getConsistentAppId() {
-        return Platform.consistentAppId;
+    public String getAppId() {
+        return Platform.appId;
     }
 
     public Vertx getVertx() {
@@ -119,8 +109,8 @@ public class Platform {
         if (originId == null) {
             Utility util = Utility.getInstance();
             String id = util.getUuid();
-            if (Platform.consistentAppId != null) {
-                byte[] hash = crypto.getSHA256(util.getUTF(Platform.consistentAppId));
+            if (Platform.appId != null) {
+                byte[] hash = crypto.getSHA256(util.getUTF(Platform.appId));
                 id = util.bytes2hex(hash).substring(0, id.length());
             }
             originId = util.getDateOnly(new Date()) + id;

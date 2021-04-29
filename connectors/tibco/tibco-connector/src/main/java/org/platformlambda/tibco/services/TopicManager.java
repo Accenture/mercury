@@ -6,16 +6,12 @@ import com.tibco.tibjms.admin.TopicInfo;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.tibco.TibcoSetup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class TopicManager implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
-
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String TOPIC = "topic";

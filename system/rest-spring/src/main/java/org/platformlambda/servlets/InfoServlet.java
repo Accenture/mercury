@@ -113,7 +113,10 @@ public class InfoServlet extends HttpServlet {
         app.put(NAME, info.getArtifactId());
         app.put(VERSION, info.getVersion());
         app.put(DESCRIPTION, description);
-
+        String appId = platform.getAppId();
+        if (appId != null) {
+            app.put(APP_ID, appId);
+        }
         List<String> pathElements = util.split(request.getPathInfo(), "/");
         /*
          * add routing table information if any
@@ -178,10 +181,6 @@ public class InfoServlet extends HttpServlet {
             updateResult(PostOffice.STREAM_MANAGER, result);
             updateResult(SYSTEM_INFO, result);
             result.put(ORIGIN, platform.getOrigin());
-            String appId = platform.getConsistentAppId();
-            if (appId != null) {
-                result.put(APP_ID, appId);
-            }
             result.put(PERSONALITY, ServerPersonality.getInstance().getType().name());
             Map<String, Object> time = new HashMap<>();
             time.put(START, START_TIME);

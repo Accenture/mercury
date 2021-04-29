@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 1.13.0, 4/25/2021
+## Version 2.0.0, 4/29/2021
+
+Vert.x is introduced as the in-memory event bus since version 2.0
 
 ### Added
 
@@ -22,6 +24,11 @@ Added ActiveMQ and Tibco connectors
 1. Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
 2. Updated ConfigReader to make consistent with Spring value substitution logic for application properties
 3. Replace Akka actor system with Vert.x event bus
+
+---
+## Version 1.13.0, 1/15/2021
+
+Version 1.13.0 is the last version that uses Akka as the in-memory event system.
 
 ---
 ## Version 1.12.66, 1/15/2021

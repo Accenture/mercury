@@ -41,7 +41,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String STOP = "stop";
-    private static final String INSTANCE = "instance";
+    private static final String APP_ID = "app_id";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
     private static final String ALIVE = "keep-alive";
@@ -172,7 +172,6 @@ public class PresenceConnector implements LambdaFunction {
     private void sendAppInfo(long n, boolean alive) {
         if (monitor != null) {
             try {
-                String instance = Platform.getInstance().getConsistentAppId();
                 VersionInfo app = Utility.getInstance().getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, created).setHeader(SEQ, n)
@@ -183,8 +182,9 @@ public class PresenceConnector implements LambdaFunction {
                 if (topicPartition != null) {
                     info.setHeader(TOPIC, topicPartition);
                 }
-                if (instance != null) {
-                    info.setHeader(INSTANCE, Platform.getInstance().getConsistentAppId());
+                String appId = Platform.getInstance().getAppId();
+                if (appId != null) {
+                    info.setHeader(APP_ID, appId);
                 }
                 PostOffice.getInstance().send(monitor, info.toBytes());
 
