@@ -61,7 +61,7 @@ public class InfoServlet extends HttpServlet {
     private static final String ALLOCATED = "allocated";
     private static final String FREE = "free";
     private static final String ORIGIN = "origin";
-    private static final String APP_ID = "app_id";
+    private static final String INSTANCE = "instance";
     private static final String PERSONALITY = "personality";
     private static final String ROUTING = "routing";
     private static final String LIST_ROUTES = "routes";
@@ -115,7 +115,7 @@ public class InfoServlet extends HttpServlet {
         app.put(DESCRIPTION, description);
         String appId = platform.getAppId();
         if (appId != null) {
-            app.put(APP_ID, appId);
+            app.put(INSTANCE, appId);
         }
         List<String> pathElements = util.split(request.getPathInfo(), "/");
         /*
