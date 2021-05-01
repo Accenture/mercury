@@ -23,7 +23,6 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.Utility;
 import org.platformlambda.services.MonitorAlive;
 import org.platformlambda.services.MonitorService;
 import org.platformlambda.services.TopicController;
@@ -34,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 public class PresenceHandler implements LambdaFunction {
-    private static final String MONITOR_PARTITION = TibcoSetup.MONITOR_PARTITION;
+    private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String TYPE = "type";
     private static final String NAME = "name";
     private static final String TOPIC = "topic";
@@ -46,13 +45,11 @@ public class PresenceHandler implements LambdaFunction {
     private static final String RELEASE_TOPIC = "release_topic";
     private static final String ORIGIN = "origin";
     private static final String INIT = "init";
-    private static final String TIMESTAMP = "timestamp";
     private static boolean ready = false;
 
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
-        Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         if (headers.containsKey(ORIGIN) && headers.containsKey(TYPE)) {
@@ -61,10 +58,9 @@ public class PresenceHandler implements LambdaFunction {
                 if (INIT.equals(type) && myOrigin.equals(headers.get(ORIGIN))) {
                     MonitorService.setReady();
                     MonitorAlive.setReady();
-                    // download monitor list
+                    // sync up monitor list
                     po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, new ArrayList<String>(),
-                            new Kv(ORIGIN, myOrigin),
-                            new Kv(TYPE, INIT), new Kv(TIMESTAMP, util.getTimestamp()));
+                            new Kv(ORIGIN, myOrigin), new Kv(TYPE, INIT));
                     // download connection list
                     po.send(MainApp.PRESENCE_HANDLER + MONITOR_PARTITION,
                             new Kv(TYPE, DOWNLOAD), new Kv(ORIGIN, myOrigin));

@@ -22,8 +22,6 @@ import org.platformlambda.MainApp;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.Utility;
-import org.platformlambda.hazelcast.HazelcastSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,11 +32,10 @@ import java.util.List;
 public class MonitorAlive extends Thread {
     private static final Logger log = LoggerFactory.getLogger(MonitorAlive.class);
 
-    private static final String MONITOR_PARTITION = HazelcastSetup.MONITOR_PARTITION;
+    private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
-    private static final String TIMESTAMP = "timestamp";
     private static final long INTERVAL = 20 * 1000;
     private static boolean ready = false;
     private static long t0 = 0;
@@ -54,7 +51,6 @@ public class MonitorAlive extends Thread {
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
-        Utility util = Utility.getInstance();
         String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
         while (normal) {
@@ -65,9 +61,8 @@ public class MonitorAlive extends Thread {
                     try {
                         // broadcast to all presence monitors
                         List<String> payload = new ArrayList<>(MonitorService.getConnections().keySet());
-                        po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, payload, new Kv(ORIGIN, origin),
-                                new Kv(TYPE, MONITOR_ALIVE),
-                                new Kv(TIMESTAMP, util.getTimestamp()));
+                        po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, payload,
+                                new Kv(ORIGIN, origin), new Kv(TYPE, MONITOR_ALIVE));
                     } catch (IOException e) {
                         log.error("Unable to send keep-alive - {}", e.getMessage());
                     }

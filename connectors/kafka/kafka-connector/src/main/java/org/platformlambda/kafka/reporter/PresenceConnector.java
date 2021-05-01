@@ -22,7 +22,6 @@ import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.AppAlive;
 import org.platformlambda.kafka.InitialLoad;
 import org.platformlambda.kafka.KafkaSetup;
 import org.slf4j.Logger;
@@ -230,7 +229,6 @@ public class PresenceConnector implements LambdaFunction {
             };
             ps.subscribe(topic, partition, appControl, clientId+"-2", groupId,
                             String.valueOf(InitialLoad.INITIALIZE));
-            AppAlive.setReady(true);
         }
     }
 
@@ -244,7 +242,6 @@ public class PresenceConnector implements LambdaFunction {
             ps.unsubscribe(topic, partition);
             ps.unsubscribe(monitorTopic, 1);
             topicPartition = null;
-            AppAlive.setReady(false);
         }
     }
 

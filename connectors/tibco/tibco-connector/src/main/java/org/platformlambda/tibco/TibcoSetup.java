@@ -35,7 +35,6 @@ public class TibcoSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(TibcoSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MONITOR_PARTITION = APP_GROUP +"0";
     public static final String MANAGER = "tibco.manager";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     public static final String BROKER_URL = "bootstrap.servers";
@@ -141,9 +140,6 @@ public class TibcoSetup implements CloudSetup {
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
                 ws.start();
-                // enable keep alive
-                AppAlive alive = new AppAlive();
-                alive.start();
             }
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
             // enable service discovery

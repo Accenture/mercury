@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentMap;
 public class MonitorService implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
 
-    private static final String MONITOR_PARTITION = ActiveMqSetup.MONITOR_PARTITION;
+    private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String MANAGER = MainApp.MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String APP_GROUP = ActiveMqSetup.APP_GROUP;

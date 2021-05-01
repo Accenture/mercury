@@ -23,8 +23,6 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.Utility;
-import org.platformlambda.hazelcast.HazelcastSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,15 +33,13 @@ import java.util.concurrent.ConcurrentMap;
 public class HouseKeeper implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HouseKeeper.class);
 
-    private static final String MONITOR_PARTITION = HazelcastSetup.MONITOR_PARTITION;
+    private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TYPE = "type";
     private static final String DOWNLOAD = "download";
     private static final String INIT = "init";
     private static final String ORIGIN = "origin";
-    private static final String TIMESTAMP = "timestamp";
     private static final long ONE_MINUTE = 60 * 1000;
-    private static final long TOPIC_EXPIRY = 5 * ONE_MINUTE;
     private static final ConcurrentMap<String, Long> monitors = new ConcurrentHashMap<>();
 
     public static Map<String, Date> getMonitors() {
@@ -57,37 +53,30 @@ public class HouseKeeper implements LambdaFunction {
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         String type = headers.get(TYPE);
         // when a new presence monitor joins the system
         if (INIT.equals(type)) {
-            if (!myOrigin.equals(headers.get(ORIGIN))) {
-                po.send(MainApp.PRESENCE_HOUSEKEEPER+MONITOR_PARTITION, new ArrayList<String>(),
-                        new Kv(ORIGIN, myOrigin),
-                        new Kv(TYPE, MONITOR_ALIVE), new Kv(TIMESTAMP, util.getTimestamp()));
+            if (myOrigin.equals(headers.get(ORIGIN))) {
+                if (!monitors.containsKey(myOrigin)) {
+                    monitors.put(myOrigin, System.currentTimeMillis());
+                    log.info("Registered monitor (me) {}", myOrigin);
+                }
+            } else {
+                po.send(MainApp.PRESENCE_HOUSEKEEPER+MONITOR_PARTITION,
+                        new ArrayList<>(MonitorService.getConnections().keySet()),
+                        new Kv(ORIGIN, myOrigin), new Kv(TYPE, MONITOR_ALIVE));
             }
-            type = MONITOR_ALIVE;
         }
         // when a monitor sends keep-alive
-        if (MONITOR_ALIVE.equals(type) && headers.containsKey(TIMESTAMP) && headers.containsKey(ORIGIN)) {
+        if (MONITOR_ALIVE.equals(type) && headers.containsKey(ORIGIN)) {
             String origin = headers.get(ORIGIN);
-            String timestamp = headers.get(TIMESTAMP);
-            long time = Utility.getInstance().timestamp2ms(timestamp);
-            long now = System.currentTimeMillis();
-            if (time > now) {
-                time = now;
-            } else {
-                if (now - time > TOPIC_EXPIRY) {
-                    return false;
-                }
-            }
             String me = Platform.getInstance().getOrigin();
             if (!monitors.containsKey(origin)) {
                 log.info("Registered monitor {} {}", me.equals(origin) ? "(me)" : "(peer)", origin);
             }
-            monitors.put(origin, time);
+            monitors.put(origin, System.currentTimeMillis());
             removeExpiredMonitors();
             if (body instanceof List) {
                 // compare connection list

@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
+    public static final String MONITOR_PARTITION = "@monitor-0";
     public static final String MANAGER = ActiveMqSetup.MANAGER;
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";

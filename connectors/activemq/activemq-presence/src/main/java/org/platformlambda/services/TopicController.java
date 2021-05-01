@@ -12,7 +12,6 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.TopicRequest;
-import org.platformlambda.activemq.ActiveMqSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ public class TopicController implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicController.class);
 
     private static final CryptoApi crypto = new CryptoApi();
-    private static final String MONITOR_PARTITION = ActiveMqSetup.MONITOR_PARTITION;
+    private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
     private static final String NAME = "name";

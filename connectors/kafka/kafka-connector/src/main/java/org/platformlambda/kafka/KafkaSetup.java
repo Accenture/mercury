@@ -48,7 +48,6 @@ public class KafkaSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(KafkaSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MONITOR_PARTITION = APP_GROUP +"0";
     public static final String MANAGER = "kafka.manager";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
@@ -121,9 +120,6 @@ public class KafkaSetup implements CloudSetup {
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
                 ws.start();
-                // enable keep alive
-                AppAlive alive = new AppAlive();
-                alive.start();
             }
             // setup producer
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);

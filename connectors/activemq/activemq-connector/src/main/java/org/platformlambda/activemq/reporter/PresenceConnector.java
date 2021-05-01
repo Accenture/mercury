@@ -19,7 +19,6 @@
 package org.platformlambda.activemq.reporter;
 
 import org.platformlambda.activemq.ActiveMqSetup;
-import org.platformlambda.activemq.AppAlive;
 import org.platformlambda.activemq.InitialLoad;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.*;
@@ -232,7 +231,6 @@ public class PresenceConnector implements LambdaFunction {
             };
             ps.subscribe(topic, partition, appControl, clientId+"-2", groupId,
                             String.valueOf(InitialLoad.INITIALIZE));
-            AppAlive.setReady(true);
         }
     }
 
@@ -246,7 +244,6 @@ public class PresenceConnector implements LambdaFunction {
             ps.unsubscribe(topic, partition);
             ps.unsubscribe(monitorTopic, 1);
             topicPartition = null;
-            AppAlive.setReady(false);
         }
         // close publisher
         PostOffice.getInstance().send(PostOffice.CLOUD_CONNECTOR, new Kv(TYPE, STOP));
