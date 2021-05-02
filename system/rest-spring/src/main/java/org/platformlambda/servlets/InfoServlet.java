@@ -374,9 +374,9 @@ public class InfoServlet extends HttpServlet {
     }
 
     /**
-     * Validate a topic ID for an application instance
+     * Validate origin ID for an application instance
      *
-     * @param origin in format of yyyymmdd uuid
+     * @param origin in format of util.getDateUuid()
      * @return true if valid
      */
     private boolean validOriginIdFormat(String origin) {
