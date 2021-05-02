@@ -77,9 +77,8 @@ public class ServiceQuery implements LambdaFunction {
             result.put("routes", ServiceRegistry.getAllRoutes());
             result.put("nodes", ServiceRegistry.getAllOrigins());
             result.put("name", me);
+            result.put("origin", platform.getOrigin());
             result.put("group", closedUserGroup);
-            result.put("this", platform.getOrigin());
-            result.put("time", new Date());
             return result;
 
         } else if (FIND.equals(type) && headers.containsKey(ROUTE)) {
