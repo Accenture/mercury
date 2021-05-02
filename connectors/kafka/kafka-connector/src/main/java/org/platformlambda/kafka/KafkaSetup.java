@@ -48,7 +48,7 @@ public class KafkaSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(KafkaSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MANAGER = "kafka.manager";
+    public static final String CLOUD_MANAGER = "cloud.manager";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     private static String displayUrl = "unknown";

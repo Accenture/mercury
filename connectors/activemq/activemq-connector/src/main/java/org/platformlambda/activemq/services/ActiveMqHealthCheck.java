@@ -38,7 +38,7 @@ import java.util.Map;
 
 public class ActiveMqHealthCheck implements LambdaFunction {
 
-    private static final String MANAGER = ActiveMqSetup.MANAGER;
+    private static final String MANAGER = ActiveMqSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String HEALTH = "health";
     private static final String INFO = "info";

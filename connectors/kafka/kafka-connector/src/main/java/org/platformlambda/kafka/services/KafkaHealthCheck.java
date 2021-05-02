@@ -38,7 +38,7 @@ import java.util.Map;
 
 public class KafkaHealthCheck implements LambdaFunction {
 
-    private static final String MANAGER = KafkaSetup.MANAGER;
+    private static final String MANAGER = KafkaSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String HEALTH = "health";
     private static final String INFO = "info";

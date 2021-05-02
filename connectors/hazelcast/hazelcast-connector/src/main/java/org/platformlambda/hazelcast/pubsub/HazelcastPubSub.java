@@ -30,7 +30,7 @@ public class HazelcastPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(HazelcastPubSub.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String MANAGER = HazelcastSetup.MANAGER;
+    private static final String MANAGER = HazelcastSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String HEADERS = "headers";

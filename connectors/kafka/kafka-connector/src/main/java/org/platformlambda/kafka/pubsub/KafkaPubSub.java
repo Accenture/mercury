@@ -46,7 +46,7 @@ public class KafkaPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(KafkaPubSub.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String MANAGER = KafkaSetup.MANAGER;
+    private static final String MANAGER = KafkaSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String CREATE = "create";

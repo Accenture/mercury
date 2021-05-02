@@ -44,15 +44,11 @@ public class EnvServlet extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-
-		Map<String, Object> result = new HashMap<>(HealthServlet.getBasicInfo());
-
+		Map<String, Object> result = new HashMap<>();
 		Utility util = Utility.getInstance();
 		AppConfigReader reader = AppConfigReader.getInstance();
-
 		List<String> envVars = util.split(reader.getProperty(SHOW_ENV, ""), ", ");
 		List<String> properties = util.split(reader.getProperty(SHOW_PROPERTIES, ""), ", ");
-
 		List<String> missingVars = new ArrayList<>();
 		Map<String, Object> eMap = new HashMap<>();
 		if (!envVars.isEmpty()) {
@@ -66,7 +62,6 @@ public class EnvServlet extends HttpServlet {
 			}
 		}
 		result.put(SYSTEM_ENV, eMap);
-
 		List<String> missingProp = new ArrayList<>();
 		Map<String, Object> pMap = new HashMap<>();
 		if (!properties.isEmpty()) {

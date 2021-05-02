@@ -280,7 +280,7 @@ public class TopicManager implements LambdaFunction {
                     t0 = now;
                     if (admin != null && now - lastAccess > IDLE) {
                         try {
-                            PostOffice.getInstance().send(KafkaSetup.MANAGER, new Kv(TYPE, STOP));
+                            PostOffice.getInstance().send(KafkaSetup.CLOUD_MANAGER, new Kv(TYPE, STOP));
                         } catch (IOException e) {
                             // ok to ignore
                         }

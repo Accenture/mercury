@@ -13,8 +13,7 @@ Please do not use them in your application functions as it would disrupt the nor
 | system.service.query          | Distributed routing query              | cloud connectors                 |
 | cloud.connector.health        | Cloud connector health service         | cloud connectors and rest-spring |
 | additional.info               | Additional info service                | cloud connectors                 |
-| kafka.manager                 | Kafka manager service                  | Kafka cloud connector            |
-| hazelcast.manager             | Hazelcast manager service              | Hazelcast cloud connector        |
+| cloud.manager                 | Cloud manager service                  | Cloud connectors                 |
 | presence.service              | Presence reporter service              | cloud connectors                 |
 | presence.housekeeper          | Presence housekeeper service           | cloud connectors                 |
 | cloud.connector               | Cloud event emitter                    | Cloud connectors                 |

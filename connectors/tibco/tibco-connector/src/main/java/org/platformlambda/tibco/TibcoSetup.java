@@ -35,7 +35,7 @@ public class TibcoSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(TibcoSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MANAGER = "tibco.manager";
+    public static final String CLOUD_MANAGER = "cloud.manager";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String USER_ID = "user.id";

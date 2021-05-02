@@ -35,7 +35,7 @@ public class HazelcastSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(HazelcastSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MANAGER = "hazelcast.manager";
+    public static final String CLOUD_MANAGER = "cloud.manager";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final long MAX_CLUSTER_WAIT = 5 * 60 * 1000;

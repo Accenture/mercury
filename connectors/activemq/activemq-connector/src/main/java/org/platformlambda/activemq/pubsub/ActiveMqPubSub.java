@@ -30,7 +30,7 @@ public class ActiveMqPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(ActiveMqPubSub.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String MANAGER = ActiveMqSetup.MANAGER;
+    private static final String MANAGER = ActiveMqSetup.CLOUD_MANAGER;
     private static final String PUBLISHER = PresenceConnector.PUBLISHER;
     private static final String TYPE = "type";
     private static final String STOP = "stop";

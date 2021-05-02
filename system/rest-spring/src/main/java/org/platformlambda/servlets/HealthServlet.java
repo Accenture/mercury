@@ -22,7 +22,6 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
@@ -35,7 +34,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 @WebServlet("/health")
@@ -45,10 +47,8 @@ public class HealthServlet extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(HealthServlet.class);
     private static final ManagedCache cache = ManagedCache.createCache("health.info", 5000);
     private static final String TYPE = "type";
-    private static final String QUERY = "query";
     private static final String INFO = "info";
     private static final String HEALTH = "health";
-    private static final String NODE_INFO = "node.info";
     private static final String REQUIRED_SERVICES = "mandatory.health.dependencies";
     private static final String OPTIONAL_SERVICES = "optional.health.dependencies";
     private static final String ROUTE = "route";
@@ -81,7 +81,7 @@ public class HealthServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         boolean up = true;
-        Map<String, Object> result = new HashMap<>(getBasicInfo());
+        Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> upstream = new ArrayList<>();
         result.put(UPSTREAM, upstream);
         /*
@@ -95,29 +95,6 @@ public class HealthServlet extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("utf-8");
         response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> getBasicInfo() {
-        Object o = cache.get(NODE_INFO);
-        if (o instanceof Map) {
-            return (Map<String, Object>) o;
-        }
-        // get platform specific node information
-        AppConfigReader reader = AppConfigReader.getInstance();
-        String nodeInfo = reader.getProperty(NODE_INFO, NODE_INFO);
-        if (Platform.getInstance().hasRoute(nodeInfo)) {
-            try {
-                EventEnvelope response = PostOffice.getInstance().request(nodeInfo, 5000, new Kv(TYPE, QUERY));
-                if (response.getBody() instanceof Map) {
-                    cache.put(NODE_INFO, response.getBody());
-                    return (Map<String, Object>) response.getBody();
-                }
-            } catch (IOException | TimeoutException | AppException e) {
-                log.warn("Unable to obtain node info - {}", e.getMessage());
-            }
-        }
-        return Collections.EMPTY_MAP;
     }
 
     @SuppressWarnings("unchecked")

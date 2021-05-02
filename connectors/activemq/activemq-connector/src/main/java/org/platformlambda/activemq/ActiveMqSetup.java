@@ -33,7 +33,7 @@ public class ActiveMqSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(ActiveMqSetup.class);
 
     public static final String APP_GROUP = "@monitor-";
-    public static final String MANAGER = "activemq.manager";
+    public static final String CLOUD_MANAGER = "cloud.manager";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final String USER_ID = "user.id";

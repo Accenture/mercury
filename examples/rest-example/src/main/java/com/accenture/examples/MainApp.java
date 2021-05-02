@@ -69,9 +69,10 @@ public class MainApp implements EntryPoint {
         platform.register("math.addition", new DemoMath(), 5);
         /*
          * In distributed mode, cloud services are started automatically when you connect to cloud.
-         * In standalone mode, you can start cloud services programmatically.
+         * In standalone mode, you can start cloud services programmatically using:
+         *
+         * platform.startCloudServices();
          */
-         platform.startCloudServices();
         // connect to the network event streams so it can automatically discover other services
         platform.connectToCloud();
 
