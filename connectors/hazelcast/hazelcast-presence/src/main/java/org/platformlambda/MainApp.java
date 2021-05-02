@@ -42,7 +42,7 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static final String MONITOR_PARTITION = "@monitor-0";
-    public static final String MANAGER = HazelcastSetup.CLOUD_MANAGER;
+    public static final String CLOUD_MANAGER = HazelcastSetup.CLOUD_MANAGER;
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String TOPIC_CONTROLLER = "topic.controller";
@@ -76,7 +76,7 @@ public class MainApp implements EntryPoint {
         PubSub ps = PubSub.getInstance();
         PostOffice po = PostOffice.getInstance();
         platform.connectToCloud();
-        platform.waitForProvider(MANAGER, 20);
+        platform.waitForProvider(CLOUD_MANAGER, 20);
         platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 20);
         // start additional info service
         platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 3);

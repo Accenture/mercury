@@ -38,7 +38,7 @@ import java.util.Map;
 
 public class ActiveMqHealthCheck implements LambdaFunction {
 
-    private static final String MANAGER = ActiveMqSetup.CLOUD_MANAGER;
+    private static final String CLOUD_MANAGER = ActiveMqSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String HEALTH = "health";
     private static final String INFO = "info";
@@ -68,7 +68,7 @@ public class ActiveMqHealthCheck implements LambdaFunction {
         if (HEALTH.equals(headers.get(TYPE))) {
             if (presenceMonitor) {
                 PostOffice po = PostOffice.getInstance();
-                EventEnvelope response = po.request(MANAGER, TIMEOUT, new Kv(TYPE, LIST),
+                EventEnvelope response = po.request(CLOUD_MANAGER, TIMEOUT, new Kv(TYPE, LIST),
                         new Kv(ORIGIN, Platform.getInstance().getOrigin()));
                 if (response.getBody() instanceof List) {
                     List<String> topicList = (List<String>) response.getBody();

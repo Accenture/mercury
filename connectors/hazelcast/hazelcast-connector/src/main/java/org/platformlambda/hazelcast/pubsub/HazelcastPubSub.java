@@ -30,7 +30,7 @@ public class HazelcastPubSub implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(HazelcastPubSub.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String MANAGER = HazelcastSetup.CLOUD_MANAGER;
+    private static final String CLOUD_MANAGER = HazelcastSetup.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String HEADERS = "headers";
@@ -45,7 +45,7 @@ public class HazelcastPubSub implements PubSubProvider {
     public HazelcastPubSub() {
         try {
             // start Topic Manager
-            Platform.getInstance().registerPrivate(MANAGER, new TopicManager(), 1);
+            Platform.getInstance().registerPrivate(CLOUD_MANAGER, new TopicManager(), 1);
         } catch (IOException e) {
             log.error("Unable to start producer - {}", e.getMessage());
         }
@@ -83,7 +83,7 @@ public class HazelcastPubSub implements PubSubProvider {
     public boolean createTopic(String topic, int partitions) throws IOException {
         validateTopicName(topic);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(MANAGER, 20000,
+            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
                     new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
@@ -98,7 +98,7 @@ public class HazelcastPubSub implements PubSubProvider {
     @Override
     public void deleteTopic(String topic) throws IOException {
         try {
-            PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
+            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -207,7 +207,7 @@ public class HazelcastPubSub implements PubSubProvider {
     @Override
     public boolean exists(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
                     new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Boolean) {
                 return (Boolean) response.getBody();
@@ -222,7 +222,7 @@ public class HazelcastPubSub implements PubSubProvider {
     @Override
     public int partitionCount(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
                     new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Integer) {
                 return (Integer) response.getBody();
@@ -238,7 +238,7 @@ public class HazelcastPubSub implements PubSubProvider {
     @Override
     public List<String> list() throws IOException {
         try {
-            EventEnvelope init = PostOffice.getInstance().request(MANAGER, 20000, new Kv(TYPE, LIST));
+            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, LIST));
             if (init.getBody() instanceof List) {
                 return (List<String>) init.getBody();
             } else {

@@ -45,7 +45,7 @@ public class MonitorService implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
 
     private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
-    private static final String MANAGER = MainApp.MANAGER;
+    private static final String CLOUD_MANAGER = MainApp.CLOUD_MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String APP_GROUP = KafkaSetup.APP_GROUP;
     private static final String PUT = "put";
@@ -154,7 +154,7 @@ public class MonitorService implements LambdaFunction {
                     log.info("Started {}, {}, {}", route, ip, appOrigin);
                     // check if dependencies are ready
                     if (MonitorService.ready && platform.hasRoute(CLOUD_CONNECTOR) &&
-                            platform.hasRoute(MANAGER) && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
+                            platform.hasRoute(CLOUD_MANAGER) && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
                         Map<String, Object> info = new HashMap<>();
                         String time = util.date2str(new Date(), true);
                         info.put(CREATED, time);
