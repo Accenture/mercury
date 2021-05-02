@@ -71,7 +71,7 @@ public class InfoServlet extends HttpServlet {
     private static final String LIBRARY = "library";
     private static final String DEPLOYMENT = "deployment";
     private static final String ROUTE_SUBSTITUTION = "route_substitution";
-    private static final int TOPIC_LEN = Utility.getInstance().getDateUuid().length();
+    private static final int ORIGIN_ID_LEN = Utility.getInstance().getDateUuid().length();
     private static final String META_INF = "/META-INF/";
     private static final String MANIFEST = "/META-INF/MANIFEST.MF";
     private static final String IMPL_VERSION = "Implementation-Version";
@@ -117,34 +117,28 @@ public class InfoServlet extends HttpServlet {
         if (appId != null) {
             app.put(INSTANCE, appId);
         }
-        List<String> pathElements = util.split(request.getPathInfo(), "/");
-        /*
-         * add routing table information if any
-         */
-        if (pathElements.size() == 1 && LIST_ROUTES.equals(pathElements.get(0))) {
+        List<String> path = util.split(request.getPathInfo(), "/");
+        if (!path.isEmpty() && LIST_ROUTES.equals(path.get(0))) {
             if (isServiceMonitor) {
-                response.sendError(400, "Routing table is not shown from a presence monitor");
+                response.sendError(400, "Routing table is not visible from a presence monitor - " +
+                        "please try it from a regular application instance");
                 return;
             }
-            String node = request.getParameter(ORIGIN);
-            if (node != null) {
-                if (isServiceMonitor) {
-                    response.sendError(400, "Remote routing table is not shown when using Presence Monitor");
-                    return;
-                }
-                if (!node.equals(platform.getOrigin())) {
-                    showRemoteRouting(node, response);
-                    return;
-                }
-            }
             try {
-                result.put(ROUTING, getRoutingTable());
-                // add route substitution list if any
-                Map<String, String> substitutions = PostOffice.getInstance().getRouteSubstitutionList();
-                if (!substitutions.isEmpty()) {
-                    result.put(ROUTE_SUBSTITUTION, substitutions);
+                if (path.size() == 1) {
+                    result.put(ROUTING, getRoutingTable());
+                    // add route substitution list if any
+                    Map<String, String> substitutions = PostOffice.getInstance().getRouteSubstitutionList();
+                    if (!substitutions.isEmpty()) {
+                        result.put(ROUTE_SUBSTITUTION, substitutions);
+                    }
+                } else if (path.size() == 2) {
+                    showRemoteRouting(path.get(1), response);
+                    return;
+                } else {
+                    response.sendError(400, "Usage: /info, /info/{originId}");
+                    return;
                 }
-
             } catch (TimeoutException e) {
                 sendError(response, request.getRequestURI(), 408, e.getMessage());
                 return;
@@ -152,10 +146,10 @@ public class InfoServlet extends HttpServlet {
                 sendError(response, request.getRequestURI(), e.getStatus(), e.getMessage());
                 return;
             }
-        } else if (pathElements.size() == 1 && LIB.equals(pathElements.get(0))) {
+        } else if (path.size() == 1 && LIB.equals(path.get(0))) {
             result.put(LIBRARY, libraryList);
 
-        } else if (pathElements.isEmpty()) {
+        } else if (path.isEmpty()) {
             // java VM information
             Map<String, Object> jvm = new HashMap<>();
             result.put(JVM, jvm);
@@ -271,25 +265,27 @@ public class InfoServlet extends HttpServlet {
     }
 
     private void showRemoteRouting(String node, HttpServletResponse response) throws IOException {
-        if (regularTopicFormat(node)) {
+        if (validOriginIdFormat(node)) {
             try {
-                Map<String, Object> result = new HashMap<>();
-                result.put(TYPE, "remote");
-                result.put(ROUTING, getRemoteRouting(node));
-                result.put(TIME, new Date());
-                result.put(ORIGIN, Platform.getInstance().getOrigin());
-                // send result
-                response.setContentType("application/json");
-                response.setCharacterEncoding("utf-8");
-                response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
-
+                if (PostOffice.getInstance().exists(node)) {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put(TYPE, "remote");
+                    result.put(ROUTING, getRemoteRouting(node));
+                    result.put(TIME, new Date());
+                    // send result
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("utf-8");
+                    response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
+                } else {
+                    response.sendError(400, node+" is not available");
+                }
             } catch (AppException e) {
                 response.sendError(e.getStatus(), e.getMessage());
             } catch (TimeoutException e) {
                 response.sendError(408, e.getMessage());
             }
         } else {
-            response.sendError(400, "Invalid application instance format (origin)");
+            response.sendError(400, "Invalid application instance");
         }
     }
 
@@ -380,16 +376,16 @@ public class InfoServlet extends HttpServlet {
     /**
      * Validate a topic ID for an application instance
      *
-     * @param topic in format of yyyymmdd uuid
+     * @param origin in format of yyyymmdd uuid
      * @return true if valid
      */
-    private boolean regularTopicFormat(String topic) {
-        if (topic.length() != TOPIC_LEN) {
+    private boolean validOriginIdFormat(String origin) {
+        if (origin.length() != ORIGIN_ID_LEN) {
             return false;
         }
         // first 8 digits is a date stamp
-        String uuid = topic.substring(8);
-        if (!Utility.getInstance().isDigits(topic.substring(0, 8))) {
+        String uuid = origin.substring(8);
+        if (!Utility.getInstance().isDigits(origin.substring(0, 8))) {
             return false;
         }
         for (int i=0; i < uuid.length(); i++) {
