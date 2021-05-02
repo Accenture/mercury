@@ -56,7 +56,7 @@ public class RestLoader implements ServletContextInitializer {
             AppStarter.setWebApp(true);
             AppStarter.main(new String[0]);
             // initialize mapper to improve start-up time
-            log.info("Mapper {} loaded", SimpleMapper.getInstance());
+            log.info("{} initialized", SimpleMapper.getInstance().getClass().getSimpleName());
             // get JAX-RS base URL
             AppConfigReader config = AppConfigReader.getInstance();
             String apiPrefix = normalizeUrlPrefix(config.getProperty(BASE_URL, DEFAULT_API_PATH));

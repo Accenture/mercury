@@ -23,6 +23,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,13 +40,17 @@ public class HouseKeeper implements LambdaFunction {
     private static final String DOWNLOAD = "download";
     private static final String INIT = "init";
     private static final String ORIGIN = "origin";
+    private static final String INSTANCE = "instance";
     private static final long ONE_MINUTE = 60 * 1000;
-    private static final ConcurrentMap<String, Long> monitors = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, MonitorInstance> monitors = new ConcurrentHashMap<>();
 
-    public static Map<String, Date> getMonitors() {
-        Map<String, Date> result = new HashMap<>();
+    public static Map<String, String> getMonitors() {
+        Utility util = Utility.getInstance();
+        Map<String, String> result = new HashMap<>();
         for (String m: monitors.keySet()) {
-            result.put(m, new Date(monitors.get(m)));
+            MonitorInstance monitor = monitors.get(m);
+            result.put(m, m.equals(monitor.instance) ? util.date2str(new Date(monitor.updated)) :
+                    monitor.instance+", "+util.date2str(new Date(monitor.updated)));
         }
         return result;
     }
@@ -60,7 +65,9 @@ public class HouseKeeper implements LambdaFunction {
         if (INIT.equals(type)) {
             if (myOrigin.equals(headers.get(ORIGIN))) {
                 if (!monitors.containsKey(myOrigin)) {
-                    monitors.put(myOrigin, System.currentTimeMillis());
+                    String appId = headers.get(INSTANCE);
+                    monitors.put(myOrigin, new MonitorInstance(appId == null ? myOrigin : appId,
+                            System.currentTimeMillis()));
                     log.info("Registered monitor (me) {}", myOrigin);
                 }
             } else {
@@ -76,7 +83,8 @@ public class HouseKeeper implements LambdaFunction {
             if (!monitors.containsKey(origin)) {
                 log.info("Registered monitor {} {}", me.equals(origin) ? "(me)" : "(peer)", origin);
             }
-            monitors.put(origin, System.currentTimeMillis());
+            String appId = headers.get(INSTANCE);
+            monitors.put(origin, new MonitorInstance(appId == null ? origin : appId, System.currentTimeMillis()));
             removeExpiredMonitors();
             if (body instanceof List) {
                 // compare connection list
@@ -112,8 +120,8 @@ public class HouseKeeper implements LambdaFunction {
         long now = System.currentTimeMillis();
         List<String> expired = new ArrayList<>();
         for (String k: monitors.keySet()) {
-            long time = monitors.get(k);
-            if (now - time > ONE_MINUTE) {
+            MonitorInstance monitor = monitors.get(k);
+            if (now - monitor.updated > ONE_MINUTE) {
                 expired.add(k);
             }
         }
@@ -122,6 +130,16 @@ public class HouseKeeper implements LambdaFunction {
                 monitors.remove(k);
                 log.info("Removed monitor {}", k);
             }
+        }
+    }
+
+    private static class MonitorInstance {
+        public String instance;
+        public long updated;
+
+        public MonitorInstance(String instance, long updated) {
+            this.instance = instance;
+            this.updated = updated;
         }
     }
 

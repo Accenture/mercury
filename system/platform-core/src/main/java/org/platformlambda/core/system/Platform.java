@@ -71,7 +71,10 @@ public class Platform {
      * IMPORTANT: If this OPTIONAL value is set, the origin ID will be derived from this value.
      *
      * You MUST use unique ID for each application instance otherwise service routing would fail.
-     * e.g. applicationName + timestamp + user.name
+     *
+     * For examples:
+     * For production, you may use unique ID like Kubernetes pod-ID
+     * For development in a laptop, you may use applicationName + timestamp + user.name
      *
      * @param id unique application name and instance identifier
      */
@@ -195,6 +198,7 @@ public class Platform {
                 serviceName = connector.name();
                 original = connector.original();
             }
+            final String nextService = original.equals(serviceName)? "" : original;
             if (name.equals(serviceName)) {
                 try {
                     Object o = cls.getDeclaredConstructor().newInstance();
@@ -203,11 +207,9 @@ public class Platform {
                         new Thread(()-> {
                             log.info("Starting cloud {} {} using {}", isConnector? "connector" : "service", name, cls.getName());
                             cloud.initialize();
-                            /*
-                             * For wrapper, the system will execute original connector or service after initialization.
-                             */
-                            if (original.length() > 0) {
-                                startService(original, services, isConnector);
+                            // execute next service if provided
+                            if (!nextService.isEmpty()) {
+                                startService(nextService, services, isConnector);
                             }
                         }).start();
                         return true;
