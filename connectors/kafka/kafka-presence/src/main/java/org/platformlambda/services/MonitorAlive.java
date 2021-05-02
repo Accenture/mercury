@@ -19,7 +19,7 @@
 package org.platformlambda.services;
 
 import org.platformlambda.MainApp;
-import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.slf4j.Logger;
@@ -36,6 +36,7 @@ public class MonitorAlive extends Thread {
     private static final String MONITOR_ALIVE = MainApp.MONITOR_ALIVE;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
+    private static final String INSTANCE = "instance";
     private static final long INTERVAL = 20 * 1000;
     private static boolean ready = false;
     private static long t0 = 0;
@@ -51,8 +52,10 @@ public class MonitorAlive extends Thread {
         log.info("Started");
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
-        String origin = Platform.getInstance().getOrigin();
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
+        String appId = platform.getAppId();
+        String origin = platform.getOrigin();
         while (normal) {
             long now = System.currentTimeMillis();
             if (now - t0 > INTERVAL) {
@@ -61,8 +64,17 @@ public class MonitorAlive extends Thread {
                     try {
                         // broadcast to all presence monitors
                         List<String> payload = new ArrayList<>(MonitorService.getConnections().keySet());
-                        po.send(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION, payload,
-                                new Kv(ORIGIN, origin), new Kv(TYPE, MONITOR_ALIVE));
+                        EventEnvelope event = new EventEnvelope().setBody(payload)
+                                .setTo(MainApp.PRESENCE_HOUSEKEEPER + MONITOR_PARTITION)
+                                .setHeader(TYPE, MONITOR_ALIVE).setHeader(ORIGIN, origin);
+                        /*
+                         * Optional app instance ID (e.g. Kubernetes' pod-ID)
+                         * can be set using Platform.setAppId(uniqueAppInstanceId) before the app starts.
+                         */
+                        if (appId != null) {
+                            event.setHeader(INSTANCE, appId);
+                        }
+                        po.send(event);
                     } catch (IOException e) {
                         log.error("Unable to send keep-alive - {}", e.getMessage());
                     }

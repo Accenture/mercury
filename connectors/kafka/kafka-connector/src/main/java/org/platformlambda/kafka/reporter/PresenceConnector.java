@@ -38,7 +38,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String APP_GROUP = KafkaSetup.APP_GROUP;
     private static final String TYPE = "type";
     private static final String INIT = "init";
-    private static final String APP_ID = "app_id";
+    private static final String INSTANCE = "instance";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
     private static final String ALIVE = "keep-alive";
@@ -181,7 +181,7 @@ public class PresenceConnector implements LambdaFunction {
                 }
                 String appId = Platform.getInstance().getAppId();
                 if (appId != null) {
-                    info.setHeader(APP_ID, appId);
+                    info.setHeader(INSTANCE, appId);
                 }
                 PostOffice.getInstance().send(monitor, info.toBytes());
 
