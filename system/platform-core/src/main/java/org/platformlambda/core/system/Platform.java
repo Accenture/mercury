@@ -81,9 +81,9 @@ public class Platform {
     public static void setAppId(String id) {
         if (Platform.appId == null) {
             Platform.appId = id;
-            log.info("app_id set to {}", Platform.appId);
+            log.info("application instance ID set to {}", Platform.appId);
         } else {
-            log.error("app_id is already set as {}", Platform.appId);
+            log.error("Unable to change application instance ID as it was set as {}", Platform.appId);
         }
     }
 
