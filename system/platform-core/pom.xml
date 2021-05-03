@@ -37,7 +37,6 @@
     </repositories>
 
     <dependencies>
-
         <!-- We are using Spring Context as a class path scanner -->
         <dependency>
             <groupId>org.springframework</groupId>

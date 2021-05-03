@@ -39,6 +39,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.platformlambda</groupId>
+            <artifactId>platform-core</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <exclusions>
@@ -100,11 +105,6 @@
             <groupId>com.fasterxml</groupId>
             <artifactId>classmate</artifactId>
             <version>1.5.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>platform-core</artifactId>
-            <version>2.0.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxrs -->
         <!-- DO NOT import resteasy-servlet-initializer because RestLoader will do the initialization -->
