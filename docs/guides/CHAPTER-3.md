@@ -244,11 +244,15 @@ List<String> originIDs = po.search(String route);
 
 ### Pub/Sub for store-n-forward event streaming
 
-Native Pub/Sub will be automatically enabled if the underlying cloud connector supports it. e.g. Kafka.
-
 Mercury provides real-time inter-service event streaming and you do not need to deal with low-level messaging.
 
 However, if you want to do store-n-forward pub/sub for certain use cases, you may use the `PubSub` class.
+
+Native pub/sub refers to the long term storage of events for event playback or "time rewind".
+For example, this "commit log" architecture is available in Apache Kafka.
+
+To test if the underlying event system supports native pub/sub, use the "isNativePubSub" API.
+
 Following are some useful pub/sub API:
 
 ```java
@@ -265,7 +269,7 @@ public void unsubscribe(String topic, int partition) throws IOException;
 public boolean exists(String topic) throws IOException;
 public int partitionCount(String topic) throws IOException;
 public List<String> list() throws IOException;
-
+public boolean isNativePubSub();
 ```
 Some pub/sub engine would require additional parameters when subscribing a topic. For Kafka, you must provide the following parameters
 

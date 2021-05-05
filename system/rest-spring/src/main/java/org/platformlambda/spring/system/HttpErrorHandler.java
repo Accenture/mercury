@@ -50,6 +50,7 @@ public class HttpErrorHandler implements ErrorController {
     private static final String HTTP_500_WARNING = "Something may be broken";
     private static final String TYPE = "type";
     private static final String ERROR = "error";
+    private static final String OK = "ok";
     private static final String PATH = "path";
     private static final String ACCEPT = "accept";
     private static final String ACCEPT_ANY = "*/*";
@@ -109,7 +110,7 @@ public class HttpErrorHandler implements ErrorController {
             template = util.stream2str(HttpErrorHandler.class.getResourceAsStream(TEMPLATE));
         }
         HashMap<String, Object> error = new HashMap<>();
-        error.put(TYPE, ERROR);
+        error.put(TYPE, status < 300? OK : ERROR);
         error.put(MESSAGE, message);
         error.put(PATH, path);
         error.put(STATUS, status);

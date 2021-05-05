@@ -6,13 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.0.0, 4/29/2021
+## Version 2.0.0, 5/5/2021
 
-Vert.x is introduced as the in-memory event bus since version 2.0
+Vert.x is introduced as the in-memory event bus
 
 ### Added
 
-Added ActiveMQ and Tibco connectors
+1. ActiveMQ and Tibco connectors
+2. Admin endpoints to stop, suspend and resume an application instance
+3. Handle edge case to detect stalled application instances
+4. Add "isNativePubSub" method to the PubSub interface
 
 ### Removed
 
@@ -24,6 +27,7 @@ Added ActiveMQ and Tibco connectors
 1. Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
 2. Updated ConfigReader to make consistent with Spring value substitution logic for application properties
 3. Replace Akka actor system with Vert.x event bus
+4. Common code for various cloud connectors consolidated into cloud core libraries
 
 ---
 ## Version 1.13.0, 1/15/2021
@@ -632,7 +636,9 @@ pom.xml changes - update with latest 3rd party open sources dependencies.
 `platform-core`
 
 1. Support for long running functions so that any long queries will not block the rest of the system.
-2. "safe.data.models" is available as an option in the application.properties. This is an additional security measure to protect against Jackson deserialization vulnerability. See example below:
+2. "safe.data.models" is available as an option in the application.properties. 
+   This is an additional security measure to protect against Jackson deserialization vulnerability. 
+   See example below:
 
 ```
 #

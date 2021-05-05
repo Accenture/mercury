@@ -236,4 +236,8 @@ public class PubSub {
         return provider.list();
     }
 
+    public boolean isNativePubSub() {
+        return provider.isNativePubSub();
+    }
+
 }

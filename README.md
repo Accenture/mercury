@@ -26,7 +26,7 @@ In fact, you can encapsulate other event stream or even enterprise service bus (
 
 Best regards, the Mercury team, Accenture
 
-April 2021
+May 2021
 
 ## Rationale
 
@@ -170,36 +170,45 @@ The Mercury framework includes the following:
 
 `platform core`
 
-With Mercury, any software module can be expressed as an anonymous functions or a Java class that implements the LambdaFunction interface.
+With Mercury, any software module can be expressed as an anonymous functions or a Java class that implements 
+the LambdaFunction interface.
 
 The platform core library enables the following:
-1. High level of decoupling - You may write business logic as anonymous functions that run concurrently and independently. In addition to business logic, you may also encapsulate platform components and databases as anonymous functions.
-2. Event driven programming - Each function is addressable with a unique "route name" and they communicate by sending events. You make request from one function to another by making a service call through some simple Mercury Post Office API.
-3. One or more functions can be packaged together as a microservice executable, usually deployed as a Docker image or similar container technology.
+1. High level of decoupling - You may write business logic as anonymous functions that run concurrently and 
+   independently. In addition to business logic, you may also encapsulate platform components and databases as 
+   anonymous functions.
+2. Event driven programming - Each function is addressable with a unique "route name" and they communicate by 
+   sending events. You make request from one function to another by making a service call through some simple 
+   Mercury Post Office API.
+3. One or more functions can be packaged together as a microservice executable, usually deployed as a Docker 
+   image or similar container technology.
 
 `rest-spring`
 
-The rest-spring library customizes and simplifies the use of Spring Boot as an application container to hold functions. This includes preconfigured message serializers and exception handlers.
+The rest-spring library customizes and simplifies the use of Spring Boot as an application container to hold functions. 
+This includes preconfigured message serializers and exception handlers.
+
+`cloud-connector` and `service-monitor`
+
+The cloud-connector and service-monitor are the core libraries to support implementations of various cloud connectors.
+
+Mercury supports Kafka, Hazelcast, ActiveMQ-artemis and TIBCO-EMS out of the box. 
 
 `kafka-connector`
 
-This connector library is designed to work with Kafka version 2.7.0 out of the box that you add it into your application's pom.xml. A convenient standalone Kafka server application is available in the `kafka-standalone` project under the `connector` directory. The standalone Kafka server is a convenient tool for application development and tests in the developer's laptop.
+This is the kafka specific connector library is designed to work with Kafka version 2.7.0 out of the box
+that you add it into your application's pom.xml. A convenient standalone Kafka server application is available 
+in the `kafka-standalone` project under the `connector/kafka` directory. 
+The standalone Kafka server is a convenient tool for application development and tests in the developer's laptop.
 
 `kafka-presence`
 
-The "presence monitor" manages mapping of Kafka topics and detects when an application instance is offline. Your application instances will report to the presence monitors (2 to 3 monitor instances are enough for large installations). Kafka topics are persistent and the presence monitors can reassign unused topics to application instances.
+This "presence monitor" manages mapping of Kafka topics and detects when an application instance is online or offline. 
+Your application instances will report to the presence monitors (2 monitor instances are enough for 
+large installations). Since version 2.0, it uses a single partition of a topic to serve an application instance.
+To avoid deleting topics, the system can re-use topics and partitions automatically.
 
 The kafka-presence system is fully scalable.
-
-`hazelcast-connector`
-
-This connector library is designed to work with Hazelcast version 4.2 out of the box that you add it into your application's pom.xml. To use this connector, you can download Hazelcast from https://hazelcast.org/download/
-
-`hazelcast-presence`
-
-The "presence monitor" manages mapping of Hazelcast topics and detects when an application instance is offline. Your application instances will report to the presence monitors (2 to 3 monitor instances are enough for large installations). Hazelcast topics are maintained in memory and the presence monitors can recreate them when the Hazelcast cluster is restarted.
-
-The hazelcast-presence system is fully scalable.
 
 `language-connector`
 

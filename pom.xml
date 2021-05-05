@@ -9,23 +9,32 @@
     <version>1.0.0</version>
     <name>Parent Mercury</name>
     <modules>
-        <!-- Libraries -->
+        <!-- Core libraries -->
         <module>system/platform-core</module>
         <module>system/rest-spring</module>
-        <module>connectors/hazelcast/hazelcast-connector</module>
-        <module>connectors/activemq/activemq-connector</module>
-        <module>connectors/kafka/kafka-connector</module>
+        <!-- Core cloud libraries -->
+        <module>connectors/core/cloud-connector</module>
+        <module>connectors/core/service-monitor</module>
+        <!-- connnector implementations -->
+        <module>connectors/adapters/kafka/kafka-connector</module>
+        <module>connectors/adapters/hazelcast/hazelcast-connector</module>
+        <module>connectors/adapters/activemq/activemq-connector</module>
+        <!-- REST automation library -->
         <module>extensions/rest-automation-lib</module>
-        <!-- Executables -->
-        <module>connectors/hazelcast/hazelcast-presence</module>
-        <module>connectors/activemq/activemq-presence</module>
-        <module>connectors/kafka/kafka-presence</module>
-        <module>connectors/kafka/kafka-standalone</module>
+        <!-- Convenient kafka standalone server for develoopment and testing -->
+        <module>connectors/adapters/kafka/kafka-standalone</module>
+        <!-- Executables for cloud specific presence monitors -->
+        <module>connectors/adapters/kafka/kafka-presence</module>
+        <module>connectors/adapters/hazelcast/hazelcast-presence</module>
+        <module>connectors/adapters/activemq/activemq-presence</module>
+        <!-- Executables for tools -->
         <module>extensions/api-playground</module>
         <module>extensions/simple-scheduler</module>
         <module>extensions/distributed-tracer</module>
         <module>extensions/rest-automation-app</module>
+        <!-- Executables for language connector -->
         <module>language-packs/language-connector</module>
+        <!-- Executables for application examples -->
         <module>examples/lambda-example</module>
         <module>examples/rest-example</module>
     </modules>

@@ -14,7 +14,6 @@
 | show.application.properties                 | comma separated list of property names    | Optional*1|
 | cloud.connector                             | kafka, hazelcast, none, etc.              | Optional  |
 | cloud.services                              | e.g. some.interesting.service             | Optional  |
-| hazelcast.cluster                           | e.g. 127.0.0.1:5701,127.0.0.1:5702        | Optional  |
 | snake.case.serialization                    | true (recommended)                        | Optional  |
 | env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
 | safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
@@ -26,9 +25,8 @@
 | index.page                                  | default value is index.html               | Optional*1|
 | application.feature.route.substitution      | default value is false                    | Optional  |
 | route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| kafka.client.properties                     | classpath:/kafka.properties               | Kafka     |
+| cloud.client.properties                     | e.g. classpath:/kafka.properties          | connectors|
 | kafka.replication.factor                    | 3                                         | Kafka     |
-| app.shutdown.key                            | secret key to shutdown app instance       | Optional  |
 | default.app.group.id                        | kafka groupId for the app instance        | Optional  |
 | default.monitor.group.id                    | kafka groupId for the presence-monitor    | Optional  |
 | monitor.topic                               | kafka topic for the presence-monitor      | Optional  |
@@ -56,7 +54,11 @@ You can get an instance of the serializer with `SimpleMapper.getInstance().getWh
 
 # info.api.key
 
-When "protected.info.endpoints" are configured, you must provide this secret in the "X-Info-Key" header when accessing the protected endpoints. 
+When "protected.info.endpoints" are configured, you must provide the secret in the "X-Info-Key" header when accessing the protected endpoints.
+You may define "info.api.key" in application.properties for the secret.
+For security, we recommend pointing the parameter to an environment variable.
+
+For convenience, if you do not define the "info.api.key", the application's origin-ID is used as the secret.
 
 # trace.http.header
 
@@ -80,16 +82,6 @@ e.g.
 
 ```xml
 <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
-```
-
-# app.shutdown.key
-
-If this parameter is given, the shutdown endpoint will be activated.
-```
-POST /shutdown
-
-content-type: "application/x-www-form-urlencoded"
-body: key=the_shutdown_key&origin=originId
 ```
 
 # route substitution

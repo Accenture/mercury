@@ -1,5 +1,24 @@
 # Additional features
 
+## Admin endpoints to stop, suspend or resume
+
+You can stop, suspend or resume an application instance from a presence monitor.
+
+1. `Shutdown` - stop an application so that the container management system will restart it
+2. `Suspend` - tell the application instance not to accept incoming requests
+3. `Resume` - tell the application instance to accept incoming requests
+
+Suspend and resume commands are usually used to simulate error cases for development and testing purposes.
+
+```
+POST /shutdown
+POST /suspend
+POST /resume
+
+HTTP request header
+X-App-Instance=origin_id_here
+```
+
 ## HttpClient as a service
 
 Starting from version 1.12.30, the rest-automation system, when deployed, will provide the "async.http.request" service.
@@ -112,10 +131,11 @@ if (resHeaders.containsKey("stream")) {
 
 ## Content length for HTTP request
 
-`Important` - Do not set the "content-length" HTTP header because the system will automatically compute the correct content-length for small payload.
-For large payload, it will use the chunking method.
+`Important` - Do not set the "content-length" HTTP header because the system will automatically compute the
+correct content-length for small payload. For large payload, it will use the chunking method.
 
-The system may use data compression and thus manually setting content length for HTTP request body would result in unpredictable side-effect.
+The system may use data compression. Manually setting content length for HTTP request body would result
+in unintended side effects.
 
 ---
 

@@ -150,10 +150,8 @@ public class LanguageConnector implements LambdaFunction {
     private static String getApiKey() {
         Utility util = Utility.getInstance();
         AppConfigReader reader = AppConfigReader.getInstance();
-        String envVar = reader.getProperty("api.key.location");
-        String apiKeyInEnv = System.getenv(envVar);
+        String apiKeyInEnv = reader.getProperty("language.pack.key");
         if (apiKeyInEnv != null) {
-            log.info("Found API key in environment variable {}", envVar);
             return apiKeyInEnv;
         }
         File tempConfigDir = new File("/tmp/config");
@@ -162,10 +160,10 @@ public class LanguageConnector implements LambdaFunction {
         }
         File apiKeyFile = new File(tempConfigDir, "lang-api-key.txt");
         if (apiKeyFile.exists()) {
-            log.info("Reading API key from {}", apiKeyFile);
+            log.info("Reading language API key from {}", apiKeyFile);
             return util.file2str(apiKeyFile).trim();
         } else {
-            log.warn("Generating new API key in {} because it is not found in environment variable {}", apiKeyFile, envVar);
+            log.warn("Generating new language API key in {}", apiKeyFile);
             String key = util.getUuid();
             util.str2file(apiKeyFile, key+"\n");
             return key;

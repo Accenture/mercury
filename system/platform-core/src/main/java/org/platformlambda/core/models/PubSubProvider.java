@@ -53,4 +53,6 @@ public interface PubSubProvider {
 
     List<String> list() throws IOException;
 
+    boolean isNativePubSub();
+
 }

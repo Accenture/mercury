@@ -61,11 +61,7 @@ public class PostOffice {
             // start built-in services
             platform.registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
-            platform.registerPrivate(SHUTDOWN_SERVICE, (headers, body, instance) -> {
-                log.info("Shutting down as per operator request");
-                System.exit(-2);
-                return true;
-            }, 1);
+            platform.registerPrivate(SHUTDOWN_SERVICE, new ShutdownService(), 1);
             log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
             AppConfigReader config = AppConfigReader.getInstance();

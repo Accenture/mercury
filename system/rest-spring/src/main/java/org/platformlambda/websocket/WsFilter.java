@@ -17,6 +17,7 @@
  */
 package org.platformlambda.websocket;
 
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -72,14 +73,13 @@ public class WsFilter implements Filter {
             // protected info pages
             String endpoints = reader.getProperty("protected.info.endpoints");
             if (endpoints != null) {
+                String origin = Platform.getInstance().getOrigin();
                 protectedRestEndpoints = util.split(endpoints, ", ");
-                infoApiKey = reader.getProperty("info.api.key");
-                if (infoApiKey == null) {
-                    // randomize secret key because it is not configured
-                    infoApiKey = util.getUuid();
-                    log.error("{} disabled because info.api.key is not configured", protectedRestEndpoints);
+                infoApiKey = reader.getProperty("info.api.key", origin);
+                if (origin.equals(infoApiKey)) {
+                    log.error("{} endpoints visible with HTTP header ({}={})", protectedRestEndpoints, X_INFO_KEY, origin);
                 } else {
-                    log.info("{} loaded to protect {}", X_INFO_KEY, protectedRestEndpoints);
+                    log.info("{} endpoints visible with HTTP header ({})", protectedRestEndpoints, X_INFO_KEY);
                 }
             }
         }
