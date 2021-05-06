@@ -55,6 +55,9 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String USER = "user";
     private static final String SUSPEND = "suspend";
     private static final String RESUME = "resume";
+    private static final String ISOLATE = "isolate";
+    private static final String WHEN = "when";
+    private static final String NOW = "now";
     private static final String MONITOR = "monitor-";
     private static final long EXPIRY = 60 * 1000;
 
@@ -155,25 +158,50 @@ public class ServiceRegistry implements LambdaFunction {
                 }
             }
         }
-        if (headers.containsKey(USER) && (SUSPEND.equals(type) || RESUME.equals(type))) {
-            PresenceConnector.getInstance().setActive(headers.get(USER), RESUME.equals(type));
+        if (headers.containsKey(USER)) {
+            if (presenceMonitor) {
+                log.warn("{} request from {} ignored because this is a presence monitor",
+                        headers.get(TYPE), headers.get(USER));
+            } else {
+                String user = headers.get(USER);
+                if (RESUME.equals(type) || SUSPEND.equals(type)) {
+                    PresenceConnector connector = PresenceConnector.getInstance();
+                    connector.setActive(myOrigin, user, RESUME.equals(type));
+                    if (NOW.equals(headers.get(WHEN))) {
+                        if (RESUME.equals(type)) {
+                            sendMyRoutes(true);
+                            log.info("Restore {} as requested by {}", myOrigin, user);
+                        } else {
+                            po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
+                                    new Kv(TYPE, ISOLATE), new Kv(USER, user), new Kv(ORIGIN, platform.getOrigin()));
+                        }
+                    }
+                }
+                if (ISOLATE.equals(type) && headers.containsKey(ORIGIN)) {
+                    String origin = headers.get(ORIGIN);
+                    if (!origin.equals(myOrigin)) {
+                        log.warn("Isolate {} as requested {}", origin, user);
+                        removeRoutesFromOrigin(origin);
+                    }
+                }
+            }
         }
         if (ALIVE.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
             String topic = headers.get(TOPIC);
-            if (origins.containsKey(origin)) {
-                origins.put(origin, Utility.getInstance().date2str(new Date(), true));
-                originTopic.put(origin, topic);
-            }
-            if (myOrigin.equals(origin)) {
-                removeStalledPeers();
-            } else {
-                if (!origins.containsKey(origin)) {
-                    log.info("Peer {} wakes up", origin);
-                    po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
-                            new Kv(ORIGIN, origin), new Kv(TOPIC, topic));
+            if (!presenceMonitor) {
+                if (myOrigin.equals(origin)) {
+                    removeStalledPeers();
+                } else {
+                    if (!origins.containsKey(origin)) {
+                        log.info("Peer {} wakes up", origin);
+                        po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                                new Kv(ORIGIN, origin), new Kv(TOPIC, topic));
+                    }
                 }
             }
+            origins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            originTopic.put(origin, topic);
         }
         // when a node leaves
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
@@ -201,15 +229,52 @@ public class ServiceRegistry implements LambdaFunction {
                 }
             }
         }
-        // add route
-        if (ADD.equals(type) && headers.containsKey(ORIGIN)) {
-            String origin = headers.get(ORIGIN);
-            if (headers.containsKey(ROUTE) && headers.containsKey(PERSONALITY)) {
-                // add a single route
+        if (!presenceMonitor) {
+            // add route
+            if (ADD.equals(type) && headers.containsKey(ORIGIN)) {
+                String origin = headers.get(ORIGIN);
+                if (headers.containsKey(ROUTE) && headers.containsKey(PERSONALITY)) {
+                    // add a single route
+                    String route = headers.get(ROUTE);
+                    String personality = headers.get(PERSONALITY);
+                    // add to routing table
+                    addRoute(origin, route, personality);
+                    if (origin.equals(myOrigin) && !headers.containsKey(IS_FINAL)) {
+                        // broadcast to peers
+                        EventEnvelope request = new EventEnvelope();
+                        request.setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
+                                .setHeaders(headers).setHeader(IS_FINAL, true);
+                        po.send(request);
+                    }
+
+                } else if (body instanceof Map) {
+                    if (!origin.equals(myOrigin)) {
+                        // add a list of routes
+                        Map<String, String> routeMap = (Map<String, String>) body;
+                        int count = routeMap.size();
+                        int n = 0;
+                        for (String route : routeMap.keySet()) {
+                            String personality = routeMap.get(route);
+                            if (addRoute(origin, route, personality)) n++;
+                        }
+                        if (n > 0) {
+                            log.info("Loaded {} route{} from {}", count, count == 1 ? "" : "s", origin);
+                        }
+                        if (headers.containsKey(TOPIC)) {
+                            originTopic.put(origin, headers.get(TOPIC));
+                        }
+                        if (headers.containsKey(EXCHANGE)) {
+                            sendMyRoutes(false);
+                        }
+                    }
+                }
+            }
+            // clear a route
+            if (UNREGISTER.equals(type) && headers.containsKey(ROUTE) && headers.containsKey(ORIGIN)) {
                 String route = headers.get(ROUTE);
-                String personality = headers.get(PERSONALITY);
-                // add to routing table
-                addRoute(origin, route, personality);
+                String origin = headers.get(ORIGIN);
+                // remove from routing table
+                removeRoute(origin, route);
                 if (origin.equals(myOrigin) && !headers.containsKey(IS_FINAL)) {
                     // broadcast to peers
                     EventEnvelope request = new EventEnvelope();
@@ -217,41 +282,6 @@ public class ServiceRegistry implements LambdaFunction {
                             .setHeaders(headers).setHeader(IS_FINAL, true);
                     po.send(request);
                 }
-
-            } else if (body instanceof Map) {
-                if (!origin.equals(myOrigin)) {
-                    // add a list of routes
-                    Map<String, String> routeMap = (Map<String, String>) body;
-                    int count = routeMap.size();
-                    int n = 0;
-                    for (String route : routeMap.keySet()) {
-                        String personality = routeMap.get(route);
-                        if (addRoute(origin, route, personality)) n++;
-                    }
-                    if (n > 0) {
-                        log.info("Loaded {} route{} from {}", count, count == 1 ? "" : "s", origin);
-                    }
-                    if (headers.containsKey(TOPIC)) {
-                        originTopic.put(origin, headers.get(TOPIC));
-                    }
-                    if (headers.containsKey(EXCHANGE)) {
-                        sendMyRoutes(false);
-                    }
-                }
-            }
-        }
-        // clear a route
-        if (UNREGISTER.equals(type) && headers.containsKey(ROUTE) && headers.containsKey(ORIGIN)) {
-            String route = headers.get(ROUTE);
-            String origin = headers.get(ORIGIN);
-            // remove from routing table
-            removeRoute(origin, route);
-            if (origin.equals(myOrigin) && !headers.containsKey(IS_FINAL)) {
-                // broadcast to peers
-                EventEnvelope request = new EventEnvelope();
-                request.setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
-                        .setHeaders(headers).setHeader(IS_FINAL, true);
-                po.send(request);
             }
         }
         return true;

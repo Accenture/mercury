@@ -8,12 +8,17 @@ You can stop, suspend or resume an application instance from a presence monitor.
 2. `Suspend` - tell the application instance not to accept incoming requests
 3. `Resume` - tell the application instance to accept incoming requests
 
-Suspend and resume commands are usually used to simulate error cases for development and testing purposes.
+Suspend and resume commands are usually used to simulate error cases for development and regression test purposes.
+
+For example, to simulate a stalled application instance, you can use the "POST /suspend/later" command.
+
+If you do not want your application instance to receive any service request, you can isolate it with the
+"POST /suspend/now" command.
 
 ```
 POST /shutdown
-POST /suspend
-POST /resume
+POST /suspend/{now | later}
+POST /resume/{now | later}
 
 HTTP request header
 X-App-Instance=origin_id_here

@@ -84,14 +84,14 @@ public class PresenceConnector implements LambdaFunction {
         return instance;
     }
 
-    public void setActive(String user, boolean active) {
+    public void setActive(String origin, String user, boolean active) {
         if (active && !this.active) {
             this.active = true;
-            log.warn("Resume requested by {}", user);
+            log.warn("Resume {} as requested by {}", origin, user);
         }
         if (!active && this.active) {
             this.active = false;
-            log.warn("Suspend requested by {}", user);
+            log.warn("Suspend {} as requested by {}", origin, user);
         }
     }
 
