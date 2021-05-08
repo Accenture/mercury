@@ -22,6 +22,7 @@ import java.lang.annotation.*;
 
 /**
  * This indicates the annotated class will be used as a websocket server handler.
+ * <p>
  * The annotation class should implement the LambdaFunction interface.
  */
 @Target({ElementType.TYPE})

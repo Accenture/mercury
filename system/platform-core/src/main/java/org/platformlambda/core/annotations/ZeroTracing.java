@@ -21,7 +21,7 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
- * This tells the system not to trace a function with this annotation
+ * This tells the system to skip tracing for a function with this annotation
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

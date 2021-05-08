@@ -20,7 +20,6 @@ package org.platformlambda.automation.services;
 
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.SimpleNotification;
 
 import java.util.Date;
 import java.util.HashMap;

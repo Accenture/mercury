@@ -562,9 +562,9 @@ public class PostOffice {
                 String cid = to.substring(0, slash);
                 Inbox inbox = Inbox.getHolder(cid);
                 if (inbox != null) {
-                    event.setReplyTo(cid);
-                    // It is a reply message to an inbox and broadcast level should be cleared
-                    Platform.getInstance().getEventSystem().send(inbox.getId(), event.setBroadcastLevel(0).toBytes());
+                    // Clear broadcast indicator because this is a reply message to an inbox
+                    event.setReplyTo(cid).setBroadcastLevel(0);
+                    Platform.getInstance().getEventSystem().send(inbox.getId(), event.toBytes());
                     return;
                 }
             }

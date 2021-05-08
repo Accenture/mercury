@@ -22,11 +22,11 @@ import java.lang.annotation.*;
 
 /**
  * This indicates that the annotated class is the Main Application.
- * Note that the "main application" class should also implement the EntryPoint interface.
- *
+ * <p>
+ * You should also implement the EntryPoint interface for your MainApplication module(s).
+ * <p>
  * Smaller sequence will be executed first
- * (please note that sequence 0 is reserved for config management)
- *
+ * <p>
  * sequence must be between 1 to 999
  */
 @Target({ElementType.TYPE})

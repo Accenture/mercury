@@ -30,19 +30,12 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The Mercury platform provides abstraction of the underlying event stream system
- * to provide real-time inter-service communication.
- *
- * Some event stream systems are purely real-time.
- * e.g. Hazelcast, a distributed memory grid for event streaming and caching.
- * As a result, "store-n-forward" style of pub/sub is not supported for real-time event streaming systems.
- *
- * However, "store-n-forward" addresses a use case when the producer can send events ahead of the consumer.
- * For example, Kafka is a high performance "store-n-forward" event stream system.
- *
- * "Store-n-forward" event streaming is optional.
- * The pub/sub feature depends on the underlying event stream system.
- *
- * For example, it is supported in the Mercury kafka-connector and not the hazelcast-connector.
+ * <p>
+ * <i>Real-time inter-service communication</i>
+ * <p>
+ * Mercury supports both enterprise messaging systems and publish/subscribe style event stream system.
+ * <p>
+ * Your application can test if native "pub/sub" is supported with the "isNativePubSub()" method.
  */
 public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);

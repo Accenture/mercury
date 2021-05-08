@@ -21,14 +21,13 @@ package org.platformlambda.core.annotations;
 import java.lang.annotation.*;
 
 /**
- * This indicates that the annotated class is the BeforeApplication.
- * Note that the "before application" class should also implement the EntryPoint interface.
- * BeforeApplication modules are executed before MainApplication modules.
- *
+ * This indicates that the annotated class will executed before the MainApplication runs.
+ * <p>
+ * Note that the "BeforeApplication" class should also implement the EntryPoint interface.
+ * <p>
  * Smaller sequence will be executed first
- * (please note that sequence 0 is reserved for config management)
- *
- * sequence must be between 1 to 999
+ * <p>
+ * sequence must be between 1 to 999 (sequence 0 is reserved for config management)
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

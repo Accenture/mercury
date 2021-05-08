@@ -22,9 +22,12 @@ import java.lang.annotation.*;
 
 /**
  * This indicates that the annotated lambda function is an interceptor.
+ * <p>
  * The original EventEnvelope from the caller will be delivered as message body
  * so that the interceptor function can use the information to forward the
- * request to the destination
+ * request to the destination.
+ * <p>
+ * Return value from an EventInterceptor will be ignored.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

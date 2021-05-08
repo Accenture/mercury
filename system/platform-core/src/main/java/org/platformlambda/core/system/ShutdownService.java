@@ -30,7 +30,7 @@ public class ShutdownService implements LambdaFunction {
     private static final String USER = "user";
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
         String user = headers.get(USER);
         if (user != null) {
             log.info("Shutdown requested by {}", user);

@@ -31,9 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * SimpleCache is a simple ConcurrentHashMap with automatic removal of inactive entries
- *
+ * <b>
  * WARNING - You should NOT use this as a regular cache class because its memory consumption would expand without limit.
- * This class is normally used by the MultipartPayload class for segmentation of large event payload.
+ * <p>
+ * This class is exclusively used by the MultipartPayload class for segmentation of large event payload.
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
@@ -118,7 +119,6 @@ public class SimpleCache {
         if (!expired.isEmpty()) {
             for (String k : expired) {
                 TimedItem item = cache.get(k);
-                //
                 /*
                  * if the payload is EventBlocks, it should be cleared when it is consumed
                  */
@@ -143,7 +143,7 @@ public class SimpleCache {
         return cache.size();
     }
 
-    private class CleanUp extends Thread {
+    private static class CleanUp extends Thread {
         private boolean normal = true;
 
         private CleanUp() {

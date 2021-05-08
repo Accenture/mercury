@@ -29,21 +29,25 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * This is a convenient class for creating an event stream.
- * It does not implements "Closeable" because it encapsulates both input stream and output stream.
+ * <p>
+ * It encapsulates both input stream and output stream.
  * Both input stream and output stream are closeable.
+ * <p>
  * The close method for output stream will send EOF to the stream.
  * The close method for input stream will close the event stream and release resources.
- * The event stream would spread across the network where sender and recipient are mostly in different machine.
- *
+ * <p>
+ * The event stream would spread across the network where sender and recipient in different machine.
+ * <p>
  * The typical use case is to create a new event stream using ObjectStreamIO() in the receiving side.
+ * <p>
  * The recipient can obtain the fully qualified route name using the getRoute() and transmit the route to the sender.
  * The sender will create the stream object using ObjectStreamIO(route).
- * The sender can then sender PoJo or Java primitives as object thru the output stream.
+ * The sender can then send PoJo or Java primitives as object to the output stream.
  * The recipient can read the input stream to retrieve the object.
- *
+ * <p>
  * Event stream is designed for use by a single sender and a single recipient to guarantee message sequencing.
- * If you use multiple senders and recipients, the event stream will mix the events.
- *
+ * If you use multiple senders and recipients, event sequencing is not guaranteed.
+ * <p>
  * The sender can signal EOF by closing the output stream.
  * The recipient can release the stream by closing the input stream.
  */

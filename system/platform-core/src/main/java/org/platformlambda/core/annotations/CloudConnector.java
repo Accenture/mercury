@@ -22,7 +22,9 @@ import java.lang.annotation.*;
 
 /**
  * This indicates the annotated class is a cloud connector "plug-in" module.
- * The selection of cloud connector is defined at run-time using application.properties "cloud.connector"
+ * <p>
+ * The selection of a cloud connector is defined defined in the "cloud.connection" parameter
+ * in application.properties.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

@@ -22,7 +22,9 @@ import java.lang.annotation.*;
 
 /**
  * This indicates the annotated class is a cloud service "plug-in" module.
- * The selection of cloud service modules is defined at run-time using application.properties "cloud.services"
+ * <p>
+ * The selection of cloud service modules is defined in the "cloud.services" parameter
+ * in application.properties.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

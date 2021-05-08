@@ -25,6 +25,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * This interface is reserved for cloud connector.
+ * <p>
  * You should not implement this method unless you are writing your own cloud connector.
  */
 public interface PubSubProvider {
