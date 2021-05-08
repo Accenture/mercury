@@ -43,20 +43,18 @@ public class HelloConcurrent {
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
 
-        Map<String, Object> forwardHeaders = new HashMap<>();
-        forwardHeaders.put("x-time", new Date());
-
+        Map<String, Object> forward = new HashMap<>();
         Enumeration<String> headers = request.getHeaderNames();
         while (headers.hasMoreElements()) {
             String key = headers.nextElement();
-            forwardHeaders.put(key, request.getHeader(key));
+            forward.put(key, request.getHeader(key));
         }
         int TOTAL = 10;
         List<EventEnvelope> parallelEvents = new ArrayList<>();
         for (int i=0; i < TOTAL; i++) {
             EventEnvelope event = new EventEnvelope();
             event.setTo("hello.world");
-            event.setBody(forwardHeaders);
+            event.setBody(forward);
             event.setHeader("request", "#"+(i+1));
             parallelEvents.add(event);
         }

@@ -30,7 +30,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +48,6 @@ public class HelloWorld {
 
         PostOffice po = PostOffice.getInstance();
         Map<String, Object> forward = new HashMap<>();
-        forward.put("x-time", new Date());
 
         Enumeration<String> headers = request.getHeaderNames();
         while (headers.hasMoreElements()) {
