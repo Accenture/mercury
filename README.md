@@ -666,9 +666,7 @@ you can simply set "tracing=true" in the rest.yaml configuration of the rest-aut
 
 ## JDK compatibility
 
-The Mercury project has been tested with OpenJDK and AdaptOpenJDK version 8 to 14 and Java 16.
-
-Please skip Java 15 because it would break under mvn version 3.6.3.
+The Mercury project has been tested with OpenJDK and AdaptOpenJDK version 8 to 16.
 
 ## Kafka compatibility
 
