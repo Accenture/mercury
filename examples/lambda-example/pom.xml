@@ -8,7 +8,7 @@
 
     <packaging>jar</packaging>
     <version>2.0.0</version>
-    <name>Example for simple microservices executable</name>
+    <name>Example for simple microservices</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
