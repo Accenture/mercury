@@ -335,13 +335,25 @@ public class Utility {
     }
 
     /**
-     * RFC 7231 Date (aka HTML date)
-     * @param date input
-     * @return date string for use in a HTTP header
+     * Generate a RFC 7231 timestamp
+     * <p>
+     * @param date object
+     * @return timestamp for use in a HTTP header (Example: Tue, 11 May 2021 03:42:46 GMT)
      */
     public String getHtmlDate(Date date) {
         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), UTC_TIME);
         return zdt.format(HTML_DATE);
+    }
+
+    /**
+     * Parse a RFC 7231 HTML timestamp
+     * <p>
+     * @param timestamp from a HTTP header
+     * @return converted date object
+     */
+    public Date getHtmlDate(String timestamp) {
+        ZonedDateTime dt = ZonedDateTime.parse(timestamp, HTML_DATE);
+        return Date.from(dt.toInstant());
     }
 
     public long timestamp2ms(String timestamp) {
