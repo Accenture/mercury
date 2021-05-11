@@ -17,7 +17,6 @@
  */
 package org.platformlambda.cloud;
 
-import org.platformlambda.cloud.services.CloudHealthCheck;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;

@@ -144,7 +144,8 @@ public class PersistentWsClient extends Thread implements AutoCloseable {
                         this.client = client;
                         return; // exit after successful connection
                     } catch (Exception e) {
-                        log.warn("{} {}", simplifiedError(e.getMessage()), uri);
+                        String error = e.getMessage();
+                        log.warn("{} {}", error == null? e.getClass().getSimpleName() : simplifiedError(error), uri);
                     }
                 } catch (URISyntaxException e) {
                     valid = false;
