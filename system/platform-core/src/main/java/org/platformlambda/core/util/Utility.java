@@ -48,6 +48,7 @@ public class Utility {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final DateTimeFormatter SQL_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HTML_DATE = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+    private static final DateTimeFormatter HTML_GMT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z");
     private static final String TIMESTAMP_FORMAT = "yyyyMMddHHmmssSSS";
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern(TIMESTAMP_FORMAT);
     private static final String SQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH.mm.ss.SSS";
@@ -352,7 +353,8 @@ public class Utility {
      * @return converted date object
      */
     public Date getHtmlDate(String timestamp) {
-        ZonedDateTime dt = ZonedDateTime.parse(timestamp, HTML_DATE);
+        // change GMT to "Z" timezone for compatibility with Java 1.8
+        ZonedDateTime dt = ZonedDateTime.parse(timestamp.replace("GMT", "-0000"), HTML_GMT);
         return Date.from(dt.toInstant());
     }
 

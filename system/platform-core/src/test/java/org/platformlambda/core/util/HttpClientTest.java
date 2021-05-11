@@ -34,19 +34,6 @@ public class HttpClientTest {
 
     @Test
     public void askGoogle() throws IOException {
-        /*
-         * This demonstrates a simple use case of Google Http Client.
-         * Please DO NOT use the parser in the HttpRequestFactory because it will use the Jackson serializer.
-         *
-         * Since there is a security vulnerability associated with Jackson, please use
-         * the ObjectMapper from SimpleMapper.getInstance.getWhiteListMapper(Class<?> cls)
-         * that would validate if the class is in the safe.data.models in the application.properties
-         *
-         * For Get request, get input stream using HttpResponse getContent() method
-         * and then use the white listed Object Mapper to parse the JSON string.
-         *
-         * For Post and Put requests, use ByteArrayContent and do the serialization using the white listed Object Mapper.
-         */
         GenericUrl target = new GenericUrl("https://www.google.com");
         HttpRequest request = factory.buildGetRequest(target);
         HttpResponse response = request.execute();
