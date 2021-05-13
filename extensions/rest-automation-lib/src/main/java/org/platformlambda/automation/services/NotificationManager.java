@@ -96,18 +96,20 @@ public class NotificationManager implements LambdaFunction {
                 }
                 if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
                     if (origin.equals(headers.get(ORIGIN))) {
-                        String step = headers.getOrDefault(STEP, "0");
-                        if ("0".equals(step)) {
-                            // give a moment for newly connected event stream to get ready
-                            po.sendLater(new EventEnvelope().setTo(NOTIFICATION_INTERNAL)
-                                    .setHeader(TYPE, JOIN).setHeader(ORIGIN, origin).setHeader(STEP, 1),
-                                    new Date(System.currentTimeMillis()+5000));
-                        }
-                        if ("1".equals(step)) {
-                            ready = true;
-                            log.info("Online");
-                            po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, JOIN), new Kv(STEP, 2),
-                                    new Kv(ORIGIN, origin));
+                        if (!ready) {
+                            String step = headers.getOrDefault(STEP, "0");
+                            if ("0".equals(step)) {
+                                // give a moment for newly connected event stream to get ready
+                                po.sendLater(new EventEnvelope().setTo(NOTIFICATION_INTERNAL)
+                                                .setHeader(TYPE, JOIN).setHeader(ORIGIN, origin).setHeader(STEP, 1),
+                                        new Date(System.currentTimeMillis() + 5000));
+                            }
+                            if ("1".equals(step)) {
+                                ready = true;
+                                log.info("Online");
+                                po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, JOIN), new Kv(STEP, 2),
+                                        new Kv(ORIGIN, origin));
+                            }
                         }
 
                     } else {
@@ -140,10 +142,12 @@ public class NotificationManager implements LambdaFunction {
                     if (!eventCache.exists(key)) {
                         eventCache.put(key, true);
                         if (origin.equals(peer)) {
-                            ready = false;
-                            WsGateway.closeAllConnections();
-                            subscription.clear();
-                            log.info("Offline");
+                            if (ready) {
+                                ready = false;
+                                WsGateway.closeAllConnections();
+                                subscription.clear();
+                                log.info("Offline");
+                            }
                         } else {
                             // clear all entries from the ORIGIN
                             clearEntries("@" + peer);

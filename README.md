@@ -666,7 +666,10 @@ you can simply set "tracing=true" in the rest.yaml configuration of the rest-aut
 
 ## JDK compatibility
 
-The Mercury project has been tested with OpenJDK and AdaptOpenJDK version 8 to 16.
+The Mercury project, with the exception of the `kafka-standalone` subproject, has been tested with OpenJDK and AdaptOpenJDK version 8 to 16.
+
+Please use Java version 11 or higher to run the kafka-standalone application which is provided as a convenient tool for
+development and testing. The kafka standalone server would fail due to a known memory mapping bug when running under Java version 1.8.0_292.
 
 ## Kafka compatibility
 
