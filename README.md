@@ -627,11 +627,17 @@ with the command `mvn clean package`. The executable JAR is then available in th
 The Dockerfile may look like this:
 
 ```bash
-FROM openjdk:8-jre-slim
+FROM adoptopenjdk/openjdk11:jre-11.0.11_9-alpine
 EXPOSE 8083
 WORKDIR /app
 COPY target/your-app-name.jar .
 ENTRYPOINT ["java","-jar","your-app-name.jar"]
+
+```
+
+To run the newly built docker images, the command may look like this:
+```
+docker run -p 8083:8083 -i -t your-app-name:latest
 ```
 
 Change the exposed port numnber and application name accordingly. Then build the docker image and publish it to a 
