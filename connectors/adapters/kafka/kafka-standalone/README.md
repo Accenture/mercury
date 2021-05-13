@@ -10,7 +10,7 @@ because the kafka standalone server is designed for dev and testing only.
 ## Using docker
 
 If you are using Windows machine and you have "Docker for Windows" installed, the best way to run this 
-kafka standalone server is to dockerize it. Please make sure your base image uses Openjdk version 11 or higher.
+kafka standalone server is to dockerize it. Please make sure your base image uses Java version 11 or higher.
 
 ```
 docker build -t kafka-standalone .
@@ -21,7 +21,7 @@ After this step, you can start/stop it from the Docker Desktop app.
 
 ## Known problem as of May 2021
 
-The FileChannelImplementation class would throw "Map Failed" error when running in openjdk version 1.8.0_292.
+The FileChannelImplementation class would throw "Map Failed" error when running in Java version 1.8.0_292.
 This would result in system failure. The kafka client will go into an endless loop when it retries updating
 metadata.
 
