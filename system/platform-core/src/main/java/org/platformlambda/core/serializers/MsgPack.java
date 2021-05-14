@@ -158,10 +158,11 @@ public class MsgPack {
                  * MessageFormat.UINT16 for value 0 - 2^16-1 --> Integer
                  * MessageFormat.UINT32 for value 0 - 2^32-1 --> Integer
                  * MessageFormat.UINT64 for value 0 - 2^64-1 --> Long
+                 * MessageFormat.INT64 for signed long value
                  *
                  * For simplicity, restore it to long or integer
                  */
-                if (mf == MessageFormat.UINT64) {
+                if (mf == MessageFormat.UINT64 || mf == MessageFormat.INT64) {
                     return unpacker.unpackLong();
                 } else {
                     return unpacker.unpackInt();

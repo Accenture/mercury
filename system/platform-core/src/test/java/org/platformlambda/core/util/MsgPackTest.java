@@ -58,6 +58,19 @@ public class MsgPackTest {
         Assert.assertEquals(input, o);
     }
 
+    @SuppressWarnings("unchecked")
+    @Test
+    public void dataIsLong() throws IOException {
+        long input = -5106534569952410475L;
+        Map<String, Object> map = new HashMap<>();
+        map.put("long", input);
+        byte[] b = msgPack.pack(map);
+        Object o = msgPack.unpack(b);
+        Assert.assertTrue(o instanceof Map);
+        Map<String, Object> restored = (Map<String, Object>) o;
+        Assert.assertEquals(input, restored.get("long"));
+    }
+
     @Test
     public void dataIsNull() throws IOException {
         byte[] b = msgPack.pack(null);
