@@ -227,7 +227,16 @@ public class TopicController implements LambdaFunction {
                                 String topic = topicPartition.substring(0, topicPartition.lastIndexOf('-'));
                                 // automatic create topic
                                 if (!currentTopics.contains(topic)) {
-                                    if (!ps.exists(topic)) {
+                                    if (ps.exists(topic)) {
+                                        int actualPartitions = ps.partitionCount(topic);
+                                        if (actualPartitions < partitionCount) {
+                                            log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
+                                                    topic, partitionCount, actualPartitions);
+                                            log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart",
+                                                    topic);
+                                            throw new IOException("Insufficient partitions in "+topic);
+                                        }
+                                    } else {
                                         ps.createTopic(topic, partitionCount);
                                     }
                                     currentTopics.add(topic);

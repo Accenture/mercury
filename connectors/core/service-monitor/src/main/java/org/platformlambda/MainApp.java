@@ -92,9 +92,19 @@ public class MainApp implements EntryPoint {
         // max.closed.user.groups (3 to 30)
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
-        if (!ps.exists(monitorTopic)) {
+        int requiredPartitions = maxGroups + 1;
+        if (ps.exists(monitorTopic)) {
+            int actualPartitions = ps.partitionCount(monitorTopic);
+            if (actualPartitions < requiredPartitions) {
+                log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
+                        monitorTopic, requiredPartitions, actualPartitions);
+                log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart", monitorTopic);
+                return;
+            }
+
+        } else {
             // one partition for presence monitor and one for routing table distribution
-            ps.createTopic(monitorTopic, maxGroups+1);
+            ps.createTopic(monitorTopic, requiredPartitions);
         }
         String clientId = platform.getOrigin();
         final AtomicBoolean pending = new AtomicBoolean(true);
