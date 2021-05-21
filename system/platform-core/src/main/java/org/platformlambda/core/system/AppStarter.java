@@ -115,7 +115,7 @@ public class AppStarter {
                 }
             } catch (Exception e) {
                 error++;
-                log.error("Unable to start {} - {}", cls.getName(), e.getMessage());
+                log.error("Unable to start - " + cls.getName(), e);
             }
         }
         if (main && error == 0 && n == 0) {
