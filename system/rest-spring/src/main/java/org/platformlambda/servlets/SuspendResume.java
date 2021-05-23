@@ -21,38 +21,34 @@ package org.platformlambda.servlets;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
 
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Date;
+import java.util.List;
 
-@WebServlet("/shutdown")
-public class ShutdownServlet extends HttpServlet {
-    private static final long serialVersionUID = 37489647906664051L;
-
-    private static final int GRACE_PERIOD = 5000;
+public class SuspendResume {
     private static final String APP_INSTANCE = "X-App-Instance";
     private static final String TYPE = "type";
-    private static final String SHUTDOWN = "shutdown";
+    private static final String SUSPEND = "suspend";
+    private static final String RESUME = "resume";
     private static final String USER = "user";
+    private static final String WHEN = "when";
+    private static final String NOW = "now";
+    private static final String LATER = "later";
 
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        response.sendError(404, "Not Found");
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public static void handle(boolean resume, HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String type = resume? RESUME : SUSPEND;
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
             response.sendError(400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope event = new EventEnvelope().setHeader(TYPE, SHUTDOWN);
+        EventEnvelope event = new EventEnvelope().setHeader(TYPE, type)
+                .setHeader(USER, System.getProperty("user.name"));
         if (origin.equals(Platform.getInstance().getOrigin())) {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
@@ -62,9 +58,14 @@ public class ShutdownServlet extends HttpServlet {
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
         }
-        event.setHeader(USER, System.getProperty("user.name"));
-        po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
-        response.sendError(200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
+        List<String> path = Utility.getInstance().split(request.getPathInfo(), "/");
+        String when = !path.isEmpty() && path.get(0).equals(NOW) ? NOW : LATER;
+        event.setHeader(WHEN, when);
+        po.send(event);
+        String message = type+" request sent to " + origin;
+        if (LATER.equals(when)) {
+            message += ". It will take effect in one minute.";
+        }
+        response.sendError(200, message);
     }
-
 }

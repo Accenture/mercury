@@ -170,7 +170,7 @@ public class ServiceRegistry implements LambdaFunction {
                     if (NOW.equals(headers.get(WHEN))) {
                         if (RESUME.equals(type)) {
                             sendMyRoutes(true);
-                            log.info("Restore {} as requested by {}", myOrigin, user);
+                            log.info("Restore {} by {}", myOrigin, user);
                         } else {
                             po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
                                     new Kv(TYPE, ISOLATE), new Kv(USER, user), new Kv(ORIGIN, platform.getOrigin()));
@@ -180,7 +180,7 @@ public class ServiceRegistry implements LambdaFunction {
                 if (ISOLATE.equals(type) && headers.containsKey(ORIGIN)) {
                     String origin = headers.get(ORIGIN);
                     if (!origin.equals(myOrigin)) {
-                        log.warn("Isolate {} as requested {}", origin, user);
+                        log.warn("Isolate {} by {}", origin, user);
                         removeRoutesFromOrigin(origin);
                     }
                 }

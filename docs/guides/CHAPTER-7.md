@@ -8,10 +8,10 @@ Please do not use them in your application functions as it would disrupt the nor
 | :-----------------------------|:---------------------------------------|:---------------------------------|
 | object.streams.io             | Stream I/O handler                     | platform-core                    |
 | distributed.tracing           | Distributed trace logger               | platform-core                    |
-| shutdown.service              | Reserved for shutdown admin endpoint   | platform-core and rest-spring    |
+| actuator.services             | Reserved for actuator admin endpoint   | platform-core                    |
 | system.service.registry       | Distributed routing registry           | cloud connectors                 |
 | system.service.query          | Distributed routing query              | cloud connectors                 |
-| cloud.connector.health        | Cloud connector health service         | cloud connectors and rest-spring |
+| cloud.connector.health        | Cloud connector health service         | cloud connectors                 |
 | additional.info               | Additional info service                | cloud connectors                 |
 | cloud.manager                 | Cloud manager service                  | Cloud connectors                 |
 | presence.service              | Presence reporter service              | cloud connectors                 |

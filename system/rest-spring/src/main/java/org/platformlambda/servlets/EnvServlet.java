@@ -18,77 +18,63 @@
 
 package org.platformlambda.servlets;
 
+import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 @WebServlet("/env")
 public class EnvServlet extends HttpServlet {
 	private static final long serialVersionUID = 3495394964619652075L;
-	
-	private static final String SHOW_ENV = "show.env.variables";
-	private static final String SHOW_PROPERTIES = "show.application.properties";
-	private static final String SYSTEM_ENV = "systemEnvironment";
-	private static final String APP_PROPS = "applicationProperties";
-	private static final String MISSING = "missing";
+
+	private static final String APP_INSTANCE = "X-App-Instance";
+	private static final String TYPE = "type";
+	private static final String ENV = "env";
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		Map<String, Object> result = new HashMap<>();
-		Utility util = Utility.getInstance();
-		AppConfigReader reader = AppConfigReader.getInstance();
-		List<String> envVars = util.split(reader.getProperty(SHOW_ENV, ""), ", ");
-		List<String> properties = util.split(reader.getProperty(SHOW_PROPERTIES, ""), ", ");
-		List<String> missingVars = new ArrayList<>();
-		Map<String, Object> eMap = new HashMap<>();
-		if (!envVars.isEmpty()) {
-			for (String var: envVars) {
-				String v = System.getenv(var);
-				if (v == null) {
-					missingVars.add(var);
-				} else {
-					eMap.put(var, v);
-				}
+		String myOrigin = Platform.getInstance().getOrigin();
+		String origin = request.getHeader(APP_INSTANCE);
+		if (origin == null) {
+			origin = myOrigin;
+		}
+		PostOffice po = PostOffice.getInstance();
+		EventEnvelope event = new EventEnvelope().setHeader(TYPE, ENV);
+		if (origin.equals(myOrigin)) {
+			event.setTo(PostOffice.ACTUATOR_SERVICES);
+		} else {
+			if (!po.exists(origin)) {
+				response.sendError(400, origin+" is not reachable");
+				return;
 			}
+			event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
 		}
-		result.put(SYSTEM_ENV, eMap);
-		List<String> missingProp = new ArrayList<>();
-		Map<String, Object> pMap = new HashMap<>();
-		if (!properties.isEmpty()) {
-			for (String var: properties) {
-				String v = reader.getProperty(var);
-				if (v == null) {
-					missingProp.add(var);
-				} else {
-					pMap.put(var, v);
-				}
+		try {
+			EventEnvelope result = po.request(event, 10000);
+			if (result.getBody() instanceof Map) {
+				response.setContentType(MediaType.APPLICATION_JSON);
+				byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getBody());
+				response.setContentLength(b.length);
+				response.getOutputStream().write(b);
+			} else {
+				response.sendError(500, "Unable to obtain health report. Expect: Map, Actual: "+
+						(result.getBody() == null? "null" : result.getBody().getClass().getSimpleName()));
 			}
+		} catch (TimeoutException e) {
+			response.sendError(408, origin+" timeout");
+		} catch (AppException e) {
+			response.sendError(e.getStatus(), e.getMessage());
 		}
-		result.put(APP_PROPS, pMap);
-		// any missing keys?
-		Map<String, Object> missingKeys = new HashMap<>();
-		if (!missingVars.isEmpty()) {
-			missingKeys.put(SYSTEM_ENV, missingVars);
-		}
-		if (!missingProp.isEmpty()) {
-			missingKeys.put(APP_PROPS, missingProp);
-		}
-		if (!missingKeys.isEmpty()) {
-			result.put(MISSING, missingKeys);
-		}
-		response.setContentType("application/json");
-		response.setCharacterEncoding("utf-8");
-		response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
 	}
 
 }

@@ -2,7 +2,7 @@
 
 ## Admin endpoints to stop, suspend or resume
 
-You can stop, suspend or resume an application instance from a presence monitor.
+You can stop, suspend or resume an application instance from a `presence monitor`.
 
 1. `Shutdown` - stop an application so that the container management system will restart it
 2. `Suspend` - tell the application instance not to accept incoming requests
@@ -23,6 +23,41 @@ POST /resume/{now | later}
 HTTP request header
 X-App-Instance=origin_id_here
 ```
+
+## Actuator endpoints
+
+The following admin endpoints are available.
+
+```
+GET /info
+GET /info/routes
+GET /info/lib
+GET /env
+GET /health
+GET /livenessprobe
+
+Optional HTTP request header
+X-App-Instance=origin_id_here
+```
+
+If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from `any application instance` except presence monitor.
+
+## Custom health services
+
+You can extend the "/health" endpoint by implementing and registering lambda functions to be added to the health.dependencies.
+
+```
+mandatory.health.dependencies=cloud.cache.health,cloud.connector.health
+#optional.health.dependencies=other.service.health
+```
+
+Your custom health service must respond to the following requests:
+
+1. Info request (type=info) - it should return a map that includes (1) service name and (2) href (protocol, hostname and port)
+2. Health check (type=health) - it should return a text string of the health check. e.g. resource read/write tests. It can throw AppException with status code and error message if health check fails.
+
+The health service can retrieve the "type" of the request from the "headers".
+
 
 ## HttpClient as a service
 

@@ -20,6 +20,7 @@ package org.platformlambda.core.system;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
+import org.platformlambda.core.actuator.ActuatorServices;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.services.DistributedTrace;
@@ -45,8 +46,8 @@ public class PostOffice {
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String STREAM_MANAGER = "object.streams.io";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
-    public static final String SHUTDOWN_SERVICE = "shutdown.service";
-    private static final String[] BUILT_IN = {STREAM_MANAGER, DISTRIBUTED_TRACING, SHUTDOWN_SERVICE};
+    public static final String ACTUATOR_SERVICES = "actuator.services";
+    private static final String[] BUILT_IN = {STREAM_MANAGER, DISTRIBUTED_TRACING, ACTUATOR_SERVICES};
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
@@ -61,7 +62,7 @@ public class PostOffice {
             // start built-in services
             platform.registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
-            platform.registerPrivate(SHUTDOWN_SERVICE, new ShutdownService(), 1);
+            platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 1);
             log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
             AppConfigReader config = AppConfigReader.getInstance();

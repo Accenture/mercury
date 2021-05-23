@@ -21,7 +21,7 @@ After this step, you can start/stop it from the Docker Desktop app.
 
 ## Known problem as of May 2021
 
-The FileChannelImplementation class would throw "Map Failed" error when running in Java version 1.8.0_292.
+The FileChannelImplementation class would throw "Map Failed" error when running in openjdk version 1.8.0_292.
 This would result in system failure. The kafka client will go into an endless loop when it retries updating
 metadata.
 

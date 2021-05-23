@@ -20,23 +20,16 @@ package org.platformlambda.servlets;
 
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.ManagedCache;
-import org.platformlambda.core.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
@@ -44,115 +37,44 @@ import java.util.concurrent.TimeoutException;
 public class HealthServlet extends HttpServlet {
     private static final long serialVersionUID = 231981954669130491L;
 
-    private static final Logger log = LoggerFactory.getLogger(HealthServlet.class);
-    private static final ManagedCache cache = ManagedCache.createCache("health.info", 5000);
+    private static final String APP_INSTANCE = "X-App-Instance";
     private static final String TYPE = "type";
-    private static final String INFO = "info";
     private static final String HEALTH = "health";
-    private static final String REQUIRED_SERVICES = "mandatory.health.dependencies";
-    private static final String OPTIONAL_SERVICES = "optional.health.dependencies";
-    private static final String ROUTE = "route";
-    private static final String MESSAGE = "message";
-    private static final String STATUS = "status";
-    private static final String STATUS_CODE = "statusCode";
-    private static final String REQUIRED = "required";
-    private static final String UPSTREAM = "upstream";
-    private static final String NOT_FOUND = "not found";
-    private static final String PLEASE_CHECK = "Please check - ";
-    private static List<String> requiredServices = new ArrayList<>();
-    private static List<String> optionalServices = new ArrayList<>();
-    private static boolean loaded = false;
-
-    public HealthServlet() {
-        if (!loaded) {
-            loaded = true;
-            AppConfigReader reader = AppConfigReader.getInstance();
-            requiredServices = Utility.getInstance().split(reader.getProperty(REQUIRED_SERVICES, ""), ", ");
-            if (requiredServices.isEmpty()) {
-                log.info("Mandatory service dependencies - {}", requiredServices);
-            }
-            optionalServices = Utility.getInstance().split(reader.getProperty(OPTIONAL_SERVICES, ""), ", ");
-            if (!optionalServices.isEmpty()) {
-                log.info("Optional services dependencies - {}", optionalServices);
-            }
-        }
-    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        boolean up = true;
-        Map<String, Object> result = new HashMap<>();
-        List<Map<String, Object>> upstream = new ArrayList<>();
-        result.put(UPSTREAM, upstream);
-        /*
-         * Checking dependencies
-         */
-        checkServices(upstream, optionalServices, false);
-        if (!checkServices(upstream, requiredServices, true)) {
-            up = false;
+        String myOrigin = Platform.getInstance().getOrigin();
+        String origin = request.getHeader(APP_INSTANCE);
+        if (origin == null) {
+            origin = myOrigin;
         }
-        result.put(STATUS, up? "UP" : "DOWN");
-        response.setContentType("application/json");
-        response.setCharacterEncoding("utf-8");
-        response.getWriter().write(SimpleMapper.getInstance().getMapper().writeValueAsString(result));
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean checkServices(List<Map<String, Object>> upstream, List<String> healthServices, boolean required) {
         PostOffice po = PostOffice.getInstance();
-        boolean up = true;
-        for (String route: healthServices) {
-            Map<String, Object> m = new HashMap<>();
-            m.put(ROUTE, route);
-            m.put(REQUIRED, required);
-            try {
-                String key = INFO+"/"+route;
-                if (!cache.exists(key)) {
-                    EventEnvelope infoRes = po.request(route, 3000, new Kv(TYPE, INFO));
-                    if (infoRes.getBody() instanceof Map) {
-                        cache.put(key, infoRes.getBody());
-                    }
-                }
-                Object info = cache.get(key);
-                if (info instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) info;
-                    for (String k : map.keySet()) {
-                        m.put(k, map.get(k));
-                    }
-                }
-                EventEnvelope res = po.request(route, 10000, new Kv(TYPE, HEALTH));
-                if (res.getBody() instanceof String) {
-                    m.put(STATUS_CODE, res.getStatus());
-                    m.put(MESSAGE, res.getBody());
-                    if (res.getStatus() != 200) {
-                        up = false;
-                    }
-                }
-            } catch (IOException e) {
-                if (e.getMessage().contains(NOT_FOUND)) {
-                    /*
-                     * This means the configured health check service is not started.
-                     * Just show a warning message to avoid blocking the health check.
-                     */
-                    m.put(STATUS_CODE, 200);
-                    m.put(MESSAGE, PLEASE_CHECK+e.getMessage());
-                } else {
-                    m.put(STATUS_CODE, 500);
-                    m.put(MESSAGE, e.getMessage());
-                    up = false;
-                }
-            } catch (TimeoutException e) {
-                m.put(STATUS_CODE, 408);
-                m.put(MESSAGE, e.getMessage());
-                up = false;
-            } catch (AppException e) {
-                m.put(STATUS_CODE, e.getStatus());
-                m.put(MESSAGE, e.getMessage());
-                up = false;
+        EventEnvelope event = new EventEnvelope().setHeader(TYPE, HEALTH);
+        if (origin.equals(myOrigin)) {
+            event.setTo(PostOffice.ACTUATOR_SERVICES);
+        } else {
+            if (!po.exists(origin)) {
+                response.sendError(400, origin+" is not reachable");
+                return;
             }
-            upstream.add(m);
+            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
         }
-        return up;
+        try {
+            EventEnvelope result = po.request(event, 10000);
+            if (result.getBody() instanceof Map) {
+                response.setContentType(MediaType.APPLICATION_JSON);
+                byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getBody());
+                response.setContentLength(b.length);
+                response.getOutputStream().write(b);
+            } else {
+                response.sendError(500, "Unable to obtain health report. Expect: Map, Actual: "+
+                        (result.getBody() == null? "null" : result.getBody().getClass().getSimpleName()));
+            }
+        } catch (TimeoutException e) {
+            response.sendError(408, origin+" timeout");
+        } catch (AppException e) {
+            response.sendError(e.getStatus(), e.getMessage());
+        }
     }
 
 }

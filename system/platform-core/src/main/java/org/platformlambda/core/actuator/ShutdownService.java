@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.system;
+package org.platformlambda.core.actuator;
 
 import org.platformlambda.core.models.LambdaFunction;
 import org.slf4j.Logger;
@@ -31,11 +31,11 @@ public class ShutdownService implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
-        String user = headers.get(USER);
-        if (user != null) {
+        if (headers.containsKey(USER)) {
+            String user = headers.get(USER);
             log.info("Shutdown requested by {}", user);
             System.exit(-2);
         }
-        return true;
+        return false;
     }
 }
