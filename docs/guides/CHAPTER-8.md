@@ -54,7 +54,7 @@ mandatory.health.dependencies=cloud.cache.health,cloud.connector.health
 Your custom health service must respond to the following requests:
 
 1. Info request (type=info) - it should return a map that includes (1) service name and (2) href (protocol, hostname and port)
-2. Health check (type=health) - it should return a text string of the health check. e.g. resource read/write tests. It can throw AppException with status code and error message if health check fails.
+2. Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. It can throw AppException with status code and error message if health check fails.
 
 The health service can retrieve the "type" of the request from the "headers".
 

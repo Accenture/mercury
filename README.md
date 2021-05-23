@@ -635,7 +635,7 @@ ENTRYPOINT ["java","-jar","your-app-name.jar"]
 
 ```
 
-To run the newly built docker images, the command may look like this:
+To run the newly built docker image, the command may look like this:
 ```
 docker run -p 8083:8083 -i -t your-app-name:latest
 ```
