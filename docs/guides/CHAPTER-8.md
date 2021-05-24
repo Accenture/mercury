@@ -40,7 +40,16 @@ Optional HTTP request header
 X-App-Instance=origin_id_here
 ```
 
-If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from `any application instance` except presence monitor.
+If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from `any application instance` using the event stream system.
+
+To access the actuator endpoints from the presence monitor, use this convenient REST endpoint in the presence monitor. Unlike accessing the actuator endpoint using event stream, this convenient HTTP reader uses REST to fetch the target page. Therefore, if you have more than one application instance of the same host name, it will be selected based on your system's load balancing rules.
+
+```
+GET /http/{host:port}/{uri_path}
+
+Required HTTP header
+X-App-Instance=origin_id_of_the_presence_monitor
+```
 
 ## Custom health services
 
