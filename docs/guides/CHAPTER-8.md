@@ -42,7 +42,7 @@ X-App-Instance=origin_id_here
 
 If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from `any application instance` using the event stream system.
 
-To access the actuator endpoints from the presence monitor, use this convenient REST endpoint in the presence monitor. Unlike accessing the actuator endpoint using event stream, this convenient HTTP reader uses REST to fetch the target page. Therefore, if you have more than one application instance of the same host name, it will be selected based on your system's load balancing rules.
+To access the actuator endpoints from the presence monitor, use the following convenient HTTP reader endpoint. Unlike accessing the actuator endpoint using event stream, this convenient HTTP reader uses REST to fetch the target page. Therefore, if you have more than one application instance of the same host name, it will be selected based on your system's load balancing rules. This endpoint has been tested with Kubernetes. It is not designed as a general purpose HTTP proxy service.
 
 ```
 GET /http/{host:port}/{uri_path}
