@@ -21,7 +21,6 @@ package org.platformlambda.tibco.services;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -42,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 public class EventConsumer extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
-    private static final MsgPack msgPack = new MsgPack();
     private static final String TYPE = ServiceLifeCycle.TYPE;
     private static final String INIT = ServiceLifeCycle.INIT;
     private static final String TOKEN = ServiceLifeCycle.TOKEN;
@@ -134,7 +132,6 @@ public class EventConsumer extends Thread {
         @SuppressWarnings("unchecked")
         @Override
         public void onMessage(Message evt) {
-            Utility util = Utility.getInstance();
             PostOffice po = PostOffice.getInstance();
             String origin = Platform.getInstance().getOrigin();
             try {
@@ -145,72 +142,76 @@ public class EventConsumer extends Thread {
                     String value = evt.getStringProperty(h);
                     originalHeaders.put(h, value);
                 }
-                if (evt instanceof BytesMessage) {
+                boolean embedEvent = originalHeaders.containsKey(EventProducer.EMBED_EVENT);
+                String recipient = originalHeaders.get(EventProducer.RECIPIENT);
+                if (recipient != null && recipient.contains(MONITOR)) {
+                    recipient = null;
+                }
+                if (recipient != null && !recipient.equals(origin)) {
+                    log.error("Skipping record because it belongs to {}", recipient);
+                    return;
+                }
+                EventEnvelope message = new EventEnvelope();
+                if (embedEvent && evt instanceof BytesMessage) {
                     BytesMessage b = (BytesMessage) evt;
                     int len = (int) b.getBodyLength();
                     byte[] data = new byte[len];
                     b.readBytes(data);
-                    String dataType = originalHeaders.getOrDefault(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
-                    boolean embedEvent = originalHeaders.containsKey(EventProducer.EMBED_EVENT);
-                    String recipient = originalHeaders.get(EventProducer.RECIPIENT);
-                    if (recipient != null && recipient.contains(MONITOR)) {
-                        recipient = null;
-                    }
-                    if (recipient != null && !recipient.equals(origin)) {
-                        log.error("Skipping record because it belongs to {}", recipient);
+                    try {
+                        message.load(data);
+                        message.setEndOfRoute();
+                    } catch (Exception e) {
+                        log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
                         return;
                     }
-                    EventEnvelope message = new EventEnvelope();
-                    if (embedEvent) {
-                        try {
-                            message.load(data);
-                            message.setEndOfRoute();
-                        } catch (Exception e) {
-                            log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                    try {
+                        String to = message.getTo();
+                        if (to != null) {
+                            // remove special routing qualifier for presence monitor events
+                            if (to.contains(TO_MONITOR)) {
+                                message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
+                            }
+                            PostOffice.getInstance().send(message);
+                        } else {
+                            MultipartPayload.getInstance().incoming(message);
+                        }
+                    } catch (Exception e) {
+                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                    }
+                } else {
+                    if (offset == INITIALIZE) {
+                        if (INIT.equals(originalHeaders.get(TYPE)) &&
+                                INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
+                            initialLoad.complete();
+                            initialLoad = null;
+                            offset = -1;
+                            if (skipped > 0) {
+                                log.info("Skipped {} outdated event{}", skipped, skipped == 1 ? "" : "s");
+                            }
+                        } else {
+                            skipped++;
                             return;
                         }
-                        try {
-                            String to = message.getTo();
-                            if (to != null) {
-                                // remove special routing qualifier for presence monitor events
-                                if (to.contains(TO_MONITOR)) {
-                                    message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
-                                }
-                                PostOffice.getInstance().send(message);
-                            } else {
-                                MultipartPayload.getInstance().incoming(message);
-                            }
-                        } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
-                        }
+                    }
+                    final Object data;
+                    if (evt instanceof BytesMessage) {
+                        BytesMessage b = (BytesMessage) evt;
+                        int len = (int) b.getBodyLength();
+                        byte[] bytes = new byte[len];
+                        b.readBytes(bytes);
+                        data = bytes;
+                    } else if (evt instanceof TextMessage) {
+                        TextMessage txt = (TextMessage) evt;
+                        data = txt.getText();
                     } else {
-                        if (offset == INITIALIZE) {
-                            if (INIT.equals(originalHeaders.get(TYPE)) &&
-                                    INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
-                                initialLoad.complete();
-                                initialLoad = null;
-                                offset = -1;
-                                if (skipped > 0) {
-                                    log.info("Skipped {} outdated event{}", skipped, skipped == 1 ? "" : "s");
-                                }
-                            } else {
-                                skipped++;
-                                return;
-                            }
-                        }
-                        // transport the headers and payload in original form
-                        try {
-                            if (EventProducer.TEXT_DATA.equals(dataType)) {
-                                message.setHeaders(originalHeaders).setBody(util.getUTF(data));
-                            } else if (EventProducer.MAP_DATA.equals(dataType) || EventProducer.LIST_DATA.equals(dataType)) {
-                                message.setHeaders(originalHeaders).setBody(msgPack.unpack(data));
-                            } else {
-                                message.setHeaders(originalHeaders).setBody(data);
-                            }
-                            po.send(message.setTo(consumerTopic));
-                        } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
-                        }
+                        log.error("Event to {} dropped because it is not Text or Binary", consumerTopic);
+                        return;
+                    }
+                    // transport the headers and payload in original form
+                    try {
+                        po.send(message.setTo(consumerTopic).setBody(data).setHeaders(originalHeaders));
+                    } catch (Exception e) {
+                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
                     }
                 }
 

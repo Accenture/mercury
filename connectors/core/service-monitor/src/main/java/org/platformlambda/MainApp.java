@@ -18,6 +18,7 @@
 
 package org.platformlambda;
 
+import org.platformlambda.cloud.PresenceHandler;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.annotations.MainApplication;
@@ -27,9 +28,11 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.cloud.PresenceHandler;
 import org.platformlambda.rest.RestServer;
-import org.platformlambda.services.*;
+import org.platformlambda.services.AdditionalInfo;
+import org.platformlambda.services.HouseKeeper;
+import org.platformlambda.services.MonitorAlive;
+import org.platformlambda.services.TopicController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +56,12 @@ public class MainApp implements EntryPoint {
     private static final String INIT = ServiceLifeCycle.INIT;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
+    private final boolean topicSubstitution;
+
+    public MainApp() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
+    }
 
     public static void main(String[] args) {
         RestServer.main(args);
@@ -93,18 +102,21 @@ public class MainApp implements EntryPoint {
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
         int requiredPartitions = maxGroups + 1;
-        if (ps.exists(monitorTopic)) {
-            int actualPartitions = ps.partitionCount(monitorTopic);
-            if (actualPartitions < requiredPartitions) {
-                log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
-                        monitorTopic, requiredPartitions, actualPartitions);
-                log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart", monitorTopic);
-                return;
-            }
+        if (!topicSubstitution) {
+            // automatically create topic if not exist
+            if (ps.exists(monitorTopic)) {
+                int actualPartitions = ps.partitionCount(monitorTopic);
+                if (actualPartitions < requiredPartitions) {
+                    log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
+                            monitorTopic, requiredPartitions, actualPartitions);
+                    log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart", monitorTopic);
+                    return;
+                }
 
-        } else {
-            // one partition for presence monitor and one for routing table distribution
-            ps.createTopic(monitorTopic, requiredPartitions);
+            } else {
+                // one partition for presence monitor and one for routing table distribution
+                ps.createTopic(monitorTopic, requiredPartitions);
+            }
         }
         String clientId = platform.getOrigin();
         final AtomicBoolean pending = new AtomicBoolean(true);

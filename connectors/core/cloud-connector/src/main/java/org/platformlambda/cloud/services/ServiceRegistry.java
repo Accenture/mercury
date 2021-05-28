@@ -194,7 +194,7 @@ public class ServiceRegistry implements LambdaFunction {
                     removeStalledPeers();
                 } else {
                     if (!origins.containsKey(origin)) {
-                        log.info("Peer {} wakes up", origin);
+                        log.info("Peer {} joins", origin);
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(ORIGIN, origin), new Kv(TOPIC, topic));
                     }

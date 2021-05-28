@@ -18,7 +18,7 @@
 
 package org.platformlambda.activemq;
 
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.jms.JMSException;
+import java.io.IOException;
 
 /**
  * This cloud service provides native pub/sub service only.
@@ -46,9 +47,10 @@ public class PubSubSetup implements CloudSetup {
         if (!PubSub.getInstance().featureEnabled()) {
             try {
                 PubSub.getInstance().enableFeature(new PubSubManager());
-                log.info("ActiveMQ cluster = {}",  ConfigUtil.getDisplayUrl());
-            } catch (JMSException e) {
-                log.error("Unable to connect to ActiveMQ cluster {} - {}", ConfigUtil.getDisplayUrl(), e.getMessage());
+                log.info("ActiveMQ cluster = {}",  ConnectorConfig.getDisplayUrl());
+            } catch (JMSException | IOException e) {
+                log.error("Unable to connect to ActiveMQ cluster {} - {}",
+                        ConnectorConfig.getDisplayUrl(), e.getMessage());
                 System.exit(10);
             }
         }

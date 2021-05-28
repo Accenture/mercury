@@ -3,7 +3,7 @@ package org.platformlambda.tibco;
 import com.tibco.tibjms.TibjmsConnectionFactory;
 import com.tibco.tibjms.admin.TibjmsAdmin;
 import com.tibco.tibjms.admin.TibjmsAdminException;
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.cloud.services.CloudHealthCheck;
@@ -96,7 +96,7 @@ public class TibcoConnector implements CloudSetup {
         Utility util = Utility.getInstance();
         ConfigReader clusterConfig = null;
         try {
-            clusterConfig = ConfigUtil.getConfig("cloud.client.properties",
+            clusterConfig = ConnectorConfig.getConfig("cloud.client.properties",
                     "file:/tmp/config/tibco.properties,classpath:/tibco.properties");
         } catch (IOException e) {
             log.error("Unable to find tibco.properties - {}", e.getMessage());
@@ -134,7 +134,7 @@ public class TibcoConnector implements CloudSetup {
             AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
-                ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",
+                ConfigReader monitorConfig = ConnectorConfig.getConfig("presence.properties",
                         "file:/tmp/config/presence.properties,classpath:/presence.properties");
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);

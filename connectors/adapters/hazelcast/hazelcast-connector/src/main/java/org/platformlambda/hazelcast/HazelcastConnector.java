@@ -5,7 +5,7 @@ import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientConnectionStrategyConfig;
 import com.hazelcast.client.config.ConnectionRetryConfig;
 import com.hazelcast.core.HazelcastInstance;
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.cloud.services.CloudHealthCheck;
@@ -68,8 +68,8 @@ public class HazelcastConnector implements CloudSetup {
              */
             client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener());
             // use the first broker URL as the display URL in the info endpoint
-            ConfigUtil.setServiceName("hazelcast");
-            ConfigUtil.setDisplayUrl(url);
+            ConnectorConfig.setServiceName("hazelcast");
+            ConnectorConfig.setDisplayUrl(url);
         }
         return client;
     }
@@ -79,7 +79,7 @@ public class HazelcastConnector implements CloudSetup {
         Utility util = Utility.getInstance();
         ConfigReader clusterConfig = null;
         try {
-            clusterConfig = ConfigUtil.getConfig("cloud.client.properties",
+            clusterConfig = ConnectorConfig.getConfig("cloud.client.properties",
                     "file:/tmp/config/hazelcast.properties,classpath:/hazelcast.properties");
         } catch (IOException e) {
             log.error("Unable to find hazelcast.properties - {}", e.getMessage());
@@ -116,7 +116,7 @@ public class HazelcastConnector implements CloudSetup {
             AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
-                ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",
+                ConfigReader monitorConfig = ConnectorConfig.getConfig("presence.properties",
                         "file:/tmp/config/presence.properties,classpath:/presence.properties");
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
