@@ -23,6 +23,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.exception.AppException;
@@ -109,27 +110,6 @@ public class PubSubManager implements PubSubProvider {
         }
     }
 
-    private void validateTopicName(String route) throws IOException {
-        // guarantee that only valid service name is registered
-        Utility util = Utility.getInstance();
-        if (!util.validServiceName(route)) {
-            throw new IOException("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters");
-        }
-        String path = util.filteredServiceName(route);
-        if (path.length() == 0) {
-            throw new IOException("Invalid route name");
-        }
-        if (!path.contains(".")) {
-            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
-        }
-        if (util.reservedExtension(path)) {
-            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
-        }
-        if (util.reservedFilename(path)) {
-            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
-        }
-    }
-
     @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
@@ -137,7 +117,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
-        validateTopicName(topic);
+        ConnectorConfig.validateTopicName(topic);
         try {
             EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
                                     new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
@@ -243,7 +223,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
-        validateTopicName(topic);
+        ConnectorConfig.validateTopicName(topic);
         Utility util = Utility.getInstance();
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         List<Header> headerList = new ArrayList<>();
@@ -287,7 +267,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
-        validateTopicName(topic);
+        ConnectorConfig.validateTopicName(topic);
         String topicPartition = topic + (partition < 0? "" : "." + partition);
         if (parameters.length == 2 || parameters.length == 3) {
             if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
@@ -298,7 +278,8 @@ public class PubSubManager implements PubSubProvider {
             }
             EventConsumer consumer = new EventConsumer(getProperties(), topic, partition, parameters);
             consumer.start();
-            Platform.getInstance().registerPrivate(topicPartition, listener, 1);
+            // mercury service name must be lower case
+            Platform.getInstance().registerPrivate(topicPartition.toLowerCase(), listener, 1);
             subscribers.put(topicPartition, consumer);
         } else {
             throw new IOException("Check parameters: clientId, groupId and optional offset pointer");

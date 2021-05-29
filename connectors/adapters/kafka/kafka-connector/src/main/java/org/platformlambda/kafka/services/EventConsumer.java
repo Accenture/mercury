@@ -109,14 +109,13 @@ public class EventConsumer extends Thread {
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String consumerTopic = topic + (partition < 0? "" : "." + partition);
+        String topicPartition = topic + (partition < 0? "" : "." + partition);
         if (partition < 0) {
             consumer.subscribe(Collections.singletonList(topic));
-            log.info("Subscribed {}", topic);
         } else {
             consumer.assign(Collections.singletonList(new TopicPartition(topic, partition)));
-            log.info("Subscribed {}, partition-{}", topic, partition);
         }
+        log.info("Subscribed {}", topicPartition);
         try {
             while (normal.get()) {
                 long interval = reset? 15 : 30;
@@ -175,7 +174,7 @@ public class EventConsumer extends Thread {
                             message.load(data);
                             message.setEndOfRoute();
                         } catch (Exception e) {
-                            log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to decode incoming event for {} - {}", topicPartition, e.getMessage());
                             continue;
                         }
                         try {
@@ -190,7 +189,7 @@ public class EventConsumer extends Thread {
                                 MultipartPayload.getInstance().incoming(message);
                             }
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                         }
                     } else {
                         if (offset == INITIALIZE) {
@@ -224,28 +223,25 @@ public class EventConsumer extends Thread {
                             if (partition >= 0) {
                                 message.setHeader(OFFSET, String.valueOf(record.offset()));
                             }
-                            po.send(message.setTo(consumerTopic));
+                            // mercury service name must be lower case
+                            po.send(message.setTo(topicPartition.toLowerCase()));
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                         }
                     }
                 }
             }
         } catch (Exception e) {
             if (e instanceof WakeupException) {
-                log.info("Stopping listener for {}", consumerTopic);
+                log.info("Stopping listener for {}", topicPartition);
             } else {
                 // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
-                log.error("Event stream error for {} - {} {}", consumerTopic, e.getClass(), e.getMessage());
+                log.error("Event stream error for {} - {} {}", topicPartition, e.getClass(), e.getMessage());
                 System.exit(10);
             }
         } finally {
             consumer.close();
-            if (partition < 0) {
-                log.info("Unsubscribed {}", topic);
-            } else {
-                log.info("Unsubscribed {}, partition {}", topic, partition);
-            }
+            log.info("Unsubscribed {}", topicPartition);
             if (offset == INITIALIZE && initialLoad != null) {
                 initialLoad.close();
             }

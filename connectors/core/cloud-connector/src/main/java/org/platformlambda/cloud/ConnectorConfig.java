@@ -124,4 +124,26 @@ public class ConnectorConfig {
         return topicReplacements;
     }
 
+    public static void validateTopicName(String route) throws IOException {
+        // topic name can be upper case or lower case
+        String name = route.toLowerCase();
+        Utility util = Utility.getInstance();
+        if (!util.validServiceName(name)) {
+            throw new IOException("Invalid route name - use 0-9, a-z, A-Z, period, hyphen or underscore characters");
+        }
+        String path = util.filteredServiceName(name);
+        if (path.length() == 0) {
+            throw new IOException("Invalid route name");
+        }
+        if (!path.contains(".")) {
+            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
+        }
+        if (util.reservedExtension(path)) {
+            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
+        }
+        if (util.reservedFilename(path)) {
+            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
+        }
+    }
+
 }

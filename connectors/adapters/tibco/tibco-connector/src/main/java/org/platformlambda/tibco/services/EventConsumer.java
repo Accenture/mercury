@@ -211,8 +211,10 @@ public class EventConsumer extends Thread {
                         return;
                     }
                     // transport the headers and payload in original form
+                    message.setBody(data).setHeaders(originalHeaders);
                     try {
-                        po.send(message.setTo(virtualTopic).setBody(data).setHeaders(originalHeaders));
+                        // mercury service name must be lower case
+                        po.send(message.setTo(virtualTopic.toLowerCase()));
                     } catch (Exception e) {
                         log.error("Unable to process incoming event for {} - {}", realTopic, e.getMessage());
                     }

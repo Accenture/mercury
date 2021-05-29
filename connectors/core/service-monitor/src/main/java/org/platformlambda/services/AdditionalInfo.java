@@ -86,8 +86,12 @@ public class AdditionalInfo implements LambdaFunction {
             int hyphen = virtualTopic.lastIndexOf('-');
             if (hyphen > 0) {
                 String topic = virtualTopic.substring(0, hyphen);
-                int partition = util.str2int(virtualTopic.substring(hyphen + 1));
-                return preAllocatedTopics.get(topic + "." + partition);
+                if (preAllocatedTopics.containsKey(topic)) {
+                    return preAllocatedTopics.get(topic);
+                } else {
+                    int partition = util.str2int(virtualTopic.substring(hyphen + 1));
+                    return preAllocatedTopics.get(topic + "." + partition);
+                }
             }
         }
         return null;
