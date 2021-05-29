@@ -63,12 +63,7 @@ public class CloudHealthCheck implements LambdaFunction {
             Map<String, Object> result = new HashMap<>();
             result.put("service", ConnectorConfig.getServiceName());
             result.put("href", ConnectorConfig.getDisplayUrl());
-            if (ConnectorConfig.topicSubstitutionEnabled()) {
-                Map<String, Object> topicInfo = new HashMap<>();
-                result.put("substitution", true);
-                result.put("total", ConnectorConfig.substitutionCount());
-                result.put("topics", topicInfo);
-            }
+            result.put("topics", ConnectorConfig.topicSubstitutionEnabled()? "pre-allocated" : "on-demand");
             return result;
         }
         if (HEALTH.equals(headers.get(TYPE))) {
