@@ -32,6 +32,18 @@ public class ConnectorConfig {
     private static Map<String, String> topicReplacements;
     private static String serviceName, displayUrl;
 
+    private static final AppConfigReader config = AppConfigReader.getInstance();
+    private static final String TOPIC_SUBSTITUTION = "application.feature.topic.substitution";
+    private static final boolean FEATURE_ENABLED = "true".equalsIgnoreCase(config.getProperty(TOPIC_SUBSTITUTION));
+
+    public static boolean topicSubstitutionEnabled() {
+        return FEATURE_ENABLED;
+    }
+
+    public static int substitutionCount() throws IOException {
+        return getTopicSubstitution().size();
+    }
+
     /**
      * The service name must be set by the corresponding cloud connector implementation class
      * <p>

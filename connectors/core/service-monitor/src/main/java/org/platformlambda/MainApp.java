@@ -18,6 +18,7 @@
 
 package org.platformlambda;
 
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.PresenceHandler;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.cloud.services.ServiceRegistry;
@@ -56,12 +57,6 @@ public class MainApp implements EntryPoint {
     private static final String INIT = ServiceLifeCycle.INIT;
     private static final String TYPE = "type";
     private static final String ORIGIN = "origin";
-    private final boolean topicSubstitution;
-
-    public MainApp() {
-        AppConfigReader config = AppConfigReader.getInstance();
-        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
-    }
 
     public static void main(String[] args) {
         RestServer.main(args);
@@ -102,7 +97,7 @@ public class MainApp implements EntryPoint {
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
         int requiredPartitions = maxGroups + 1;
-        if (!topicSubstitution) {
+        if (!ConnectorConfig.topicSubstitutionEnabled()) {
             // automatically create topic if not exist
             if (ps.exists(monitorTopic)) {
                 int actualPartitions = ps.partitionCount(monitorTopic);

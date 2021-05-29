@@ -25,7 +25,6 @@ import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -59,15 +58,12 @@ public class EventConsumer extends Thread {
     private long offset = -1;
     private Session session;
     private MessageConsumer messageConsumer;
-    private final boolean topicSubstitution;
-    private final Map<String, String> preAllocatedTopics;
 
     public EventConsumer(String topic, int partition, String... parameters) throws IOException {
         this.topic = topic;
         this.partition = partition;
-        AppConfigReader config = AppConfigReader.getInstance();
-        this.topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
-        this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+        boolean topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         this.virtualTopic = partition < 0 ? topic : topic + "." + partition;
         this.realTopic = topicSubstitution? preAllocatedTopics.getOrDefault(virtualTopic, virtualTopic) : virtualTopic;
         Utility util = Utility.getInstance();

@@ -61,6 +61,8 @@ public class TopicController implements LambdaFunction {
     private final Map<String, String> preAllocatedTopics;
 
     public TopicController() throws IOException {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         String prefix = config.getProperty("app.topic.prefix", "multiplex");
@@ -89,8 +91,6 @@ public class TopicController implements LambdaFunction {
             allTopics = new ArrayList<>(topicStore.keySet());
             Collections.sort(allTopics);
         }
-        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
-        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         if (rsvpProcessor == null) {
             rsvpProcessor = new RsvpProcessor();
             rsvpProcessor.start();

@@ -42,7 +42,7 @@ public class AdditionalInfo implements LambdaFunction {
         AppConfigReader config = AppConfigReader.getInstance();
         appPrefix = config.getProperty("app.topic.prefix", "multiplex") + ".";
         monitorPrefix = config.getProperty("monitor.topic", "service.monitor") + ".";
-        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
         preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
     }
 

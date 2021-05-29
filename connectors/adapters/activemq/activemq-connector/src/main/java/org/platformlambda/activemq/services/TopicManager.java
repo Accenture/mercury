@@ -6,7 +6,6 @@ import org.apache.activemq.artemis.api.core.management.ResourceNames;
 import org.platformlambda.activemq.ArtemisConnector;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +38,7 @@ public class TopicManager implements LambdaFunction {
     private final Map<String, String> preAllocatedTopics;
 
     public TopicManager() throws Exception {
-        AppConfigReader config = AppConfigReader.getInstance();
-        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
         preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         if (!topicSubstitution && session == null) {
             Properties properties = ArtemisConnector.getClusterProperties();
@@ -101,13 +99,7 @@ public class TopicManager implements LambdaFunction {
                     "getAddressInfo", topic);
             ClientMessage reply = requestor.request(m);
             Object o = ManagementHelper.getResult(reply);
-            if (o instanceof String) {
-                String result = (String) o;
-                if (result.startsWith(ADDRESS)) {
-                    return true;
-                }
-            }
-            return false;
+            return o instanceof String && ((String) o).startsWith(ADDRESS);
         }
     }
     

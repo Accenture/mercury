@@ -1,5 +1,6 @@
 package org.platformlambda.tibco.services;
 
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.cloud.services.ServiceRegistry;
@@ -26,8 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 
-public class TibcoPubSub implements PubSubProvider {
-    private static final Logger log = LoggerFactory.getLogger(TibcoPubSub.class);
+public class PubSubManager implements PubSubProvider {
+    private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
 
     private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String PUBLISHER = "event.publisher";
@@ -43,9 +44,13 @@ public class TibcoPubSub implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private Session primarySession, secondarySession;
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
 
     @SuppressWarnings("unchecked")
-    public TibcoPubSub() throws JMSException {
+    public PubSubManager() throws JMSException, IOException {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
 
         LambdaFunction publisher = (headers, body, instance) -> {
             if (STOP.equals(headers.get(TYPE))) {
@@ -87,7 +92,7 @@ public class TibcoPubSub implements PubSubProvider {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
-    private void startSession(boolean primary) throws JMSException {
+    private void startSession(boolean primary) throws Exception {
         if (primary) {
             if (primarySession == null) {
                 Connection connection = TibcoConnector.getConnection();
@@ -215,6 +220,9 @@ public class TibcoPubSub implements PubSubProvider {
 
     private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, Object body) {
         String realTopic = partition < 0 ? topic : topic + "." + partition;
+        if (topicSubstitution) {
+            realTopic = preAllocatedTopics.getOrDefault(realTopic, realTopic);
+        }
         try {
             startSession(primary);
             Session session = primary? primarySession : secondarySession;

@@ -13,7 +13,6 @@ import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +49,7 @@ public class PubSubManager implements PubSubProvider {
 
     @SuppressWarnings("unchecked")
     public PubSubManager() throws JMSException, IOException {
-        AppConfigReader config = AppConfigReader.getInstance();
-        topicSubstitution = "true".equalsIgnoreCase(config.getProperty("application.feature.topic.substitution"));
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
         preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         LambdaFunction publisher = (headers, body, instance) -> {
             if (STOP.equals(headers.get(TYPE))) {

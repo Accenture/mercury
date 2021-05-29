@@ -19,7 +19,7 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
-import org.platformlambda.tibco.services.TibcoPubSub;
+import org.platformlambda.tibco.services.PubSubManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,8 +27,13 @@ import org.slf4j.LoggerFactory;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 import java.io.IOException;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 @CloudConnector(name="tibco")
@@ -39,6 +44,11 @@ public class TibcoConnector implements CloudSetup {
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     private static final String USER_ID = "user.id";
     private static final String USER_PWD = "user.password";
+    private static final String JNDI = "jndi";
+    private static final String PROVIDER_URL = "jndi.provider.url";
+    private static final String JNDI_USER = "jndi.user";
+    private static final String JNDI_PWD = "jndi.password";
+    private static final String CONNECTION_FACTORY_NAME = "connection.factory.name";
     private static Properties properties;
     private static Connection connection;
     private static TibjmsAdmin adminClient;
@@ -48,12 +58,28 @@ public class TibcoConnector implements CloudSetup {
         return displayUrl;
     }
 
-    public static synchronized Connection getConnection() throws JMSException {
+    public static synchronized Connection getConnection() throws Exception {
         if (connection == null) {
-            String cluster = properties.getProperty(BROKER_URL, "tcp://127.0.0.1:7222");
+            final ConnectionFactory factory;
+            final boolean jndi = "true".equalsIgnoreCase(properties.getProperty(JNDI));
+            final String cluster = properties.getProperty(
+                                        jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
             String userId = properties.getProperty(USER_ID, "");
             String password = properties.getProperty(USER_PWD, "");
-            ConnectionFactory factory = new TibjmsConnectionFactory(cluster);
+            if (jndi) {
+                String jndiUser = properties.getProperty(JNDI_USER, "");
+                String jndiPassword = properties.getProperty(JNDI_PWD, "");
+                String factoryName = properties.getProperty(CONNECTION_FACTORY_NAME, "ConnectionFactory");
+                Hashtable<String,String> env = new Hashtable<>();
+                env.put(Context.INITIAL_CONTEXT_FACTORY, "com.tibco.tibjms.naming.TibjmsInitialContextFactory");
+                env.put(Context.PROVIDER_URL, cluster);
+                env.put(Context.SECURITY_PRINCIPAL, jndiUser);
+                env.put(Context.SECURITY_CREDENTIALS, jndiPassword);
+                InitialContext jndiContext = new InitialContext(env);
+                factory = (ConnectionFactory)jndiContext.lookup(factoryName);
+            } else {
+                factory = new TibjmsConnectionFactory(cluster);
+            }
             connection = factory.createConnection(userId, password);
             connection.setExceptionListener((e) -> {
                 String error = e.getMessage();
@@ -130,7 +156,7 @@ public class TibcoConnector implements CloudSetup {
         try {
             Platform platform = Platform.getInstance();
             PubSub ps = PubSub.getInstance();
-            ps.enableFeature(new TibcoPubSub());
+            ps.enableFeature(new PubSubManager());
             AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector

@@ -21,11 +21,12 @@ package org.platformlambda.tibco;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
-import org.platformlambda.tibco.services.TibcoPubSub;
+import org.platformlambda.tibco.services.PubSubManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.jms.JMSException;
+import java.io.IOException;
 
 /**
  * This cloud service provides native pub/sub service only.
@@ -44,9 +45,9 @@ public class PubSubSetup implements CloudSetup {
     public void initialize() {
         if (!PubSub.getInstance().featureEnabled()) {
             try {
-                PubSub.getInstance().enableFeature(new TibcoPubSub());
+                PubSub.getInstance().enableFeature(new PubSubManager());
                 log.info("Tibco cluster = {}",  TibcoConnector.getDisplayUrl());
-            } catch (JMSException e) {
+            } catch (JMSException | IOException e) {
                 log.error("Unable to connect to Tibco cluster {} - {}", TibcoConnector.getDisplayUrl(), e.getMessage());
                 System.exit(10);
             }

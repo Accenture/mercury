@@ -3,10 +3,13 @@ package org.platformlambda.tibco.services;
 import com.tibco.tibjms.admin.TibjmsAdmin;
 import com.tibco.tibjms.admin.TibjmsAdminException;
 import com.tibco.tibjms.admin.TopicInfo;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.tibco.TibcoConnector;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +22,13 @@ public class TopicManager implements LambdaFunction {
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
+
+    public TopicManager() throws IOException {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+    }
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws TibjmsAdminException {
@@ -57,6 +67,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) throws TibjmsAdminException {
+        if (topicSubstitution) {
+            return preAllocatedTopics.get(topic) != null;
+        }
         TibjmsAdmin admin = TibcoConnector.getAdminClient();
         try {
             return admin.getTopic(topic) != null;
@@ -67,6 +80,13 @@ public class TopicManager implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     private int topicPartitions(String topic) throws TibjmsAdminException {
+        if (topicSubstitution) {
+            int n = 0;
+            while (preAllocatedTopics.containsKey(topic+"."+n)) {
+                n++;
+            }
+            return n;
+        }
         String firstPartition = topic + ".0";
         if (topicExists(firstPartition)) {
             Utility util = Utility.getInstance();
@@ -89,6 +109,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void createTopic(String topic) throws TibjmsAdminException {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         if (!topicExists(topic)) {
             TibjmsAdmin admin = TibcoConnector.getAdminClient();
             TopicInfo info = new TopicInfo(topic);
@@ -106,6 +132,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void deleteTopic(String topic) throws TibjmsAdminException {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         if (topicExists(topic)) {
             TibjmsAdmin admin = TibcoConnector.getAdminClient();
             admin.destroyTopic(topic);
@@ -113,6 +145,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private List<String> listTopics() throws TibjmsAdminException {
+        if (topicSubstitution) {
+            return new ArrayList<>(preAllocatedTopics.keySet());
+        }
         List<String> result = new ArrayList<>();
         TibjmsAdmin admin = TibcoConnector.getAdminClient();
         TopicInfo[] topics = admin.getTopics();

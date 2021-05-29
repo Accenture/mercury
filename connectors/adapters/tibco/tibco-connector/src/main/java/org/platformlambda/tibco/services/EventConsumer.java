@@ -18,6 +18,7 @@
 
 package org.platformlambda.tibco.services;
 
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.jms.*;
+import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +51,7 @@ public class EventConsumer extends Thread {
     private static final String TO_MONITOR = "@"+MONITOR;
     private final BlockingQueue<Boolean> completion = new ArrayBlockingQueue<>(1);
     private final String INIT_TOKEN = UUID.randomUUID().toString();
-    private final String topic;
+    private final String realTopic, virtualTopic, topic;
     private final int partition;
     private ServiceLifeCycle initialLoad;
     private int skipped = 0;
@@ -57,9 +59,13 @@ public class EventConsumer extends Thread {
     private Session session;
     private MessageConsumer messageConsumer;
 
-    public EventConsumer(String topic, int partition, String... parameters) {
+    public EventConsumer(String topic, int partition, String... parameters) throws IOException {
         this.topic = topic;
         this.partition = partition;
+        Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+        this.virtualTopic = partition < 0 ? topic : topic + "." + partition;
+        this.realTopic = ConnectorConfig.topicSubstitutionEnabled()?
+                preAllocatedTopics.getOrDefault(virtualTopic, virtualTopic) : virtualTopic;
         Utility util = Utility.getInstance();
         /*
          * Ignore groupId and clientId as they are specific to Kafka only.
@@ -82,7 +88,6 @@ public class EventConsumer extends Thread {
             initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
-        String realTopic = partition < 0 ? topic : topic + "." + partition;
         try {
             Connection connection = TibcoConnector.getConnection();
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
@@ -91,7 +96,7 @@ public class EventConsumer extends Thread {
             messageConsumer.setMessageListener(new EventListener());
             log.info("Event consumer for {} started", realTopic);
 
-        } catch (JMSException e) {
+        } catch (Exception e) {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
@@ -127,8 +132,6 @@ public class EventConsumer extends Thread {
 
     private class EventListener implements MessageListener {
 
-        private final String consumerTopic = topic + (partition < 0? "" : "." + partition);
-
         @SuppressWarnings("unchecked")
         @Override
         public void onMessage(Message evt) {
@@ -161,7 +164,7 @@ public class EventConsumer extends Thread {
                         message.load(data);
                         message.setEndOfRoute();
                     } catch (Exception e) {
-                        log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to decode incoming event for {} - {}", realTopic, e.getMessage());
                         return;
                     }
                     try {
@@ -176,7 +179,7 @@ public class EventConsumer extends Thread {
                             MultipartPayload.getInstance().incoming(message);
                         }
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {}", realTopic, e.getMessage());
                     }
                 } else {
                     if (offset == INITIALIZE) {
@@ -204,14 +207,14 @@ public class EventConsumer extends Thread {
                         TextMessage txt = (TextMessage) evt;
                         data = txt.getText();
                     } else {
-                        log.error("Event to {} dropped because it is not Text or Binary", consumerTopic);
+                        log.error("Event to {} dropped because it is not Text or Binary", realTopic);
                         return;
                     }
                     // transport the headers and payload in original form
                     try {
-                        po.send(message.setTo(consumerTopic).setBody(data).setHeaders(originalHeaders));
+                        po.send(message.setTo(virtualTopic).setBody(data).setHeaders(originalHeaders));
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {}", realTopic, e.getMessage());
                     }
                 }
 
