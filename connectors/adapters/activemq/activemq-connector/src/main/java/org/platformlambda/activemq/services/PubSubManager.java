@@ -44,12 +44,10 @@ public class PubSubManager implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private Session primarySession, secondarySession;
-    private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
 
     @SuppressWarnings("unchecked")
     public PubSubManager() throws JMSException, IOException {
-        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
         preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         LambdaFunction publisher = (headers, body, instance) -> {
             if (STOP.equals(headers.get(TYPE))) {
@@ -198,7 +196,7 @@ public class PubSubManager implements PubSubProvider {
 
     private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, Object body) {
         String realTopic = partition < 0 ? topic : topic + "." + partition;
-        if (topicSubstitution) {
+        if (ConnectorConfig.topicSubstitutionEnabled()) {
             realTopic = preAllocatedTopics.getOrDefault(realTopic, realTopic);
         }
         try {

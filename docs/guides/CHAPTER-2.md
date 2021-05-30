@@ -1,4 +1,4 @@
-# API reference
+# Platform API
 
 Mercury has a small set of API for declaring microservices functions and sending events to functions.
 

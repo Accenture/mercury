@@ -15,7 +15,7 @@ You can point the `topic.substitution.file` to a file. e.g. file:/tmp/config/top
 
 Kafka, ActiveMQ and Tibco support mapping of system topics to pre-allocated topics.
 
-Substitution file examples are shown as follows:
+# Substitution file example
 
 # ActiveMQ and Tibco
 
@@ -88,9 +88,3 @@ multiplex:
     4: user.app#4
     5: user.app#5
 ```
-
----
-
-| Chapter-7                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [application.properties](CHAPTER-7.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|

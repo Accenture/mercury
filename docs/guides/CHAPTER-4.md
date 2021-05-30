@@ -1,6 +1,6 @@
 ﻿# REST automation
 
-This is the recommended way to automate REST endpoint creation.
+REST automation turns HTTP requests and responses into events for truly non-blocking operation.
 
 ## Library and Application
 
@@ -8,8 +8,9 @@ The REST automation system consists of a library and an application. This sub-pr
 
 ## REST endpoint creation
 
-Instead of creating REST endpoints programmatically, this application allows REST endpoints to be created declaratively.
-i.e. REST endpoints can be created with simple routing syntax in a YAML file.
+It allows us to create REST and websocket endpoints by configuration instead of code.
+
+Let us examine the idea with a sample configuration.
 
 ## REST endpoint routing
 
@@ -509,6 +510,6 @@ If your application does not support websocket notification channel, you can rem
 
 ---
 
-| Chapter-5                                 | Home                                     |
-| :----------------------------------------:|:----------------------------------------:|
-| [REST and websocket](CHAPTER-5.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Chapter-5                                   | Home                                     |
+| :------------------------------------------:|:----------------------------------------:|
+| [Traditional REST endpoints](CHAPTER-5.md)  | [Table of Contents](TABLE-OF-CONTENTS.md)|

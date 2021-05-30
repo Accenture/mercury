@@ -138,5 +138,3 @@ All functions are running in parallel without special coding. Behind the curtain
 | Chapter-2                           | Home                                     |
 | :----------------------------------:|:----------------------------------------:|
 | [Platform API](CHAPTER-2.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
-
-

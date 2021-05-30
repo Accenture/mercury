@@ -173,7 +173,7 @@ public class AdditionalInfo implements LambdaFunction {
         Map<String, Integer> compositeTopics = new HashMap<>();
         List<String> result = new ArrayList<>();
         for (String topic: topics) {
-            if (ps.isNativePubSub()) {
+            if (ps.isNativePubSub() && !ConnectorConfig.topicSubstitutionEnabled()) {
                 result.add(topic + " (" + ps.partitionCount(topic) + ")");
             } else {
                 // simulated topic partitioning

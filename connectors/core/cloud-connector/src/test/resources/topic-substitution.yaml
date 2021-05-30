@@ -4,8 +4,6 @@
 # The default service monitor and multiplex topics are prefixed as service.monitor and multiplex.n
 # where n starts from 0001
 #
-# The number of topics must be equal or larger than the number of application instances to be deployed
-#
 service:
   monitor:
     0: some.topic.one

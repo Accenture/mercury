@@ -21,6 +21,7 @@ package org.platformlambda.kafka.services;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -48,15 +49,18 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String STOP = "stop";
     private static Integer replicationFactor;
-
     private static boolean startMonitor = true;
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
     private AdminClient admin;
     private long lastAccess = 0;
     private int count = 0, seq = 0;
 
-    public TopicManager() {
+    public TopicManager() throws IOException {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopAdmin));
-        if (startMonitor) {
+        if (startMonitor && !topicSubstitution) {
             startMonitor = false;
             InactivityMonitor monitor = new InactivityMonitor();
             monitor.start();
@@ -125,10 +129,20 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) {
+        if (topicSubstitution) {
+            return preAllocatedTopics.get(topic) != null;
+        }
         return topicPartitions(topic) != -1;
     }
 
     private int topicPartitions(String topic) {
+        if (topicSubstitution) {
+            int n = 0;
+            while (preAllocatedTopics.containsKey(topic+"."+n)) {
+                n++;
+            }
+            return n;
+        }
         startAdmin();
         lastAccess = System.currentTimeMillis();
         DescribeTopicsResult topicMetadata = admin.describeTopics(Collections.singletonList(topic));
@@ -150,6 +164,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private int getReplicationFactor() {
+        if (topicSubstitution) {
+            return 1;
+        }
         if (replicationFactor == null) {
             AppConfigReader reader = AppConfigReader.getInstance();
             int factor = Utility.getInstance().str2int(reader.getProperty("kafka.replication.factor", "3"));
@@ -176,6 +193,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void createTopic(String topic, int partitions) {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         startAdmin();
         lastAccess = System.currentTimeMillis();
         try {
@@ -217,6 +240,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void deleteTopic(String topic) {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         if (topicExists(topic)) {
             startAdmin();
             lastAccess = System.currentTimeMillis();
@@ -249,6 +278,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private List<String> listTopics() {
+        if (topicSubstitution) {
+            return new ArrayList<>(preAllocatedTopics.keySet());
+        }
         startAdmin();
         List<String> result = new ArrayList<>();
         ListTopicsResult list = admin.listTopics();
@@ -263,7 +295,6 @@ public class TopicManager implements LambdaFunction {
     }
 
     private class InactivityMonitor extends Thread {
-
         private boolean normal = true;
 
         public InactivityMonitor() {

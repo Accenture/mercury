@@ -67,7 +67,7 @@ public class MainApp implements EntryPoint {
         try {
             setup();
         } catch (Exception e) {
-            log.error("Unable to start - {}", e.getMessage());
+            log.error("Unable to start", e);
             System.exit(-1);
         }
     }

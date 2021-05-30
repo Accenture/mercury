@@ -60,12 +60,12 @@ public class EventConsumer extends Thread {
     private MessageConsumer messageConsumer;
 
     public EventConsumer(String topic, int partition, String... parameters) throws IOException {
+        boolean substitute = ConnectorConfig.topicSubstitutionEnabled();
+        Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         this.topic = topic;
         this.partition = partition;
-        boolean topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
-        Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         this.virtualTopic = partition < 0 ? topic : topic + "." + partition;
-        this.realTopic = topicSubstitution? preAllocatedTopics.getOrDefault(virtualTopic, virtualTopic) : virtualTopic;
+        this.realTopic = substitute? preAllocatedTopics.getOrDefault(virtualTopic, virtualTopic) : virtualTopic;
         Utility util = Utility.getInstance();
         /*
          * Ignore groupId and clientId as they are specific to Kafka only.

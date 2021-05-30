@@ -1,14 +1,8 @@
-# REST and websocket
+# Traditional REST endpoints
 
-In chapter 4, we have described the use of the REST automation system to define REST and websocket endpoints by configuation.
+The recommended way to create REST endpoints is the REST automation system described in chapter 4.
 
-This chapter describes the programmatic ways to write REST and websocket endpoints when there is a need to use traditional means.
-
-REST and websocket are supported in the `rest-spring` module. You may use the `rest-example` as a template to try out.
-
-## 3 ways to write REST endpoints
-
-You can write REST endpoints in 3 different fashions:
+However, if you want to write REST and websocket endpoints in traditional ways, Mercury supports the following for backward compatibility.
 
 1. JAX-RS annotation
 2. Spring REST controller
@@ -61,7 +55,7 @@ IMPORTANT: websocket does not support custom HTTP headers for authentication. As
 
 `Websocket idle timeout` - there is a one-minute idle timeout for all websocket connection. To keep the websocket connection alive, you may send a message to the websocket service. For example, sending a BYTES or TEXT message to the service with some agreed protocol.
 
-`Disconnect a client websocket connection` - To disconnect a client websocket, you may use the Utility class as follows:
+To disconnect a websocket connection, you may use the Utility class as follows:
 
 ```
 void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException;
@@ -80,11 +74,11 @@ Under the hood, we are using Spring Boot. Therefore you may put static contents 
 
 The Mercury framework is loosely coupled with Spring Boot to support REST and websocket endpoints. The light-weight application server for Spring Boot can be Tomcat, Jetty or Undertow.
 
-Unless you have a reason to use proprietary features of Spring Boot or Spring framework directly, we recommend you avoid using Spring specific features. We have optimized Spring Boot with custom serializers and exception handlers in the `rest-spring` module.
+For consistency, we have optimized Spring Boot with custom serializers and exception handlers in the `rest-spring` module.
 
-If you know what you are doing, you can use Spring Boot feature directly with the exception of the `@SpringApplication` annotation because we use the `@MainApplication` to hide the complexity of the application server. You can change the behavior of Spring Boot including auto-config classes using the `application.properties` file in the resources folder in the maven project.
+If you know what you are doing, you can use Spring Boot feature directly with the exception of the `@SpringApplication` annotation because we use the `@MainApplication` to enable additional automation. You can change the behavior of Spring Boot including auto-config classes using the `application.properties` file in the resources folder in the maven project.
 
-We are currently using Tomcat. If your organization prefers Jetty or Undertow, please adjust the pom.xml file in the `rest-spring` and `platform-core` projects.
+We are currently using Tomcat. If your organization prefers Jetty or Undertow, you may adjust the pom.xml file in the `rest-spring` and `platform-core` projects.
 
 ## application.properties
 
@@ -100,6 +94,6 @@ In additon to the parameters defined by Spring Boot, the Mercury framework uses 
 
 ---
 
-| Chapter-6                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [application.properties](CHAPTER-6.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Chapter-6                             | Home                                     |
+| :------------------------------------:|:----------------------------------------:|
+| [Topic substitution](CHAPTER-6.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
