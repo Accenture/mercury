@@ -16,8 +16,10 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 6 - Cloud connectors](CHAPTER-6.md)
 
-[Chapter 7 - application.properties](CHAPTER-7.md)
+[Chapter 7 - Version control](CHAPTER-7.md)
 
-[Chapter 8 - Reserved route names](CHAPTER-8.md)
+[Appendix I - application.properties](APPENDIX-I.md)
 
-[Chapter 9 - Additional features](CHAPTER-9.md)
+[Appendix II - Reserved route names](APPENDIX-II.md)
+
+[Appendix III - Additional features](APPENDIX-III.md)

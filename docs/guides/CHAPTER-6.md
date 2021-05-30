@@ -23,7 +23,7 @@ You can point the `topic.substitution.file` to a file. e.g. file:/tmp/config/top
 
 Kafka, ActiveMQ and Tibco support mapping of system topics to pre-allocated topics.
 
-Let's examine with two sample topic substitution files.
+Let's examine the configuration concept with two sample topic substitution files.
 
 ### ActiveMQ and Tibco
 
@@ -56,7 +56,7 @@ multiplex:
 
 ### Kafka
 
-Since Kafka is a native pub/sub system with partitioning support, you can specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y).
+Since Kafka is a native pub/sub system with partitioning support, you can use the "#n" suffix to specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). (Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
 
 If you do not provide the partition number, it is assumed to be the first partition. i.e. partition-0.
 
@@ -79,10 +79,10 @@ If you do not provide the partition number, it is assumed to be the first partit
 #
 service:
   monitor:
-    0: SERVICE.APP.ONE
-    1: SERVICE.APP.TWO
-    2: SERVICE.APP.THREE
-    3: SERVICE.APP.FOUR
+    0: SERVICE.APP.ONE#0
+    1: SERVICE.APP.TWO#0
+    2: SERVICE.APP.THREE#0
+    3: SERVICE.APP.FOUR#0
 
 #
 # the 4-digit segment ID must be quoted to preserve the number of digits when the system parses this config file
@@ -99,6 +99,6 @@ multiplex:
 
 ---
 
-| Chapter-7                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [application.properties](CHAPTER-7.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Chapter-7                           | Home                                     |
+| :----------------------------------:|:----------------------------------------:|
+| [Version Control](CHAPTER-7.md)     | [Table of Contents](TABLE-OF-CONTENTS.md)|

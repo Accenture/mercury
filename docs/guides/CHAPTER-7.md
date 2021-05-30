@@ -1,148 +1,84 @@
-# application.properties
+# Version control
 
-| Key                                         | Value (example)                           | Required  |
-| :-------------------------------------------|:------------------------------------------|:----------|
-| application.name or spring.application.name | Application name                          | Yes       |
-| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
-| info.app.description                        | Something about application               | Yes       |
-| web.component.scan                          | your own package path or parent path      | Yes       |
-| server.port                                 | e.g. 8083                                 | Yes*      |
-| spring.mvc.static-path-pattern              | /**                                       | Yes*      |
-| spring.resources.static-locations           | classpath:/public/                        | Yes*      |
-| jax.rs.application.path                     | /api                                      | Optional*1|
-| show.env.variables                          | comma separated list of variable names    | Optional*1|
-| show.application.properties                 | comma separated list of property names    | Optional*1|
-| cloud.connector                             | kafka, hazelcast, none, etc.              | Optional  |
-| cloud.services                              | e.g. some.interesting.service             | Optional  |
-| snake.case.serialization                    | true (recommended)                        | Optional  |
-| env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
-| safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
-| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
-| info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
-| trace.http.header                           | comma separated list traceId labels       | *2        |
-| trace.log.header                            | default value is X-Trace-Id               | Optional  |
-| index.redirection                           | comma separated list of URI paths         | Optional*1|
-| index.page                                  | default value is index.html               | Optional*1|
-| application.feature.route.substitution      | default value is false                    | Optional  |
-| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| application.feature.topic.substitution      | default value is false                    | Optional  |
-| topic.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| cloud.client.properties                     | e.g. classpath:/kafka.properties          | connectors|
-| kafka.replication.factor                    | 3                                         | Kafka     |
-| default.app.group.id                        | kafka groupId for the app instance        | Optional  |
-| default.monitor.group.id                    | kafka groupId for the presence-monitor    | Optional  |
-| monitor.topic                               | kafka topic for the presence-monitor      | Optional  |
-| app.topic.prefix                            | multiplex (default value, DO NOT change)  | Optional  |
-| app.partitions.per.topic                    | Max Kafka partitions per topic            | Optional  |
-| max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
-| max.closed.user.groups                      | Number of closed user groups              | Optional  |
-| closed.user.group                           | Closed user group (default 1) for the app | Optional  |
+Sometimes, it would be useful to deploy more than one version of the same service in an environment.
 
-`*1` - when using the "rest-spring" library
-`*2` - applies to the REST automation helper application only
+This allows us to test new versions without impacting existing functionality.
 
-# safe.data.models
+Version control is supported in the REST automation system and the Post Office event core engine.
 
-PoJo may execute Java code. As a result, it is possible to inject malicious code that does harm when deserializing a PoJo.
-This security risk applies to any JSON serialization engine.
+To do that, we can add a prefix or suffix to a service route name.
 
-For added security and peace of mind, you may want to white list your PoJo package paths.
-When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController, Servlets will respect this setting and enforce PoJo white listing.
+For example, the service route name is originally "hello.world". The versioned services would be:
 
-Usually you do not need to use the serializer in your code because it is much better to deal with PoJo in your IDE.
-However, if there is a genuine need to do low level coding, you may use the pre-configured serializer so that the serialization behavior is consistent.
+```
+v1.hello.world - the current version
+v2.hello.world - the next version of the service with functional improvement or bug fix
+```
 
-You can get an instance of the serializer with `SimpleMapper.getInstance().getWhiteListMapper()`.
+There are two ways to do versioning:
 
-# info.api.key
+1. REST automation
+2. Route substitution
 
-When "protected.info.endpoints" are configured, you must provide the secret in the "X-Info-Key" header when accessing the protected endpoints.
-You may define "info.api.key" in application.properties for the secret.
-For security, we recommend pointing the parameter to an environment variable.
+ Let's examine how to do versioning from the REST automation system.
 
-For convenience, if you do not define the "info.api.key", the application's origin-ID is used as the secret.
+# REST automation
 
-# trace.http.header
+Versioning would start with adding version in the URI path of a REST endpoint.
 
-Identify the HTTP header for traceId. When configured with more than one label, the system will retrieve traceID from the
-corresponding HTTP header and propagate it through the transaction that may be served by multiple services.
+In the rest.yaml configuration file, we can define multiple versions of the REST endpoint to route to different versions of backend services.
 
-If traceId is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
-
-e.g. 
-X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
-or
-X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
-
-# trace.log.header
-
-If tracing is enabled for a transaction, this will insert the trace-ID into the logger's ThreadContext using the trace.log.header.
-
-Note that trace.log.header is case sensitive and you must put the corresponding value in log4j2.xml.
-The default value is "X-Trace-Id" if this parameter is not provided in application.properties.
 e.g.
 
-```xml
-<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
+```
+  - service: "v1.hello.world"
+    methods: ['GET']
+    url: "/api/v1/hello/world"
+  - service: "v2.hello.world"
+    methods: ['GET']
+    url: "/api/v2/hello/world"
 ```
 
-# route substitution
+In this case, the UI application must be aware of the different versions of URI path.
 
-This is usually used for blue/green environment tests. In some simple cases, you may use this for versioning. 
+# Route substitution
 
-Example parameters in application.properties
-```yaml
+Route substitution works differently. The URI path of a specific REST endpoint is version neutral. 
+
+e.g.
+```
+  - service: "hello.world"
+    methods: ['GET']
+    url: "/api/hello/world"
+```
+
+We would create a route substitution to automatically change the routing.
+
+you can turn on route substitution with the following parameters in application.properties
+
+```
 application.feature.route.substitution=true
-# the system will load the first available file if more than one location is given
-route.substitution.file=file:/tmp/config/route-substitution.yaml , classpath:/route-substitution.yaml
+route.substitution.file=file:/tmp/config/route-substitution.yaml,classpath:/route-substitution.yaml
 ```
 
-Example route-substitution.yaml file
-```yaml
+You can point the `route.substitution.file` to a file. e.g. file:/tmp/config/route-substitution.yaml
+
+The content of route substitution file may look like this:
+
+```
 route:
   substitution:
-    - "hello.test -> hello.world"
+    - "hello.world -> v2.hello.world"
 ```
 
-# Kafka specific configuration
+In the above example, the REST endpoint "/api/hello/world" will route the HTTP request to "hello.world" and
+the system will route "hello.world" to "v2.hello.world".
 
-If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to externalize kafka.properties.
-It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
+In this case, we usually deploy more than one REST automation gatways for user facing. We can use DNS routing to route a percentage of current user requests to the REST automation gateway that sends requests to version 2 of the backend service.
 
-Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" refers to an external config file.
-
-You want also use the embedded config file as a backup like this:
-
-```
-# this is the configuration used by the kafka.presence monitor
-kafka.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
-```
-
-`kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
-If the available number of kafka brokers are more than the replication factor, it will use the given replication factor.
-Otherwise, the system will fall back to a smaller value and this optimization may not work in production.
-Therefore, please discuss with your DevOps administrator for the optimal replication factor value.
-
-```
-Number of replicated copies = replication factor - 1
-```
-
-# presence monitor
-
-You will deploy a "presence monitor" to assign topics to any connected user application instances. 
-
-Your user application instances will connect to the presence monitor using websocket. 
-When an application instance fails, the presence monitor can detect it immediately so that its peer application instances can update the routing table.
-
-# Spring Boot
-
-The foundation code uses Spring Boot in the "rest-spring" library. For loose coupling, we use the `@MainApplication` as a replacement for the `SpringApplication`. Please refer to the MainApp class in the "rest-example" project.
-This allows us to use any REST application server when technology evolves.
-
-If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
 
 ---
 
-| Chapter-8                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [Reserved route names](CHAPTER-8.md)     | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Appendix-I                                | Home                                     |
+| :----------------------------------------:|:----------------------------------------:|
+| [application.properties](APPENDIX-I.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|

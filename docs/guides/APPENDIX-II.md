@@ -35,6 +35,6 @@ The route name "distributed.trace.processor" is reserved for user defined trace 
 
 ---
 
-| Chapter-9                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [Additional features](CHAPTER-9.md)      | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Appendix-III                              | Home                                     |
+| :----------------------------------------:|:----------------------------------------:|
+| [Additional features](Appendix-III.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
