@@ -18,6 +18,7 @@
 
 package org.platformlambda.services;
 
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.AppConfigReader;
@@ -34,11 +35,15 @@ public class AdditionalInfo implements LambdaFunction {
     private static final String NAME = "name";
     private static final String VERSION = "version";
     private final String appPrefix, monitorPrefix;
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
 
-    public AdditionalInfo() {
+    public AdditionalInfo() throws IOException {
         AppConfigReader config = AppConfigReader.getInstance();
         appPrefix = config.getProperty("app.topic.prefix", "multiplex") + ".";
         monitorPrefix = config.getProperty("monitor.topic", "service.monitor") + ".";
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
     }
 
     @SuppressWarnings("unchecked")
@@ -71,6 +76,27 @@ public class AdditionalInfo implements LambdaFunction {
         }
     }
 
+    private String getTopicReplacement(String virtualTopic) {
+        String replacement = preAllocatedTopics.get(virtualTopic);
+        if (replacement != null) {
+            return replacement;
+        }
+        Utility util = Utility.getInstance();
+        if (virtualTopic.contains("-")) {
+            int hyphen = virtualTopic.lastIndexOf('-');
+            if (hyphen > 0) {
+                String topic = virtualTopic.substring(0, hyphen);
+                if (preAllocatedTopics.containsKey(topic)) {
+                    return preAllocatedTopics.get(topic);
+                } else {
+                    int partition = util.str2int(virtualTopic.substring(hyphen + 1));
+                    return preAllocatedTopics.get(topic + "." + partition);
+                }
+            }
+        }
+        return null;
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> getVirtualTopics(Map<String, Object> connections) {
         Map<String, String> topics = TopicController.getAssignedTopics();
@@ -78,12 +104,19 @@ public class AdditionalInfo implements LambdaFunction {
         for (String t: topics.keySet()) {
             String member = topics.get(t);
             List<String> memberTopics = members.getOrDefault(member, new ArrayList<>());
-            memberTopics.add(t);
+            String topicName = t;
+            if (topicSubstitution) {
+                String replacement = getTopicReplacement(t);
+                if (replacement != null) {
+                    topicName += " ("+replacement+")";
+                }
+            }
+            memberTopics.add(topicName);
             members.put(member, memberTopics);
         }
         List<String> vTopics = new ArrayList<>();
         for (String m: members.keySet()) {
-            String list = list2Str(members.get(m));
+            String topicList = list2str(members.get(m));
             String signature = m;
             Object c = connections.get(m);
             if (c instanceof Map) {
@@ -95,7 +128,7 @@ public class AdditionalInfo implements LambdaFunction {
                     signature += " v" + cm.get(VERSION);
                 }
             }
-            vTopics.add(list+" -> "+signature);
+            vTopics.add(topicList+" -> "+signature);
         }
         if (vTopics.size() > 1) {
             Collections.sort(vTopics);
@@ -103,7 +136,7 @@ public class AdditionalInfo implements LambdaFunction {
         return vTopics;
     }
 
-    private String list2Str(List<String> list) {
+    private String list2str(List<String> list) {
         if (list.isEmpty()) {
             return "?";
         }
@@ -140,7 +173,7 @@ public class AdditionalInfo implements LambdaFunction {
         Map<String, Integer> compositeTopics = new HashMap<>();
         List<String> result = new ArrayList<>();
         for (String topic: topics) {
-            if (ps.isNativePubSub()) {
+            if (ps.isNativePubSub() && !ConnectorConfig.topicSubstitutionEnabled()) {
                 result.add(topic + " (" + ps.partitionCount(topic) + ")");
             } else {
                 // simulated topic partitioning

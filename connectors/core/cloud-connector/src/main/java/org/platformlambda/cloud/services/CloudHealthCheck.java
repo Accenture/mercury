@@ -18,7 +18,7 @@
 
 package org.platformlambda.cloud.services;
 
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
@@ -61,8 +61,9 @@ public class CloudHealthCheck implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (INFO.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
-            result.put("service", ConfigUtil.getServiceName());
-            result.put("href", ConfigUtil.getDisplayUrl());
+            result.put("service", ConnectorConfig.getServiceName());
+            result.put("href", ConnectorConfig.getDisplayUrl());
+            result.put("topics", ConnectorConfig.topicSubstitutionEnabled()? "pre-allocated" : "on-demand");
             return result;
         }
         if (HEALTH.equals(headers.get(TYPE))) {

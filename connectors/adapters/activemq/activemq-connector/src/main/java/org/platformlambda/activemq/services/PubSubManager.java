@@ -1,6 +1,7 @@
 package org.platformlambda.activemq.services;
 
 import org.platformlambda.activemq.ArtemisConnector;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.cloud.services.ServiceRegistry;
@@ -9,7 +10,6 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
-import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -30,7 +30,6 @@ import java.util.concurrent.TimeoutException;
 public class PubSubManager implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
 
-    private static final MsgPack msgPack = new MsgPack();
     private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String PUBLISHER = "event.publisher";
     private static final String TYPE = "type";
@@ -45,9 +44,11 @@ public class PubSubManager implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private Session primarySession, secondarySession;
+    private final Map<String, String> preAllocatedTopics;
 
     @SuppressWarnings("unchecked")
-    public PubSubManager() throws JMSException {
+    public PubSubManager() throws JMSException, IOException {
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         LambdaFunction publisher = (headers, body, instance) -> {
             if (STOP.equals(headers.get(TYPE))) {
                 stopConnection();
@@ -56,8 +57,8 @@ public class PubSubManager implements PubSubProvider {
                 Object topic = data.get(TOPIC);
                 Object partition = data.get(PARTITION);
                 Object payload = data.get(BODY);
-                if (topic instanceof String && partition instanceof Integer && payload instanceof byte[]) {
-                    sendEvent(false, (String) topic, (int) partition, headers, (byte[]) payload);
+                if (topic instanceof String && partition instanceof Integer) {
+                    sendEvent(false, (String) topic, (int) partition, headers, payload);
                 }
             }
             return true;
@@ -119,27 +120,6 @@ public class PubSubManager implements PubSubProvider {
         ArtemisConnector.stopConnection();
     }
 
-    private void validateTopicName(String route) throws IOException {
-        // guarantee that only valid service name is registered
-        Utility util = Utility.getInstance();
-        if (!util.validServiceName(route)) {
-            throw new IOException("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters");
-        }
-        String path = util.filteredServiceName(route);
-        if (path.length() == 0) {
-            throw new IOException("Invalid route name");
-        }
-        if (!path.contains(".")) {
-            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
-        }
-        if (util.reservedExtension(path)) {
-            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
-        }
-        if (util.reservedFilename(path)) {
-            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
-        }
-    }
-
     @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
@@ -147,7 +127,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
-        validateTopicName(topic);
+        ConnectorConfig.validateTopicName(topic);
         try {
             EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
                     new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
@@ -177,29 +157,28 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
-        validateTopicName(topic);
-        Utility util = Utility.getInstance();
+        ConnectorConfig.validateTopicName(topic);
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
             // embedded events are sent by the EventPublisher thread
-            sendEvent(true, topic, partition, eventHeaders, (byte[]) body);
+            sendEvent(true, topic, partition, eventHeaders, body);
         } else {
-            final byte[] payload;
+            final Object payload;
             if (body instanceof byte[]) {
-                payload = (byte[]) body;
+                payload = body;
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
             } else if (body instanceof String) {
-                payload = util.getUTF((String) body);
+                payload = body;
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.TEXT_DATA);
             } else if (body instanceof Map) {
-                payload = msgPack.pack(body);
+                payload = SimpleMapper.getInstance().getMapper().writeValueAsString(body);
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.MAP_DATA);
             } else if (body instanceof List) {
-                payload = msgPack.pack(body);
+                payload = SimpleMapper.getInstance().getMapper().writeValueAsString(body);
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.LIST_DATA);
             } else {
                 // other primitive and PoJo are serialized as JSON string
-                payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
+                payload = SimpleMapper.getInstance().getMapper().writeValueAsString(body);
                 eventHeaders.put(EventProducer.DATA_TYPE, EventProducer.TEXT_DATA);
             }
             /*
@@ -215,19 +194,34 @@ public class PubSubManager implements PubSubProvider {
         }
     }
 
-    private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, byte[] payload) {
+    private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, Object body) {
         String realTopic = partition < 0 ? topic : topic + "." + partition;
+        if (ConnectorConfig.topicSubstitutionEnabled()) {
+            realTopic = preAllocatedTopics.getOrDefault(realTopic, realTopic);
+        }
         try {
             startSession(primary);
             Session session = primary? primarySession : secondarySession;
             Topic destination = session.createTopic(realTopic);
             MessageProducer producer = session.createProducer(destination);
-            BytesMessage message = session.createBytesMessage();
-            for (String h: headers.keySet()) {
-                message.setStringProperty(h, headers.get(h));
+            if (body instanceof byte[]) {
+                BytesMessage message = session.createBytesMessage();
+                for (String h : headers.keySet()) {
+                    message.setStringProperty(h, headers.get(h));
+                }
+                message.writeBytes((byte[]) body);
+                producer.send(message);
+
+            } else if (body instanceof String) {
+                TextMessage message = session.createTextMessage((String) body);
+                for (String h : headers.keySet()) {
+                    message.setStringProperty(h, headers.get(h));
+                }
+                producer.send(message);
+
+            } else {
+                log.error("Event to {} not published because it is not Text or Binary", realTopic);
             }
-            message.writeBytes(payload);
-            producer.send(message);
         } catch (Exception e) {
             log.error("Unable to publish event to {} - {}", realTopic, e.getMessage());
             // just let the platform such as Kubernetes to restart the application instance
@@ -242,7 +236,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
-        validateTopicName(topic);
+        ConnectorConfig.validateTopicName(topic);
         String topicPartition = topic + (partition < 0? "" : "." + partition);
         if (parameters.length == 2 || parameters.length == 3) {
             if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
@@ -253,7 +247,8 @@ public class PubSubManager implements PubSubProvider {
             }
             EventConsumer consumer = new EventConsumer(topic, partition, parameters);
             consumer.start();
-            Platform.getInstance().registerPrivate(topicPartition, listener, 1);
+            // mercury service name must be lower case
+            Platform.getInstance().registerPrivate(topicPartition.toLowerCase(), listener, 1);
             subscribers.put(topicPartition, consumer);
         } else {
             throw new IOException("Check parameters: clientId, groupId and optional offset pointer");

@@ -4,6 +4,7 @@ import org.apache.activemq.artemis.api.core.client.*;
 import org.apache.activemq.artemis.api.core.management.ManagementHelper;
 import org.apache.activemq.artemis.api.core.management.ResourceNames;
 import org.platformlambda.activemq.ArtemisConnector;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -33,9 +34,13 @@ public class TopicManager implements LambdaFunction {
     private static final String MULTICAST = "MULTICAST";
     private static final String ADDRESS = "Address";
     private static ClientSession session;
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
 
     public TopicManager() throws Exception {
-        if (session == null) {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+        if (!topicSubstitution && session == null) {
             Properties properties = ArtemisConnector.getClusterProperties();
             String cluster = properties.getProperty(ArtemisConnector.BROKER_URL, "tcp://127.0.0.1:61616");
             String userId = properties.getProperty(USER_ID, "");
@@ -85,23 +90,27 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) throws Exception {
+        if (topicSubstitution) {
+            return preAllocatedTopics.get(topic) != null;
+        }
         try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
             ClientMessage m = session.createMessage(false);
             ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                     "getAddressInfo", topic);
             ClientMessage reply = requestor.request(m);
             Object o = ManagementHelper.getResult(reply);
-            if (o instanceof String) {
-                String result = (String) o;
-                if (result.startsWith(ADDRESS)) {
-                    return true;
-                }
-            }
-            return false;
+            return o instanceof String && ((String) o).startsWith(ADDRESS);
         }
     }
     
     private int topicPartitions(String topic) throws Exception {
+        if (topicSubstitution) {
+            int n = 0;
+            while (preAllocatedTopics.containsKey(topic+"."+n)) {
+                n++;
+            }
+            return n;
+        }
         String firstPartition = topic + ".0";
         if (topicExists(firstPartition)) {
             Utility util = Utility.getInstance();
@@ -133,6 +142,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void createTopic(String topic) throws Exception {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         if (!topicExists(topic)) {
             try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
@@ -162,6 +177,12 @@ public class TopicManager implements LambdaFunction {
     }
 
     private void deleteTopic(String topic) throws Exception {
+        if (topicSubstitution) {
+            if (preAllocatedTopics.get(topic) == null) {
+                throw new IllegalArgumentException("Missing topic substitution for "+topic);
+            }
+            return;
+        }
         if (topicExists(topic)) {
             try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
@@ -177,6 +198,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private List<String> listTopics() throws Exception {
+        if (topicSubstitution) {
+            return new ArrayList<>(preAllocatedTopics.keySet());
+        }
         List<String> result = new ArrayList<>();
         Utility util = Utility.getInstance();
         try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
@@ -198,6 +222,9 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean isMulticast(String topic) throws Exception {
+        if (topicSubstitution) {
+            return true;
+        }
         try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
             ClientMessage m = session.createMessage(false);
             ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,

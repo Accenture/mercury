@@ -18,7 +18,7 @@
 
 package org.platformlambda.hazelcast;
 
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
@@ -42,7 +42,7 @@ public class PubSubSetup implements CloudSetup {
     @Override
     public void initialize() {
         if (!PubSub.getInstance().featureEnabled()) {
-            log.info("Hazelcast cluster = {}",  ConfigUtil.getDisplayUrl());
+            log.info("Hazelcast cluster = {}",  ConnectorConfig.getDisplayUrl());
             PubSub.getInstance().enableFeature(new PubSubManager());
         }
     }

@@ -1,6 +1,7 @@
 package org.platformlambda.services;
 
 import org.platformlambda.MainApp;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -56,8 +57,12 @@ public class TopicController implements LambdaFunction {
     private static long lastRsvp = 0;
     private static List<String> allTopics;
     private final int partitionCount, maxVirtualTopics;
+    private final boolean topicSubstitution;
+    private final Map<String, String> preAllocatedTopics;
 
-    public TopicController() {
+    public TopicController() throws IOException {
+        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         String prefix = config.getProperty("app.topic.prefix", "multiplex");
@@ -74,7 +79,6 @@ public class TopicController implements LambdaFunction {
         log.info("Topic prefix {}, partition count {}, max virtual topics {}",
                 prefix, partitionCount, maxVirtualTopics);
         // prepare topic store
-
         int maxPhysicalTopics = maxVirtualTopics / partitionCount;
         for (int n=1; n <= maxPhysicalTopics; n++) {
             String topic = topicPrefix+util.zeroFill(n, 1000);
@@ -224,20 +228,30 @@ public class TopicController implements LambdaFunction {
                             try {
                                 // check if appOrigin has a topic in store
                                 String topicPartition = nextTopic(appOrigin);
-                                String topic = topicPartition.substring(0, topicPartition.lastIndexOf('-'));
-                                // automatic create topic
+                                int hyphen = topicPartition.lastIndexOf('-');
+                                String topic = topicPartition.substring(0, hyphen);
+                                if (topicSubstitution) {
+                                    int partition = util.str2int(topicPartition.substring(hyphen+1));
+                                    String virtualTopic = topic + "." + partition;
+                                    if (!preAllocatedTopics.containsKey(virtualTopic)) {
+                                        throw new IOException("Missing topic substitution for "+virtualTopic);
+                                    }
+                                }
                                 if (!currentTopics.contains(topic)) {
-                                    if (ps.exists(topic)) {
-                                        int actualPartitions = ps.partitionCount(topic);
-                                        if (actualPartitions < partitionCount) {
-                                            log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
-                                                    topic, partitionCount, actualPartitions);
-                                            log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart",
-                                                    topic);
-                                            throw new IOException("Insufficient partitions in "+topic);
+                                    if (!topicSubstitution) {
+                                        // automatically create topic if not exist
+                                        if (ps.exists(topic)) {
+                                            int actualPartitions = ps.partitionCount(topic);
+                                            if (actualPartitions < partitionCount) {
+                                                log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
+                                                        topic, partitionCount, actualPartitions);
+                                                log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart",
+                                                        topic);
+                                                throw new IOException("Insufficient partitions in " + topic);
+                                            }
+                                        } else {
+                                            ps.createTopic(topic, partitionCount);
                                         }
-                                    } else {
-                                        ps.createTopic(topic, partitionCount);
                                     }
                                     currentTopics.add(topic);
                                 }

@@ -102,7 +102,7 @@ public class EventConsumer extends Thread {
 
     private class EventListener implements MessageListener<Map<String, Object>> {
 
-        private final String consumerTopic = topic + (partition < 0? "" : "." + partition);
+        private final String topicPartition = topic + (partition < 0? "" : "." + partition);
 
         @SuppressWarnings("unchecked")
         @Override
@@ -132,7 +132,7 @@ public class EventConsumer extends Thread {
                         message.load(data);
                         message.setEndOfRoute();
                     } catch (Exception e) {
-                        log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to decode incoming event for {} - {}", topicPartition, e.getMessage());
                         return;
                     }
                     try {
@@ -147,7 +147,7 @@ public class EventConsumer extends Thread {
                             MultipartPayload.getInstance().incoming(message);
                         }
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                     }
                 } else {
                     if (offset == INITIALIZE) {
@@ -173,9 +173,10 @@ public class EventConsumer extends Thread {
                         } else {
                             message.setHeaders(originalHeaders).setBody(data);
                         }
-                        po.send(message.setTo(consumerTopic));
+                        // mercury service name must be lower case
+                        po.send(message.setTo(topicPartition.toLowerCase()));
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                     }
                 }
             }

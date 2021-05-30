@@ -66,7 +66,7 @@ public class PubSub {
             PubSub.provider = pubSub;
             log.info("Provider {} loaded", PubSub.provider);
         } else {
-            log.error("Provider {} is already loaded", PubSub.provider);
+            log.warn("Provider {} is already loaded", PubSub.provider);
         }
     }
 

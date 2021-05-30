@@ -28,6 +28,7 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
@@ -39,6 +40,7 @@ import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,17 +57,37 @@ public class EventConsumer extends Thread {
     private static final String MONITOR = "monitor";
     private static final String TO_MONITOR = "@"+MONITOR;
     private final String INIT_TOKEN = UUID.randomUUID().toString();
-    private final String topic;
+    private final String topic, realTopic;
     private final int partition;
+    private int realPartition;
     private final KafkaConsumer<String, byte[]> consumer;
     private ServiceLifeCycle initialLoad;
     private final AtomicBoolean normal = new AtomicBoolean(true);
     private int skipped = 0;
     private long offset = -1;
 
-    public EventConsumer(Properties base, String topic, int partition, String... parameters) {
+    public EventConsumer(Properties base, String topic, int partition, String... parameters) throws IOException {
+        Utility util = Utility.getInstance();
+        boolean substitute = ConnectorConfig.topicSubstitutionEnabled();
+        Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         this.topic = topic;
         this.partition = partition;
+        if (substitute) {
+            String virtualTopic = topic + (partition < 0? "" : "." + partition);
+            String topicPartition = topic + (partition < 0? "" : "#" + partition);
+            topicPartition = preAllocatedTopics.getOrDefault(virtualTopic, topicPartition);
+            int sep = topicPartition.lastIndexOf('#');
+            if (sep == -1) {
+                this.realTopic = topicPartition;
+                this.realPartition = -1;
+            } else {
+                this.realTopic = topicPartition.substring(0, sep);
+                this.realPartition = util.str2int(topicPartition.substring(sep+1));
+            }
+        } else {
+            this.realTopic = topic;
+            this.realPartition = partition;
+        }
         Properties prop = new Properties();
         prop.putAll(base);
         // create unique values for client ID and group ID
@@ -77,11 +99,10 @@ public class EventConsumer extends Thread {
              * Subsequent restart of the consumer will resume read from the current offset.
              */
             if (parameters.length == 3) {
-                Utility util = Utility.getInstance();
                 offset = util.str2long(parameters[2]);
             }
         } else {
-            throw new IllegalArgumentException("Unable to start consumer for " + topic +
+            throw new IllegalArgumentException("Unable to start consumer for " + realTopic +
                                                 " - parameters must be clientId, groupId and an optional offset");
         }
         prop.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -102,6 +123,18 @@ public class EventConsumer extends Thread {
     @Override
     public void run() {
         if (offset == INITIALIZE) {
+            /*
+             * IMPORTANT
+             * ---------
+             * Kafka will do load balancing for different consumers of the same group.
+             * Mercury system topics require direct assignment to an exact partition to
+             * enable broadcast instead of load balancing.
+             *
+             * Therefore, we are setting partition to 0 if none is given.
+             */
+            if (ConnectorConfig.topicSubstitutionEnabled() && realPartition < 0) {
+                realPartition = 0;
+            }
             initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
@@ -109,14 +142,14 @@ public class EventConsumer extends Thread {
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
-        String consumerTopic = topic + (partition < 0? "" : "." + partition);
-        if (partition < 0) {
-            consumer.subscribe(Collections.singletonList(topic));
-            log.info("Subscribed {}", topic);
+        String virtualTopic = (topic + (partition < 0? "" : "." + partition)).toLowerCase();
+        String topicPartition = realTopic + (realPartition < 0? "" : "." + realPartition);
+        if (realPartition < 0) {
+            consumer.subscribe(Collections.singletonList(realTopic));
         } else {
-            consumer.assign(Collections.singletonList(new TopicPartition(topic, partition)));
-            log.info("Subscribed {}, partition-{}", topic, partition);
+            consumer.assign(Collections.singletonList(new TopicPartition(realTopic, realPartition)));
         }
+        log.info("Subscribed {}", topicPartition);
         try {
             while (normal.get()) {
                 long interval = reset? 15 : 30;
@@ -134,20 +167,20 @@ public class EventConsumer extends Thread {
                         long latest = getLatest(tp);
                         if (offset < 0) {
                             log.info("Reading from {}, partition-{}, current offset {}",
-                                    topic, tp.partition(), latest);
+                                    realTopic, tp.partition(), latest);
                         } else if (offset < earliest) {
                             seek = true;
                             consumer.seek(tp, earliest);
                             log.info("Setting offset of {}, partition-{} to earliest {} instead of {}",
-                                    topic, tp.partition(), earliest, offset);
+                                    realTopic, tp.partition(), earliest, offset);
                         } else if (offset < latest) {
                             seek = true;
                             consumer.seek(tp, offset);
                             log.info("Setting offset of {}, partition-{} to {}, original {}-{}",
-                                    topic, tp.partition(), offset, earliest, latest);
+                                    realTopic, tp.partition(), offset, earliest, latest);
                          } else if (offset > latest) {
                             log.warn("Offset for {}, partition-{} unchanged because {} is out of range {}-{}",
-                                    topic, tp.partition(), offset, earliest, latest);
+                                    realTopic, tp.partition(), offset, earliest, latest);
                         }
                     }
                     if (seek) {
@@ -175,7 +208,7 @@ public class EventConsumer extends Thread {
                             message.load(data);
                             message.setEndOfRoute();
                         } catch (Exception e) {
-                            log.error("Unable to decode incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to decode incoming event for {} - {}", topicPartition, e.getMessage());
                             continue;
                         }
                         try {
@@ -190,7 +223,7 @@ public class EventConsumer extends Thread {
                                 MultipartPayload.getInstance().incoming(message);
                             }
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                         }
                     } else {
                         if (offset == INITIALIZE) {
@@ -224,28 +257,25 @@ public class EventConsumer extends Thread {
                             if (partition >= 0) {
                                 message.setHeader(OFFSET, String.valueOf(record.offset()));
                             }
-                            po.send(message.setTo(consumerTopic));
+                            po.send(message.setTo(virtualTopic));
+
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topic, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
                         }
                     }
                 }
             }
         } catch (Exception e) {
             if (e instanceof WakeupException) {
-                log.info("Stopping listener for {}", consumerTopic);
+                log.info("Stopping listener for {}", virtualTopic);
             } else {
                 // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
-                log.error("Event stream error for {} - {} {}", consumerTopic, e.getClass(), e.getMessage());
+                log.error("Event stream error for {} - {} {}", topicPartition, e.getClass(), e.getMessage());
                 System.exit(10);
             }
         } finally {
             consumer.close();
-            if (partition < 0) {
-                log.info("Unsubscribed {}", topic);
-            } else {
-                log.info("Unsubscribed {}, partition {}", topic, partition);
-            }
+            log.info("Unsubscribed {}", topicPartition);
             if (offset == INITIALIZE && initialLoad != null) {
                 initialLoad.close();
             }

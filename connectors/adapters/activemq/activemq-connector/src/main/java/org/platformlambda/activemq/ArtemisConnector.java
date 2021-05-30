@@ -2,7 +2,7 @@ package org.platformlambda.activemq;
 
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.platformlambda.activemq.services.PubSubManager;
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.cloud.services.CloudHealthCheck;
@@ -81,7 +81,7 @@ public class ArtemisConnector implements CloudSetup {
         Utility util = Utility.getInstance();
         ConfigReader clusterConfig = null;
         try {
-            clusterConfig = ConfigUtil.getConfig("cloud.client.properties",
+            clusterConfig = ConnectorConfig.getConfig("cloud.client.properties",
                     "file:/tmp/config/activemq.properties,classpath:/activemq.properties");
         } catch (IOException e) {
             log.error("Unable to find activemq.properties - {}", e.getMessage());
@@ -92,8 +92,8 @@ public class ArtemisConnector implements CloudSetup {
             properties.setProperty(k, clusterConfig.getProperty(k));
         }
         String url = properties.getProperty(BROKER_URL);
-        ConfigUtil.setServiceName("activemq-artemis");
-        ConfigUtil.setDisplayUrl(url);
+        ConnectorConfig.setServiceName("activemq-artemis");
+        ConnectorConfig.setDisplayUrl(url);
         List<String> cluster = util.split(url, ", ");
         boolean reachable = false;
         for (String address : cluster) {
@@ -121,7 +121,7 @@ public class ArtemisConnector implements CloudSetup {
             AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
-                ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",
+                ConfigReader monitorConfig = ConnectorConfig.getConfig("presence.properties",
                         "file:/tmp/config/presence.properties,classpath:/presence.properties");
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);

@@ -291,4 +291,4 @@ The payload can be PoJo, Map or Java primitives.
 
 | Chapter-4                                 | Home                                     |
 | :----------------------------------------:|:----------------------------------------:|
-| [REST and websocket](CHAPTER-4.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| [REST automation](CHAPTER-4.md)           | [Table of Contents](TABLE-OF-CONTENTS.md)|

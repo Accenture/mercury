@@ -12,10 +12,12 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 4 - REST automation](CHAPTER-4.md)
 
-[Chapter 5 - REST and websocket](CHAPTER-5.md)
+[Chapter 5 - JAX-RS and WebServlets](CHAPTER-5.md)
 
-[Chapter 6 - application.properties](CHAPTER-6.md)
+[Chapter 6 - Topic substitution](CHAPTER-6.md)
 
-[Chapter 7 - Reserved route names](CHAPTER-7.md)
+[Chapter 7 - application.properties](CHAPTER-7.md)
 
-[Chapter 8 - Extras](CHAPTER-8.md)
+[Chapter 8 - Reserved route names](CHAPTER-8.md)
+
+[Chapter 9 - Additional features](CHAPTER-9.md)

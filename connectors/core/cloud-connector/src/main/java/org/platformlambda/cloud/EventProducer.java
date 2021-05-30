@@ -33,7 +33,9 @@ import java.util.*;
 public class EventProducer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(EventProducer.class);
     /*
-     * Embedded data types are used for encoding - DO NOT CHANGE
+     * DO NOT REMOVE THE DATA TYPES BELOW
+     * -----------------------------------
+     * Embedded data types are used for encoding by the concrete implementation of cloud connector
      * EMBED_EVENT, RECIPIENT, DATA_TYPE, TEXT_DATA, BYTES_DATA, MAP_DATA, LIST_DATA
      */
     public static final String EMBED_EVENT = "_event_";

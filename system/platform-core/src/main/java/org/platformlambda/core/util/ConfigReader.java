@@ -223,8 +223,8 @@ public class ConfigReader implements ConfigBase {
         Set keys = new HashSet(raw.keySet());
         for (Object k: keys) {
             Object v = raw.get(k);
+            // key is assumed to be string
             if (!(k instanceof String)) {
-                log.warn("key {} converted to String", k);
                 raw.remove(k);
                 raw.put(k.toString(), v);
             }

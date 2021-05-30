@@ -34,7 +34,7 @@ import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.cloud.services.CloudHealthCheck;
 import org.platformlambda.cloud.services.ServiceQuery;
 import org.platformlambda.cloud.services.ServiceRegistry;
-import org.platformlambda.cloud.ConfigUtil;
+import org.platformlambda.cloud.ConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +60,7 @@ public class KafkaConnector implements CloudSetup {
              */
             ConfigReader config = null;
             try {
-                config = ConfigUtil.getConfig("kafka.client.properties",
+                config = ConnectorConfig.getConfig("kafka.client.properties",
                         "file:/tmp/config/kafka.properties,classpath:/kafka.properties");
             } catch (IOException e) {
                 log.error("Unable to find kafka properties - {}", e.getMessage());
@@ -91,8 +91,8 @@ public class KafkaConnector implements CloudSetup {
                 log.error("Kafka cluster failure {} - {}", brokers, e.getMessage());
                 System.exit(-1);
             }
-            ConfigUtil.setServiceName("kafka");
-            ConfigUtil.setDisplayUrl(brokers.get(0));
+            ConnectorConfig.setServiceName("kafka");
+            ConnectorConfig.setDisplayUrl(brokers.get(0));
         }
         return properties;
     }
@@ -108,7 +108,7 @@ public class KafkaConnector implements CloudSetup {
             // is this a regular application?
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector
-                ConfigReader monitorConfig = ConfigUtil.getConfig("presence.properties",
+                ConfigReader monitorConfig = ConnectorConfig.getConfig("presence.properties",
                         "file:/tmp/config/presence.properties,classpath:/presence.properties");
                 List<String> monitors = Utility.getInstance().split(monitorConfig.getProperty("url"), ", ");
                 PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
