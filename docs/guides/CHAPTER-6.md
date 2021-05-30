@@ -1,3 +1,11 @@
+# Cloud connectors
+
+Mercury has been integrated and tested with both event stream systems and enterprise service bus messaging system.
+
+1. Event stream system - Apache Kafka
+2. Messaging system - Hazelcast
+3. Enterprise Service Bus - ActiveMQ artemis and Tibco EMS
+
 # Topic Substitution
 
 Some enterprises do not allow automatic creation of messaging topics by user applications.
@@ -11,13 +19,13 @@ topic.substitution.file=file:/tmp/config/topic-substitution.yaml,classpath:/topi
 
 You can point the `topic.substitution.file` to a file. e.g. file:/tmp/config/topic-substitution.yaml
 
-# Supported cloud connectors
+## Supported cloud connectors
 
 Kafka, ActiveMQ and Tibco support mapping of system topics to pre-allocated topics.
 
-Substitution file examples are shown as follows:
+Let's examine with two sample topic substitution files.
 
-# ActiveMQ and Tibco
+### ActiveMQ and Tibco
 
 ```yaml
 #
@@ -46,7 +54,7 @@ multiplex:
     5: user.topic.six
 ```
 
-# Kafka
+### Kafka
 
 Since Kafka is a native pub/sub system with partitioning support, you can specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y).
 

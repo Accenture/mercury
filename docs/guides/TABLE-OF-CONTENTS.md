@@ -14,7 +14,7 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 5 - JAX-RS and WebServlets](CHAPTER-5.md)
 
-[Chapter 6 - Topic substitution](CHAPTER-6.md)
+[Chapter 6 - Cloud connectors](CHAPTER-6.md)
 
 [Chapter 7 - application.properties](CHAPTER-7.md)
 

@@ -94,6 +94,6 @@ In additon to the parameters defined by Spring Boot, the Mercury framework uses 
 
 ---
 
-| Chapter-6                             | Home                                     |
-| :------------------------------------:|:----------------------------------------:|
-| [Topic substitution](CHAPTER-6.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| Chapter-6                           | Home                                     |
+| :----------------------------------:|:----------------------------------------:|
+| [Cloud connectors](CHAPTER-6.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
