@@ -63,7 +63,7 @@ public class TibcoConnector implements CloudSetup {
             final ConnectionFactory factory;
             final boolean jndi = "true".equalsIgnoreCase(properties.getProperty(JNDI));
             final String cluster = properties.getProperty(
-                                        jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
+                    jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
             String userId = properties.getProperty(USER_ID, "");
             String password = properties.getProperty(USER_PWD, "");
             if (jndi) {
@@ -134,7 +134,8 @@ public class TibcoConnector implements CloudSetup {
         for (String k : clusterConfig.getMap().keySet()) {
             properties.setProperty(k, clusterConfig.getProperty(k));
         }
-        displayUrl = properties.getProperty(BROKER_URL);
+        final boolean jndi = "true".equalsIgnoreCase(properties.getProperty(JNDI));
+        displayUrl = properties.getProperty(jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
         List<String> cluster = util.split(displayUrl, ", ");
         boolean reachable = false;
         for (String address : cluster) {
