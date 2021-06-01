@@ -33,7 +33,7 @@ import java.io.IOException;
  * This allows the user application to run as a standalone executable and
  * communicate with each other purely using pub/sub.
  *
- * For real-time and pub/sub use cases, please use the "active" connector.
+ * For real-time and pub/sub use cases, please use the "activemq" connector.
  * It offers pub/sub service and also uses ActiveMQ cluster as a service mesh
  * to support topic virtualization and closed user groups.
  */
