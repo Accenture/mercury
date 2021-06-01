@@ -45,11 +45,25 @@ url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
 The default configuration for tibco is available in the tibco-connector's resources folder. The config file is called "tibco.properties". To override this default, you can either create a new tibco.properties in the resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
 
 ```
+#
+# bootstrap.servers contains a comma separated domain or IP address with port
+# tcp:// or ssl://
+#
 bootstrap.servers=tcp://127.0.0.1:7222
 user.id=user
 user.password=
 admin.id=admin
 admin.password=
+
+#
+# If jndi is set to true, the system will acquire topic connection factory using JNDI.
+# Otherwise, it will connect directly to the TIBCO EMS cluster using bootstrap.servers.
+#
+jndi=false
+jndi.provider.url=tcp://127.0.0.1:7222
+jndi.user=example
+jndi.password=
+connection.factory.name=ConnectionFactory
 ```
 
 For cloud deployment, there are 3 ways to override the tibco.properties configuration.
