@@ -18,11 +18,10 @@
 
 package org.platformlambda.activemq;
 
-import org.platformlambda.cloud.ConnectorConfig;
+import org.platformlambda.activemq.services.PubSubManager;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
-import org.platformlambda.activemq.services.PubSubManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,12 +29,12 @@ import javax.jms.JMSException;
 import java.io.IOException;
 
 /**
- * This cloud service provides native pub/sub service only.
+ * This cloud service provides pub/sub service.
  * This allows the user application to run as a standalone executable and
- * communicate with each other purely using native pub/sub.
+ * communicate with each other purely using pub/sub.
  *
  * For real-time and pub/sub use cases, please use the "active" connector.
- * It offers native pub/sub service and also uses ActiveMQ cluster as a service mesh
+ * It offers pub/sub service and also uses ActiveMQ cluster as a service mesh
  * to support topic virtualization and closed user groups.
  */
 @CloudService(name="activemq.pubsub")
@@ -47,10 +46,9 @@ public class PubSubSetup implements CloudSetup {
         if (!PubSub.getInstance().featureEnabled()) {
             try {
                 PubSub.getInstance().enableFeature(new PubSubManager());
-                log.info("ActiveMQ cluster = {}",  ConnectorConfig.getDisplayUrl());
+                log.info("Started");
             } catch (JMSException | IOException e) {
-                log.error("Unable to connect to ActiveMQ cluster {} - {}",
-                        ConnectorConfig.getDisplayUrl(), e.getMessage());
+                log.error("Unable to connect to ActiveMQ cluster", e);
                 System.exit(10);
             }
         }

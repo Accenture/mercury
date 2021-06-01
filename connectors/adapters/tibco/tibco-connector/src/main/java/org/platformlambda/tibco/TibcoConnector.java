@@ -20,7 +20,6 @@ import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.tibco.services.PubSubManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +28,9 @@ import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
 import javax.naming.Context;
 import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import java.io.IOException;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 @CloudConnector(name="tibco")
@@ -52,11 +49,6 @@ public class TibcoConnector implements CloudSetup {
     private static Properties properties;
     private static Connection connection;
     private static TibjmsAdmin adminClient;
-    private static String displayUrl = "unknown";
-
-    public static String getDisplayUrl() {
-        return displayUrl;
-    }
 
     public static synchronized Connection getConnection() throws Exception {
         if (connection == null) {
@@ -135,8 +127,8 @@ public class TibcoConnector implements CloudSetup {
             properties.setProperty(k, clusterConfig.getProperty(k));
         }
         final boolean jndi = "true".equalsIgnoreCase(properties.getProperty(JNDI));
-        displayUrl = properties.getProperty(jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
-        List<String> cluster = util.split(displayUrl, ", ");
+        String url = properties.getProperty(jndi? PROVIDER_URL : BROKER_URL, "tcp://127.0.0.1:7222");
+        List<String> cluster = util.split(url, ", ");
         boolean reachable = false;
         for (String address : cluster) {
             int start = address.lastIndexOf('/');

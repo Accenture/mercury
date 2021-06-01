@@ -18,7 +18,6 @@
 
 package org.platformlambda.hazelcast;
 
-import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
@@ -27,12 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This cloud service provides native pub/sub service only.
+ * This cloud service provides pub/sub service.
  * This allows the user application to run as a standalone executable and
- * communicate with each other purely using native pub/sub.
+ * communicate with each other purely using pub/sub.
  *
  * For real-time and pub/sub use cases, please use the "hazelcast" connector.
- * It offers native pub/sub service and also uses Hazelcast as a service mesh
+ * It offers pub/sub service and also uses Hazelcast as a service mesh
  * to support topic virtualization and closed user groups.
  */
 @CloudService(name="hazelcast.pubsub")
@@ -42,8 +41,8 @@ public class PubSubSetup implements CloudSetup {
     @Override
     public void initialize() {
         if (!PubSub.getInstance().featureEnabled()) {
-            log.info("Hazelcast cluster = {}",  ConnectorConfig.getDisplayUrl());
             PubSub.getInstance().enableFeature(new PubSubManager());
+            log.info("Started");
         }
     }
     

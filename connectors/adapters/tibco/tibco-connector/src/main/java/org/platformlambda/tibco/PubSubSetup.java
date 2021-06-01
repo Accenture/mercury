@@ -29,12 +29,12 @@ import javax.jms.JMSException;
 import java.io.IOException;
 
 /**
- * This cloud service provides native pub/sub service only.
+ * This cloud service provides pub/sub service.
  * This allows the user application to run as a standalone executable and
- * communicate with each other purely using native pub/sub.
+ * communicate with each other purely using pub/sub.
  *
  * For real-time and pub/sub use cases, please use the "tibco" connector.
- * It offers native pub/sub service and also uses Tibco EMS as a service mesh
+ * It offers pub/sub service and also uses Tibco EMS as a service mesh
  * to support topic virtualization and closed user groups.
  */
 @CloudService(name="tibco.pubsub")
@@ -46,9 +46,9 @@ public class PubSubSetup implements CloudSetup {
         if (!PubSub.getInstance().featureEnabled()) {
             try {
                 PubSub.getInstance().enableFeature(new PubSubManager());
-                log.info("Tibco cluster = {}",  TibcoConnector.getDisplayUrl());
+                log.info("Started");
             } catch (JMSException | IOException e) {
-                log.error("Unable to connect to Tibco cluster {} - {}", TibcoConnector.getDisplayUrl(), e.getMessage());
+                log.error("Unable to connect to Tibco cluster", e);
                 System.exit(10);
             }
         }
