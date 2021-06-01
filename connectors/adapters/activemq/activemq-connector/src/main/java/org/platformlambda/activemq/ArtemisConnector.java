@@ -60,6 +60,8 @@ public class ArtemisConnector implements CloudSetup {
             });
             connection.start();
             log.info("Connection started - {}", cluster);
+            ConnectorConfig.setServiceName("activemq-artemis");
+            ConnectorConfig.setDisplayUrl(cluster);
         }
         return connection;
     }

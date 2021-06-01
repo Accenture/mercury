@@ -91,6 +91,8 @@ public class TibcoConnector implements CloudSetup {
             });
             connection.start();
             log.info("Connection started - {}", cluster);
+            ConnectorConfig.setServiceName("tibco");
+            ConnectorConfig.setDisplayUrl(cluster);
         }
         return connection;
     }
