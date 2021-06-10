@@ -18,6 +18,8 @@
 
 package org.platformlambda.core.models;
 
+import org.platformlambda.core.serializers.SimpleMapper;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
@@ -112,6 +114,10 @@ public class AsyncHttpRequest {
 
     public Object getBody() {
         return body;
+    }
+
+    public <T> T getBody(Class<T> toValueType) {
+        return SimpleMapper.getInstance().getMapper().readValue(body, toValueType);
     }
 
     public AsyncHttpRequest setBody(Object body) {

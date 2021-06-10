@@ -47,6 +47,9 @@ public class SimpleObjectMapper {
 
     @SuppressWarnings("unchecked")
     public <T> T readValue(Object fromValue, Class<T> toValueType) {
+        if (fromValue == null) {
+            return null;
+        }
         Utility util = Utility.getInstance();
         // return original map
         boolean outputIsMap = isMap(toValueType);
