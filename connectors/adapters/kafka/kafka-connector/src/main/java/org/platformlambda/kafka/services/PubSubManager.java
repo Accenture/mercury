@@ -25,7 +25,6 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
-import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -36,7 +35,6 @@ import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.kafka.KafkaConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +46,6 @@ public class PubSubManager implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String CREATE = "create";
@@ -58,14 +55,19 @@ public class PubSubManager implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private static long seq = 0, totalEvents = 0;
+    private final Properties baseProperties;
+    private final String cloudManager;
     private Map<String, String> preAllocatedTopics;
     private String producerId = null;
     private KafkaProducer<String, byte[]> producer = null;
 
-    public PubSubManager() {
+    public PubSubManager(Properties baseProperties, String cloudManager) {
+        this.baseProperties = baseProperties;
+        this.cloudManager = cloudManager;
         try {
             // start Kafka Topic Manager
-            Platform.getInstance().registerPrivate(CLOUD_MANAGER, new TopicManager(), 1);
+            Platform.getInstance().registerPrivate(cloudManager,
+                    new TopicManager(baseProperties, cloudManager), 1);
             preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         } catch (IOException e) {
             log.error("Unable to start producer - {}", e.getMessage());
@@ -77,7 +79,7 @@ public class PubSubManager implements PubSubProvider {
 
     private Properties getProperties() {
         Properties properties = new Properties();
-        properties.putAll(KafkaConnector.getKafkaProperties());
+        properties.putAll(baseProperties);
         properties.put(ProducerConfig.ACKS_CONFIG, "1"); // Setting to "1" ensures that the message is received by the leader
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.ByteArraySerializer.class);
@@ -139,7 +141,7 @@ public class PubSubManager implements PubSubProvider {
     public boolean createTopic(String topic, int partitions) throws IOException {
         ConnectorConfig.validateTopicName(topic);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000,
                                     new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
@@ -154,7 +156,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void deleteTopic(String topic) throws IOException {
         try {
-            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
+            PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -163,7 +165,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public boolean exists(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                                         new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Boolean) {
                 return (Boolean) response.getBody();
@@ -178,7 +180,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public int partitionCount(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                                         new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Integer) {
                 return (Integer) response.getBody();
@@ -194,7 +196,7 @@ public class PubSubManager implements PubSubProvider {
     @SuppressWarnings("unchecked")
     public List<String> list() throws IOException {
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, LIST));
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, LIST));
             if (init.getBody() instanceof List) {
                 return (List<String>) init.getBody();
             } else {

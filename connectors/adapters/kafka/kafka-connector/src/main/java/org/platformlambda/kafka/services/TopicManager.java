@@ -48,21 +48,23 @@ public class TopicManager implements LambdaFunction {
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
     private static final String STOP = "stop";
-    private static Integer replicationFactor;
-    private static boolean startMonitor = true;
+    private Integer replicationFactor = -1;
+    private boolean startMonitor = true;
+    private final Properties baseProperties;
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
     private AdminClient admin;
     private long lastAccess = 0;
     private int count = 0, seq = 0;
 
-    public TopicManager() throws IOException {
-        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
-        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+    public TopicManager(Properties baseProperties, String cloudManager) throws IOException {
+        this.baseProperties = baseProperties;
+        this.topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopAdmin));
         if (startMonitor && !topicSubstitution) {
             startMonitor = false;
-            InactivityMonitor monitor = new InactivityMonitor();
+            InactivityMonitor monitor = new InactivityMonitor(cloudManager);
             monitor.start();
         }
     }
@@ -71,7 +73,7 @@ public class TopicManager implements LambdaFunction {
         if (admin == null) {
             seq++;
             Properties properties = new Properties();
-            properties.putAll(KafkaConnector.getKafkaProperties());
+            properties.putAll(baseProperties);
             properties.put(AdminClientConfig.CLIENT_ID_CONFIG, "admin-"+ Platform.getInstance().getOrigin()+"-"+seq);
             admin = AdminClient.create(properties);
             log.info("AdminClient-{} ready", seq);
@@ -167,9 +169,10 @@ public class TopicManager implements LambdaFunction {
         if (topicSubstitution) {
             return 1;
         }
-        if (replicationFactor == null) {
+        if (replicationFactor == -1) {
             AppConfigReader reader = AppConfigReader.getInstance();
-            int factor = Utility.getInstance().str2int(reader.getProperty("kafka.replication.factor", "3"));
+            int factor = Math.max(1, Utility.getInstance().str2int(
+                    reader.getProperty("kafka.replication.factor", "3")));
             if (factor > 3) {
                 factor = 3;
                 log.warn("Default kafka replication factor reset to 3");
@@ -296,8 +299,10 @@ public class TopicManager implements LambdaFunction {
 
     private class InactivityMonitor extends Thread {
         private boolean normal = true;
+        private final String cloudManager;
 
-        public InactivityMonitor() {
+        public InactivityMonitor(String cloudManager) {
+            this.cloudManager = cloudManager;
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
         }
 
@@ -312,7 +317,7 @@ public class TopicManager implements LambdaFunction {
                     t0 = now;
                     if (admin != null && now - lastAccess > IDLE) {
                         try {
-                            PostOffice.getInstance().send(ServiceRegistry.CLOUD_MANAGER, new Kv(TYPE, STOP));
+                            PostOffice.getInstance().send(cloudManager, new Kv(TYPE, STOP));
                         } catch (IOException e) {
                             // ok to ignore
                         }

@@ -100,11 +100,10 @@ public class KafkaConnector implements CloudSetup {
     @Override
     public void initialize() {
         try {
-            getKafkaProperties();
             AppConfigReader config = AppConfigReader.getInstance();
             Platform platform = Platform.getInstance();
             PubSub ps = PubSub.getInstance();
-            ps.enableFeature(new PubSubManager());
+            ps.enableFeature(new PubSubManager(getKafkaProperties(), ServiceRegistry.CLOUD_MANAGER));
             // is this a regular application?
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector

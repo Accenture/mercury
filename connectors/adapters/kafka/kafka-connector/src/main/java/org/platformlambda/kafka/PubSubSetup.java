@@ -18,6 +18,7 @@
 
 package org.platformlambda.kafka;
 
+import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
@@ -49,7 +50,7 @@ public class PubSubSetup implements CloudSetup {
             String brokerUrls = p.getProperty(KafkaConnector.BROKER_URL);
             List<String> brokers = Utility.getInstance().split(brokerUrls, ",");
             log.info("{} = {}", KafkaConnector.BROKER_URL, brokers);
-            PubSub.getInstance().enableFeature(new PubSubManager());
+            PubSub.getInstance().enableFeature(new PubSubManager(p, ServiceRegistry.CLOUD_MANAGER));
         }
     }
     
