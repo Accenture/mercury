@@ -63,6 +63,12 @@ public class Platform {
         return instance;
     }
 
+    /**
+     * Internal use - DO NOT call this from user application
+     *
+     * @param id of the service
+     * @return blocking queue for service initialization
+     */
     public BlockingQueue<Boolean> getServiceToken(String id) {
         return serviceTokens.get(id);
     }
@@ -91,10 +97,24 @@ public class Platform {
         return Platform.appId;
     }
 
+    /**
+     * INTERNAL USE ONLY - The vertx event loop engine must be used exclusively by the platform-core
+     * <p>
+     * Please do not use it at user application level to avoid blocking the event loop.
+     * <p>
+     * @return vertx engine
+     */
     public Vertx getVertx() {
         return vertx;
     }
 
+    /**
+     * INTERNAL USE ONLY - The vertx event bus must be used exclusively by the platform-core
+     * <p>
+     * Please do not use it at user application level to avoid blocking the event loop.
+     * <p>
+     * @return memory event bus
+     */
     public EventBus getEventSystem() {
         return system;
     }
@@ -121,6 +141,11 @@ public class Platform {
         return originId;
     }
 
+    /**
+     * Cloud services will be started with your app calls connectToCloud
+     * <p>
+     * Call this function only when you want to start cloud services without an event stream connector
+     */
     public synchronized void startCloudServices() {
         if (!Platform.cloudServicesStarted) {
             // guarantee to execute once
