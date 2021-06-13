@@ -142,7 +142,7 @@ public class Platform {
     }
 
     /**
-     * Cloud services will be started with your app calls connectToCloud
+     * Cloud services will be started when your app makes a connectToCloud() request
      * <p>
      * Call this function only when you want to start cloud services without an event stream connector
      */
