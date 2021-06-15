@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.actuator;
 
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ public class LivenessProbe implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
-        return "OK";
+        return new EventEnvelope().setBody("OK").setHeader("content-type", "text/plain");
     }
 
 }
