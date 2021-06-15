@@ -26,7 +26,6 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
@@ -36,7 +35,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 @WebServlet("/info/*")
-public class InfoServlet extends HttpServlet {
+public class InfoServlet extends InfoServletBase {
 	private static final long serialVersionUID = 376901501172978505L;
 
     private static final String APP_INSTANCE = "X-App-Instance";
@@ -50,6 +49,10 @@ public class InfoServlet extends HttpServlet {
         String myOrigin = Platform.getInstance().getOrigin();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
+            if (!isLocalHost(request) && protectEndpoint) {
+                response.sendError(404, "Resource not found");
+                return;
+            }
             origin = myOrigin;
         }
         Utility util = Utility.getInstance();

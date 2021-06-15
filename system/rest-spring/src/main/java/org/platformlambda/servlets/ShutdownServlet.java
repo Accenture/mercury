@@ -33,7 +33,7 @@ import java.util.Date;
 public class ShutdownServlet extends HttpServlet {
     private static final long serialVersionUID = 37489647906664051L;
 
-    private static final int GRACE_PERIOD = 5000;
+    private static final long GRACE_PERIOD = 5000;
     private static final String APP_INSTANCE = "X-App-Instance";
     private static final String TYPE = "type";
     private static final String SHUTDOWN = "shutdown";

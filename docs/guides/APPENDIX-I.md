@@ -17,8 +17,7 @@
 | snake.case.serialization                    | true (recommended)                        | Optional  |
 | env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
 | safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
-| protected.info.endpoints                    | e.g. /route, /info, /env                  | Optional*1|
-| info.api.key                                | some secret key (recommended to use UUID) | Optional*1|
+| protect.info.endpoints                      | true or false (default is false)          | Optional*1|
 | trace.http.header                           | comma separated list traceId labels       | *2        |
 | trace.log.header                            | default value is X-Trace-Id               | Optional  |
 | index.redirection                           | comma separated list of URI paths         | Optional*1|
@@ -36,7 +35,7 @@
 | app.partitions.per.topic                    | Max Kafka partitions per topic            | Optional  |
 | max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
 | max.closed.user.groups                      | Number of closed user groups              | Optional  |
-| closed.user.group                           | Closed user group (default 1) for the app | Optional  |
+| closed.user.group                           | Closed user group (default 1)             | Optional  |
 
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation helper application only
@@ -53,14 +52,6 @@ Usually you do not need to use the serializer in your code because it is much be
 However, if there is a genuine need to do low level coding, you may use the pre-configured serializer so that the serialization behavior is consistent.
 
 You can get an instance of the serializer with `SimpleMapper.getInstance().getWhiteListMapper()`.
-
-# info.api.key
-
-When "protected.info.endpoints" are configured, you must provide the secret in the "X-Info-Key" header when accessing the protected endpoints.
-You may define "info.api.key" in application.properties for the secret.
-For security, we recommend pointing the parameter to an environment variable.
-
-For convenience, if you do not define the "info.api.key", the application's origin-ID is used as the secret.
 
 # trace.http.header
 

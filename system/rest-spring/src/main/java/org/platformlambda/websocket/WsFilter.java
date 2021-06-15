@@ -17,7 +17,6 @@
  */
 package org.platformlambda.websocket;
 
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -42,14 +41,10 @@ public class WsFilter implements Filter {
     private static final String UPGRADE = "upgrade";
     private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
-    private static final String LOCALHOST = "127.0.0.1";
-    private static final String X_INFO_KEY = "X-Info-Key";
 
     private static boolean loaded = false;
-    private static List<String> protectedRestEndpoints = new ArrayList<>();
     private static List<String> indexPageList = new ArrayList<>();
     private static String indexPage = "index.html";
-    private static String infoApiKey;
     private static Boolean hstsRequired;
 
     @Override
@@ -69,18 +64,6 @@ public class WsFilter implements Filter {
                 util.split(indexList, ", ").forEach((s) -> { normalizedList.add(s.endsWith("/")? s : s + "/"); });
                 indexPageList = normalizedList;
                 log.info("Index page redirection - {}", indexPageList);
-            }
-            // protected info pages
-            String endpoints = reader.getProperty("protected.info.endpoints");
-            if (endpoints != null) {
-                String origin = Platform.getInstance().getOrigin();
-                protectedRestEndpoints = util.split(endpoints, ", ");
-                infoApiKey = reader.getProperty("info.api.key", origin);
-                if (origin.equals(infoApiKey)) {
-                    log.error("{} endpoints visible with HTTP header ({}={})", protectedRestEndpoints, X_INFO_KEY, origin);
-                } else {
-                    log.info("{} endpoints visible with HTTP header ({})", protectedRestEndpoints, X_INFO_KEY);
-                }
             }
         }
     }
@@ -119,19 +102,6 @@ public class WsFilter implements Filter {
                         }
                     }
                 }
-                // is page protected?
-                if (isProtected(req)) {
-                    String apiKey = req.getHeader(X_INFO_KEY);
-                    if (apiKey == null) {
-                        res.sendError(404, "Not found");
-                        return;
-                    } else {
-                        if (!apiKey.equals(infoApiKey)) {
-                            res.sendError(401, "Unauthorized");
-                            return;
-                        }
-                    }
-                }
                 chain.doFilter(req, res);
             }
         } else {
@@ -142,18 +112,6 @@ public class WsFilter implements Filter {
     @Override
     public void destroy() {
         // no-op
-    }
-
-    private boolean isProtected(HttpServletRequest req) {
-        if (!LOCALHOST.equals(req.getRemoteAddr()) && !protectedRestEndpoints.isEmpty()) {
-            String uri = req.getRequestURI();
-            for (String ep: protectedRestEndpoints) {
-                if (equals(uri, ep)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private boolean equals(String uri, String rule) {
