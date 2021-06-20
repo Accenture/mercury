@@ -18,19 +18,30 @@
 
 package org.platformlambda.automation.models;
 
-import javax.servlet.AsyncContext;
+import io.vertx.core.http.HttpServerRequest;
 
 public class AsyncContextHolder {
 
-    public AsyncContext context;
+    public HttpServerRequest request;
     public long timeout;
     public long lastAccess;
     public String url, resHeaderId, accept, method;
 
-    public AsyncContextHolder(AsyncContext context, long timeout) {
-        this.context = context;
+    public AsyncContextHolder(HttpServerRequest request) {
+        this.request = request;
+        this.timeout = 30 * 1000;
+        this.touch();
+    }
+
+    public AsyncContextHolder(HttpServerRequest request, long timeout) {
+        this.request = request;
         this.timeout = timeout;
         this.touch();
+    }
+
+    public AsyncContextHolder setTimeout(long timeout) {
+        this.timeout = timeout;
+        return this;
     }
 
     public AsyncContextHolder setUrl(String url) {

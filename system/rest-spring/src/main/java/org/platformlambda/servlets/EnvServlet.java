@@ -64,15 +64,10 @@ public class EnvServlet extends InfoServletBase {
 		}
 		try {
 			EventEnvelope result = po.request(event, 10000);
-			if (result.getBody() instanceof Map) {
-				response.setContentType(MediaType.APPLICATION_JSON);
-				byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getBody());
-				response.setContentLength(b.length);
-				response.getOutputStream().write(b);
-			} else {
-				response.sendError(500, "Unable to obtain health report. Expect: Map, Actual: "+
-						(result.getBody() == null? "null" : result.getBody().getClass().getSimpleName()));
-			}
+			response.setContentType(MediaType.APPLICATION_JSON);
+			byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getBody());
+			response.setContentLength(b.length);
+			response.getOutputStream().write(b);
 		} catch (TimeoutException e) {
 			response.sendError(408, origin+" timeout");
 		} catch (AppException e) {

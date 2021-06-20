@@ -64,10 +64,13 @@ public class RoutingEntry {
     private static final String ACCESS_CONTROL_PREFIX = "Access-Control-";
     private static final String[] VALID_METHODS = {"GET", "PUT", "POST", "DELETE", "HEAD", "PATCH", "OPTIONS"};
     private static final List<String> METHOD_LIST = Arrays.asList(VALID_METHODS);
-    private static final int FIVE_MINUTES = 5 * 60;
     private static final int MIN_THRESHOLD = 5000;
     private static final int REG_THRESHOLD = 50000;
     private static final int MAX_THRESHOLD = 500000;
+    private static final int ONE_MINUTE = 60;
+    private static final int FIVE_MINUTES = 5 * ONE_MINUTE;
+    private static final int ONE_HOUR = 60 * ONE_MINUTE;
+    private static final int ONE_DAY = 24 * ONE_HOUR;
     private static final Map<String, RouteInfo> routes = new HashMap<>();
     private static final Map<String, Boolean> exactRoutes = new HashMap<>();
     // id -> {maps for options and headers}
@@ -337,11 +340,9 @@ public class RoutingEntry {
             }
             info.primary = info.services.get(0);
             // default multipart label for upload is "file"
-            if (entry.containsKey(UPLOAD) && entry.get(UPLOAD) instanceof String) {
-                String upload = ((String) entry.get(UPLOAD)).trim();
-                if (upload.length() > 1) {
-                    info.upload = upload;
-                }
+            if (entry.containsKey(UPLOAD)) {
+                String upload = entry.get(UPLOAD).toString();
+                info.upload = "true".equals(upload) || "file".equals(upload);
             }
             if (entry.containsKey(AUTH)) {
                 String auth = entry.get(AUTH).toString().trim();
@@ -376,29 +377,7 @@ public class RoutingEntry {
             if (url.contains("?")) {
                 url = url.substring(0, url.indexOf('?'));
             }
-            int timeout = -1;
-            if (entry.containsKey(TIMEOUT)) {
-                Object t = entry.get(TIMEOUT);
-                if (t instanceof String) {
-                    String v = (String) t;
-                    if (v.endsWith("s")) {
-                        String vt = v.substring(0, v.length()-1);
-                        if (util.isDigits(vt)) {
-                            timeout = util.str2int(vt);
-                        }
-                    }
-                }
-                if (t instanceof Integer) {
-                    timeout = (Integer) t;
-                }
-            }
-            if (timeout == -1) {
-                log.warn("Default timeout of 30s is used");
-            } else if (timeout > FIVE_MINUTES ) {
-                log.warn("Default timeout of 30s is used because {}s is more than 5 minutes", timeout);
-            } else {
-                info.timeoutSeconds = timeout;
-            }
+            info.timeoutSeconds = entry.containsKey(TIMEOUT)? getDurationInSeconds(entry.get(TIMEOUT).toString()) : 30;
             if (entry.containsKey(CORS)) {
                 String id = entry.get(CORS).toString();
                 if (cors.containsKey(id)) {
@@ -704,6 +683,28 @@ public class RoutingEntry {
             }
             log.info("Loaded {} {} headers {}", id, isRequest ? REQUEST : RESPONSE, go);
         }
+    }
+
+    public int getDurationInSeconds(String duration) {
+        Utility util = Utility.getInstance();
+        int multiplier = 1;
+        final int n;
+        if (duration.endsWith("s") || duration.endsWith("m") || duration.endsWith("h") || duration.endsWith("d")) {
+            n = util.str2int(duration.substring(0, duration.length()-1));
+            if (duration.endsWith("m")) {
+                multiplier = ONE_MINUTE;
+            }
+            if (duration.endsWith("h")) {
+                multiplier = ONE_HOUR;
+            }
+            if (duration.endsWith("d")) {
+                multiplier = ONE_DAY;
+            }
+        } else {
+            n = util.str2int(duration);
+        }
+        // set maximum to 5 minutes and minimum to 5 seconds
+        return Math.min(FIVE_MINUTES, Math.max(n * multiplier, 5));
     }
 
 }

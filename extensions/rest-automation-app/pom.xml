@@ -44,12 +44,6 @@
             <version>2.0.0</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
-            <version>2.0.0</version>
-        </dependency>
-
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
 
              For convenience, both Kafka and Hazelcast connectors are added so
@@ -118,7 +112,7 @@
                 <!-- DO NOT CHANGE THIS
                      RestServer will find your Main Application(s) -->
                 <configuration>
-                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
+                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
                 </configuration>
                 <executions>
                     <execution>

@@ -43,19 +43,19 @@ rest:
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
-    url: "/api/test/ok*"
-    # optional "upload" key if it is a multi-part file upload
-    upload: "file"
+    url: "/api/upload/demo"
+    # to support multi-part file upload (POST method), set upload to true
+    upload: true
     timeout: 15s
+    cors: cors_1
     headers: header_1
-   cors: cors_1
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
     timeout: 12
+    cors: cors_1
     headers: header_1
-   cors: cors_1
 
   #
   # When service is a URL, it will relay HTTP or HTTPS requests.

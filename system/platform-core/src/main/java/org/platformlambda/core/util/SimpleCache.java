@@ -97,12 +97,20 @@ public class SimpleCache {
         return item == null? null: item.payload;
     }
 
+    public boolean exists(String key) {
+        return get(key) != null;
+    }
+
     public String getName() {
         return name;
     }
 
     public long getExpiry() {
         return expiry;
+    }
+
+    public void clear() {
+        cache.clear();
     }
 
     public void cleanUp() {

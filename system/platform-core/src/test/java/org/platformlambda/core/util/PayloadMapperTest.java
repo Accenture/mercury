@@ -324,7 +324,7 @@ public class PayloadMapperTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void listOfPoJo() throws ClassNotFoundException {
+    public void listOfPoJo() {
         List<PoJo> input = new ArrayList<>();
         PoJo a = new PoJo();
         a.setName("hello");

@@ -65,7 +65,7 @@ public class Platform {
 
     /**
      * Internal use - DO NOT call this from user application
-     *
+     * <p>
      * @param id of the service
      * @return blocking queue for service initialization
      */
@@ -75,13 +75,16 @@ public class Platform {
 
     /**
      * IMPORTANT: If this OPTIONAL value is set, the origin ID will be derived from this value.
-     *
+     * <p>
      * You MUST use unique ID for each application instance otherwise service routing would fail.
-     *
+     * <p>
      * For examples:
      * For production, you may use unique ID like Kubernetes pod-ID
      * For development in a laptop, you may use applicationName + timestamp + user.name
-     *
+     * <p>
+     * This method is static so that it can be set using BeforeApplication module
+     * before the app starts.
+     * <p>
      * @param id unique application name and instance identifier
      */
     public static void setAppId(String id) {
@@ -192,9 +195,6 @@ public class Platform {
             Platform.cloudSelected = true;
             // set personality to APP automatically
             ServerPersonality personality = ServerPersonality.getInstance();
-            if (personality.getType() == ServerPersonality.Type.UNDEFINED) {
-                personality.setType(ServerPersonality.Type.APP);
-            }
             AppConfigReader reader = AppConfigReader.getInstance();
             String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, "none");
             if (!"none".equalsIgnoreCase(name)) {
@@ -349,11 +349,6 @@ public class Platform {
         serviceTokens.remove(uuid);
         // save into local registry
         registry.put(path, service);
-        // automatically set personality if not defined
-        ServerPersonality personality = ServerPersonality.getInstance();
-        if (personality.getType() == ServerPersonality.Type.UNDEFINED) {
-            personality.setType(ServerPersonality.Type.APP);
-        }
         if (!isPrivate) {
             advertiseRoute(route);
         }
@@ -404,10 +399,11 @@ public class Platform {
 
     public void waitForProvider(String provider, int seconds) throws TimeoutException {
         if (!hasRoute(provider)) {
-            int cycles = seconds / 2;
-            int count = 1;
-            do {
-                // retry every 2 seconds
+            int waitTime = Math.max(2, seconds);
+            int waitCycle = waitTime / 2;
+            int count = 0;
+            while (count < waitCycle && !hasRoute(provider)) {
+                count++;
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -416,14 +412,14 @@ public class Platform {
                 if (count > 1) {
                     logRecently("info", "Waiting for " + provider + " to get ready... " + count);
                 }
-                // taking too much time?
-                if (++count >= cycles) {
-                    String message = "Giving up " + provider + " because it is not ready after " + seconds + " seconds";
-                    logRecently("error", message);
-                    throw new TimeoutException(message);
-                }
-            } while (!hasRoute(provider));
-            logRecently("info", provider + " is ready");
+            }
+            if (hasRoute(provider)) {
+                logRecently("info", provider + " is ready");
+            } else {
+                String message = "Giving up " + provider + " because it is not ready after " + waitTime + " seconds";
+                logRecently("error", message);
+                throw new TimeoutException(message);
+            }
         }
     }
 
@@ -434,9 +430,6 @@ public class Platform {
         if (!cache.exists(hash)) {
             cache.put(hash, true);
             if (level.equals("error")) {
-                log.warn(message);
-            }
-            if (level.equals("warn")) {
                 log.warn(message);
             }
             if (level.equals("info")) {

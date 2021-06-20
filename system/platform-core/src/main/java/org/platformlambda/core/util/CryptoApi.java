@@ -439,13 +439,15 @@ public class CryptoApi {
 
     public SSLContext getSslContext(String pem) throws GeneralSecurityException, IOException {
         byte[] der = readPem(pem);
-        X509Certificate cert = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(der));
+        X509Certificate cert = (X509Certificate) CertificateFactory.getInstance("X.509")
+                .generateCertificate(new ByteArrayInputStream(der));
         KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
         // initialize keystore with a random password which is not relevant in keystore operation
         ks.load(null, Utility.getInstance().getUuid().toCharArray());
         ks.setCertificateEntry("certificate", cert);
         // initialize trust trust manager factory
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
+                TrustManagerFactory.getDefaultAlgorithm());
         trustManagerFactory.init(ks);
         // return configured ssl socket factory
         SSLContext context = SSLContext.getInstance("TLS");

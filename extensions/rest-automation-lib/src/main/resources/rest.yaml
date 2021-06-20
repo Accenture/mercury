@@ -52,14 +52,15 @@ rest:
     tracing: true
 
   - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/test/ok*"
-    # optional "upload" key if it is a multi-part file upload
-    upload: "file"
+    methods: ['POST']
+    url: "/api/upload/demo"
+    # to support multi-part file upload, set upload to true
+    upload: true
     timeout: 15s
     cors: cors_1
     headers: header_1
 
+  # demonstrate path parameter and wild card
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
@@ -149,12 +150,16 @@ headers:
       #     keep: ['only_this_header_and_drop_all']
       #     drop: ['drop_only_these_headers', 'another_drop_header']
       #
-      #      add: ["server: mercury 1.12"]
+      #      add: ["server: mercury"]
       #
       # You may want to add cache-control to disable browser and CDN caching.
       # add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
       #
-      add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
+      add:
+        - "Strict-Transport-Security: max-age=31536000"
+        - "Cache-Control: no-cache, no-store"
+        - "Pragma: no-cache"
+        - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
 
 #
 # WebSocket automation is designed primarily for real-time notification.
@@ -164,12 +169,17 @@ headers:
 # Please refer to user guide for details.
 # https://github.com/Accenture/mercury/tree/master/docs/guides
 #
-# The format of a valid web-socket URL is /ws/api/{application}:{token}?query_parameters
+# The URI prefix "/ws/api/" is reserved for websocket connections
+# and the format of a valid web-socket URI is /ws/api/{application}:{token}?query_parameters
+#
+# (Query parameters are not used for authentication.
+# If provided, they will be passed to a configured recipient function)
 #
 # In the following example entry, the application name is "notification".
 # You can use the websocket connection with or without notification feature.
-# If you want notification feature, set "subscribe" to true and your UI can send subscription API via
-# a websocket connecton. If you allow the UI to send notification events to other browsers, you can turn on "publish".
+# If you want notification feature, set "subscribe" to true and your UI can send subscription API
+# via a websocket connection. If you allow the UI to send notification events to other browsers,
+# you can turn on "publish".
 #
 # If you want to handle the input programmatically at the backend, you can set a "recipient" route name
 # that points to a custom function that you provide.

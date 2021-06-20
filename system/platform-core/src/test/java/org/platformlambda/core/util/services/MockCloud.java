@@ -1,0 +1,116 @@
+package org.platformlambda.core.util.services;
+
+import org.platformlambda.core.annotations.CloudConnector;
+import org.platformlambda.core.models.CloudSetup;
+import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.VersionInfo;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.util.Utility;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@CloudConnector(name="mock.cloud")
+public class MockCloud implements CloudSetup {
+    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
+    private static final String SERVICE_REGISTRY = "system.service.registry";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ROUTE = ServiceDiscovery.ROUTE;
+    private static final String FIND = ServiceDiscovery.FIND;
+    private static final String SEARCH = ServiceDiscovery.SEARCH;
+    private static final String DOWNLOAD = "download";
+    private static final String INFO = "info";
+    private static final String HEALTH = "health";
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void initialize() {
+        Platform platform = Platform.getInstance();
+        // usually a cloud connector will automatically start cloud services
+        platform.startCloudServices();
+
+        LambdaFunction query = (headers, body, instance) -> {
+            String type = headers.get(TYPE);
+            if (INFO.equals(type)) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("personality", ServerPersonality.getInstance().getType());
+                VersionInfo info = Utility.getInstance().getVersionInfo();
+                result.put("version", info.getVersion());
+                result.put("name", platform.getName());
+                result.put("origin", platform.getOrigin());
+                result.put("group_id", info.getGroupId());
+                result.put("artifact_id", info.getArtifactId());
+                return result;
+
+            } else if (DOWNLOAD.equals(type)) {
+                Utility util = Utility.getInstance();
+                String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
+                Map<String, Object> result = new HashMap<>();
+                result.put("routes", "some_routes");
+                result.put("nodes", "some_nodes");
+                result.put("name", me);
+                result.put("origin", platform.getOrigin());
+                result.put("group", 1);
+                return result;
+
+            } else if (FIND.equals(type) && headers.containsKey(ROUTE)) {
+                String route = headers.get(ROUTE);
+                if (route.equals("*")) {
+                    if (body instanceof List) {
+                        List<String> list = (List<String>) body;
+                        for (String item : list) {
+                            if (platform.hasRoute(item)) {
+                                return true;
+                            }
+                        }
+                    }
+                } else {
+                    return platform.hasRoute(route);
+                }
+            } else if (SEARCH.equals(headers.get(TYPE)) && headers.containsKey(ROUTE)) {
+                return Collections.emptyList();
+            }
+            return false;
+        };
+        LambdaFunction connector = (headers, body, instance) -> {
+            // emulate a cloud connector to handle broadcast
+            if ("1".equals(headers.get("broadcast")) && body instanceof byte[]) {
+                EventEnvelope event = new EventEnvelope();
+                event.load((byte[]) body);
+                PostOffice.getInstance().send(event.setBroadcastLevel(0));
+            }
+            return null;
+        };
+        LambdaFunction health = (headers, body, instance) -> {
+            if (INFO.equals(headers.get(TYPE))) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("service", "mock.connector");
+                result.put("href", "mock://127.0.0.1");
+                result.put("topics", "mock.topic");
+                return result;
+            }
+            if (HEALTH.equals(headers.get(TYPE))) {
+                return "fine";
+            }
+            return false;
+        };
+        LambdaFunction registry = (headers, body, instance) -> true;
+        try {
+            platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, connector, 1);
+            platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, query, 10);
+            platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, registry, 10);
+            platform.registerPrivate(CLOUD_CONNECTOR_HEALTH, health, 2);
+        } catch (IOException e) {
+            // nothing to worry
+        }
+
+    }
+
+}

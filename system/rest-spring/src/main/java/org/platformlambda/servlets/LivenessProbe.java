@@ -59,9 +59,7 @@ public class LivenessProbe extends HttpServlet {
         try {
             EventEnvelope result = po.request(event, 10000);
             response.setContentType(MediaType.TEXT_PLAIN);
-            if (result.getBody() instanceof String) {
-                response.getWriter().write((String) result.getBody());
-            }
+            response.getWriter().write((String) result.getBody());
         } catch (TimeoutException e) {
             response.sendError(408, origin+" timeout");
         } catch (AppException e) {

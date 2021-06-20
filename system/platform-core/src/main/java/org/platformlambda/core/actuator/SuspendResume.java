@@ -22,15 +22,11 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
 
 public class SuspendResume implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(ShutdownService.class);
-
     private static final String TYPE = "type";
     private static final String USER = "user";
     private static final String WHEN = "when";

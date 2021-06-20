@@ -32,7 +32,6 @@ public class ObjectStreamTest {
 
     @Test
     public void readWrite() throws IOException {
-
         String messageOne = "hello world";
         String messageTwo = "it is great";
         /*
@@ -92,6 +91,29 @@ public class ObjectStreamTest {
         Assert.assertEquals(2, i);
         // must close input stream to release resources
         in.close();
+    }
+
+    @Test
+    public void mixedTypeStream() throws IOException {
+        ObjectStreamIO producer = new ObjectStreamIO();
+        ObjectStreamWriter out = producer.getOutputStream();
+        out.setWriteTimeout(5000);
+        Assert.assertEquals(5000, out.getWriteTimeout());
+        byte[] b = "hello".getBytes();
+        out.write("hello world");
+        out.write(b, 0, b.length);
+        out.write(b);
+        // writing null = EOF
+        out.write(null);
+        ObjectStreamIO consumer = new ObjectStreamIO(producer.getRoute());
+        int n =0;
+        ObjectStreamReader in = consumer.getInputStream(1000);
+        for (Object d: in) {
+            Assert.assertNotNull(d);
+            n++;
+        }
+        Assert.assertEquals(3, n);
+        consumer.getOutputStream().close();
     }
 
 }

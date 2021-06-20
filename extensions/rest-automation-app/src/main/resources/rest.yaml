@@ -47,9 +47,9 @@ rest:
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
-    url: "/api/test/ok*"
-    # optional "upload" key if it is a multi-part file upload
-    upload: "file"
+    url: "/api/upload/demo"
+    # to support multi-part file upload (POST method), set upload to true
+    upload: true
     timeout: 15s
     cors: cors_1
     headers: header_1
@@ -143,13 +143,16 @@ headers:
       #     keep: ['only_this_header_and_drop_all']
       #     drop: ['drop_only_these_headers', 'another_drop_header']
       #
-      #      add: ["server: mercury 1.12"]
+      #      add: ["server: mercury"]
       #
       # You may want to add cache-control to disable browser and CDN caching.
       # add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
       #
-      add: ["Cache-Control: no-cache, no-store", "Pragma: no-cache", "Expires: Thu, 01 Jan 1970 00:00:00 GMT"]
-
+      add:
+        - "Strict-Transport-Security: max-age=31536000"
+        - "Cache-Control: no-cache, no-store"
+        - "Pragma: no-cache"
+        - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
 #
 # WebSocket automation is designed primarily for real-time notification.
 # However, you may also use it to receive messages from a browser or external application.

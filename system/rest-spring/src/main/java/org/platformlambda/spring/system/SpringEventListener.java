@@ -119,7 +119,7 @@ public class SpringEventListener {
             }
             if (error == 0 && n == 0) {
                 log.error("Missing MainApplication\n\n{}\n{}\n\n",
-                    "Did you forget to annotate your main module with @MainApplication that extends EntryPoint?",
+                    "Did you forget to annotate your main module with @MainApplication that implements EntryPoint?",
                     "and ensure the package parent is defined in 'web.component.scan' of application.properties.");
             }
         }

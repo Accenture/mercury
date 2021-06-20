@@ -65,11 +65,7 @@ public class SimpleXmlWriter {
         }
         // Next line after a startTag of a map or after a block of elements
         buffer.append('\n');
-
-        List<String> keys = new ArrayList<String>();
-        for (String k: map.keySet()) {
-            keys.add(k);
-        }
+        List<String> keys = new ArrayList<>(map.keySet());
         // Arrange the map element in ascending order
         if (keys.size() > 1) {
             Collections.sort(keys);
@@ -127,16 +123,13 @@ public class SimpleXmlWriter {
     }
 
     private void indentBlock(StringBuilder buffer, int indent) {
-
         for (int i=0; i < indent; i++) {
             buffer.append(SPACES);
         }
     }
 
     private String escapeXml(String value, TagType type) {
-
         switch (type) {
-
             case START:
                 if (value.startsWith("/") || value.startsWith("{")) {
                     return "node value=\""+value+"\"";

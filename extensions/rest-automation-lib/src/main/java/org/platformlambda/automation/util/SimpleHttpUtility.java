@@ -18,41 +18,64 @@
 
 package org.platformlambda.automation.util;
 
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.automation.models.HeaderInfo;
+import org.platformlambda.automation.services.ServiceGateway;
+import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.util.Utility;
 
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class SimpleHttpUtility {
 
+    private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final String SET_COOKIE = "set-cookie";
     private static final String COOKIE_SEPARATOR = "|";
-    private static final String CONTENT_DISPOSITION = "content-disposition";
-    private static final String FILENAME = "filename";
+    private static final String ACCEPT = "Accept";
+    private static final String CONTENT_TYPE = "Content-Type";
+    private static final String CONTENT_LEN = "Content-Length";
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String APPLICATION_XML = "application/xml";
+    private static final String TEXT_HTML = "text/html";
+    private static final String TEMPLATE = "/errorPage.html";
+    private static final String HTTP_UNKNOWN_WARNING = "There may be a problem in processing your request";
+    private static final String HTTP_400_WARNING = "The system is unable to process your request";
+    private static final String HTTP_500_WARNING = "Something may be broken";
+    private static final String SET_MESSAGE = "${message}";
+    private static final String SET_PATH = "${path}";
+    private static final String SET_STATUS = "${status}";
+    private static final String SET_WARNING = "${warning}";
+    private final String template;
 
     private static final SimpleHttpUtility instance = new SimpleHttpUtility();
 
     private SimpleHttpUtility() {
-        // singleton
+        Utility util = Utility.getInstance();
+        InputStream in = this.getClass().getResourceAsStream(TEMPLATE);
+        template = util.stream2str(in);
     }
 
     public static SimpleHttpUtility getInstance() {
         return instance;
     }
 
-    public void setCookies(HttpServletResponse response, String cookies) {
+    public void setCookies(HttpServerResponse response, String cookies) {
         String header = getHeaderCase(SET_COOKIE);
         if (cookies.contains(COOKIE_SEPARATOR)) {
             List<String> items = Utility.getInstance().split(cookies, COOKIE_SEPARATOR);
             for (String value: items) {
-                response.addHeader(header, value);
+                response.putHeader(header, value);
             }
         } else {
-            response.setHeader(header, cookies);
+            response.putHeader(header, cookies);
         }
     }
 
@@ -107,13 +130,69 @@ public class SimpleHttpUtility {
         return url;
     }
 
-    public String getFileName(final Part part) {
-        for (String content : part.getHeader(CONTENT_DISPOSITION).split(";")) {
-            if (content.trim().startsWith(FILENAME)) {
-                return content.substring(content.indexOf('=') + 1).trim().replace("\"", "");
+    public Map<String, String> decodeQueryString(String query) {
+        Map<String, String> result = new HashMap<>();
+        Utility util = Utility.getInstance();
+        List<String> segments = util.split(query, "&");
+        try {
+            for (String para : segments) {
+                int eq = para.indexOf('=');
+                if (eq == -1) {
+                    result.put(URLDecoder.decode(para, "UTF-8"), "");
+                } else {
+                    String key = para.substring(0, eq);
+                    String value = para.substring(eq + 1);
+                    result.put(URLDecoder.decode(key, "UTF-8"), URLDecoder.decode(value, "UTF-8"));
+                }
+            }
+        } catch (UnsupportedEncodingException e) {
+            // ok to ignore because UTF-8 is valid
+        }
+        return result;
+    }
+
+    public void sendError(String requestId, HttpServerRequest request, int status, String error) {
+        ServiceGateway.closeContext(requestId);
+        String accept = request.getHeader(ACCEPT);
+        if (accept == null) {
+            accept = "?";
+        }
+        Utility util = Utility.getInstance();
+        HttpServerResponse response = request.response().setStatusCode(status);
+        if (accept.startsWith(TEXT_HTML)) {
+            String errorPage = template.replace(SET_STATUS, String.valueOf(status))
+                    .replace(SET_PATH, request.path())
+                    .replace(SET_MESSAGE, error);
+            if (status >= 500) {
+                errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);
+            } else if (status >= 400) {
+                errorPage = errorPage.replace(SET_WARNING, HTTP_400_WARNING);
+            } else {
+                errorPage = errorPage.replace(SET_WARNING, HTTP_UNKNOWN_WARNING);
+            }
+            byte[] payload = util.getUTF(errorPage);
+            response.putHeader(CONTENT_TYPE, TEXT_HTML);
+            response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
+            response.write(Buffer.buffer(payload));
+        } else {
+            Map<String, Object> result = new HashMap<>();
+            result.put("status", status);
+            result.put("message", error);
+            result.put("type", status < 400? "event" : "error");
+            result.put("path", request.path());
+            if (accept.startsWith(APPLICATION_XML)) {
+                byte[] payload = util.getUTF(xmlWriter.write("error", result));
+                response.putHeader(CONTENT_TYPE, APPLICATION_XML);
+                response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
+                response.write(Buffer.buffer(payload));
+            } else {
+                byte[] payload = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result);
+                response.putHeader(CONTENT_TYPE, APPLICATION_JSON);
+                response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
+                response.write(Buffer.buffer(payload));
             }
         }
-        return null;
+        response.end();
     }
 
 }

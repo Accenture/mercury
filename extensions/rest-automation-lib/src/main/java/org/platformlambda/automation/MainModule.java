@@ -18,24 +18,20 @@
 
 package org.platformlambda.automation;
 
+import io.vertx.core.Vertx;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.AsyncContextHolder;
-import org.platformlambda.automation.services.NotificationManager;
-import org.platformlambda.automation.services.NotificationQuery;
-import org.platformlambda.automation.services.ServiceResponseHandler;
-import org.platformlambda.automation.services.WsTokenIssuer;
-import org.platformlambda.automation.servlets.HttpRelay;
-import org.platformlambda.automation.servlets.ServiceGateway;
+import org.platformlambda.automation.services.*;
 import org.platformlambda.automation.util.AsyncTimeoutHandler;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +50,7 @@ public class MainModule implements EntryPoint {
     private static final String NOTIFICATION_QUERY = "ws.notification";
 
     public static void main(String[] args) {
-        RestServer.main(args);
+        AppStarter.main(args);
     }
 
     /**
@@ -77,26 +73,38 @@ public class MainModule implements EntryPoint {
          */
         ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
         Platform platform = Platform.getInstance();
+        AppConfigReader appConfig = AppConfigReader.getInstance();
+        Utility util = Utility.getInstance();
         try {
             ConfigReader config = getConfig();
-            RoutingEntry routing = RoutingEntry.getInstance();
-            routing.load(config);
-            WsEntry ws = WsEntry.getInstance();
-            ws.load(config);
+            RoutingEntry restRouting = RoutingEntry.getInstance();
+            restRouting.load(config);
+            WsEntry wsRouting = WsEntry.getInstance();
+            wsRouting.load(config);
             // start service response handler
-            ConcurrentMap<String, AsyncContextHolder> contexts = ServiceGateway.getContexts();
+            ServiceGateway gateway = new ServiceGateway();
+            ConcurrentMap<String, AsyncContextHolder> contexts = gateway.getContexts();
             // "async.http.request" is deployed as PUBLIC to provide "HttpClient as a service"
             platform.register(ASYNC_HTTP_REQUEST, new HttpRelay(), 300);
             // "async.http.response" must be PRIVATE because the AsyncContext objects are kept in local memory
             platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(contexts), 300);
-            /*
-             * When AsyncContext timeout, the HttpServletResponse object is already closed.
-             * Therefore, we use a custom timeout handler so we can control the timeout experience.
-             */
+            // fall back to "server.port" if "rest.server.port" is not configured
+            int port = util.str2int(appConfig.getProperty("rest.server.port",
+                    appConfig.getProperty("server.port", "8100")));
+
+            Vertx vertx = Vertx.vertx();
+            vertx.createHttpServer()
+                    .webSocketHandler(new WebSocketServiceHandler())
+                    .requestHandler(new HttpRequestHandler(gateway))
+                    .listen(port)
+                    .onSuccess(server -> log.info("Listening to port {}", server.actualPort()))
+                    .onFailure(ex -> {
+                        log.error("Unable to start - {}", ex.getMessage());
+                        System.exit(-1);
+                    });
+
             AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
             timeoutHandler.start();
-            // ready to serve
-            ServiceGateway.setReady();
             // start a generic notification service
             platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
             platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);

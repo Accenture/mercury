@@ -43,7 +43,8 @@ public class AppStarter {
             AppStarter begin = new AppStarter();
             begin.doApps(args, false);
             /*
-             * Do not start MainApplication(s) if this is a webapp
+             * Do not start MainApplication(s) if the app is packaged to run as a WAR file.
+             * The web application server will start the WAR file directly.
              */
             if (!webapp) {
                 begin.doApps(args, true);
@@ -119,7 +120,7 @@ public class AppStarter {
         }
         if (main && error == 0 && n == 0) {
             log.error("Missing MainApplication\n\n{}\n{}\n\n",
-                    "Did you forget to annotate your main module with @MainApplication that extends EntryPoint?",
+                    "Did you forget to annotate your main module with @MainApplication that implements EntryPoint?",
                     "and ensure the package parent is defined in 'web.component.scan' of application.properties.");
         }
     }

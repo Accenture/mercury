@@ -19,7 +19,6 @@
 package org.platformlambda.automation.services;
 
 import org.platformlambda.automation.MainModule;
-import org.platformlambda.automation.ws.WsGateway;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -27,6 +26,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,9 +63,11 @@ public class NotificationManager implements LambdaFunction {
     private static boolean ready = false;
 
     public NotificationManager() throws IOException {
+        final AppConfigReader config = AppConfigReader.getInstance();
         final Platform platform = Platform.getInstance();
         final PostOffice po = PostOffice.getInstance();
         final String origin = platform.getOrigin();
+        boolean standaloneMode = "none".equalsIgnoreCase(config.getProperty("cloud.connector", "none"));
         if (!platform.hasRoute(NOTIFICATION_INTERNAL)) {
             LambdaFunction f = (headers, body, instance) -> {
                 String type = headers.get(TYPE);
@@ -106,7 +108,7 @@ public class NotificationManager implements LambdaFunction {
                             }
                             if ("1".equals(step)) {
                                 ready = true;
-                                log.info("Online");
+                                log.info(standaloneMode? "Running in standalone mode" : "Online");
                                 po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, JOIN), new Kv(STEP, 2),
                                         new Kv(ORIGIN, origin));
                             }
@@ -144,7 +146,7 @@ public class NotificationManager implements LambdaFunction {
                         if (origin.equals(peer)) {
                             if (ready) {
                                 ready = false;
-                                WsGateway.closeAllConnections();
+                                WebSocketServiceHandler.closeAllConnections();
                                 subscription.clear();
                                 log.info("Offline");
                             }
@@ -162,6 +164,9 @@ public class NotificationManager implements LambdaFunction {
             };
             // create singleton function to serialize updates
             platform.registerPrivate(NOTIFICATION_INTERNAL, f, 1);
+        }
+        if (standaloneMode) {
+            po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
         }
     }
 

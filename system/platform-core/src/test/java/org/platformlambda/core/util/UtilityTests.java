@@ -3,11 +3,21 @@ package org.platformlambda.core.util;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.PubSub;
+import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.util.models.MockPubSub;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class UtilityTests {
+    
+    private static final String HELLO_WORLD = "hello.world";
 
     @Before
     public void setup() {
@@ -16,6 +26,80 @@ public class UtilityTests {
         if (!temp.exists()) {
             temp.mkdir();
         }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void setServerPersonality() {
+        ServerPersonality personality = ServerPersonality.getInstance();
+        personality.setType(ServerPersonality.Type.APP);
+        Assert.assertEquals(ServerPersonality.Type.APP, personality.getType());
+        personality.setType(null);
+    }
+
+    @Test(expected = IOException.class)
+    public void noPubSub() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        ps.createTopic(HELLO_WORLD);
+    }
+
+    @Test
+    public void mockPubSub() throws IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
+        LambdaFunction f = (headers, body, instance) -> true;
+        platform.registerPrivate(PubSub.PUBLISHER, f, 1);
+        PubSub ps = PubSub.getInstance();
+        ps.enableFeature(new MockPubSub());
+        ps.waitForProvider(1);
+        ps.createTopic(HELLO_WORLD);
+        Assert.assertTrue(ps.exists(HELLO_WORLD));
+        ps.deleteTopic(HELLO_WORLD);
+        Assert.assertFalse(ps.exists(HELLO_WORLD));
+        ps.createTopic(HELLO_WORLD, 10);
+        Assert.assertTrue(ps.exists(HELLO_WORLD));
+        Assert.assertTrue(ps.isNativePubSub());
+        Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
+        Assert.assertTrue(ps.list().contains(HELLO_WORLD));
+        ps.subscribe(HELLO_WORLD, f, "client100", "group100");
+        ps.subscribe(HELLO_WORLD, 0, f, "client100", "group100");
+        ps.publish(HELLO_WORLD, new HashMap<>(), "hello");
+        ps.publish(HELLO_WORLD, 1, new HashMap<>(), "hello");
+        ps.unsubscribe(HELLO_WORLD);
+        ps.unsubscribe(HELLO_WORLD, 1);
+        platform.release(PubSub.PUBLISHER);
+    }
+
+    @Test
+    public void timestampTest() {
+        Date now = new Date();
+        Utility util = Utility.getInstance();
+        String t = util.getTimestamp();
+        Assert.assertTrue(util.isDigits(t));
+        String ts = util.getTimestamp(now.getTime());
+        long time = util.timestamp2ms(ts);
+        Assert.assertEquals(now.getTime(), time);
+        String awsTime = util.getAmazonDate(now);
+        Assert.assertTrue(awsTime.contains("T") && awsTime.endsWith("Z"));
+        String awsNumber = awsTime.replace("T", "").replace("Z", "");
+        Assert.assertTrue(util.isDigits(awsNumber));
+        String iso = util.date2str(now);
+        java.sql.Date sql = new java.sql.Date(now.getTime());
+        String sqlDate = util.getSqlDate(sql);
+        Assert.assertEquals(iso.substring(0, iso.indexOf('T')), sqlDate);
+        java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
+        String sqlTime = util.getSqlTimestamp(sqlTs);
+        Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
+    }
+
+    @Test
+    public void base64Test() {
+        Utility util = Utility.getInstance();
+        String text = "hello world & good day";
+        String b64 = util.bytesToBase64(util.getUTF(text));
+        byte[] bytes = util.base64ToBytes(b64);
+        Assert.assertEquals(text, util.getUTF(bytes));
+        b64 = util.bytesToUrlBase64(util.getUTF(text));
+        bytes = util.urlBase64ToBytes(b64);
+        Assert.assertEquals(text, util.getUTF(bytes));
     }
 
     @Test
@@ -139,7 +223,7 @@ public class UtilityTests {
         list.add(map2);
         list.add(list2);
         Map<String, Object> flatMap = util.getFlatMap(map);
-        Assert.assertEquals("data", flatMap.get("hello.world"));
+        Assert.assertEquals("data", flatMap.get(HELLO_WORLD));
         Assert.assertEquals(1, flatMap.get("hello.number[0]"));
         Assert.assertEquals(2, flatMap.get("hello.number[1]"));
         Assert.assertEquals("data", flatMap.get("hello.number[2].hello.world"));
@@ -158,7 +242,7 @@ public class UtilityTests {
         /*
          * retrieval using composite keys from the multi-level map must match the original map's values
          */
-        Assert.assertEquals("data", mm.getElement("hello.world"));
+        Assert.assertEquals("data", mm.getElement(HELLO_WORLD));
         Assert.assertEquals(1, mm.getElement("hello.number[0]"));
         Assert.assertEquals(2, mm.getElement("hello.number[1]"));
         Assert.assertEquals("data", mm.getElement("hello.number[2].hello.world"));

@@ -42,7 +42,7 @@ public class ObjectStreamManager implements LambdaFunction {
     private static final String NAME = "name";
     private static final String DESTROY = "destroy";
     private static final String QUERY = "query";
-    private static final String TRANSACTIONS = "transactions";
+    private static final String BLOCKS = "blocks";
     private static final String EXPIRY_SEC = "expiry_seconds";
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
@@ -97,7 +97,7 @@ public class ObjectStreamManager implements LambdaFunction {
                 StreamInfo info = streams.get(name);
                 streams.remove(name);
                 platform.release(name);
-                log.info("{} closed ({} - {}, transactions={})", name,
+                log.info("{} closed ({} - {}, blocks={})", name,
                         util.date2str(new Date(info.created), true),
                         util.date2str(new Date(info.updated), true), info.count);
                 return true;
@@ -112,7 +112,7 @@ public class ObjectStreamManager implements LambdaFunction {
                 map.put(CREATED, new Date(info.created));
                 map.put(UPDATED, new Date(info.updated));
                 map.put(EXPIRY_SEC, info.expiryMills / 1000);
-                map.put(TRANSACTIONS, info.count);
+                map.put(BLOCKS, info.count);
                 result.put(key, map);
             }
             return result;
@@ -166,7 +166,7 @@ public class ObjectStreamManager implements LambdaFunction {
                             StreamInfo info = streams.get(id);
                             if (now - info.updated > info.expiryMills) {
                                 try {
-                                    log.warn("{} expired. Inactivity for {} seconds ({} - {}, transactions={})", id,
+                                    log.warn("{} expired. Inactivity for {} seconds ({} - {}, blocks={})", id,
                                             info.expiryMills / 1000,
                                             util.date2str(new Date(info.created), true),
                                             util.date2str(new Date(info.updated), true), info.count);

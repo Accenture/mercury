@@ -24,10 +24,13 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
-import java.util.Arrays;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class CryptoTest {
     private static final Logger log = LoggerFactory.getLogger(CryptoTest.class);
@@ -54,6 +57,16 @@ public class CryptoTest {
         byte[] encrypted = crypto.aesEncrypt(input.getBytes(), key);
         byte[] decrypted = crypto.aesDecrypt(encrypted, key);
         Assert.assertEquals(input, new String(decrypted));
+        // streaming methods
+        ByteArrayInputStream clearIn = new ByteArrayInputStream(input.getBytes());
+        ByteArrayOutputStream encryptedOut = new ByteArrayOutputStream();
+        crypto.aesEncrypt(clearIn, encryptedOut, key);
+        encrypted = encryptedOut.toByteArray();
+        ByteArrayInputStream encryptedIn = new ByteArrayInputStream(encrypted);
+        ByteArrayOutputStream clearOut = new ByteArrayOutputStream();
+        crypto.aesDecrypt(encryptedIn, clearOut, key);
+        decrypted = clearOut.toByteArray();
+        Assert.assertEquals(input, new String(decrypted));
     }
 
     @Test
@@ -68,7 +81,39 @@ public class CryptoTest {
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
         // cannot use assertEquals because we need to do byte-by-byte comparison
-        Assert.assertTrue(Arrays.equals(input, decrypted));
+        Assert.assertArrayEquals(input, decrypted);
+    }
+
+    @Test
+    public void pemReadWriteTest() {
+        KeyPair kp = crypto.generateRsaKey();
+        byte[] pub = kp.getPublic().getEncoded();
+        String pem = crypto.writePem(pub, "PUBLIC KEY");
+        byte[] restored = crypto.readPem(pem);
+        String pemRestored = crypto.writePem(restored, "PUBLIC KEY");
+        Assert.assertEquals(pem, pemRestored);
+    }
+
+    @Test
+    public void randomIntegerTest() {
+        int n1 = crypto.nextInt(10000);
+        int n2 = crypto.nextInt(10000);
+        Assert.assertNotEquals(n1, n2);
+    }
+
+    @Test
+    public void publicPrivateKeyEncodingTest() throws GeneralSecurityException {
+        KeyPair kp = crypto.generateRsaKey();
+        byte[] pub = kp.getPublic().getEncoded();
+        byte[] pri = kp.getPrivate().getEncoded();
+        PublicKey publicKey = crypto.getPublic(pub);
+        PrivateKey privateKey = crypto.getPrivate(pri);
+        Assert.assertArrayEquals(pub, publicKey.getEncoded());
+        Assert.assertArrayEquals(pri, privateKey.getEncoded());
+        byte[] pubAgain = crypto.getEncodedPublicKey(kp);
+        byte[] priAgain = crypto.getEncodedPrivateKey(kp);
+        Assert.assertArrayEquals(pubAgain, publicKey.getEncoded());
+        Assert.assertArrayEquals(priAgain, privateKey.getEncoded());
     }
 
     @Test
@@ -94,14 +139,20 @@ public class CryptoTest {
     }
 
     @Test
-    public void hashTest() {
+    public void hashTest() throws IOException {
         String input = "hello world";
         byte[] hashed = crypto.getSHA256(input.getBytes());
         Assert.assertEquals(32, hashed.length);
+        byte[] hashedFromStream = crypto.getSHA256(new ByteArrayInputStream(input.getBytes()));
+        Assert.assertArrayEquals(hashed, hashedFromStream);
         hashed = crypto.getSHA1(input.getBytes());
         Assert.assertEquals(20, hashed.length);
+        hashedFromStream = crypto.getSHA1(new ByteArrayInputStream(input.getBytes()));
+        Assert.assertArrayEquals(hashed, hashedFromStream);
         hashed = crypto.getMd5(input.getBytes());
         Assert.assertEquals(16, hashed.length);
+        hashedFromStream = crypto.getMd5(new ByteArrayInputStream(input.getBytes()));
+        Assert.assertArrayEquals(hashed, hashedFromStream);
     }
 
     @Test

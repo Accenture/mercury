@@ -22,9 +22,6 @@ import org.platformlambda.automation.models.AsyncContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
@@ -32,7 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 public class AsyncTimeoutHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(AsyncTimeoutHandler.class);
 
-    private ConcurrentMap<String, AsyncContextHolder> contexts;
+    private final ConcurrentMap<String, AsyncContextHolder> contexts;
     private boolean normal = true;
 
     public AsyncTimeoutHandler(ConcurrentMap<String, AsyncContextHolder> contexts) {
@@ -51,24 +48,16 @@ public class AsyncTimeoutHandler extends Thread {
             }
             // check async context timeout
             if (!contexts.isEmpty()) {
-                List<String> contextList = new ArrayList<>(contexts.keySet());
+                List<String> list = new ArrayList<>(contexts.keySet());
                 long now = System.currentTimeMillis();
-                for (String id : contextList) {
+                for (String id : list) {
                     AsyncContextHolder holder = contexts.get(id);
                     long t1 = holder.lastAccess;
                     if (now - t1 > holder.timeout) {
-                        ServletResponse res = holder.context.getResponse();
-                        if (res instanceof HttpServletResponse) {
-                            contexts.remove(id);
-                            log.warn("Async HTTP Context {} timeout for {} ms", id, now - t1);
-                            HttpServletResponse response = (HttpServletResponse) res;
-                            try {
-                                response.sendError(408, "Timeout for " + (holder.timeout / 1000) + " seconds");
-                                holder.context.complete();
-                            } catch (IOException e) {
-                                log.error("Unable to send timeout exception to async context {}", id);
-                            }
-                        }
+                        log.warn("Async HTTP Context {} timeout for {} ms", id, now - t1);
+                        SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
+                        httpUtil.sendError(id, holder.request, 408,
+                                "Timeout for " + (holder.timeout / 1000) + " seconds");
                     }
                 }
             }

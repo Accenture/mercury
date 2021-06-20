@@ -33,13 +33,11 @@ public class ServerPersonality {
      * WEB is the web-tier microservices container
      * APP is the application-tier microservices container
      * RESOURCES is the resources-tier microservices container
-     *
-     * DEVOPS is a microservices container for DevOps to monitor the system
      */
     public enum Type {
-        REST, WEB, APP, RESOURCES, DEVOPS, UNDEFINED
+        REST, WEB, APP, RESOURCES
     }
-    private Type type = Type.UNDEFINED;
+    private Type type = Type.APP;
 
     public ServerPersonality() {
         Utility util = Utility.getInstance();
@@ -55,17 +53,8 @@ public class ServerPersonality {
     }
 
     public void setType(Type type) {
-        if (type == null || type == Type.UNDEFINED) {
-            Type[] types = Type.values();
-            StringBuilder sb = new StringBuilder();
-            sb.append("You must select one from [");
-            for (Type t: types) {
-                if (t != Type.UNDEFINED) {
-                    sb.append(t.toString());
-                    sb.append(", ");
-                }
-            }
-            throw new IllegalArgumentException(sb.substring(0, sb.length()-2) + "]");
+        if (type == null) {
+            throw new IllegalArgumentException("Personality cannot be null");
         }
         this.type = type;
         log.info("Setting personality as {}", type);

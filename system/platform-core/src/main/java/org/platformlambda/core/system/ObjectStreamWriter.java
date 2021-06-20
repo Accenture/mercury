@@ -72,14 +72,14 @@ public class ObjectStreamWriter implements AutoCloseable {
             // null payload means EOF
             close();
         } else {
-            if (start >= end) {
-                throw new IOException("start must be less than end pointer. Actual: start/end=" + start + "/" + end);
+            if (start > end) {
+                throw new IOException("Invalid byte range. Actual: start/end=" + start + "/" + end);
             }
             if (end > payload.length) {
                 throw new IOException("end pointer must not be larger than payload buffer size");
             }
             // always create a new byte array
-            byte[] b = Arrays.copyOfRange(payload, start, end);
+            byte[] b = start == end? new byte[0] : Arrays.copyOfRange(payload, start, end);
             try {
                 // use RPC request to guarantee that the payload is written to disk
                 PostOffice.getInstance().request(streamId, timeout, b, new Kv(TYPE, WRITE));

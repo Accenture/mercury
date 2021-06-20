@@ -51,7 +51,7 @@ public class Utility {
     private static final DateTimeFormatter HTML_GMT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z");
     private static final String TIMESTAMP_FORMAT = "yyyyMMddHHmmssSSS";
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern(TIMESTAMP_FORMAT);
-    private static final String SQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH.mm.ss.SSS";
+    private static final String SQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
     private static final DateTimeFormatter SQL_TIMESTAMP = DateTimeFormatter.ofPattern(SQL_TIMESTAMP_FORMAT);
     private static final ZoneId UTC_TIME = ZoneId.of("UTC");
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";

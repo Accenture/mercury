@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.automation.servlets;
+package org.platformlambda.automation.services;
 
 import com.google.api.client.http.*;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -37,7 +37,6 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.MediaType;
 import java.io.*;
 import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
@@ -54,6 +53,12 @@ public class HttpRelay implements LambdaFunction {
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final ConcurrentMap<String, HttpRequestFactory> httpFactory = new ConcurrentHashMap<>();
 
+    private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+    private static final String MULTIPART_FORM_DATA = "multipart/form-data";
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String APPLICATION_XML = "application/xml";
+    private static final String TEXT_HTML = "text/html";
+    private static final String TEXT_PLAIN = "text/plain";
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
@@ -136,7 +141,7 @@ public class HttpRelay implements LambdaFunction {
                     content = ByteArrayContent.fromString(contentType, (String) reqBody);
                 }
                 if (reqBody instanceof Map) {
-                    boolean xml = contentType != null && contentType.startsWith(MediaType.APPLICATION_XML);
+                    boolean xml = contentType != null && contentType.startsWith(APPLICATION_XML);
                     if (xml) {
                         String v = xmlWriter.write(reqBody);
                         content = ByteArrayContent.fromString(contentType, v);
@@ -156,13 +161,13 @@ public class HttpRelay implements LambdaFunction {
                         int contentLen = request.getContentLength();
                         if (contentLen > 0) {
                             String filename = request.getFileName();
-                            if (contentType != null && contentType.startsWith(MediaType.MULTIPART_FORM_DATA) &&
+                            if (contentType != null && contentType.startsWith(MULTIPART_FORM_DATA) &&
                                                                         POST.equals(method) && filename != null) {
                                 String id = util.getUuid();
                                 String tag = request.getUploadTag();
                                 MultipartContent multipartContent = new MultipartContent().setMediaType(
-                                        new HttpMediaType(MediaType.MULTIPART_FORM_DATA).setParameter(BOUNDARY, id));
-                                FileContent fileContent = new FileContent(MediaType.APPLICATION_OCTET_STREAM, temp);
+                                        new HttpMediaType(MULTIPART_FORM_DATA).setParameter(BOUNDARY, id));
+                                FileContent fileContent = new FileContent(APPLICATION_OCTET_STREAM, temp);
                                 MultipartContent.Part part = new MultipartContent.Part(fileContent);
                                 String disposition = getContentDisposition(tag, filename);
                                 part.setHeaders(new HttpHeaders().set(CONTENT_DISPOSITION, disposition));
@@ -291,7 +296,7 @@ public class HttpRelay implements LambdaFunction {
                     byte[] b = out.toByteArray();
                     String resContentType = response.getHeaders().getFirstHeaderStringValue(CONTENT_TYPE);
                     if (resContentType != null) {
-                        if (resContentType.startsWith(MediaType.APPLICATION_JSON)) {
+                        if (resContentType.startsWith(APPLICATION_JSON)) {
                             // response body is assumed to be JSON
                             String text = util.getUTF(b).trim();
                             if (text.length() == 0) {
@@ -306,7 +311,7 @@ public class HttpRelay implements LambdaFunction {
                                 }
                             }
 
-                        } else if (resContentType.startsWith(MediaType.APPLICATION_XML)) {
+                        } else if (resContentType.startsWith(APPLICATION_XML)) {
                             // response body is assumed to be XML
                             String text = util.getUTF(b).trim();
                             try {
@@ -314,8 +319,8 @@ public class HttpRelay implements LambdaFunction {
                             } catch (Exception e) {
                                 return resEvent.setBody(text);
                             }
-                        } else if ( resContentType.startsWith(MediaType.TEXT_HTML) ||
-                                    resContentType.startsWith(MediaType.TEXT_PLAIN) ||
+                        } else if ( resContentType.startsWith(TEXT_HTML) ||
+                                    resContentType.startsWith(TEXT_PLAIN) ||
                                     resContentType.startsWith("text/css") ||
                                     resContentType.startsWith("application/javascript") ||
                                     resContentType.startsWith("text/javascript") ) {
