@@ -32,14 +32,14 @@ import org.springframework.lang.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
 public class HttpConverterHtml implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
-    private static final MediaType HTML_CONTENT = new MediaType("text", "html",
-            Charset.forName("UTF-8"));
+    private static final MediaType HTML_CONTENT = new MediaType("text", "html", StandardCharsets.UTF_8);
     private static final List<MediaType> types = Collections.singletonList(HTML_CONTENT);
 
     @Override

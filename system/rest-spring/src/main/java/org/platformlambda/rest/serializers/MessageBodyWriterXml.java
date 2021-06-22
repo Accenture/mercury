@@ -66,7 +66,7 @@ public class MessageBodyWriterXml<T> implements MessageBodyWriter<T> {
             entityStream.write((byte[]) t);
         } else {
             final String root;
-            Map<String, Object> map;
+            final Map<String, Object> map;
             if (t instanceof List) {
                 root = "result";
                 map = new HashMap<>();

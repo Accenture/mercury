@@ -43,6 +43,7 @@ import java.util.Map;
 public class HttpConverterXml implements HttpMessageConverter<Object> {
     private static final Utility util = Utility.getInstance();
     private static final SimpleXmlWriter map2xml = new SimpleXmlWriter();
+    private static final SimpleXmlParser xml = new SimpleXmlParser();
     private static final MediaType XML = new MediaType("application", "xml", StandardCharsets.UTF_8);
     private static final List<MediaType> types = Collections.singletonList(XML);
 
@@ -68,9 +69,7 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
         // validate class with white list before loading the input stream
         SimpleMapper.getInstance().getWhiteListMapper(clazz);
         try {
-            SimpleXmlParser xml = new SimpleXmlParser();
             return xml.parse(inputMessage.getBody());
-
         } catch (IOException e) {
             throw new IllegalArgumentException(e.getMessage());
         }
@@ -89,7 +88,7 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
             out.write((byte[]) o);
         } else {
             final String root;
-            Map<String, Object> map;
+            final Map<String, Object> map;
             if (o instanceof List) {
                 root = "result";
                 map = new HashMap<>();
