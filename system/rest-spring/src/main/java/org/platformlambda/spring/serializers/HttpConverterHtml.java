@@ -38,7 +38,8 @@ import java.util.List;
 public class HttpConverterHtml implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
-    private static final MediaType HTML_CONTENT = new MediaType("text", "html", Charset.forName("UTF-8"));
+    private static final MediaType HTML_CONTENT = new MediaType("text", "html",
+            Charset.forName("UTF-8"));
     private static final List<MediaType> types = Collections.singletonList(HTML_CONTENT);
 
     @Override
@@ -59,14 +60,14 @@ public class HttpConverterHtml implements HttpMessageConverter<Object> {
     }
 
     @Override
-    public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException, IOException {
-        // validate class with white list before loading the input stream
-        SimpleMapper.getInstance().getWhiteListMapper(clazz);
-        return inputMessage != null? inputMessage.getBody() : null;
+    public Object read(Class<?> clazz, HttpInputMessage inputMessage)
+            throws HttpMessageNotReadableException, IOException {
+        return util.getUTF(util.stream2bytes(inputMessage.getBody(), false));
     }
 
     @Override
-    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
+    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage)
+            throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(HTML_CONTENT);
         // this may be too late to validate because Spring RestController has already got the object
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());

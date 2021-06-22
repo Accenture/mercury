@@ -74,7 +74,6 @@ public class HttpErrorHandler implements ErrorController {
 
     @RequestMapping(ERROR_PATH)
     public void handlerError(HttpServletRequest request, HttpServletResponse response) throws IOException {
-
         String path = (String) request.getAttribute(REQUEST_URI);
         if (path == null) {
             path = (String) request.getAttribute(FORWARD_URI);
@@ -114,7 +113,6 @@ public class HttpErrorHandler implements ErrorController {
         error.put(MESSAGE, message);
         error.put(PATH, path);
         error.put(STATUS, status);
-
         String contentType;
         if (accept == null) {
             contentType = MediaType.APPLICATION_JSON;
@@ -127,6 +125,7 @@ public class HttpErrorHandler implements ErrorController {
         } else {
             contentType = MediaType.TEXT_PLAIN;
         }
+        response.setStatus(status);
         response.setCharacterEncoding(UTF8);
         response.setContentType(contentType);
         if (contentType.equals(MediaType.TEXT_HTML)) {

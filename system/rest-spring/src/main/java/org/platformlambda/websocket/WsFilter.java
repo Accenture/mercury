@@ -114,21 +114,6 @@ public class WsFilter implements Filter {
         // no-op
     }
 
-    private boolean equals(String uri, String rule) {
-        Utility util = Utility.getInstance();
-        List<String> uriParts = util.split(uri, "/");
-        List<String> ruleParts = util.split(rule, "/");
-        if (uriParts.size() < ruleParts.size()) {
-            return false;
-        }
-        for (int i=0; i < ruleParts.size(); i++) {
-            if (!ruleParts.get(i).equals(uriParts.get(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private class IpWrapper extends HttpServletRequestWrapper {
 
         private HttpServletRequest request;

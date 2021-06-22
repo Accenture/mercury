@@ -50,7 +50,9 @@ public class MessageBodyWriterText<T> implements MessageBodyWriter<T> {
     }
 
     @Override
-    public void writeTo(T t, Class<?> cls, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
+    public void writeTo(T t, Class<?> cls, Type genericType, Annotation[] annotations, MediaType mediaType,
+                        MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream)
+            throws IOException, WebApplicationException {
         if (t instanceof String) {
             entityStream.write(util.getUTF((String) t));
         } else if (t instanceof byte[]) {

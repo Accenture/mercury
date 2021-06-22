@@ -50,4 +50,102 @@ public class RestTests extends TestBase {
         Assert.assertTrue(response instanceof String);
     }
 
+    @Test(expected = AppException.class)
+    public void http404Json() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "application/json");
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    }
+
+    @Test(expected = AppException.class)
+    public void http404Xml() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "application/xml");
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    }
+
+    @Test(expected = AppException.class)
+    public void http404Html() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "text/html");
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    }
+
+    @Test(expected = AppException.class)
+    public void http404Text() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "text/plain");
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    }
+
+    @Test(expected = AppException.class)
+    public void methodNotAllowedCase() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "application/json");
+        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/api/hello/world", headers, new HashMap<>());
+    }
+
+    @Test(expected = AppException.class)
+    public void unsupportedMediaTypeCase() throws AppException, IOException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "text/plain");
+        headers.put("Accept", "application/json");
+        SimpleHttpRequests.putText("http://127.0.0.1:"+port+"/api/hello/world", "application/json",
+                headers, "test");
+    }
+
+    @Test(expected = AppException.class)
+    public void badRequestCase() throws AppException, IOException {
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=400", "application/json");
+    }
+
+    @Test(expected = AppException.class)
+    public void unauthorizedCase() throws AppException, IOException {
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=401", "application/json");
+    }
+
+    @Test(expected = AppException.class)
+    public void forbiddenCase() throws AppException, IOException {
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=403", "application/json");
+    }
+
+    @Test(expected = AppException.class)
+    public void notAcceptableCase() throws AppException, IOException {
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=406", "application/json");
+    }
+
+    @Test(expected = AppException.class)
+    public void notAvailableCase() throws AppException, IOException {
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=503", "application/json");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void getJsonInText() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/json",
+                "application/json");
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        Assert.assertEquals("Hello World", result.get("name"));
+    }
+
+    @Test
+    public void getXmlInText() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/xml",
+                "application/xml");
+        Assert.assertTrue(response instanceof String);
+        String text = (String) response;
+        Assert.assertTrue(text.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        Assert.assertTrue(text.contains("<hello>xml</hello>"));
+    }
+
+    @Test
+    public void getXmlInLists() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/list",
+                "application/xml");
+        Assert.assertTrue(response instanceof String);
+        String text = (String) response;
+        Assert.assertTrue(text.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        Assert.assertTrue(text.contains("<item>three</item>"));
+    }
+
 }

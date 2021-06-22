@@ -44,7 +44,9 @@ public class MessageBodyReaderXml<T> implements MessageBodyReader<T> {
     }
 
     @Override
-    public T readFrom(Class<T> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) throws WebApplicationException {
+    public T readFrom(Class<T> type, Type genericType, Annotation[] annotations, MediaType mediaType,
+                      MultivaluedMap<String, String> httpHeaders, InputStream entityStream)
+            throws WebApplicationException {
         if (entityStream != null) {
             try {
                 Map<String, Object> map = xml.parse(entityStream);

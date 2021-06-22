@@ -34,6 +34,7 @@ import org.springframework.lang.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,7 @@ import java.util.Map;
 public class HttpConverterXml implements HttpMessageConverter<Object> {
     private static final Utility util = Utility.getInstance();
     private static final SimpleXmlWriter map2xml = new SimpleXmlWriter();
-    private static final MediaType XML = new MediaType("application", "xml", Charset.forName("UTF-8"));
+    private static final MediaType XML = new MediaType("application", "xml", StandardCharsets.UTF_8);
     private static final List<MediaType> types = Collections.singletonList(XML);
 
     @Override
@@ -66,22 +67,12 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
         // validate class with white list before loading the input stream
         SimpleMapper.getInstance().getWhiteListMapper(clazz);
-        if (inputMessage != null) {
-            try {
-                SimpleXmlParser xml = new SimpleXmlParser();
-                Map<String, Object> map = xml.parse(inputMessage.getBody());
-                for (String key : map.keySet()) {
-                    Object o = map.get(key);
-                    if (o instanceof Map) {
-                        return o;
-                    }
-                }
-                return new HashMap<String, Object>();
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        } else {
-            return null;
+        try {
+            SimpleXmlParser xml = new SimpleXmlParser();
+            return xml.parse(inputMessage.getBody());
+
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e.getMessage());
         }
     }
 
@@ -97,16 +88,19 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
         } else if (o instanceof byte[]) {
             out.write((byte[]) o);
         } else {
+            final String root;
             Map<String, Object> map;
             if (o instanceof List) {
+                root = "result";
                 map = new HashMap<>();
                 map.put("item", mapper.readValue(o, List.class));
             } else if (o instanceof Map) {
+                root = "result";
                 map = (Map<String, Object>) o;
             } else {
+                root = o.getClass().getSimpleName().toLowerCase();
                 map = mapper.readValue(o, Map.class);
             }
-            String root = o.getClass().getSimpleName().toLowerCase();
             String result = map2xml.write(root, map);
             out.write(util.getUTF(result));
         }

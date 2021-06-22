@@ -32,13 +32,14 @@ import org.springframework.lang.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
 public class HttpConverterText implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
-    private static final MediaType TEXT_CONTENT = new MediaType("text", "plain", Charset.forName("UTF-8"));
+    private static final MediaType TEXT_CONTENT = new MediaType("text", "plain", StandardCharsets.UTF_8);
     private static final List<MediaType> types = Collections.singletonList(TEXT_CONTENT);
 
     @Override
@@ -60,9 +61,7 @@ public class HttpConverterText implements HttpMessageConverter<Object> {
 
     @Override
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException, IOException {
-        // validate class with white list before loading the input stream
-        SimpleMapper.getInstance().getWhiteListMapper(clazz);
-        return inputMessage != null? inputMessage.getBody() : null;
+        return util.getUTF(util.stream2bytes(inputMessage.getBody(), false));
     }
 
     @Override

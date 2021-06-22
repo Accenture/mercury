@@ -32,13 +32,14 @@ import org.springframework.lang.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
 public class HttpConverterJson implements HttpMessageConverter<Object> {
 
     private static final Utility util = Utility.getInstance();
-    private static final MediaType JSON = new MediaType("application", "json", Charset.forName("UTF-8"));
+    private static final MediaType JSON = new MediaType("application", "json", StandardCharsets.UTF_8);
     private static final List<MediaType> types = Collections.singletonList(JSON);
 
     @Override
@@ -60,22 +61,19 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
 
     @Override
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
-        if (inputMessage != null) {
-            try {
-                // validate class with white list before loading the input stream
-                SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
-                String input = util.stream2str(inputMessage.getBody());
-                return mapper.readValue(input, clazz);
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        } else {
-            return null;
+        try {
+            // validate class with white list before loading the input stream
+            SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
+            String input = util.stream2str(inputMessage.getBody());
+            return mapper.readValue(input, clazz);
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e.getMessage());
         }
     }
 
     @Override
-    public void write(Object o, @Nullable MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
+    public void write(Object o, @Nullable MediaType contentType, HttpOutputMessage outputMessage)
+            throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(JSON);
         // this may be too late to validate because Spring RestController has already got the object
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());

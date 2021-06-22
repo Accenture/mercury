@@ -56,23 +56,28 @@ public class MessageBodyWriterXml<T> implements MessageBodyWriter<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void writeTo(T t, Class<?> cls, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
+    public void writeTo(T t, Class<?> cls, Type genericType, Annotation[] annotations, MediaType mediaType,
+                        MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream)
+            throws IOException, WebApplicationException {
+
         if (t instanceof String) {
             entityStream.write(util.getUTF((String) t));
         } else if (t instanceof byte[]) {
             entityStream.write((byte[]) t);
         } else {
+            final String root;
             Map<String, Object> map;
             if (t instanceof List) {
+                root = "result";
                 map = new HashMap<>();
                 map.put("item", SimpleMapper.getInstance().getMapper().readValue(t, List.class));
             } else if (t instanceof Map) {
+                root = "result";
                 map = (Map<String, Object>) t;
             } else {
-                // it must be a class
-                map = SimpleMapper.getInstance().getMapper().readValue(t, HashMap.class);
+                root = cls.getSimpleName().toLowerCase();
+                map = SimpleMapper.getInstance().getMapper().readValue(t, Map.class);
             }
-            String root = cls.getSimpleName().equals("HashMap") ? "root" : cls.getSimpleName().toLowerCase();
             entityStream.write(util.getUTF(xmlWriter.write(root, map)));
         }
     }

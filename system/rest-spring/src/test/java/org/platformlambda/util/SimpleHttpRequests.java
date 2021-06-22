@@ -52,6 +52,25 @@ public class SimpleHttpRequests {
         }
     }
 
+    public static Object postText(String url, String accept, Map<String, String> reqHeaders, String data)
+            throws IOException, AppException {
+        ByteArrayContent content = ByteArrayContent.fromString(accept, data);
+        GenericUrl target = new GenericUrl(url);
+        HttpHeaders headers = new HttpHeaders();
+        for (String h: reqHeaders.keySet()) {
+            String v = reqHeaders.get(h);
+            headers.put(h, v);
+        }
+        HttpRequest request = factory.buildPostRequest(target, content).setHeaders(headers);
+        try {
+            HttpResponse response = request.execute();
+            InputStream in = response.getContent();
+            return Utility.getInstance().stream2str(in);
+        } catch (HttpResponseException e) {
+            throw new AppException(e.getStatusCode(), e.getContent());
+        }
+    }
+
     public static Object post(String url, Map<String, String> reqHeaders, Map<String, Object> data)
             throws IOException, AppException {
         SimpleMapper mapper = SimpleMapper.getInstance();
@@ -97,6 +116,25 @@ public class SimpleHttpRequests {
     public static Object putXml(String url, Map<String, String> reqHeaders, Map<String, Object> data) throws IOException, AppException {
         String xmlPayload = xml.write(data);
         ByteArrayContent content = ByteArrayContent.fromString(APPLICATION_XML, xmlPayload);
+        GenericUrl target = new GenericUrl(url);
+        HttpHeaders headers = new HttpHeaders();
+        for (String h: reqHeaders.keySet()) {
+            String v = reqHeaders.get(h);
+            headers.put(h, v);
+        }
+        HttpRequest request = factory.buildPutRequest(target, content).setHeaders(headers);
+        try {
+            HttpResponse response = request.execute();
+            InputStream in = response.getContent();
+            return Utility.getInstance().stream2str(in);
+        } catch (HttpResponseException e) {
+            throw new AppException(e.getStatusCode(), e.getContent());
+        }
+    }
+
+    public static Object putText(String url, String accept, Map<String, String> reqHeaders, String data)
+            throws IOException, AppException {
+        ByteArrayContent content = ByteArrayContent.fromString(accept, data);
         GenericUrl target = new GenericUrl(url);
         HttpHeaders headers = new HttpHeaders();
         for (String h: reqHeaders.keySet()) {

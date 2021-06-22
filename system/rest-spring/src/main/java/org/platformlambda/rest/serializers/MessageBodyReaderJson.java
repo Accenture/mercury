@@ -41,7 +41,9 @@ public class MessageBodyReaderJson<T> implements MessageBodyReader<T> {
     }
 
     @Override
-    public T readFrom(Class<T> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) throws WebApplicationException {
+    public T readFrom(Class<T> type, Type genericType, Annotation[] annotations, MediaType mediaType,
+                      MultivaluedMap<String, String> httpHeaders, InputStream entityStream)
+            throws WebApplicationException {
         if (entityStream != null) {
             byte[] json = Utility.getInstance().stream2bytes(entityStream, false);
             try {
