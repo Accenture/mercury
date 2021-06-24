@@ -11,7 +11,6 @@ public class TopicSubstitutionTest {
 
     @Test
     public void substitution() throws IOException {
-
         Map<String, String> topicMap = ConnectorConfig.getTopicSubstitution();
         Assert.assertTrue(topicMap.containsKey("multiplex.0001.0"));
         Assert.assertEquals("user.topic.one", topicMap.get("multiplex.0001.0"));

@@ -41,6 +41,13 @@
             <version>2.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.platformlambda</groupId>
+            <artifactId>rest-spring</artifactId>
+            <version>2.0.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/junit/junit -->
         <dependency>
             <groupId>junit</groupId>
