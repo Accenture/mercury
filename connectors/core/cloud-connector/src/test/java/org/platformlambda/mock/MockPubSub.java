@@ -103,7 +103,7 @@ public class MockPubSub implements PubSubProvider {
             };
             platform.registerPrivate(route+".init", f, 1);
             PostOffice.getInstance().sendLater(new EventEnvelope().setTo(route+".init").setBody("done"),
-                    new Date(System.currentTimeMillis()+3000));
+                    new Date(System.currentTimeMillis()+8000));
         }
     }
 
