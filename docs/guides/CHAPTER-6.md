@@ -27,7 +27,7 @@ There is a RSVP reservation protocol that the presence monitors will coordinate 
 application instance.
 
 The value `x` must be a 4-digit number starting from 0001 and `y` is the partition number for the topic. If the underlying messaging system
-supports native pub/sub, the partition number maps to the physical partition of a topic. For enterprise service bus, the partition number
+supports pub/sub, the partition number maps to the physical partition of a topic. For enterprise service bus, the partition number
 is a logical identifier that corresponds to a physical topic.
 
 # Topic Substitution
@@ -81,7 +81,7 @@ multiplex:
 
 ### Kafka
 
-Since Kafka is a native pub/sub system with partitioning support, you can use the "#n" suffix to specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). (Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
+Since Kafka is a pub/sub event streaming system with partitioning support, you can use the "#n" suffix to specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). (Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
 
 If you do not provide the partition number, it is assumed to be the first partition. i.e. partition-0.
 

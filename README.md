@@ -522,7 +522,7 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
 
 The above demonstrates distributed applications using Kafka as a service mesh.
 
-## Native pub/sub
+## Built-in pub/sub
 
 You can also use Mercury with other service mesh of your choice. In this case, you can use the built-in pub/sub APIs 
 of Mercury for your app to communicate with Kafka and other event stream systems.
@@ -533,7 +533,7 @@ cloud.connector=none
 cloud.services=kafka.pubsub
 ```
 
-"Native" means the system encapsulates the native pub/sub feature of the underlying event stream system. 
+This means the system encapsulates the original pub/sub feature of the underlying event stream system. 
 The built-in publishers and listeners will do the heavy lifting for you in a consistent manner. Note that Kafka
 supports rewinding read "offset" so that your application can read older messages. In Hazelcast, the older events
 are dropped after delivery.

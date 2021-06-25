@@ -248,10 +248,10 @@ Mercury provides real-time inter-service event streaming and you do not need to 
 
 However, if you want to do store-n-forward pub/sub for certain use cases, you may use the `PubSub` class.
 
-Native pub/sub refers to the long term storage of events for event playback or "time rewind".
+In event streaming, pub/sub refers to the long term storage of events for event playback or "time rewind".
 For example, this "commit log" architecture is available in Apache Kafka.
 
-To test if the underlying event system supports native pub/sub, use the "isNativePubSub" API.
+To test if the underlying event system supports pub/sub, use the "isNativePubSub" API.
 
 Following are some useful pub/sub API:
 
