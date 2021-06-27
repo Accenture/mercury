@@ -1,10 +1,3 @@
----
-layout: post
-title:  "Technology Inclusive Language Guidebook"
-date:   2021-06-24 05:35:00 +0200
-categories: accenture opensource oss
----
-
 <img align="right" height="40" src="https://www.accenture.com/t20180820T081710Z__w__/us-en/_acnmedia/Accenture/Dev/Redesign/Acc_Logo_Black_Purple_RGB.png">  
 <br />
 <br />
