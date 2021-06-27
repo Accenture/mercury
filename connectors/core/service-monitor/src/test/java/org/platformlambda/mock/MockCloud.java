@@ -22,6 +22,7 @@ import java.util.List;
 @CloudConnector(name="mock.cloud")
 public class MockCloud implements CloudSetup {
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
+    private static final String CLOUD_MANAGER = "cloud.manager";
 
     @Override
     public void initialize() {
@@ -30,7 +31,7 @@ public class MockCloud implements CloudSetup {
         Platform platform = Platform.getInstance();
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        int port = util.str2int(config.getProperty("server.port", "8085"));
+        int port = util.str2int(config.getProperty("server.port", "8080"));
         String url1 = "ws://127.0.0.1:"+port+"/ws/presence";
         String url2 = "ws://localhost:"+port+"/ws/presence";
         List<String> monitors = new ArrayList<>();
@@ -43,6 +44,7 @@ public class MockCloud implements CloudSetup {
             platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 10);
             platform.registerPrivate(CLOUD_CONNECTOR_HEALTH, new CloudHealthCheck(), 2);
+            platform.registerPrivate(CLOUD_MANAGER, new MockTopicManager(), 1);
             platform.startCloudServices();
         } catch (IOException e) {
             // nothing to worry

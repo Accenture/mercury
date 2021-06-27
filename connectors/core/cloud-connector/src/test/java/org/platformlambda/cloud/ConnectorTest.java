@@ -2,7 +2,6 @@ package org.platformlambda.cloud;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;

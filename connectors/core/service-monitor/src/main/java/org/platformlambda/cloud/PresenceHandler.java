@@ -47,6 +47,10 @@ public class PresenceHandler implements LambdaFunction {
     private static final String INIT = "init";
     private static boolean ready = false;
 
+    public static boolean isReady() {
+        return ready;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
