@@ -45,8 +45,6 @@ public class MockCloud implements CloudSetup {
                 result.put("version", info.getVersion());
                 result.put("name", platform.getName());
                 result.put("origin", platform.getOrigin());
-                result.put("group_id", info.getGroupId());
-                result.put("artifact_id", info.getArtifactId());
                 return result;
 
             } else if (DOWNLOAD.equals(type)) {

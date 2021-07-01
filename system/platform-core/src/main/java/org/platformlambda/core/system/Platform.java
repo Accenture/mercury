@@ -333,20 +333,21 @@ public class Platform {
         if (registry.containsKey(path)) {
             throw new IOException("Route "+path+" already exists");
         }
+        String uuid = UUID.randomUUID().toString();
+        BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);
         ServiceDef service = new ServiceDef(path, lambda).setConcurrency(instances).setPrivate(isPrivate);
         ServiceQueue manager = new ServiceQueue(service);
         service.setManager(manager);
         // wait for service initialization
-        String uuid = UUID.randomUUID().toString();
-        BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);
-        serviceTokens.put(uuid, signal);
-        system.send(service.getRoute(), INIT+uuid);
         try {
+            serviceTokens.put(uuid, signal);
+            system.send(service.getRoute(), INIT+uuid);
             signal.poll(2, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             log.error("{} took longer to initialize - the event system may be unhealthy", path);
+        } finally {
+            serviceTokens.remove(uuid);
         }
-        serviceTokens.remove(uuid);
         // save into local registry
         registry.put(path, service);
         if (!isPrivate) {

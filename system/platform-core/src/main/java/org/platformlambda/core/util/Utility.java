@@ -69,7 +69,7 @@ public class Utility {
     private static final String APPNAME = "application.name";
     private static final String DEFAULT_APPNAME = "application";
     private static final String APP_VERSION = "info.app.version";
-    private static final String DEFAULT_APP_VERSION = "0.0.0";
+    private static final String DEFAULT_APP_VERSION = "1.0.0";
     private static final String WORK_FOLDER = "application.work.location";
     private static final String LAMBDA_FOLDER_NAME = "/tmp/lambda/apps";
     private static final String[] RESERVED_FILENAMES = {"thumbs.db"};
@@ -140,12 +140,12 @@ public class Utility {
                             Properties p = new Properties();
                             p.load(new ByteArrayInputStream(stream2bytes(res[0].getInputStream())));
                             if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                                versionInfo.setArtifactId(filteredServiceName(p.getProperty(ARTIFACT_ID)))
-                                        .setGroupId(p.getProperty(GROUP_ID))
-                                        .setVersion(p.getProperty(VERSION));
+                                // ensure this is the correct one
+                                if (name.equals(p.getProperty(ARTIFACT_ID))) {
+                                    versionInfo.setGroupId(p.getProperty(GROUP_ID)).setVersion(p.getProperty(VERSION));
+                                }
                             }
                         }
-
                     } catch (IOException e) {
                         // nothing we can do
                     }

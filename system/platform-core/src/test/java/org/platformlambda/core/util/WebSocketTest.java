@@ -1,5 +1,7 @@
 package org.platformlambda.core.util;
 
+import com.google.api.client.http.*;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import io.vertx.core.Vertx;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -10,6 +12,8 @@ import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -17,6 +21,10 @@ import java.util.concurrent.TimeUnit;
 
 public class WebSocketTest {
     private static final Logger log = LoggerFactory.getLogger(WebSocketTest.class);
+
+    private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
+    private static final HttpRequestFactory factory = HTTP_TRANSPORT.createRequestFactory();
+    private static final String HELLO_WORLD = "hello world";
 
     @BeforeClass
     public static void setup() {
@@ -28,10 +36,9 @@ public class WebSocketTest {
                         byte[] b = data.getBytes();
                         ws.writeTextMessage(Utility.getInstance().getUTF(b));
                     });
-                    ws.closeHandler(end -> {
-                        log.info("socket closed");
-                    });
+                    ws.closeHandler(end -> log.info("socket closed"));
                 })
+                .requestHandler(request -> request.response().end(HELLO_WORLD))
                 .listen(8085)
                 .onSuccess(server -> log.info("Listening to port {}", server.actualPort()))
                 .onFailure(ex -> {
@@ -42,7 +49,22 @@ public class WebSocketTest {
     }
 
     @Test
-    public void connectionTest() {
+    public void httpTest() throws IOException {
+        GenericUrl target = new GenericUrl("http://127.0.0.1:8085");
+        HttpRequest request = factory.buildGetRequest(target);
+        HttpResponse response = request.execute();
+        int rc = response.getStatusCode();
+        String statusMessage = response.getStatusMessage();
+        InputStream in = response.getContent();
+        String result = Utility.getInstance().stream2str(in);
+        System.out.println(result);
+        Assert.assertEquals(200, rc);
+        Assert.assertEquals("OK", statusMessage);
+        Assert.assertEquals(HELLO_WORLD, result);
+    }
+
+    @Test
+    public void wsTest() {
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         String MESSAGE = "hello world";
         PostOffice po = PostOffice.getInstance();
