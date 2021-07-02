@@ -140,15 +140,15 @@ public class SimpleClientEndpoint {
                 try {
                     /*
                      * Send close event to the handler to release resources.
-                     * txPath is not provided because it would have been closed at the time when the handler receives the close event.
                      */
-                    PostOffice.getInstance().send(route, new Kv(WsEnvelope.ROUTE, route),
+                    PostOffice.getInstance().request(route, 5000, new Kv(WsEnvelope.ROUTE, route),
                             new Kv(WsEnvelope.TOKEN, envelope.origin),
                             new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE));
-                    // release websocket registry resources
-                    registry.release(route);
-                } catch (IOException e) {
+
+                } catch (Exception e) {
                     log.error("Unable to close {} due to {}", route, e.getMessage());
+                } finally {
+                    registry.release(route);
                 }
             }
         }

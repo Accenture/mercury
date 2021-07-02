@@ -109,6 +109,10 @@ public class PresenceConnector implements LambdaFunction {
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
+                    // in case the previous connection was not closed properly
+                    if (topicPartition != null) {
+                        closeConsumer();
+                    }
                     // the open event contains route, txPath, ip, path, query and token
                     route = headers.get(WsEnvelope.ROUTE);
                     String ip = headers.get(WsEnvelope.IP);
