@@ -98,10 +98,11 @@ public class EventConsumer {
                 try {
                     messageConsumer.close();
                     session.close();
-                    platform.release(completionHandler);
                     log.info("Event consumer for {} closed", realTopic);
                 } catch (JMSException e) {
                     log.error("Unable to close consumer - {}", e.getMessage());
+                } finally {
+                    platform.release(completionHandler);
                 }
                 return true;
             };

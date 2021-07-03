@@ -25,6 +25,7 @@ import com.hazelcast.topic.MessageListener;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -34,11 +35,12 @@ import org.platformlambda.hazelcast.HazelcastConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class EventConsumer extends Thread {
+public class EventConsumer {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
     private static final MsgPack msgPack = new MsgPack();
@@ -50,6 +52,8 @@ public class EventConsumer extends Thread {
     private static final String BODY = "body";
     private static final String MONITOR = "monitor";
     private static final String TO_MONITOR = "@"+MONITOR;
+    private static final String COMPLETION = "completion.";
+    private static final String STOP = "stop";
     private final String INIT_TOKEN = UUID.randomUUID().toString();
     private final String topic;
     private final int partition;
@@ -78,31 +82,43 @@ public class EventConsumer extends Thread {
         }
     }
 
-    @Override
-    public void run() {
+    public void start() throws IOException {
         if (offset == INITIALIZE) {
             initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
+        Platform platform = Platform.getInstance();
         HazelcastInstance client = HazelcastConnector.getClient();
-        String realTopic = partition < 0? topic : topic+"-"+partition;
+        String realTopic = partition < 0? topic : topic+"."+partition;
         iTopic = client.getReliableTopic(realTopic);
         registrationId = iTopic.addMessageListener(new EventListener());
+        String completionHandler = COMPLETION + realTopic;
+        LambdaFunction f = (headers, body, instance) -> {
+            iTopic.removeMessageListener(registrationId);
+            platform.release(completionHandler);
+            log.info("Event consumer for {} closed", realTopic);
+            return true;
+        };
+        platform.registerPrivate(completionHandler, f, 1);
         log.info("Event consumer {} for {} started", registrationId, realTopic);
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     public void shutdown() {
-        if (registrationId != null && iTopic != null) {
-            iTopic.removeMessageListener(registrationId);
-            iTopic = null;
-            registrationId = null;
+        String realTopic = partition < 0? topic : topic+"."+partition;
+        String completionHandler = COMPLETION + realTopic;
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        if (platform.hasRoute(completionHandler)) {
+            try {
+                po.send(completionHandler, STOP);
+            } catch (IOException e) {
+                log.error("Unable to close consumer - {}", e.getMessage());
+            }
         }
     }
 
     private class EventListener implements MessageListener<Map<String, Object>> {
-
-        private final String topicPartition = topic + (partition < 0? "" : "." + partition);
+        private final String topicPartition = partition < 0? topic : topic+"."+partition;
 
         @SuppressWarnings("unchecked")
         @Override

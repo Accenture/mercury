@@ -121,7 +121,7 @@ public class PubSubManager implements PubSubProvider {
     }
 
     private void sendEvent(String topic, int partition, Map<String, String> headers, byte[] payload) {
-        String realTopic = partition < 0 ? topic : topic + "-" + partition;
+        String realTopic = partition < 0? topic : topic+"."+partition;
         try {
             HazelcastInstance client = HazelcastConnector.getClient();
             ITopic<Map<String, Object>> iTopic = client.getReliableTopic(realTopic);
@@ -144,7 +144,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         ConnectorConfig.validateTopicName(topic);
-        String topicPartition = topic + (partition < 0? "" : "." + partition);
+        String topicPartition = partition < 0? topic : topic+"."+partition;
         if (parameters.length == 2 || parameters.length == 3) {
             if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
                 throw new IOException("topic offset must be numeric");
@@ -169,7 +169,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
-        String topicPartition = topic + (partition < 0? "" : "." + partition);
+        String topicPartition = partition < 0? topic : topic+"."+partition;
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);
