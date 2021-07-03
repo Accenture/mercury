@@ -22,6 +22,7 @@ import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -36,11 +37,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
-public class EventConsumer extends Thread {
+public class EventConsumer {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
 
     private static final String TYPE = ServiceLifeCycle.TYPE;
@@ -49,7 +47,8 @@ public class EventConsumer extends Thread {
     private static final long INITIALIZE = ServiceLifeCycle.INITIALIZE;
     private static final String MONITOR = "monitor";
     private static final String TO_MONITOR = "@"+MONITOR;
-    private final BlockingQueue<Boolean> completion = new ArrayBlockingQueue<>(1);
+    private static final String COMPLETION = "completion.";
+    private static final String STOP = "stop";
     private final String INIT_TOKEN = UUID.randomUUID().toString();
     private final String realTopic, virtualTopic, topic;
     private final int partition;
@@ -82,51 +81,49 @@ public class EventConsumer extends Thread {
         }
     }
 
-    @Override
-    public void run() {
+    public void start() {
         if (offset == INITIALIZE) {
             initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
         try {
+            Platform platform = Platform.getInstance();
             Connection connection = TibcoConnector.getConnection();
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
             Topic destination = session.createTopic(realTopic);
             messageConsumer = session.createConsumer(destination);
             messageConsumer.setMessageListener(new EventListener());
+            String completionHandler = COMPLETION + virtualTopic;
+            LambdaFunction f = (headers, body, instance) -> {
+                try {
+                    messageConsumer.close();
+                    session.close();
+                    platform.release(completionHandler);
+                    log.info("Event consumer for {} closed", realTopic);
+                } catch (JMSException e) {
+                    log.error("Unable to close consumer - {}", e.getMessage());
+                }
+                return true;
+            };
+            platform.registerPrivate(completionHandler, f, 1);
             log.info("Event consumer for {} started", realTopic);
 
         } catch (Exception e) {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-        waitForCompletion();
-        try {
-            messageConsumer.close();
-            session.close();
-            log.info("Event consumer for {} closed", realTopic);
-        } catch (JMSException e) {
-            log.error("Unable to close consumer - {}", e.getMessage());
-        }
-        messageConsumer = null;
-        session = null;
-    }
-
-    private void waitForCompletion() {
-        try {
-            Boolean status = completion.poll(1, TimeUnit.SECONDS);
-            if (status == null) {
-                waitForCompletion();
-            }
-        } catch (InterruptedException e) {
-            // ok to ignore
-        }
     }
 
     public void shutdown() {
-        if (completion.isEmpty()) {
-            completion.offer(true);
+        String completionHandler = COMPLETION + virtualTopic;
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        if (platform.hasRoute(completionHandler)) {
+            try {
+                po.send(completionHandler, STOP);
+            } catch (IOException e) {
+                log.error("Unable to close consumer - {}", e.getMessage());
+            }
         }
     }
 
