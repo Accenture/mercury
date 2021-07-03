@@ -135,16 +135,13 @@ public class SimpleClientEndpoint {
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
             if (envelope != null) {
-                log.info("Session-{} {} closed ({}, {})", session.getId(), route,
-                        reason.getCloseCode().getCode(), reason.getReasonPhrase());
                 try {
-                    /*
-                     * Send close event to the handler to release resources.
-                     */
+                    // Ensure handler is informed to release resources
                     PostOffice.getInstance().request(route, 5000, new Kv(WsEnvelope.ROUTE, route),
                             new Kv(WsEnvelope.TOKEN, envelope.origin),
                             new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE));
-
+                    log.info("Session-{} {} closed ({}, {})", session.getId(), route,
+                            reason.getCloseCode().getCode(), reason.getReasonPhrase());
                 } catch (Exception e) {
                     log.error("Unable to close {} due to {}", route, e.getMessage());
                 } finally {
