@@ -28,6 +28,10 @@ Please do not use them in your application functions as it would disrupt the nor
 | pub.sub.controller            | Pub/sub handler                        | Language Connector               |
 | system.deferred.delivery      | Deferred delivery handler              | Language Connector               |
 | cron.scheduler                | Cron job scheduler                     | Scheduler helper application     |
+| init.service.monitor.*        | reserved for event stream startup      | service monitor core             |
+| completion.service.monitor.*  | reserved for event stream clean up     | service monitor core             |
+| init.multiplex.*              | reserved for event stream startup      | cloud connector core             |
+| completion.multiplex.*        | reserved for event stream clean up     | cloud connector core             |
 
 # Distributed trace processor
 

@@ -52,6 +52,7 @@ public class EventConsumer extends Thread {
     private static final String OFFSET = "_offset_";
     private static final String TYPE = ServiceLifeCycle.TYPE;
     private static final String INIT = ServiceLifeCycle.INIT;
+    private static final String DONE = "done";
     private static final String TOKEN = ServiceLifeCycle.TOKEN;
     private static final long INITIALIZE = ServiceLifeCycle.INITIALIZE;
     private static final String MONITOR = "monitor";
@@ -61,7 +62,6 @@ public class EventConsumer extends Thread {
     private final int partition;
     private int realPartition;
     private final KafkaConsumer<String, byte[]> consumer;
-    private ServiceLifeCycle initialLoad;
     private final AtomicBoolean normal = new AtomicBoolean(true);
     private int skipped = 0;
     private long offset = -1;
@@ -135,7 +135,7 @@ public class EventConsumer extends Thread {
             if (ConnectorConfig.topicSubstitutionEnabled() && realPartition < 0) {
                 realPartition = 0;
             }
-            initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
+            ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
         boolean reset = true;
@@ -229,8 +229,6 @@ public class EventConsumer extends Thread {
                         if (offset == INITIALIZE) {
                             if (INIT.equals(originalHeaders.get(TYPE)) &&
                                     INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
-                                initialLoad.complete();
-                                initialLoad = null;
                                 offset = -1;
                                 if (skipped > 0) {
                                     log.info("Skipped {} outdated event{}", skipped, skipped == 1 ? "" : "s");
@@ -276,8 +274,15 @@ public class EventConsumer extends Thread {
         } finally {
             consumer.close();
             log.info("Unsubscribed {}", topicPartition);
-            if (offset == INITIALIZE && initialLoad != null) {
-                initialLoad.close();
+            if (offset == INITIALIZE) {
+                String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
+                if (Platform.getInstance().hasRoute(INIT_HANDLER)) {
+                    try {
+                        po.send(INIT_HANDLER, DONE);
+                    } catch (IOException e) {
+                        // ok to ignore
+                    }
+                }
             }
         }
     }

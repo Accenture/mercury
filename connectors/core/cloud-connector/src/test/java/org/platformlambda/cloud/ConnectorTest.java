@@ -103,7 +103,6 @@ public class ConnectorTest extends TestBase {
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv("type", "leave"), new Kv("origin", origin));
-        MockPubSub.stop();
     }
 
     @Test(expected = IOException.class)

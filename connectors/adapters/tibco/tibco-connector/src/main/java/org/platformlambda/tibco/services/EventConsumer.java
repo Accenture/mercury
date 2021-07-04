@@ -43,6 +43,7 @@ public class EventConsumer {
 
     private static final String TYPE = ServiceLifeCycle.TYPE;
     private static final String INIT = ServiceLifeCycle.INIT;
+    private static final String DONE = "done";
     private static final String TOKEN = ServiceLifeCycle.TOKEN;
     private static final long INITIALIZE = ServiceLifeCycle.INITIALIZE;
     private static final String MONITOR = "monitor";
@@ -52,7 +53,6 @@ public class EventConsumer {
     private final String INIT_TOKEN = UUID.randomUUID().toString();
     private final String realTopic, virtualTopic, topic;
     private final int partition;
-    private ServiceLifeCycle initialLoad;
     private int skipped = 0;
     private long offset = -1;
     private Session session;
@@ -83,10 +83,11 @@ public class EventConsumer {
 
     public void start() {
         if (offset == INITIALIZE) {
-            initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
+            ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
         try {
+            PostOffice po = PostOffice.getInstance();
             Platform platform = Platform.getInstance();
             Connection connection = TibcoConnector.getConnection();
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
@@ -103,6 +104,16 @@ public class EventConsumer {
                     log.error("Unable to close consumer - {}", e.getMessage());
                 } finally {
                     platform.release(completionHandler);
+                    if (offset == INITIALIZE) {
+                        String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
+                        if (Platform.getInstance().hasRoute(INIT_HANDLER)) {
+                            try {
+                                po.send(INIT_HANDLER, DONE);
+                            } catch (IOException e) {
+                                // ok to ignore
+                            }
+                        }
+                    }
                 }
                 return true;
             };
@@ -183,8 +194,6 @@ public class EventConsumer {
                     if (offset == INITIALIZE) {
                         if (INIT.equals(originalHeaders.get(TYPE)) &&
                                 INIT_TOKEN.equals(originalHeaders.get(TOKEN))) {
-                            initialLoad.complete();
-                            initialLoad = null;
                             offset = -1;
                             if (skipped > 0) {
                                 log.info("Skipped {} outdated event{}", skipped, skipped == 1 ? "" : "s");

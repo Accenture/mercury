@@ -38,6 +38,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
     private static final String TYPE = "type";
     private static final String INIT = "init";
+    private static final String DONE = "done";
     private static final String INSTANCE = "instance";
     private static final String LOOP_BACK = "loopback";
     private static final String REPLY_TO = "reply_to";
@@ -230,10 +231,16 @@ public class PresenceConnector implements LambdaFunction {
             // subscribe to closed user group
             final AtomicBoolean topicPending = new AtomicBoolean(true);
             LambdaFunction topicControl = (headers, body, instance) -> {
-                if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && topicPending.get()) {
-                    topicPending.set(false);
-                    po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
-                            new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()), new Kv(TOPIC, topicPartition));
+                if (INIT.equals(body) && INIT.equals(headers.get(TYPE))) {
+                    if (topicPending.get()) {
+                        topicPending.set(false);
+                        po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
+                                new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()), new Kv(TOPIC, topicPartition));
+                    }
+                    String INIT_HANDLER = INIT + "." + monitorTopic + "." + closedUserGroup;
+                    if (platform.hasRoute(INIT_HANDLER)) {
+                        po.send(INIT_HANDLER, DONE);
+                    }
                 }
                 return true;
             };
@@ -245,9 +252,15 @@ public class PresenceConnector implements LambdaFunction {
                 if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
                     po.send(headers.get(REPLY_TO), true);
                 }
-                if (INIT.equals(body) && INIT.equals(headers.get(TYPE)) && appPending.get()) {
-                    appPending.set(false);
-                    log.info("Connected to Closed User Group {}", closedUserGroup);
+                if (INIT.equals(body) && INIT.equals(headers.get(TYPE))) {
+                    if (appPending.get()) {
+                        appPending.set(false);
+                        log.info("Connected to Closed User Group {}", closedUserGroup);
+                    }
+                    String INIT_HANDLER = INIT + "." + topic + "." + partition;
+                    if (platform.hasRoute(INIT_HANDLER)) {
+                        po.send(INIT_HANDLER, DONE);
+                    }
                 }
                 return true;
             };

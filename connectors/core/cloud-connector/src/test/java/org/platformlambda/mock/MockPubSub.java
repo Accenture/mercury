@@ -17,15 +17,6 @@ public class MockPubSub implements PubSubProvider {
     private static final Map<String, Integer> topicStore = new HashMap<>();
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
 
-    private static final ConcurrentMap<String, ServiceLifeCycle> lifeCycles = new ConcurrentHashMap<>();
-
-    public static void stop() {
-        for (String route: lifeCycles.keySet()) {
-            ServiceLifeCycle c = lifeCycles.get(route);
-            c.complete();
-        }
-    }
-
     @Override
     public boolean createTopic(String topic) throws IOException {
         if (topic.equals("exception")) {
@@ -86,19 +77,21 @@ public class MockPubSub implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         String route = topic+"."+partition;
+        PostOffice po = PostOffice.getInstance();
         Platform platform = Platform.getInstance();
         platform.registerPrivate(route, listener, 1);
         subscriptions.put(topic, listener);
         if (parameters.length == 3 && parameters[2].equals("-100")) {
             final ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, UUID.randomUUID().toString());
             initialLoad.start();
-            lifeCycles.put(route, initialLoad);
             LambdaFunction f = (headers, body, instance) -> {
-                initialLoad.complete();
+                String topicPartition = partition < 0? topic : topic + "." + partition;
+                String INIT_HANDLER =  "init." + topicPartition;
+                po.send(INIT_HANDLER, "done");
                 return true;
             };
-            platform.registerPrivate(route+".init", f, 1);
-            PostOffice.getInstance().sendLater(new EventEnvelope().setTo(route+".init").setBody("done"),
+            platform.registerPrivate(route+".mock", f, 1);
+            po.sendLater(new EventEnvelope().setTo(route+".mock").setBody("done"),
                     new Date(System.currentTimeMillis()+8000));
         }
     }

@@ -1,15 +1,20 @@
 package org.platformlambda.cloud;
 
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class ServiceLifeCycle extends Thread {
+public class ServiceLifeCycle {
     private static final Logger log = LoggerFactory.getLogger(ServiceLifeCycle.class);
 
     public static final String TYPE = "type";
@@ -17,12 +22,9 @@ public class ServiceLifeCycle extends Thread {
     public static final String TOKEN = "token";
     public static final long INITIALIZE = -100;
     private static final String SEQUENCE = "seq";
-    private static final long INTERVAL = 5000;
     private final String topic;
     private final String token;
     private final int partition;
-    private int seq = 0;
-    private boolean initializing = true;
     private static LambdaFunction resetHandler;
 
     /**
@@ -40,39 +42,40 @@ public class ServiceLifeCycle extends Thread {
         this.token = token;
     }
 
-    @Override
-    public void run() {
-        PubSub ps = PubSub.getInstance();
-        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
-
-        long t0 = 0;
-        while (initializing) {
-            long now = System.currentTimeMillis();
-            if (now - t0 > INTERVAL) {
-                t0 = now;
+    public void start() {
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final PubSub ps = PubSub.getInstance();
+        final String INIT_HANDLER = INIT + "." + (partition < 0? topic : topic + "." + partition);
+        final AtomicInteger seq = new AtomicInteger(0);
+        LambdaFunction f = (headers, body, instance) -> {
+            if (INIT.equals(body)) {
+                int n = seq.incrementAndGet();
                 try {
-                    seq++;
-                    Map<String, String> headers = new HashMap<>();
-                    headers.put(TYPE, INIT);
-                    headers.put(TOKEN, token);
-                    headers.put(SEQUENCE, String.valueOf(seq));
-                    log.info("Contacting {}, partition {}, sequence {}", topic, partition, seq);
-                    ps.publish(topic, partition, headers, INIT);
+                    Map<String, String> event = new HashMap<>();
+                    event.put(TYPE, INIT);
+                    event.put(TOKEN, token);
+                    event.put(SEQUENCE, String.valueOf(n));
+                    log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
+                    ps.publish(topic, partition, event, INIT);
+                    po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
+                            new Date(System.currentTimeMillis() + 5000));
                 } catch (IOException e) {
                     log.error("Unable to send initToken to consumer - {}", e.getMessage());
                 }
+            } else {
+                platform.release(INIT_HANDLER);
+                log.info("{}, partition {} ready", topic, partition);
             }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // ok to ignore
-            }
+            return true;
+        };
+        try {
+            platform.registerPrivate(INIT_HANDLER, f, 1);
+            po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
+                    new Date(System.currentTimeMillis() + 1000));
+        } catch (IOException e) {
+            log.error("Unable to register {} - {}", INIT_HANDLER, e.getMessage());
         }
-    }
-
-    public void complete() {
-        log.info("{}, partition {} ready", topic, partition);
-        close();
     }
 
     public static void setResetHandler(LambdaFunction resetHandler) {
@@ -87,10 +90,6 @@ public class ServiceLifeCycle extends Thread {
                 log.error("Unable to release connection - {}", e.getMessage());
             }
         }
-    }
-
-    public void close() {
-        initializing = false;
     }
 
 }
