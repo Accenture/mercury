@@ -6,9 +6,10 @@ Please do not use them in your application functions as it would disrupt the nor
 
 | Route name                    | Purpose                                | Modules                          |
 | :-----------------------------|:---------------------------------------|:---------------------------------|
+| actuator.services             | Reserved for actuator admin endpoint   | platform-core                    |
 | object.streams.io             | Stream I/O handler                     | platform-core                    |
 | distributed.tracing           | Distributed trace logger               | platform-core                    |
-| actuator.services             | Reserved for actuator admin endpoint   | platform-core                    |
+| distributed.trace.processor   | Distributed trace aggregator           | User defined trace handler       |
 | system.service.registry       | Distributed routing registry           | cloud connectors                 |
 | system.service.query          | Distributed routing query              | cloud connectors                 |
 | cloud.connector.health        | Cloud connector health service         | cloud connectors                 |
@@ -35,7 +36,7 @@ Please do not use them in your application functions as it would disrupt the nor
 
 # Distributed trace processor
 
-The route name "distributed.trace.processor" is reserved for user defined trace aggregator. If you implement a function with this route name, it will receive trace metrics in a real-time basis. Your custom application can then decide how to persist the metrics. e.g. Elastic Search or a database.
+The route name "distributed.trace.processor" is reserved for user defined trace handler. If you implement a function with this route name, it will receive trace metrics in a real-time basis. Your custom application can then decide how to persist the metrics. e.g. Elastic Search or a database.
 
 ---
 
