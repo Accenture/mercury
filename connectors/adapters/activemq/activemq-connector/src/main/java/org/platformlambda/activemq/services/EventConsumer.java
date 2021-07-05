@@ -99,14 +99,14 @@ public class EventConsumer {
                 try {
                     messageConsumer.close();
                     session.close();
-                    log.info("Event consumer for {} closed", realTopic);
+                    log.info("Unsubscribed {}", realTopic);
                 } catch (JMSException e) {
                     log.error("Unable to close consumer - {}", e.getMessage());
                 } finally {
                     platform.release(completionHandler);
                     if (offset == INITIALIZE) {
                         String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                        if (Platform.getInstance().hasRoute(INIT_HANDLER)) {
+                        if (platform.hasRoute(INIT_HANDLER)) {
                             try {
                                 po.send(INIT_HANDLER, DONE);
                             } catch (IOException e) {
@@ -118,7 +118,7 @@ public class EventConsumer {
                 return true;
             };
             platform.registerPrivate(completionHandler, f, 1);
-            log.info("Event consumer for {} started", realTopic);
+            log.info("Subscribed {}", realTopic);
 
         } catch (Exception e) {
             log.error("Unable to start - {}", e.getMessage());
@@ -183,7 +183,7 @@ public class EventConsumer {
                             if (to.contains(TO_MONITOR)) {
                                 message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
                             }
-                            PostOffice.getInstance().send(message);
+                            po.send(message);
                         } else {
                             MultipartPayload.getInstance().incoming(message);
                         }

@@ -97,10 +97,10 @@ public class EventConsumer {
         LambdaFunction f = (headers, body, instance) -> {
             iTopic.removeMessageListener(registrationId);
             platform.release(completionHandler);
-            log.info("Event consumer for {} closed", realTopic);
+            log.info("Unsubscribed {}", realTopic);
             if (offset == INITIALIZE) {
                 String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                if (Platform.getInstance().hasRoute(INIT_HANDLER)) {
+                if (platform.hasRoute(INIT_HANDLER)) {
                     try {
                         po.send(INIT_HANDLER, DONE);
                     } catch (IOException e) {
@@ -111,7 +111,7 @@ public class EventConsumer {
             return true;
         };
         platform.registerPrivate(completionHandler, f, 1);
-        log.info("Event consumer {} for {} started", registrationId, realTopic);
+        log.info("Subscribed {}", realTopic);
     }
 
     public void shutdown() {
@@ -169,7 +169,7 @@ public class EventConsumer {
                             if (to.contains(TO_MONITOR)) {
                                 message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
                             }
-                            PostOffice.getInstance().send(message);
+                            po.send(message);
                         } else {
                             MultipartPayload.getInstance().incoming(message);
                         }
