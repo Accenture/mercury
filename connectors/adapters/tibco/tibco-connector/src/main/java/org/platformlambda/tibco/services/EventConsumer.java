@@ -82,7 +82,8 @@ public class EventConsumer {
     }
 
     public void start() {
-        if (offset == INITIALIZE) {
+        final boolean init = offset == INITIALIZE;
+        if (init) {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
@@ -104,14 +105,12 @@ public class EventConsumer {
                     log.error("Unable to close consumer - {}", e.getMessage());
                 } finally {
                     platform.release(completionHandler);
-                    if (offset == INITIALIZE) {
-                        String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                        if (platform.hasRoute(INIT_HANDLER)) {
-                            try {
-                                po.send(INIT_HANDLER, DONE);
-                            } catch (IOException e) {
-                                // ok to ignore
-                            }
+                    String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
+                    if (init && platform.hasRoute(INIT_HANDLER)) {
+                        try {
+                            po.send(INIT_HANDLER, DONE);
+                        } catch (IOException e) {
+                            // ok to ignore
                         }
                     }
                 }

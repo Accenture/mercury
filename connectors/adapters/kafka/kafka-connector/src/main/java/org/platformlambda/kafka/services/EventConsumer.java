@@ -122,7 +122,8 @@ public class EventConsumer extends Thread {
 
     @Override
     public void run() {
-        if (offset == INITIALIZE) {
+        final boolean init = offset == INITIALIZE;
+        if (init) {
             /*
              * IMPORTANT
              * ---------
@@ -141,6 +142,7 @@ public class EventConsumer extends Thread {
         boolean reset = true;
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String virtualTopic = (topic + (partition < 0? "" : "." + partition)).toLowerCase();
         String topicPartition = realTopic + (realPartition < 0? "" : "." + realPartition);
@@ -274,14 +276,12 @@ public class EventConsumer extends Thread {
         } finally {
             consumer.close();
             log.info("Unsubscribed {}", topicPartition);
-            if (offset == INITIALIZE) {
-                String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                if (Platform.getInstance().hasRoute(INIT_HANDLER)) {
-                    try {
-                        po.send(INIT_HANDLER, DONE);
-                    } catch (IOException e) {
-                        // ok to ignore
-                    }
+            String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
+            if (init && platform.hasRoute(INIT_HANDLER)) {
+                try {
+                    po.send(INIT_HANDLER, DONE);
+                } catch (IOException e) {
+                    // ok to ignore
                 }
             }
         }

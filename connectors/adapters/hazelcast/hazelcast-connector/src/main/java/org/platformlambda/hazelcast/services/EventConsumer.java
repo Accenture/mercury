@@ -83,7 +83,8 @@ public class EventConsumer {
     }
 
     public void start() throws IOException {
-        if (offset == INITIALIZE) {
+        final boolean init = offset == INITIALIZE;
+        if (init) {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
@@ -98,14 +99,12 @@ public class EventConsumer {
             iTopic.removeMessageListener(registrationId);
             platform.release(completionHandler);
             log.info("Unsubscribed {}", realTopic);
-            if (offset == INITIALIZE) {
-                String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                if (platform.hasRoute(INIT_HANDLER)) {
-                    try {
-                        po.send(INIT_HANDLER, DONE);
-                    } catch (IOException e) {
-                        // ok to ignore
-                    }
+            String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
+            if (init && platform.hasRoute(INIT_HANDLER)) {
+                try {
+                    po.send(INIT_HANDLER, DONE);
+                } catch (IOException e) {
+                    // ok to ignore
                 }
             }
             return true;
