@@ -331,7 +331,8 @@ public class Platform {
             throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
         }
         if (registry.containsKey(path)) {
-            throw new IOException("Route "+path+" already exists");
+            log.warn("{} will be reloaded with {}", path, lambda);
+            release(path);
         }
         String uuid = UUID.randomUUID().toString();
         BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);

@@ -143,11 +143,22 @@ public class PostOfficeTest {
         platform.register("thumbs.db", noOp, 1);
     }
 
-    @Test(expected = IOException.class)
-    public void alreadyRegistered() throws IOException {
+    @Test
+    public void reloadPublicServiceAsPrivate() throws IOException, AppException, TimeoutException {
+        String SERVICE = "reloadable.service";
         Platform platform = Platform.getInstance();
-        LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register(HELLO_WORLD, noOp, 1);
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction TRUE_FUNCTION = (headers, body, instance) -> true;
+        LambdaFunction FALSE_FUNCTION = (headers, body, instance) -> false;
+        platform.register(SERVICE, TRUE_FUNCTION, 1);
+        EventEnvelope result = po.request(SERVICE, 5000, "HELLO");
+        Assert.assertEquals(true, result.getBody());
+        // reload as private
+        platform.registerPrivate(SERVICE, FALSE_FUNCTION, 1);
+        result = po.request(SERVICE, 5000, "HELLO");
+        Assert.assertEquals(false, result.getBody());
+        // convert to public
+        platform.makePublic(SERVICE);
     }
 
     @Test(expected = IOException.class)
