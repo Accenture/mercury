@@ -16,7 +16,6 @@ package org.platformlambda.core.models;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -530,7 +529,7 @@ public class EventEnvelope {
                          */
                         if (typed.getType().contains(".")) {
                             binary = typed.getPayload() instanceof Map;
-                            SimpleMapper.getInstance().getWhiteListMapper(typed.getType());
+                            SimpleMapper.getInstance().getSafeMapper(typed.getType());
                         }
                         body = converter.decode(typed);
                     } catch (Exception e) {

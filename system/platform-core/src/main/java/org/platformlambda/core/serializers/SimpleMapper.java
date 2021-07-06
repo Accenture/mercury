@@ -108,11 +108,11 @@ public class SimpleMapper {
         return mapper;
     }
 
-    public SimpleObjectMapper getWhiteListMapper(Class<?> cls) {
-        return getWhiteListMapper(cls.getTypeName());
+    public SimpleObjectMapper getSafeMapper(Class<?> cls) {
+        return getSafeMapper(cls.getTypeName());
     }
 
-    public SimpleObjectMapper getWhiteListMapper(String clsName) {
+    public SimpleObjectMapper getSafeMapper(String clsName) {
         if (permittedDataModel(clsName)) {
             return mapper;
         } else {

@@ -1,3 +1,21 @@
+/*
+
+    Copyright 2018-2021 Accenture Technology
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+ */
+
 package org.platformlambda.core.util;
 
 import org.junit.Test;
@@ -6,14 +24,14 @@ import org.platformlambda.core.models.SimpleHttpCookie;
 
 import org.junit.Assert;
 
+import java.util.List;
+
 public class SimpleCookieTest {
 
     private static final String SET_COOKIE = "Set-Cookie";
 
-    private SimpleHttpCookie createCookie() {
-        String name = "hello";
-        String value = "world";
-        SimpleHttpCookie cookie = new SimpleHttpCookie(name, value);
+    private SimpleHttpCookie createCookie(String key, String value) {
+        SimpleHttpCookie cookie = new SimpleHttpCookie(key, value);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
@@ -23,7 +41,7 @@ public class SimpleCookieTest {
 
     @Test
     public void validateCookie() {
-        String cookie = createCookie().toString();
+        String cookie = createCookie("hello", "world").toString();
         Assert.assertTrue(cookie.contains("Path=/;"));
         Assert.assertTrue(cookie.contains("HttpOnly"));
         Assert.assertTrue(cookie.contains("Secure;"));
@@ -36,13 +54,18 @@ public class SimpleCookieTest {
     public void cookieInEnvelope() {
         EventEnvelope event = new EventEnvelope();
         // "Set-Cookie" is the only header that supports multiple values
-        event.setHeader(SET_COOKIE, createCookie());
-        event.setHeader(SET_COOKIE, createCookie());
+        event.setHeader(SET_COOKIE, createCookie("key1", "value1"));
+        event.setHeader(SET_COOKIE, createCookie("key2", "value2"));
         String HELLO = "hello";
         String WORLD = "world";
         event.setHeader(HELLO, WORLD);
-        Assert.assertTrue(event.getHeaders().get(SET_COOKIE).contains("|"));
-        Assert.assertFalse(event.getHeaders().get(HELLO).contains("|"));
+        String cookies = event.getHeaders().get(SET_COOKIE);
+        Assert.assertTrue(cookies.contains("|"));
+        List<String> cookieList = Utility.getInstance().split(cookies, "|");
+        Assert.assertEquals(2, cookieList.size());
+        Assert.assertTrue(cookieList.get(0).startsWith("key1=value1;"));
+        Assert.assertTrue(cookieList.get(1).startsWith("key2=value2;"));
+        Assert.assertEquals(WORLD, event.getHeaders().get(HELLO));
     }
 
 }

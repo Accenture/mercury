@@ -208,7 +208,7 @@ public class PubSubManager implements PubSubProvider {
     }
 
     @Override
-    public boolean isNativePubSub() {
+    public boolean isStreamingPubSub() {
         return true;
     }
 

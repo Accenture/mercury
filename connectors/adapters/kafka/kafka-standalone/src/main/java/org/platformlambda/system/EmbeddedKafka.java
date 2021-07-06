@@ -15,6 +15,7 @@
     limitations under the License.
 
  */
+
 package org.platformlambda.system;
 
 import kafka.server.KafkaConfig;
@@ -32,7 +33,7 @@ public class EmbeddedKafka extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EmbeddedKafka.class);
 
     private KafkaServerStartable kafka;
-    private EmbeddedZk zookeeper;
+    private final EmbeddedZk zookeeper;
 
     public EmbeddedKafka(EmbeddedZk zookeeper) {
         this.zookeeper = zookeeper;
@@ -40,14 +41,12 @@ public class EmbeddedKafka extends Thread {
 
     @Override
     public void run() {
-
         try (InputStream stream = EmbeddedKafka.class.getResourceAsStream("/kafka.properties")) {
             if (stream == null) {
                 throw new IOException("kafka.properties is not available as resource");
             }
             Properties p = new Properties();
             p.load(stream);
-
             String dir = p.getProperty("log.dirs");
             if (dir != null) {
                 File reset = new File(dir);

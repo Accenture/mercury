@@ -1,3 +1,21 @@
+/*
+
+    Copyright 2018-2021 Accenture Technology
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+ */
+
 package org.platformlambda.core.util;
 
 import org.junit.Assert;
@@ -5,7 +23,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.models.MockPubSub;
@@ -56,7 +73,7 @@ public class UtilityTests {
         Assert.assertFalse(ps.exists(HELLO_WORLD));
         ps.createTopic(HELLO_WORLD, 10);
         Assert.assertTrue(ps.exists(HELLO_WORLD));
-        Assert.assertTrue(ps.isNativePubSub());
+        Assert.assertTrue(ps.isStreamingPubSub());
         Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
         Assert.assertTrue(ps.list().contains(HELLO_WORLD));
         ps.subscribe(HELLO_WORLD, f, "client100", "group100");

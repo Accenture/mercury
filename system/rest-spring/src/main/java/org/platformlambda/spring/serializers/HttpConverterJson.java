@@ -62,7 +62,7 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
     public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
         try {
             // validate class with white list before loading the input stream
-            SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(clazz);
+            SimpleObjectMapper mapper = SimpleMapper.getInstance().getSafeMapper(clazz);
             String input = util.stream2str(inputMessage.getBody());
             return mapper.readValue(input, clazz);
         } catch (IOException e) {
@@ -75,7 +75,7 @@ public class HttpConverterJson implements HttpMessageConverter<Object> {
             throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(JSON);
         // this may be too late to validate because Spring RestController has already got the object
-        SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getSafeMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));

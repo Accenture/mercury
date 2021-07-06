@@ -35,7 +35,7 @@ import java.util.concurrent.TimeoutException;
  * <p>
  * Mercury supports both enterprise messaging systems and publish/subscribe style event stream system.
  * <p>
- * Your application can test if native "pub/sub" is supported with the "isNativePubSub()" method.
+ * Your application can test if native "pub/sub" is supported with the "isStreamingPubSub()" method.
  */
 public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);
@@ -229,8 +229,8 @@ public class PubSub {
         return provider.list();
     }
 
-    public boolean isNativePubSub() {
-        return provider.isNativePubSub();
+    public boolean isStreamingPubSub() {
+        return provider.isStreamingPubSub();
     }
 
 }

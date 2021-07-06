@@ -69,7 +69,7 @@ public class HttpConverterHtml implements HttpMessageConverter<Object> {
             throws HttpMessageNotWritableException, IOException {
         outputMessage.getHeaders().setContentType(HTML_CONTENT);
         // this may be too late to validate because Spring RestController has already got the object
-        SimpleObjectMapper mapper = SimpleMapper.getInstance().getWhiteListMapper(o.getClass().getTypeName());
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getSafeMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();
         if (o instanceof String) {
             out.write(util.getUTF((String) o));

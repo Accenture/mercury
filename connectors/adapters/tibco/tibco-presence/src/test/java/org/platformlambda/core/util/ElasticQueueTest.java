@@ -21,12 +21,12 @@ package org.platformlambda.core.util;
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.PayloadMapper;
-import org.platformlambda.core.util.models.PoJo;
 
 import java.io.File;
 import java.io.IOException;
 
 import org.junit.Assert;
+import org.platformlambda.core.util.models.PoJo;
 
 public class ElasticQueueTest {
 

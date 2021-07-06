@@ -36,15 +36,15 @@ public class PayloadMapperTest {
 
     @Test
     public void acceptSafeJavaDefaultClasses() {
-        SimpleMapper.getInstance().getWhiteListMapper(String.class);
-        SimpleMapper.getInstance().getWhiteListMapper(byte[].class);
-        SimpleMapper.getInstance().getWhiteListMapper(Date.class);
-        SimpleMapper.getInstance().getWhiteListMapper(Integer.class);
-        SimpleMapper.getInstance().getWhiteListMapper(Map.class);
-        SimpleMapper.getInstance().getWhiteListMapper(HashMap.class);
-        SimpleMapper.getInstance().getWhiteListMapper(List.class);
-        SimpleMapper.getInstance().getWhiteListMapper(ArrayList.class);
-        SimpleMapper.getInstance().getWhiteListMapper(Number.class);
+        SimpleMapper.getInstance().getSafeMapper(String.class);
+        SimpleMapper.getInstance().getSafeMapper(byte[].class);
+        SimpleMapper.getInstance().getSafeMapper(Date.class);
+        SimpleMapper.getInstance().getSafeMapper(Integer.class);
+        SimpleMapper.getInstance().getSafeMapper(Map.class);
+        SimpleMapper.getInstance().getSafeMapper(HashMap.class);
+        SimpleMapper.getInstance().getSafeMapper(List.class);
+        SimpleMapper.getInstance().getSafeMapper(ArrayList.class);
+        SimpleMapper.getInstance().getSafeMapper(Number.class);
     }
 
     @Test

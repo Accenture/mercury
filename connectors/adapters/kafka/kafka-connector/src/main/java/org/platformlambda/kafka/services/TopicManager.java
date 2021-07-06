@@ -47,7 +47,6 @@ public class TopicManager implements LambdaFunction {
     private static final String EXISTS = "exists";
     private static final String STOP = "stop";
     private Integer replicationFactor = -1;
-    private boolean startMonitor = true;
     private final Properties baseProperties;
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
@@ -60,8 +59,7 @@ public class TopicManager implements LambdaFunction {
         this.topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
         this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         Runtime.getRuntime().addShutdownHook(new Thread(this::stopAdmin));
-        if (startMonitor && !topicSubstitution) {
-            startMonitor = false;
+        if (!topicSubstitution) {
             InactivityMonitor monitor = new InactivityMonitor(cloudManager);
             monitor.start();
         }
