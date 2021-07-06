@@ -331,7 +331,7 @@ public class Platform {
             throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
         }
         if (registry.containsKey(path)) {
-            log.warn("{} will be reloaded with {}", path, lambda);
+            log.warn("{} will be reloaded", path);
             release(path);
         }
         String uuid = UUID.randomUUID().toString();
