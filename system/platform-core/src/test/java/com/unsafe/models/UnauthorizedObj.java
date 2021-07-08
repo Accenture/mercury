@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util.unsafe.models;
+package com.unsafe.models;
 
 import java.util.Date;
 

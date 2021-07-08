@@ -18,49 +18,149 @@
 
 package org.platformlambda.core.util;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.util.models.ListOfObjects;
 import org.platformlambda.core.util.models.ObjectWithGenericType;
 import org.platformlambda.core.util.models.PoJo;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
-
-import org.junit.Assert;
+import java.util.*;
 
 public class GenericTypeTest {
 
+    @SuppressWarnings("unchecked")
     @Test
-    public void testListOfObjects() throws IOException {
-        int number = 100;
-        String name = "hello world";
-        PoJo pojo = new PoJo();
-        pojo.setNumber(number);
-        pojo.setName(name);
-        ListOfObjects list = new ListOfObjects();
-        list.setPoJoList(Collections.singletonList(pojo));
-
+    public void testListOfPoJo() throws IOException {
+        int NUMBER_1 = 100;
+        String NAME_1 = "hello world";
+        int NUMBER_2 = 200;
+        String NAME_2 = "it is a nice day";
+        PoJo pojo1 = new PoJo();
+        pojo1.setNumber(NUMBER_1);
+        pojo1.setName(NAME_1);
+        PoJo pojo2 = new PoJo();
+        pojo2.setNumber(NUMBER_2);
+        pojo2.setName(NAME_2);
+        List<PoJo> list = new ArrayList<>();
+        list.add(pojo1);
+        list.add(null);
+        list.add(pojo2);
         EventEnvelope event = new EventEnvelope();
         event.setBody(list);
         byte[] b = event.toBytes();
-
         EventEnvelope result = new EventEnvelope();
         result.load(b);
+        Assert.assertTrue(result.getBody() instanceof List);
+        List<PoJo> pojoList = (List<PoJo>) result.getBody();
+        Assert.assertEquals(3, pojoList.size());
+        PoJo restored1 = pojoList.get(0);
+        Assert.assertEquals(NAME_1, restored1.getName());
+        Assert.assertEquals(NUMBER_1, restored1.getNumber());
+        Assert.assertNull(pojoList.get(1));
+        PoJo restored2 = pojoList.get(2);
+        Assert.assertEquals(NAME_2, restored2.getName());
+        Assert.assertEquals(NUMBER_2, restored2.getNumber());
+    }
 
-        Assert.assertTrue(result.getBody() instanceof ListOfObjects);
-        ListOfObjects o = (ListOfObjects) result.getBody();
-        Assert.assertTrue(result.getBody() instanceof ListOfObjects);
-        PoJo restored = o.getPoJoList().get(0);
-        Assert.assertEquals(name, restored.getName());
-        Assert.assertEquals(number, restored.getNumber());
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testArrayOfPoJo() throws IOException {
+        int NUMBER_1 = 100;
+        String NAME_1 = "hello world";
+        int NUMBER_2 = 200;
+        String NAME_2 = "it is a nice day";
+        PoJo pojo1 = new PoJo();
+        pojo1.setNumber(NUMBER_1);
+        pojo1.setName(NAME_1);
+        PoJo pojo2 = new PoJo();
+        pojo2.setNumber(NUMBER_2);
+        pojo2.setName(NAME_2);
+        PoJo[] array = new PoJo[3];
+        array[0] = pojo1;
+        array[1] = null;
+        array[2] = pojo2;
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(array);
+        byte[] b = event.toBytes();
+        EventEnvelope result = new EventEnvelope();
+        result.load(b);
+        Assert.assertTrue(result.getBody() instanceof List);
+        List<PoJo> pojoList = (List<PoJo>) result.getBody();
+        Assert.assertEquals(3, pojoList.size());
+        PoJo restored1 = pojoList.get(0);
+        Assert.assertEquals(NAME_1, restored1.getName());
+        Assert.assertEquals(NUMBER_1, restored1.getNumber());
+        Assert.assertNull(pojoList.get(1));
+        PoJo restored2 = pojoList.get(2);
+        Assert.assertEquals(NAME_2, restored2.getName());
+        Assert.assertEquals(NUMBER_2, restored2.getNumber());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectMixedTypes() throws IOException {
+        int NUMBER_1 = 100;
+        String NAME_1 = "hello world";
+        int NUMBER_2 = 200;
+        String NAME_2 = "it is a nice day";
+        PoJo pojo1 = new PoJo();
+        pojo1.setNumber(NUMBER_1);
+        pojo1.setName(NAME_1);
+        PoJo pojo2 = new PoJo();
+        pojo2.setNumber(NUMBER_2);
+        pojo2.setName(NAME_2);
+        List<Object> list = new ArrayList<>();
+        list.add(pojo1);
+        list.add(2);
+        list.add(pojo2);
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(list);
+        event.toBytes();
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void correctParametricType() throws IOException {
+    public void acceptListOfPrimitives() throws IOException {
+        List<Object> list = new ArrayList<>();
+        list.add(true);
+        list.add(null);
+        list.add(2);
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(list);
+        byte[] b = event.toBytes();
+        EventEnvelope result = new EventEnvelope();
+        result.load(b);
+        Assert.assertTrue(result.getBody() instanceof List);
+        Assert.assertEquals(list, result.getBody());
+    }
 
+    @Test
+    public void acceptArrayOfPrimitives() throws IOException {
+        Object[] array = new Object[3];
+        array[0] = true;
+        array[1] = null;
+        array[2] = 2;
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(array);
+        byte[] b = event.toBytes();
+        EventEnvelope result = new EventEnvelope();
+        result.load(b);
+        Assert.assertTrue(result.getBody() instanceof List);
+        Assert.assertEquals(Arrays.asList(array), result.getBody());
+    }
+
+    @Test
+    public void testEmptyList() throws IOException {
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(Collections.emptyList());
+        byte[] b = event.toBytes();
+        EventEnvelope result = new EventEnvelope();
+        result.load(b);
+        Assert.assertEquals(result.getBody(), Collections.EMPTY_LIST);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void correctParametricType() throws IOException {
         int id = 100;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
@@ -68,15 +168,12 @@ public class GenericTypeTest {
         pojo.setName(name);
         genericObject.setContent(pojo);
         genericObject.setId(id);
-
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         event.setParametricType(PoJo.class);
         byte[] b = event.toBytes();
-
         EventEnvelope result = new EventEnvelope();
         result.load(b);
-
         Object o = result.getBody();
         Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
@@ -86,10 +183,9 @@ public class GenericTypeTest {
         Assert.assertEquals(name, content.getName());
     }
 
-    @Test(expected=ClassCastException.class)
     @SuppressWarnings("unchecked")
+    @Test(expected = ClassCastException.class)
     public void missingTypingInfo() throws IOException {
-
         int id = 100;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
@@ -97,14 +193,11 @@ public class GenericTypeTest {
         pojo.setName(name);
         genericObject.setContent(pojo);
         genericObject.setId(100);
-
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         byte[] b = event.toBytes();
-
         EventEnvelope result = new EventEnvelope();
         result.load(b);
-
         Object o = result.getBody();
         Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
@@ -133,19 +226,16 @@ public class GenericTypeTest {
         pojo.setName(name);
         genericObject.setContent(pojo);
         genericObject.setId(id);
-
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         event.setParametricType(String.class);  // setting an incorrect type
         byte[] b = event.toBytes();
-
         EventEnvelope result = new EventEnvelope();
         result.load(b);
-
         // When parametricType is incorrect, it will fall back to a map.
         Object o = result.getBody();
         Assert.assertTrue(o instanceof Map);
-        MultiLevelMap map = new MultiLevelMap((Map) o);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) o);
         Assert.assertEquals(name, map.getElement("content.name"));
         // numbers are encoded as string in map
         Assert.assertEquals(id, util.str2int(map.getElement("id").toString()));

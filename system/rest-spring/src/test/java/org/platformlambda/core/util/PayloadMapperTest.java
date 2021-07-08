@@ -24,6 +24,7 @@ import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.models.PoJo;
+import com.unsafe.models.UnauthorizedObj;
 
 import java.io.IOException;
 import java.util.*;
@@ -33,6 +34,59 @@ import org.junit.Assert;
 public class PayloadMapperTest {
 
     private static final PayloadMapper converter = PayloadMapper.getInstance();
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void optionalTransport() throws IOException {
+        String text = "hello world";
+        Optional<Object> hello = Optional.of(text);
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(hello);
+        byte[] b = event1.toBytes();
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        Assert.assertTrue(event2.getBody() instanceof Optional);
+        Optional<Object> value = (Optional<Object>) event2.getBody();
+        Assert.assertTrue(value.isPresent());
+        Assert.assertEquals(text, value.get());
+    }
+
+    @Test
+    public void pojoTransport() throws IOException {
+        String name = "hello";
+        PoJo pojo = new PoJo();
+        pojo.setName(name);
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(pojo);
+        byte[] b = event1.toBytes();
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        Assert.assertEquals(PoJo.class, event2.getBody().getClass());
+        // try again with pojo disabled
+        event1.setPoJoEnabled(false);
+        b = event1.toBytes();
+        event2.load(b);
+        Assert.assertEquals(HashMap.class, event2.getBody().getClass());
+    }
+
+    @Test
+    public void rejectUnauthorizedClass() throws IOException {
+        UnauthorizedObj input = new UnauthorizedObj();
+        input.setName("hello world");
+        input.setNumber(12345);
+
+        EventEnvelope event1 = new EventEnvelope();
+        event1.setBody(input);
+        byte[] b = event1.toBytes();
+
+        EventEnvelope event2 = new EventEnvelope();
+        event2.load(b);
+        /*
+         * Since the object is not in the safe.data.models list, the data is decoded as a simple HashMap.
+         * Deserialization to the UnauthorizedObj is not performed.
+         */
+        Assert.assertEquals(HashMap.class, event2.getBody().getClass());
+    }
 
     @Test
     public void acceptSafeJavaDefaultClasses() {
@@ -45,6 +99,11 @@ public class PayloadMapperTest {
         SimpleMapper.getInstance().getSafeMapper(List.class);
         SimpleMapper.getInstance().getSafeMapper(ArrayList.class);
         SimpleMapper.getInstance().getSafeMapper(Number.class);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void rejectUnsafeClasses() {
+        SimpleMapper.getInstance().getSafeMapper(UnauthorizedObj.class);
     }
 
     @Test
@@ -243,25 +302,9 @@ public class PayloadMapperTest {
     public void convertArray() throws ClassNotFoundException {
         String[] input = {"hello", "world"};
         TypedPayload typed = converter.encode(input, true);
-        Assert.assertEquals(PayloadMapper.ARRAY, typed.getType());
+        Assert.assertEquals(PayloadMapper.LIST, typed.getType());
         Object converted = converter.decode(typed);
-        Assert.assertTrue(sameArrays(input, converted));
-    }
-
-    private boolean sameArrays(Object a, Object b) {
-        if (a instanceof Object[] && b instanceof Object[]) {
-            Object[] o1 = (Object[]) a;
-            Object[] o2 = (Object[]) b;
-            if (o1.length == o2.length) {
-                for (int i=0; i < o1.length; i++) {
-                    if (o1[i] != o2[i]) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-        return false;
+        Assert.assertEquals(Arrays.asList(input), converted);
     }
 
 }

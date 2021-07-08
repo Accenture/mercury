@@ -23,10 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class EventEnvelope {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
@@ -531,7 +528,14 @@ public class EventEnvelope {
                             binary = typed.getPayload() instanceof Map;
                             SimpleMapper.getInstance().getSafeMapper(typed.getType());
                         }
-                        body = converter.decode(typed);
+                        Object obj = converter.decode(typed);
+                        if (obj instanceof PoJoList) {
+                            PoJoList<Object> list = (PoJoList<Object>) obj;
+                            body = list.getList();
+                        } else {
+                            body = obj;
+                        }
+
                     } catch (Exception e) {
                         log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
                         type = (String) message.get(OBJ_TYPE);
@@ -623,6 +627,10 @@ public class EventEnvelope {
             if (type == null) {
                 // encode body and save object type
                 TypedPayload typed = converter.encode(body, binary);
+                String cls = typed.getParametricType();
+                if (cls != null) {
+                    message.put(PARA_TYPES, cls);
+                }
                 message.put(OBJ_TYPE, typed.getType());
                 message.put(BODY, typed.getPayload());
             } else {

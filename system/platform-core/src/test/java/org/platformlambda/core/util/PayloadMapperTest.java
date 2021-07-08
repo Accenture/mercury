@@ -24,7 +24,7 @@ import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.models.PoJo;
-import org.platformlambda.core.util.unsafe.models.UnauthorizedObj;
+import com.unsafe.models.UnauthorizedObj;
 
 import java.io.IOException;
 import java.util.*;
@@ -82,7 +82,7 @@ public class PayloadMapperTest {
         EventEnvelope event2 = new EventEnvelope();
         event2.load(b);
         /*
-         * Since the object is not in the safe.data.models white-list, the data is decoded as a simple HashMap.
+         * Since the object is not in the safe.data.models list, the data is decoded as a simple HashMap.
          * Deserialization to the UnauthorizedObj is not performed.
          */
         Assert.assertEquals(HashMap.class, event2.getBody().getClass());
@@ -302,46 +302,9 @@ public class PayloadMapperTest {
     public void convertArray() throws ClassNotFoundException {
         String[] input = {"hello", "world"};
         TypedPayload typed = converter.encode(input, true);
-        Assert.assertEquals(PayloadMapper.ARRAY, typed.getType());
+        Assert.assertEquals(PayloadMapper.LIST, typed.getType());
         Object converted = converter.decode(typed);
-        Assert.assertTrue(sameArrays(input, converted));
-    }
-
-    private boolean sameArrays(Object a, Object b) {
-        if (a instanceof Object[] && b instanceof Object[]) {
-            Object[] o1 = (Object[]) a;
-            Object[] o2 = (Object[]) b;
-            if (o1.length == o2.length) {
-                for (int i=0; i < o1.length; i++) {
-                    if (o1[i] != o2[i]) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void listOfPoJo() {
-        List<PoJo> input = new ArrayList<>();
-        PoJo a = new PoJo();
-        a.setName("hello");
-        a.setDate(new Date());
-        input.add(a);
-        PoJo b = new PoJo();
-        b.setName("world");
-        b.setDate(new Date());
-        input.add(b);
-        /*
-         * For simplicity, list of PoJo is not supported.
-         * This will throw IllegalArgumentException when trying to serialize.
-         *
-         * Please use a parent class to wrap it for transport over the network
-         * between sender and recipient service.
-         */
-        converter.encode(input, true);
+        Assert.assertEquals(Arrays.asList(input), converted);
     }
 
 }

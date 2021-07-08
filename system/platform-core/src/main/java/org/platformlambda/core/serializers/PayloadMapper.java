@@ -18,19 +18,16 @@
 
 package org.platformlambda.core.serializers;
 
+import org.platformlambda.core.models.PoJoList;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PayloadMapper {
     public static final String MAP = "M";
-    public static final String ARRAY = "A";
     public static final String LIST = "L";
     public static final String PRIMITIVE = "P";
     public static final String NOTHING = "N";
@@ -54,47 +51,69 @@ public class PayloadMapper {
         return instance;
     }
 
+    @SuppressWarnings("unchecked")
     public TypedPayload encode(Object obj, boolean binary) {
         if (obj == null) {
             return new TypedPayload(NOTHING, null);
         } else if (obj instanceof Map) {
             return new TypedPayload(MAP, obj);
         } else if (obj instanceof Object[]) {
-            List<Object> list = new ArrayList<>();
-            Object[] objects = (Object[]) obj;
-            for (Object o: objects) {
-                if (isPrimitive(o) || o instanceof Map) {
-                    list.add(o);
-                } else {
-                    throw new IllegalArgumentException("Unable to serialize because object is an array of non-primitive types");
-                }
-            }
-            return new TypedPayload(ARRAY, list);
+            return encodeList(Arrays.asList((Object[]) obj), binary);
         } else if (obj instanceof List) {
-            List<Object> list = new ArrayList<>();
-            List objects = (List) obj;
-            for (Object o: objects) {
-                if (isPrimitive(o) || o instanceof Map) {
-                    list.add(o);
-                } else {
-                    throw new IllegalArgumentException("Unable to serialize because object is a list of non-primitive types");
-                }
-            }
-            return new TypedPayload(LIST, list);
+            return encodeList((List<Object>) obj, binary);
         } else if (isPrimitive(obj)) {
             return new TypedPayload(PRIMITIVE, obj);
         } else {
-            SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
-            // convert PoJo to typed payload (type and encoded map)
-            if (binary) {
-                return new TypedPayload(obj.getClass().getName(), mapper.readValue(obj, Map.class));
-            } else {
-                return new TypedPayload(obj.getClass().getName(), mapper.writeValueAsBytes(obj));
-            }
+            return getTypedPayload(obj, binary);
         }
     }
 
-    @SuppressWarnings("unchecked")
+    private TypedPayload encodeList(List<Object> objects, boolean binary) {
+        boolean primitive = false;
+        String pojoInside = null;
+        List<Object> list = new ArrayList<>();
+        for (Object o: objects) {
+            if (o == null) {
+                list.add(null);
+            } else if (isPrimitive(o) || o instanceof Map) {
+                list.add(o);
+                primitive = true;
+            } else {
+                if (pojoInside == null) {
+                    pojoInside = o.getClass().getName();
+                }
+                if (pojoInside.equals(o.getClass().getName())) {
+                    list.add(o);
+                } else {
+                    throw new IllegalArgumentException("Unable to serialize because it is a list of mixed types");
+                }
+            }
+        }
+        if (pojoInside != null && primitive) {
+            throw new IllegalArgumentException("Unable to serialize because it is a list of mixed types");
+        }
+        return pojoInside != null? getTypedPayloadFromList(list, pojoInside, binary) : new TypedPayload(LIST, list);
+    }
+
+    private TypedPayload getTypedPayloadFromList(List<Object> list, String pojoInside, boolean binary) {
+        PoJoList<Object> pojoList = new PoJoList<>();
+        for (Object pojo: list) {
+            pojoList.add(pojo);
+        }
+        TypedPayload result = getTypedPayload(pojoList, binary);
+        result.setParametricType(pojoInside);
+        return result;
+    }
+
+    private TypedPayload getTypedPayload(Object obj, boolean binary) {
+        SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
+        if (binary) {
+            return new TypedPayload(obj.getClass().getName(), mapper.readValue(obj, Map.class));
+        } else {
+            return new TypedPayload(obj.getClass().getName(), mapper.writeValueAsBytes(obj));
+        }
+    }
+
     public Object decode(TypedPayload typed) throws ClassNotFoundException {
         String type = typed.getType();
         if (NOTHING.equals(type)) {
@@ -103,16 +122,7 @@ public class PayloadMapper {
         if (PRIMITIVE.equals(type) || LIST.equals(type) || MAP.equals(type)) {
             return typed.getPayload();
         }
-        if (ARRAY.equals(type)) {
-            List<Object> objects = (List<Object>) typed.getPayload();
-            Object[] result = new Object[objects.size()];
-            for (int i = 0; i < result.length; i++) {
-                result[i] = objects.get(i);
-            }
-            return result;
-        }
         if (type.contains(".") && enablePoJo) {
-            // best effort to convert to original class
             Class<?> cls = getClassByName(type);
             if (cls != null) {
                 List<String> paraClass = Utility.getInstance().split(typed.getParametricType(), ", ");
@@ -135,7 +145,6 @@ public class PayloadMapper {
             }
 
         } else {
-            // return original payload because it is not a typed object
             return typed.getPayload();
         }
     }
