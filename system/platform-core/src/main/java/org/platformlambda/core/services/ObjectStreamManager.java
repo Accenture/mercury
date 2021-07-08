@@ -122,7 +122,7 @@ public class ObjectStreamManager implements LambdaFunction {
         }
     }
 
-    private class StreamInfo {
+    private static class StreamInfo {
 
         public long created = System.currentTimeMillis();
         public long updated;
@@ -141,7 +141,7 @@ public class ObjectStreamManager implements LambdaFunction {
 
     }
 
-    private class StreamHouseKeeper extends Thread {
+    private static class StreamHouseKeeper extends Thread {
 
         private static final long INTERVAL = 10000;
         private boolean normal = true;

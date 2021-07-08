@@ -129,11 +129,12 @@ public class ObjectStreamService implements LambdaFunction {
             }
         }
         /*
-         * Send response as an empty event envelope.
+         * Send response as an empty event envelope with timeout status 408
+         *
          * This would ask the Post Office to skip the response to the caller,
          * thus creating an artificial timeout condition.
          */
-        return new EventEnvelope();
+        return new EventEnvelope().setStatus(408);
     }
 
     private void write(EventEnvelope event) {

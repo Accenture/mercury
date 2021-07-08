@@ -101,7 +101,7 @@ public class WorkerQueue {
             float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
-                boolean needResponse = true;
+                boolean serviceTimeout = false;
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo);
                 response.setFrom(def.getRoute());
@@ -126,18 +126,14 @@ public class WorkerQueue {
                     response.setTrace(event.getTraceId(), event.getTracePath());
                 }
                 if (result instanceof EventEnvelope) {
-                    EventEnvelope resultEnvelope = (EventEnvelope) result;
-                    Map<String, String> headers = resultEnvelope.getHeaders();
-                    if (headers.isEmpty() && resultEnvelope.getBody() == null) {
+                    EventEnvelope resultEvent = (EventEnvelope) result;
+                    Map<String, String> headers = resultEvent.getHeaders();
+                    if (headers.isEmpty() && resultEvent.getStatus() == 408 && resultEvent.getBody() == null) {
                         /*
-                         * When an empty EventEnvelope is used as a return type.
-                         * Post Office will skip sending response.
-                         *
-                         * This allows the lambda function to create conditional responses.
-                         * One use case is the the ObjectStreamService that is using this behavior to
-                         * simulate a READ timeout.
+                         * An empty event envelope with timeout status
+                         * is used by the ObjectStreamService to simulate a READ timeout.
                          */
-                        needResponse = false;
+                        serviceTimeout = true;
                     } else {
                         /*
                          * When EventEnvelope is used as a return type, the system will transport
@@ -145,13 +141,13 @@ public class WorkerQueue {
                          * 2. key-values (as headers)
                          * 3. optional parametric types for Java class that uses generic types
                          */
-                        response.setBody(resultEnvelope.getBody());
+                        response.setBody(resultEvent.getBody());
                         for (String h : headers.keySet()) {
                             response.setHeader(h, headers.get(h));
                         }
-                        response.setStatus(resultEnvelope.getStatus());
-                        if (resultEnvelope.getParametricType() != null) {
-                            response.setParametricType(resultEnvelope.getParametricType());
+                        response.setStatus(resultEvent.getStatus());
+                        if (resultEvent.getParametricType() != null) {
+                            response.setParametricType(resultEvent.getParametricType());
                         }
                     }
                 } else {
@@ -162,7 +158,7 @@ public class WorkerQueue {
                     response.setHeader(ORIGIN, Platform.getInstance().getOrigin());
                     po.send(response);
                 } else {
-                    if (!interceptor && needResponse) {
+                    if (!interceptor && !serviceTimeout) {
                         response.setExecutionTime(diff);
                         po.send(response);
                     }
