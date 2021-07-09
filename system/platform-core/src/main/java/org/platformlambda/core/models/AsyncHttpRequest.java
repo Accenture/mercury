@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.models;
 
+import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 
 import java.net.MalformedURLException;
@@ -29,6 +30,7 @@ public class AsyncHttpRequest {
     private static final String HEADERS = "headers";
     private static final String METHOD = "method";
     private static final String IP = "ip";
+    private static final String CLASS = "clazz";
     private static final String TIMEOUT = "timeout";
     private static final String SESSION = "session";
     private static final String PARAMETERS = "parameters";
@@ -52,6 +54,7 @@ public class AsyncHttpRequest {
     private String url;
     private String ip;
     private String upload;
+    private String type;
     private Map<String, String> headers = new HashMap<>();
     private Map<String, Object> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
@@ -112,16 +115,47 @@ public class AsyncHttpRequest {
         return this;
     }
 
+    /**
+     * Restore body to PoJo is class type information is available
+     *
+     * @return original body
+     */
     public Object getBody() {
-        return body;
+        if (type == null) {
+            return body;
+        } else {
+            Class<?> cls = PayloadMapper.getInstance().getClassByName(type);
+            return cls == null? body : SimpleMapper.getInstance().getMapper().readValue(body, cls);
+        }
     }
 
+    /**
+     * Convert body to a specific class
+     * <p>
+     * This would result in casting exception if using incompatible target class
+     *
+     * @param toValueType target class
+     * @param <T> class type
+     * @return target class
+     */
     public <T> T getBody(Class<T> toValueType) {
         return SimpleMapper.getInstance().getMapper().readValue(body, toValueType);
     }
 
+    /**
+     * Set request body
+     *
+     * @param body will be converted to map if it is a PoJo
+     * @return this
+     */
     public AsyncHttpRequest setBody(Object body) {
-        this.body = body;
+        if (body == null || body instanceof Map || body instanceof List ||
+                PayloadMapper.getInstance().isPrimitive(body)) {
+            this.body = body;
+        } else {
+            this.body = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
+            this.type = body.getClass().getName();
+        }
         return this;
     }
 
@@ -373,6 +407,9 @@ public class AsyncHttpRequest {
         if (ip != null) {
             result.put(IP, ip);
         }
+        if (type != null) {
+            result.put(CLASS, type);
+        }
         if (url != null) {
             result.put(URL_LABEL, url);
         }
@@ -456,6 +493,9 @@ public class AsyncHttpRequest {
             if (map.containsKey(IP)) {
                 ip = (String) map.get(IP);
             }
+            if (map.containsKey(CLASS)) {
+                type = (String) map.get(CLASS);
+            }
             if (map.containsKey(URL_LABEL)) {
                 url = (String) map.get(URL_LABEL);
             }
@@ -502,4 +542,5 @@ public class AsyncHttpRequest {
             throw new IllegalArgumentException("Expect: Map, actual: "+input.getClass().getSimpleName());
         }
     }
+
 }

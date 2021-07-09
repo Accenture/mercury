@@ -149,7 +149,7 @@ public class PayloadMapper {
         }
     }
 
-    private Class<?> getClassByName(String name) {
+    public Class<?> getClassByName(String name) {
         Object cached = cache.get(name);
         if (cached instanceof Class) {
             return (Class<?>) cached;
@@ -168,7 +168,7 @@ public class PayloadMapper {
         }
     }
 
-    private boolean isPrimitive(Object obj) {
+    public boolean isPrimitive(Object obj) {
         return (obj instanceof String || obj instanceof byte[] || obj instanceof Number ||
                 obj instanceof Boolean || obj instanceof Date);
     }

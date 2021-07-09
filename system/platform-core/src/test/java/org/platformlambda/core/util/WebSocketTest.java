@@ -75,7 +75,6 @@ public class WebSocketTest {
         String statusMessage = response.getStatusMessage();
         InputStream in = response.getContent();
         String result = Utility.getInstance().stream2str(in);
-        System.out.println(result);
         Assert.assertEquals(200, rc);
         Assert.assertEquals("OK", statusMessage);
         Assert.assertEquals(HELLO_WORLD, result);

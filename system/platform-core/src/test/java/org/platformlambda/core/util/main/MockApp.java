@@ -22,16 +22,19 @@ import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.annotations.OptionalService;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @MainApplication
 @OptionalService("server.port=8085")
 public class MockApp implements EntryPoint {
+    private static final Logger log = LoggerFactory.getLogger(MockApp.class);
 
     @Override
     public void start(String[] args) throws Exception {
 
         Platform platform = Platform.getInstance();
         platform.connectToCloud();
-        System.out.println("started");
+        log.info("Started");
     }
 }

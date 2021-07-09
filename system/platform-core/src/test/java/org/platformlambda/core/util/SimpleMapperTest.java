@@ -36,6 +36,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class SimpleMapperTest {
 
     @Test
+    public void returnOriginalClassIfSameTargetClass() {
+        PoJo pojo = new PoJo();
+        pojo.setName("hello");
+        pojo.setNumber(123);
+        Object o = SimpleMapper.getInstance().getMapper().readValue(pojo, PoJo.class);
+        Assert.assertEquals(pojo, o);
+    }
+
+    @Test
     public void typedNumberShouldMapDouble() {
         final JsonPrimitive number = new JsonPrimitive("1.12345678");
         Object result = SimpleMapper.getInstance().typedNumber(number);
@@ -69,7 +78,7 @@ public class SimpleMapperTest {
         map.put("date", now);
         map.put("sql_date", new java.sql.Date(now.getTime()));
         map.put("sql_timestamp", new java.sql.Timestamp(now.getTime()));
-        Map<String, Object> converted = mapper.readValue(mapper.writeValueAsString(map), HashMap.class);
+        Map<String, Object> converted = mapper.readValue(mapper.writeValueAsString(map), Map.class);
         // verify that java.util.Date, java.sql.Date and java.sql.Timestamp can be serialized to ISO-8601 string format
         Assert.assertEquals(iso8601, converted.get("date"));
         // sql date is yyyy-mm-dd
@@ -108,12 +117,15 @@ public class SimpleMapperTest {
         // ensure that ZERO is converted to "0"
         Map<String, Object> mapZero = mapper.getMapper().readValue(zero, Map.class);
         Assert.assertEquals("0", mapZero.get(NUMBER));
-        // verify PoJo class conversion behavior
+        // verify PoJo class conversion behavior - this will return the original object because the class is the same
         SimpleNumber numberOne = mapper.getMapper().readValue(one, SimpleNumber.class);
         Assert.assertEquals(numberOne.number, one.number);
-        SimpleNumber numberZero = mapper.getMapper().readValue(zero, SimpleNumber.class);
+        // this will pass thru the serializer
+        String zeroValue = mapper.getMapper().writeValueAsString(zero);
+        SimpleNumber numberZero = mapper.getMapper().readValue(zeroValue, SimpleNumber.class);
         // the original number has the zero number with many zeros after the decimal
         Assert.assertEquals("0E-8", zero.number.toString());
+        Assert.assertEquals(ZERO, zero.number.toPlainString());
         // the converted BigDecimal gets a zero number without zeros after the decimal
         Assert.assertEquals("0", numberZero.number.toString());
         // verify map to PoJo serialization behavior
@@ -145,7 +157,6 @@ public class SimpleMapperTest {
     }
 
     private static class SimpleNumber {
-
         public BigDecimal number;
 
         public SimpleNumber(String number) {

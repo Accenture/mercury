@@ -22,11 +22,47 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
+import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.util.models.PoJo;
 
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 
 public class DataModelTest {
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void asyncHttpRequestBodyRestoreTest() {
+        PoJo pojo = new PoJo();
+        pojo.setName("hello");
+        pojo.setNumber(123);
+        AsyncHttpRequest request = new AsyncHttpRequest();
+        request.setBody(pojo);
+        Map<String, Object> map = request.toMap();
+        AsyncHttpRequest restored = new AsyncHttpRequest(map);
+        Assert.assertEquals(PoJo.class, restored.getBody().getClass());
+        PoJo restoredBody = (PoJo) restored.getBody();
+        Assert.assertEquals(pojo.getName(), restoredBody.getName());
+        Assert.assertEquals(pojo.getNumber(), restoredBody.getNumber());
+
+        int NUMBER = 12345;
+        AsyncHttpRequest request2 = new AsyncHttpRequest();
+        request2.setBody(NUMBER);
+        Map<String, Object> map2 = request2.toMap();
+        AsyncHttpRequest restored2 = new AsyncHttpRequest(map2);
+        Assert.assertEquals(NUMBER, restored2.getBody());
+        Map<String, Object> restoredNumberInMap = SimpleMapper.getInstance().getMapper().readValue(NUMBER, Map.class);
+        Assert.assertEquals(1, restoredNumberInMap.size());
+        Assert.assertEquals(NUMBER, restoredNumberInMap.get("result"));
+
+        List<Object> restoredNumberInList = SimpleMapper.getInstance().getMapper().readValue(NUMBER, List.class);
+        Assert.assertEquals(1, restoredNumberInList.size());
+        Assert.assertEquals(NUMBER, restoredNumberInList.get(0));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectCastingOfPrimitiveToPoJo() {
+        SimpleMapper.getInstance().getMapper().readValue(true, PoJo.class);
+    }
 
     @Test
     public void asyncHttpModelTest() {
