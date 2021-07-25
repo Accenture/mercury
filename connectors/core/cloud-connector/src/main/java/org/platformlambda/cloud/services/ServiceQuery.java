@@ -18,6 +18,7 @@
 
 package org.platformlambda.cloud.services;
 
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.Platform;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+@ZeroTracing
 public class ServiceQuery implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceQuery.class);
 

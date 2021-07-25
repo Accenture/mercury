@@ -347,8 +347,8 @@ public class ServiceGateway {
                 }
                 EventEnvelope authResponse = po.request(authRequest, authTimeout);
                 if (!authResponse.hasError() && authResponse.getBody() instanceof Boolean) {
-                    Boolean authOK = (Boolean) authResponse.getBody();
-                    if (authOK) {
+                    Boolean authenticated = (Boolean) authResponse.getBody();
+                    if (authenticated) {
                         /*
                          * Upon successful authentication,
                          * the authentication service may save session information as headers
@@ -384,7 +384,8 @@ public class ServiceGateway {
                 contentType = "?";
             }
             if (contentType.startsWith(MULTIPART_FORM_DATA) && POST.equals(method)) {
-                final ObjectStreamWrapper stream = new ObjectStreamWrapper(route.info.timeoutSeconds);
+                final ObjectStreamIO stream = new ObjectStreamIO(route.info.timeoutSeconds);
+                final ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
                 request.uploadHandler(upload -> {
                     req.setFileName(upload.filename());
                     final AtomicInteger total = new AtomicInteger();
@@ -392,14 +393,14 @@ public class ServiceGateway {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(stream, block, len);
+                            readInputStream(out, block, len);
                         }
                     }).endHandler(end -> {
                         try {
                             int size = total.get();
                             req.setContentLength(size);
-                            req.setStreamRoute(stream.getId());
-                            stream.close();
+                            req.setStreamRoute(stream.getInputStreamId());
+                            out.close();
                         } catch (IOException e) {
                             log.error("Unexpected error while closing HTTP input stream - {}", e.getMessage());
                         }
@@ -479,19 +480,20 @@ public class ServiceGateway {
                     }).endHandler(done -> inputComplete.set(true));
                 } else {
                     final AtomicInteger total = new AtomicInteger();
-                    final ObjectStreamWrapper stream = new ObjectStreamWrapper(route.info.timeoutSeconds);
+                    final ObjectStreamIO stream = new ObjectStreamIO(route.info.timeoutSeconds);
+                    final ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
                     request.bodyHandler(block -> {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(stream, block, len);
+                            readInputStream(out, block, len);
                         }
                         if (inputComplete.get()) {
                             try {
                                 int size = total.get();
                                 req.setContentLength(size);
-                                req.setStreamRoute(stream.getId());
-                                stream.close();
+                                req.setStreamRoute(stream.getInputStreamId());
+                                out.close();
                             } catch (IOException e) {
                                 log.error("Unexpected error while closing HTTP input stream - {}", e.getMessage());
                             }
@@ -542,7 +544,7 @@ public class ServiceGateway {
         }
     }
 
-    private void readInputStream(ObjectStreamWrapper stream, Buffer block, int len) {
+    private void readInputStream(ObjectStreamWriter stream, Buffer block, int len) {
         try {
             byte[] data = block.getBytes(0, len);
             if (data.length > BUFFER_SIZE) {

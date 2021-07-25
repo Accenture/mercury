@@ -53,17 +53,15 @@ public class DistributedTrace implements LambdaFunction {
             lastCheck = now;
             found = PostOffice.getInstance().exists(processor);
         }
-        if (body instanceof EventEnvelope) {
-            EventEnvelope trace = (EventEnvelope) body;
-            log.info("trace={}, annotations={}", trace.getHeaders(), trace.getBody());
-            if (found) {
-                EventEnvelope event = new EventEnvelope();
-                event.setTo(processor).setBody(trace.getBody()).setHeaders(trace.getHeaders());
-                try {
-                    PostOffice.getInstance().send(event);
-                } catch (Exception e) {
-                    log.warn("Unable to relay trace to {} - {}", processor, e.getMessage());
-                }
+        EventEnvelope trace = (EventEnvelope) body;
+        log.info("trace={}, annotations={}", trace.getHeaders(), trace.getBody());
+        if (found) {
+            EventEnvelope event = new EventEnvelope();
+            event.setTo(processor).setBody(trace.getBody()).setHeaders(trace.getHeaders());
+            try {
+                PostOffice.getInstance().send(event);
+            } catch (Exception e) {
+                log.warn("Unable to relay trace to {} - {}", processor, e.getMessage());
             }
         }
         return null;

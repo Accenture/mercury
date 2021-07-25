@@ -23,12 +23,9 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import org.platformlambda.core.util.ElasticQueue;
-import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -36,35 +33,44 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ServiceQueue {
     private static final Logger log = LoggerFactory.getLogger(ServiceQueue.class);
-    private static final String QUEUES = "queues";
     private static final String INIT = "init:";
-    private static final String READY = "ready:";
+    private static final String READY = "ready";
     private final ElasticQueue elasticQueue;
     private final String route;
+    private final String readyPrefix;
+    private final String streamRoute;
     private final EventBus system;
     private final ConcurrentLinkedQueue<String> pool = new ConcurrentLinkedQueue<>();
-    private final List<WorkerQueue> workers = new ArrayList<>();
+    private final List<WorkerQueues> workers = new ArrayList<>();
     private MessageConsumer<Object> consumer;
     private boolean buffering = true;
     private boolean stopped = false;
 
     public ServiceQueue(ServiceDef service) {
         this.route = service.getRoute();
-        String origin = Platform.getInstance().getOrigin();
-        File workerFolder = Utility.getInstance().getWorkFolder();
-        this.elasticQueue = new ElasticQueue(new File(workerFolder, QUEUES),this.route+"-"+origin);
+        this.readyPrefix = READY+":" + service.getRoute() + "@";
+        this.elasticQueue = new ElasticQueue(route);
         // create consumer
         system = Platform.getInstance().getEventSystem();
         consumer = system.localConsumer(service.getRoute(), new ServiceHandler());
-        // create workers
-        int instances = service.getConcurrency();
-        for (int i=0; i < instances; i++) {
-            int n = i + 1;
-            WorkerQueue worker = new WorkerQueue(service, route+"@"+n, n);
+        if (service.isStream()) {
+            // create singleton stream worker with signature suffix "+"
+            streamRoute = route + "+";
+            StreamQueue worker = new StreamQueue(service, streamRoute);
             workers.add(worker);
+            log.info("{} {} started", "PRIVATE", route);
+        } else {
+            // create workers
+            streamRoute = null;
+            int instances = service.getConcurrency();
+            for (int i = 0; i < instances; i++) {
+                int n = i + 1;
+                WorkerQueue worker = new WorkerQueue(service, route + "@" + n, n);
+                workers.add(worker);
+            }
+            log.info("{} {} with {} instance{} started", service.isPrivate() ? "PRIVATE" : "PUBLIC",
+                    route, instances, instances == 1 ? "" : "s");
         }
-        log.info("{} {} with {} instance{} started", service.isPrivate()? "PRIVATE" : "PUBLIC",
-                route, instances, instances == 1 ? "" : "s");
     }
 
     public String getRoute() {
@@ -73,25 +79,20 @@ public class ServiceQueue {
 
     public void stop() {
         if (consumer != null && consumer.isRegistered()) {
-            // stopping worker
-            for (WorkerQueue worker: workers) {
-                worker.stop();
-            }
-            // closing elastic queue
-            if (!elasticQueue.isClosed()) {
-                elasticQueue.close();
-            }
-            // remove elastic queue folder
-            elasticQueue.destroy();
             // closing consumer
             consumer.unregister();
+            // stopping worker
+            for (WorkerQueues w: workers) {
+                w.stop();
+            }
+            // completely close the associated elastic queue
+            elasticQueue.destroy();
             consumer = null;
             stopped = true;
             log.info("{} stopped", route);
         }
     }
 
-    @SuppressWarnings("unchecked")
     private class ServiceHandler implements Handler<Message<Object>> {
 
         @Override
@@ -105,28 +106,22 @@ public class ServiceQueue {
                     if (signal != null) {
                         signal.offer(true);
                     }
-                }
-                if (text.startsWith(READY)) {
-                    String sender = text.substring(READY.length());
-                    if (!stopped) {
+                } else {
+                    String sender = getWorker(text);
+                    if (sender != null && !stopped) {
                         pool.offer(sender);
                         if (buffering) {
-                            try {
-                                byte[] event = elasticQueue.read();
-                                if (event == null) {
-                                    // Close elastic queue when all messages are cleared
-                                    buffering = false;
-                                    elasticQueue.close();
-                                } else {
-                                    // Guarantees that there is an available worker
-                                    String next = pool.poll();
-                                    if (next != null) {
-                                        system.send(next, event);
-                                    }
+                            byte[] event = elasticQueue.read();
+                            if (event == null) {
+                                // Close elastic queue when all messages are cleared
+                                buffering = false;
+                                elasticQueue.close();
+                            } else {
+                                // Guarantees that there is an available worker
+                                String next = pool.poll();
+                                if (next != null) {
+                                    system.send(next, event);
                                 }
-                            } catch (IOException e) {
-                                // this should not happen
-                                log.error("Unable to read elastic queue " + elasticQueue.getId(), e);
                             }
                         }
                     }
@@ -155,6 +150,15 @@ public class ServiceQueue {
                 }
             }
         }
+    }
+
+    private String getWorker(String input) {
+        if (input.startsWith(readyPrefix)) {
+            return input.substring(READY.length()+1);
+        } else if (READY.equals(input) && streamRoute != null) {
+            return streamRoute;
+        }
+        return null;
     }
 
 }

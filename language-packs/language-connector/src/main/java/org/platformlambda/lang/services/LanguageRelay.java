@@ -64,28 +64,25 @@ public class LanguageRelay implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (body instanceof EventEnvelope) {
-            EventEnvelope event = (EventEnvelope) body;
-            String to = event.getTo();
-            if (to != null) {
-                // Avoid looping by disabling broadcast after delivery
-                List<String> targets = LanguageConnector.getDestinations(to);
-                if (!targets.isEmpty()) {
-                    if (event.getBroadcastLevel() > 0) {
-                        // broadcast to multiple clients that serve the route
-                        for (String token: targets) {
-                            send(token, event.setBroadcastLevel(0));
-                        }
-                    } else {
-                        String token = getNextAvailable(targets);
+        EventEnvelope event = (EventEnvelope) body;
+        String to = event.getTo();
+        if (to != null) {
+            // Avoid looping by disabling broadcast after delivery
+            List<String> targets = LanguageConnector.getDestinations(to);
+            if (!targets.isEmpty()) {
+                if (event.getBroadcastLevel() > 0) {
+                    // broadcast to multiple clients that serve the route
+                    for (String token: targets) {
                         send(token, event.setBroadcastLevel(0));
                     }
-
                 } else {
-                    log.warn("Event dropped because {} does not have any connections", to);
+                    String token = getNextAvailable(targets);
+                    send(token, event.setBroadcastLevel(0));
                 }
-            }
 
+            } else {
+                log.warn("Event dropped because {} does not have any connections", to);
+            }
         }
         return null;
     }

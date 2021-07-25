@@ -21,12 +21,14 @@ package org.platformlambda.core.system;
 import io.vertx.core.Handler;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageConsumer;
 import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.*;
+import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.ProcessStatus;
+import org.platformlambda.core.models.TraceInfo;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -36,50 +38,31 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class WorkerQueue {
+public class WorkerQueue extends WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueue.class);
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final Utility util = Utility.getInstance();
     private static final String ORIGIN = "origin";
-    private static final String READY = "ready:";
     private final String origin;
-    private final ServiceDef def;
-    private final String route;
-    private final EventBus system;
     private final boolean interceptor, tracing;
     private final int instance;
-    private MessageConsumer<byte[]> consumer;
-    private boolean stopped = false;
     private static String traceLogHeader;
 
     public WorkerQueue(ServiceDef def, String route, int instance) {
+        super(def, route);
         if (traceLogHeader == null) {
             AppConfigReader config = AppConfigReader.getInstance();
             traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
         }
-        this.def = def;
         this.instance = instance;
-        this.route = route;
-        system = Platform.getInstance().getEventSystem();
-        consumer = system.localConsumer(route, new WorkerHandler());
+        EventBus system = Platform.getInstance().getEventSystem();
+        this.consumer = system.localConsumer(route, new WorkerHandler());
         this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
         this.tracing = def.getFunction().getClass().getAnnotation(ZeroTracing.class) == null;
         this.origin = Platform.getInstance().getOrigin();
         // tell manager that this worker is ready to process a new event
         system.send(def.getRoute(), READY+route);
-        log.debug("{} started", route);
-    }
-
-    public void stop() {
-        if (consumer != null && consumer.isRegistered()) {
-            consumer.unregister();
-            consumer = null;
-            stopped = true;
-            log.debug("{} stopped", route);
-        }
+        this.started();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -220,7 +203,7 @@ public class WorkerQueue {
         @Override
         public void handle(Message<byte[]> message) {
             if (!stopped) {
-                EventEnvelope event = new EventEnvelope();
+                final EventEnvelope event = new EventEnvelope();
                 try {
                     event.load(message.body());
                 } catch (IOException e) {
@@ -271,7 +254,7 @@ public class WorkerQueue {
                      * Send a ready signal to inform the system this worker is ready for next event.
                      * This guarantee that this future task is executed orderly
                      */
-                    system.send(def.getRoute(), READY+route);
+                    Platform.getInstance().getEventSystem().send(def.getRoute(), READY+route);
                 });
             }
 

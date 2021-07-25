@@ -227,7 +227,8 @@ If incoming request is a byte stream, your service will find the "stream" and "c
 
 If your service wants to send the output to the browser as a stream of text or bytes, you can create an ObjectStreamIO 
 with a timeout value. You can then set the streamId in the HTTP header "stream". You should also set the HTTP header 
-"timeout" to tell the REST endpoint to use it as IO stream read timeout value. The "stream" and "timeout" headers are used by the REST automation framework. They will not be set as HTTP response headers.
+"timeout" to tell the REST endpoint to use it as IO stream read timeout value. The "stream" and "timeout" headers 
+are used by the REST automation framework. They will not be set as HTTP response headers.
 
 You timeout value should be short and yet good enough for your service to send one block of data. The timer will be 
 reset when there is I/O activity. One use case of output stream is file download.

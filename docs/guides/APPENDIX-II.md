@@ -1,13 +1,15 @@
 # Reserved route names
 
-The Mercury foundation functions are also written using the same event-driven platform-core. The following route names are reserved for the Mercury system functions.
+The Mercury foundation functions are also written using the same event-driven platform-core. 
+The following route names are reserved for the Mercury system functions.
 
-Please do not use them in your application functions as it would disrupt the normal operation of the event-driven system and your application may not work as expected.
+Please do not use them in your application functions as it would disrupt the normal operation of the
+event-driven system and your application may not work as expected.
 
 | Route name                    | Purpose                                | Modules                          |
 | :-----------------------------|:---------------------------------------|:---------------------------------|
 | actuator.services             | Reserved for actuator admin endpoint   | platform-core                    |
-| object.streams.io             | Stream I/O handler                     | platform-core                    |
+| elastic.queue.cleanup         | Elastic queue clean up task            | platform-core                    |
 | distributed.tracing           | Distributed trace logger               | platform-core                    |
 | distributed.trace.processor   | Distributed trace aggregator           | User defined trace handler       |
 | system.service.registry       | Distributed routing registry           | cloud connectors                 |
@@ -28,6 +30,7 @@ Please do not use them in your application functions as it would disrupt the nor
 | language.pack.registry        | Routing registry                       | Language Connector               |
 | pub.sub.controller            | Pub/sub handler                        | Language Connector               |
 | system.deferred.delivery      | Deferred delivery handler              | Language Connector               |
+| object.streams.io             | Object stream manager                  | Language Connector               |
 | cron.scheduler                | Cron job scheduler                     | Scheduler helper application     |
 | init.service.monitor.*        | reserved for event stream startup      | service monitor core             |
 | completion.service.monitor.*  | reserved for event stream clean up     | service monitor core             |
@@ -36,7 +39,9 @@ Please do not use them in your application functions as it would disrupt the nor
 
 # Distributed trace processor
 
-The route name "distributed.trace.processor" is reserved for user defined trace handler. If you implement a function with this route name, it will receive trace metrics in a real-time basis. Your custom application can then decide how to persist the metrics. e.g. Elastic Search or a database.
+The route name "distributed.trace.processor" is reserved for user defined trace handler. 
+If you implement a function with this route name, it will receive trace metrics in a real-time basis. 
+Your custom application can then decide how to persist the metrics. e.g. Elastic Search or a database.
 
 ---
 

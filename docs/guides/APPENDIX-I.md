@@ -7,6 +7,7 @@
 | info.app.description                        | Something about application               | Yes       |
 | web.component.scan                          | your own package path or parent path      | Yes       |
 | server.port                                 | e.g. 8083                                 | Yes*      |
+| rest.server.port                            | e.g. 8083                                 | Required*2|
 | spring.mvc.static-path-pattern              | /**                                       | Yes*      |
 | spring.resources.static-locations           | classpath:/public/                        | Yes*      |
 | jax.rs.application.path                     | /api                                      | Optional*1|
@@ -38,7 +39,7 @@
 | closed.user.group                           | Closed user group (default 1)             | Optional  |
 
 `*1` - when using the "rest-spring" library
-`*2` - applies to the REST automation helper application only
+`*2` - applies to the REST automation application only
 
 # safe.data.models
 

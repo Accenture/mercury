@@ -79,6 +79,6 @@ In this case, we usually deploy more than one REST automation gatways for user f
 
 ---
 
-| Appendix-I                                | Home                                     |
+| Chapter-8                                 | Home                                     |
 | :----------------------------------------:|:----------------------------------------:|
-| [application.properties](APPENDIX-I.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| [Multicast](CHAPTER-8.md)                 | [Table of Contents](TABLE-OF-CONTENTS.md)|

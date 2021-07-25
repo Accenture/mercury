@@ -18,60 +18,47 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.core.annotations.ZeroTracing;
+import org.platformlambda.core.models.*;
+import org.platformlambda.core.util.Utility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * This is a convenient class for creating an event stream.
- * <p>
- * It encapsulates both input stream and output stream.
- * Both input stream and output stream are closeable.
- * <p>
- * The close method for output stream will send EOF to the stream.
- * The close method for input stream will close the event stream and release resources.
- * <p>
- * The event stream would spread across the network where sender and recipient in different machine.
- * <p>
- * The typical use case is to create a new event stream using ObjectStreamIO() in the receiving side.
- * <p>
- * The recipient can obtain the fully qualified route name using the getRoute() and transmit the route to the sender.
- * The sender will create the stream object using ObjectStreamIO(route).
- * The sender can then send PoJo or Java primitives as object to the output stream.
- * The recipient can read the input stream to retrieve the object.
- * <p>
- * Event stream is designed for use by a single sender and a single recipient to guarantee message sequencing.
- * If you use multiple senders and recipients, event sequencing is not guaranteed.
- * <p>
- * The sender can signal EOF by closing the output stream.
- * The recipient can release the stream by closing the input stream.
- */
 public class ObjectStreamIO {
+    private static final Logger log = LoggerFactory.getLogger(ObjectStreamIO.class);
 
-    private static final String STREAM_MANAGER = PostOffice.STREAM_MANAGER;
+    private static final ConcurrentMap<String, StreamInfo> streams = new ConcurrentHashMap<>();
+    private static final AtomicInteger counter = new AtomicInteger(0);
+
+    public static final int DEFAULT_TIMEOUT = 1800;
+
     private static final String TYPE = "type";
-    private static final String CREATE = "create";
-    private static final String QUERY = "query";
-    private static final String STREAM_PREFIX = "stream.";
-    private static final String EXPIRY_SEC = "expiry_seconds";
-    private static final long STREAM_MANAGER_TIMEOUT = 10000;
-    private String route;
-    private ObjectStreamWriter writer;
-    private ObjectStreamReader reader;
-    private int expirySeconds = 1800;
-    private boolean inputClosed = false;
+    private static final String READ = "read";
+    private static final String CLOSE = "close";
+    private static final String DATA = "data";
+    private static final String EOF = "eof";
+    private static final String STREAM_PREFIX = "stream";
+    private String inputStreamId, outputStreamId, streamRoute;
+    private final int expirySeconds;
+    private final AtomicBoolean eof = new AtomicBoolean(false);
+    private final ConcurrentLinkedQueue<String> callbacks = new ConcurrentLinkedQueue<>();
 
     public ObjectStreamIO() throws IOException {
+        this.expirySeconds = DEFAULT_TIMEOUT;
         this.createStream();
     }
 
     public ObjectStreamIO(int expirySeconds) throws IOException {
-        this.expirySeconds = expirySeconds;
+        this.expirySeconds = Math.max(1, expirySeconds);
         this.createStream();
     }
 
@@ -79,72 +66,200 @@ public class ObjectStreamIO {
         return expirySeconds;
     }
 
-    /**
-     * Open an existing stream
-     *
-     * @param streamId for an existing stream
-     * @throws IOException in case the stream ID is invalid
-     */
-    public ObjectStreamIO(String streamId) throws IOException {
-        if (streamId.startsWith(STREAM_PREFIX) && streamId.contains("@")) {
-            this.route = streamId;
-        } else {
-            throw new IOException("Invalid stream route");
+    private void createStream() throws IOException {
+        Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
+        if (counter.incrementAndGet() == 1) {
+            HouseKeeper houseKeeper = new HouseKeeper();
+            houseKeeper.start();
+        }
+        String id = util.getUuid();
+        String in = STREAM_PREFIX+".in."+id;
+        String out = STREAM_PREFIX+".out."+id;
+        this.inputStreamId = in + "@" + platform.getOrigin();
+        this.outputStreamId = out + "@" + platform.getOrigin();
+        StreamPublisher publisher = new StreamPublisher();
+        StreamConsumer consumer = new StreamConsumer(publisher, in, out);
+        platform.registerPrivateStream(out, publisher);
+        platform.registerPrivate(in, consumer, 1);
+        streams.put(in, new StreamInfo(expirySeconds));
+        log.info("Stream {} created with expiry of {} seconds", id, expirySeconds);
+    }
+
+    public String getInputStreamId() {
+        return inputStreamId;
+    }
+
+    public String getOutputStreamId() {
+        return outputStreamId;
+    }
+
+    public static Map<String, Object> getStreamInfo() {
+        Utility util = Utility.getInstance();
+        Map<String, Object> result = new HashMap<>();
+        for (String id: streams.keySet()) {
+            StreamInfo info = streams.get(id);
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("created", util.date2str(new Date(info.created)));
+            metadata.put("last_read", util.date2str(new Date(info.updated)));
+            metadata.put("expiry_seconds", info.expiryMills / 1000);
+            result.put(id, metadata);
+        }
+        result.put("count", streams.size());
+        return result;
+    }
+
+    public static void touch(String id) {
+        StreamInfo info = streams.get(id);
+        if (info != null) {
+            info.updated = System.currentTimeMillis();
         }
     }
 
-    private void createStream() throws IOException {
-        try {
-            EventEnvelope response = PostOffice.getInstance().request(STREAM_MANAGER, STREAM_MANAGER_TIMEOUT,
-                    new Kv(TYPE, CREATE), new Kv(EXPIRY_SEC, expirySeconds));
-            if (response.getBody() instanceof String) {
-                String name = (String) response.getBody();
-                if (name.startsWith(STREAM_PREFIX) && name.contains("@")) {
-                    route = name;
+    public static void removeExpiredStreams() {
+        PostOffice po = PostOffice.getInstance();
+        Utility util = Utility.getInstance();
+        long now = System.currentTimeMillis();
+        List<String> list = new ArrayList<>(streams.keySet());
+        for (String id : list) {
+            StreamInfo info = streams.get(id);
+            if (now - info.updated > info.expiryMills) {
+                try {
+                    log.warn("{} expired. Inactivity for {} seconds ({} - {})", id, info.expiryMills / 1000,
+                            util.date2str(new Date(info.created)), util.date2str(new Date(info.updated)));
+                    po.send(id, new Kv(TYPE, CLOSE));
+                } catch (IOException e) {
+                    log.error("Unable to remove expired {} - {}", id, e.getMessage());
+                } finally {
+                    streams.remove(id);
                 }
             }
-        } catch (AppException | TimeoutException e) {
-            throw new IOException(e.getMessage());
-        }
-        if (route == null) {
-            throw new IOException("Stream manager is not responding correctly");
         }
     }
 
-    public String getRoute() {
-        return route;
-    }
+    private class StreamPublisher implements StreamFunction {
 
-    public ObjectStreamReader getInputStream(long timeoutMs) {
-        if (reader == null) {
-            reader = new ObjectStreamReader(route, timeoutMs);
+        @Override
+        public void init(String manager) {
+            streamRoute = manager;
         }
-        return reader;
-    }
 
-    public ObjectStreamWriter getOutputStream() {
-        if (writer == null) {
-            writer = new ObjectStreamWriter(route);
+        @Override
+        public String getManager() {
+            return streamRoute;
         }
-        return writer;
-    }
 
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> getLocalStreams() throws IOException {
-        try {
+        @Override
+        public void handleEvent(Map<String, String> headers, Object body) throws Exception {
             PostOffice po = PostOffice.getInstance();
-            EventEnvelope query = po.request(STREAM_MANAGER, STREAM_MANAGER_TIMEOUT, new Kv(TYPE, QUERY));
-            return query.getBody() instanceof Map? (Map<String, Object>) query.getBody() : Collections.emptyMap();
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+            if (DATA.equals(headers.get(TYPE))) {
+                if (!eof.get()) {
+                    String cb = callbacks.poll();
+                    if (cb != null) {
+                        sendReply(cb, body, DATA);
+                    }
+                }
+            } else if (EOF.equals(headers.get(TYPE))) {
+                if (!eof.get()) {
+                    eof.set(true);
+                    String cb = callbacks.poll();
+                    if (cb != null) {
+                        sendReply(cb, body, EOF);
+                    }
+                }
+            }
+        }
+
+        private void sendReply(String cb, Object body, String type) throws IOException {
+            PostOffice po = PostOffice.getInstance();
+            if (cb.contains("|")) {
+                int sep = cb.indexOf('|');
+                String callback = cb.substring(0, sep);
+                String extra = cb.substring(sep+1);
+                EventEnvelope eventExtra = new EventEnvelope();
+                eventExtra.setTo(callback).setExtra(extra).setHeader(TYPE, type).setBody(body);
+                po.send(eventExtra);
+            } else {
+                po.send(cb, body, new Kv(TYPE, type));
+            }
         }
     }
 
-    public void close() throws IOException {
-        if (!inputClosed) {
-            inputClosed = true;
-            ObjectStreamReader stream = getInputStream(STREAM_MANAGER_TIMEOUT);
-            stream.close();
+    @EventInterceptor
+    @ZeroTracing
+    private class StreamConsumer implements LambdaFunction {
+        private final StreamPublisher publisher;
+        private final String in, out;
+
+        public StreamConsumer(StreamPublisher publisher, String in, String out) {
+            this.publisher = publisher;
+            this.in = in;
+            this.out = out;
+        }
+
+        @Override
+        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+            Platform platform = Platform.getInstance();
+            PostOffice po = PostOffice.getInstance();
+            EventEnvelope event = (EventEnvelope) body;
+            String type = event.getHeaders().get(TYPE);
+            String cb = event.getReplyTo();
+            String extra = event.getExtra();
+            if (READ.equals(type) && cb != null) {
+                if (extra != null) {
+                    callbacks.offer(cb + "|" + extra);
+                } else {
+                    callbacks.offer(cb);
+                }
+                publisher.get();
+                touch(in);
+            }
+            if (CLOSE.equals(type)) {
+                platform.release(in);
+                platform.release(out);
+                streams.remove(in);
+                if (cb != null) {
+                    if (extra != null) {
+                        EventEnvelope eventExtra = new EventEnvelope();
+                        eventExtra.setTo(cb).setExtra(extra).setBody(true);
+                        po.send(eventExtra);
+                    } else {
+                        po.send(cb, true);
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    private static class HouseKeeper extends Thread {
+
+        private static final long INTERVAL = 10000;
+        private boolean normal = true;
+
+        @Override
+        public void run() {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+            log.info("Started");
+            long t1 = System.currentTimeMillis() - INTERVAL;
+            while (normal) {
+                long now = System.currentTimeMillis();
+                // scan every 10 seconds
+                if (now - t1 > INTERVAL) {
+                    t1 = now;
+                    removeExpiredStreams();
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
+                }
+            }
+            log.info("Stopped");
+        }
+
+        private void shutdown() {
+            normal = false;
         }
     }
 

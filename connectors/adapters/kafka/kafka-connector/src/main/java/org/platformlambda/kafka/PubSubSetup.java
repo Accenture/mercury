@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * This cloud service provides native pub/sub service only.
+ * This cloud service provides streaming pub/sub service only.
  * This allows the user application to run as a standalone executable and
- * communicate with each other purely using native pub/sub.
+ * communicate with each other purely using streaming pub/sub.
  *
  * For real-time and pub/sub use cases, please use the "kafka" connector.
  * It offers native pub/sub service and also uses Kafka as a service mesh

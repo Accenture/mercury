@@ -40,33 +40,31 @@ public class DeferredDelivery implements LambdaFunction {
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (body instanceof EventEnvelope) {
-            EventEnvelope event = (EventEnvelope) body;
-            Object relay = event.getBody();
-            if (relay instanceof Map) {
-                Map<String, Object> map = (Map<String, Object>) relay;
-                if (map.containsKey(ROUTE) && map.containsKey(SECONDS)) {
-                    int ms = Math.round(Utility.getInstance().str2float(map.get(SECONDS).toString()) * 1000);
-                    // reset to minimum value of 100 ms
-                    if (ms < 100) {
-                        ms = 100;
-                    }
-                    // reset to maximum value of one day
-                    if (ms > ONE_DAY) {
-                        ms = ONE_DAY;
-                    }
-                    String route = (String) map.get(ROUTE);
-                    EventEnvelope deferred = new EventEnvelope();
-                    deferred.setTo(route);
-                    if (map.containsKey(HEADERS)) {
-                        // relay headers
-                        deferred.setHeaders((Map<String, String>) map.get(HEADERS));
-                    }
-                    if (map.containsKey(BODY)) {
-                        deferred.setBody(map.get(BODY));
-                    }
-                    PostOffice.getInstance().sendLater(deferred, new Date(System.currentTimeMillis() + ms));
+        EventEnvelope event = (EventEnvelope) body;
+        Object relay = event.getBody();
+        if (relay instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) relay;
+            if (map.containsKey(ROUTE) && map.containsKey(SECONDS)) {
+                int ms = Math.round(Utility.getInstance().str2float(map.get(SECONDS).toString()) * 1000);
+                // reset to minimum value of 100 ms
+                if (ms < 100) {
+                    ms = 100;
                 }
+                // reset to maximum value of one day
+                if (ms > ONE_DAY) {
+                    ms = ONE_DAY;
+                }
+                String route = (String) map.get(ROUTE);
+                EventEnvelope deferred = new EventEnvelope();
+                deferred.setTo(route);
+                if (map.containsKey(HEADERS)) {
+                    // relay headers
+                    deferred.setHeaders((Map<String, String>) map.get(HEADERS));
+                }
+                if (map.containsKey(BODY)) {
+                    deferred.setBody(map.get(BODY));
+                }
+                PostOffice.getInstance().sendLater(deferred, new Date(System.currentTimeMillis() + ms));
             }
         }
         return null;

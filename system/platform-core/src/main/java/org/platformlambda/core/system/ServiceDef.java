@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.system;
 
+import org.platformlambda.core.models.StreamFunction;
 import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.Utility;
 
@@ -30,10 +31,12 @@ public class ServiceDef {
     private final String route;
     @SuppressWarnings("rawtypes")
     private final TypedLambdaFunction lambda;
+    private final StreamFunction stream;
     private final String id;
     private ServiceQueue manager;
     private final Date created = new Date();
-    private boolean isPrivate = false;
+    private boolean isPrivateFunction = false;
+    private boolean isStreamFunction = false;
     private int instances = 1;
 
     @SuppressWarnings("rawtypes")
@@ -41,6 +44,14 @@ public class ServiceDef {
         this.id = Utility.getInstance().getUuid();
         this.route = route;
         this.lambda = lambda;
+        this.stream = null;
+    }
+
+    public ServiceDef(String route, StreamFunction stream) {
+        this.id = Utility.getInstance().getUuid();
+        this.route = route;
+        this.stream = stream;
+        this.lambda = null;
     }
 
     public String getId() {
@@ -60,25 +71,25 @@ public class ServiceDef {
         return lambda;
     }
 
+    public StreamFunction getStreamFunction() {
+        return stream;
+    }
+
     public boolean isPrivate() {
-        return isPrivate;
+        return isPrivateFunction;
     }
 
     public int getConcurrency() {
         return instances;
     }
 
-    public ServiceDef setConcurrency(Integer instances) {
-        if (instances != null) {
-            this.instances = instances < 1 ? 1 : (instances > MAX_INSTANCES ? MAX_INSTANCES : instances);
-        }
+    public ServiceDef setConcurrency(int instances) {
+        this.instances = Math.max(1, (Math.min(instances, MAX_INSTANCES)));
         return this;
     }
 
-    public ServiceDef setPrivate(Boolean isPrivate) {
-        if (isPrivate != null) {
-            this.isPrivate = isPrivate;
-        }
+    public ServiceDef setPrivate(boolean isPrivateFunction) {
+        this.isPrivateFunction = isPrivateFunction;
         return this;
     }
 
@@ -88,6 +99,15 @@ public class ServiceDef {
 
     public void setManager(ServiceQueue manager) {
         this.manager = manager;
+    }
+
+    public ServiceDef setStream(boolean isStreamFunction) {
+        this.isStreamFunction = isStreamFunction;
+        return this;
+    }
+
+    public boolean isStream() {
+        return isStreamFunction;
     }
 
 }

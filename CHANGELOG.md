@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.1.0, 7/25/2021
+
+### Added
+
+1. Multicast - application can define a multicast.yaml config to relay events to more than one target service.
+2. StreamFunction - function that allows the application to control back-pressure
+
+### Removed
+
+"object.streams.io" route is removed from platform-core
+
+### Changed
+
+1. Elastic Queue - Refactored using Oracle Berkeley DB
+2. Object stream I/O - simplified design using the new StreamFunction feature
+3. Open sources library update - Spring Boot 3.5.3, Tomcat 9.0.50, Vert.x 4.1.1, Netty 4.1.66-Final
+
+---
 ## Version 2.0.0, 5/5/2021
 
 Vert.x is introduced as the in-memory event bus
@@ -15,7 +33,7 @@ Vert.x is introduced as the in-memory event bus
 1. ActiveMQ and Tibco connectors
 2. Admin endpoints to stop, suspend and resume an application instance
 3. Handle edge case to detect stalled application instances
-4. Add "isNativePubSub" method to the PubSub interface
+4. Add "isStreamingPubSub" method to the PubSub interface
 
 ### Removed
 

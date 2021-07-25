@@ -450,6 +450,29 @@ public class EventEnvelope {
         return this;
     }
 
+    public EventEnvelope clone() {
+        EventEnvelope event = new EventEnvelope();
+        event.setTo(this.getTo());
+        event.setHeaders(this.getHeaders());
+        event.setBody(this.getBody());
+        event.setBroadcastLevel(this.getBroadcastLevel());
+        event.setFrom(this.getFrom());
+        event.setBinary(this.isBinary());
+        event.setCorrelationId(this.getCorrelationId());
+        if (this.isEndOfRoute()) {
+            event.setEndOfRoute();
+        }
+        event.setExtra(this.getExtra());
+        event.setParametricType(this.getParametricType());
+        event.setPoJoEnabled(this.isPoJoEnabled());
+        event.setStatus(this.getStatus());
+        event.setReplyTo(this.getReplyTo());
+        event.setTraceId(this.getTraceId());
+        event.setTracePath(this.getTracePath());
+        event.setType(this.type);
+        return event;
+    }
+
     /**
      * DeSerialize the EventEnvelope from a byte array
      *

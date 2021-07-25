@@ -1,0 +1,6 @@
+multicast:
+  - source: "v1.hello.world"
+    targets:
+    - "v1.hello.service.1"
+    - "v1.hello.service.2"
+    - "v1.hello.service.3"

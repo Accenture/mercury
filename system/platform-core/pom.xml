@@ -7,14 +7,14 @@
     <artifactId>platform-core</artifactId>
 
     <packaging>jar</packaging>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <name>Mercury core library</name>
 
     <!-- Use Spring Boot as a parent to fetch the correct Spring Framework modules -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.4.4</version>
+        <version>2.5.3</version>
         <relativePath/>
     </parent>
 
@@ -22,6 +22,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <hazelcast.version>4.2</hazelcast.version>
         <kafka.version>2.7.0</kafka.version>
+        <netty.version>4.1.66.Final</netty.version>
+        <tomcat.version>9.0.50</tomcat.version>
         <java.version>1.8</java.version>
     </properties>
 
@@ -46,13 +48,19 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>4.0.3</version>
+            <version>4.1.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-core</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sleepycat</groupId>
+            <artifactId>je</artifactId>
+            <version>18.3.12</version>
         </dependency>
 
         <dependency>

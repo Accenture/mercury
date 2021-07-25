@@ -18,124 +18,217 @@
 
 package org.platformlambda.core.util;
 
-import org.platformlambda.core.system.QueueFileWriter;
+import com.sleepycat.je.*;
+import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class ElasticQueue {
+public class ElasticQueue implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ElasticQueue.class);
 
     private static final Utility util = Utility.getInstance();
+    private static final ReentrantLock lock = new ReentrantLock();
+    private static final AtomicInteger counter = new AtomicInteger(0);
+    private static final AtomicInteger generation = new AtomicInteger(0);
 
     public static final int MEMORY_BUFFER = 10;
-    private static final String QUEUE = "data-";
-    private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
-    private static final byte DATA = 0x01;
-    private static final byte EOF = 0x00;
-    private final File dir;
+    private static final String RUNNING = "RUNNING";
+    private static final String CLEAN_UP_TASK = "elastic.queue.cleanup";
+    private static final String SLASH = "/";
+    private static final int MAX_EVENTS = 100000000;
+    private static Database db;
+    private static Environment dbEnv;
+    private static File dbFolder;
+    private static Long keepAlive;
+    private static Boolean runningInCloud;
+    private long readCounter, writeCounter;
+    private boolean empty = false;
+    private byte[] peeked = null;
+    private int currentVersion = generation.get();
     private final String id;
     private final ConcurrentLinkedQueue<byte[]> memory = new ConcurrentLinkedQueue<>();
-    private int writeFileNumber, readFileNumber;
-    private long readCounter, writeCounter;
-    private FileInputStream in;
-    private boolean empty = false, createDir = false;
-    private byte[] peeked = null;
 
     /**
      * Two-stage elastic queue using memory and disk
      *
-     * @param dir parent queue directory
      * @param id service route path
      */
-    public ElasticQueue(File dir, String id) {
-        // guarantee valid filename
+    public ElasticQueue(String id) {
         this.id = util.validServiceName(id)? id : util.filteredServiceName(id);
-        this.dir = new File(dir, this.id);
         initialize();
+        if (counter.incrementAndGet() == 1) {
+            Platform platform = Platform.getInstance();
+            try {
+                platform.registerPrivate(CLEAN_UP_TASK, new Cleanup(), 1);
+            } catch (IOException e) {
+                log.error("Unable to register {} - {}", CLEAN_UP_TASK, e.getMessage());
+            }
+            Runtime.getRuntime().addShutdownHook(new Thread(ElasticQueue::shutdown));
+            AppConfigReader config = AppConfigReader.getInstance();
+            runningInCloud = "true".equals(config.getProperty("running.in.cloud", "false"));
+            File tmpRoot = new File(config.getProperty("transient.data.store", "/tmp/reactive"));
+            if (runningInCloud) {
+                dbFolder = tmpRoot;
+            } else {
+                String instanceId = platform.getName() + "-" + platform.getOrigin();
+                dbFolder = new File(tmpRoot, instanceId);
+            }
+            scanExpiredStores(tmpRoot);
+        }
+    }
+
+    private void scanExpiredStores(File tmpRoot) {
+        if (runningInCloud) {
+            removeExpiredStore(tmpRoot);
+        } else {
+            File[] dirs = tmpRoot.listFiles();
+            if (dirs != null) {
+                for (File d : dirs) {
+                    if (d.isDirectory()) {
+                        removeExpiredStore(d);
+                    }
+                }
+            }
+        }
+    }
+
+    private void removeExpiredStore(File folder) {
+        Utility util = Utility.getInstance();
+        File f = new File(folder, RUNNING);
+        if (f.exists() && System.currentTimeMillis() - f.lastModified() > 60000) {
+            util.cleanupDir(folder, runningInCloud);
+            log.info("Holding area {} expired", folder);
+        }
     }
 
     public String getId() {
         return id;
     }
 
+    @Override
     public void close() {
-        if (in != null) {
-            try {
-                in.close();
-            } catch (IOException e) {
-                // ok to ignore
+        if (!isClosed()) {
+            if (dbEnv != null) {
+                if (readCounter < writeCounter && writeCounter > MEMORY_BUFFER) {
+                    try {
+                        PostOffice.getInstance().send(CLEAN_UP_TASK, id + SLASH + currentVersion);
+                    } catch (IOException e) {
+                        log.error("Unable to run {} - {}", CLEAN_UP_TASK, e.getMessage());
+                    }
+                } else {
+                    dbEnv.cleanLog();
+                }
             }
-            in = null;
+            initialize();
         }
-        initialize();
+    }
+
+    /**
+     * This method may be called when the route supported by this elastic queue is no longer in service
+     */
+    public void destroy() {
+        close();
+        if (dbEnv != null) {
+            // perform final clean up
+            try {
+                PostOffice.getInstance().send(CLEAN_UP_TASK, id);
+            } catch (IOException e) {
+                log.error("Unable to run {} - {}", CLEAN_UP_TASK, e.getMessage());
+            }
+        }
     }
 
     public boolean isClosed() {
-        return in == null && writeCounter == 0;
+        return writeCounter == 0;
     }
 
-    public void destroy() {
-        // guarantee that it is closed
-        close();
-        if (isClosed()) {
-            util.cleanupDir(dir);
+    private static void shutdown() {
+        if (db != null && dbEnv != null) {
+            if (keepAlive != null) {
+                Platform.getInstance().getVertx().cancelTimer(keepAlive);
+            }
+            try {
+                db.close();
+            } catch (Exception e) {
+                log.warn("Exception while closing - {}", e.getMessage());
+            }
+            try {
+                dbEnv.close();
+            } catch (Exception e) {
+                log.warn("Exception while closing - {}", e.getMessage());
+            }
+            util.cleanupDir(dbFolder, runningInCloud);
+            log.info("Holding area {} cleared", dbFolder);
         }
     }
 
     private void initialize() {
         if (!empty) {
             empty = true;
-            if (dir.exists()) {
-                util.cleanupDir(dir, true);
-            } else {
-                createDir = true;
-            }
-            readFileNumber = writeFileNumber = 1;
             readCounter = writeCounter = 0;
             memory.clear();
+            currentVersion = generation.incrementAndGet();
         }
+    }
+
+    private Database getDatabase() {
+        if (db == null) {
+            lock.lock();
+            try {
+                // avoid concurrency
+                if (dbEnv == null || db == null) {
+                    if (!dbFolder.exists()) {
+                        if (dbFolder.mkdirs()) {
+                            log.info("{} created", dbFolder);
+                        }
+                    }
+                    long t1 = System.currentTimeMillis();
+                    dbEnv = new Environment(dbFolder,
+                            new EnvironmentConfig().setAllowCreate(true));
+                    dbEnv.checkpoint(new CheckpointConfig().setMinutes(1));
+                    db = dbEnv.openDatabase(null, "kv",
+                            new DatabaseConfig().setAllowCreate(true).setTemporary(false));
+                    long diff = System.currentTimeMillis() - t1;
+                    util.str2file(new File(dbFolder, RUNNING), "started");
+                    keepAlive = Platform.getInstance().getVertx().setPeriodic(20000,
+                            t -> util.str2file(new File(dbFolder, RUNNING), util.getTimestamp()));
+                    log.info("Created holding area {} in {} ms", dbFolder, diff);
+                }
+            } catch (Exception e) {
+                log.error("Unable to create holding area in {} - {}", dbFolder, e.getMessage());
+                System.exit(-1);
+            } finally {
+                lock.unlock();
+            }
+        }
+        return db;
     }
 
     public void write(byte[] event) {
         if (writeCounter < MEMORY_BUFFER) {
             // for highest performance, save to memory for the first few blocks
             memory.offer(event);
-            writeCounter++;
-            empty = false;
         } else {
-            if (createDir) {
-                createDir = false;
-                dir.mkdirs();
-            }
             // otherwise, save to disk
-            File f = new File(dir, QUEUE + writeFileNumber);
-            long len = f.exists() ? f.length() : 0;
-            try (QueueFileWriter out = new QueueFileWriter(f)) {
-                out.write(DATA);
-                out.write(util.int2bytes(event.length));
-                out.write(event);
-                len += event.length;
-                if (len >= MAX_FILE_SIZE) {
-                    // write EOF indicator and increment file sequence
-                    out.write(EOF);
-                    writeFileNumber++;
-                }
-                writeCounter++;
-                empty = false;
-            } catch (IOException e) {
-                // this should not happen
-                log.error("Event lost. Unable to persist {} to {} - {}", id, f.getPath(), e.getMessage());
-            }
+            String key = id + SLASH + currentVersion + SLASH + util.zeroFill(writeCounter, MAX_EVENTS);
+            DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
+            DatabaseEntry v = new DatabaseEntry(event);
+            getDatabase().put(null, k, v);
         }
-
+        writeCounter++;
+        empty = false;
     }
 
-    public byte[] peek() throws IOException {
+    public byte[] peek() {
         if (peeked != null) {
             return peeked;
         }
@@ -143,7 +236,7 @@ public class ElasticQueue {
         return peeked;
     }
 
-    public byte[] read() throws IOException {
+    public byte[] read() {
         if (peeked != null) {
             byte[] result = peeked;
             peeked = null;
@@ -161,48 +254,62 @@ public class ElasticQueue {
             }
             return event;
         }
-        if (in == null) {
-            File f = new File(dir, QUEUE+ readFileNumber);
-            if (f.exists()) {
-                in = new FileInputStream(f);
-            } else {
-                return null;
+        boolean hasRecord = false;
+        String key = id + SLASH + currentVersion + SLASH + util.zeroFill(readCounter, MAX_EVENTS);
+        DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
+        DatabaseEntry v = new DatabaseEntry();
+        try {
+            OperationStatus status = getDatabase().get(null, k, v, LockMode.DEFAULT);
+            if (status == OperationStatus.SUCCESS) {
+                // must be an exact match
+                String ks = util.getUTF(k.getData());
+                if (ks.equals(key)) {
+                    hasRecord = true;
+                    readCounter++;
+                    return v.getData();
+                } else {
+                    log.error("Expected {}, Actual: {}", key, ks);
+                }
             }
-        }
-        byte[] control = new byte[1];
-        int count = in.read(control);
-        if (count == -1) {
             return null;
-        }
-        if (control[0] == EOF) {
-            // EOF - drop file and increment read sequence
-            in.close();
-            in = null;
-            File f = new File(dir, QUEUE+ readFileNumber);
-            if (f.exists()) {
-                f.delete();
-                readFileNumber++;
-                return read();
-            } else {
-                throw new IOException("Corrupted queue for "+ id);
+        } finally {
+            if (hasRecord) {
+                db.delete(null, k);
             }
         }
-        if (control[0] != DATA) {
-            throw new IOException("Corrupted queue for "+ id);
+    }
+
+    private static class Cleanup implements LambdaFunction {
+
+        @Override
+        public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+            if (body instanceof String && db != null && dbEnv != null) {
+                Utility util = Utility.getInstance();
+                int n = 0;
+                String prefix = body + SLASH;
+                DatabaseEntry k = new DatabaseEntry(util.getUTF(prefix));
+                DatabaseEntry v = new DatabaseEntry();
+                try (Cursor cursor = db.openCursor(null, new CursorConfig())) {
+                    OperationStatus status = cursor.getSearchKeyRange(k, v, LockMode.DEFAULT);
+                    while (status == OperationStatus.SUCCESS) {
+                        String ks = util.getUTF(k.getData());
+                        if (!ks.startsWith(prefix)) {
+                            break;
+                        }
+                        db.delete(null, k);
+                        n++;
+                        status = cursor.getNext(k, v, LockMode.DEFAULT);
+                    }
+                    if (n > 0) {
+                        dbEnv.cleanLog();
+                        log.info("Cleared {} unread event{} for {}", n, n == 1? "" : "s", body);
+                    }
+                } catch (Exception e) {
+                    log.warn("Unable to scan {} - {}", body, e.getMessage());
+                }
+            }
+            return true;
         }
-        byte[] size = new byte[4];
-        count = in.read(size);
-        if (count != 4) {
-            throw new IOException("Corrupted queue for "+ id);
-        }
-        int blockSize = util.bytes2int(size);
-        byte[] result = new byte[blockSize];
-        count = in.read(result);
-        if (count != blockSize) {
-            throw new IOException("Corrupted queue for "+ id);
-        }
-        readCounter++;
-        return result;
     }
 
 }

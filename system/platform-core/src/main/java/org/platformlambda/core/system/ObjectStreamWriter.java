@@ -18,34 +18,22 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.services.ObjectStreamService;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
 
 public class ObjectStreamWriter implements AutoCloseable {
-
-    private static final String TYPE = ObjectStreamService.TYPE;
-    private static final String WRITE = ObjectStreamService.WRITE;
-    private static final String EOF = ObjectStreamService.EOF;
+    private static final String TYPE = "type";
+    private static final String DATA = "data";
+    private static final String EOF = "eof";
 
     private final String streamId;
-    private long timeout = 8000;
-    private boolean closed = false;
+    private boolean eof = false;
 
     public ObjectStreamWriter(String streamId) {
         this.streamId = streamId;
-    }
-
-    public void setWriteTimeout(long timeoutMs) {
-        this.timeout = timeoutMs;
-    }
-
-    public long getWriteTimeout() {
-        return timeout;
     }
 
     public void write(Object payload) throws IOException {
@@ -57,12 +45,7 @@ public class ObjectStreamWriter implements AutoCloseable {
                 byte[] b = (byte[]) payload;
                 write(b, 0, b.length);
             } else {
-                try {
-                    // use RPC request to guarantee that the payload is written to disk
-                    PostOffice.getInstance().request(streamId, timeout, payload, new Kv(TYPE, WRITE));
-                } catch (TimeoutException | AppException e) {
-                    throw new IOException(e.getMessage());
-                }
+                PostOffice.getInstance().send(streamId, payload, new Kv(TYPE, DATA));
             }
         }
     }
@@ -80,19 +63,14 @@ public class ObjectStreamWriter implements AutoCloseable {
             }
             // always create a new byte array
             byte[] b = start == end? new byte[0] : Arrays.copyOfRange(payload, start, end);
-            try {
-                // use RPC request to guarantee that the payload is written to disk
-                PostOffice.getInstance().request(streamId, timeout, b, new Kv(TYPE, WRITE));
-            } catch (TimeoutException | AppException e) {
-                throw new IOException(e.getMessage());
-            }
+            PostOffice.getInstance().send(streamId, b, new Kv(TYPE, DATA));
         }
     }
 
     @Override
     public void close() throws IOException {
-        if (!closed) {
-            closed = true;
+        if (!eof) {
+            eof = true;
             PostOffice.getInstance().send(streamId, new Kv(TYPE, EOF));
         }
     }

@@ -264,7 +264,7 @@ public class HttpRelay implements LambdaFunction {
                         while ((len = in.read(buffer, 0, buffer.length)) != -1) {
                             if (out == null) {
                                 stream = new ObjectStreamIO(request.getTimeoutSeconds());
-                                out = stream.getOutputStream();
+                                out = new ObjectStreamWriter(stream.getOutputStreamId());
                             }
                             out.write(buffer, 0, len);
                         }
@@ -276,7 +276,7 @@ public class HttpRelay implements LambdaFunction {
                     }
                     if (out != null) {
                         out.close();
-                        resEvent.setHeader(STREAM, stream.getRoute());
+                        resEvent.setHeader(STREAM, stream.getInputStreamId());
                     } else {
                         resEvent.setBody("");
                     }
@@ -393,37 +393,34 @@ public class HttpRelay implements LambdaFunction {
         return (host.endsWith("/")? host.substring(0, host.length()-1) : host) + (url.startsWith("/")? url : "/" + url);
     }
 
-    private File stream2file(String streamId, int timeout) throws IOException, AppException {
+    private File stream2file(String streamId, int timeoutSeconds) throws IOException, AppException {
         Utility util = Utility.getInstance();
         File temp = new File(tempDir, util.getUuid());
         FileOutputStream out = new FileOutputStream(temp);
-        ObjectStreamIO consumer = new ObjectStreamIO(streamId);
-        ObjectStreamReader in = consumer.getInputStream(timeout);
-        while (!in.isEof()) {
-            try {
-                for (Object block : in) {
-                    /*
-                     * only bytes or text are supported when using output stream
-                     * e.g. for downloading a large file
-                     */
-                    if (block instanceof byte[]) {
-                        out.write((byte[]) block);
-                    }
-                    if (block instanceof String) {
-                        out.write(util.getUTF((String) block));
-                    }
+        ObjectStreamReader in = new ObjectStreamReader(streamId, timeoutSeconds * 1000L);
+        try {
+            for (Object block : in) {
+                /*
+                 * only bytes or text are supported when using output stream
+                 * e.g. for downloading a large file
+                 */
+                if (block instanceof byte[]) {
+                    out.write((byte[]) block);
                 }
-            } catch (RuntimeException e) {
-                log.warn("Input stream {} interrupted - {}", streamId, e.getMessage());
-                if (e.getMessage().contains("timeout")) {
-                    throw new AppException(408, e.getMessage());
-                } else {
-                    throw new AppException(500, e.getMessage());
+                if (block instanceof String) {
+                    out.write(util.getUTF((String) block));
                 }
-            } finally {
-                in.close();
-                out.close();
             }
+        } catch (RuntimeException e) {
+            log.warn("Input stream {} interrupted - {}", streamId, e.getMessage());
+            if (e.getMessage().contains("timeout")) {
+                throw new AppException(408, e.getMessage());
+            } else {
+                throw new AppException(500, e.getMessage());
+            }
+        } finally {
+            in.close();
+            out.close();
         }
         return temp;
     }

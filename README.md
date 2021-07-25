@@ -322,7 +322,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -jar target/rest-example-2.0.0.jar
+java -jar target/rest-example-2.1.0.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -379,7 +379,7 @@ For development and testing, you can start a standalone Kafka server.
 # start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
 cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/kafka-standalone-2.0.0.jar
+java -jar target/kafka-standalone-2.1.0.jar
 # this will run a standalone Kafka server in the foreground
 ```
 
@@ -389,14 +389,14 @@ The next step is to start the "presence-monitor" application.
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -jar target/kafka-presence-2.0.0.jar
+java -jar target/kafka-presence-2.1.0.jar
 # this will run the presence monitor at port 8080 in the foreground
 
 # when an application instance is started, it connects to the presence monitor to get topic.
 # you will see log similar to the following:
 Adding member 20210405aa0220674e404169a5ec158a99714da6
 Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 begins RSVP
-multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 2.0.0
+multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 2.1.0
 Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 finished RSVP
 ```
 
@@ -405,7 +405,7 @@ Optionally, if you want to test resilience of the presence monitor, you can star
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.0.0.jar
+java -Dserver.port=8081 -jar target/kafka-presence-2.1.0.jar
 # this will run the presence monitor at port 8081 in the foreground
 ```
 
@@ -413,11 +413,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-2.0.0.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.0.0.jar
+java -Dcloud.connector=kafka -jar target/lambda-example-2.1.0.jar
 # the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.0.0.jar
+java -Dcloud.connector=kafka -jar target/rest-example-2.1.0.jar
 # the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this
@@ -445,6 +445,8 @@ in turns return the response event as shown above.
 The "cloud.connector=kafka" parameter overrides the application.properties in the rest-example and lambda-example 
 projects so they can select Kafka as the service mesh.
 
+If you use Jetbrains Idea ("IntelliJ") to run your project, please edit the start up config, click 'Modify options' and tick 'add VM options'. This allows you to set default run-time parameters. e.g. "-Dcloud.connector=kafka". Eclipse and other IDE would have similar run-time parameter options.
+
 - Get additional info from the presence monitor
 
 You may visit http://127.0.0.1:8080 and select "info". It may look like this:
@@ -454,7 +456,7 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
   "app": {
     "name": "kafka-presence",
     "description": "Presence Monitor",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "object.streams.io": {},
   "memory": {
@@ -469,8 +471,8 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
       "connections": 2
     },
     "virtual.topics": [
-      "multiplex.0001-000 -> 20210405a35e446f23cb41ab99f7016aef0846ad, rest-example v2.0.0",
-      "multiplex.0001-001 -> 20210405aa0220674e404169a5ec158a99714da6, lambda-example v2.0.0"
+      "multiplex.0001-000 -> 20210405a35e446f23cb41ab99f7016aef0846ad, rest-example v2.1.0",
+      "multiplex.0001-001 -> 20210405aa0220674e404169a5ec158a99714da6, lambda-example v2.1.0"
     ],
     "topics": [
       "multiplex.0001 (32)",
@@ -484,7 +486,7 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
         "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
         "type": "WEB",
         "updated": "2021-04-05T22:16:48Z",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "seq": 15,
         "group": 1
       },
@@ -495,7 +497,7 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
         "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
         "type": "APP",
         "updated": "2021-04-05T22:16:46Z",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "seq": 11,
         "group": 1
       }

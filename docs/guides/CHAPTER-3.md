@@ -19,9 +19,12 @@ PostOffice po = PostOffice.getInstance();
 
 ### RPC (Request-response)
 
-The Mercury framework is 100% event-driven and all communications are asynchronous. To emulate a synchronous RPC, it suspends the calling function and uses temporary Inbox as a callback function. The called function will send the reply to the callback function which in turns wakes up the calling function.
+The Mercury framework is 100% event-driven and all communications are asynchronous. 
+To emulate a synchronous RPC, it uses temporary Inbox as a callback function. 
+The target service will send reply to the callback function which in turns delivers the response.
 
-To make a RPC call, you can use the `request` method.
+To make an RPC call, you can use the `request` methods. These methods would throw exception if the response 
+status is not 200.
 
 ```java
 EventEnvelope request(String to, long timeout, Object body) throws IOException, TimeoutException, AppException;
@@ -34,7 +37,24 @@ System.out.println("I got response..."+response.getBody());
 
 ```
 
-Note that Mercury supports Java primitive, Map and PoJo in the message body. If you put other object, it may throw serialization exception or the object may become empty.
+A non-blocking version of RPC is available with the `asyncRequest` method. Only timeout exception will be sent
+to the onFailure method. All other cases will be delivered to the onSuccess method. You should check event.getStatus()
+to handle exception.
+
+```java
+Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout) throws IOException;
+
+// example
+Future<EventEnvelope> future = po.asyncRequest(new EventEnvelope().setTo(SERVICE).setBody(TEXT), 2000);
+future.onSuccess(event -> {
+    // handle the response event
+}).onFailure(ex -> {
+    // handle exception
+});
+```
+
+Note that Mercury supports Java primitive, Map and PoJo in the message body. 
+If you put other object, it may throw serialization exception or the object may become empty.
 
 ### Asynchronous / Drop-n-forget
 
@@ -58,7 +78,8 @@ A scheduled ID will be returned. You may cancel the scheduled delivery with `can
 
 ### Call-back
 
-You can register a call back function and uses its route name as the "reply-to" address in the send method. To set a reply-to address, you need to use the EventEnvelope directly.
+You can register a call back function and uses its route name as the "reply-to" address in the send method. 
+To set a reply-to address, you need to use the EventEnvelope directly.
 
 ```java
 void send(final EventEnvelope event) throws IOException;
@@ -71,9 +92,11 @@ po.send(event);
 
 ### Pipeline
 
-In a pipeline operation, there is stepwise event propagation. e.g. Function A sends to B and set the "reply-to" as C. Function B sends to C and set the "reply-to" as D, etc.
+In a pipeline operation, there is stepwise event propagation. e.g. Function A sends to B and set the "reply-to" as C. 
+Function B sends to C and set the "reply-to" as D, etc.
 
-To pass a list of stepwise targets, you may send the list as a parameter. Each function of the pipeline should forward the pipeline list to the next function.
+To pass a list of stepwise targets, you may send the list as a parameter. Each function of the pipeline should forward 
+the pipeline list to the next function.
 
 ```java
 EventEnvelope event = new EventEnvelope();
@@ -88,22 +111,29 @@ You can use streams for functional programming. There are two ways to do streami
 
 1. Singleton functions
 
-To create a singleton, you can set `instances` of the calling and called functions to 1. When you send events from the calling function to the called function, the platform guarantees that the event sequencing of the data stream.
+To create a singleton, you can set `instances` of the calling and called functions to 1. 
+When you send events from the calling function to the called function, the platform guarantees 
+that the event sequencing of the data stream.
 
-To guarantee that there is only one instance of the calling and called function, you should register them with a globally unique route name. e.g. using UUID like "producer-b351e7df-827f-449c-904f-a80f9f3ecafe" and "consumer-d15b639a-44d9-4bc2-bb54-79db4f866fe3".
+To guarantee that there is only one instance of the calling and called function, you should register 
+them with a globally unique route name. e.g. using UUID like "producer-b351e7df-827f-449c-904f-a80f9f3ecafe" 
+and "consumer-d15b639a-44d9-4bc2-bb54-79db4f866fe3".
 
 Note that you can programmatically `register` and `release` a function at run-time.
 
-If you create the functions at run-time, please remember to release the functions when processing is completed to avoid wasting system resources.
+If you create the functions at run-time, please remember to release the functions when processing is completed to 
+avoid wasting system resources.
 
 2. Object stream
 
 To do object streaming, you can use the ObjectStreamIO to create a stream or open an existing stream.
 Then, you can use the `ObjectStreamWriter` and the `ObjectStreamReader` classes to write to and read from the stream.
 
-For the producer, if you close the output stream, the system will send a `EOF` to signal that that there are no more events to the stream. 
+For the producer, if you close the output stream, the system will send a `EOF` to signal that there are no more 
+events to the stream. 
 
-For the consumer, When you detect the end of stream, you can close the input stream to release the stream and all resources associated with it.
+For the consumer, When you detect the end of stream, you can close the input stream to release the stream and all 
+resources associated with it.
 
 I/O stream consumes resources and thus you must close the input stream at the end of stream processing.
 The system will automatically close the stream upon an expiry timer that you provide when a new stream is created.
@@ -116,8 +146,8 @@ String messageTwo = "it is great";
 /*
  * Producer creates a new stream with 60 seconds inactivity expiry
  */
-ObjectStreamIO producer = new ObjectStreamIO(60);
-ObjectStreamWriter out = producer.getOutputStream();
+ObjectStreamIO stream = new ObjectStreamIO(60);
+ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
 out.write(messageOne);
 out.write(messageTwo);
 /*
@@ -129,43 +159,27 @@ out.write(messageTwo);
 //  out.close();
 
 /*
- * See all open streams in this application instance and verify that the new stream is there
+ * Producer should send the inputStreamId to the consumer using "stream.getInputStreamId()" after the stream is created.
+ * The consumer can then open the stream with the streamId.
  */
-String streamId = producer.getRoute();
-// remove the node-ID from the fully qualified route name
-String path = streamId.substring(0, streamId.indexOf('@'));
-Map<String, Object> localStreams = producer.getLocalStreams();
-assertTrue(localStreams.containsKey(path));
-
-/*
- * Producer should send the streamId to the consumer.
- * The consumer can then open the existing stream with the streamId.
- */
-ObjectStreamIO consumer = new ObjectStreamIO(streamId);
-/*
- * read object from the event stream
- * (minimum timeout value is one second)
- */
-ObjectStreamReader in = consumer.getInputStream(1000);
+ObjectStreamReader in = new ObjectStreamReader(inputStreamId, 8000);
 int i = 0;
-while (!in.isEof()) {
-    try {
-        for (Object data : in) {
-            i++;
-            if (i == 1) {
-                assertEquals(messageOne, data);
-            }
-            if (i == 2) {
-                assertEquals(messageTwo, data);
-            }
+try {
+    for (Object data : in) {
+        if (data == null) break; // EOF
+        i++;
+        if (i == 1) {
+            assertEquals(messageOne, data);
         }
-    } catch (RuntimeException e) {
-        // iterator will timeout since the stream was not closed
-        assertTrue(e.getMessage().contains("timeout"));
-        assertTrue(in.isPending());
-        break;
+        if (i == 2) {
+            assertEquals(messageTwo, data);
+        }
     }
+} catch (RuntimeException e) {
+    // iterator will timeout since the stream was not closed
+    assertTrue(e.getMessage().contains("timeout"));
 }
+
 // ensure that it has read the two messages
 assertEquals(2, i);
 // must close input stream to release resources
@@ -174,7 +188,8 @@ in.close();
 
 ### Broadcast
 
-Broadcast is the easiest way to do "pub/sub". To broadcast an event to multiple application instances, use the `broadcast` method.
+Broadcast is the easiest way to do "pub/sub". To broadcast an event to multiple application instances, 
+use the `broadcast` method.
 
 ```java
 void broadcast(String to, Kv... parameters) throws IOException;
@@ -251,7 +266,7 @@ However, if you want to do store-n-forward pub/sub for certain use cases, you ma
 In event streaming, pub/sub refers to the long term storage of events for event playback or "time rewind".
 For example, this "commit log" architecture is available in Apache Kafka.
 
-To test if the underlying event system supports pub/sub, use the "isNativePubSub" API.
+To test if the underlying event system supports pub/sub, use the "isStreamingPubSub" API.
 
 Following are some useful pub/sub API:
 
@@ -269,23 +284,25 @@ public void unsubscribe(String topic, int partition) throws IOException;
 public boolean exists(String topic) throws IOException;
 public int partitionCount(String topic) throws IOException;
 public List<String> list() throws IOException;
-public boolean isNativePubSub();
+public boolean isStreamingPubSub();
 ```
-Some pub/sub engine would require additional parameters when subscribing a topic. For Kafka, you must provide the following parameters
+Some pub/sub engine would require additional parameters when subscribing a topic. For Kafka, you must provide the 
+following parameters
 
 1. clientId
 2. groupId
 3. optional read offset pointer
 
-If the offset pointer is not given, Kafka will position the read pointer to the latest when the clientId and groupId are first seen.
-Thereafter, Kafka will remember the read pointer for the groupId and resume read from the last read pointer.
+If the offset pointer is not given, Kafka will position the read pointer to the latest when the clientId and groupId are 
+first seen. Thereafter, Kafka will remember the read pointer for the groupId and resume read from the last read pointer.
 
-As a result, for proper subscription, you must create the topic first and then create a lambda function to subscribe to the topic before publishing anything to the topic.
+As a result, for proper subscription, you must create the topic first and then create a lambda function to subscribe to 
+the topic before publishing anything to the topic.
 
 To read the event stream of a topic from the beginning, you can set offset to "0".
 
-The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do serialization yourself.
-The payload can be PoJo, Map or Java primitives.
+The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do 
+serialization yourself. The payload can be PoJo, Map or Java primitives.
 
 ---
 

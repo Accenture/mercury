@@ -24,6 +24,7 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.MsgPack;
+import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
@@ -52,7 +53,11 @@ public class LanguageConnector implements LambdaFunction {
     public static final String EVENT = "event";
     public static final String ROUTE = "route";
     public static final String BLOCK = "block";
-
+    private static final String STREAM_MANAGER = "object.streams.io";
+    private static final String CREATE_STREAM = "create_stream";
+    private static final String IN = "in";
+    private static final String OUT = "out";
+    private static final String EXPIRY = "expiry";
     private static final String ID = "id";
     private static final String TO = "to";
     private static final String FROM = "from";
@@ -227,6 +232,21 @@ public class LanguageConnector implements LambdaFunction {
             platform.registerPrivate(PUB_SUB_CONTROLLER, new PubSubController(), 1);
             platform.registerPrivate(DEFERRED_DELIVERY, new DeferredDelivery(), 1);
             LanguageConnector.inboxRoute = LANGUAGE_INBOX + "@" + platform.getOrigin();
+            // setup stream manager
+            Utility util = Utility.getInstance();
+            LambdaFunction streamManager = (headers, body, instance) -> {
+                if (CREATE_STREAM.equals(headers.get(TYPE)) && headers.containsKey(EXPIRY)) {
+                    int expiry = Math.max(1, util.str2int(headers.get(EXPIRY)));
+                    ObjectStreamIO stream = new ObjectStreamIO(expiry);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put(IN, stream.getInputStreamId());
+                    result.put(OUT, stream.getOutputStreamId());
+                    result.put(EXPIRY, expiry);
+                    return result;
+                }
+                return null;
+            };
+            platform.registerPrivate(STREAM_MANAGER, streamManager, 1);
         }
     }
 
@@ -381,7 +401,7 @@ public class LanguageConnector implements LambdaFunction {
                  * the service responses.
                  */
                 request.setExtra(token+replyTo);
-                request.setReplyTo(LanguageConnector.inboxRoute);
+                request.setReplyTo(inboxRoute);
             }
         }
         return request;
@@ -474,15 +494,16 @@ public class LanguageConnector implements LambdaFunction {
         return result;
     }
 
-    private class ConnectionStatus {
+    private static class ConnectionStatus {
 
-        private String rxPath, txPath, token;
-        private State state;
-        private Date created;
+        private State state = State.OPEN;
+        private final String rxPath;
+        private final String txPath;
+        private final String token;
+        private final Date created;
 
         public ConnectionStatus(String rxPath, String txPath, String token) {
             this.created = new Date();
-            this.state = State.OPEN;
             this.rxPath = rxPath;
             this.txPath = txPath;
             this.token = token;

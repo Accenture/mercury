@@ -21,6 +21,7 @@ package org.platformlambda.core.util;
 import com.google.api.client.http.*;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,7 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -43,21 +46,28 @@ public class WebSocketTest {
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
     private static final HttpRequestFactory factory = HTTP_TRANSPORT.createRequestFactory();
     private static final String HELLO_WORLD = "hello world";
+    private static final String WELCOME = "welcome";
+    private static final int PORT = 8086;
 
     @BeforeClass
     public static void setup() {
+        Utility util = Utility.getInstance();
         Vertx vertx = Vertx.vertx();
         vertx.createHttpServer()
                 .webSocketHandler(ws -> {
                     ws.accept();
                     ws.handler(data -> {
-                        byte[] b = data.getBytes();
-                        ws.writeTextMessage(Utility.getInstance().getUTF(b));
+                        String text = util.getUTF(data.getBytes());
+                        if (WELCOME.equals(text)) {
+                            ws.writeBinaryMessage(Buffer.buffer(WELCOME.getBytes()));
+                        } else {
+                            ws.writeTextMessage(text);
+                        }
                     });
                     ws.closeHandler(end -> log.info("socket closed"));
                 })
                 .requestHandler(request -> request.response().end(HELLO_WORLD))
-                .listen(8085)
+                .listen(PORT)
                 .onSuccess(server -> log.info("Listening to port {}", server.actualPort()))
                 .onFailure(ex -> {
                     log.error("Unable to start - {}", ex.getMessage());
@@ -68,7 +78,7 @@ public class WebSocketTest {
 
     @Test
     public void httpTest() throws IOException {
-        GenericUrl target = new GenericUrl("http://127.0.0.1:8085");
+        GenericUrl target = new GenericUrl("http://127.0.0.1:"+PORT);
         HttpRequest request = factory.buildGetRequest(target);
         HttpResponse response = request.execute();
         int rc = response.getStatusCode();
@@ -81,18 +91,21 @@ public class WebSocketTest {
     }
 
     @Test
-    public void wsTest() {
+    public void wsTest() throws InterruptedException {
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         String MESSAGE = "hello world";
+        Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
+        List<String> welcome = new ArrayList<>();
         LambdaFunction connector = (headers, body, instance) -> {
-            log.info("{}", headers);
             if ("open".equals(headers.get("type"))) {
                 String txPath = headers.get("tx_path");
                 Assert.assertNotNull(txPath);
+                po.send(txPath, WELCOME.getBytes());
                 po.send(txPath, MESSAGE);
             }
             if ("string".equals(headers.get("type"))) {
+                Assert.assertTrue(body instanceof String);
                 String text = (String) body;
                 if (text.startsWith("{") && text.contains("keep-alive")) {
                     bench.offer(true);
@@ -100,24 +113,23 @@ public class WebSocketTest {
                     Assert.assertEquals(MESSAGE, text);
                 }
             }
+            if ("bytes".equals(headers.get("type"))) {
+                Assert.assertTrue(body instanceof byte[]);
+                welcome.add(util.getUTF( (byte[]) body));
+            }
             return true;
         };
-        boolean ready = Utility.getInstance().portReady("127.0.0.1", 8085, 5000);
-        Assert.assertTrue(ready);
+        Assert.assertTrue(Utility.getInstance().portReady("127.0.0.1", PORT, 5000));
         PersistentWsClient client = new PersistentWsClient(connector,
-                Collections.singletonList("ws://127.0.0.1:8085/ws/test/hi"));
+                Collections.singletonList("ws://127.0.0.1:"+PORT+"/ws/test/hi"));
         // set condition to null or true means no startup condition
         client.setCondition(null);
         client.setCondition(() -> true);
         client.start();
-
-        try {
-            bench.poll(5000, TimeUnit.MILLISECONDS);
-            client.close();
-        } catch (InterruptedException e) {
-            // ok to ignore
-        }
-
+        bench.poll(5, TimeUnit.SECONDS);
+        Assert.assertEquals(1, welcome.size());
+        Assert.assertEquals(WELCOME, welcome.get(0));
+        client.close();
     }
 
 }

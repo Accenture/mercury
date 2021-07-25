@@ -56,8 +56,8 @@ public class FileDownload implements LambdaFunction {
             if (in == null) {
                 throw new AppException(404, "helloworld.txt not found");
             }
-            ObjectStreamIO producer = new ObjectStreamIO(60);
-            ObjectStreamWriter out = producer.getOutputStream();
+            ObjectStreamIO stream = new ObjectStreamIO(60);
+            ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
             // send file as an event stream
             int len, total = 0;
             byte[] buffer = new byte[1024];
@@ -67,9 +67,8 @@ public class FileDownload implements LambdaFunction {
             }
             // indicate EOF
             out.close();
-            log.info("Written {} bytes to {}", total, producer.getRoute());
-
-            return new EventEnvelope().setHeader("stream", producer.getRoute()).setHeader("timeout", 10)
+            log.info("Written {} bytes to {}", total, stream.getOutputStreamId());
+            return new EventEnvelope().setHeader("stream", stream.getInputStreamId()).setHeader("timeout", 10)
                     .setHeader("Content-Type", "application/octet-stream")
                     .setHeader("Content-Disposition", "attachment; filename=\"helloworld.txt\"");
         }

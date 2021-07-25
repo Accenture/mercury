@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util.main;
+package org.platformlambda.core.util.mock;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.annotations.OptionalService;
@@ -31,7 +31,7 @@ public class MockApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MockApp.class);
 
     @Override
-    public void start(String[] args) throws Exception {
+    public void start(String[] args) {
 
         Platform platform = Platform.getInstance();
         platform.connectToCloud();

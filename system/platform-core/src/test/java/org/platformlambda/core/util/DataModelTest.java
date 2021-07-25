@@ -22,12 +22,219 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
+import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.models.PoJo;
 
+import javax.websocket.*;
+import java.io.IOException;
+import java.net.URI;
+import java.security.Principal;
 import java.util.*;
 
 public class DataModelTest {
+
+    private static final WsRegistry registry = WsRegistry.getInstance();
+
+    @Test
+    public void websocketRegistryTest() throws IOException {
+        final String SESSION_ID = "12345";
+        final String IP_ADDRESS = "10.123.12.3";
+        Session noOpSession = new Session() {
+            @Override
+            public WebSocketContainer getContainer() {
+                return null;
+            }
+
+            @Override
+            public void addMessageHandler(MessageHandler messageHandler) throws IllegalStateException {
+
+            }
+
+            @Override
+            public Set<MessageHandler> getMessageHandlers() {
+                return null;
+            }
+
+            @Override
+            public void removeMessageHandler(MessageHandler messageHandler) {
+
+            }
+
+            @Override
+            public String getProtocolVersion() {
+                return null;
+            }
+
+            @Override
+            public String getNegotiatedSubprotocol() {
+                return null;
+            }
+
+            @Override
+            public List<Extension> getNegotiatedExtensions() {
+                return null;
+            }
+
+            @Override
+            public boolean isSecure() {
+                return false;
+            }
+
+            @Override
+            public boolean isOpen() {
+                return false;
+            }
+
+            @Override
+            public long getMaxIdleTimeout() {
+                return 0;
+            }
+
+            @Override
+            public void setMaxIdleTimeout(long l) {
+
+            }
+
+            @Override
+            public void setMaxBinaryMessageBufferSize(int i) {
+
+            }
+
+            @Override
+            public int getMaxBinaryMessageBufferSize() {
+                return 0;
+            }
+
+            @Override
+            public void setMaxTextMessageBufferSize(int i) {
+
+            }
+
+            @Override
+            public int getMaxTextMessageBufferSize() {
+                return 0;
+            }
+
+            @Override
+            public RemoteEndpoint.Async getAsyncRemote() {
+                return null;
+            }
+
+            @Override
+            public RemoteEndpoint.Basic getBasicRemote() {
+                return null;
+            }
+
+            @Override
+            public String getId() {
+                return SESSION_ID;
+            }
+
+            @Override
+            public void close() throws IOException {
+
+            }
+
+            @Override
+            public void close(CloseReason closeReason) throws IOException {
+
+            }
+
+            @Override
+            public URI getRequestURI() {
+                return URI.create("/ws/hello");
+            }
+
+            @Override
+            public Map<String, List<String>> getRequestParameterMap() {
+                return null;
+            }
+
+            @Override
+            public String getQueryString() {
+                return "ip="+IP_ADDRESS;
+            }
+
+            @Override
+            public Map<String, String> getPathParameters() {
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getUserProperties() {
+                return null;
+            }
+
+            @Override
+            public Principal getUserPrincipal() {
+                return null;
+            }
+
+            @Override
+            public Set<Session> getOpenSessions() {
+                return null;
+            }
+
+            @Override
+            public <T> void addMessageHandler(Class<T> aClass, MessageHandler.Partial<T> partial) throws IllegalStateException {
+
+            }
+
+            @Override
+            public <T> void addMessageHandler(Class<T> aClass, MessageHandler.Whole<T> whole) throws IllegalStateException {
+
+            }
+        };
+        LambdaFunction noOp = (headers, body, instance) -> true;
+        registry.createHandler(noOp, noOpSession);
+        String route = registry.getRoute(SESSION_ID);
+        Assert.assertTrue(registry.exists(route));
+        Assert.assertTrue(route.startsWith("websocket.in."));
+        Assert.assertEquals(IP_ADDRESS, registry.get(route).ip);
+        Assert.assertTrue(registry.size() > 0);
+        Assert.assertTrue(registry.getTxPath(SESSION_ID).startsWith("websocket.out."));
+        registry.release(route);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void eventEnvelopeSpecialAttributeTest() throws IOException {
+        final String TEXT = "hello world";
+        final Date now = new Date();
+        final String ID = "12345";
+        PoJo pojo = new PoJo();
+        pojo.setName(TEXT);
+        EventEnvelope event = new EventEnvelope();
+        event.setId(ID);
+        // getError will return null if status is not set
+        Assert.assertNull(event.getError());
+        event.setStatus(400);
+        event.setHeader("date", now);
+        event.setHeader("empty", null);
+        event.setCorrelationId(ID);
+        event.setTraceId(ID);
+        event.setExtra(ID);
+        event.setPoJoEnabled(false);
+        event.setBody(pojo);
+        Assert.assertEquals("", event.getHeaders().get("empty"));
+        Assert.assertTrue(event.hasError());
+        Assert.assertEquals(ID, event.getId());
+        Assert.assertEquals(ID, event.getExtra());
+        Assert.assertEquals(ID, event.getCorrelationId());
+        Assert.assertEquals(ID, event.getTraceId());
+        Assert.assertFalse(event.isPoJoEnabled());
+        byte[] b = event.toBytes();
+        // since pojo transport is disabled, the restored body will be a Map
+        EventEnvelope restored = new EventEnvelope(b);
+        Assert.assertTrue(restored.getBody() instanceof Map);
+        Map<String, Object> map = (Map<String, Object>) restored.getBody();
+        Assert.assertEquals(TEXT, map.get("name"));
+        Assert.assertEquals(Integer.valueOf(400), event.getStatus());
+        Assert.assertEquals(map.toString(), restored.getError());
+    }
 
     @SuppressWarnings("unchecked")
     @Test
@@ -43,7 +250,6 @@ public class DataModelTest {
         PoJo restoredBody = (PoJo) restored.getBody();
         Assert.assertEquals(pojo.getName(), restoredBody.getName());
         Assert.assertEquals(pojo.getNumber(), restoredBody.getNumber());
-
         int NUMBER = 12345;
         AsyncHttpRequest request2 = new AsyncHttpRequest();
         request2.setBody(NUMBER);

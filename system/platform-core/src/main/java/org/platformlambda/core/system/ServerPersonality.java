@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,11 +37,6 @@ public class ServerPersonality {
         REST, WEB, APP, RESOURCES
     }
     private Type type = Type.APP;
-
-    public ServerPersonality() {
-        Utility util = Utility.getInstance();
-        ensureDirExists(util.getWorkFolder());
-    }
 
     public static ServerPersonality getInstance() {
         return instance;

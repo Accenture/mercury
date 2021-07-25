@@ -21,7 +21,8 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.services.ObjectStreamService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -29,14 +30,13 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(ObjectStreamReader.class);
 
-    private static final String TYPE = ObjectStreamService.TYPE;
-    private static final String READ = ObjectStreamService.READ;
-    private static final String PEEK = ObjectStreamService.PEEK;
-    private static final String BODY = ObjectStreamService.BODY;
-    private static final String EOF = ObjectStreamService.EOF;
-    private static final String PENDING = ObjectStreamService.PENDING;
-    private static final String CLOSE = ObjectStreamService.CLOSE;
+    private static final String TYPE = "type";
+    private static final String READ = "read";
+    private static final String DATA = "data";
+    private static final String EOF = "eof";
+    private static final String CLOSE = "close";
 
     private final ObjectBlockReader iterator;
     private final long timeout;
@@ -45,8 +45,7 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
 
     public ObjectStreamReader(String streamId, long timeout) {
         this.streamId = streamId;
-        // the minimum timeout for an event stream is one second
-        this.timeout = timeout < 1000? 1000 : timeout;
+        this.timeout = Math.max(1000, timeout);
         this.iterator = new ObjectBlockReader();
     }
 
@@ -55,106 +54,53 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
         return iterator;
     }
 
-    public boolean isPending() {
-        EventEnvelope event = iterator.peek();
-        String type = event.getHeaders().get(TYPE);
-        return PENDING.equals(type);
-    }
-
-    public boolean isEof() {
-        if (iterator.isEof()) {
-            return true;
-        } else {
-            EventEnvelope event = iterator.peek();
-            String type = event.getHeaders().get(TYPE);
-            return EOF.equals(type);
-        }
-    }
-
     @Override
     public void close() throws IOException {
         if (!closed) {
             closed = true;
-            PostOffice.getInstance().send(streamId, new Kv(TYPE, CLOSE));
+            try {
+                // For graceful resource cleanup, wait for close completion
+                PostOffice.getInstance().request(streamId, 10000, new Kv(TYPE, CLOSE));
+            } catch (TimeoutException | AppException e) {
+                log.warn("Exception while closing {} - {}", streamId, e.getMessage());
+            }
         }
     }
 
     private class ObjectBlockReader implements Iterator<Object> {
 
         private boolean eof = false;
-        private Object block = null;
-        private EventEnvelope peeked = null;
 
         @Override
         public boolean hasNext() {
-            if (eof) {
-                return false;
-            }
-            fetch();
-            return block != null;
+            return !eof;
         }
 
         @Override
         public Object next() {
-            if (eof) {
-                return null;
-            }
-            if (block == null) {
-                fetch();
-            }
-            Object result = block;
-            block = null;
-            return result;
+            return eof? null : fetch();
         }
 
-        private boolean isEof() {
-            return eof;
-        }
-
-        /**
-         * Non-blocking peek
-         *
-         * @return event envelope indicates EOF, BODY or PENDING
-         */
-        private EventEnvelope peek() {
-            if (peeked != null) {
-                return peeked;
-            }
-            try {
-                EventEnvelope event = PostOffice.getInstance().request(streamId, timeout, new Kv(TYPE, PEEK));
-                if (event.hasError()) {
-                    throw new AppException(event.getStatus(), event.getError());
-                }
-                peeked = event;
-                return event;
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        }
-
-        private void fetch() {
-            // clear peeked item
-            peeked = null;
-            // read next item
+        private Object fetch() {
             try {
                 EventEnvelope event = PostOffice.getInstance().request(streamId, timeout, new Kv(TYPE, READ));
                 if (event.hasError()) {
-                    throw new AppException(event.getStatus(), event.getError());
+                    throw new IOException(event.getError());
                 }
                 Map<String, String> headers = event.getHeaders();
                 if (headers.containsKey(TYPE)) {
                     String type = headers.get(TYPE);
                     if (type.equals(EOF)) {
                         eof = true;
-                    }
-                    if (type.equals(BODY)) {
-                        block = event.getBody();
+                    } else if (type.equals(DATA)) {
+                        return event.getBody();
                     }
                 }
             } catch (AppException | IOException | TimeoutException e) {
-                // translate to RunTimeException because this method is used by an iterator
+                eof = true;
                 throw new RuntimeException(e.getMessage());
             }
+            return null;
         }
     }
 

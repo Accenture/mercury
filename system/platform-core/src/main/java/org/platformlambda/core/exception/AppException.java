@@ -22,7 +22,7 @@ public class AppException extends Exception {
 
 	private static final long serialVersionUID = -2731574164489831608L;
 	
-	private int status;
+	private final int status;
 
     public AppException(int status, String message) {
         super(message);

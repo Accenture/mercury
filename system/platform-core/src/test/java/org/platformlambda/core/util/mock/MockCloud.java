@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util.services;
+package org.platformlambda.core.util.mock;
 
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.models.CloudSetup;
@@ -98,8 +98,7 @@ public class MockCloud implements CloudSetup {
         LambdaFunction connector = (headers, body, instance) -> {
             // emulate a cloud connector to handle broadcast
             if ("1".equals(headers.get("broadcast")) && body instanceof byte[]) {
-                EventEnvelope event = new EventEnvelope();
-                event.load((byte[]) body);
+                EventEnvelope event = new EventEnvelope((byte[]) body);
                 PostOffice.getInstance().send(event.setBroadcastLevel(0));
             }
             return null;

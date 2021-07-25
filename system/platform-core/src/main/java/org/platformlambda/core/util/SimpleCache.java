@@ -38,8 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
-    private static final long HOUSEKEEPING_INTERVAL = 10000;
-    private static final long MIN_EXPIRY = HOUSEKEEPING_INTERVAL;
+    private static final long MIN_EXPIRY = 1000;
     private static final ConcurrentMap<String, SimpleCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
     private final String name;
@@ -126,20 +125,6 @@ public class SimpleCache {
         }
         if (!expired.isEmpty()) {
             for (String k : expired) {
-                TimedItem item = cache.get(k);
-                /*
-                 * if the payload is EventBlocks, it should be cleared when it is consumed
-                 */
-                if (item.payload instanceof EventBlocks) {
-                    EventBlocks evt = (EventBlocks) item.payload;
-                    if (evt.getExpectedSize() != evt.size()) {
-                        log.error("Event segments {} expired - Expected size: {}, Actual: {}",
-                                evt.getId(), evt.getExpectedSize(), evt.size());
-                    } else {
-                        log.error("Event segments {} with {} block{} expired",
-                                evt.getId(), evt.getExpectedSize(), evt.getExpectedSize() == 1? "" : "s");
-                    }
-                }
                 remove(k);
             }
             log.info("Total {} item{} expired, remaining: {}",

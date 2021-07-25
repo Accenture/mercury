@@ -33,12 +33,10 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Inbox {
+public class Inbox extends InboxBase implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(Inbox.class);
 
-    private static final ConcurrentMap<String, Inbox> inboxes = new ConcurrentHashMap<>();
     private final MessageConsumer<byte[]> listener;
-    private final String id;
     private final int n;
     private final long begin = System.nanoTime();
     private final AtomicInteger total = new AtomicInteger(1);
@@ -60,11 +58,7 @@ public class Inbox {
         }
         this.id = "r."+ Utility.getInstance().getUuid();
         this.listener = Platform.getInstance().getEventSystem().localConsumer(this.id, new InboxHandler());
-        Inbox.inboxes.put(id, this);
-    }
-
-    public String getId() {
-        return id;
+        inboxes.put(id, this);
     }
 
     public void waitForResponse(long timeout) {
@@ -101,12 +95,8 @@ public class Inbox {
         }
     }
 
-    public static Inbox getHolder(String inboxId) {
-        return Inbox.inboxes.get(inboxId);
-    }
-
-    public static void saveResponse(String inboxId, EventEnvelope reply) {
-        Inbox holder = Inbox.inboxes.get(inboxId);
+    private void saveResponse(String inboxId, EventEnvelope reply) {
+        Inbox holder = (Inbox) inboxes.get(inboxId);
         if (holder != null) {
             float diff = System.nanoTime() - holder.begin;
             reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
@@ -124,6 +114,7 @@ public class Inbox {
         }
     }
 
+    @Override
     public void close() {
         Inbox.inboxes.remove(id);
         if (listener.isRegistered()) {
@@ -135,12 +126,12 @@ public class Inbox {
 
         @Override
         public void handle(Message<byte[]> message) {
-            EventEnvelope event = new EventEnvelope();
+
             try {
-                event.load(message.body());
+                EventEnvelope event = new EventEnvelope(message.body());
                 String inboxId = event.getReplyTo();
                 if (inboxId != null) {
-                    Inbox.saveResponse(inboxId, event);
+                    saveResponse(inboxId, event);
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());

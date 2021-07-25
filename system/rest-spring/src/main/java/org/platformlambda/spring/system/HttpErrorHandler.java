@@ -62,16 +62,6 @@ public class HttpErrorHandler implements ErrorController {
     private static final String SET_WARNING = "${warning}";
     private static String template;
 
-    @Override
-    @Deprecated
-    public String getErrorPath() {
-        /*
-         * this method is deprecated since Spring Boot 2.3.0
-         * (The default property is in "server.error.path" and we assume we are using default value)
-         */
-        return ERROR_PATH;
-    }
-
     @RequestMapping(ERROR_PATH)
     public void handlerError(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String path = (String) request.getAttribute(REQUEST_URI);

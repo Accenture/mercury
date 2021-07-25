@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util.services;
+package org.platformlambda.core.util.mock;
 
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;

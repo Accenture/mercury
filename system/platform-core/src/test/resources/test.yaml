@@ -11,7 +11,7 @@ hello:
   name: ${application.name}
   location:
   - abcde
-  - ${application.work.location}
+  - ${server.port}
   - world:
       blvd: 100
 

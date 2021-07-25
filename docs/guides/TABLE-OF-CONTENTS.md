@@ -18,6 +18,8 @@ Welcome to Mercury, the open sources project to make software easy to write, tes
 
 [Chapter 7 - Version control](CHAPTER-7.md)
 
+[Chapter 8 - Multicast](CHAPTER-8.md)
+
 [Appendix I - application.properties](APPENDIX-I.md)
 
 [Appendix II - Reserved route names](APPENDIX-II.md)

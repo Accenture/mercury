@@ -35,6 +35,7 @@ import java.util.concurrent.TimeoutException;
 public class InfoService implements LambdaFunction {
     private static final String ERROR = "error";
     private static final String SYSTEM_INFO = "additional.info";
+    private static final String STREAMS = "streams";
     private static final String JAVA_VERSION = "java.version";
     private static final String JAVA_VM_VERSION = "java.vm.version";
     private static final String JAVA_RUNTIME_VERSION = "java.runtime.version";
@@ -143,7 +144,7 @@ public class InfoService implements LambdaFunction {
             /*
              * check streams resources if any
              */
-            updateResult(PostOffice.STREAM_MANAGER, result);
+            result.put(STREAMS, ObjectStreamIO.getStreamInfo());
             updateResult(SYSTEM_INFO, result);
             result.put(ORIGIN, platform.getOrigin());
             result.put(PERSONALITY, ServerPersonality.getInstance().getType().name());

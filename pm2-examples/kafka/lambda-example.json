@@ -8,10 +8,10 @@
         "args":[
             "-Dcloud.connector=kafka",
             "-jar",
-            "examples/lambda-example/target/lambda-example-2.0.0.jar"
+            "examples/lambda-example/target/lambda-example-2.1.0.jar"
         ],
         "watch":[
-            "examples/lambda-example/target/lambda-example-2.0.0.jar"
+            "examples/lambda-example/target/lambda-example-2.1.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

@@ -70,8 +70,6 @@ public class Utility {
     private static final String DEFAULT_APPNAME = "application";
     private static final String APP_VERSION = "info.app.version";
     private static final String DEFAULT_APP_VERSION = "1.0.0";
-    private static final String WORK_FOLDER = "application.work.location";
-    private static final String LAMBDA_FOLDER_NAME = "/tmp/lambda/apps";
     private static final String[] RESERVED_FILENAMES = {"thumbs.db"};
     private static final String[] RESERVED_EXTENSIONS = {
             ".con", ".prn", ".aux", ".nul", ".com", ".exe",
@@ -111,7 +109,6 @@ public class Utility {
         return list;
     }
 
-    @SuppressWarnings("unchecked")
     private void scanLibInfo() {
         if (!loaded) {
             synchronized (ORDERLY_SCAN) {
@@ -175,15 +172,10 @@ public class Utility {
         return value.length() < len? ZEROS.substring(0, len - value.length()) + value : value;
     }
 
-    public String normalizeFolder(String folder) {
-        String result = folder.startsWith("~") ? folder.replace("~", System.getProperty("user.home")) : folder;
-        return result.replace("\\", "/");
-    }
-
-    public File getWorkFolder() {
-        AppConfigReader reader = AppConfigReader.getInstance();
-        return new File(new File(normalizeFolder(reader.getProperty(WORK_FOLDER, LAMBDA_FOLDER_NAME))),
-                                 getPackageName());
+    public String zeroFill(long seq, long max) {
+        int len = String.valueOf(max).length();
+        String value = String.valueOf(seq);
+        return value.length() < len? ZEROS.substring(0, len - value.length()) + value : value;
     }
 
     public String getUuid() {
@@ -823,7 +815,7 @@ public class Utility {
                 }
             }
             String prettyStr = sb.toString();
-            result = prettyStr.endsWith("\n") ? prettyStr : sb.toString()+"\r\n";
+            result = prettyStr.endsWith("\n") ? prettyStr : sb+"\r\n";
         }
         return result;
     }

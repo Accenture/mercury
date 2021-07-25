@@ -19,6 +19,7 @@
 package org.platformlambda.cloud.services;
 
 import org.platformlambda.cloud.reporter.PresenceConnector;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -33,6 +34,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@ZeroTracing
 public class ServiceRegistry implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistry.class);
 

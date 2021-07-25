@@ -22,10 +22,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.annotations.CloudService;
-import org.platformlambda.core.models.CloudSetup;
-import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.TargetRoute;
-import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -304,32 +301,12 @@ public class Platform {
     }
 
     @SuppressWarnings("rawtypes")
-    private void register(String route, TypedLambdaFunction lambda, Boolean isPrivate, Integer instances)
+    private void register(String route, TypedLambdaFunction lambda, boolean isPrivate, int instances)
             throws IOException {
-        if (route == null) {
-            throw new IOException("Missing service routing path");
-        }
         if (lambda == null) {
             throw new IOException("Missing lambda function");
         }
-        // guarantee that only valid service name is registered
-        Utility util = Utility.getInstance();
-        if (!util.validServiceName(route)) {
-            throw new IOException("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters");
-        }
-        String path = util.filteredServiceName(route);
-        if (path.length() == 0) {
-            throw new IOException("Invalid route name");
-        }
-        if (!path.contains(".")) {
-            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
-        }
-        if (util.reservedExtension(path)) {
-            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
-        }
-        if (util.reservedFilename(path)) {
-            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
-        }
+        String path = getValidatedRoute(route);
         if (registry.containsKey(path)) {
             log.warn("{} will be reloaded", path);
             release(path);
@@ -354,6 +331,68 @@ public class Platform {
         if (!isPrivate) {
             advertiseRoute(route);
         }
+    }
+
+    public void registerStream(String route, StreamFunction lambda) throws IOException {
+        registerStream(route, lambda, false);
+    }
+
+    public void registerPrivateStream(String route, StreamFunction lambda) throws IOException {
+        registerStream(route, lambda, true);
+    }
+
+    private void registerStream(String route, StreamFunction lambda, boolean isPrivate) throws IOException {
+        if (lambda == null) {
+            throw new IOException("Missing lambda function");
+        }
+        String path = getValidatedRoute(route);
+        if (registry.containsKey(path)) {
+            log.warn("{} will be reloaded", path);
+            release(path);
+        }
+        String uuid = UUID.randomUUID().toString();
+        BlockingQueue<Boolean> signal = new ArrayBlockingQueue<>(1);
+        ServiceDef service = new ServiceDef(path, lambda).setConcurrency(1).setPrivate(isPrivate).setStream(true);
+        ServiceQueue manager = new ServiceQueue(service);
+        service.setManager(manager);
+        try {
+            serviceTokens.put(uuid, signal);
+            system.send(service.getRoute(), INIT+uuid);
+            signal.poll(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            log.error("{} took longer to initialize - the event system may be unhealthy", path);
+        } finally {
+            serviceTokens.remove(uuid);
+        }
+        registry.put(path, service);
+        if (!isPrivate) {
+            advertiseRoute(route);
+        }
+    }
+
+    private String getValidatedRoute(String route) throws IOException {
+        if (route == null) {
+            throw new IOException("Missing service routing path");
+        }
+        // guarantee that only valid service name is registered
+        Utility util = Utility.getInstance();
+        if (!util.validServiceName(route)) {
+            throw new IOException("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters");
+        }
+        String path = util.filteredServiceName(route);
+        if (path.length() == 0) {
+            throw new IOException("Invalid route name");
+        }
+        if (!path.contains(".")) {
+            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
+        }
+        if (util.reservedExtension(path)) {
+            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
+        }
+        if (util.reservedFilename(path)) {
+            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
+        }
+        return path;
     }
 
     private void advertiseRoute(String route) throws IOException {

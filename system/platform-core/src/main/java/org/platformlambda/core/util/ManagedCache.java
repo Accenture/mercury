@@ -47,7 +47,6 @@ public class ManagedCache {
         this.expiry = expiryMs;
         this.maxItems = maxItems;
         if (counter.incrementAndGet() == 1) {
-            // clean up cache every 5 minutes to promote garbage collection
             CleanUp cleanUp = new CleanUp();
             cleanUp.start();
         }

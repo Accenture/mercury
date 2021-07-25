@@ -5,14 +5,14 @@
 
     <groupId>com.accenture</groupId>
     <artifactId>rest-example</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <packaging>jar</packaging>
     <name>REST example application</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.4.4</version>
+        <version>2.5.3</version>
         <relativePath/>
     </parent>
 
@@ -40,7 +40,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring</artifactId>
-            <version>2.0.0</version>
+            <version>2.1.0</version>
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
@@ -52,12 +52,12 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>2.0.0</version>
+            <version>2.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>2.0.0</version>
+            <version>2.1.0</version>
         </dependency>
         <!-- Tomcat servlet API and implementation are fetched from the rest-spring library.
              For WAR deployment, add tomcat dependency with "provided" scope here -->

@@ -18,15 +18,17 @@
 
 package org.platformlambda.core.system;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.actuator.ActuatorServices;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.services.DistributedTrace;
-import org.platformlambda.core.services.ObjectStreamManager;
+import org.platformlambda.core.services.Multicaster;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
+import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -34,9 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 public class PostOffice {
     private static final Logger log = LoggerFactory.getLogger(PostOffice.class);
@@ -44,13 +44,13 @@ public class PostOffice {
     public static final int ONE_MILLISECOND = 1000000;
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
-    public static final String STREAM_MANAGER = "object.streams.io";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     public static final String ACTUATOR_SERVICES = "actuator.services";
-    private static final String[] BUILT_IN = {STREAM_MANAGER, DISTRIBUTED_TRACING, ACTUATOR_SERVICES};
+    private static final String[] BUILT_IN = {DISTRIBUTED_TRACING, ACTUATOR_SERVICES};
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
+    private static final String MULTICAST_YAML = "multicast.yaml";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
@@ -60,7 +60,6 @@ public class PostOffice {
         Platform platform = Platform.getInstance();
         try {
             // start built-in services
-            platform.registerPrivate(STREAM_MANAGER, new ObjectStreamManager(), 1);
             platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
             platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 1);
             log.info("Includes {}", Arrays.asList(BUILT_IN));
@@ -69,6 +68,14 @@ public class PostOffice {
             if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
                 loadRouteSubstitution();
             }
+            String location = config.getProperty(MULTICAST_YAML);
+            if (location != null) {
+                log.info("Loading multicast config from {}", location);
+                ConfigReader reader = new ConfigReader();
+                reader.load(location);
+                startMulticast(reader.getMap());
+            }
+
         } catch (IOException e) {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
@@ -77,6 +84,36 @@ public class PostOffice {
 
     public static PostOffice getInstance() {
         return instance;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void startMulticast(Map<String, Object> map) {
+        Set<String> list = new HashSet<>();
+        Platform platform = Platform.getInstance();
+        MultiLevelMap multi = new MultiLevelMap(map);
+        int n = 0;
+        while (true) {
+            String source = (String) multi.getElement("multicast["+n+"].source");
+            List<String> targets = (List<String>) multi.getElement("multicast["+n+"].targets");
+            if (source == null || targets == null) {
+                break;
+            }
+            n++;
+            if (targets.contains(source)) {
+                log.error("Cyclic multicast ignored ({} exists in {})", source, targets);
+                continue;
+            }
+            if (list.contains(source)) {
+                log.error("Duplicated multicast ignored ({} already defined)", source);
+                continue;
+            }
+            list.add(source);
+            try {
+                platform.registerPrivate(source, new Multicaster(source, targets), 1);
+            } catch (IOException e) {
+                log.error("Unable to register multicast {} - {}", source, e.getMessage());
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -405,7 +442,7 @@ public class PostOffice {
     public String sendLater(final EventEnvelope event, Date future) throws IOException {
         String dest = event.getTo();
         if (dest == null) {
-            throw new IOException("Missing routing path");
+            throw new IllegalArgumentException("Missing routing path");
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -421,10 +458,7 @@ public class PostOffice {
         }
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
-        long interval = futureMs - now;
-        if (interval < 1) {
-            throw new IOException("Future milliseconds must be later than present time");
-        }
+        long interval = Math.max(1, futureMs - now);
         // best effort to check if the target can be discovered
         discover(to, event.isEndOfRoute());
         log.debug("Future event to {} in {} ms", to, interval);
@@ -541,7 +575,7 @@ public class PostOffice {
     public void send(final EventEnvelope event) throws IOException {
         String dest = event.getTo();
         if (dest == null) {
-            throw new IOException("Missing routing path");
+            throw new IllegalArgumentException("Missing routing path");
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -561,7 +595,7 @@ public class PostOffice {
             String origin = to.substring(slash+1);
             if (origin.equals(Platform.getInstance().getOrigin())) {
                 String cid = to.substring(0, slash);
-                Inbox inbox = Inbox.getHolder(cid);
+                InboxBase inbox = Inbox.getHolder(cid);
                 if (inbox != null) {
                     // Clear broadcast indicator because this is a reply message to an inbox
                     event.setReplyTo(cid).setBroadcastLevel(0);
@@ -703,11 +737,11 @@ public class PostOffice {
      */
     public EventEnvelope request(final EventEnvelope event, long timeout) throws IOException, TimeoutException, AppException {
         if (event == null) {
-            throw new IOException("Missing outgoing event");
+            throw new IllegalArgumentException("Missing outgoing event");
         }
         String dest = event.getTo();
         if (dest == null) {
-            throw new IOException("Missing routing path");
+            throw new IllegalArgumentException("Missing routing path");
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -723,26 +757,26 @@ public class PostOffice {
         }
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());
-        Inbox inbox = new Inbox(1);
-        event.setReplyTo(inbox.getId()+"@"+platform.getOrigin());
-        // broadcast is not possible with RPC call
-        event.setBroadcastLevel(0);
-        if (target.isCloud()) {
-            MultipartPayload.getInstance().outgoing(target.getManager(), event);
-        } else {
-            platform.getEventSystem().send(target.getManager().getRoute(), event.toBytes());
+        try (Inbox inbox = new Inbox(1)) {
+            event.setReplyTo(inbox.getId() + "@" + platform.getOrigin());
+            // broadcast is not possible with RPC call
+            event.setBroadcastLevel(0);
+            if (target.isCloud()) {
+                MultipartPayload.getInstance().outgoing(target.getManager(), event);
+            } else {
+                platform.getEventSystem().send(target.getManager().getRoute(), event.toBytes());
+            }
+            // wait for response
+            inbox.waitForResponse(Math.max(10, timeout));
+            EventEnvelope result = inbox.getReply();
+            if (result == null) {
+                throw new TimeoutException(to + " timeout for " + timeout + " ms");
+            }
+            if (result.hasError()) {
+                throw new AppException(result.getStatus(), result.getError());
+            }
+            return result;
         }
-        // wait for response
-        inbox.waitForResponse(timeout < 10? 10 : timeout);
-        EventEnvelope result = inbox.getReply();
-        inbox.close();
-        if (result == null) {
-            throw new TimeoutException(to+" timeout for "+timeout+" ms");
-        }
-        if (result.hasError()) {
-            throw new AppException(result.getStatus(), result.getError());
-        }
-        return result;
     }
 
     /////////////////////////////////////////
@@ -760,7 +794,7 @@ public class PostOffice {
      */
     public List<EventEnvelope> request(List<EventEnvelope> events, long timeout) throws IOException {
         if (events == null || events.isEmpty()) {
-            throw new IOException("Missing outgoing events");
+            throw new IllegalArgumentException("Missing outgoing events");
         }
         List<TargetRoute> destinations = new ArrayList<>();
         int seq = 0;
@@ -768,7 +802,7 @@ public class PostOffice {
             seq++;
             String dest = event.getTo();
             if (dest == null) {
-                throw new IOException("Missing routing path");
+                throw new IllegalArgumentException("Missing routing path");
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
@@ -791,25 +825,72 @@ public class PostOffice {
         }
         Platform platform = Platform.getInstance();
         EventBus system = platform.getEventSystem();
-        Inbox inbox = new Inbox(events.size());
-        String replyTo = inbox.getId()+"@"+platform.getOrigin();
-        int n = 0;
-        for (EventEnvelope event: events) {
-            TargetRoute target = destinations.get(n);
-            event.setBroadcastLevel(0);
-            event.setReplyTo(replyTo);
-            if (target.isCloud()) {
-                MultipartPayload.getInstance().outgoing(target.getManager(), event);
-            } else {
-                system.send(target.getManager().getRoute(), event.toBytes());
+        try (Inbox inbox = new Inbox(events.size())) {
+            String replyTo = inbox.getId() + "@" + platform.getOrigin();
+            int n = 0;
+            for (EventEnvelope event : events) {
+                TargetRoute target = destinations.get(n);
+                event.setBroadcastLevel(0);
+                event.setReplyTo(replyTo);
+                if (target.isCloud()) {
+                    MultipartPayload.getInstance().outgoing(target.getManager(), event);
+                } else {
+                    system.send(target.getManager().getRoute(), event.toBytes());
+                }
+                n++;
             }
-            n++;
+            // wait for response
+            inbox.waitForResponse(Math.max(10, timeout));
+            return inbox.getReplies();
         }
-        // wait for response
-        inbox.waitForResponse(timeout < 10? 10 : timeout);
-        List<EventEnvelope> results = inbox.getReplies();
-        inbox.close();
-        return results;
+    }
+
+    /**
+     * Send a request asynchronously with a future result
+     * <p>
+     * You can retrieve result from the future's
+     * onSuccess(EventEnvelope event)
+     * onFailure(Throwable timeoutException)
+     * <p>
+     * You may check return result EventEnvelope's status to handle error cases.
+     *
+     * @param event to the target
+     * @param timeout in milliseconds
+     * @return future result
+     * @throws IOException in case of error
+     */
+    public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout) throws IOException {
+        if (event == null) {
+            throw new IllegalArgumentException("Missing outgoing event");
+        }
+        String dest = event.getTo();
+        if (dest == null) {
+            throw new IllegalArgumentException("Missing routing path");
+        }
+        String to = substituteRouteIfAny(dest);
+        event.setTo(to);
+        // propagate trace info
+        TraceInfo trace = getTrace();
+        if (trace != null) {
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
+            }
+            if (trace.id != null && trace.path != null) {
+                event.setTrace(trace.id, trace.path);
+            }
+        }
+        Platform platform = Platform.getInstance();
+        TargetRoute target = discover(to, event.isEndOfRoute());
+        AsyncInbox inbox = new AsyncInbox(to, timeout);
+        event.setReplyTo(inbox.getId() + "@" + platform.getOrigin());
+        // broadcast is not possible with RPC call
+        event.setBroadcastLevel(0);
+        if (target.isCloud()) {
+            MultipartPayload.getInstance().outgoing(target.getManager(), event);
+        } else {
+            platform.getEventSystem().send(target.getManager().getRoute(), event.toBytes());
+        }
+        return inbox.getFuture();
     }
 
     /**
