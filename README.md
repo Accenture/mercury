@@ -445,6 +445,9 @@ in turns return the response event as shown above.
 The "cloud.connector=kafka" parameter overrides the application.properties in the rest-example and lambda-example 
 projects so they can select Kafka as the service mesh.
 
+If you use the latest Jetbrains Idea to boot up the project, please edit the start up config, click 'Modify options' and tick 'add VM options',
+because the default argument input in the latest idea is application argument.
+
 - Get additional info from the presence monitor
 
 You may visit http://127.0.0.1:8080 and select "info". It may look like this:
