@@ -43,7 +43,7 @@ Vert.x is introduced as the in-memory event bus
 ### Changed
 
 1. Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.
-2. Updated ConfigReader to make consistent with Spring value substitution logic for application properties
+2. Updated ConfigReader to be consistent with Spring value substitution logic for application properties
 3. Replace Akka actor system with Vert.x event bus
 4. Common code for various cloud connectors consolidated into cloud core libraries
 
