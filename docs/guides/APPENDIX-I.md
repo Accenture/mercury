@@ -37,9 +37,17 @@
 | max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
 | max.closed.user.groups                      | Number of closed user groups              | Optional  |
 | closed.user.group                           | Closed user group (default 1)             | Optional  |
+| transient.data.store                        | Default value: /tmp/reactive              | Optional  |
+| running.in.cloud                            | Default value: false                      | Optional  |
 
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation application only
+
+# transcient data store
+
+The system handles back-pressure automatically by overflowing memory to a transcient data store. As a cloud native best practice,
+the folder must be under "/tmp". The default is "/tmp/reactive". The "running.in.cloud" must be set to false when your apps are
+running in IDE or in your laptop. When running in kubernetes, it can be set to true.
 
 # safe.data.models
 
