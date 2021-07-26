@@ -193,7 +193,10 @@ public class ElasticQueue implements AutoCloseable {
                     }
                     long t1 = System.currentTimeMillis();
                     dbEnv = new Environment(dbFolder,
-                            new EnvironmentConfig().setAllowCreate(true));
+                            new EnvironmentConfig()
+                                    .setAllowCreate(true)
+                                    .setConfigParam(EnvironmentConfig.MAX_DISK, "0")
+                                    .setConfigParam(EnvironmentConfig.FREE_DISK, "0"));
                     dbEnv.checkpoint(new CheckpointConfig().setMinutes(1));
                     db = dbEnv.openDatabase(null, "kv",
                             new DatabaseConfig().setAllowCreate(true).setTemporary(false));
