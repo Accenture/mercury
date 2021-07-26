@@ -47,4 +47,4 @@ Your custom application can then decide how to persist the metrics. e.g. Elastic
 
 | Appendix-III                              | Home                                     |
 | :----------------------------------------:|:----------------------------------------:|
-| [Additional features](Appendix-III.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| [Additional features](APPENDIX-III.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
