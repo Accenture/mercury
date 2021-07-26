@@ -127,4 +127,4 @@ If your code uses Spring Boot or Spring Framework directly, you can set the corr
 
 | Appendix-II                              | Home                                     |
 | :---------------------------------------:|:----------------------------------------:|
-| [Reserved route names](Appendix-II.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
+| [Reserved route names](APPENDIX-II.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
