@@ -383,7 +383,7 @@ public class PostOfficeTest {
         final String SOME_KEY = "some_key";
         final String SOME_VALUE = "some value";
         final String ANOTHER_KEY = "another_key";
-        final String ANOTHER_VALUE = "anotehr value";
+        final String ANOTHER_VALUE = "another value";
         Platform platform = Platform.getInstance();
         LambdaFunction tier1 = (headers, body, instance) -> {
             PostOffice po = PostOffice.getInstance();
