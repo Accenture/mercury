@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 1. Elastic Queue - Refactored using Oracle Berkeley DB
 2. Object stream I/O - simplified design using the new StreamFunction feature
-3. Open sources library update - Spring Boot 3.5.3, Tomcat 9.0.50, Vert.x 4.1.1, Netty 4.1.66-Final
+3. Open sources library update - Spring Boot 2.5.2, Tomcat 9.0.50, Vert.x 4.1.1, Netty 4.1.66-Final
 
 ---
 ## Version 2.0.0, 5/5/2021
