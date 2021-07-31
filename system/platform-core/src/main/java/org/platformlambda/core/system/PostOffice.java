@@ -52,7 +52,6 @@ public class PostOffice {
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String MULTICAST_YAML = "multicast.yaml";
     private static final String APP_GROUP_PREFIX = "monitor-";
-    private static final String INBOX_PREFIX = "r.";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
@@ -312,11 +311,7 @@ public class PostOffice {
             } else if (checkCloud) {
                 TargetRoute cloud = getCloudRoute();
                 if (cloud != null) {
-                    if (target.startsWith(INBOX_PREFIX)) {
-                        if (cloudOrigins.containsKey(origin)) {
-                            return cloud;
-                        }
-                    } else if (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin)) {
+                    if (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin)) {
                         return cloud;
                     }
                 }
