@@ -317,9 +317,7 @@ public class PostOffice {
                             return cloud;
                         }
                     } else if (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin)) {
-                        if (exists(target)) {
-                            return cloud;
-                        }
+                        return cloud;
                     }
                 }
             }
