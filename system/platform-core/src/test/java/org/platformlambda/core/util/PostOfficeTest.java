@@ -186,7 +186,12 @@ public class PostOfficeTest {
         Assert.assertFalse(po.exists(HELLO_WORLD, "unknown.service"));
         Assert.assertFalse(po.exists(HELLO_WORLD, "unknown.1", "unknown.2"));
         Assert.assertNotNull(po.search(HELLO_WORLD));
+    }
 
+    @Test(expected = IOException.class)
+    public void testNonExistRoute() throws IOException {
+        PostOffice po = PostOffice.getInstance();
+        po.send("undefined.route", "OK");
     }
 
     @Test
@@ -275,6 +280,7 @@ public class PostOfficeTest {
         // without tracing
         po.send(FIRST, Optional.empty());
         String result = bench.poll(2, TimeUnit.SECONDS);
+        // validate the "from" address
         Assert.assertEquals(FIRST, result);
         // with tracing
         po.send(FIRST, TRACE_ON);
@@ -466,8 +472,6 @@ public class PostOfficeTest {
         Assert.assertEquals(input, result.get("body"));
         Map<String, String> list = po.getRouteSubstitutionList();
         Assert.assertTrue(list.containsKey("hello.test"));
-
-
     }
 
     @Test

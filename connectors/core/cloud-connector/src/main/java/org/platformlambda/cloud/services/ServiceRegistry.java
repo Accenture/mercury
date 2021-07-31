@@ -67,12 +67,13 @@ public class ServiceRegistry implements LambdaFunction {
     private final boolean presenceMonitor;
     private final int closedUserGroup;
     /*
-     * routes: route_name -> (origin, personality)
-     * origins: origin -> last seen
+     * cloudRoutes: route_name -> (origin, personality)
+     * cloudOrigins: origin -> last seen
      * originTopic: origin -> topic and partition
      */
-    private static final ConcurrentMap<String, ConcurrentMap<String, String>> routes = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, String> origins = new ConcurrentHashMap<>();
+    private static final PostOffice po = PostOffice.getInstance();
+    private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
+    private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
     private static String monitorTopic;
     private long lastBroadcastAdd = 0;
@@ -92,19 +93,19 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static Map<String, Map<String, String>> getAllRoutes() {
-        return new HashMap<>(routes);
+        return new HashMap<>(cloudRoutes);
     }
 
     public static List<String> getInstances(String route) {
-        if (routes.containsKey(route)) {
-            return new ArrayList<>(routes.get(route).keySet());
+        if (cloudRoutes.containsKey(route)) {
+            return new ArrayList<>(cloudRoutes.get(route).keySet());
         } else {
             return Collections.emptyList();
         }
     }
 
     public static Map<String, String> getAllOrigins() {
-        Map<String, String> allOrigins = new HashMap<>(origins);
+        Map<String, String> allOrigins = new HashMap<>(cloudOrigins);
         for (String origin: allOrigins.keySet()) {
             String lastSeen = allOrigins.get(origin);
             String topic = originTopic.get(origin);
@@ -116,7 +117,7 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static ConcurrentMap<String, String> getDestinations(String route) {
-        return routes.get(route);
+        return cloudRoutes.get(route);
     }
 
     public static boolean destinationExists(String origin) {
@@ -124,7 +125,7 @@ public class ServiceRegistry implements LambdaFunction {
             return false;
         } else {
             return  origin.startsWith(MONITOR) || origin.equals(Platform.getInstance().getOrigin()) ||
-                    origins.containsKey(origin);
+                    cloudOrigins.containsKey(origin);
         }
     }
 
@@ -136,14 +137,13 @@ public class ServiceRegistry implements LambdaFunction {
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
         String myOrigin = platform.getOrigin();
         String type = headers.get(TYPE);
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
             String topic = headers.get(TOPIC);
-            origins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
             originTopic.put(origin, topic);
             if (!presenceMonitor) {
                 if (origin.equals(myOrigin)) {
@@ -195,14 +195,14 @@ public class ServiceRegistry implements LambdaFunction {
                 if (myOrigin.equals(origin)) {
                     removeStalledPeers();
                 } else {
-                    if (!origins.containsKey(origin)) {
+                    if (!cloudOrigins.containsKey(origin)) {
                         log.info("Peer {} joins", origin);
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(ORIGIN, origin), new Kv(TOPIC, topic));
                     }
                 }
             }
-            origins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
             originTopic.put(origin, topic);
         }
         // when a node leaves
@@ -210,12 +210,12 @@ public class ServiceRegistry implements LambdaFunction {
             String origin = headers.get(ORIGIN);
             originTopic.remove(origin);
             if (presenceMonitor) {
-                origins.remove(origin);
+                cloudOrigins.remove(origin);
             } else {
                 // remove corresponding entries from routing table
                 if (origin.equals(platform.getOrigin())) {
                     // this happens when the service-monitor is down
-                    List<String> all = new ArrayList<>(origins.keySet());
+                    List<String> all = new ArrayList<>(cloudOrigins.keySet());
                     for (String o : all) {
                         if (!o.equals(origin)) {
                             log.info("{} disconnected", o);
@@ -296,11 +296,10 @@ public class ServiceRegistry implements LambdaFunction {
             return;
         }
         lastBroadcastAdd = now;
-        PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         Map<String, String> routeMap = new HashMap<>();
-        for (String r : routes.keySet()) {
-            ConcurrentMap<String, String> originMap = routes.get(r);
+        for (String r : cloudRoutes.keySet()) {
+            ConcurrentMap<String, String> originMap = cloudRoutes.get(r);
             if (originMap.containsKey(myOrigin)) {
                 routeMap.put(r, originMap.get(myOrigin));
             }
@@ -316,15 +315,15 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     private boolean addRoute(String origin, String route, String personality) {
-        if (!routes.containsKey(route)) {
-            routes.put(route, new ConcurrentHashMap<>());
+        if (!cloudRoutes.containsKey(route)) {
+            cloudRoutes.put(route, new ConcurrentHashMap<>());
         }
-        ConcurrentMap<String, String> originMap = routes.get(route);
+        ConcurrentMap<String, String> originMap = cloudRoutes.get(route);
         if (originMap.containsKey(origin)) {
             return false;
         } else {
             originMap.put(origin, personality);
-            origins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
             log.info("{} ({}.{}) registered", route, personality, origin);
             return true;
         }
@@ -332,14 +331,14 @@ public class ServiceRegistry implements LambdaFunction {
 
     private void removeRoute(String origin, String route) {
         boolean deleted = false;
-        if (routes.containsKey(route)) {
-            ConcurrentMap<String, String> originMap = routes.get(route);
+        if (cloudRoutes.containsKey(route)) {
+            ConcurrentMap<String, String> originMap = cloudRoutes.get(route);
             if (originMap.containsKey(origin)) {
                 originMap.remove(origin);
                 deleted = true;
             }
             if (originMap.isEmpty()) {
-                routes.remove(route);
+                cloudRoutes.remove(route);
             }
         }
         if (deleted) {
@@ -348,11 +347,11 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     private void removeRoutesFromOrigin(String origin) {
-        List<String> routeList = new ArrayList<>(routes.keySet());
+        List<String> routeList = new ArrayList<>(cloudRoutes.keySet());
         for (String r: routeList) {
             removeRoute(origin, r);
         }
-        origins.remove(origin);
+        cloudOrigins.remove(origin);
         originTopic.remove(origin);
     }
 
@@ -373,12 +372,11 @@ public class ServiceRegistry implements LambdaFunction {
     private void removeStalledPeers() throws IOException {
         long now = System.currentTimeMillis();
         Utility util = Utility.getInstance();
-        PostOffice po = PostOffice.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
-        List<String> peers = new ArrayList<>(origins.keySet());
+        List<String> peers = new ArrayList<>(cloudOrigins.keySet());
         for (String p: peers) {
             if (!p.equals(myOrigin)) {
-                Date lastActive = util.str2date(origins.get(p));
+                Date lastActive = util.str2date(cloudOrigins.get(p));
                 if (now - lastActive.getTime() > EXPIRY) {
                     log.error("Peer {} stalled", p);
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, p));

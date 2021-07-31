@@ -51,9 +51,13 @@ public class PostOffice {
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String MULTICAST_YAML = "multicast.yaml";
+    private static final String APP_GROUP_PREFIX = "monitor-";
+    private static final String INBOX_PREFIX = "r.";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
@@ -84,6 +88,14 @@ public class PostOffice {
 
     public static PostOffice getInstance() {
         return instance;
+    }
+
+    public ConcurrentMap<String, ConcurrentMap<String, String>> getCloudRoutes() {
+        return cloudRoutes;
+    }
+
+    public ConcurrentMap<String, String> getCloudOrigins() {
+        return cloudOrigins;
     }
 
     @SuppressWarnings("unchecked")
@@ -287,15 +299,27 @@ public class PostOffice {
      * @throws IOException in case route is not found
      */
     public TargetRoute discover(String to, boolean endOfRoute) throws IOException {
+        boolean checkCloud = !endOfRoute && !to.equals(CLOUD_CONNECTOR);
         Platform platform = Platform.getInstance();
         if (to.contains("@")) {
             int at = to.indexOf('@');
-            if (at > 0) {
-                String origin = to.substring(at+1);
-                if (origin.equals(platform.getOrigin())) {
-                    String target = to.substring(0, at);
-                    if (platform.hasRoute(target)) {
-                        return new TargetRoute(platform.getManager(target), false);
+            String origin = to.substring(at+1);
+            String target = to.substring(0, at);
+            if (origin.equals(platform.getOrigin())) {
+                if (platform.hasRoute(target)) {
+                    return new TargetRoute(platform.getManager(target), false);
+                }
+            } else if (checkCloud) {
+                TargetRoute cloud = getCloudRoute();
+                if (cloud != null) {
+                    if (target.startsWith(INBOX_PREFIX)) {
+                        if (cloudOrigins.containsKey(origin)) {
+                            return cloud;
+                        }
+                    } else if (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin)) {
+                        if (exists(target)) {
+                            return cloud;
+                        }
                     }
                 }
             }
@@ -303,16 +327,11 @@ public class PostOffice {
         } else {
             if (platform.hasRoute(to)) {
                 return new TargetRoute(platform.getManager(to), false);
-            }
-        }
-        /*
-         * route is not found in-memory and local lambda routing table.
-         * Try cloud routing if not end of route or not "cloud.connector" itself.
-         */
-        if (!endOfRoute && !to.equals(CLOUD_CONNECTOR)) {
-            TargetRoute cloud = getCloudRoute();
-            if (cloud != null) {
-                return cloud;
+            } else if (checkCloud) {
+                TargetRoute cloud = getCloudRoute();
+                if (cloud != null && exists(to)) {
+                    return cloud;
+                }
             }
         }
         throw new IOException("Route "+to+" not found");
@@ -486,7 +505,7 @@ public class PostOffice {
             Vertx vertx = Platform.getInstance().getVertx();
             vertx.cancelTimer(event.taskId);
             futureEvents.remove(id);
-            log.info("Future event {} to {} at {} canceled", id, event.to, Utility.getInstance().date2str(event.time));
+            log.info("Future event {} ({}) to {} canceled", id, Utility.getInstance().date2str(event.time), event.to);
         }
     }
 
@@ -894,7 +913,7 @@ public class PostOffice {
     }
 
     /**
-     * Check if a route exists.
+     * Check if a route or origin-ID exists.
      *
      * The response should be instantaneous because the cloud connector
      * is designed to maintain a distributed routing table.
@@ -925,19 +944,23 @@ public class PostOffice {
         if (Platform.isCloudSelected()) {
             try {
                 if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
-                    EventEnvelope response;
                     if (remoteServices.size() == 1) {
-                        response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
-                                new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
-                                new Kv(ServiceDiscovery.ROUTE, remoteServices.get(0)));
+                        String dest = remoteServices.get(0);
+                        // optimize when checking for single route
+                        if (dest.contains(".")) {
+                            ConcurrentMap<String, String> targets = cloudRoutes.get(dest);
+                            return targets != null && !targets.isEmpty();
+                        } else {
+                            return cloudOrigins.containsKey(dest);
+                        }
                     } else {
-                        response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
+                        EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
                                 remoteServices,
                                 new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
                                 new Kv(ServiceDiscovery.ROUTE, "*"));
-                    }
-                    if (response.getBody() instanceof Boolean) {
-                        return (Boolean) response.getBody();
+                        if (response.getBody() instanceof Boolean) {
+                            return (Boolean) response.getBody();
+                        }
                     }
                 }
             } catch (IOException | TimeoutException e) {

@@ -9,9 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ServiceLifeCycle {
@@ -48,6 +46,7 @@ public class ServiceLifeCycle {
         final PubSub ps = PubSub.getInstance();
         final String INIT_HANDLER = INIT + "." + (partition < 0? topic : topic + "." + partition);
         final AtomicInteger seq = new AtomicInteger(0);
+        final List<String> task = new ArrayList<>();
         LambdaFunction f = (headers, body, instance) -> {
             if (INIT.equals(body)) {
                 int n = seq.incrementAndGet();
@@ -58,12 +57,17 @@ public class ServiceLifeCycle {
                     event.put(SEQUENCE, String.valueOf(n));
                     log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
                     ps.publish(topic, partition, event, INIT);
-                    po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                            new Date(System.currentTimeMillis() + 5000));
+                    task.clear();
+                    String handle = po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
+                                        new Date(System.currentTimeMillis() + 5000));
+                    task.add(handle);
                 } catch (IOException e) {
                     log.error("Unable to send initToken to consumer - {}", e.getMessage());
                 }
             } else {
+                if (!task.isEmpty()) {
+                    po.cancelFutureEvent(task.get(0));
+                }
                 platform.release(INIT_HANDLER);
                 log.info("{}, partition {} ready", topic, partition);
             }

@@ -34,6 +34,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @CloudConnector(name="mock.cloud")
 public class MockCloud implements CloudSetup {
@@ -46,6 +48,9 @@ public class MockCloud implements CloudSetup {
     private static final String DOWNLOAD = "download";
     private static final String INFO = "info";
     private static final String HEALTH = "health";
+    private static final PostOffice po = PostOffice.getInstance();
+    private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
+    private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
 
     @SuppressWarnings("unchecked")
     @Override
@@ -69,8 +74,8 @@ public class MockCloud implements CloudSetup {
                 Utility util = Utility.getInstance();
                 String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
                 Map<String, Object> result = new HashMap<>();
-                result.put("routes", "some_routes");
-                result.put("nodes", "some_nodes");
+                result.put("routes", cloudRoutes);
+                result.put("nodes", cloudOrigins);
                 result.put("name", me);
                 result.put("origin", platform.getOrigin());
                 result.put("group", 1);
@@ -116,6 +121,10 @@ public class MockCloud implements CloudSetup {
             }
             return false;
         };
+        /*
+         * dummy registry service - in real cloud connector, it is responsible for service registration
+         * where cloudRoutes is the routing store.
+         */
         LambdaFunction registry = (headers, body, instance) -> true;
         try {
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, connector, 1);
