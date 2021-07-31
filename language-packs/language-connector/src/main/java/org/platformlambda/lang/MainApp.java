@@ -34,7 +34,7 @@ public class MainApp implements EntryPoint {
 
     @Override
     public void start(String[] args) throws Exception {
-        ServerPersonality.getInstance().setType(ServerPersonality.Type.APP);
+        ServerPersonality.getInstance().setType(ServerPersonality.Type.RESOURCES);
         /*
          * get ready to accept language pack client connections
          */
