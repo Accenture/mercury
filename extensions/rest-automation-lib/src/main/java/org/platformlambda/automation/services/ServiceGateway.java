@@ -256,7 +256,7 @@ public class ServiceGateway {
                 throw new AppException(503, "Service " + route.info.primary + " not reachable");
             }
         } else {
-            if (!po.exists(route.info.primary) && !po.exists(route.info.authService)) {
+            if (!po.exists(route.info.primary) || !po.exists(route.info.authService)) {
                 throw new AppException(503, "Service " + route.info.primary + " or " +
                                         route.info.authService + " not reachable");
             }
