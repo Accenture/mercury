@@ -495,10 +495,11 @@ public class PostOffice {
     public void cancelFutureEvent(String id) {
         FutureEvent event = futureEvents.get(id);
         if (event != null) {
+            Utility util = Utility.getInstance();
             Vertx vertx = Platform.getInstance().getVertx();
             vertx.cancelTimer(event.taskId);
             futureEvents.remove(id);
-            log.info("Future event {} ({}) to {} canceled", id, Utility.getInstance().date2str(event.time), event.to);
+            log.info("Cancel future event {}, {}", event.to, util.date2str(event.time, true));
         }
     }
 
