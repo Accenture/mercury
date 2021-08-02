@@ -38,8 +38,8 @@ public class MockApp implements EntryPoint {
             log.info("Received {} {}", headers, body);
             return true;
         };
-        platform.connectToCloud();
         platform.register("hello.world", mock, 5);
+        platform.connectToCloud();
         log.info("started");
     }
 }
