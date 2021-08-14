@@ -323,8 +323,7 @@ public class ElasticQueue implements AutoCloseable {
                     for (File f : files) {
                         String name = f.getName();
                         if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
-                            List<String> segments = util.split(name, ".");
-                            if (segments.size() > 3 && now - f.lastModified() > ONE_DAY) {
+                            if (now - f.lastModified() > ONE_DAY) {
                                 outdated.add(f);
                             }
                         }
