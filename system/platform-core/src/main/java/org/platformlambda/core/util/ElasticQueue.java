@@ -47,6 +47,9 @@ public class ElasticQueue implements AutoCloseable {
     private static final String CLEAN_UP_TASK = "elastic.queue.cleanup";
     private static final String SLASH = "/";
     private static final int MAX_EVENTS = 100000000;
+    private static final int ONE_MINUTE = 60 * 1000;
+    private static final int ONE_HOUR = 60 * ONE_MINUTE;
+    private static final int ONE_DAY = 24 * ONE_HOUR;
     private static Database db;
     private static Environment dbEnv;
     private static File dbFolder;
@@ -312,15 +315,16 @@ public class ElasticQueue implements AutoCloseable {
                 } catch (Exception e) {
                     log.warn("Unable to scan {} - {}", body, e.getMessage());
                 }
-                // remove old je.stat.n.csv files; keep only current je.stat.csv
+                // remove older statistics files except current one
                 List<File> outdated = new ArrayList<>();
                 File[] files = dbFolder.listFiles();
                 if (files != null) {
+                    long now = System.currentTimeMillis();
                     for (File f : files) {
                         String name = f.getName();
                         if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
                             List<String> segments = util.split(name, ".");
-                            if (segments.size() == 4) {
+                            if (segments.size() > 3 && now - f.lastModified() > ONE_DAY) {
                                 outdated.add(f);
                             }
                         }
