@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -309,6 +311,25 @@ public class ElasticQueue implements AutoCloseable {
                     }
                 } catch (Exception e) {
                     log.warn("Unable to scan {} - {}", body, e.getMessage());
+                }
+                // remove old je.stat.n.csv files; keep only current je.stat.csv
+                List<File> outdated = new ArrayList<>();
+                File[] files = dbFolder.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        String name = f.getName();
+                        if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
+                            List<String> segments = util.split(name, ".");
+                            if (segments.size() == 4) {
+                                outdated.add(f);
+                            }
+                        }
+                    }
+                    for (File f : outdated) {
+                        if (f.delete()) {
+                            log.info("Outdated {} deleted", f);
+                        }
+                    }
                 }
             }
             return true;
