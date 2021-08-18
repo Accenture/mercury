@@ -61,7 +61,7 @@ public class SimpleMapper {
         }
     }
 
-    private Gson getJson(boolean snake, boolean isMap) {
+    public Gson getJson(boolean snake, boolean isMap) {
         // configure Gson engine
         GsonBuilder builder = new GsonBuilder();
         // avoid equal sign to become 003d unicode

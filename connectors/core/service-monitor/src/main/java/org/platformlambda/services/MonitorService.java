@@ -31,6 +31,7 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.PendingConnection;
+import org.platformlambda.models.PendingConnection.PendingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,12 +93,12 @@ public class MonitorService implements LambdaFunction {
         long now = System.currentTimeMillis();
         for (String route: pendingList) {
             PendingConnection conn = pendingConnections.get(route);
-            if (PendingConnection.PendingType.CONNECTED == conn.type) {
+            if (PendingType.CONNECTED == conn.type) {
                 if (now - conn.created > STALLED_CONNECTION) {
                     closeStalledConnection(conn.route, conn.txPath, "handshake not completed");
                 }
             }
-            if (PendingConnection.PendingType.HANDSHAKE == conn.type) {
+            if (PendingType.HANDSHAKE == conn.type) {
                 Map<String, Object> metadata = myConnections.getOrDefault(conn.origin, new HashMap<>());
                 if (metadata.containsKey(TOPIC)) {
                     pendingConnections.remove(route);
@@ -231,10 +232,12 @@ public class MonitorService implements LambdaFunction {
                                 if (register) {
                                     // tell the connected application instance to proceed
                                     PendingConnection pc = pendingConnections.get(route);
-                                    pendingConnections.put(route, pc.setType(PendingConnection.PendingType.HANDSHAKE));
-                                    log.info("Member registered {}", getMemberInfo(appOrigin, info));
-                                    po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, GET_TOPIC),
-                                            new Kv(TX_PATH, txPath), new Kv(ORIGIN, appOrigin));
+                                    if (pc != null) {
+                                        pendingConnections.put(route, pc.setType(PendingType.HANDSHAKE));
+                                        log.info("Member registered {}", getMemberInfo(appOrigin, info));
+                                        po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, GET_TOPIC),
+                                                new Kv(TX_PATH, txPath), new Kv(ORIGIN, appOrigin));
+                                    }
                                 } else {
                                     log.debug("Member {} is alive {}", appOrigin, info.get(SEQ));
                                 }
