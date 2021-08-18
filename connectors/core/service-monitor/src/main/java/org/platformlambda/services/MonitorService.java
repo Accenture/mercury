@@ -53,6 +53,7 @@ public class MonitorService implements LambdaFunction {
     private static final String ALIVE = "keep-alive";
     private static final String INFO = "info";
     private static final String TYPE = "type";
+    private static final String NAME = "name";
     private static final String LEAVE = "leave";
     private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
@@ -234,7 +235,7 @@ public class MonitorService implements LambdaFunction {
                                     PendingConnection pc = pendingConnections.get(route);
                                     if (pc != null) {
                                         pendingConnections.put(route, pc.setType(PendingType.HANDSHAKE));
-                                        log.info("Member registered {}", getMemberInfo(appOrigin, info));
+                                        log.info("Member registered {} {}", appOrigin, info.get(NAME));
                                         po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, GET_TOPIC),
                                                 new Kv(TX_PATH, txPath), new Kv(ORIGIN, appOrigin));
                                     }
@@ -255,21 +256,6 @@ public class MonitorService implements LambdaFunction {
         }
         // nothing to return because this is asynchronous
         return null;
-    }
-
-    private String getMemberInfo(String origin, Map<String, Object> info) {
-        StringBuilder sb = new StringBuilder();
-        for (String k: info.keySet()) {
-            String v = info.get(k).toString();
-            sb.append(k);
-            sb.append('=');
-            sb.append(v);
-            sb.append(", ");
-        }
-        sb.append(ORIGIN);
-        sb.append('=');
-        sb.append(origin);
-        return sb.toString();
     }
 
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {
