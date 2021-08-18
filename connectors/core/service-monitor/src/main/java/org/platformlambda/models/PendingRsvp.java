@@ -18,25 +18,19 @@
 
 package org.platformlambda.models;
 
-public class PendingConnection {
+public class PendingRsvp {
 
-    public enum PendingType {
-        CONNECTED, HANDSHAKE
-    }
+    public String origin;
+    public long created, lastSeen;
 
-    public PendingType type;
-    public String origin, route, txPath;
-    public long created = System.currentTimeMillis();
-
-    public PendingConnection(String origin, String route, String txPath) {
+    public PendingRsvp(String origin, long created) {
         this.origin = origin;
-        this.route = route;
-        this.txPath = txPath;
-        this.type = PendingType.CONNECTED;
+        this.created = created;
+        this.lastSeen = System.currentTimeMillis();
     }
 
-    public PendingConnection setType(PendingType type) {
-        this.type = type;
+    public PendingRsvp touch() {
+        this.lastSeen = System.currentTimeMillis();
         return this;
     }
 

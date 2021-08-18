@@ -361,9 +361,10 @@ public class ServiceRegistry implements LambdaFunction {
         String origin = platform.getOrigin();
         // copy local registry to global registry
         ConcurrentMap<String, ServiceDef> routingTable = platform.getLocalRoutingTable();
-        for (String r: routingTable.keySet()) {
+        List<String> routes = new ArrayList<>(routingTable.keySet());
+        for (String r: routes) {
             ServiceDef def = routingTable.get(r);
-            if (!def.isPrivate()) {
+            if (def != null && !def.isPrivate()) {
                 addRoute(origin, def.getRoute(), personality);
             }
         }

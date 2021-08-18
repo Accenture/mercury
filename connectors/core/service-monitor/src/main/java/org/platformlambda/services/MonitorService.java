@@ -61,15 +61,18 @@ public class MonitorService implements LambdaFunction {
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
+    private static final String TOPIC = "topic";
     private static final String GET_TOPIC = "get_topic";
     private static final String TX_PATH = "tx_path";
-    private static final long EXPIRY = 60 * 1000;
-    private static final long STALLED_CONNECTION = 20 * 1000;
+    private static final long ONE_SECOND = 1000;
+    private static final long EXPIRY = 60 * ONE_SECOND;
+    private static final long GRACE_PERIOD = 40 * ONE_SECOND;
+    private static final long STALLED_CONNECTION = 20 * ONE_SECOND;
     private static boolean ready = false;
 
     // websocket route to user application origin-ID. Websocket routes for this presence monitor instance only
     private static final ConcurrentMap<String, String> route2origin = new ConcurrentHashMap<>();
-    // pending connections of TxPaths to monitor if handshake is done within a reasonable time
+    // pending connections of TxPaths to monitor if topic is assigned within a reasonable time
     private static final ConcurrentMap<String, PendingConnection> pendingConnections = new ConcurrentHashMap<>();
     // connection list of user applications to this presence monitor instance
     private static final ConcurrentMap<String, Map<String, Object>> myConnections = new ConcurrentHashMap<>();
@@ -85,21 +88,37 @@ public class MonitorService implements LambdaFunction {
     }
 
     public static void clearStalledConnection() {
-        Utility util = Utility.getInstance();
         List<String> pendingList = new ArrayList<>(pendingConnections.keySet());
         long now = System.currentTimeMillis();
         for (String route: pendingList) {
             PendingConnection conn = pendingConnections.get(route);
-            if (now - conn.created > STALLED_CONNECTION) {
-                String txPath = conn.txPath;
-                try {
-                    log.info("Closing stalled connection {}", route);
-                    pendingConnections.remove(route);
-                    util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT, "Invalid protocol");
-                } catch (IOException e) {
-                    // ok to ignore
+            if (PendingConnection.PendingType.CONNECTED == conn.type) {
+                if (now - conn.created > STALLED_CONNECTION) {
+                    closeStalledConnection(conn.route, conn.txPath, "handshake not completed");
                 }
             }
+            if (PendingConnection.PendingType.HANDSHAKE == conn.type) {
+                Map<String, Object> metadata = myConnections.getOrDefault(conn.origin, new HashMap<>());
+                if (metadata.containsKey(TOPIC)) {
+                    pendingConnections.remove(route);
+                    log.info("Connection verified {} -> {}", route, metadata.get(TOPIC));
+                } else {
+                    if (now - conn.created > GRACE_PERIOD) {
+                        closeStalledConnection(conn.route, conn.txPath, "topic not assigned");
+                    }
+                }
+            }
+        }
+    }
+
+    private static void closeStalledConnection(String route, String txPath, String reason) {
+        Utility util = Utility.getInstance();
+        try {
+            log.info("Closing connection {} because {}", route, reason);
+            pendingConnections.remove(route);
+            util.closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT, reason);
+        } catch (IOException e) {
+            // ok to ignore
         }
     }
 
@@ -164,7 +183,7 @@ public class MonitorService implements LambdaFunction {
                         info.put(SEQ, 0);
                         route2origin.put(route, appOrigin);
                         myConnections.put(appOrigin, info);
-                        pendingConnections.put(route, new PendingConnection(route, txPath));
+                        pendingConnections.put(route, new PendingConnection(appOrigin, route, txPath));
 
                     } else {
                         util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,"Starting up");
@@ -211,7 +230,8 @@ public class MonitorService implements LambdaFunction {
                                         new Kv(TYPE, PUT), new Kv(ORIGIN, appOrigin));
                                 if (register) {
                                     // tell the connected application instance to proceed
-                                    pendingConnections.remove(route);
+                                    PendingConnection pc = pendingConnections.get(route);
+                                    pendingConnections.put(route, pc.setType(PendingConnection.PendingType.HANDSHAKE));
                                     log.info("Member registered {}", getMemberInfo(appOrigin, info));
                                     po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, GET_TOPIC),
                                             new Kv(TX_PATH, txPath), new Kv(ORIGIN, appOrigin));

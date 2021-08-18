@@ -153,6 +153,8 @@ public class PresenceConnector implements LambdaFunction {
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(VERSION, platformVersion), new Kv(TOPIC, topicPartition),
                                 new Kv(ORIGIN, platform.getOrigin()));
+                        // info presence monitor that this app is activated
+                        sendAppInfo(seq, true);
                     } else {
                         po.send(event);
                     }
