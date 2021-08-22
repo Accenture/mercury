@@ -30,6 +30,7 @@ import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.PendingRsvp;
+import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

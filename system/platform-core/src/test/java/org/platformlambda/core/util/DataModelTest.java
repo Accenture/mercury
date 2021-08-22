@@ -188,15 +188,20 @@ public class DataModelTest {
 
             }
         };
-        LambdaFunction noOp = (headers, body, instance) -> true;
-        registry.createHandler(noOp, noOpSession);
-        String route = registry.getRoute(SESSION_ID);
-        Assert.assertTrue(registry.exists(route));
-        Assert.assertTrue(route.startsWith("websocket.in."));
-        Assert.assertEquals(IP_ADDRESS, registry.get(route).ip);
-        Assert.assertTrue(registry.size() > 0);
-        Assert.assertTrue(registry.getTxPath(SESSION_ID).startsWith("websocket.out."));
-        registry.release(route);
+        try {
+            LambdaFunction noOp = (headers, body, instance) -> true;
+            registry.createHandler(noOp, noOpSession);
+            String route = registry.getRoute(SESSION_ID);
+            Assert.assertTrue(registry.exists(route));
+            Assert.assertTrue(route.startsWith("websocket.in."));
+            Assert.assertEquals(IP_ADDRESS, registry.get(route).ip);
+            Assert.assertTrue(registry.size() > 0);
+            Assert.assertTrue(registry.getTxPath(SESSION_ID).startsWith("websocket.out."));
+            registry.release(route);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -311,6 +316,7 @@ public class DataModelTest {
         Assert.assertEquals(request.isSecure(), restored.isSecure());
         Assert.assertEquals(request.isFile(), restored.isFile());
         Assert.assertEquals(request.getBody(), restored.getBody());
+        Assert.assertEquals(request.getRawBody(), restored.getBody());
         Assert.assertEquals(request.getSessionInfo(), restored.getSessionInfo());
         Assert.assertEquals(request.getSessionInfo("user"), restored.getSessionInfo("user"));
         Assert.assertEquals(request.isTrustAllCert(), restored.isTrustAllCert());
@@ -321,6 +327,7 @@ public class DataModelTest {
         Assert.assertEquals(request.getCookies(), restored.getCookies());
         Assert.assertEquals(request.getCookie("hi"), restored.getCookie("hi"));
         Assert.assertEquals(request.getTargetHost(), restored.getTargetHost());
+        Assert.assertNull(restored.getClassType());
 
         request.removeCookie("hi");
         Assert.assertTrue(request.getCookies().isEmpty());
@@ -341,6 +348,13 @@ public class DataModelTest {
         AppException ex = new AppException(400, "demo");
         Assert.assertEquals(400, ex.getStatus());
         Assert.assertEquals("demo", ex.getMessage());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void envelopeAsInputNotAllowed() {
+        EventEnvelope one = new EventEnvelope();
+        EventEnvelope two = new EventEnvelope();
+        one.setBody(two);
     }
 
 }

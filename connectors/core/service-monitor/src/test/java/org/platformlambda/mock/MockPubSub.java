@@ -25,6 +25,8 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.ConfigReader;
+import org.platformlambda.core.util.Utility;
 
 import java.io.IOException;
 import java.util.*;
@@ -32,6 +34,20 @@ import java.util.*;
 public class MockPubSub implements PubSubProvider {
     private static final Map<String, Integer> topicStore = new HashMap<>();
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
+
+    public MockPubSub() {
+        Utility util = Utility.getInstance();
+        ConfigReader reader = new ConfigReader();
+        try {
+            reader.load("classpath:/topic-substitution.yaml");
+        } catch (IOException e) {
+            // this should not happen
+        }
+        Map<String, Object> map = util.getFlatMap(reader.getMap());
+        for (String item: map.keySet()) {
+            topicStore.put(item, 1);
+        }
+    }
 
     @Override
     public boolean createTopic(String topic) throws IOException {

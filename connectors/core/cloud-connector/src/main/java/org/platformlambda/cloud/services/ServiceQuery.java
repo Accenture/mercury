@@ -76,8 +76,8 @@ public class ServiceQuery implements LambdaFunction {
             Platform platform = Platform.getInstance();
             String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
             Map<String, Object> result = new HashMap<>();
-            result.put("routes", ServiceRegistry.getAllRoutes());
-            result.put("nodes", ServiceRegistry.getAllOrigins());
+            result.put("routes", getRouteList());
+            result.put("nodes", getOriginList());
             result.put("name", me);
             result.put("origin", platform.getOrigin());
             result.put("group", closedUserGroup);
@@ -101,6 +101,35 @@ public class ServiceQuery implements LambdaFunction {
         } else {
             throw new IllegalArgumentException("Usage: type=download, info or (type=find, route=route_name)");
         }
+    }
+
+    private Map<String, List<String>> getRouteList() {
+        Map<String, List<String>> result = new HashMap<>();
+        Map<String, Map<String, String>> routes = ServiceRegistry.getAllRoutes();
+        for (String r: routes.keySet()) {
+            Map<String, String> providers = routes.get(r);
+            List<String> list = new ArrayList<>();
+            for (String p: providers.keySet()) {
+                list.add(providers.get(p).toLowerCase()+", "+p);
+            }
+            if (list.size() > 1) {
+                Collections.sort(list);
+            }
+            result.put(r, list);
+        }
+        return result;
+    }
+
+    private List<String> getOriginList() {
+        List<String> result = new ArrayList<>();
+        Map<String, String> origins = ServiceRegistry.getAllOrigins();
+        for (String p: origins.keySet()) {
+            result.add(origins.get(p)+", "+p);
+        }
+        if (result.size() > 1) {
+            Collections.sort(result);
+        }
+        return result;
     }
 
     private boolean exists(List<String> routes) {

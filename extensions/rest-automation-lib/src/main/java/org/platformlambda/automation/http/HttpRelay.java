@@ -16,10 +16,11 @@
 
  */
 
-package org.platformlambda.automation.services;
+package org.platformlambda.automation.http;
 
 import com.google.api.client.http.*;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import org.platformlambda.automation.services.ServiceGateway;
 import org.platformlambda.automation.util.Housekeeper;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;

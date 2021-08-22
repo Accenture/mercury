@@ -21,9 +21,13 @@ package org.platformlambda.automation;
 import io.vertx.core.Vertx;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.config.WsEntry;
+import org.platformlambda.automation.http.HttpRelay;
+import org.platformlambda.automation.http.HttpRequestHandler;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.services.*;
 import org.platformlambda.automation.util.AsyncTimeoutHandler;
+import org.platformlambda.automation.ws.WsRequestHandler;
+import org.platformlambda.automation.ws.WsTokenIssuer;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.AppStarter;
@@ -90,14 +94,14 @@ public class MainModule implements EntryPoint {
             platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(contexts), 300);
             // fall back to "server.port" if "rest.server.port" is not configured
             int port = util.str2int(appConfig.getProperty("rest.server.port",
-                    appConfig.getProperty("server.port", "8100")));
+                                    appConfig.getProperty("server.port", "8100")));
 
             Vertx vertx = Vertx.vertx();
             vertx.createHttpServer()
-                    .webSocketHandler(new WebSocketServiceHandler())
+                    .webSocketHandler(new WsRequestHandler())
                     .requestHandler(new HttpRequestHandler(gateway))
                     .listen(port)
-                    .onSuccess(server -> log.info("Listening to port {}", server.actualPort()))
+                    .onSuccess(server -> log.info("REST automation running on port-{}", server.actualPort()))
                     .onFailure(ex -> {
                         log.error("Unable to start - {}", ex.getMessage());
                         System.exit(-1);
@@ -116,7 +120,6 @@ public class MainModule implements EntryPoint {
         }
         // connect to the event streams
         platform.connectToCloud();
-        log.info("Application started");
     }
 
     private ConfigReader getConfig() throws IOException {

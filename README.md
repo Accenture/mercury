@@ -322,7 +322,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -jar target/rest-example-2.1.0.jar
+java -jar target/rest-example-2.1.1.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -379,7 +379,7 @@ For development and testing, you can start a standalone Kafka server.
 # start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
 cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/kafka-standalone-2.1.0.jar
+java -jar target/kafka-standalone-2.1.1.jar
 # this will run a standalone Kafka server in the foreground
 ```
 
@@ -389,14 +389,14 @@ The next step is to start the "presence-monitor" application.
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -jar target/kafka-presence-2.1.0.jar
+java -jar target/kafka-presence-2.1.1.jar
 # this will run the presence monitor at port 8080 in the foreground
 
 # when an application instance is started, it connects to the presence monitor to get topic.
 # you will see log similar to the following:
 Adding member 20210405aa0220674e404169a5ec158a99714da6
 Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 begins RSVP
-multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 2.1.0
+multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 2.1.1
 Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 finished RSVP
 ```
 
@@ -405,7 +405,7 @@ Optionally, if you want to test resilience of the presence monitor, you can star
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.1.0.jar
+java -Dserver.port=8081 -jar target/kafka-presence-2.1.1.jar
 # this will run the presence monitor at port 8081 in the foreground
 ```
 
@@ -413,11 +413,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-2.1.0.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.1.0.jar
+java -Dcloud.connector=kafka -jar target/lambda-example-2.1.1.jar
 # the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.1.0.jar
+java -Dcloud.connector=kafka -jar target/rest-example-2.1.1.jar
 # the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this
@@ -456,67 +456,84 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
   "app": {
     "name": "kafka-presence",
     "description": "Presence Monitor",
-    "version": "2.1.0"
+    "version": "2.1.1"
   },
-  "object.streams.io": {},
   "memory": {
-    "max": "6,675,234,816",
-    "free": "38,218,272",
-    "allocated": "59,768,832"
+    "max": "8,524,922,880",
+    "free": "470,420,400",
+    "allocated": "534,773,760"
   },
   "personality": "RESOURCES",
   "additional.info": {
     "total": {
+      "virtual.topics": 3,
       "topics": 2,
-      "connections": 2
+      "connections": 3
     },
     "virtual.topics": [
-      "multiplex.0001-000 -> 20210405a35e446f23cb41ab99f7016aef0846ad, rest-example v2.1.0",
-      "multiplex.0001-001 -> 20210405aa0220674e404169a5ec158a99714da6, lambda-example v2.1.0"
+      "multiplex.0001-000 -> 2021082260f0b955a9ad427db14a9db751340d61, rest-example v2.1.1",
+      "multiplex.0001-001 -> 20210822371949df090644428cd98ae0ba91a69b, lambda-example v2.1.1",
+      "multiplex.0001-002 -> 2021082295c030edc07a4a4eb5cb78b6421f5fb7, lambda-example v2.1.1"
     ],
     "topics": [
       "multiplex.0001 (32)",
-      "presence.monitor (11)"
+      "service.monitor (11)"
     ],
-    "connections": {
-      "20210405a35e446f23cb41ab99f7016aef0846ad": {
-        "created": "2021-04-05T22:11:22Z",
-        "name": "rest-example",
-        "topic": "multiplex.0001-000",
-        "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
-        "type": "WEB",
-        "updated": "2021-04-05T22:16:48Z",
-        "version": "2.1.0",
-        "seq": 15,
-        "group": 1
-      },
-      "20210405aa0220674e404169a5ec158a99714da6": {
-        "created": "2021-04-05T22:13:00Z",
+    "connections": [
+      {
+        "created": "2021-08-22T17:29:45Z",
+        "origin": "20210822371949df090644428cd98ae0ba91a69b",
         "name": "lambda-example",
         "topic": "multiplex.0001-001",
-        "monitor": "20210405209f8e20ed3f4c0a80b035a50273b922",
+        "monitor": "20210822c750f194403241c49ef8fae113beff75",
         "type": "APP",
-        "updated": "2021-04-05T22:16:46Z",
-        "version": "2.1.0",
-        "seq": 11,
+        "updated": "2021-08-22T17:29:53Z",
+        "version": "2.1.1",
+        "seq": 2,
+        "group": 1
+      },
+      {
+        "created": "2021-08-22T17:29:55Z",
+        "origin": "2021082295c030edc07a4a4eb5cb78b6421f5fb7",
+        "name": "lambda-example",
+        "topic": "multiplex.0001-002",
+        "monitor": "20210822c750f194403241c49ef8fae113beff75",
+        "type": "APP",
+        "updated": "2021-08-22T17:30:04Z",
+        "version": "2.1.1",
+        "seq": 2,
+        "group": 1
+      },
+      {
+        "created": "2021-08-22T17:29:30Z",
+        "origin": "2021082260f0b955a9ad427db14a9db751340d61",
+        "name": "rest-example",
+        "topic": "multiplex.0001-000",
+        "monitor": "20210822c750f194403241c49ef8fae113beff75",
+        "type": "WEB",
+        "updated": "2021-08-22T17:30:01Z",
+        "version": "2.1.1",
+        "seq": 3,
         "group": 1
       }
-    },
-    "monitors": {
-      "20210405209f8e20ed3f4c0a80b035a50273b922": "2021-04-05T22:16:56.095Z"
-    }
+    ],
+    "monitors": [
+      "20210822c750f194403241c49ef8fae113beff75 - 2021-08-22T17:30:01Z"
+    ]
   },
   "vm": {
-    "java_vm_version": "14.0.2+12-Ubuntu-120.04",
-    "java_runtime_version": "14.0.2+12-Ubuntu-120.04",
-    "java_version": "14.0.2"
+    "java_vm_version": "11.0.10+9",
+    "java_runtime_version": "11.0.10+9",
+    "java_version": "11.0.10"
   },
-  "origin": "20210405209f8e20ed3f4c0a80b035a50273b922",
+  "streams": {
+    "count": 0
+  },
+  "origin": "20210822c750f194403241c49ef8fae113beff75",
   "time": {
-    "current": "2021-04-05T22:17:06.705Z",
-    "start": "2021-04-05T22:07:26.178Z"
-  },
-  "deployment": "jar"
+    "current": "2021-08-22T17:30:06.712Z",
+    "start": "2021-08-22T17:28:56.128Z"
+  }
 }
 ```
 

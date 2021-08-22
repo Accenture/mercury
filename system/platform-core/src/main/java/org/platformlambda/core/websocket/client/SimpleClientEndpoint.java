@@ -79,13 +79,9 @@ public class SimpleClientEndpoint {
                     new Kv(WsEnvelope.QUERY, envelope.query == null? "" : envelope.query),
                     new Kv(WsEnvelope.TOKEN, envelope.origin));
 
-            if (envelope.query == null) {
-                log.info("Session-{} {} connected to {} {}, {}", session.getId(), service.getClass().getSimpleName(),
-                        route, envelope.ip, envelope.path);
-            } else {
-                log.info("Session-{} {} connected to {} {}, {}, {}", session.getId(), service.getClass().getSimpleName(),
-                        route, envelope.ip, envelope.path, envelope.query);
-            }
+            log.info("Session-{} {} connected to {} {}, {}", session.getId(),
+                    service.getClass().getSimpleName(), route, envelope.ip, uri);
+
         } catch (IOException | TimeoutException e) {
             log.error("Unable to connect to {}, {}", uri, e.getMessage());
         } catch (AppException e) {

@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.1.1, 8/22/2021
+
+### Added
+
+1. User defined PoJo and Generics mapping
+2. Standardized serializers for default case, snake_case and camelCase
+3. Support of EventEnvelope as input parameter in TypedLambdaFunction so application function can inspect event's metadata
+
+### Removed
+
+N/A
+
+### Changed
+
+Replace Tomcat websocket server engine with Vertx in presence monitor for higher performance
+
+---
 ## Version 2.1.0, 7/25/2021
 
 ### Added

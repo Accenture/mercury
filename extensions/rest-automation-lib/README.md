@@ -336,7 +336,7 @@ An open event contains a header of "type" = "open". The event body contains the 
 To connect to your websocket server function, the UI may issue a websocket connection request to the following URL:
 
 ```
-wss://hostname/ws/api/notification:{access_token}?optional_query_string
+wss://hostname/ws/notification/{access_token}?optional_query_string
 ```
 
 The application name "notification" is an example only. You can define any application name in the rest.yaml config file.

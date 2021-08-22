@@ -20,9 +20,12 @@ package org.platformlambda.core.util;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.util.models.ObjectWithGenericType;
+import org.platformlambda.core.util.models.ObjectWithGenericTypeVariance;
 import org.platformlambda.core.util.models.PoJo;
+import org.platformlambda.core.util.models.PoJoVariance;
 
 import java.io.IOException;
 import java.util.*;
@@ -240,6 +243,78 @@ public class GenericTypeTest {
         // numbers are encoded as string in map
         Assert.assertEquals(id, util.str2int(map.getElement("id").toString()));
         Assert.assertEquals(id, util.str2int(map.getElement("content.number").toString()));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void parametricHttpObjectTest() throws ClassNotFoundException {
+        int id = 100;
+        String name = "hello world";
+        ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
+        PoJo pojo = new PoJo();
+        pojo.setName(name);
+        pojo.setNumber(100);
+        genericObject.setContent(pojo);
+        genericObject.setId(100);
+        AsyncHttpRequest request = new AsyncHttpRequest();
+        request.setBody(genericObject);
+        AsyncHttpRequest restored = new AsyncHttpRequest(request.toMap());
+        ObjectWithGenericType<PoJo> o = restored.getBody(ObjectWithGenericType.class, PoJo.class);
+        Assert.assertEquals(name, o.getContent().getName());
+        Assert.assertEquals(100, o.getContent().getNumber());
+        Assert.assertEquals(100, o.getId());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void parametricEnvelopeTest() throws ClassNotFoundException, IOException {
+        int id = 100;
+        String name = "hello world";
+        ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
+        PoJo pojo = new PoJo();
+        pojo.setName(name);
+        pojo.setNumber(100);
+        genericObject.setContent(pojo);
+        genericObject.setId(100);
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(genericObject);
+        byte[] b = event.toBytes();
+        EventEnvelope restored = new EventEnvelope(b);
+        ObjectWithGenericTypeVariance<PoJoVariance> o =
+                restored.getBody(ObjectWithGenericTypeVariance.class, PoJoVariance.class);
+        Assert.assertEquals(name, o.getContent().getName());
+        Assert.assertEquals(100, o.getContent().getNumber());
+        Assert.assertEquals(100, o.getId());
+        Assert.assertTrue(restored.getRawBody() instanceof Map);
+    }
+
+    @Test
+    public void remappingEnvelopeTest() throws IOException {
+        int id = 100;
+        String name = "hello world";
+        PoJo pojo = new PoJo();
+        pojo.setName(name);
+        pojo.setNumber(100);
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(pojo);
+        byte[] b = event.toBytes();
+        EventEnvelope restored = new EventEnvelope(b);
+        PoJoVariance o = restored.getBody(PoJoVariance.class);
+        Assert.assertEquals(name, o.getName());
+        Assert.assertEquals(100, o.getNumber());
+        Assert.assertTrue(restored.getRawBody() instanceof Map);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void primitiveObjectTest() throws IOException {
+        int id = 100;
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(id);
+        byte[] b = event.toBytes();
+        EventEnvelope restored = new EventEnvelope(b);
+        Assert.assertEquals(100, restored.getBody());
+
+        PoJoVariance o = restored.getBody(PoJoVariance.class);
     }
 
 }

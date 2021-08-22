@@ -226,16 +226,41 @@ parallelEvents.add(event2);
 List<EventEnvelope> responses = po.request(parallelEvents, 3000);
 ```
 
+### Inspecting event's metadata
+
+If you want to inspect the incoming event's metadata to make some decisions such as checking correlation-ID and sender's route address, you can use the TypedLambdaFunction to specify input as EventEnvelope.
+
+Another way to inspect event's metadata is the use of the `EventInterceptor` annotation in your lambda function. Note that event interceptor service does not return result, it intercepts incoming event for forwarding to one or more target services. If the incoming request is a RPC call, if the interceptor does not forward the event to the target service, the call will time out.
+
+### Default PoJo mapping
+
+PoJo mapping is determined at the source. When the caller function sets the PoJo, the object is restored as the original PoJo in the target service provided that the common data model is available in both source and target services.
+
+```java
+public Object getBody(); // <-- default mapping
+```
+
+### Retrieve raw data as a Map
+
+```java
+public Object getRawBody();
+```
+
+### Custom PoJo mapping
+
+In case you want to do custom mapping, the platform will carry out best effort mapping from the source PoJo to the target PoJo. You must ensure the target object is compatible with the source PoJo. Otherwise, there will be data lost or casting error.
+
+```java
+public <T> T getBody(Class<T> toValueType); // <-- custom mapping
+public <T> T getBody(Class<T> toValueType, Class<?>... parameterClass); // custom generics
+```
+
 ### Check if a target service is available
 
 To check if a target service is available, you can use the `exists` method.
 
 ```java
 boolean po.exists(String... route);
-
-// input can be a single route or multiple routes
-// it will return true only when all routes are available
-// for examples
 
 if (po.exists("hello.world")) {
     // do something
@@ -244,7 +269,6 @@ if (po.exists("hello.world")) {
 if (po.exists("hello.math", "v1.diff.equation")) {
     // do other things
 }
-
 ```
 This service discovery process is instantaneous using distributed routing table.
 

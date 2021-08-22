@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.automation.services;
+package org.platformlambda.automation.ws;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.ServerWebSocket;
@@ -24,6 +24,7 @@ import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.models.WsInfo;
 import org.platformlambda.automation.models.WsMetadata;
+import org.platformlambda.automation.services.NotificationManager;
 import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -44,8 +45,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
-    private static final Logger log = LoggerFactory.getLogger(WebSocketServiceHandler.class);
+public class WsRequestHandler implements Handler<ServerWebSocket> {
+    private static final Logger log = LoggerFactory.getLogger(WsRequestHandler.class);
 
     private static final AtomicInteger counter = new AtomicInteger(0);
     private static final CryptoApi crypto = new CryptoApi();
@@ -66,12 +67,13 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
     private static final String SUBSCRIBE = "subscribe";
     private static final String UNSUBSCRIBE = "unsubscribe";
     private static final String PUBLISH = "publish";
-    private static final String WS_API = "/ws/api/";
+    private static final String WS_PREFIX = "/ws/";
+    private static final long INTERVAL = 5000;
     // txPath -> info
     private static final ConcurrentMap<String, WsMetadata> connections = new ConcurrentHashMap<>();
     private static IdleCheck idleChecker;
 
-    public WebSocketServiceHandler() {
+    public WsRequestHandler() {
         if (idleChecker == null) {
             idleChecker = new IdleCheck();
             idleChecker.start();
@@ -81,7 +83,7 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
     @Override
     public void handle(ServerWebSocket ws) {
         String path = ws.path();
-        if (!path.startsWith(WS_API)) {
+        if (!path.startsWith(WS_PREFIX)) {
             ws.reject();
             return;
         }
@@ -103,12 +105,12 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
             return;
         }
         String ip = ws.remoteAddress().hostAddress();
-        String name = path.substring(WS_API.length());
-        if (!name.contains(":")) {
+        String name = path.substring(WS_PREFIX.length());
+        if (!name.contains("/")) {
             ws.reject();
             return;
         }
-        int colon = name.lastIndexOf(':');
+        int colon = name.lastIndexOf('/');
         String app = name.substring(0, colon);
         String token = name.substring(colon+1);
         WsInfo info = wsEntry.getInfo(app);
@@ -145,22 +147,22 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
         int r = crypto.nextInt(10000, 100000000);
         // ensure uniqueness using a monotonically increasing sequence number
         int n = counter.incrementAndGet();
-        final String txPath = "ws."+r+"."+n;
+        final String session = "ws."+r+"."+n;
         try {
-            platform.registerPrivate(txPath, f, 1);
+            platform.registerPrivate(session, f, 1);
         } catch (IOException e) {
-            log.error("Unable to register {} - {}", txPath, e.getMessage());
             ws.close((short) 1003, "System temporarily unavailable");
+            log.error("Unable to accept connection - {}", e.getMessage());
             return;
         }
-        log.info("Session {} started, ip={}, app={}", txPath, ip, app);
-        WsMetadata md = new WsMetadata(ws, info.application, info.recipient, txPath, info.publish, info.subscribe);
-        connections.put(txPath, md);
+        log.info("Session {} started, ip={}, app={}", session, ip, app);
+        WsMetadata md = new WsMetadata(ws, info.application, info.recipient, session, info.publish, info.subscribe);
+        connections.put(session, md);
         try {
             po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLEAR), new Kv(TOKEN, token));
         } catch (IOException e) {
             log.error("Unable to inform {} when starting {} - {}",
-                    MainModule.NOTIFICATION_MANAGER, txPath, e.getMessage());
+                    MainModule.NOTIFICATION_MANAGER, session, e.getMessage());
         }
         if (!WsEntry.NONE_PROVIDED.equals(info.recipient)) {
             Map<String, Object> event = new HashMap<>();
@@ -168,7 +170,7 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
             event.put(APPLICATION, info.application);
             event.put(IP, ip);
             event.put(ORIGIN, origin);
-            event.put(TX_PATH, txPath + "@" + origin);
+            event.put(TX_PATH, session + "@" + origin);
             // broadcast to multiple instance of the recipient service
             try {
                 po.broadcast(new EventEnvelope().setTo(info.recipient).setBody(event).setHeader(TYPE, OPEN));
@@ -180,35 +182,42 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
                 if (accepted.get()) {
                     String message = util.getUTF(block.getBytes());
                     try {
-                        handleMessage(txPath, message);
+                        handleMessage(session, message);
                     } catch (IOException e) {
                         log.warn("Exception happen when processing incoming message for {} - {}",
-                                txPath, e.getMessage());
+                                session, e.getMessage());
                     }
                 }
             })
-            .endHandler(end -> log.info("Session {} closed {}", txPath, ws.closeStatusCode()))
+            .endHandler(end -> log.debug("Session {} completed {}", session, ws.closeStatusCode()))
             .closeHandler(close -> {
                 try {
-                    handleClose(txPath);
+                    handleClose(session);
                 } catch (IOException e) {
                     log.error("Unable to inform {} when closing {} - {}",
-                            MainModule.NOTIFICATION_MANAGER, txPath, e.getMessage());
+                            MainModule.NOTIFICATION_MANAGER, session, e.getMessage());
                 }
-                connections.remove(txPath);
+                connections.remove(session);
                 try {
-                    platform.release(txPath);
+                    platform.release(session);
                 } catch (IOException e) {
-                    log.error("Unable to release {} - {}", txPath, e.getMessage());
+                    log.error("Unable to release {} - {}", session, e.getMessage());
                 }
+            }).exceptionHandler(e -> {
+                if (!ws.isClosed()) {
+                    ws.close();
+                }
+                log.error("Unhandled exception - {}", e.getMessage());
             });
     }
 
     public static void closeAllConnections() {
+        List<String> connectionList = new ArrayList<>(connections.keySet());
         List<ServerWebSocket> sockets = new ArrayList<>();
-        for (String txPath: connections.keySet()) {
+        for (String txPath: connectionList) {
             WsMetadata md = connections.get(txPath);
             sockets.add(md.ws);
+            connections.remove(txPath);
         }
         for (ServerWebSocket w: sockets) {
             w.close();
@@ -225,7 +234,7 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
             if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
                 try {
                     po.send(md.recipient, body, new Kv(TYPE, MESSAGE), new Kv(APPLICATION, md.application),
-                            new Kv(ORIGIN, origin), new Kv(TX_PATH, md.txPath + "@" + origin));
+                            new Kv(ORIGIN, origin), new Kv(TX_PATH, md.session + "@" + origin));
                 } catch (IOException e) {
                     log.warn("Message not delivered to {} - {}", md.recipient, e.getMessage());
                 }
@@ -265,10 +274,10 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
     private void handleClose(String txPath) throws IOException {
         String origin = Platform.getInstance().getOrigin();
         PostOffice po = PostOffice.getInstance();
-        log.info("Stopping {}", txPath);
+        log.info("Session {} closed", txPath);
         WsMetadata md = connections.get(txPath);
         if (md != null) {
-            String target = md.txPath + "@" + origin;
+            String target = md.session + "@" + origin;
             // tell notification manager to clear routing entries
             po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLOSE), new Kv(TX_PATH, target));
             if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
@@ -335,18 +344,24 @@ public class WebSocketServiceHandler implements Handler<ServerWebSocket> {
             long t1 = System.currentTimeMillis();
             while (normal) {
                 long now = System.currentTimeMillis();
-                if (now - t1 > 5000) {
+                if (now - t1 > INTERVAL) {
                     t1 = now;
-                    List<ServerWebSocket> sockets = new ArrayList<>();
-                    for (String txPath : connections.keySet()) {
-                        WsMetadata md = connections.get(txPath);
+                    List<String> sessions = new ArrayList<>();
+                    for (String conn : connections.keySet()) {
+                        WsMetadata md = connections.get(conn);
                         if (now - md.lastAccess > EXPIRY) {
-                            sockets.add(md.ws);
-                            log.warn("{} expired", md.txPath);
+                            sessions.add(conn);
                         }
                     }
-                    for (ServerWebSocket w : sockets) {
-                        w.close((short) 1003, "Idle for "+(EXPIRY / 1000)+" seconds");
+                    for (String conn : sessions) {
+                        WsMetadata md = connections.get(conn);
+                        if (md != null) {
+                            connections.remove(conn);
+                            log.warn("{} expired", md.session);
+                            if (!md.ws.isClosed()) {
+                                md.ws.close((short) 1003, "Idle for " + (EXPIRY / 1000) + " seconds");
+                            }
+                        }
                     }
                 }
                 try {

@@ -37,8 +37,9 @@ public class TypedPayload {
         return payload;
     }
 
-    public void setParametricType(String parametricType) {
+    public TypedPayload setParametricType(String parametricType) {
         this.parametricType = parametricType;
+        return this;
     }
 
     public String getParametricType() {

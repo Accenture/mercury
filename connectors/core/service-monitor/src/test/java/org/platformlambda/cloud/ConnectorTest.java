@@ -21,6 +21,7 @@ package org.platformlambda.cloud;
 import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.MainApp;
+import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -28,13 +29,17 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.websocket.client.PersistentWsClient;
+import org.platformlambda.mock.MockCloud;
 import org.platformlambda.mock.TestBase;
-import org.platformlambda.services.MonitorService;
+import org.platformlambda.models.WsMetadata;
 import org.platformlambda.util.SimpleHttpRequests;
+import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +61,8 @@ public class ConnectorTest extends TestBase {
     public void connectivityTest() throws AppException, IOException, TimeoutException {
         PostOffice po = PostOffice.getInstance();
         int n = 1;
-        while (!PresenceHandler.isReady() || MonitorService.getConnections().isEmpty()) {
-            log.info("Pending first member connection... {}", n++);
+        while (!PresenceHandler.isReady() || MonitorService.getConnections().isEmpty() && n++ < 20) {
+            log.info("Waiting for member connection... {}", n);
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -65,21 +70,25 @@ public class ConnectorTest extends TestBase {
             }
         }
         n = 1;
-        while (n < 20) {
+        while (n++ < 30) {
             Map<String, String> headers = new HashMap<>();
             headers.put("x-app-instance", Platform.getInstance().getOrigin());
-            Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/http/127.0.0.1:"+port+"/info",
+            Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info",
                     "application/json", headers);
             Assert.assertTrue(response instanceof String);
             Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
             Object info = map.get("additional.info");
             Assert.assertTrue(info instanceof Map);
             Map<String, Object> infoMap = (Map<String, Object>) info;
+            Object tt = infoMap.get("topics");
+            Assert.assertTrue(tt instanceof List);
+            List<String> topicList = (List<String>) tt;
+            Assert.assertEquals(2, topicList.size());
             Object vt = infoMap.get("virtual.topics");
             Assert.assertTrue(vt instanceof List);
             List<String> vtList = (List<String>) vt;
             if (vtList.isEmpty()) {
-                log.info("Waiting for first active member... {}", n++);
+                log.info("Waiting for first active member... {}", n);
                 try {
                     Thread.sleep(3000);
                 } catch (InterruptedException e) {
@@ -123,10 +132,42 @@ public class ConnectorTest extends TestBase {
         Object info = map.get("additional.info");
         Assert.assertTrue(info instanceof Map);
         Map<String, Object> infoMap = (Map<String, Object>) info;
-        Object monitorMap = infoMap.get("monitors");
-        Assert.assertTrue(monitorMap instanceof Map);
-        Map<String, Object> monitors = (Map<String, Object>) monitorMap;
-        Assert.assertTrue(monitors.containsKey("test-monitor"));
-        Assert.assertTrue(monitors.containsKey(Platform.getInstance().getOrigin()));
+        Object monitorList = infoMap.get("monitors");
+        Assert.assertTrue(monitorList instanceof List);
+        String monitors = monitorList.toString();
+        Assert.assertTrue(monitors.contains("test-monitor"));
+        Assert.assertTrue(monitors.contains(Platform.getInstance().getOrigin()));
+        Map<String, WsMetadata> sessions = MonitorService.getSessions();
+        Assert.assertEquals(1, sessions.size());
+        // start a connector with invalid path to verify that presence monitor will reject it
+        List<String> invalidPath = new ArrayList<>();
+        String url = "ws://127.0.0.1:"+port+"/invalid/presence";
+        invalidPath.add(url);
+        PersistentWsClient invalidWs = new PersistentWsClient(PresenceConnector.getInstance(), invalidPath);
+        invalidWs.start();
+        // stop current session
+        MockCloud.stopWsClient();
+        n = 1;
+        while (MonitorService.getSessionCount() > 0 && n++ < 30) {
+            log.info("Waiting for members to close ... {}", n);
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // ok to ignore
+            }
+        }
+        MockCloud.restartWsClient();
+        n = 1;
+        while (MonitorService.getSessionCount() == 0 && n++ < 30) {
+            log.info("Waiting for members to re-connect ... {}", n);
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // ok to ignore
+            }
+        }
+        invalidWs.close();
+
     }
+
 }

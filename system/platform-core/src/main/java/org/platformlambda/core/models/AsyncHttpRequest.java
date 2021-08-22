@@ -27,6 +27,7 @@ import java.util.*;
 
 public class AsyncHttpRequest {
 
+    private static final PayloadMapper converter = PayloadMapper.getInstance();
     private static final String HEADERS = "headers";
     private static final String METHOD = "method";
     private static final String IP = "ip";
@@ -116,7 +117,7 @@ public class AsyncHttpRequest {
     }
 
     /**
-     * Restore body to PoJo is class type information is available
+     * Restore body to PoJo if class type information is available
      *
      * @return original body
      */
@@ -130,6 +131,19 @@ public class AsyncHttpRequest {
     }
 
     /**
+     * Get body in raw form without object mapping. i.e. Map or Java primitive
+     *
+     * @return body
+     */
+    public Object getRawBody() {
+        return body;
+    }
+
+    public String getClassType() {
+        return type;
+    }
+
+    /**
      * Convert body to a specific class
      * <p>
      * This would result in casting exception if using incompatible target class
@@ -140,6 +154,34 @@ public class AsyncHttpRequest {
      */
     public <T> T getBody(Class<T> toValueType) {
         return SimpleMapper.getInstance().getMapper().readValue(body, toValueType);
+    }
+
+    /**
+     * Convert body to a parameterizedClass
+     *
+     * @param toValueType target class
+     * @param parameterClass parameter class(es)
+     * @param <T> class type
+     * @return target class with parameter class(es)
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T getBody(Class<T> toValueType, Class<?>... parameterClass) {
+        if (parameterClass.length == 0) {
+            throw new IllegalArgumentException("Missing parameter class");
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Class<?> cls: parameterClass) {
+            sb.append(cls.getName());
+            sb.append(',');
+        }
+        String parametricType = sb.substring(0, sb.length()-1);
+        TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(parametricType);
+        try {
+            return (T) converter.decode(typed);
+        } catch (ClassNotFoundException e) {
+            // this should not occur because the classes are given as arguments
+            throw new IllegalArgumentException(e.getMessage());
+        }
     }
 
     /**

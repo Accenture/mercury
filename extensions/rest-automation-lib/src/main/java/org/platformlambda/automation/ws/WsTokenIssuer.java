@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.automation.services;
+package org.platformlambda.automation.ws;
 
 import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.config.WsEntry;

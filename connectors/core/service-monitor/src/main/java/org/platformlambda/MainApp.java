@@ -18,6 +18,7 @@
 
 package org.platformlambda;
 
+import io.vertx.core.Vertx;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.PresenceHandler;
 import org.platformlambda.cloud.ServiceLifeCycle;
@@ -29,11 +30,9 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.rest.RestServer;
-import org.platformlambda.services.AdditionalInfo;
-import org.platformlambda.services.HouseKeeper;
-import org.platformlambda.services.MonitorAlive;
-import org.platformlambda.services.TopicController;
+import org.platformlambda.http.HttpRequestHandler;
+import org.platformlambda.services.*;
+import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +59,7 @@ public class MainApp implements EntryPoint {
     private static final String ORIGIN = "origin";
 
     public static void main(String[] args) {
-        RestServer.main(args);
+        AppStarter.main(args);
     }
 
     @Override
@@ -134,7 +133,18 @@ public class MainApp implements EntryPoint {
         };
         String groupId = config.getProperty("default.monitor.group.id", "monitorGroup");
         ps.subscribe(monitorTopic, 0, service, clientId, groupId, String.valueOf(ServiceLifeCycle.INITIALIZE));
-        log.info("Started");
+
+        int port = util.str2int(config.getProperty("server.port", "8100"));
+        Vertx vertx = Vertx.vertx();
+        vertx.createHttpServer()
+                .requestHandler(new HttpRequestHandler())
+                .webSocketHandler(new MonitorService())
+                .listen(port)
+                .onSuccess(server -> log.info("Presence monitor running on port-{}", server.actualPort()))
+                .onFailure(ex -> {
+                    log.error("Unable to start - {}", ex.getMessage());
+                    System.exit(-1);
+                });
     }
 
 }

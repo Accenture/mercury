@@ -42,6 +42,9 @@ public class MockCloud implements CloudSetup {
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     private static final String CLOUD_MANAGER = "cloud.manager";
 
+    private static final List<String> monitors = new ArrayList<>();
+    private static PersistentWsClient ws;
+
     @Override
     public void initialize() {
         Utility util = Utility.getInstance();
@@ -52,10 +55,9 @@ public class MockCloud implements CloudSetup {
         int port = util.str2int(config.getProperty("server.port", "8080"));
         String url1 = "ws://127.0.0.1:"+port+"/ws/presence";
         String url2 = "ws://localhost:"+port+"/ws/presence";
-        List<String> monitors = new ArrayList<>();
         monitors.add(url1);
         monitors.add(url2);
-        PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
+        ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
         ws.start();
         try {
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
@@ -67,7 +69,19 @@ public class MockCloud implements CloudSetup {
         } catch (IOException e) {
             // nothing to worry
         }
+    }
 
+    public static void stopWsClient() {
+        if (ws != null) {
+            ws.close();
+            ws = null;
+        }
+    }
+
+    public static void restartWsClient() {
+        stopWsClient();
+        ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
+        ws.start();
     }
 
 }

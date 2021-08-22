@@ -156,11 +156,36 @@ public class SimpleMapperTest {
         Assert.assertTrue(SimpleMapper.getInstance().isZero(result.toString()));
     }
 
+    @SuppressWarnings("unchecked")
+    @Test
+    public void caseMappingTest() {
+        SimpleObjectMapper snakeMapper = SimpleMapper.getInstance().getSnakeCaseMapper();
+        SimpleObjectMapper camelMapper = SimpleMapper.getInstance().getCamelCaseMapper();
+        String NUMBER = "1.234567890";
+        CaseDemo sn = new CaseDemo(NUMBER);
+        Map<String, Object> snakeMap = snakeMapper.readValue(sn, Map.class);
+        Assert.assertEquals(NUMBER, snakeMap.get("case_demo"));
+        Map<String, Object> camelMap = camelMapper.readValue(sn, Map.class);
+        Assert.assertEquals(NUMBER, camelMap.get("caseDemo"));
+        CaseDemo restoredFromSnake = snakeMapper.readValue(snakeMap, CaseDemo.class);
+        Assert.assertEquals(NUMBER, restoredFromSnake.caseDemo.toPlainString());
+        CaseDemo restoredFromCamel = camelMapper.readValue(camelMap, CaseDemo.class);
+        Assert.assertEquals(NUMBER, restoredFromCamel.caseDemo.toPlainString());
+    }
+
     private static class SimpleNumber {
         public BigDecimal number;
 
         public SimpleNumber(String number) {
             this.number = new BigDecimal(number);
+        }
+    }
+
+    private static class CaseDemo {
+        public BigDecimal caseDemo;
+
+        public CaseDemo(String caseDemo) {
+            this.caseDemo = new BigDecimal(caseDemo);
         }
     }
 

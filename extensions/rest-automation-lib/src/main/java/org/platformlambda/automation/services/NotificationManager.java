@@ -19,6 +19,7 @@
 package org.platformlambda.automation.services;
 
 import org.platformlambda.automation.MainModule;
+import org.platformlambda.automation.ws.WsRequestHandler;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -146,7 +147,7 @@ public class NotificationManager implements LambdaFunction {
                         if (origin.equals(peer)) {
                             if (ready) {
                                 ready = false;
-                                WebSocketServiceHandler.closeAllConnections();
+                                WsRequestHandler.closeAllConnections();
                                 subscription.clear();
                                 log.info("Offline");
                             }

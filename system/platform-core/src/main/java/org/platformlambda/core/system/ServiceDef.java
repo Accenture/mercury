@@ -18,14 +18,17 @@
 
 package org.platformlambda.core.system;
 
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.StreamFunction;
 import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.Utility;
 
+import java.lang.reflect.Method;
 import java.util.Date;
 
 public class ServiceDef {
 
+    private static final String HANDLE_EVENT = "handleEvent";
     private static final int MAX_INSTANCES = 1000;
 
     private final String route;
@@ -37,6 +40,7 @@ public class ServiceDef {
     private final Date created = new Date();
     private boolean isPrivateFunction = false;
     private boolean isStreamFunction = false;
+    private boolean useEnvelope = false;
     private int instances = 1;
 
     @SuppressWarnings("rawtypes")
@@ -45,6 +49,15 @@ public class ServiceDef {
         this.route = route;
         this.lambda = lambda;
         this.stream = null;
+        Method[] methods = lambda.getClass().getDeclaredMethods();
+        for (Method m: methods) {
+            Class<?>[] arguments = m.getParameterTypes();
+            if (HANDLE_EVENT.equals(m.getName()) && arguments.length == 3) {
+                if (arguments[1] == EventEnvelope.class) {
+                    useEnvelope = true;
+                }
+            }
+        }
     }
 
     public ServiceDef(String route, StreamFunction stream) {
@@ -108,6 +121,10 @@ public class ServiceDef {
 
     public boolean isStream() {
         return isStreamFunction;
+    }
+
+    public boolean inputIsEnvelope() {
+        return useEnvelope;
     }
 
 }

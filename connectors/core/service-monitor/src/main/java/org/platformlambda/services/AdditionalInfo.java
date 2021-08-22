@@ -23,6 +23,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.ws.MonitorService;
 
 import java.io.IOException;
 import java.util.*;
@@ -34,6 +35,7 @@ public class AdditionalInfo implements LambdaFunction {
     private static final String ID = "id";
     private static final String NAME = "name";
     private static final String VERSION = "version";
+    private static final String ORIGIN = "origin";
     private final String appPrefix, monitorPrefix;
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
@@ -57,8 +59,8 @@ public class AdditionalInfo implements LambdaFunction {
             for (String k: keys) {
                 connections.put(k, filterInfo((Map<String, Object>) connections.get(k)));
             }
-            result.put("connections", connections);
-            result.put("monitors", HouseKeeper.getMonitors());
+            result.put("connections", getConnectionList(connections));
+            result.put("monitors", getMonitorList());
             // topic list
             List<String> pubSub = getTopics();
             result.put("topics", pubSub);
@@ -95,6 +97,36 @@ public class AdditionalInfo implements LambdaFunction {
             }
         }
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> getConnectionList(Map<String, Object> connections) {
+        Map<String, Map<String, Object>> normalized = new HashMap<>();
+        List<Map<String, Object>> result = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (String origin: connections.keySet()) {
+            Map<String, Object> entry = new HashMap<>((Map<String, Object>) connections.get(origin));
+            entry.put(ORIGIN, origin);
+            String composite = entry.get(NAME)+"-"+entry.get(VERSION)+"|"+origin;
+            normalized.put(composite, entry);
+            labels.add(composite);
+        }
+        if (labels.size() > 1) {
+            Collections.sort(labels);
+        }
+        for (String item: labels) {
+            result.add(normalized.get(item));
+        }
+        return result;
+    }
+
+    private List<String> getMonitorList() {
+        List<String> result = new ArrayList<>();
+        Map<String, String> monitors = HouseKeeper.getMonitors();
+        for (String origin: monitors.keySet()) {
+            result.add(origin+" - "+monitors.get(origin));
+        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")

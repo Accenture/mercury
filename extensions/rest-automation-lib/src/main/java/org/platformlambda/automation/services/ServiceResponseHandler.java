@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ public class ServiceResponseHandler implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceResponseHandler.class);
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
+    private static final String DATE = "Date";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_HTML = "text/html";
@@ -158,7 +160,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                     String message = ((String) event.getBody()).trim();
                     // make sure it does not look like JSON or XML
                     if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
-                        httpUtil.sendError(requestId, holder.request, status, (String) event.getBody());
+                        httpUtil.sendResponse(requestId, holder.request, status, (String) event.getBody());
                         return null;
                     }
                 }
@@ -192,7 +194,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                             }
                         } catch (IOException | RuntimeException e) {
                             log.warn("{} {} interrupted - {}", holder.url, streamId, e.getMessage());
-                            httpUtil.sendError(requestId, holder.request,
+                            httpUtil.sendResponse(requestId, holder.request,
                                     e.getMessage().contains("timeout") ? 408 : 500, e.getMessage());
                             return null;
                         }

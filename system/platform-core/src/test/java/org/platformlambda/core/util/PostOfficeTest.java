@@ -28,6 +28,7 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -564,6 +565,17 @@ public class PostOfficeTest {
         Assert.assertEquals(false, result.getBody());
     }
 
+    @Test
+    public void envelopeArgumentTest() throws IOException, AppException, TimeoutException {
+        String TARGET = "test.route.1";
+        String MESSAGE = "hello world";
+        PostOffice po = PostOffice.getInstance();
+        Platform.getInstance().register(TARGET, new EventEnvelopeReader(), 1);
+        EventEnvelope input = new EventEnvelope().setTo(TARGET).setBody(MESSAGE);
+        EventEnvelope output = po.request(input, 5000);
+        Assert.assertEquals(MESSAGE, output.getBody());
+    }
+
     @EventInterceptor
     private static class SimpleInterceptor implements LambdaFunction {
 
@@ -572,6 +584,14 @@ public class PostOfficeTest {
             EventEnvelope event = (EventEnvelope) body;
             bench.offer(event.getFrom());
             return Optional.empty();
+        }
+    }
+
+    private static class EventEnvelopeReader implements TypedLambdaFunction<EventEnvelope, EventEnvelope> {
+
+        @Override
+        public EventEnvelope handleEvent(Map<String, String> headers, EventEnvelope body, int instance) {
+            return new EventEnvelope().setBody(body.getBody());
         }
     }
 

@@ -24,7 +24,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.services.MonitorAlive;
-import org.platformlambda.services.MonitorService;
+import org.platformlambda.ws.MonitorService;
 import org.platformlambda.services.TopicController;
 
 import java.io.IOException;

@@ -36,7 +36,7 @@ public class SimpleMapper {
     private static final String SNAKE_CASE_SERIALIZATION = "snake.case.serialization";
     private static final Set<String> safeModels = new HashSet<>();
     private static final String[] SAFE_GROUPS = {"java.util.", "java.lang."};
-    private final SimpleObjectMapper mapper;
+    private final SimpleObjectMapper mapper, snakeMapper, camelMapper;
     private static final SimpleMapper instance = new SimpleMapper();
 
     private SimpleMapper() {
@@ -47,6 +47,8 @@ public class SimpleMapper {
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }
         this.mapper = new SimpleObjectMapper(getJson(snake, true), getJson(snake, false));
+        this.snakeMapper = new SimpleObjectMapper(getJson(true, true), getJson(true, false));
+        this.camelMapper = new SimpleObjectMapper(getJson(false, true), getJson(false, false));
         /*
          * Optionally, load white list for authorized PoJo
          */
@@ -104,8 +106,31 @@ public class SimpleMapper {
         return instance;
     }
 
+    /**
+     * Get default object mapper
+     * <p>
+     * @return object mapper
+     */
     public SimpleObjectMapper getMapper() {
         return mapper;
+    }
+
+    /**
+     * Get snake_case object mapper
+     * <p>
+     * @return object mapper
+     */
+    public SimpleObjectMapper getSnakeCaseMapper() {
+        return snakeMapper;
+    }
+
+    /**
+     * Get camelCase object mapper
+     * <p>
+     * @return object mapper
+     */
+    public SimpleObjectMapper getCamelCaseMapper() {
+        return camelMapper;
     }
 
     public SimpleObjectMapper getSafeMapper(Class<?> cls) {

@@ -10,7 +10,7 @@
         /*
          * This is a sample javascript code to connect to a notification channel using websocket.
          * Please note that your browser application must implement the following:
-         * 1. Connection URL is /ws/api/{notification}:{token}
+         * 1. Connection URL is /ws/{notification}/{token}
          *    where "notification" is the name of the sample notification backend app and
          *    token should be an access token for the notification channel.
          * 2. Keep-alive protocol.
@@ -131,7 +131,7 @@
                 }
                 // open a web socket
                 var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/api/notification:"+token);
+                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/notification/"+token);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));

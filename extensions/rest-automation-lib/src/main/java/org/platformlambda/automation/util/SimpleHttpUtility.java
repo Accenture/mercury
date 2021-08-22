@@ -30,6 +30,7 @@ import org.platformlambda.core.util.Utility;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import java.util.Map;
 public class SimpleHttpUtility {
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
+    private static final String DATE = "Date";
     private static final String SET_COOKIE = "set-cookie";
     private static final String COOKIE_SEPARATOR = "|";
     private static final String ACCEPT = "Accept";
@@ -151,7 +153,7 @@ public class SimpleHttpUtility {
         return result;
     }
 
-    public void sendError(String requestId, HttpServerRequest request, int status, String error) {
+    public void sendResponse(String requestId, HttpServerRequest request, int status, String message) {
         ServiceGateway.closeContext(requestId);
         String accept = request.getHeader(ACCEPT);
         if (accept == null) {
@@ -162,7 +164,7 @@ public class SimpleHttpUtility {
         if (accept.startsWith(TEXT_HTML)) {
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, request.path())
-                    .replace(SET_MESSAGE, error);
+                    .replace(SET_MESSAGE, message);
             if (status >= 500) {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);
             } else if (status >= 400) {
@@ -177,7 +179,7 @@ public class SimpleHttpUtility {
         } else {
             Map<String, Object> result = new HashMap<>();
             result.put("status", status);
-            result.put("message", error);
+            result.put("message", message);
             result.put("type", status < 400? "event" : "error");
             result.put("path", request.path());
             if (accept.startsWith(APPLICATION_XML)) {

@@ -169,8 +169,8 @@ headers:
 # Please refer to user guide for details.
 # https://github.com/Accenture/mercury/tree/master/docs/guides
 #
-# The URI prefix "/ws/api/" is reserved for websocket connections
-# and the format of a valid web-socket URI is /ws/api/{application}:{token}?query_parameters
+# The URI prefix "/ws/" is reserved for websocket connections
+# and the format of a valid web-socket URI is /ws/{application}/{token}?query_parameters
 #
 # (Query parameters are not used for authentication.
 # If provided, they will be passed to a configured recipient function)

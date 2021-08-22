@@ -62,7 +62,7 @@ public class PresenceConnector implements LambdaFunction {
     private final int closedUserGroup;
     private State state = State.UNASSIGNED;
     private String monitor;
-    private long seq = 1;
+    private long seq = 0;
     private boolean ready = false;
     private boolean active = true;
     private String topicPartition = null;
@@ -154,7 +154,7 @@ public class PresenceConnector implements LambdaFunction {
                                 new Kv(VERSION, platformVersion), new Kv(TOPIC, topicPartition),
                                 new Kv(ORIGIN, platform.getOrigin()));
                         // info presence monitor that this app is activated
-                        sendAppInfo(seq, true);
+                        sendAppInfo(seq++, true);
                     } else {
                         po.send(event);
                     }

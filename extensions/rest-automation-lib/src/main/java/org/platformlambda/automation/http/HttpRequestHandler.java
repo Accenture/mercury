@@ -16,14 +16,16 @@
 
  */
 
-package org.platformlambda.automation.services;
+package org.platformlambda.automation.http;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.automation.MainModule;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.models.AssignedRoute;
 import org.platformlambda.automation.models.AsyncContextHolder;
+import org.platformlambda.automation.services.ServiceGateway;
 import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
@@ -46,7 +48,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String GET = "GET";
     private static final String POST = "POST";
     private static final String DATE = "Date";
-    private static final String WS_API = "/ws/api/";
+    private static final String WS_PREFIX = "/ws/";
     private static final String APP_INSTANCE = "X-App-Instance";
     private static final String USER = "user";
     private static final String WHEN = "when";
@@ -60,7 +62,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String[] ENV_SERVICE = {"/env", "env"};
     private static final String[] LIVENESSPROBE = {"/livenessprobe", "livenessprobe"};
     private static final String[][] ADMIN_ENDPOINTS = {INFO_SERVICE, INFO_LIB, INFO_ROUTES,
-            HEALTH_SERVICE, ENV_SERVICE, LIVENESSPROBE};
+                                                        HEALTH_SERVICE, ENV_SERVICE, LIVENESSPROBE};
     private static final long GRACE_PERIOD = 5000;
 
     private final ServiceGateway gateway;
@@ -77,6 +79,8 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     @Override
     public void handle(HttpServerRequest request) {
         Utility util = Utility.getInstance();
+        HttpServerResponse response = request.response();
+        response.putHeader(DATE, util.getHtmlDate(new Date()));
         String url = request.path();
         String method = request.method().name();
         String requestId = util.getUuid();
@@ -90,14 +94,15 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
                 shutdown(requestId, request);
                 return;
             }
-            if (url.equals("/suspend/now") || url.equals("/suspend/later") ||
+            if (url.equals("/suspend") || url.equals("/resume") ||
+                    url.equals("/suspend/now") || url.equals("/suspend/later") ||
                     url.equals("/resume/now") || url.equals("/resume/later")) {
                 suspendResume(requestId, request);
                 return;
             }
         }
         RoutingEntry re = RoutingEntry.getInstance();
-        AssignedRoute route = url.startsWith(WS_API)? null : re.getRouteInfo(method, url);
+        AssignedRoute route = url.startsWith(WS_PREFIX)? null : re.getRouteInfo(method, url);
         int status = 200;
         String error = null;
         if (route == null) {
@@ -118,7 +123,6 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
                 }
             }
         }
-        request.response().putHeader(DATE, util.getHtmlDate(new Date()));
         gateway.handleEvent(route, requestId, status, error);
     }
 
@@ -147,7 +151,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
                 return true;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -166,7 +170,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            httpUtil.sendError(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
+            httpUtil.sendResponse(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, "shutdown");
@@ -174,7 +178,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -185,7 +189,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         } catch (IOException e) {
             log.error("Unable to send shutdown request - {}", e.getMessage());
         }
-        httpUtil.sendError(requestId, request, 200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
+        httpUtil.sendResponse(requestId, request, 200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
     }
 
     private void suspendResume(String requestId, HttpServerRequest request) {
@@ -193,15 +197,18 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            httpUtil.sendError(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
+            httpUtil.sendResponse(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
         Utility util = Utility.getInstance();
         String url = request.path();
         List<String> parts = util.split(url, "/");
+        if (parts.size() == 1) {
+            parts.add(NOW);
+        }
         String type = parts.get(0);
         if (!po.exists(REGISTRY)) {
-            httpUtil.sendError(requestId, request, 400, type+" not available in standalone mode");
+            httpUtil.sendResponse(requestId, request, 400, type+" not available in standalone mode");
             return;
         }
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type)
@@ -210,7 +217,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -226,7 +233,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         if (LATER.equals(when)) {
             message += ". It will take effect in one minute.";
         }
-        httpUtil.sendError(requestId, request, 200, message);
+        httpUtil.sendResponse(requestId, request, 200, message);
     }
 
     private boolean isLocalHost(HttpServerRequest request) {

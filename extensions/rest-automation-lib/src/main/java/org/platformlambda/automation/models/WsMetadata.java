@@ -22,17 +22,17 @@ import io.vertx.core.http.ServerWebSocket;
 
 public class WsMetadata {
 
-    public String application, recipient, txPath;
+    public String application, recipient, session;
     public Boolean publish, subscribe;
     public ServerWebSocket ws;
     public long lastAccess = System.currentTimeMillis();
 
     public WsMetadata(ServerWebSocket ws,
-                      String application, String recipient, String txPath, boolean publish, boolean subscribe) {
+                      String application, String recipient, String session, boolean publish, boolean subscribe) {
         this.ws = ws;
         this.application = application;
         this.recipient = recipient;
-        this.txPath = txPath;
+        this.session = session;
         this.publish = publish;
         this.subscribe = subscribe;
     }

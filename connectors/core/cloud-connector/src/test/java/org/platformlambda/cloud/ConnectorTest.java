@@ -98,9 +98,9 @@ public class ConnectorTest extends TestBase {
         Map<String, Object> info = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         MultiLevelMap multi = new MultiLevelMap(info);
         Object nodes = multi.getElement("routing.nodes");
-        Assert.assertTrue(nodes instanceof Map);
-        Map<String, Object> nodeMap = (Map<String, Object>) nodes;
-        Assert.assertTrue(nodeMap.containsKey("unit-test"));
+        Assert.assertTrue(nodes instanceof List);
+        String nodeList = nodes.toString();
+        Assert.assertTrue(nodeList.contains("unit-test"));
         Assert.assertTrue(po.exists("hello.demo"));
         queryResult = po.request(ServiceDiscovery.SERVICE_QUERY, 5000,
                 Collections.singletonList("hello.world"), new Kv("type", "find"), new Kv("route", "*"));

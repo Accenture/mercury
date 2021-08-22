@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>kafka-presence</artifactId>
     <packaging>jar</packaging>
-    <version>2.1.0</version>
+    <version>2.1.1</version>
     <name>kafka-presence-monitor</name>
 
     <parent>
@@ -39,19 +39,19 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>service-monitor</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
-            <version>2.1.0</version>
+            <artifactId>platform-core</artifactId>
+            <version>2.1.1</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
@@ -103,9 +103,9 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <!-- DO NOT CHANGE THIS
-                     RestServer will find your Main Application(s) -->
+                     AppStarter will find your Main Application(s) -->
                 <configuration>
-                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
+                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
                 </configuration>
                 <executions>
                     <execution>

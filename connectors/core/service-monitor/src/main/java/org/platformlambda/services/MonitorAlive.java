@@ -22,6 +22,7 @@ import org.platformlambda.MainApp;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

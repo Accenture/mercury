@@ -39,10 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
@@ -54,6 +51,7 @@ public class ServiceGateway {
 
     private static final CryptoApi crypto = new CryptoApi();
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
+    private static final String DATE = "Date";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
     private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
@@ -144,14 +142,14 @@ public class ServiceGateway {
                         return;
                     }
                 }
-                httpUtil.sendError(requestId, request, status, error);
+                httpUtil.sendResponse(requestId, request, status, error);
             } else {
                 try {
                     routeRequest(requestId, route, holder);
                 } catch (AppException e) {
-                    httpUtil.sendError(requestId, request, e.getStatus(), e.getMessage());
+                    httpUtil.sendResponse(requestId, request, e.getStatus(), e.getMessage());
                 } catch (IOException e) {
-                    httpUtil.sendError(requestId, request, 500, e.getMessage());
+                    httpUtil.sendResponse(requestId, request, 500, e.getMessage());
                 }
             }
         }
@@ -540,7 +538,7 @@ public class ServiceGateway {
             }
         } catch (IOException e) {
             SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
-            httpUtil.sendError(requestId, request,400, e.getMessage());
+            httpUtil.sendResponse(requestId, request,400, e.getMessage());
         }
     }
 

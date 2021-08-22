@@ -44,7 +44,7 @@ public class WorkerQueue extends WorkerQueues {
     private static final Utility util = Utility.getInstance();
     private static final String ORIGIN = "origin";
     private final String origin;
-    private final boolean interceptor, tracing;
+    private final boolean interceptor, useEnvelope, tracing;
     private final int instance;
     private static String traceLogHeader;
 
@@ -58,6 +58,7 @@ public class WorkerQueue extends WorkerQueues {
         EventBus system = Platform.getInstance().getEventSystem();
         this.consumer = system.localConsumer(route, new WorkerHandler());
         this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
+        this.useEnvelope = def.inputIsEnvelope();
         this.tracing = def.getFunction().getClass().getAnnotation(ZeroTracing.class) == null;
         this.origin = Platform.getInstance().getOrigin();
         // tell manager that this worker is ready to process a new event
@@ -77,10 +78,11 @@ public class WorkerQueue extends WorkerQueues {
             boolean ping = !interceptor && event.getHeaders().isEmpty() && event.getBody() == null;
             long begin = ping? 0 : System.nanoTime();
             /*
-             * If the service is an interceptor, we will pass the original event envelope instead of the message body.
+             * If the service is an interceptor or the input argument is EventEnvelope,
+             * we will pass the original event envelope instead of the message body.
              */
-
-            Object result = ping? null : f.handleEvent(event.getHeaders(), interceptor ? event : event.getBody(), instance);
+            Object result = ping? null : f.handleEvent(event.getHeaders(),
+                                            interceptor || useEnvelope ? event : event.getBody(), instance);
             float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
             String replyTo = event.getReplyTo();
             if (replyTo != null) {

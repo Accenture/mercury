@@ -70,6 +70,7 @@ public class EventEnvelope {
     private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
     private Integer status;
     private Object body;
+    private Object raw;
     private Float executionTime, roundTrip;
     private boolean endOfRoute = false, binary = true, pojo = true, optional = false;
     private int broadcastLevel = 0;
@@ -159,8 +160,76 @@ public class EventEnvelope {
         return parametricType;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    /**
+     * Get event body
+     *
+     * @return original or restored event body
+     */
     public Object getBody() {
         return optional? Optional.ofNullable(body) : body;
+    }
+
+    /**
+     * Get raw form of event body in Map or Java primitive
+     * <p>
+     * @return body in map or primitive form
+     */
+    public Object getRawBody() {
+        if (this.raw == null) {
+            if (body == null || body instanceof Map || body instanceof List ||
+                    PayloadMapper.getInstance().isPrimitive(body)) {
+                this.raw = body;
+            } else {
+                this.raw = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
+                this.type = body.getClass().getName();
+            }
+        }
+        return this.raw;
+    }
+
+    /**
+     * Convert body to another class type
+     * (Best effort conversion - some fields may be lost if interface contracts are not compatible)
+     * <p>
+     * @param toValueType target class type
+     * @param <T> class type
+     * @return converted body
+     */
+    public <T> T getBody(Class<T> toValueType) {
+        return SimpleMapper.getInstance().getMapper().readValue(getRawBody(), toValueType);
+    }
+
+    /**
+     * Convert body to another class type
+     * (Best effort conversion - some fields may be lost if interface contracts are not compatible)
+     * <p>
+     * @param toValueType target class type
+     * @param parameterClass one or more parameter classes
+     * @param <T> class type
+     * @return converted body
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T getBody(Class<T> toValueType, Class<?>... parameterClass) {
+        if (parameterClass.length == 0) {
+            throw new IllegalArgumentException("Missing parameter class");
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Class<?> cls: parameterClass) {
+            sb.append(cls.getName());
+            sb.append(',');
+        }
+        String parametricType = sb.substring(0, sb.length()-1);
+        TypedPayload typed = new TypedPayload(toValueType.getName(), getRawBody()).setParametricType(parametricType);
+        try {
+            return (T) converter.decode(typed);
+        } catch (ClassNotFoundException e) {
+            // this should not occur because the classes are given as arguments
+            throw new IllegalArgumentException(e.getMessage());
+        }
     }
 
     public EventEnvelope setId(String id) {
@@ -325,12 +394,18 @@ public class EventEnvelope {
      */
     @SuppressWarnings("unchecked")
     public EventEnvelope setBody(Object body) {
+        final Object payload;
         if (body instanceof Optional) {
             Optional<Object> o = (Optional<Object>) body;
-            this.body = o.orElse(null);
+            payload = o.orElse(null);
             this.optional = true;
         } else {
-            this.body = body;
+            payload = body;
+        }
+        if (payload instanceof EventEnvelope) {
+            throw new IllegalArgumentException("Invalid payload - EventEnvelope can only be used for event transport");
+        } else {
+            this.body = payload;
         }
         return this;
     }
@@ -450,7 +525,7 @@ public class EventEnvelope {
         return this;
     }
 
-    public EventEnvelope clone() {
+    public EventEnvelope copy() {
         EventEnvelope event = new EventEnvelope();
         event.setTo(this.getTo());
         event.setHeaders(this.getHeaders());
@@ -469,7 +544,7 @@ public class EventEnvelope {
         event.setReplyTo(this.getReplyTo());
         event.setTraceId(this.getTraceId());
         event.setTracePath(this.getTracePath());
-        event.setType(this.type);
+        event.setType(this.getType());
         return event;
     }
 

@@ -25,13 +25,12 @@ public class PendingConnection {
     }
 
     public PendingType type;
-    public String origin, route, txPath;
+    public String origin, session;
     public long created = System.currentTimeMillis();
 
-    public PendingConnection(String origin, String route, String txPath) {
+    public PendingConnection(String origin, String session) {
         this.origin = origin;
-        this.route = route;
-        this.txPath = txPath;
+        this.session = session;
         this.type = PendingType.CONNECTED;
     }
 

@@ -30,7 +30,7 @@ public class Multicaster implements LambdaFunction {
         for (String service: targets) {
             if (po.exists(service)) {
                 try {
-                    po.send(event.clone().setTo(service));
+                    po.send(event.copy().setTo(service));
                 } catch (Exception e) {
                     log.warn("Unable to relay {} -> {} - {}", source, service, e.getMessage());
                 }
