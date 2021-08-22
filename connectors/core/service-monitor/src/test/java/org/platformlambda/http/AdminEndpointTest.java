@@ -34,7 +34,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-public class endpointTest extends TestBase {
+public class AdminEndpointTest extends TestBase {
 
     private static final SimpleXmlParser xmlParser = new SimpleXmlParser();
 
