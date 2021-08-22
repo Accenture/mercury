@@ -230,7 +230,7 @@ List<EventEnvelope> responses = po.request(parallelEvents, 3000);
 
 If you want to inspect the incoming event's metadata to make some decisions such as checking correlation-ID and sender's route address, you can use the TypedLambdaFunction to specify input as EventEnvelope.
 
-Another way to inspect event's metadata is the use of the `EventInterceptor` annotation in your lambda function. Note that event interceptor service does not return result, it intercepts incoming event for forwarding to one or more target services. If the incoming request is a RPC call, if the interceptor does not forward the event to the target service, the call will time out.
+Another way to inspect event's metadata is the use of the `EventInterceptor` annotation in your lambda function. Note that event interceptor service does not return result, it intercepts incoming event for forwarding to one or more target services. If the incoming request is a RPC call and the interceptor does not forward the event to the target service, the call will time out.
 
 ### Default PoJo mapping
 
