@@ -135,7 +135,8 @@ public class MainApp implements EntryPoint {
         String groupId = config.getProperty("default.monitor.group.id", "monitorGroup");
         ps.subscribe(monitorTopic, 0, service, clientId, groupId, String.valueOf(ServiceLifeCycle.INITIALIZE));
 
-        int port = util.str2int(config.getProperty("server.port", "8100"));
+        int port = util.str2int(config.getProperty("rest.server.port",
+                                config.getProperty("server.port", "8080")));
         Vertx vertx = Vertx.vertx();
         HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
         vertx.createHttpServer(options)

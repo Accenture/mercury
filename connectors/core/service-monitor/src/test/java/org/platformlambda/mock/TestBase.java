@@ -35,7 +35,8 @@ public class TestBase {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
-            port = util.str2int(config.getProperty("server.port", "8085"));
+            port = util.str2int(config.getProperty("rest.server.port",
+                                config.getProperty("server.port", "8080")));
             AppStarter.main(new String[0]);
         }
     }

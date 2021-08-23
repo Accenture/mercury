@@ -52,7 +52,8 @@ public class MockCloud implements CloudSetup {
         Platform platform = Platform.getInstance();
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        int port = util.str2int(config.getProperty("server.port", "8080"));
+        int port = util.str2int(config.getProperty("rest.server.port",
+                                config.getProperty("server.port", "8080")));
         String url1 = "ws://127.0.0.1:"+port+"/ws/presence";
         String url2 = "ws://localhost:"+port+"/ws/presence";
         monitors.add(url1);
