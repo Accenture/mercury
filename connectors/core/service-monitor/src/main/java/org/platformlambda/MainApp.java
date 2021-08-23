@@ -19,6 +19,7 @@
 package org.platformlambda;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServerOptions;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.PresenceHandler;
 import org.platformlambda.cloud.ServiceLifeCycle;
@@ -136,7 +137,8 @@ public class MainApp implements EntryPoint {
 
         int port = util.str2int(config.getProperty("server.port", "8100"));
         Vertx vertx = Vertx.vertx();
-        vertx.createHttpServer()
+        HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
+        vertx.createHttpServer(options)
                 .requestHandler(new HttpRequestHandler())
                 .webSocketHandler(new MonitorService())
                 .listen(port)

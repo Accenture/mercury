@@ -19,6 +19,7 @@
 package org.platformlambda.automation;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServerOptions;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.http.HttpRelay;
@@ -97,7 +98,8 @@ public class MainModule implements EntryPoint {
                                     appConfig.getProperty("server.port", "8100")));
 
             Vertx vertx = Vertx.vertx();
-            vertx.createHttpServer()
+            HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
+            vertx.createHttpServer(options)
                     .webSocketHandler(new WsRequestHandler())
                     .requestHandler(new HttpRequestHandler(gateway))
                     .listen(port)

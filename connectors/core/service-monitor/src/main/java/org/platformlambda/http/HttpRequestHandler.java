@@ -47,6 +47,9 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final CryptoApi crypto = new CryptoApi();
     private static final String ASYNC_HTTP_RESPONSE = "async.http.response";
     private static final String DATE = "Date";
+    private static final String KEEP_ALIVE = "keep-alive";
+    private static final String KEEP_ALIVE_HEADER = "Keep-Alive";
+    private static final String CONNECTION_HEADER = "Connection";
     private static final String ALLOW = "Allow";
     private static final String TYPE = "type";
     private static final String OPTIONS = "OPTIONS";
@@ -114,6 +117,11 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         Utility util = Utility.getInstance();
         HttpServerResponse response = request.response();
         response.putHeader(DATE, util.getHtmlDate(new Date()));
+        String connectionType = request.getHeader(CONNECTION_HEADER);
+        if (KEEP_ALIVE.equals(connectionType)) {
+            response.putHeader(KEEP_ALIVE_HEADER, "timeout=60");
+            response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
+        }
         String url = request.path();
         String method = request.method().name();
         // simulate OPTIONS response
