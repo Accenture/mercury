@@ -30,7 +30,6 @@ import org.platformlambda.core.util.Utility;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +37,6 @@ import java.util.Map;
 public class SimpleHttpUtility {
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-    private static final String DATE = "Date";
     private static final String SET_COOKIE = "set-cookie";
     private static final String COOKIE_SEPARATOR = "|";
     private static final String ACCEPT = "Accept";

@@ -20,7 +20,6 @@ package org.platformlambda.core.serializers;
 
 import org.platformlambda.core.models.PoJoList;
 import org.platformlambda.core.models.TypedPayload;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 
@@ -37,16 +36,6 @@ public class PayloadMapper {
     private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
     private static final PayloadMapper instance = new PayloadMapper();
 
-    private static Boolean enablePoJo;
-
-    private PayloadMapper() {
-        if (enablePoJo == null) {
-            // by default, pojo transport is enabled
-            AppConfigReader config = AppConfigReader.getInstance();
-            enablePoJo = "true".equals(config.getProperty("enable.pojo.transport", "true"));
-        }
-    }
-
     public static PayloadMapper getInstance() {
         return instance;
     }
@@ -61,6 +50,8 @@ public class PayloadMapper {
             return encodeList(Arrays.asList((Object[]) obj), binary);
         } else if (obj instanceof List) {
             return encodeList((List<Object>) obj, binary);
+        } else if (obj instanceof Date) {
+            return new TypedPayload(PRIMITIVE, Utility.getInstance().date2str((Date) obj));
         } else if (isPrimitive(obj)) {
             return new TypedPayload(PRIMITIVE, obj);
         } else {
@@ -122,7 +113,7 @@ public class PayloadMapper {
         if (PRIMITIVE.equals(type) || LIST.equals(type) || MAP.equals(type)) {
             return typed.getPayload();
         }
-        if (type.contains(".") && enablePoJo) {
+        if (type.contains(".")) {
             Class<?> cls = getClassByName(type);
             if (cls != null) {
                 List<String> paraClass = Utility.getInstance().split(typed.getParametricType(), ", ");
@@ -169,8 +160,7 @@ public class PayloadMapper {
     }
 
     public boolean isPrimitive(Object obj) {
-        return (obj instanceof String || obj instanceof byte[] || obj instanceof Number ||
-                obj instanceof Boolean || obj instanceof Date);
+        return (obj instanceof String || obj instanceof byte[] || obj instanceof Number || obj instanceof Boolean);
     }
 
 }

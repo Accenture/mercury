@@ -222,7 +222,6 @@ public class DataModelTest {
         event.setCorrelationId(ID);
         event.setTraceId(ID);
         event.setExtra(ID);
-        event.setPoJoEnabled(false);
         event.setBody(pojo);
         Assert.assertEquals("", event.getHeaders().get("empty"));
         Assert.assertTrue(event.hasError());
@@ -230,12 +229,10 @@ public class DataModelTest {
         Assert.assertEquals(ID, event.getExtra());
         Assert.assertEquals(ID, event.getCorrelationId());
         Assert.assertEquals(ID, event.getTraceId());
-        Assert.assertFalse(event.isPoJoEnabled());
         byte[] b = event.toBytes();
-        // since pojo transport is disabled, the restored body will be a Map
         EventEnvelope restored = new EventEnvelope(b);
-        Assert.assertTrue(restored.getBody() instanceof Map);
-        Map<String, Object> map = (Map<String, Object>) restored.getBody();
+        Assert.assertTrue(restored.getBody() instanceof PoJo);
+        Map<String, Object> map = (Map<String, Object>) restored.getRawBody();
         Assert.assertEquals(TEXT, map.get("name"));
         Assert.assertEquals(Integer.valueOf(400), event.getStatus());
         Assert.assertEquals(map.toString(), restored.getError());

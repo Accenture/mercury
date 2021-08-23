@@ -59,10 +59,9 @@ public class EventEnvelope {
     private static final String END_ROUTE = "E";
     // broadcast
     private static final String BROADCAST_LEVEL = "b";
-    // ignore pojo
-    private static final String IGNORE_POJO = "i";
     // optional
     private static final String OPTIONAL = "+";
+    private static final String JSON_TRANSPORT = "j";
     // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
@@ -70,9 +69,9 @@ public class EventEnvelope {
     private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
     private Integer status;
     private Object body;
-    private Object raw;
+    private Object encodedBody;
     private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, binary = true, pojo = true, optional = false;
+    private boolean endOfRoute = false, binary = true, optional = false, encoded = false;
     private int broadcastLevel = 0;
 
     public EventEnvelope() {
@@ -165,30 +164,48 @@ public class EventEnvelope {
     }
 
     /**
-     * Get event body
-     *
-     * @return original or restored event body
-     */
-    public Object getBody() {
-        return optional? Optional.ofNullable(body) : body;
-    }
-
-    /**
      * Get raw form of event body in Map or Java primitive
      * <p>
      * @return body in map or primitive form
      */
     public Object getRawBody() {
-        if (this.raw == null) {
-            if (body == null || body instanceof Map || body instanceof List ||
-                    PayloadMapper.getInstance().isPrimitive(body)) {
-                this.raw = body;
-            } else {
-                this.raw = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
-                this.type = body.getClass().getName();
+        return body;
+    }
+
+    /**
+     * Get event body
+     *
+     * @return original or restored event body
+     */
+    @SuppressWarnings("unchecked")
+    public Object getBody() {
+        if (!encoded) {
+            if (type == null) {
+                setBody(body);
+            }
+            TypedPayload typed = new TypedPayload(type, body);
+            if (parametricType != null) {
+                typed.setParametricType(parametricType);
+            }
+            try {
+                // validate class name in safe data model list
+                if (typed.getType().contains(".")) {
+                    SimpleMapper.getInstance().getSafeMapper(typed.getType());
+                }
+                Object obj = converter.decode(typed);
+                if (obj instanceof PoJoList) {
+                    PoJoList<Object> list = (PoJoList<Object>) obj;
+                    encodedBody = list.getList();
+                } else {
+                    encodedBody = obj;
+                }
+
+            } catch (Exception e) {
+                log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
+                encodedBody = body;
             }
         }
-        return this.raw;
+        return optional? Optional.ofNullable(encodedBody) : encodedBody;
     }
 
     /**
@@ -200,7 +217,7 @@ public class EventEnvelope {
      * @return converted body
      */
     public <T> T getBody(Class<T> toValueType) {
-        return SimpleMapper.getInstance().getMapper().readValue(getRawBody(), toValueType);
+        return SimpleMapper.getInstance().getMapper().readValue(body, toValueType);
     }
 
     /**
@@ -223,7 +240,7 @@ public class EventEnvelope {
             sb.append(',');
         }
         String parametricType = sb.substring(0, sb.length()-1);
-        TypedPayload typed = new TypedPayload(toValueType.getName(), getRawBody()).setParametricType(parametricType);
+        TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(parametricType);
         try {
             return (T) converter.decode(typed);
         } catch (ClassNotFoundException e) {
@@ -396,17 +413,22 @@ public class EventEnvelope {
     public EventEnvelope setBody(Object body) {
         final Object payload;
         if (body instanceof Optional) {
+            this.optional = true;
             Optional<Object> o = (Optional<Object>) body;
             payload = o.orElse(null);
-            this.optional = true;
         } else {
             payload = body;
         }
         if (payload instanceof EventEnvelope) {
             throw new IllegalArgumentException("Invalid payload - EventEnvelope can only be used for event transport");
-        } else {
-            this.body = payload;
         }
+        // encode body and save object type
+        this.encoded = true;
+        this.encodedBody = payload instanceof Date? Utility.getInstance().date2str((Date) payload) : payload;
+        TypedPayload typed = converter.encode(payload, binary);
+        this.body = typed.getPayload();
+        this.type = typed.getType();
+        this.parametricType = typed.getParametricType();
         return this;
     }
 
@@ -472,15 +494,6 @@ public class EventEnvelope {
         return this;
     }
 
-    public EventEnvelope setPoJoEnabled(boolean pojo) {
-        this.pojo = pojo;
-        return this;
-    }
-
-    public boolean isPoJoEnabled() {
-        return pojo;
-    }
-
     /**
      * You should not set the object type normally.
      * It will be automatically set when a PoJo is set as the body.
@@ -527,9 +540,12 @@ public class EventEnvelope {
 
     public EventEnvelope copy() {
         EventEnvelope event = new EventEnvelope();
+        event.encodedBody = this.encodedBody;
+        event.body = this.body;
         event.setTo(this.getTo());
         event.setHeaders(this.getHeaders());
-        event.setBody(this.getBody());
+        event.setType(this.getType());
+        event.setParametricType(this.getParametricType());
         event.setBroadcastLevel(this.getBroadcastLevel());
         event.setFrom(this.getFrom());
         event.setBinary(this.isBinary());
@@ -538,13 +554,10 @@ public class EventEnvelope {
             event.setEndOfRoute();
         }
         event.setExtra(this.getExtra());
-        event.setParametricType(this.getParametricType());
-        event.setPoJoEnabled(this.isPoJoEnabled());
         event.setStatus(this.getStatus());
         event.setReplyTo(this.getReplyTo());
         event.setTraceId(this.getTraceId());
         event.setTracePath(this.getTracePath());
-        event.setType(this.getType());
         return event;
     }
 
@@ -583,9 +596,6 @@ public class EventEnvelope {
             if (message.containsKey(EXTRA)) {
                 extra = (String) message.get(EXTRA);
             }
-            if (message.containsKey(IGNORE_POJO)) {
-                pojo = false;
-            }
             if (message.containsKey(OPTIONAL)) {
                 optional = true;
             }
@@ -605,41 +615,14 @@ public class EventEnvelope {
             if (message.containsKey(BROADCAST_LEVEL) && message.get(BROADCAST_LEVEL) instanceof Integer) {
                 broadcastLevel = (Integer) message.get(BROADCAST_LEVEL);
             }
+            if (message.containsKey(BODY)) {
+                body = message.get(BODY);
+            }
+            if (message.containsKey(OBJ_TYPE)) {
+                type = (String) message.get(OBJ_TYPE);
+            }
             if (message.containsKey(PARA_TYPES)) {
                 parametricType = (String) message.get(PARA_TYPES);
-            }
-            if (message.containsKey(BODY) && message.containsKey(OBJ_TYPE)) {
-                if (!pojo) {
-                    type = (String) message.get(OBJ_TYPE);
-                    body = message.get(BODY);
-                } else {
-                    TypedPayload typed = new TypedPayload((String) message.get(OBJ_TYPE), message.get(BODY));
-                    if (parametricType != null) {
-                        typed.setParametricType(parametricType);
-                    }
-                    try {
-                        /*
-                         * 1. set binary to true if PoJo and the payload is a map
-                         * 2. validate class name in white-list if any
-                         */
-                        if (typed.getType().contains(".")) {
-                            binary = typed.getPayload() instanceof Map;
-                            SimpleMapper.getInstance().getSafeMapper(typed.getType());
-                        }
-                        Object obj = converter.decode(typed);
-                        if (obj instanceof PoJoList) {
-                            PoJoList<Object> list = (PoJoList<Object>) obj;
-                            body = list.getList();
-                        } else {
-                            body = obj;
-                        }
-
-                    } catch (Exception e) {
-                        log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
-                        type = (String) message.get(OBJ_TYPE);
-                        body = message.get(BODY);
-                    }
-                }
             }
             if (message.containsKey(EXECUTION)) {
                 if (message.get(EXECUTION) instanceof Float) {
@@ -655,10 +638,16 @@ public class EventEnvelope {
                     roundTrip = Utility.getInstance().str2float((message.get(ROUND_TRIP).toString()));
                 }
             }
+            if (message.containsKey(JSON_TRANSPORT)) {
+                binary = false;
+            }
         }
     }
 
     private String simpleError(String message) {
+        if (message == null) {
+            return "null";
+        }
         int sep = message.indexOf(": ");
         if (sep > 3) {
             String cls = message.substring(0, sep);
@@ -712,36 +701,26 @@ public class EventEnvelope {
         if (broadcastLevel > 0) {
             message.put(BROADCAST_LEVEL, broadcastLevel);
         }
-        if (parametricType != null) {
-            message.put(PARA_TYPES, parametricType);
-        }
-        if (!pojo) {
-            message.put(IGNORE_POJO, true);
-        }
         if (optional) {
             message.put(OPTIONAL, true);
         }
         if (body != null) {
-            if (type == null) {
-                // encode body and save object type
-                TypedPayload typed = converter.encode(body, binary);
-                String cls = typed.getParametricType();
-                if (cls != null) {
-                    message.put(PARA_TYPES, cls);
-                }
-                message.put(OBJ_TYPE, typed.getType());
-                message.put(BODY, typed.getPayload());
-            } else {
-                // preserve encoded type and original body
-                message.put(OBJ_TYPE, type);
-                message.put(BODY, body);
-            }
+            message.put(BODY, body);
+        }
+        if (type != null) {
+            message.put(OBJ_TYPE, type);
+        }
+        if (parametricType != null) {
+            message.put(PARA_TYPES, parametricType);
         }
         if (executionTime != null) {
             message.put(EXECUTION, executionTime);
         }
         if (roundTrip != null) {
             message.put(ROUND_TRIP, roundTrip);
+        }
+        if (!binary) {
+            message.put(JSON_TRANSPORT, true);
         }
         return msgPack.pack(message);
     }

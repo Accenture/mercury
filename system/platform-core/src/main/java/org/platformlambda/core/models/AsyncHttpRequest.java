@@ -20,6 +20,7 @@ package org.platformlambda.core.models;
 
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.util.Utility;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -194,6 +195,8 @@ public class AsyncHttpRequest {
         if (body == null || body instanceof Map || body instanceof List ||
                 PayloadMapper.getInstance().isPrimitive(body)) {
             this.body = body;
+        } else if (body instanceof Date) {
+            this.body = Utility.getInstance().date2str((Date) body);
         } else {
             this.body = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
             this.type = body.getClass().getName();

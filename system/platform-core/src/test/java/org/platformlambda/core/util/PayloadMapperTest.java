@@ -62,11 +62,6 @@ public class PayloadMapperTest {
         EventEnvelope event2 = new EventEnvelope();
         event2.load(b);
         Assert.assertEquals(PoJo.class, event2.getBody().getClass());
-        // try again with pojo disabled
-        event1.setPoJoEnabled(false);
-        b = event1.toBytes();
-        event2.load(b);
-        Assert.assertEquals(HashMap.class, event2.getBody().getClass());
     }
 
     @Test
@@ -74,11 +69,9 @@ public class PayloadMapperTest {
         UnauthorizedObj input = new UnauthorizedObj();
         input.setName("hello world");
         input.setNumber(12345);
-
         EventEnvelope event1 = new EventEnvelope();
         event1.setBody(input);
         byte[] b = event1.toBytes();
-
         EventEnvelope event2 = new EventEnvelope();
         event2.load(b);
         /*
@@ -172,11 +165,10 @@ public class PayloadMapperTest {
     }
 
     @Test
-    public void convertPoJoUsingJackson() throws ClassNotFoundException {
+    public void convertPoJoUsingJson() throws ClassNotFoundException {
         PoJo input = new PoJo();
         input.setName("hello world");
         input.setNumber(12345);
-
         TypedPayload typed = converter.encode(input, false);
         Assert.assertEquals(input.getClass().getName(), typed.getType());
         Assert.assertTrue(typed.getPayload() instanceof byte[]);
@@ -185,6 +177,20 @@ public class PayloadMapperTest {
         PoJo o = (PoJo) converted;
         Assert.assertEquals(input.getName(), o.getName());
         Assert.assertEquals(input.getNumber(), o.getNumber());
+    }
+
+    @Test
+    public void datePayloadTest() throws IOException {
+        Utility util = Utility.getInstance();
+        Date now = new Date();
+        EventEnvelope event = new EventEnvelope();
+        event.setBody(now);
+        Object o = event.getBody();
+        // date object is serialized as ISO-8601 timestamp when the setBody method is called
+        Assert.assertEquals(util.date2str(now), o);
+        byte[] b = event.toBytes();
+        EventEnvelope restored = new EventEnvelope(b);
+        Assert.assertEquals(util.date2str(now), restored.getBody());
     }
 
     @Test
@@ -278,12 +284,13 @@ public class PayloadMapperTest {
 
     @Test
     public void convertDate() throws ClassNotFoundException {
+        Utility util = Utility.getInstance();
         Date input = new Date();
         TypedPayload typed = converter.encode(input, true);
         Assert.assertEquals(PayloadMapper.PRIMITIVE, typed.getType());
-        Assert.assertEquals(input, typed.getPayload());
+        Assert.assertEquals(util.date2str(input), typed.getPayload());
         Object converted = converter.decode(typed);
-        Assert.assertEquals(input, converted);
+        Assert.assertEquals(util.date2str(input), converted);
     }
 
     @Test

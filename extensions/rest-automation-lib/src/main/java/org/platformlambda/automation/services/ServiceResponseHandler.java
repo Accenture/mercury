@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ public class ServiceResponseHandler implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(ServiceResponseHandler.class);
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-    private static final String DATE = "Date";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_HTML = "text/html";
@@ -156,18 +154,18 @@ public class ServiceResponseHandler implements LambdaFunction {
                  * status range 300: redirection or unchanged content
                  * status ranges 400 and 500: HTTP exceptions
                  */
-                if (status >= 400 && event.getHeaders().isEmpty() && event.getBody() instanceof String) {
-                    String message = ((String) event.getBody()).trim();
+                if (status >= 400 && event.getHeaders().isEmpty() && event.getRawBody() instanceof String) {
+                    String message = ((String) event.getRawBody()).trim();
                     // make sure it does not look like JSON or XML
                     if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
-                        httpUtil.sendResponse(requestId, holder.request, status, (String) event.getBody());
+                        httpUtil.sendResponse(requestId, holder.request, status, (String) event.getRawBody());
                         return null;
                     }
                 }
                 // With the exception of HEAD method, HTTP response may have a body
                 if (!HEAD.equals(holder.method)) {
                     // output is a stream?
-                    Object responseBody = event.getBody();
+                    Object responseBody = event.getRawBody();
                     if (responseBody == null && streamId != null) {
                         response.setChunked(true);
                         try (ObjectStreamReader in = new ObjectStreamReader(streamId,

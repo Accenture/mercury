@@ -51,7 +51,6 @@ public class ServiceGateway {
 
     private static final CryptoApi crypto = new CryptoApi();
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
-    private static final String DATE = "Date";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
     private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
