@@ -204,6 +204,7 @@ public class EventEnvelope {
                 log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
                 encodedBody = body;
             }
+            encoded = true;
         }
         return optional? Optional.ofNullable(encodedBody) : encodedBody;
     }
