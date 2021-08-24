@@ -55,7 +55,6 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String NOW = "now";
     private static final String LATER = "later";
     private static final String KEEP_ALIVE = "keep-alive";
-    private static final String KEEP_ALIVE_HEADER = "Keep-Alive";
     private static final String CONNECTION_HEADER = "Connection";
     private static final String REGISTRY = "system.service.registry";
     private static final String[] INFO_SERVICE = {"/info", "info"};
@@ -86,7 +85,6 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         response.putHeader(DATE, util.getHtmlDate(new Date()));
         String connectionType = request.getHeader(CONNECTION_HEADER);
         if (KEEP_ALIVE.equals(connectionType)) {
-            response.putHeader(KEEP_ALIVE_HEADER, "timeout=60");
             response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
         }
         String url = request.path();
