@@ -37,10 +37,16 @@ public class MsgPackTest {
     @SuppressWarnings("unchecked")
     @Test
     public void dataIsMap() throws IOException {
+        PoJo pojo = new PoJo();
+        pojo.setName("hello world");
+        String pojoInstanceString = pojo.toString();
+        String[] HELLO_WORLD = {"hello", "world"};
         Map<String, Object> input = new HashMap<>();
         input.put("hello", "world");
         input.put("boolean", true);
+        input.put("array", HELLO_WORLD);
         input.put("integer", 12345);
+        input.put("pojo", pojo);
         input.put(PayloadMapper.NOTHING, null);
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
@@ -50,6 +56,10 @@ public class MsgPackTest {
         Assert.assertFalse(result.containsKey(PayloadMapper.NOTHING));
         result.remove(PayloadMapper.NOTHING);
         Assert.assertEquals(o, result);
+        // array is converted to list of objects
+        Assert.assertEquals(Arrays.asList(HELLO_WORLD), result.get("array"));
+        // embedded pojo in a map is converted to the pojo's instance string
+        Assert.assertEquals(pojoInstanceString, result.get("pojo"));
     }
 
     @Test
@@ -169,6 +179,31 @@ public class MsgPackTest {
         Object o = msgPack.unpack(b);
         // MsgPack transports null elements in an array list so that absolute sequencing can be preserved
         Assert.assertEquals(input, o);
+    }
+
+    @Test
+    public void dataIsArray() throws IOException {
+        String[] input = {"hello", "world", null, "1"};
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(Arrays.asList(input), o);
+    }
+
+    @Test
+    public void dataIsShortNumber() throws IOException {
+        Short number = 10;
+        byte[] b = msgPack.pack(number);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals((int) number, o);
+    }
+
+    @Test
+    public void dataIsByte() throws IOException {
+        byte number = 10;
+        byte[] b = msgPack.pack(number);
+        Object o = msgPack.unpack(b);
+        // a single byte is converted to an integer
+        Assert.assertEquals((int) number, o);
     }
 
     @Test
