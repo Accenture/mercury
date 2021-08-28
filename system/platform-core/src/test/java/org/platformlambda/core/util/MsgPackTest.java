@@ -58,17 +58,39 @@ public class MsgPackTest {
         Assert.assertEquals(input, o);
     }
 
+    @Test
+    public void smallLongBecomesInteger() throws IOException {
+        // msgpack compresses number and data type information will be lost
+        Long input = 10L;
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input.intValue(), o);
+    }
+
     @SuppressWarnings("unchecked")
     @Test
-    public void dataIsLong() throws IOException {
+    public void dataIsBigLong() throws IOException {
         long input = -5106534569952410475L;
         Map<String, Object> map = new HashMap<>();
-        map.put("long", input);
+        map.put("number", input);
         byte[] b = msgPack.pack(map);
         Object o = msgPack.unpack(b);
         Assert.assertTrue(o instanceof Map);
         Map<String, Object> restored = (Map<String, Object>) o;
-        Assert.assertEquals(input, restored.get("long"));
+        Assert.assertEquals(input, restored.get("number"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void dataIsBorderLineLong() throws IOException {
+        Long input = Integer.MAX_VALUE + 1L;
+        List<Long> value = new ArrayList<>();
+        value.add(input);
+        byte[] b = msgPack.pack(value);
+        Object o = msgPack.unpack(b);
+        Assert.assertTrue(o instanceof List);
+        List<Long> restored = (List<Long>) o;
+        Assert.assertEquals(input, restored.get(0));
     }
 
     @Test
@@ -88,6 +110,22 @@ public class MsgPackTest {
     @Test
     public void dataIsFloat() throws IOException {
         Float input = 3.2f;
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input, o);
+    }
+
+    @Test
+    public void dataIsSmallDouble() throws IOException {
+        Double input = 3.2d;
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input, o);
+    }
+
+    @Test
+    public void dataIsDouble() throws IOException {
+        Double input = Float.MAX_VALUE + 1.0d;
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         Assert.assertEquals(input, o);

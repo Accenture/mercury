@@ -29,7 +29,6 @@ import java.math.BigInteger;
 import java.util.*;
 
 public class MsgPack {
-
     private static final Utility util = Utility.getInstance();
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
@@ -160,18 +159,16 @@ public class MsgPack {
                  * MessageFormat.UINT64 for value 0 - 2^64-1 --> Long
                  * MessageFormat.INT64 for signed long value
                  *
-                 * For simplicity, restore it to long or integer
+                 * For simplicity, restore it to either long or Integer
                  */
-                if (mf == MessageFormat.UINT64 || mf == MessageFormat.INT64) {
-                    return unpacker.unpackLong();
+                long number = unpacker.unpackLong();
+                if (Math.abs(number) > Integer.MAX_VALUE) {
+                    return number;
                 } else {
-                    return unpacker.unpackInt();
+                    return Long.valueOf(number).intValue();
                 }
 
             case FLOAT:
-                /*
-                 * Similarly, restore the value to double or float
-                 */
                 if (mf == MessageFormat.FLOAT64) {
                     return unpacker.unpackDouble();
                 } else {
