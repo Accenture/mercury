@@ -173,7 +173,8 @@ public class EventConsumer {
                             MultipartPayload.getInstance().incoming(message);
                         }
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {} {}",
+                                topicPartition, e.getClass().getSimpleName(), e.getMessage());
                     }
                 } else {
                     if (offset == INITIALIZE) {
@@ -197,10 +198,12 @@ public class EventConsumer {
                         } else {
                             message.setHeaders(originalHeaders).setBody(data);
                         }
-                        // mercury service name must be lower case
+                        // mercury service name must be in lower case
                         po.send(message.setTo(topicPartition.toLowerCase()));
+
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {} {}",
+                                topicPartition, e.getClass().getSimpleName(), e.getMessage());
                     }
                 }
             }

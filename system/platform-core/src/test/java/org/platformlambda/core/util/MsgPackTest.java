@@ -24,6 +24,8 @@ import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.util.models.PoJo;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 
 import org.junit.Assert;
@@ -94,6 +96,22 @@ public class MsgPackTest {
     }
 
     @Test
+    public void dataIsBigInteger() throws IOException {
+        BigInteger input = new BigInteger("10");
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input.toString(), o);
+    }
+
+    @Test
+    public void dataIsBigDecimal() throws IOException {
+        BigDecimal input = new BigDecimal("0.0000000000012345");
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input.toPlainString(), o);
+    }
+
+    @Test
     public void dataIsNull() throws IOException {
         byte[] b = msgPack.pack(null);
         Object o = msgPack.unpack(b);
@@ -145,7 +163,7 @@ public class MsgPackTest {
         List<String> input = new ArrayList<>();
         input.add("hello");
         input.add("world");
-        input.add(null);
+        input.add(null);    // prove that null value in a list can be transported
         input.add("1");
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
@@ -156,7 +174,7 @@ public class MsgPackTest {
     @Test
     public void dataIsPoJo() throws IOException {
         PoJo input = new PoJo();
-        input.setName("hello world");
+        input.setName("testing Integer transport");
         input.setNumber(12345);
         input.setAddress("123 Planet Earth");
         byte[] b = msgPack.pack(input);
@@ -165,6 +183,54 @@ public class MsgPackTest {
         Assert.assertTrue(o instanceof PoJo);
         PoJo result = (PoJo) o;
         Assert.assertEquals(input.getNumber(), result.getNumber());
+        Assert.assertEquals(input.getName(), result.getName());
+        Assert.assertEquals(input.getAddress(), result.getAddress());
+    }
+
+    @Test
+    public void dataIsPoJoWithLong() throws IOException {
+        PoJo input = new PoJo();
+        input.setName("testing Long number transport");
+        input.setLongNumber(10L);
+        input.setAddress("100 Planet Earth");
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        // successfully restored to PoJo when the intermediate value becomes an integer
+        Assert.assertTrue(o instanceof PoJo);
+        PoJo result = (PoJo) o;
+        Assert.assertEquals(input.getLongNumber(), result.getLongNumber());
+        Assert.assertEquals(input.getName(), result.getName());
+        Assert.assertEquals(input.getAddress(), result.getAddress());
+    }
+
+    @Test
+    public void dataIsPoJoWithBigInteger() throws IOException {
+        PoJo input = new PoJo();
+        input.setName("testing BigInteger transport");
+        input.setBigInteger(new BigInteger("10"));
+        input.setAddress("100 Planet Earth");
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        // successfully restored to PoJo when the intermediate value becomes an integer
+        Assert.assertTrue(o instanceof PoJo);
+        PoJo result = (PoJo) o;
+        Assert.assertEquals(input.getBigInteger(), result.getBigInteger());
+        Assert.assertEquals(input.getName(), result.getName());
+        Assert.assertEquals(input.getAddress(), result.getAddress());
+    }
+
+    @Test
+    public void dataIsPoJoWithBigDecimal() throws IOException {
+        PoJo input = new PoJo();
+        input.setName("testing BigInteger transport");
+        input.setBigDecimal(new BigDecimal("0.00000012345"));
+        input.setAddress("100 Planet Earth");
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        // successfully restored to PoJo when the intermediate value becomes an integer
+        Assert.assertTrue(o instanceof PoJo);
+        PoJo result = (PoJo) o;
+        Assert.assertEquals(input.getBigDecimal(), result.getBigDecimal());
         Assert.assertEquals(input.getName(), result.getName());
         Assert.assertEquals(input.getAddress(), result.getAddress());
     }

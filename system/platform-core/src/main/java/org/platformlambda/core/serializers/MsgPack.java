@@ -25,6 +25,7 @@ import org.platformlambda.core.util.Utility;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 
@@ -159,7 +160,7 @@ public class MsgPack {
                  * MessageFormat.UINT64 for value 0 - 2^64-1 --> Long
                  * MessageFormat.INT64 for signed long value
                  *
-                 * For simplicity, restore it to either long or Integer
+                 * For simplicity, restore it to either long or integer
                  */
                 long number = unpacker.unpackLong();
                 if (Math.abs(number) > Integer.MAX_VALUE) {
@@ -282,14 +283,11 @@ public class MsgPack {
         } else if (o instanceof Double) {
             packer.packDouble((Double) o);
         } else if (o instanceof BigInteger) {
-            /*
-             * BigInteger will be trimmed to long value, resulting in potential data loss.
-             * This is for compatibility with other msgPack implementations only.
-             *
-             * Since msgPack protocol specification only supports BigInteger up to 64 bits,
-             * it is advisable to convert BigInteger into String and convert back to BigInteger when necessary.
-             */
-            packer.packLong(((BigInteger) o).longValue());
+            // convert to string to preserve precision
+            packer.packString(o.toString());
+        } else if (o instanceof BigDecimal) {
+            // convert to string to preserve precision
+            packer.packString(((BigDecimal) o).toPlainString());
         } else if (o instanceof Boolean) {
             packer.packBoolean((Boolean) o);
         } else if (o instanceof byte[]) {
@@ -301,8 +299,7 @@ public class MsgPack {
             packer.packString(util.date2str((Date) o));
         } else {
             // unknown object
-            String unknown = o.toString();
-            packer.packString(unknown);
+            packer.packString(o.toString());
         }
         return packer;
     }

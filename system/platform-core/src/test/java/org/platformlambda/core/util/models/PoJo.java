@@ -18,11 +18,16 @@
 
 package org.platformlambda.core.util.models;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 
 public class PoJo {
 
     private int number;
+    private long longNumber;
+    private BigInteger bigInteger;
+    private BigDecimal bigDecimal;
     private String name;
     private String address;
     private String fullName;
@@ -66,5 +71,29 @@ public class PoJo {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public long getLongNumber() {
+        return longNumber;
+    }
+
+    public void setLongNumber(long longNumber) {
+        this.longNumber = longNumber;
+    }
+
+    public BigInteger getBigInteger() {
+        return bigInteger;
+    }
+
+    public void setBigInteger(BigInteger bigInteger) {
+        this.bigInteger = bigInteger;
+    }
+
+    public BigDecimal getBigDecimal() {
+        return bigDecimal;
+    }
+
+    public void setBigDecimal(BigDecimal bigDecimal) {
+        this.bigDecimal = bigDecimal;
     }
 }

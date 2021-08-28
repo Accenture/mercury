@@ -187,7 +187,8 @@ public class EventConsumer {
                             MultipartPayload.getInstance().incoming(message);
                         }
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", realTopic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {} {}",
+                                realTopic, e.getClass().getSimpleName(), e.getMessage());
                     }
                 } else {
                     if (offset == INITIALIZE) {
@@ -221,8 +222,10 @@ public class EventConsumer {
                     try {
                         // mercury service name must be lower case
                         po.send(message.setTo(virtualTopic.toLowerCase()));
+
                     } catch (Exception e) {
-                        log.error("Unable to process incoming event for {} - {}", realTopic, e.getMessage());
+                        log.error("Unable to process incoming event for {} - {} {}",
+                                realTopic, e.getClass().getSimpleName(), e.getMessage());
                     }
                 }
 

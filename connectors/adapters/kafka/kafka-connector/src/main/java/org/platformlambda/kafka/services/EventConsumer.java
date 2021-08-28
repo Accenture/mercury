@@ -225,7 +225,8 @@ public class EventConsumer extends Thread {
                                 MultipartPayload.getInstance().incoming(message);
                             }
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {} {}",
+                                    topicPartition, e.getClass().getSimpleName(), e.getMessage());
                         }
                     } else {
                         if (offset == INITIALIZE) {
@@ -260,7 +261,8 @@ public class EventConsumer extends Thread {
                             po.send(message.setTo(virtualTopic));
 
                         } catch (Exception e) {
-                            log.error("Unable to process incoming event for {} - {}", topicPartition, e.getMessage());
+                            log.error("Unable to process incoming event for {} - {} {}",
+                                    topicPartition, e.getClass().getSimpleName(), e.getMessage());
                         }
                     }
                 }
