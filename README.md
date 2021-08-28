@@ -304,6 +304,8 @@ cd mercury
 To get the system up and running, you should compile and build the foundation libraries from sources. 
 This will install the libraries into your ".m2/repository/org/platformlambda" folder.
 
+`Important` - please close all Java applications and web servers in your PC if any. The build process will invoke unit tests that simulate HTTP and websocket servers.
+
 ```bash
 # start a terminal and go to the mercury sandbox folder
 mvn clean install
