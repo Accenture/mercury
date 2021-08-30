@@ -37,7 +37,7 @@
 
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
+            <artifactId>platform-core</artifactId>
             <version>2.1.1</version>
         </dependency>
 
@@ -102,9 +102,9 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <!-- DO NOT CHANGE THIS
-                     RestServer will find your Main Application(s) -->
+                     AppStarter will find your Main Application(s) -->
                 <configuration>
-                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
+                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
                 </configuration>
                 <executions>
                     <execution>
