@@ -36,6 +36,7 @@ public class ManagedCache {
     private static final long FIVE_MINUTES = 5 * 60000;
     private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
+    private static boolean loaded;
     private final String name;
     private final long expiry, maxItems;
     private final Cache<String, Object> cache;
@@ -46,7 +47,8 @@ public class ManagedCache {
         this.name = name;
         this.expiry = expiryMs;
         this.maxItems = maxItems;
-        if (counter.incrementAndGet() == 1) {
+        if (counter.incrementAndGet() == 1 && !loaded) {
+            loaded = true;
             CleanUp cleanUp = new CleanUp();
             cleanUp.start();
         }

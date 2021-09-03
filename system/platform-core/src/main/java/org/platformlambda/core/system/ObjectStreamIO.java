@@ -47,6 +47,7 @@ public class ObjectStreamIO {
     private static final String DATA = "data";
     private static final String EOF = "eof";
     private static final String STREAM_PREFIX = "stream";
+    private static boolean loaded = false;
     private String inputStreamId, outputStreamId, streamRoute;
     private final int expirySeconds;
     private final AtomicBoolean eof = new AtomicBoolean(false);
@@ -69,7 +70,8 @@ public class ObjectStreamIO {
     private void createStream() throws IOException {
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
-        if (counter.incrementAndGet() == 1) {
+        if (counter.incrementAndGet() == 1 && !loaded) {
+            loaded = true;
             HouseKeeper houseKeeper = new HouseKeeper();
             houseKeeper.start();
         }
@@ -151,7 +153,6 @@ public class ObjectStreamIO {
 
         @Override
         public void handleEvent(Map<String, String> headers, Object body) throws Exception {
-            PostOffice po = PostOffice.getInstance();
             if (DATA.equals(headers.get(TYPE))) {
                 if (!eof.get()) {
                     String cb = callbacks.poll();

@@ -32,13 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ElasticQueue implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ElasticQueue.class);
 
     private static final Utility util = Utility.getInstance();
-    private static final ReentrantLock lock = new ReentrantLock();
     private static final AtomicInteger counter = new AtomicInteger(0);
     private static final AtomicInteger generation = new AtomicInteger(0);
 
@@ -50,10 +48,11 @@ public class ElasticQueue implements AutoCloseable {
     private static final int ONE_MINUTE = 60 * 1000;
     private static final int ONE_HOUR = 60 * ONE_MINUTE;
     private static final int ONE_DAY = 24 * ONE_HOUR;
+    private static boolean loaded = false;
     private static Database db;
     private static Environment dbEnv;
     private static File dbFolder;
-    private static Long keepAlive;
+    private static KeepAlive alive;
     private static Boolean runningInCloud;
     private long readCounter, writeCounter;
     private boolean empty = false;
@@ -69,8 +68,9 @@ public class ElasticQueue implements AutoCloseable {
      */
     public ElasticQueue(String id) {
         this.id = util.validServiceName(id)? id : util.filteredServiceName(id);
-        initialize();
-        if (counter.incrementAndGet() == 1) {
+        resetCounter();
+        if (counter.incrementAndGet() == 1 && !loaded) {
+            loaded = true;
             Platform platform = Platform.getInstance();
             try {
                 platform.registerPrivate(CLEAN_UP_TASK, new Cleanup(), 1);
@@ -88,30 +88,7 @@ public class ElasticQueue implements AutoCloseable {
                 dbFolder = new File(tmpRoot, instanceId);
             }
             scanExpiredStores(tmpRoot);
-        }
-    }
-
-    private void scanExpiredStores(File tmpRoot) {
-        if (runningInCloud) {
-            removeExpiredStore(tmpRoot);
-        } else {
-            File[] dirs = tmpRoot.listFiles();
-            if (dirs != null) {
-                for (File d : dirs) {
-                    if (d.isDirectory()) {
-                        removeExpiredStore(d);
-                    }
-                }
-            }
-        }
-    }
-
-    private void removeExpiredStore(File folder) {
-        Utility util = Utility.getInstance();
-        File f = new File(folder, RUNNING);
-        if (f.exists() && System.currentTimeMillis() - f.lastModified() > 60000) {
-            util.cleanupDir(folder, runningInCloud);
-            log.info("Holding area {} expired", folder);
+            setupCommitLog(dbFolder);
         }
     }
 
@@ -133,7 +110,7 @@ public class ElasticQueue implements AutoCloseable {
                     dbEnv.cleanLog();
                 }
             }
-            initialize();
+            resetCounter();
         }
     }
 
@@ -158,8 +135,8 @@ public class ElasticQueue implements AutoCloseable {
 
     private static void shutdown() {
         if (db != null && dbEnv != null) {
-            if (keepAlive != null) {
-                Platform.getInstance().getVertx().cancelTimer(keepAlive);
+            if (alive != null) {
+                alive.shutdown();
             }
             try {
                 db.close();
@@ -176,7 +153,7 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
-    private void initialize() {
+    private void resetCounter() {
         if (!empty) {
             empty = true;
             readCounter = writeCounter = 0;
@@ -185,40 +162,31 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
-    private Database getDatabase() {
-        if (db == null) {
-            lock.lock();
-            try {
-                // avoid concurrency
-                if (dbEnv == null || db == null) {
-                    if (!dbFolder.exists()) {
-                        if (dbFolder.mkdirs()) {
-                            log.info("{} created", dbFolder);
-                        }
-                    }
-                    long t1 = System.currentTimeMillis();
-                    dbEnv = new Environment(dbFolder,
-                            new EnvironmentConfig()
-                                    .setAllowCreate(true)
-                                    .setConfigParam(EnvironmentConfig.MAX_DISK, "0")
-                                    .setConfigParam(EnvironmentConfig.FREE_DISK, "0"));
-                    dbEnv.checkpoint(new CheckpointConfig().setMinutes(1));
-                    db = dbEnv.openDatabase(null, "kv",
-                            new DatabaseConfig().setAllowCreate(true).setTemporary(false));
-                    long diff = System.currentTimeMillis() - t1;
-                    util.str2file(new File(dbFolder, RUNNING), "started");
-                    keepAlive = Platform.getInstance().getVertx().setPeriodic(20000,
-                            t -> util.str2file(new File(dbFolder, RUNNING), util.getTimestamp()));
-                    log.info("Created holding area {} in {} ms", dbFolder, diff);
+    private void setupCommitLog(File dir) {
+        try {
+            if (!dir.exists()) {
+                if (dir.mkdirs()) {
+                    log.debug("{} created", dir);
                 }
-            } catch (Exception e) {
-                log.error("Unable to create holding area in {} - {}", dbFolder, e.getMessage());
-                System.exit(-1);
-            } finally {
-                lock.unlock();
             }
+            long t1 = System.currentTimeMillis();
+            dbEnv = new Environment(dir,
+                    new EnvironmentConfig()
+                            .setAllowCreate(true)
+                            .setConfigParam(EnvironmentConfig.MAX_DISK, "0")
+                            .setConfigParam(EnvironmentConfig.FREE_DISK, "0"));
+            dbEnv.checkpoint(new CheckpointConfig().setMinutes(1));
+            db = dbEnv.openDatabase(null, "kv",
+                    new DatabaseConfig().setAllowCreate(true).setTemporary(false));
+            long diff = System.currentTimeMillis() - t1;
+            alive = new KeepAlive(dir);
+            alive.start();
+            log.info("Created holding area {} in {} ms", dir, diff);
+
+        } catch (Exception e) {
+            log.error("Unable to create holding area in {} - {}", dir, e.getMessage());
+            System.exit(-1);
         }
-        return db;
     }
 
     public void write(byte[] event) {
@@ -230,7 +198,7 @@ public class ElasticQueue implements AutoCloseable {
             String key = id + SLASH + currentVersion + SLASH + util.zeroFill(writeCounter, MAX_EVENTS);
             DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
             DatabaseEntry v = new DatabaseEntry(event);
-            getDatabase().put(null, k, v);
+            db.put(null, k, v);
         }
         writeCounter++;
         empty = false;
@@ -267,7 +235,7 @@ public class ElasticQueue implements AutoCloseable {
         DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
         DatabaseEntry v = new DatabaseEntry();
         try {
-            OperationStatus status = getDatabase().get(null, k, v, LockMode.DEFAULT);
+            OperationStatus status = db.get(null, k, v, LockMode.DEFAULT);
             if (status == OperationStatus.SUCCESS) {
                 // must be an exact match
                 String ks = util.getUTF(k.getData());
@@ -284,6 +252,30 @@ public class ElasticQueue implements AutoCloseable {
             if (hasRecord) {
                 db.delete(null, k);
             }
+        }
+    }
+
+    private void scanExpiredStores(File tmpRoot) {
+        if (runningInCloud) {
+            removeExpiredStore(tmpRoot);
+        } else {
+            File[] dirs = tmpRoot.listFiles();
+            if (dirs != null) {
+                for (File d : dirs) {
+                    if (d.isDirectory()) {
+                        removeExpiredStore(d);
+                    }
+                }
+            }
+        }
+    }
+
+    private void removeExpiredStore(File folder) {
+        Utility util = Utility.getInstance();
+        File f = new File(folder, RUNNING);
+        if (f.exists() && System.currentTimeMillis() - f.lastModified() > 60000) {
+            util.cleanupDir(folder, runningInCloud);
+            log.info("Holding area {} expired", folder);
         }
     }
 
@@ -336,6 +328,40 @@ public class ElasticQueue implements AutoCloseable {
                 }
             }
             return true;
+        }
+    }
+
+    private static class KeepAlive extends Thread {
+
+        private static final long INTERVAL = 20000;
+        private boolean normal = true;
+        private final File dir;
+
+        public KeepAlive(File dir) {
+            this.dir = dir;
+        }
+
+        @Override
+        public void run() {
+            log.info("Commit log started");
+            long t1 = 0;
+            while (normal) {
+                long now = System.currentTimeMillis();
+                if (now - t1 > INTERVAL) {
+                    t1 = now;
+                    util.str2file(new File(dir, RUNNING), util.getTimestamp());
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ok to ignore
+                }
+            }
+            log.info("Commit log stopped");
+        }
+
+        public void shutdown() {
+            normal = false;
         }
     }
 
