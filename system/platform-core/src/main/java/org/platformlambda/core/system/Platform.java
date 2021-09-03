@@ -54,6 +54,10 @@ public class Platform {
         return instance;
     }
 
+    private Platform() {
+        // singleton
+    }
+
     /**
      * Internal use - DO NOT call this from user application
      * <p>
