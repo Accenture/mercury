@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -46,16 +45,10 @@ public class Platform {
     private static final String INIT = "init:";
     private static String originId;
     private static boolean cloudSelected = false, cloudServicesStarted = false;
-    private static final Platform instance = new Platform();
     private static String appId;
-    private final Vertx vertx;
-    private final EventBus system;
-
-    private Platform() {
-        // singleton
-        vertx = Vertx.vertx();
-        system = vertx.eventBus();
-    }
+    private static final Vertx vertx = Vertx.vertx();
+    private static final EventBus system = vertx.eventBus();
+    private static final Platform instance = new Platform();
 
     public static Platform getInstance() {
         return instance;
