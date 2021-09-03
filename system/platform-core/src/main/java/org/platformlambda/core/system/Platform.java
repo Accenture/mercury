@@ -50,12 +50,12 @@ public class Platform {
     private static final EventBus system = vertx.eventBus();
     private static final Platform instance = new Platform();
 
-    public static Platform getInstance() {
-        return instance;
-    }
-
     private Platform() {
         // singleton
+    }
+
+    public static Platform getInstance() {
+        return instance;
     }
 
     /**
