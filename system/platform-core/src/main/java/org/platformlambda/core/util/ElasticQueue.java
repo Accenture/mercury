@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ElasticQueue implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ElasticQueue.class);
@@ -39,6 +40,7 @@ public class ElasticQueue implements AutoCloseable {
     private static final Utility util = Utility.getInstance();
     private static final AtomicInteger counter = new AtomicInteger(0);
     private static final AtomicInteger generation = new AtomicInteger(0);
+    private static final ReentrantLock lock = new ReentrantLock();
 
     public static final int MEMORY_BUFFER = 10;
     private static final String RUNNING = "RUNNING";
@@ -88,7 +90,6 @@ public class ElasticQueue implements AutoCloseable {
                 dbFolder = new File(tmpRoot, instanceId);
             }
             scanExpiredStores(tmpRoot);
-            setupCommitLog(dbFolder);
         }
     }
 
@@ -189,6 +190,21 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
+    private Database getDatabase() {
+        if (db == null) {
+            lock.lock();
+            try {
+                if (dbEnv == null || db == null) {
+                    setupCommitLog(dbFolder);
+                }
+
+            } finally {
+                lock.unlock();
+            }
+        }
+        return db;
+    }
+
     public void write(byte[] event) {
         if (writeCounter < MEMORY_BUFFER) {
             // for highest performance, save to memory for the first few blocks
@@ -198,7 +214,7 @@ public class ElasticQueue implements AutoCloseable {
             String key = id + SLASH + currentVersion + SLASH + util.zeroFill(writeCounter, MAX_EVENTS);
             DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
             DatabaseEntry v = new DatabaseEntry(event);
-            db.put(null, k, v);
+            getDatabase().put(null, k, v);
         }
         writeCounter++;
         empty = false;
@@ -235,7 +251,7 @@ public class ElasticQueue implements AutoCloseable {
         DatabaseEntry k = new DatabaseEntry(util.getUTF(key));
         DatabaseEntry v = new DatabaseEntry();
         try {
-            OperationStatus status = db.get(null, k, v, LockMode.DEFAULT);
+            OperationStatus status = getDatabase().get(null, k, v, LockMode.DEFAULT);
             if (status == OperationStatus.SUCCESS) {
                 // must be an exact match
                 String ks = util.getUTF(k.getData());
