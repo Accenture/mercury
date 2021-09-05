@@ -878,6 +878,11 @@ public class Utility {
     //////////////////////////////////
 
     public boolean portReady(String host, int port, int timeoutMs) {
+        // try twice
+        return testPort(host, port, timeoutMs) || testPort(host, port, timeoutMs);
+    }
+
+    private boolean testPort(String host, int port, int timeoutMs) {
         if (port < 1) {
             return false;
         }

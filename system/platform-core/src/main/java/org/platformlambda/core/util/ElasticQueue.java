@@ -42,7 +42,7 @@ public class ElasticQueue implements AutoCloseable {
     private static final AtomicInteger generation = new AtomicInteger(0);
     private static final ReentrantLock lock = new ReentrantLock();
 
-    public static final int MEMORY_BUFFER = 10;
+    public static final int MEMORY_BUFFER = 20;
     private static final String RUNNING = "RUNNING";
     private static final String CLEAN_UP_TASK = "elastic.queue.cleanup";
     private static final String SLASH = "/";
@@ -142,12 +142,12 @@ public class ElasticQueue implements AutoCloseable {
             try {
                 db.close();
             } catch (Exception e) {
-                log.warn("Exception while closing - {}", e.getMessage());
+                log.debug("Exception while closing - {}", e.getMessage());
             }
             try {
                 dbEnv.close();
             } catch (Exception e) {
-                log.warn("Exception while closing - {}", e.getMessage());
+                log.debug("Exception while closing - {}", e.getMessage());
             }
             util.cleanupDir(dbFolder, runningInCloud);
             log.info("Holding area {} cleared", dbFolder);
@@ -321,26 +321,7 @@ public class ElasticQueue implements AutoCloseable {
                         log.info("Cleared {} unread event{} for {}", n, n == 1? "" : "s", body);
                     }
                 } catch (Exception e) {
-                    log.warn("Unable to scan {} - {}", body, e.getMessage());
-                }
-                // remove older statistics files except current one
-                List<File> outdated = new ArrayList<>();
-                File[] files = dbFolder.listFiles();
-                if (files != null) {
-                    long now = System.currentTimeMillis();
-                    for (File f : files) {
-                        String name = f.getName();
-                        if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
-                            if (now - f.lastModified() > ONE_DAY) {
-                                outdated.add(f);
-                            }
-                        }
-                    }
-                    for (File f : outdated) {
-                        if (f.delete()) {
-                            log.info("Outdated {} deleted", f);
-                        }
-                    }
+                    log.debug("Unable to scan {} - {}", body, e.getMessage());
                 }
             }
             return true;
@@ -349,7 +330,8 @@ public class ElasticQueue implements AutoCloseable {
 
     private static class KeepAlive extends Thread {
 
-        private static final long INTERVAL = 20000;
+        private static final long KEEP_ALIVE_INTERVAL = 20 * 1000;
+        private static final long HOUSEKEEPING_INTERVAL = 600 * 1000;
         private boolean normal = true;
         private final File dir;
 
@@ -361,11 +343,34 @@ public class ElasticQueue implements AutoCloseable {
         public void run() {
             log.info("Commit log started");
             long t1 = 0;
+            long t2 = System.currentTimeMillis();
             while (normal) {
                 long now = System.currentTimeMillis();
-                if (now - t1 > INTERVAL) {
+                // save running status file
+                if (now - t1 > KEEP_ALIVE_INTERVAL) {
                     t1 = now;
                     util.str2file(new File(dir, RUNNING), util.getTimestamp());
+                }
+                // remove older statistics files
+                if (now - t2 > HOUSEKEEPING_INTERVAL) {
+                    t2 = now;
+                    List<File> outdated = new ArrayList<>();
+                    File[] files = dbFolder.listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            String name = f.getName();
+                            if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
+                                if (now - f.lastModified() > ONE_DAY) {
+                                    outdated.add(f);
+                                }
+                            }
+                        }
+                        for (File f : outdated) {
+                            if (f.delete()) {
+                                log.info("Outdated {} deleted", f);
+                            }
+                        }
+                    }
                 }
                 try {
                     Thread.sleep(1000);

@@ -119,7 +119,13 @@ public class WebSocketTest {
             }
             return true;
         };
-        Assert.assertTrue(Utility.getInstance().portReady("127.0.0.1", PORT, 5000));
+        for (int i=0; i < 3; i++) {
+            if (Utility.getInstance().portReady("127.0.0.1", PORT, 3000)) {
+                break;
+            } else {
+                log.info("Waiting for websocket server at port-{} to get ready", PORT);
+            }
+        }
         PersistentWsClient client = new PersistentWsClient(connector,
                 Collections.singletonList("ws://127.0.0.1:"+PORT+"/ws/test/hi"));
         // set condition to null or true means no startup condition
