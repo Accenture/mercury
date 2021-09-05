@@ -19,6 +19,7 @@
 package org.platformlambda.servlets;
 
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.Utility;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -29,9 +30,8 @@ public abstract class InfoServletBase extends HttpServlet {
     protected static final boolean protectEndpoint = "true".equals(
             config.getProperty("protect.info.endpoints", "false"));
 
-    protected boolean isLocalHost(HttpServletRequest request) {
-        String host = request.getHeader("host");
-        return host != null && host.contains("127.0.0.1");
+    protected boolean isIntranetAddress(HttpServletRequest request) {
+        return Utility.getInstance().isIntranetAddress(request.getHeader("host"));
     }
 
 }

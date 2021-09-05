@@ -44,7 +44,7 @@ public class HealthServlet extends InfoServletBase {
         String myOrigin = Platform.getInstance().getOrigin();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            if (!isLocalHost(request) && protectEndpoint) {
+            if (protectEndpoint && !isIntranetAddress(request)) {
                 response.sendError(404, "Resource not found");
                 return;
             }

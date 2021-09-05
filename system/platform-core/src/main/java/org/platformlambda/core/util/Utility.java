@@ -78,6 +78,12 @@ public class Utility {
     private static final String INVALID_HEX = "Invalid hex string";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static final String ZEROS = "0000000000000000";
+    private static final String[] intranetPrefixes = {
+            "10.", "192.168.",
+            "172.16.", "172.17.", "172.18.", "172.19.",
+            "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+            "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."
+    };
     private static final Object ORDERLY_SCAN = new Object[0];
     private static final VersionInfo versionInfo = new VersionInfo();
     private static List<String> libs = new ArrayList<>();
@@ -910,6 +916,34 @@ public class Utility {
                 } catch (IOException e) {
                     // does not matter
                 }
+            }
+        }
+        return false;
+    }
+
+    public boolean isIntranetAddress(String host) {
+        Utility util = Utility.getInstance();
+        if (host == null) {
+            return false;
+        }
+        if (host.contains(":")) {
+            host = host.substring(0, host.lastIndexOf(':'));
+        }
+        if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
+            return true;
+        }
+        List<String> segments = util.split(host, ".");
+        if (segments.size() != 4) {
+            return false;
+        }
+        for (String number: segments) {
+            if (number.length() > 3 || !util.isDigits(number)) {
+                return false;
+            }
+        }
+        for (String prefix: intranetPrefixes) {
+            if (host.startsWith(prefix)) {
+                return true;
             }
         }
         return false;

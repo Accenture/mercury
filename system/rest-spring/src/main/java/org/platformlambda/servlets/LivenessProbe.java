@@ -24,7 +24,6 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
@@ -32,7 +31,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 @WebServlet("/livenessprobe")
-public class LivenessProbe extends HttpServlet {
+public class LivenessProbe extends InfoServletBase {
     private static final long serialVersionUID = 3607030982796747671L;
     private static final String APP_INSTANCE = "X-App-Instance";
     private static final String TYPE = "type";
@@ -43,6 +42,10 @@ public class LivenessProbe extends HttpServlet {
         String myOrigin = Platform.getInstance().getOrigin();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
+            if (protectEndpoint && !isIntranetAddress(request)) {
+                response.sendError(404, "Resource not found");
+                return;
+            }
             origin = myOrigin;
         }
         PostOffice po = PostOffice.getInstance();

@@ -33,6 +33,8 @@ import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.util.SimpleHttpRequests;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ServletTest extends TestBase {
 
-    private static SimpleXmlWriter xml = new SimpleXmlWriter();
+    private static final SimpleXmlWriter xml = new SimpleXmlWriter();
 
     @SuppressWarnings("unchecked")
     @Test
@@ -55,12 +57,6 @@ public class ServletTest extends TestBase {
         Assert.assertEquals("APP", multi.getElement("personality"));
         String origin = Platform.getInstance().getOrigin();
         Assert.assertEquals(origin, multi.getElement("origin"));
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedInfoEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -79,12 +75,6 @@ public class ServletTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals("rest-spring", multi.getElement("app.name"));
         Assert.assertTrue(result.containsKey("library"));
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedLibEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info/lib");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -109,12 +99,6 @@ public class ServletTest extends TestBase {
     }
 
     @Test(expected = AppException.class)
-    public void protectedRoutesEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info/routes");
-        System.out.println(response);
-    }
-
-    @Test(expected = AppException.class)
     public void remoteRouteEndpointTest() throws AppException, IOException {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
@@ -124,16 +108,10 @@ public class ServletTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void healthEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
+        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/health");
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals("UP", result.get("status"));
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedHealthEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/health");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -165,12 +143,6 @@ public class ServletTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals("rest-spring", multi.getElement("app.name"));
         Assert.assertTrue(result.get("env") instanceof Map);
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedEnvEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/env");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
