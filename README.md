@@ -1,4 +1,6 @@
-# Mercury - rapid software development for microservices
+# Mercury
+
+Reference implementation for event driven microservices using three levels of digital decoupling
 
 ## Welcome to the Mercury project
 
