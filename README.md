@@ -45,7 +45,7 @@ async, callback, streaming, pipeline and pub/sub use cases.
 
 Best regards, the Mercury team, Accenture
 
-May 2021
+September 2021
 
 ## Rationale
 
