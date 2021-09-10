@@ -23,6 +23,7 @@ import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -40,7 +41,6 @@ public class ServiceRegistry implements LambdaFunction {
 
     public static final String APP_GROUP = "@monitor-";
     public static final String CLOUD_MANAGER = "cloud.manager";
-    private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
     private static final String PERSONALITY = "personality";
     private static final String ALIVE = "keep-alive";
     private static final String TYPE = ServiceDiscovery.TYPE;
@@ -52,9 +52,14 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String ADD = ServiceDiscovery.ADD;
     private static final String EXCHANGE = "exchange";
     private static final String VERSION = "version";
+    private static final String SUBSCRIBE_LIFE_CYCLE = "subscribe_life_cycle";
+    private static final String UNSUBSCRIBE_LIFE_CYCLE = "unsubscribe_life_cycle";
     private static final String JOIN = "join";
+    private static final String CONNECTED = "connected";
+    private static final String DISCONNECTED = "disconnected";
     private static final String LEAVE = "leave";
     private static final String USER = "user";
+    private static final String NAME = "name";
     private static final String SUSPEND = "suspend";
     private static final String RESUME = "resume";
     private static final String ISOLATE = "isolate";
@@ -75,6 +80,8 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Boolean> lifeCycleSubscribers = new ConcurrentHashMap<>();
+
     private static String monitorTopic;
     private long lastBroadcastAdd = 0;
 
@@ -139,6 +146,20 @@ public class ServiceRegistry implements LambdaFunction {
         Platform platform = Platform.getInstance();
         String myOrigin = platform.getOrigin();
         String type = headers.get(TYPE);
+        if (SUBSCRIBE_LIFE_CYCLE.equals(type) && headers.containsKey(ROUTE)) {
+            String subscriber = headers.get(ROUTE);
+            if (!subscriber.contains("@") && !lifeCycleSubscribers.containsKey(subscriber)) {
+                lifeCycleSubscribers.put(subscriber, true);
+                log.info("{} subscribed to member life-cycle events", subscriber);
+            }
+        }
+        if (UNSUBSCRIBE_LIFE_CYCLE.equals(type) && headers.containsKey(ROUTE)) {
+            String subscriber = headers.get(ROUTE);
+            if (!subscriber.contains("@") && lifeCycleSubscribers.containsKey(subscriber)) {
+                lifeCycleSubscribers.remove(subscriber);
+                log.info("{} unsubscribed from member life-cycle events", subscriber);
+            }
+        }
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
@@ -149,11 +170,11 @@ public class ServiceRegistry implements LambdaFunction {
                 if (origin.equals(myOrigin)) {
                     if (headers.containsKey(VERSION)) {
                         log.info("Presence monitor v"+headers.get(VERSION)+" detected");
+                    } else {
+                        notifyLifeCycleSubscribers(new Kv(TYPE, CONNECTED));
                     }
                     registerMyRoutes();
-                    if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
-                        po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
-                    }
+
                 } else {
                     // send routing table of this node to the newly joined node
                     sendMyRoutes(true);
@@ -220,14 +241,14 @@ public class ServiceRegistry implements LambdaFunction {
                         if (!o.equals(origin)) {
                             log.info("{} disconnected", o);
                             removeRoutesFromOrigin(o);
+                            notifyLifeCycleSubscribers(new Kv(TYPE, LEAVE), new Kv(ORIGIN, o));
                         }
                     }
+                    notifyLifeCycleSubscribers(new Kv(TYPE, DISCONNECTED));
                 } else {
                     log.info("Peer {} left", origin);
                     removeRoutesFromOrigin(origin);
-                }
-                if (platform.hasRoute(NOTIFICATION_INTERNAL)) {
-                    po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, LEAVE), new Kv(ORIGIN, headers.get(ORIGIN)));
+                    notifyLifeCycleSubscribers(new Kv(TYPE, LEAVE), new Kv(ORIGIN, origin));
                 }
             }
         }
@@ -265,6 +286,10 @@ public class ServiceRegistry implements LambdaFunction {
                         if (headers.containsKey(TOPIC)) {
                             originTopic.put(origin, headers.get(TOPIC));
                         }
+                        if (headers.containsKey(NAME)) {
+                            notifyLifeCycleSubscribers(new Kv(TYPE, JOIN),
+                                    new Kv(ORIGIN, origin), new Kv(NAME, headers.get(NAME)));
+                        }
                         if (headers.containsKey(EXCHANGE)) {
                             sendMyRoutes(false);
                         }
@@ -296,7 +321,8 @@ public class ServiceRegistry implements LambdaFunction {
             return;
         }
         lastBroadcastAdd = now;
-        String myOrigin = Platform.getInstance().getOrigin();
+        Platform platform = Platform.getInstance();
+        String myOrigin = platform.getOrigin();
         Map<String, String> routeMap = new HashMap<>();
         for (String r : cloudRoutes.keySet()) {
             ConcurrentMap<String, String> originMap = cloudRoutes.get(r);
@@ -304,9 +330,10 @@ public class ServiceRegistry implements LambdaFunction {
                 routeMap.put(r, originMap.get(myOrigin));
             }
         }
-        EventEnvelope request = new EventEnvelope();
-        request.setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
+        EventEnvelope request = new EventEnvelope()
+                .setTo(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup)
                 .setHeader(TOPIC, PresenceConnector.getInstance().getTopic())
+                .setHeader(NAME, platform.getName())
                 .setHeader(TYPE, ADD).setHeader(ORIGIN, myOrigin).setBody(routeMap);
         if (exchange) {
             request.setHeader(EXCHANGE, true);
@@ -381,6 +408,22 @@ public class ServiceRegistry implements LambdaFunction {
                 if (now - lastActive.getTime() > EXPIRY) {
                     log.error("Peer {} stalled", p);
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, p));
+                }
+            }
+        }
+    }
+
+    private void notifyLifeCycleSubscribers(Kv...parameters) {
+        if (!lifeCycleSubscribers.isEmpty()) {
+            for (String subscriber: lifeCycleSubscribers.keySet()) {
+                try {
+                    EventEnvelope event = new EventEnvelope().setTo(subscriber);
+                    for (Kv kv: parameters) {
+                        event.setHeader(kv.key, kv.value);
+                    }
+                    po.send(event);
+                } catch (IOException e) {
+                    log.warn("Unable to inform life cycle subscriber {} - {}", subscriber, e.getMessage());
                 }
             }
         }

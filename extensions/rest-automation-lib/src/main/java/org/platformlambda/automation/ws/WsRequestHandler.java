@@ -93,11 +93,6 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         final Platform platform = Platform.getInstance();
         final PostOffice po = PostOffice.getInstance();
         final String origin = platform.getOrigin();
-        if (!NotificationManager.isReady()) {
-            log.warn("Service temporarily unavailable - notification manager not ready");
-            ws.reject();
-            return;
-        }
         WsEntry wsEntry = WsEntry.getInstance();
         if (wsEntry.isEmpty()) {
             log.warn("Service temporarily unavailable - WebSocket service not enabled");

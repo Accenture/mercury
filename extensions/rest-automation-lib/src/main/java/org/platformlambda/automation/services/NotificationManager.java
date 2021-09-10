@@ -27,6 +27,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ManagedCache;
 import org.slf4j.Logger;
@@ -38,9 +39,11 @@ import java.util.*;
 public class NotificationManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(NotificationManager.class);
 
-    public static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
+    private static final String AUTOMATION_NOTIFICATION = "rest.automation.notification";
     private static final String APPLICATION = "application";
-    private static final String TYPE = "type";
+    private static final String TYPE = ServiceDiscovery.TYPE;
+    private static final String ROUTE = ServiceDiscovery.ROUTE;
+    private static final String SUBSCRIBE_LIFE_CYCLE = "subscribe_life_cycle";
     private static final String TOKEN = "token";
     private static final String LOAD = "load";
     private static final String JOIN = "join";
@@ -52,8 +55,10 @@ public class NotificationManager implements LambdaFunction {
     private static final String SUBSCRIBE = "subscribe";
     private static final String UNSUBSCRIBE = "unsubscribe";
     private static final String FINAL = "final";
-    private static final String STEP = "step";
+    private static final String CONNECTED = "connected";
+    private static final String DISCONNECTED = "disconnected";
     private static final String ORIGIN = "origin";
+    private static final String NAME = "name";
     private static final String TX_PATH = WsEnvelope.TX_PATH;
     private static final String CLEAR = "clear";
 
@@ -61,17 +66,28 @@ public class NotificationManager implements LambdaFunction {
     private static final ManagedCache eventCache = ManagedCache.createCache("ws.conn.events", 2000);
     // topic -> list of websocket return path (aka TX_PATH)
     private static final Map<String, List<String>> subscription = new HashMap<>();
-    private static boolean ready = false;
 
     public NotificationManager() throws IOException {
         final AppConfigReader config = AppConfigReader.getInstance();
         final Platform platform = Platform.getInstance();
         final PostOffice po = PostOffice.getInstance();
         final String origin = platform.getOrigin();
+        final String appName = platform.getName();
         boolean standaloneMode = "none".equalsIgnoreCase(config.getProperty("cloud.connector", "none"));
-        if (!platform.hasRoute(NOTIFICATION_INTERNAL)) {
+        if (!platform.hasRoute(AUTOMATION_NOTIFICATION)) {
             LambdaFunction f = (headers, body, instance) -> {
                 String type = headers.get(TYPE);
+                if (SUBSCRIBE_LIFE_CYCLE.equals(type)) {
+                    if (po.exists(ServiceDiscovery.SERVICE_REGISTRY)) {
+                        po.send(ServiceDiscovery.SERVICE_REGISTRY,
+                                new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
+                    } else {
+                        log.info("Waiting for {} to get ready", ServiceDiscovery.SERVICE_REGISTRY);
+                        EventEnvelope event = new EventEnvelope()
+                                .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
+                        po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
+                    }
+                }
                 if (SUBSCRIBE.equals(type) && headers.containsKey(TOPIC) && headers.containsKey(ORIGIN)
                         && headers.containsKey(TX_PATH)) {
                     String topic = headers.get(TOPIC);
@@ -97,26 +113,21 @@ public class NotificationManager implements LambdaFunction {
                         }
                     }
                 }
+                if (CONNECTED.equals(type)) {
+                    log.info("connected");
+                }
+                if (DISCONNECTED.equals(type)) {
+                    log.info("disconnected");
+                }
+
                 if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
                     if (origin.equals(headers.get(ORIGIN))) {
-                        if (!ready) {
-                            String step = headers.getOrDefault(STEP, "0");
-                            if ("0".equals(step)) {
-                                // give a moment for newly connected event stream to get ready
-                                po.sendLater(new EventEnvelope().setTo(NOTIFICATION_INTERNAL)
-                                                .setHeader(TYPE, JOIN).setHeader(ORIGIN, origin).setHeader(STEP, 1),
-                                        new Date(System.currentTimeMillis() + 5000));
-                            }
-                            if ("1".equals(step)) {
-                                ready = true;
-                                log.info(standaloneMode? "Running in standalone mode" : "Online");
-                                po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, JOIN), new Kv(STEP, 2),
-                                        new Kv(ORIGIN, origin));
-                            }
+                        if (standaloneMode) {
+                            log.info("Running in standalone mode");
                         }
 
-                    } else {
-                        String peer = NOTIFICATION_INTERNAL + "@" + headers.get(ORIGIN);
+                    } else if (appName.equals(headers.get(NAME))){
+                        String peer = AUTOMATION_NOTIFICATION + "@" + headers.get(ORIGIN);
                         String atOrigin = "@" + origin;
                         Map<String, List<String>> loadList = new HashMap<>();
                         for (String t : subscription.keySet()) {
@@ -145,12 +156,10 @@ public class NotificationManager implements LambdaFunction {
                     if (!eventCache.exists(key)) {
                         eventCache.put(key, true);
                         if (origin.equals(peer)) {
-                            if (ready) {
-                                ready = false;
-                                WsRequestHandler.closeAllConnections();
-                                subscription.clear();
-                                log.info("Offline");
-                            }
+                            WsRequestHandler.closeAllConnections();
+                            subscription.clear();
+                            log.info("Clearing all notification topics");
+
                         } else {
                             // clear all entries from the ORIGIN
                             clearEntries("@" + peer);
@@ -164,10 +173,14 @@ public class NotificationManager implements LambdaFunction {
                 return null;
             };
             // create singleton function to serialize updates
-            platform.registerPrivate(NOTIFICATION_INTERNAL, f, 1);
+            platform.registerPrivate(AUTOMATION_NOTIFICATION, f, 1);
         }
         if (standaloneMode) {
-            po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
+            po.send(AUTOMATION_NOTIFICATION, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
+        } else {
+            EventEnvelope event = new EventEnvelope()
+                                    .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
+            po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
         }
     }
 
@@ -210,7 +223,6 @@ public class NotificationManager implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     private void loadRoutesFromPeer(String peer, Object body) {
-        log.info("Loading entries from {}", peer);
         Map<String, List<String>> loadList = (Map<String, List<String>>) body;
         for (String topic: loadList.keySet()) {
             List<String> list = subscription.getOrDefault(topic, new ArrayList<>());
@@ -225,6 +237,7 @@ public class NotificationManager implements LambdaFunction {
             }
             if (n > 0) {
                 subscription.put(topic, list);
+                log.info("Loading {} {} from {}", n, n == 1? "entries" : "entry", peer);
             }
         }
     }
@@ -239,10 +252,6 @@ public class NotificationManager implements LambdaFunction {
     public static String getApplication(String token) {
         Object app = tokenCache.get(token);
         return app instanceof String? (String) app : null;
-    }
-
-    public static boolean isReady() {
-        return ready;
     }
 
     @Override
@@ -287,7 +296,7 @@ public class NotificationManager implements LambdaFunction {
             }
         }
         if (SUBSCRIBE.equals(type) || UNSUBSCRIBE.equals(type)) {
-            po.send(new EventEnvelope().setTo(NOTIFICATION_INTERNAL).setHeaders(headers).setBody(body));
+            po.send(new EventEnvelope().setTo(AUTOMATION_NOTIFICATION).setHeaders(headers).setBody(body));
             return true;
         }
         if (PUBLISH.equals(type) && headers.containsKey(TOPIC) && body instanceof String) {
@@ -316,15 +325,15 @@ public class NotificationManager implements LambdaFunction {
             return true;
         }
         if (CLOSE.equals(type) && headers.containsKey(TX_PATH)) {
-            po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, CLOSE), new Kv(TX_PATH, headers.get(TX_PATH)));
+            po.send(AUTOMATION_NOTIFICATION, new Kv(TYPE, CLOSE), new Kv(TX_PATH, headers.get(TX_PATH)));
             return true;
         }
         if (JOIN.equals(type)) {
-            po.send(new EventEnvelope().setHeaders(headers).setTo(NOTIFICATION_INTERNAL));
+            po.send(new EventEnvelope().setHeaders(headers).setTo(AUTOMATION_NOTIFICATION));
             return true;
         }
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
-            po.send(NOTIFICATION_INTERNAL, new Kv(TYPE, LEAVE), new Kv(ORIGIN, headers.get(ORIGIN)));
+            po.send(AUTOMATION_NOTIFICATION, new Kv(TYPE, LEAVE), new Kv(ORIGIN, headers.get(ORIGIN)));
             return true;
         }
         log.warn("Unknown event dropped - {}", headers);
