@@ -120,6 +120,7 @@ public class InfoService implements LambdaFunction {
 
         } else if (ENV.equals(type)) {
             result.put(ENV, getEnv());
+            result.put(ROUTING, getRegisteredServices());
 
         } else {
             // java VM information
@@ -177,18 +178,18 @@ public class InfoService implements LambdaFunction {
                         new Kv(ORIGIN, platform.getOrigin()), new Kv(TYPE, DOWNLOAD));
             } catch (IOException e) {
                 // just return local routing table
-                return getLocalRouting();
+                return getLocalPublicRouting();
             }
             if (response.getBody() instanceof Map) {
                 return (Map<String, Object>) response.getBody();
             }
         } else {
-            return getLocalRouting();
+            return getLocalPublicRouting();
         }
         return new HashMap<>();
     }
 
-    private Map<String, Object> getLocalRouting() {
+    private Map<String, Object> getLocalPublicRouting() {
         Map<String, Object> result = new HashMap<>();
         Map<String, ServiceDef> map = Platform.getInstance().getLocalRoutingTable();
         for (String route: map.keySet()) {
@@ -196,6 +197,28 @@ public class InfoService implements LambdaFunction {
             if (!service.isPrivate()) {
                 result.put(route, service.getCreated());
             }
+        }
+        return result;
+    }
+
+    private Map<String, List<String>> getRegisteredServices() {
+        Map<String, List<String>> result = new HashMap<>();
+        result.put("public", getLocalRoutingDetails(false));
+        result.put("private", getLocalRoutingDetails(true));
+        return result;
+    }
+
+    private List<String> getLocalRoutingDetails(boolean isPrivate) {
+        List<String> result = new ArrayList<>();
+        Map<String, ServiceDef> map = Platform.getInstance().getLocalRoutingTable();
+        for (String route: map.keySet()) {
+            ServiceDef service = map.get(route);
+            if (service.isPrivate() == isPrivate) {
+                result.add(route + " (" + service.getConcurrency() + ")");
+            }
+        }
+        if (result.size() > 1) {
+            Collections.sort(result);
         }
         return result;
     }
