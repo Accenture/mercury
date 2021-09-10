@@ -25,7 +25,6 @@ event-driven system and your application may not work as expected.
 | notification.manager          | Simple notification service            | REST automation system           |
 | ws.token.issuer               | Websocket access token issuer          | REST automation system           |
 | ws.notification               | Websocket notification handler         | REST automation system           |
-| ws.notification.internal      | Websocket notification handler         | REST automation system           |
 | language.pack.inbox           | RPC inbox handler                      | Language Connector               |
 | language.pack.registry        | Routing registry                       | Language Connector               |
 | pub.sub.controller            | Pub/sub handler                        | Language Connector               |
