@@ -77,6 +77,18 @@ public class ServiceQueue {
         return route;
     }
 
+    public int getFreeWorkers() {
+        return pool.size();
+    }
+
+    public long getReadCounter() {
+        return elasticQueue.getReadCounter();
+    }
+
+    public long getWriteCounter() {
+        return elasticQueue.getWriteCounter();
+    }
+
     public void stop() {
         if (consumer != null && consumer.isRegistered()) {
             // closing consumer

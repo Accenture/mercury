@@ -50,7 +50,6 @@ public class MainApp implements EntryPoint {
         LambdaFunction echo = (headers, body, instance) -> {
             /*
              * Uncomment the "log.info" statement if you want to see this service receiving the event.
-             * (Note that logging takes time so it will affect your function execution time.)
              */
 //             log.info("echo #"+instance+" got a request");
 

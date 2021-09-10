@@ -97,6 +97,14 @@ public class ElasticQueue implements AutoCloseable {
         return id;
     }
 
+    public long getReadCounter() {
+        return readCounter;
+    }
+
+    public long getWriteCounter() {
+        return writeCounter;
+    }
+
     @Override
     public void close() {
         if (!isClosed()) {

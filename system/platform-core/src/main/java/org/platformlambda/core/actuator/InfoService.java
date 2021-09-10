@@ -214,7 +214,11 @@ public class InfoService implements LambdaFunction {
         for (String route: map.keySet()) {
             ServiceDef service = map.get(route);
             if (service.isPrivate() == isPrivate) {
-                result.add(route + " (" + service.getConcurrency() + ")");
+                ServiceQueue queue = service.getManager();
+                long read = queue.getReadCounter();
+                long write = queue.getWriteCounter();
+                result.add(route + " (" + queue.getFreeWorkers() + "/" + service.getConcurrency() + ") " +
+                            " r/w=" + read + "/" + write);
             }
         }
         if (result.size() > 1) {
