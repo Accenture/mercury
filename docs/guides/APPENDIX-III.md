@@ -58,6 +58,39 @@ Your custom health service must respond to the following requests:
 
 The health service can retrieve the "type" of the request from the "headers".
 
+## Application instance life-cycle events
+
+Any application can subscribe to life-cycle events of other application instances.
+Sample code is available in https://github.com/Accenture/mercury/blob/master/extensions/rest-automation-lib/src/main/java/org/platformlambda/automation/services/NotificationManager.java
+
+To listen to life cycle events, you can do something like this:
+```
+String AUTOMATION_NOTIFICATION = "member.life.cycle.listener";
+String appName = platform.getName();
+LambdaFunction f = (headers, body, instance) -> {
+    if (CONNECTED.equals(type)) {
+        // handle connection event - this event is fired when your app is connected to the event stream system
+        log.info("connected");
+    }
+    if (DISCONNECTED.equals(type)) {
+        // handle disconnection event - this event is fired when your app is disconnected from the event stream system
+        log.info("disconnected");
+    }
+    if (JOIN.equals(type) && headers.containsKey(ORIGIN) && appName.equals(headers.get(NAME))) {
+        // handle member join event
+    }
+    if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
+        // handle member leave event
+    }
+}
+platform.registerPrivate(AUTOMATION_NOTIFICATION, f, 1);
+
+...
+
+po.send(ServiceDiscovery.SERVICE_REGISTRY,
+        new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
+```
+
 ## HttpClient as a service
 
 Starting from version 1.12.30, the rest-automation system, when deployed, will provide the "async.http.request" service.
