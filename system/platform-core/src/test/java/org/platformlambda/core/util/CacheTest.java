@@ -37,7 +37,7 @@ public class CacheTest {
         long n = cache1.size();
         Assert.assertEquals(1, n);
         // test expiry
-        Thread.sleep(1010);
+        Thread.sleep(1050);
         // cached item will disappear in one second
         Object o2 = cache1.get(KEY);
         Assert.assertNull(o2);
@@ -74,7 +74,7 @@ public class CacheTest {
         Assert.assertFalse(cache2.exists(KEY));
         cache2.put(KEY, DATA);
         Assert.assertTrue(cache2.exists(KEY));
-        Thread.sleep(1010);
+        Thread.sleep(1050);
         // test clean up
         cache2.cleanUp();
         Assert.assertFalse(cache2.exists(KEY));
