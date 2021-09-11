@@ -64,7 +64,7 @@ public class PostOffice {
         try {
             // start built-in services
             platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
-            platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 1);
+            platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 10);
             log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
             AppConfigReader config = AppConfigReader.getInstance();
