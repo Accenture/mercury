@@ -86,9 +86,9 @@ LambdaFunction f = (headers, body, instance) -> {
 platform.registerPrivate(AUTOMATION_NOTIFICATION, f, 1);
 
 ...
-
-po.send(ServiceDiscovery.SERVICE_REGISTRY,
-        new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
+EventEnvelope event = new EventEnvelope()
+                        .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
+po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
 ```
 
 ## HttpClient as a service
