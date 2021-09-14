@@ -23,9 +23,9 @@ import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +81,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> lifeCycleSubscribers = new ConcurrentHashMap<>();
+    private static final ManagedCache cache = ManagedCache.createCache("member.life.cycle.events", 5000);
 
     private static String monitorTopic;
     private long lastBroadcastAdd = 0;
@@ -249,6 +250,7 @@ public class ServiceRegistry implements LambdaFunction {
                     log.info("Peer {} left", origin);
                     removeRoutesFromOrigin(origin);
                     notifyLifeCycleSubscribers(new Kv(TYPE, LEAVE), new Kv(ORIGIN, origin));
+                    cache.remove(origin);
                 }
             }
         }
@@ -287,8 +289,11 @@ public class ServiceRegistry implements LambdaFunction {
                             originTopic.put(origin, headers.get(TOPIC));
                         }
                         if (headers.containsKey(NAME)) {
-                            notifyLifeCycleSubscribers(new Kv(TYPE, JOIN),
-                                    new Kv(ORIGIN, origin), new Kv(NAME, headers.get(NAME)));
+                            if (!cache.exists(origin)) {
+                                cache.put(origin, true);
+                                notifyLifeCycleSubscribers(new Kv(TYPE, JOIN),
+                                        new Kv(ORIGIN, origin), new Kv(NAME, headers.get(NAME)));
+                            }
                         }
                         if (headers.containsKey(EXCHANGE)) {
                             sendMyRoutes(false);
