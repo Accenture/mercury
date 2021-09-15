@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PostOfficeTest {
     private static final Logger log = LoggerFactory.getLogger(PostOfficeTest.class);
@@ -574,6 +575,39 @@ public class PostOfficeTest {
         EventEnvelope input = new EventEnvelope().setTo(TARGET).setBody(MESSAGE);
         EventEnvelope output = po.request(input, 5000);
         Assert.assertEquals(MESSAGE, output.getBody());
+    }
+
+    @Test
+    public void multicoreTest() throws IOException, InterruptedException {
+        log.info("Multi-core test starts");
+        final int CYCLES = 100;
+        final ConcurrentMap<Long, Boolean> threads = new ConcurrentHashMap<>();
+        final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
+        final AtomicInteger counter = new AtomicInteger(0);
+        String MULTI_CORES = "multi.cores";
+        LambdaFunction f= (headers, body, instance) -> {
+            int n = counter.incrementAndGet();
+            long id = Thread.currentThread().getId();
+            log.info("Instance #{}, count={}, thread #{} {}", instance, n, id, body);
+            threads.put(id, true);
+            if (n == CYCLES) {
+                bench.offer(true);
+            }
+            return true;
+        };
+        Platform.getInstance().register(MULTI_CORES, f, 20);
+
+        PostOffice po = PostOffice.getInstance();
+
+        long t1 = System.currentTimeMillis();
+        for (int i=0; i < CYCLES; i++) {
+            po.send(MULTI_CORES, "hello world");
+        }
+        long diff = System.currentTimeMillis() - t1;
+
+        Boolean result = bench.poll(10, TimeUnit.SECONDS);
+        log.info("Success? {}, consumed {} threads in {} ms",
+                result != null && result, threads.size(), diff);
     }
 
     @EventInterceptor
