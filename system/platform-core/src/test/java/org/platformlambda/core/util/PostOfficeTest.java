@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class PostOfficeTest {
     private static final Logger log = LoggerFactory.getLogger(PostOfficeTest.class);
@@ -580,10 +581,12 @@ public class PostOfficeTest {
     @Test
     public void multicoreTest() throws IOException, InterruptedException {
         log.info("Multi-core test starts");
-        final int CYCLES = 100;
+        final int CYCLES = 200;
+        final int WORKER_POOL = 50;
         final ConcurrentMap<Long, Boolean> threads = new ConcurrentHashMap<>();
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         final AtomicInteger counter = new AtomicInteger(0);
+        final AtomicLong last = new AtomicLong(0);
         String MULTI_CORES = "multi.cores";
         LambdaFunction f= (headers, body, instance) -> {
             int n = counter.incrementAndGet();
@@ -591,23 +594,21 @@ public class PostOfficeTest {
             log.info("Instance #{}, count={}, thread #{} {}", instance, n, id, body);
             threads.put(id, true);
             if (n == CYCLES) {
+                last.set(System.currentTimeMillis());
                 bench.offer(true);
             }
             return true;
         };
-        Platform.getInstance().register(MULTI_CORES, f, 20);
-
+        Platform.getInstance().registerPrivate(MULTI_CORES, f, WORKER_POOL);
         PostOffice po = PostOffice.getInstance();
-
         long t1 = System.currentTimeMillis();
         for (int i=0; i < CYCLES; i++) {
             po.send(MULTI_CORES, "hello world");
         }
-        long diff = System.currentTimeMillis() - t1;
-
         Boolean result = bench.poll(10, TimeUnit.SECONDS);
-        log.info("Success? {}, consumed {} threads in {} ms",
-                result != null && result, threads.size(), diff);
+        long diff = last.get() - t1;
+        log.info("{} cycles done? {}, {} workers consumed {} threads in {} ms",
+                CYCLES, result != null && result, WORKER_POOL, threads.size(), diff);
     }
 
     @EventInterceptor
