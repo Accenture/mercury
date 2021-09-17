@@ -579,8 +579,7 @@ public class PostOfficeTest {
     }
 
     @Test
-    public void multicoreTest() throws IOException, InterruptedException {
-        log.info("Multi-core test starts");
+    public void threadPoolTest() throws IOException, InterruptedException {
         final int CYCLES = 200;
         final int WORKER_POOL = 50;
         final ConcurrentMap<Long, Boolean> threads = new ConcurrentHashMap<>();
