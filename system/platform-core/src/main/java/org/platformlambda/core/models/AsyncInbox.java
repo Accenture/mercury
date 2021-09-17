@@ -37,7 +37,7 @@ import java.util.concurrent.TimeoutException;
 public class AsyncInbox extends InboxBase {
     private static final Logger log = LoggerFactory.getLogger(AsyncInbox.class);
 
-    private static final ExecutorService executor = Executors.newWorkStealingPool();
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
     private final long begin = System.nanoTime();
     private final Future<EventEnvelope> future;
     private final long timeout;

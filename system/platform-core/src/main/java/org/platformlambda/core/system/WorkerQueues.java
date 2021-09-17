@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 public abstract class WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueues.class);
 
-    protected static final ExecutorService executor = Executors.newWorkStealingPool();
+    protected static final ExecutorService executor = Executors.newCachedThreadPool();
     protected static final String READY = "ready:";
     protected final ServiceDef def;
     protected final String route;
