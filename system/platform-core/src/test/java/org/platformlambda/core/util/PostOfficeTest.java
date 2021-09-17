@@ -591,7 +591,7 @@ public class PostOfficeTest {
         LambdaFunction f= (headers, body, instance) -> {
             int n = counter.incrementAndGet();
             long id = Thread.currentThread().getId();
-            log.info("Instance #{}, count={}, thread #{} {}", instance, n, id, body);
+            log.debug("Instance #{}, count={}, thread #{} {}", instance, n, id, body);
             threads.put(id, true);
             if (n == CYCLES) {
                 last.set(System.currentTimeMillis());
