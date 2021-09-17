@@ -305,7 +305,12 @@ public class MonitorService implements Handler<ServerWebSocket> {
                                             new Kv(TX_PATH, session), new Kv(ORIGIN, md.origin));
                                 }
                             } else {
-                                log.debug("Member {} is alive {}", md.origin, info.get(SEQ));
+                                // this guarantees that a topic is used exclusively by a single app instance
+                                if (isTopicAssigned(md.origin, info)) {
+                                    ws.close((short) 1003, "Topic already assigned");
+                                } else {
+                                    log.debug("Member {} is alive {}", md.origin, info.get(SEQ));
+                                }
                             }
                         }
                     }
@@ -315,6 +320,30 @@ public class MonitorService implements Handler<ServerWebSocket> {
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isTopicAssigned(String origin, Map<String, Object> info) {
+        if (info.containsKey(TOPIC)) {
+            String myTopic = info.get(TOPIC).toString();
+            Map<String, Object> connections = getConnections();
+            for (String peer : connections.keySet()) {
+                if (!origin.equals(peer)) {
+                    Object o = connections.get(peer);
+                    if (o instanceof Map) {
+                        Map<String, Object> map = (Map<String, Object>) o;
+                        if (map.containsKey(TOPIC)) {
+                            String peerTopic = map.get(TOPIC).toString();
+                            if (myTopic.equals(peerTopic)) {
+                                log.warn("{} rejected because {} already assigned to {}", origin, peer, peerTopic);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")
