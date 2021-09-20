@@ -139,6 +139,8 @@ public class EventConsumer extends Thread {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
+        final int INVALID_EVENT_THRESHOLD = 150;
+        int invalidEvents = 0;
         boolean reset = true;
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
@@ -163,43 +165,43 @@ public class EventConsumer extends Thread {
                         continue;
                     }
                     reset = false;
-                    boolean seek = false;
                     for (TopicPartition tp : p) {
                         long earliest = getEarliest(tp);
                         long latest = getLatest(tp);
                         if (offset < 0) {
-                            log.info("Reading from {}, partition-{}, current offset {}",
+                            consumer.seek(tp, latest);
+                            log.info("Setting offset of {}, partition-{} to latest {}",
                                     realTopic, tp.partition(), latest);
                         } else if (offset < earliest) {
-                            seek = true;
                             consumer.seek(tp, earliest);
                             log.info("Setting offset of {}, partition-{} to earliest {} instead of {}",
                                     realTopic, tp.partition(), earliest, offset);
                         } else if (offset < latest) {
-                            seek = true;
                             consumer.seek(tp, offset);
-                            log.info("Setting offset of {}, partition-{} to {}, original {}-{}",
+                            log.info("Setting offset of {}, partition-{} to {}, current range {}-{}",
                                     realTopic, tp.partition(), offset, earliest, latest);
                          } else if (offset > latest) {
-                            log.warn("Offset for {}, partition-{} unchanged because {} is out of range {}-{}",
+                            consumer.seek(tp, latest);
+                            log.warn("Setting offset of {}, partition-{} to latest {}, current range {}-{}",
                                     realTopic, tp.partition(), offset, earliest, latest);
                         }
                     }
-                    if (seek) {
-                        continue;
-                    }
+                    continue;
                 }
                 for (ConsumerRecord<String, byte[]> record : records) {
                     Map<String, String> originalHeaders = getSimpleHeaders(record.headers());
                     String dataType = originalHeaders.getOrDefault(EventProducer.DATA_TYPE, EventProducer.BYTES_DATA);
                     boolean embedEvent = originalHeaders.containsKey(EventProducer.EMBED_EVENT);
                     String recipient = originalHeaders.get(EventProducer.RECIPIENT);
-                    if (recipient != null && recipient.contains(MONITOR)) {
-                        recipient = null;
-                    }
-                    if (recipient != null && !recipient.equals(origin)) {
-                        // this is an error case when two consumers listen to the same partition
+                    if (recipient != null && !recipient.contains(MONITOR) && !recipient.equals(origin)) {
+                        /*
+                         * this is an error case when two consumers listen to the same partition
+                         * or when READ offset is incorrect
+                         */
                         log.error("Skipping record {} because it belongs to {}", record.offset(), recipient);
+                        if (++invalidEvents > INVALID_EVENT_THRESHOLD) {
+                            throw new IOException("Too many outdated events - likely to be a READ offset error");
+                        }
                         continue;
                     }
                     byte[] data = record.value();
