@@ -170,23 +170,23 @@ public class EventConsumer extends Thread {
                         long latest = getLatest(tp);
                         if (offset < 0) {
                             consumer.seek(tp, latest);
-                            log.info("Setting offset of {}, partition-{} to latest, range {}-{}",
+                            log.info("Setting offset of {}, partition-{} to latest ({} - {})",
                                     realTopic, tp.partition(), earliest, latest);
                         } else if (offset < earliest) {
                             consumer.seek(tp, earliest);
-                            log.warn("Setting offset of {}, partition-{} to earliest instead of {}, range {}-{}",
+                            log.warn("Setting offset of {}, partition-{} to earliest instead of {} ({} - {})",
                                     realTopic, tp.partition(), offset, earliest, latest);
                         } else if (offset < latest) {
                             consumer.seek(tp, offset);
-                            log.info("Setting offset of {}, partition-{} to {}, range {}-{}",
+                            log.info("Setting offset of {}, partition-{} to {} ({} - {})",
                                     realTopic, tp.partition(), offset, earliest, latest);
                          } else {
                             consumer.seek(tp, latest);
                             if (latest == offset) {
-                                log.info("Setting offset of {}, partition-{} to latest, range {}-{}",
+                                log.info("Setting offset of {}, partition-{} to latest ({} - {})",
                                         realTopic, tp.partition(), earliest, latest);
                             } else {
-                                log.warn("Setting offset of {}, partition-{} to latest instead of {}, range {}-{}",
+                                log.warn("Setting offset of {}, partition-{} to latest instead of {} ({} - {})",
                                         realTopic, tp.partition(), offset, earliest, latest);
                             }
                         }
