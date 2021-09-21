@@ -170,20 +170,25 @@ public class EventConsumer extends Thread {
                         long latest = getLatest(tp);
                         if (offset < 0) {
                             consumer.seek(tp, latest);
-                            log.info("Setting offset of {}, partition-{} to latest {}",
-                                    realTopic, tp.partition(), latest);
+                            log.info("Setting offset of {}, partition-{} to latest, range {}-{}",
+                                    realTopic, tp.partition(), earliest, latest);
                         } else if (offset < earliest) {
                             consumer.seek(tp, earliest);
-                            log.info("Setting offset of {}, partition-{} to earliest {} instead of {}",
-                                    realTopic, tp.partition(), earliest, offset);
+                            log.warn("Setting offset of {}, partition-{} to earliest instead of {}, range {}-{}",
+                                    realTopic, tp.partition(), offset, earliest, latest);
                         } else if (offset < latest) {
                             consumer.seek(tp, offset);
-                            log.info("Setting offset of {}, partition-{} to {}, current range {}-{}",
+                            log.info("Setting offset of {}, partition-{} to {}, range {}-{}",
                                     realTopic, tp.partition(), offset, earliest, latest);
-                         } else if (offset > latest) {
+                         } else {
                             consumer.seek(tp, latest);
-                            log.warn("Setting offset of {}, partition-{} to latest {}, current range {}-{}",
-                                    realTopic, tp.partition(), offset, earliest, latest);
+                            if (latest == offset) {
+                                log.info("Setting offset of {}, partition-{} to latest, range {}-{}",
+                                        realTopic, tp.partition(), earliest, latest);
+                            } else {
+                                log.warn("Setting offset of {}, partition-{} to latest instead of {}, range {}-{}",
+                                        realTopic, tp.partition(), offset, earliest, latest);
+                            }
                         }
                     }
                     continue;
