@@ -916,13 +916,16 @@ public class PostOffice {
      * @return true or false
      */
     public boolean exists(String... route) {
-        if (route.length == 0) {
+        if (route == null || route.length == 0) {
             return false;
         }
         int local = 0;
         Platform platform = Platform.getInstance();
         List<String> remoteServices = new ArrayList<>();
         for (String r: route) {
+            if (r == null) {
+                return false;
+            }
             String actualRoute = substituteRouteIfAny(r);
             if (platform.hasRoute(actualRoute)) {
                 local++;

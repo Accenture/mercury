@@ -73,6 +73,13 @@ public class PostOfficeTest {
     }
 
     @Test
+    public void nullOriginTest() {
+        PostOffice po = PostOffice.getInstance();
+        Assert.assertFalse(po.exists((String[]) null));
+        Assert.assertFalse(po.exists((String) null));
+    }
+
+    @Test
     public void findProviderThatExists() throws TimeoutException {
         Platform platform = Platform.getInstance();
         platform.waitForProvider("cloud.connector", 10);
