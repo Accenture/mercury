@@ -19,8 +19,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kafka.version>2.7.0</kafka.version>
-        <netty.version>4.1.66.Final</netty.version>
+        <kafka.version>2.8.1</kafka.version>
+        <netty.version>4.1.68.Final</netty.version>
         <tomcat.version>9.0.50</tomcat.version>
         <java.version>1.8</java.version>
     </properties>
