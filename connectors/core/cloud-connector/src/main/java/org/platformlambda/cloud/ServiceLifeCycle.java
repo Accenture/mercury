@@ -20,6 +20,7 @@ public class ServiceLifeCycle {
     public static final String TOKEN = "token";
     public static final long INITIALIZE = -100;
     private static final String SEQUENCE = "seq";
+    private static final long INIT_INTERVAL = 3000;
     private final String topic;
     private final String token;
     private final int partition;
@@ -59,7 +60,7 @@ public class ServiceLifeCycle {
                     ps.publish(topic, partition, event, INIT);
                     task.clear();
                     String handle = po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                                        new Date(System.currentTimeMillis() + 5000));
+                                        new Date(System.currentTimeMillis() + INIT_INTERVAL));
                     task.add(handle);
                 } catch (IOException e) {
                     log.error("Unable to send initToken to consumer - {}", e.getMessage());
@@ -76,7 +77,7 @@ public class ServiceLifeCycle {
         try {
             platform.registerPrivate(INIT_HANDLER, f, 1);
             po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                    new Date(System.currentTimeMillis() + 1000));
+                    new Date(System.currentTimeMillis() + INIT_INTERVAL));
         } catch (IOException e) {
             log.error("Unable to register {} - {}", INIT_HANDLER, e.getMessage());
         }
