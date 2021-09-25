@@ -20,7 +20,7 @@ public class ServiceLifeCycle {
     public static final String TOKEN = "token";
     public static final long INITIALIZE = -100;
     private static final String SEQUENCE = "seq";
-    private static final long INIT_INTERVAL = 3000;
+    private static final long INTERVAL = 3000;
     private final String topic;
     private final String token;
     private final int partition;
@@ -46,7 +46,7 @@ public class ServiceLifeCycle {
         final PostOffice po = PostOffice.getInstance();
         final PubSub ps = PubSub.getInstance();
         final String INIT_HANDLER = INIT + "." + (partition < 0? topic : topic + "." + partition);
-        final AtomicInteger seq = new AtomicInteger(0);
+        final AtomicInteger seq = new AtomicInteger(-1);
         final List<String> task = new ArrayList<>();
         LambdaFunction f = (headers, body, instance) -> {
             if (INIT.equals(body)) {
@@ -56,11 +56,13 @@ public class ServiceLifeCycle {
                     event.put(TYPE, INIT);
                     event.put(TOKEN, token);
                     event.put(SEQUENCE, String.valueOf(n));
-                    log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
+                    if (n > 0) {
+                        log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
+                    }
                     ps.publish(topic, partition, event, INIT);
                     task.clear();
                     String handle = po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                                        new Date(System.currentTimeMillis() + INIT_INTERVAL));
+                                        new Date(System.currentTimeMillis() + INTERVAL));
                     task.add(handle);
                 } catch (IOException e) {
                     log.error("Unable to send initToken to consumer - {}", e.getMessage());
@@ -77,7 +79,7 @@ public class ServiceLifeCycle {
         try {
             platform.registerPrivate(INIT_HANDLER, f, 1);
             po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                    new Date(System.currentTimeMillis() + INIT_INTERVAL));
+                    new Date(System.currentTimeMillis() + 1000));
         } catch (IOException e) {
             log.error("Unable to register {} - {}", INIT_HANDLER, e.getMessage());
         }
