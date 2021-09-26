@@ -84,6 +84,10 @@ public class Utility {
             "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
             "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."
     };
+    private static final long ONE_SECOND = 1000;
+    private static final long ONE_MINUTE = 60 * ONE_SECOND;
+    private static final long ONE_HOUR = 60 * ONE_MINUTE;
+    private static final long ONE_DAY = 24 * ONE_HOUR;
     private static final Object ORDERLY_SCAN = new Object[0];
     private static final VersionInfo versionInfo = new VersionInfo();
     private static List<String> libs = new ArrayList<>();
@@ -947,6 +951,33 @@ public class Utility {
             }
         }
         return false;
+    }
+
+    public String elapsedTime(long milliseconds) {
+        StringBuilder sb = new StringBuilder();
+        long time = milliseconds;
+        if (time > ONE_DAY) {
+            long days = time / ONE_DAY;
+            sb.append(days);
+            sb.append(days == 1? " day " : " days ");
+            time -= days * ONE_DAY;
+        }
+        if (time > ONE_HOUR) {
+            long hours = time / ONE_HOUR;
+            sb.append(hours);
+            sb.append(hours == 1? " hour " : " hours ");
+            time -= hours * ONE_HOUR;
+        }
+        if (time > ONE_MINUTE) {
+            long minutes = time / ONE_MINUTE;
+            sb.append(minutes);
+            sb.append(minutes == 1? " minute " : " minutes ");
+            time -= minutes * ONE_MINUTE;
+        }
+        long seconds = time / ONE_SECOND;
+        sb.append(seconds);
+        sb.append(seconds == 1? " second" : " seconds");
+        return sb.toString();
     }
 
     public void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException {

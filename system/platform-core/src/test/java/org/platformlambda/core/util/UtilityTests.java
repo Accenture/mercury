@@ -42,6 +42,10 @@ public class UtilityTests {
     private static final Logger log = LoggerFactory.getLogger(UtilityTests.class);
     
     private static final String HELLO_WORLD = "hello.world";
+    private static final long ONE_SECOND = 1000;
+    private static final long ONE_MINUTE = 60 * ONE_SECOND;
+    private static final long ONE_HOUR = 60 * ONE_MINUTE;
+    private static final long ONE_DAY = 24 * ONE_HOUR;
 
     @Before
     public void setup() {
@@ -320,6 +324,14 @@ public class UtilityTests {
         Assert.assertEquals(REASON, result.get("message"));
         Assert.assertEquals("close", result.get("type"));
         Assert.assertEquals(CloseReason.CloseCodes.CANNOT_ACCEPT.getCode(), util.str2int(result.get("status")));
+    }
+
+    @Test
+    public void elapsedTimeTest() {
+        long time = ONE_DAY + 40 * ONE_HOUR + 5 * ONE_MINUTE + 6 * ONE_SECOND;
+        String expected = "2 days 16 hours 5 minutes 6 seconds";
+        final Utility util = Utility.getInstance();
+        Assert.assertEquals(expected, util.elapsedTime(time));
     }
 
 }

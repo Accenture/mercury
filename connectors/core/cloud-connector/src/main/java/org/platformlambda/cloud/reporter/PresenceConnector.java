@@ -50,10 +50,12 @@ public class PresenceConnector implements LambdaFunction {
     private static final String READY = "ready";
     private static final String SEQ = "seq";
     private static final String CREATED = "created";
+    private static final String ELAPSED = "elapsed";
     private static final String NAME = "name";
     private static final String VERSION = "version";
     private static final String GROUP = "group";
     private static final String TOPIC = "topic";
+    private static final long startTime = System.currentTimeMillis();
     private static final PresenceConnector instance = new PresenceConnector();
     private final String created, monitorTopic;
     public enum State {
@@ -71,7 +73,7 @@ public class PresenceConnector implements LambdaFunction {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         monitorTopic = config.getProperty("monitor.topic", "service.monitor");
-        created = Utility.getInstance().date2str(new Date(), true);
+        created = Utility.getInstance().date2str(new Date(startTime), true);
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
@@ -188,15 +190,19 @@ public class PresenceConnector implements LambdaFunction {
     private void sendAppInfo(long n, boolean alive) {
         if (monitor != null) {
             try {
+                Utility util = Utility.getInstance();
                 Platform platform = Platform.getInstance();
                 PostOffice po = PostOffice.getInstance();
-                VersionInfo app = Utility.getInstance().getVersionInfo();
+                VersionInfo app = util.getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, created).setHeader(SEQ, n)
                     .setHeader(NAME, Platform.getInstance().getName())
                     .setHeader(VERSION, app.getVersion())
                     .setHeader(GROUP, closedUserGroup)
                     .setHeader(TYPE, ServerPersonality.getInstance().getType());
+                if (alive) {
+                    info.setHeader(ELAPSED, util.elapsedTime(System.currentTimeMillis() - startTime));
+                }
                 if (topicPartition != null) {
                     info.setHeader(TOPIC, topicPartition);
                 }

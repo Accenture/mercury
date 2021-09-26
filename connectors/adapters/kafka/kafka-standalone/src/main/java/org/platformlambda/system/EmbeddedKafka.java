@@ -19,10 +19,12 @@
 package org.platformlambda.system;
 
 import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
+import kafka.server.KafkaServer;
+import org.apache.kafka.common.utils.Time;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +34,7 @@ import java.util.Properties;
 public class EmbeddedKafka extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EmbeddedKafka.class);
 
-    private KafkaServerStartable kafka;
+    private KafkaServer kafka;
     private final EmbeddedZk zookeeper;
 
     public EmbeddedKafka(EmbeddedZk zookeeper) {
@@ -55,7 +57,7 @@ public class EmbeddedKafka extends Thread {
                     log.info("Clean up transient Kafka working directory at {}", dir);
                 }
             }
-            kafka = new KafkaServerStartable(new KafkaConfig(p));
+            kafka = new KafkaServer(new KafkaConfig(p), Time.SYSTEM, Option.apply("kafka"), false);
             kafka.startup();
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 

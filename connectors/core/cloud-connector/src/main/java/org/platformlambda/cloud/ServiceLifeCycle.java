@@ -5,12 +5,12 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class ServiceLifeCycle {
     private static final Logger log = LoggerFactory.getLogger(ServiceLifeCycle.class);
@@ -20,6 +20,7 @@ public class ServiceLifeCycle {
     public static final String TOKEN = "token";
     public static final long INITIALIZE = -100;
     private static final String SEQUENCE = "seq";
+    private static final long FIRST_POLL = 1500;
     private static final long INTERVAL = 3000;
     private final String topic;
     private final String token;
@@ -44,25 +45,23 @@ public class ServiceLifeCycle {
     public void start() {
         final Platform platform = Platform.getInstance();
         final PostOffice po = PostOffice.getInstance();
+        final Utility util = Utility.getInstance();
         final PubSub ps = PubSub.getInstance();
         final String INIT_HANDLER = INIT + "." + (partition < 0? topic : topic + "." + partition);
-        final AtomicInteger seq = new AtomicInteger(-1);
         final List<String> task = new ArrayList<>();
         LambdaFunction f = (headers, body, instance) -> {
             if (INIT.equals(body)) {
-                int n = seq.incrementAndGet();
+                int n = util.str2int(headers.get(SEQUENCE));
                 try {
                     Map<String, String> event = new HashMap<>();
                     event.put(TYPE, INIT);
                     event.put(TOKEN, token);
                     event.put(SEQUENCE, String.valueOf(n));
-                    if (n > 0) {
-                        log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
-                    }
+                    log.info("Contacting {}, partition {}, sequence {}", topic, partition, n);
                     ps.publish(topic, partition, event, INIT);
                     task.clear();
-                    String handle = po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                                        new Date(System.currentTimeMillis() + INTERVAL));
+                    String handle = po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT)
+                                    .setHeader(SEQUENCE, n+1), new Date(System.currentTimeMillis() + INTERVAL));
                     task.add(handle);
                 } catch (IOException e) {
                     log.error("Unable to send initToken to consumer - {}", e.getMessage());
@@ -78,8 +77,8 @@ public class ServiceLifeCycle {
         };
         try {
             platform.registerPrivate(INIT_HANDLER, f, 1);
-            po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT),
-                    new Date(System.currentTimeMillis() + 1000));
+            po.sendLater(new EventEnvelope().setTo(INIT_HANDLER).setBody(INIT).setHeader(SEQUENCE, 1),
+                    new Date(System.currentTimeMillis() + FIRST_POLL));
         } catch (IOException e) {
             log.error("Unable to register {} - {}", INIT_HANDLER, e.getMessage());
         }

@@ -90,7 +90,7 @@ public class DataModelTest {
 
             @Override
             public long getMaxIdleTimeout() {
-                return 0;
+                return 60000;
             }
 
             @Override
@@ -105,7 +105,7 @@ public class DataModelTest {
 
             @Override
             public int getMaxBinaryMessageBufferSize() {
-                return 0;
+                return 65536;
             }
 
             @Override
@@ -115,7 +115,7 @@ public class DataModelTest {
 
             @Override
             public int getMaxTextMessageBufferSize() {
-                return 0;
+                return 65536;
             }
 
             @Override

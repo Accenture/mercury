@@ -76,7 +76,7 @@ public class WsConfigurator {
     }
 
     public void update(Session session) {
-        session.setMaxIdleTimeout(getIdleTimeout() * 1000);
+        session.setMaxIdleTimeout(getIdleTimeout() * 1000L);
         if (!idleTimerLogged) {
             idleTimerLogged = true;
             log.info("{} = {} seconds", IDLE_TIMEOUT, session.getMaxIdleTimeout() / 1000);
