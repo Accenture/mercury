@@ -25,14 +25,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDef;
+import org.platformlambda.core.util.models.PoJo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +99,7 @@ public class PostOfficeTest {
         };
         platform.registerPrivate("pending.service", f, 1);
         PostOffice po = PostOffice.getInstance();
-        // start service 3 seconds later so we can test the waitForProvider method
+        // start service 3 seconds later, so we can test the waitForProvider method
         po.sendLater(new EventEnvelope().setTo("pending.service").setBody("hi"),
                 new Date(System.currentTimeMillis()+3000));
         platform.waitForProvider("no.op", 5);
@@ -455,7 +453,7 @@ public class PostOfficeTest {
             parallelEvents.add(event);
         }
         List<EventEnvelope> results = po.request(parallelEvents, 500);
-        // expect partial results of 2 items because the other two will timeout
+        // expect partial results of 2 items because the other two will time out
         Assert.assertEquals(2, results.size());
         // check partial results
         for (EventEnvelope evt: results) {
@@ -465,7 +463,7 @@ public class PostOfficeTest {
             Object v = values.get("body");
             Assert.assertTrue(v instanceof Integer);
             int val = (int) v;
-            // expect body as odd number because even number will timeout
+            // expect body as odd number because even number will time out
             Assert.assertTrue(val % 2 != 0);
         }
     }
@@ -615,6 +613,120 @@ public class PostOfficeTest {
         long diff = last.get() - t1;
         log.info("{} cycles done? {}, {} workers consumed {} threads in {} ms",
                 CYCLES, result != null && result, WORKER_POOL, threads.size(), diff);
+    }
+
+    @Test
+    public void testCallBackEventHandler() throws IOException, InterruptedException {
+        final BlockingQueue<Object> bench = new ArrayBlockingQueue<>(1);
+        String TRACE_ID = "10000";
+        String HELLO = "hello";
+        String POJO_HAPPY_CASE = "pojo.happy.case.1";
+        String SIMPLE_CALLBACK = "simple.callback.1";
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            PoJo pojo = new PoJo();
+            pojo.setName((String) body);
+            return pojo;
+        };
+        platform.registerPrivate(POJO_HAPPY_CASE, f, 1);
+        platform.registerPrivate(SIMPLE_CALLBACK, new SimpleCallback(bench, TRACE_ID), 1);
+        po.send(new EventEnvelope().setTo(POJO_HAPPY_CASE).setReplyTo(SIMPLE_CALLBACK).setBody(HELLO)
+                .setTrace(TRACE_ID, "HAPPY /10000"));
+        Object result = bench.poll(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(PoJo.class, result.getClass());
+        Assert.assertEquals(HELLO, ((PoJo) result).getName());
+        platform.release(POJO_HAPPY_CASE);
+        platform.release(SIMPLE_CALLBACK);
+    }
+
+    @Test
+    public void testCallBackErrorHandler() throws IOException, InterruptedException {
+        final BlockingQueue<Object> bench = new ArrayBlockingQueue<>(1);
+        String TRACE_ID = "20000";
+        String HELLO = "hello";
+        String DEMO_EXCEPTION = "demo-exception";
+        String POJO_ERROR_CASE = "pojo.error.case.2";
+        String SIMPLE_CALLBACK = "simple.callback.2";
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            if (HELLO.equals(body)) {
+                throw new IllegalArgumentException(DEMO_EXCEPTION);
+            } else {
+                PoJo pojo = new PoJo();
+                pojo.setName((String) body);
+                return pojo;
+            }
+        };
+        platform.registerPrivate(POJO_ERROR_CASE, f, 1);
+        platform.registerPrivate(SIMPLE_CALLBACK, new SimpleCallback(bench, TRACE_ID), 1);
+        po.send(new EventEnvelope().setTo(POJO_ERROR_CASE).setReplyTo(SIMPLE_CALLBACK).setBody(HELLO)
+                .setTrace(TRACE_ID, "ERROR /20000"));
+
+        Object result = bench.poll(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(AppException.class, result.getClass());
+        Assert.assertEquals(DEMO_EXCEPTION, ((AppException) result).getMessage());
+        platform.release(POJO_ERROR_CASE);
+        platform.release(SIMPLE_CALLBACK);
+    }
+
+    @Test
+    public void testCallBackCastingException() throws IOException, InterruptedException {
+        final BlockingQueue<Object> bench = new ArrayBlockingQueue<>(1);
+        String TRACE_ID = "30000";
+        String HELLO = "hello";
+        // this casting error message is compatible from Java 1.8 to 16
+        String CASTING_ERROR = "String cannot be cast to";
+        String POJO_ERROR_CASE = "pojo.error.case.3";
+        String SIMPLE_CALLBACK = "simple.callback.3";
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> HELLO;
+        platform.registerPrivate(POJO_ERROR_CASE, f, 1);
+        platform.registerPrivate(SIMPLE_CALLBACK, new SimpleCallback(bench, TRACE_ID), 1);
+        po.send(new EventEnvelope().setTo(POJO_ERROR_CASE).setReplyTo(SIMPLE_CALLBACK).setBody(HELLO)
+                .setTrace(TRACE_ID, "CAST /30000"));
+        Object result = bench.poll(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(AppException.class, result.getClass());
+        String error = ((AppException) result).getMessage();
+        Assert.assertTrue(error.contains(CASTING_ERROR));
+        platform.release(POJO_ERROR_CASE);
+        platform.release(SIMPLE_CALLBACK);
+    }
+
+    private static class SimpleCallback implements TypedLambdaFunction<PoJo, Void>, ServiceExceptionHandler {
+
+        private final BlockingQueue<Object> bench;
+        private final String traceId;
+
+        public SimpleCallback(BlockingQueue<Object> bench, String traceId) {
+            this.bench = bench;
+            this.traceId = traceId;
+        }
+
+        @Override
+        public void onError(AppException e, EventEnvelope event) {
+            PostOffice po = PostOffice.getInstance();
+            if (traceId.equals(po.getTraceId())) {
+                log.info("Found trace path '{}'", po.getTrace().path);
+                bench.offer(e);
+            }
+        }
+
+        @Override
+        public Void handleEvent(Map<String, String> headers, PoJo body, int instance) throws Exception {
+            PostOffice po = PostOffice.getInstance();
+            if (traceId.equals(po.getTraceId())) {
+                log.info("Found trace path '{}'", po.getTrace().path);
+                bench.offer(body);
+            }
+            return null;
+        }
+
     }
 
     @EventInterceptor

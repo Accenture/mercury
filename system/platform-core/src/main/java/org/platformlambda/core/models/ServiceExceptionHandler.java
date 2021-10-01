@@ -18,11 +18,9 @@
 
 package org.platformlambda.core.models;
 
-import java.util.Map;
+import org.platformlambda.core.exception.AppException;
 
-public interface LambdaFunction extends TypedLambdaFunction<Object, Object> {
+public interface ServiceExceptionHandler {
 
-    @Override
-    Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception;
-
+    void onError(AppException error, EventEnvelope event);
 }

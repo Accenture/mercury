@@ -25,10 +25,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.ProcessStatus;
-import org.platformlambda.core.models.TraceInfo;
-import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -70,6 +67,15 @@ public class WorkerQueue extends WorkerQueues {
     private ProcessStatus processEvent(EventEnvelope event) {
         PostOffice po = PostOffice.getInstance();
         TypedLambdaFunction f = def.getFunction();
+        if (event.hasError() && f instanceof ServiceExceptionHandler) {
+            ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
+            try {
+                handler.onError(new AppException(event.getStatus(), event.getError()), event);
+            } catch (Exception e1) {
+                log.warn("Unhandled exception in error handler of "+route, e1);
+            }
+            return new ProcessStatus(event.getStatus(), event.getError());
+        }
         try {
             /*
              * Interceptor can read any input (i.e. including case for empty headers and null body).
@@ -165,6 +171,15 @@ public class WorkerQueue extends WorkerQueues {
             } else {
                 status = 500;
             }
+            if (f instanceof ServiceExceptionHandler) {
+                ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
+                try {
+                    handler.onError(new AppException(status, ex.getMessage()), event);
+                } catch (Exception e2) {
+                    log.warn("Unhandled exception in error handler of "+route, e2);
+                }
+                return new ProcessStatus(status, ex.getMessage());
+            }
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
@@ -192,7 +207,7 @@ public class WorkerQueue extends WorkerQueues {
                     log.warn("Unhandled exception for {} - {}", route, ex.getMessage());
                 }
             }
-            return new ProcessStatus(status, e.getMessage());
+            return new ProcessStatus(status, ex.getMessage());
         }
     }
 

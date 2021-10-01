@@ -90,6 +90,24 @@ event.setTo("hello.world").setBody(somePayload);
 po.send(event);
 ```
 
+To handle exception from a target service, you may implement ServiceExceptionHandler. For example:
+
+```java
+private static class SimpleCallback implements TypedLambdaFunction<PoJo, Void>, ServiceExceptionHandler {
+    
+    @Override
+    public void onError(AppException e, EventEnvelope event) {
+        // handle exception here
+    }
+
+    @Override
+    public Void handleEvent(Map<String, String> headers, PoJo body, int instance) throws Exception {
+        // handle input. In this example, it is a PoJo
+        return null;
+    }
+}
+```
+
 ### Pipeline
 
 In a pipeline operation, there is stepwise event propagation. e.g. Function A sends to B and set the "reply-to" as C. 
@@ -228,13 +246,18 @@ List<EventEnvelope> responses = po.request(parallelEvents, 3000);
 
 ### Inspecting event's metadata
 
-If you want to inspect the incoming event's metadata to make some decisions such as checking correlation-ID and sender's route address, you can use the TypedLambdaFunction to specify input as EventEnvelope.
+If you want to inspect the incoming event's metadata to make some decisions such as checking correlation-ID and 
+sender's route address, you can use the TypedLambdaFunction to specify input as EventEnvelope.
 
-Another way to inspect event's metadata is the use of the `EventInterceptor` annotation in your lambda function. Note that event interceptor service does not return result, it intercepts incoming event for forwarding to one or more target services. If the incoming request is a RPC call and the interceptor does not forward the event to the target service, the call will time out.
+Another way to inspect event's metadata is the use of the `EventInterceptor` annotation in your lambda function. 
+Note that event interceptor service does not return result, it intercepts incoming event for forwarding to one or 
+more target services. If the incoming request is a RPC call and the interceptor does not forward the event to the 
+target service, the call will time out.
 
 ### Default PoJo mapping
 
-PoJo mapping is determined at the source. When the caller function sets the PoJo, the object is restored as the original PoJo in the target service provided that the common data model is available in both source and target services.
+PoJo mapping is determined at the source. When the caller function sets the PoJo, the object is restored as the 
+original PoJo in the target service provided that the common data model is available in both source and target services.
 
 ```java
 public Object getBody(); // <-- default mapping
@@ -248,7 +271,9 @@ public Object getRawBody();
 
 ### Custom PoJo mapping
 
-In case you want to do custom mapping, the platform will carry out best effort mapping from the source PoJo to the target PoJo. You must ensure the target object is compatible with the source PoJo. Otherwise, there will be data lost or casting error.
+In case you want to do custom mapping, the platform will carry out best effort mapping from the source PoJo to the 
+target PoJo. You must ensure the target object is compatible with the source PoJo. Otherwise, there will be data lost 
+or casting error.
 
 ```java
 public <T> T getBody(Class<T> toValueType); // <-- custom mapping

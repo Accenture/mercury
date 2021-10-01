@@ -896,7 +896,6 @@ public class PostOffice {
         TargetRoute target = discover(to, event.isEndOfRoute());
         AsyncInbox inbox = new AsyncInbox(to, timeout);
         event.setReplyTo(inbox.getId() + "@" + platform.getOrigin());
-        // broadcast is not possible with RPC call
         event.setBroadcastLevel(0);
         if (target.isCloud()) {
             MultipartPayload.getInstance().outgoing(target.getManager(), event);
