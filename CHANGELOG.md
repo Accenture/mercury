@@ -18,7 +18,7 @@ N/A
 
 ### Changed
 
-N/A
+Open sources library update - Vert.x 4.1.3, Netty 4.1.68-Final
 
 ---
 ## Version 2.1.1, 9/10/2021
