@@ -29,7 +29,6 @@ N/A
 2. Standardized serializers for default case, snake_case and camelCase
 3. Support of EventEnvelope as input parameter in TypedLambdaFunction so application function can inspect event's metadata
 4. Application can subscribe to life cycle events of other application instances
-5. ServiceExceptionHandler for callback function to catch exception
 
 ### Removed
 
