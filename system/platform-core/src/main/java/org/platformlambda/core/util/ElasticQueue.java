@@ -358,7 +358,8 @@ public class ElasticQueue implements AutoCloseable {
 
         @Override
         public void run() {
-            log.info("Commit log started {}", getDatabase());
+            Database db = getDatabase();
+            log.info("Commit log started - {}", db);
             long t1 = 0;
             long t2 = System.currentTimeMillis();
             while (normal) {
@@ -395,12 +396,13 @@ public class ElasticQueue implements AutoCloseable {
                     // ok to ignore
                 }
             }
-            log.info("Commit log stopped");
+            log.info("Commit log stopped - {}", db);
             bench.offer(true);
         }
 
         public void shutdown() {
-            log.info("Stopping {}", getDatabase());
+            Database db = getDatabase();
+            log.debug("Stopping {}", db);
             normal = false;
             try {
                 bench.poll(10, TimeUnit.SECONDS);
