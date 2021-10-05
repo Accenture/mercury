@@ -90,6 +90,8 @@ public class ElasticQueue implements AutoCloseable {
                 dbFolder = new File(tmpRoot, instanceId);
             }
             scanExpiredStores(tmpRoot);
+            alive = new KeepAlive(dbFolder);
+            alive.start();
         }
     }
 
@@ -171,7 +173,7 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
-    private void setupCommitLog(File dir) {
+    private static void setupCommitLog(File dir) {
         try {
             if (!dir.exists()) {
                 if (dir.mkdirs()) {
@@ -188,8 +190,6 @@ public class ElasticQueue implements AutoCloseable {
             db = dbEnv.openDatabase(null, "kv",
                     new DatabaseConfig().setAllowCreate(true).setTemporary(false));
             long diff = System.currentTimeMillis() - t1;
-            alive = new KeepAlive(dir);
-            alive.start();
             log.info("Created holding area {} in {} ms", dir, diff);
 
         } catch (Exception e) {
@@ -198,7 +198,7 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
-    private Database getDatabase() {
+    private static Database getDatabase() {
         if (db == null) {
             lock.lock();
             try {
@@ -349,6 +349,7 @@ public class ElasticQueue implements AutoCloseable {
 
         @Override
         public void run() {
+            getDatabase();
             log.info("Commit log started");
             long t1 = 0;
             long t2 = System.currentTimeMillis();
