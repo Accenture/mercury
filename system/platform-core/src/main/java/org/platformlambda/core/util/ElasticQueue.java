@@ -30,7 +30,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -145,10 +148,8 @@ public class ElasticQueue implements AutoCloseable {
     }
 
     private static void shutdown() {
-        if (db != null && dbEnv != null) {
-            if (alive != null) {
-                alive.shutdown();
-            }
+        if (alive != null) {
+            alive.shutdown();
             try {
                 db.close();
             } catch (Exception e) {
@@ -159,8 +160,10 @@ public class ElasticQueue implements AutoCloseable {
             } catch (Exception e) {
                 log.debug("Exception while closing - {}", e.getMessage());
             }
-            util.cleanupDir(dbFolder, runningInCloud);
-            log.info("Holding area {} cleared", dbFolder);
+            if (dbFolder.exists()) {
+                util.cleanupDir(dbFolder, runningInCloud);
+                log.info("Holding area {} cleared", dbFolder);
+            }
         }
     }
 
@@ -297,9 +300,14 @@ public class ElasticQueue implements AutoCloseable {
     private void removeExpiredStore(File folder) {
         Utility util = Utility.getInstance();
         File f = new File(folder, RUNNING);
-        if (f.exists() && System.currentTimeMillis() - f.lastModified() > 60000) {
+        if (f.exists()) {
+            if (System.currentTimeMillis() - f.lastModified() > 60000) {
+                util.cleanupDir(folder, runningInCloud);
+                log.info("Holding area {} expired", folder);
+            }
+        } else {
             util.cleanupDir(folder, runningInCloud);
-            log.info("Holding area {} expired", folder);
+            log.warn("Unknown holding area {} removed", folder);
         }
     }
 
@@ -338,6 +346,7 @@ public class ElasticQueue implements AutoCloseable {
 
     private static class KeepAlive extends Thread {
 
+        private static final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         private static final long KEEP_ALIVE_INTERVAL = 20 * 1000;
         private static final long HOUSEKEEPING_INTERVAL = 600 * 1000;
         private boolean normal = true;
@@ -349,8 +358,7 @@ public class ElasticQueue implements AutoCloseable {
 
         @Override
         public void run() {
-            getDatabase();
-            log.info("Commit log started");
+            log.info("Commit log started {}", getDatabase());
             long t1 = 0;
             long t2 = System.currentTimeMillis();
             while (normal) {
@@ -388,10 +396,17 @@ public class ElasticQueue implements AutoCloseable {
                 }
             }
             log.info("Commit log stopped");
+            bench.offer(true);
         }
 
         public void shutdown() {
+            log.info("Stopping {}", getDatabase());
             normal = false;
+            try {
+                bench.poll(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // ok to ignore
+            }
         }
     }
 
