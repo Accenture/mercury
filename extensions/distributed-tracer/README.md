@@ -7,7 +7,7 @@ This application subscribes to the route "distributed.trace.processor" to receiv
 In additon to printing the trace information as log messages, it is a websocket server for distributed trace
 UI applications to connect.
 
-# IMPORTANT - distributed logging vs aggregator
+# IMPORTANT - distributed trace logging vs trace aggregator
 
 Distributed trace logging should be set as INFO so that the performance metrics information are logged to a centralized
 logging system such as Splunk. This would allow devops team to do production triage. The logging is moderate and it
