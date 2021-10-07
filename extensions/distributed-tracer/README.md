@@ -13,8 +13,8 @@ Distributed trace logging should be set as INFO so that the performance metrics 
 logging system such as Splunk. This would allow devops team to do production triage. The logging is moderate and it
 does not impact production traffic.
 
-However, when distributed trace aggregator is deployed, it will generate additional network workload for sending 
-performance metrics to the aggregator.
+However, when distributed trace aggregator is deployed, the system will generate additional network workload for
+sending performance metrics to the aggregator.
 
 We therefore recommend using this tool for development purpose only. DO NOT deploy to production as the additional
 network traffic would compete with production traffic.
