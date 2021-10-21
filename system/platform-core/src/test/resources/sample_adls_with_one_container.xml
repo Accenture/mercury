@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<EnumerationResults ServiceEndpoint="https://hello.blob.core.windows.net/">
+    <Containers>
+        <Container>
+            <Properties>
+                <Last-Modified>Tue, 04 May 2021 23:03:09 GMT</Last-Modified>
+                <Etag>"0x8D90F50C8DD6E2A"</Etag>
+                <LeaseStatus>unlocked</LeaseStatus>
+                <LeaseState>available</LeaseState>
+                <DefaultEncryptionScope>$account-encryption-key</DefaultEncryptionScope>
+                <DenyEncryptionScopeOverride>false</DenyEncryptionScopeOverride>
+                <HasImmutabilityPolicy>false</HasImmutabilityPolicy>
+                <HasLegalHold>false</HasLegalHold>
+            </Properties>
+            <Name>hello</Name>
+        </Container>
+    </Containers>
+    <NextMarker />
+</EnumerationResults>

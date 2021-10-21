@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.serializers;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -27,7 +28,7 @@ import java.util.*;
 public class SimpleXmlWriter {
 
     private final static String SPACES = "  ";
-    private static final DateTimeFormatter isoDate = DateTimeFormatter.ISO_INSTANT;
+    private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_INSTANT;
 
     private enum TagType {
         START, BODY, END
@@ -102,15 +103,16 @@ public class SimpleXmlWriter {
             buffer.append('<');
             buffer.append(escapeXml(nodeName, TagType.START));
             buffer.append('>');
-            // util.Date is a parent of sql.Date and sql.Timestamp
-            // so they will be shown correctly
             if (value instanceof Date) {
-                ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(((Date) value).getTime()), ZoneId.of("UTC"));
-                buffer.append(zdt.format(isoDate));
+                long ms = ((Date) value).getTime();
+                ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ms), ZoneId.of("UTC"));
+                buffer.append(zdt.format(ISO_DATE));
             } else if (value instanceof Map) {
                 write(buffer, null, (Map<String, Object>) value, indent+1);
             } else if (value instanceof String) {
                 buffer.append(escapeXml((String) value, TagType.BODY));
+            } else if (value instanceof BigDecimal) {
+                buffer.append(((BigDecimal) value).toPlainString());
             } else {
                 buffer.append(escapeXml(value.toString(), TagType.BODY));
             }

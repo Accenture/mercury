@@ -43,12 +43,14 @@ public class XmlReadWriteTest {
         List<Object> list = new ArrayList<>();
         list.add(1);
         list.add(2);
+        list.add("");   // empty element will be converted to null
         list.add(inner);
         list.add(3);
         list.add("test");
+        list.add("");   // empty element at the end of the array will be dropped
         Map<String, Object> data = new HashMap<>();
         data.put("hello", "world");
-        data.put("list", list);
+        data.put("lists", list);
         data.put("single", Collections.singletonList("one"));
         String basic = writer.write(data);
         List<String> basicLines = util.split(basic, "\r\n");
@@ -65,22 +67,48 @@ public class XmlReadWriteTest {
         Assert.assertTrue(lines.contains("<single>one</single>"));
         Map<String, Object> result = parser.parse(xml);
         Assert.assertEquals("one", result.get("single"));
-        Assert.assertTrue(result.get("list") instanceof List);
-        List<Object> mixedList = (List<Object>) result.get("list");
-        Assert.assertEquals(5, mixedList.size());
+        Assert.assertTrue(result.get("lists") instanceof List);
+        List<Object> mixedList = (List<Object>) result.get("lists");
+        // the 7th element in the array is dropped
+        Assert.assertEquals(6, mixedList.size());
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals("internal", multi.getElement("list[2].inner"));
-        Assert.assertEquals(util.date2str(now), multi.getElement("list[2].time"));
+        // empty array element is saved as null
+        Assert.assertNull(multi.getElement("lists[2]"));
+        Assert.assertEquals("internal", multi.getElement("lists[3].inner"));
+        Assert.assertEquals(util.date2str(now), multi.getElement("lists[3].time"));
+        Assert.assertEquals("3", multi.getElement("lists[4]"));
+        Assert.assertEquals("test", multi.getElement("lists[5]"));
         // xml without array
         try (InputStream in = this.getClass().getResourceAsStream("/log4j2.xml")) {
-            Map<String, Object> log4j = parser.parse(in);
-            MultiLevelMap m2 = new MultiLevelMap(log4j);
-            Assert.assertEquals("console", m2.getElement("Appenders.name"));
-            Assert.assertEquals("false", m2.getElement("Loggers.additivity"));
-            Assert.assertEquals("console", m2.getElement("Loggers.Root.ref"));
+            MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
+            Assert.assertEquals("console", mm.getElement("Appenders.name"));
+            Assert.assertEquals("false", mm.getElement("Loggers.additivity"));
+            Assert.assertEquals("console", mm.getElement("Loggers.Root.ref"));
         }
-
-
-
     }
+
+    @Test
+    public void adlsWithArrayTest() throws IOException {
+        try (InputStream in = this.getClass().getResourceAsStream("/sample_adls_response.xml")) {
+            MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
+            Assert.assertEquals("\"0x8D90F50C8DD6E2A\"",
+                    mm.getElement("Containers.Container[0].Properties.Etag"));
+            Assert.assertEquals("\"0x8D9934CF1AD9D12\"",
+                    mm.getElement("Containers.Container[1].Properties.Etag"));
+            Assert.assertEquals("hello", mm.getElement("Containers.Container[0].Name"));
+            Assert.assertEquals("test", mm.getElement("Containers.Container[1].Name"));
+        }
+    }
+
+    @Test
+    public void adlsWithoutArrayTest() throws IOException {
+        try (InputStream in = this.getClass().getResourceAsStream("/sample_adls_with_one_container.xml")) {
+            MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
+            // an array of one element will be rendered as a regular element instead of an array
+            Assert.assertEquals("\"0x8D90F50C8DD6E2A\"",
+                    mm.getElement("Containers.Container.Properties.Etag"));
+            Assert.assertEquals("hello", mm.getElement("Containers.Container.Name"));
+        }
+    }
+
 }

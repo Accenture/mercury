@@ -33,11 +33,31 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * Behavior and limitations
+ * ------------------------
+ * Text content in a TEXT_NODE will be trimmed.
+ * For array, empty text element will be set to null.
+ * If the empty text element is in the end of the array list, it will be dropped, therefore return null
+ * when the application retrieves it from the resultant map.
+ *
+ * For non-array, empty text element will be dropped, therefore returning null when the application
+ * reads it from the resultant map.
+ *
+ * Element attributes are rendered as a regular key-value under the element.
+ *
+ * Purpose
+ * -------
+ * The FasterXml Jackson implementation "XmlMapper" is a general purpose Xml Parser.
+ * For some edge cases, you may prefer to use XmlMapper in some apps.
+ *
+ * Since Mercury is using Google Guava as JSON serializer, we develop this simple Xml Parser
+ * as an alternative.
+ */
 public class SimpleXmlParser {
     private static final Logger log = LoggerFactory.getLogger(SimpleXmlParser.class);
     /*
      * Acknowledgement:
-     *
      * The solution to avoid XML external entity (XXE) injection attack was contributed by Sajeeb Lohani
      * (github handles @prodigysml and @n33dle) on 1/6/2020.
      *
@@ -51,8 +71,7 @@ public class SimpleXmlParser {
             "http://xml.org/sax/features/external-parameter-entities",
             "http://apache.org/xml/features/nonvalidating/load-external-dtd"
     };
-
-    private static final String VALUE = "value";
+    private static final String INDEX = "index";
     private static List<String> defaultDrop = new ArrayList<>();
     private List<String> drop = new ArrayList<>();
 
@@ -96,7 +115,6 @@ public class SimpleXmlParser {
             // Simplify by converting to IOException
             throw new IOException(e);
         }
-        List<List<String>> kvList = new ArrayList<>();
         Element root = doc.getDocumentElement();
         Map<String, Object> seed = new HashMap<>();
         result.put(root.getNodeName(), seed);
@@ -108,19 +126,14 @@ public class SimpleXmlParser {
                 seed.put(attributeName, attributes.item(i).getNodeValue());
             }
         }
+        // childMap is used to keep track of array elements in the Xml
+        Map<String, Map<String, Integer>> childMap = new HashMap<>();
+        List<List<String>> kvList = new ArrayList<>();
         NodeList nodes = root.getChildNodes();
         if (nodes != null && nodes.getLength() > 0) {
             int len = nodes.getLength();
             for (int i=0; i < len; i++) {
-                parseXML(kvList, nodes.item(i), root.getNodeName());
-            }
-        }
-        while (true) {
-            String duplicated = findFirstDuplicatedKey(kvList);
-            if (duplicated != null) {
-                kvList = updateKvListAsArray(kvList, duplicated);
-            } else {
-                break;
+                parseXML(childMap, kvList, nodes.item(i), root.getNodeName());
             }
         }
         MultiLevelMap multi = new MultiLevelMap(result);
@@ -144,63 +157,19 @@ public class SimpleXmlParser {
         return result;
     }
 
-    private String findFirstDuplicatedKey(List<List<String>> kvList) {
-        Map<String, Integer> keys = new HashMap<>();
-        for (List<String> kv: kvList) {
-            String k = kv.get(0);
-            // scan for non-array keys only
-            if (!k.endsWith("]")) {
-                int n = keys.getOrDefault(k, 0);
-                n++;
-                keys.put(k, n);
-            }
+    private String normalizeParentPath(String parent) {
+        if (parent.endsWith("]")) {
+            int sep = parent.lastIndexOf('[');
+            return sep == -1? parent : parent.substring(0, sep);
+        } else {
+            return parent;
         }
-        List<String> duplicated = new ArrayList<>();
-        for (String k: keys.keySet()) {
-            if (keys.get(k) > 1) {
-                duplicated.add(k);
-            }
-        }
-        if (duplicated.size() > 1) {
-            Collections.sort(duplicated);
-        }
-        return duplicated.isEmpty()? null : duplicated.get(0);
     }
 
-    private List<List<String>> updateKvListAsArray(List<List<String>> kvList, String duplicated) {
-        String prefix = duplicated+".";
-        List<List<String>> result = new ArrayList<>();
-        int n = 0;
-        boolean deferredIncrement = false;
-        for (List<String> kv: kvList) {
-            String k = kv.get(0);
-            String v = kv.get(1);
-            if (k.equals(duplicated)) {
-                if (deferredIncrement) {
-                    n++;
-                }
-                List<String> updated = new ArrayList<>();
-                updated.add(k + "[" + n + "]");
-                updated.add(v);
-                result.add(updated);
-                n++;
-                deferredIncrement = false;
-            } else if (k.startsWith(prefix)) {
-                String part1 = k.substring(0, duplicated.length());
-                String part2 = k.substring(prefix.length());
-                List<String> updated = new ArrayList<>();
-                updated.add(part1 + "[" + n + "]."+part2);
-                updated.add(v);
-                result.add(updated);
-                deferredIncrement = true;
-            } else {
-                result.add(kv);
-            }
-        }
-        return result;
-    }
+    private void parseXML(Map<String, Map<String, Integer>> childMap,
+                          List<List<String>> kvList, Node node, String parent) {
 
-    private void parseXML(List<List<String>> kvList, Node node, String parent) {
+        String parentPath = normalizeParentPath(parent);
         if (node.getNodeType() == Node.TEXT_NODE) {
             String value = node.getTextContent().trim();
             if (value.length() > 0) {
@@ -218,11 +187,38 @@ public class SimpleXmlParser {
                     }
                 }
             }
+            if (!childMap.containsKey(parentPath)) {
+                Map<String, Integer> childCounts = new HashMap<>();
+                NodeList peers = node.getParentNode().getChildNodes();
+                if (peers != null && peers.getLength() > 0) {
+                    int len = peers.getLength();
+                    for (int i = 0; i < len; i++) {
+                        Node current = peers.item(i);
+                        if (current.getNodeType() == Node.ELEMENT_NODE) {
+                            String nodeName = current.getNodeName();
+                            int counter = childCounts.getOrDefault(nodeName, 0);
+                            current.setUserData(INDEX, counter, null);
+                            childCounts.put(nodeName, ++counter);
+                        }
+                    }
+                }
+                childMap.put(parentPath, childCounts);
+            }
+            Map<String, Integer> childCounts = childMap.get(parentPath);
             NodeList nodes = node.getChildNodes();
             if (nodes != null && nodes.getLength() > 0) {
                 int len = nodes.getLength();
                 for (int i=0; i < len; i++) {
-                    parseXML(kvList, nodes.item(i), parent+"."+node.getNodeName());
+                    Node current = nodes.item(i);
+                    String nodeName = node.getNodeName();
+                    Object index = node.getUserData(INDEX);
+                    String path = parent + "." + node.getNodeName();
+                    int counter = childCounts.getOrDefault(nodeName, 0);
+                    if (counter > 1 && index instanceof Integer) {
+                        parseXML(childMap, kvList, current, path + "["+index+"]");
+                    } else {
+                        parseXML(childMap, kvList, current, path);
+                    }
                 }
             }
         }
