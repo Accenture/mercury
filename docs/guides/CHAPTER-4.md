@@ -30,9 +30,22 @@ rest:
     methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     timeout: 10s
-    # optional authentication service which should return result as an EventEnvelope
-    # with session info in headers and true or false in body
-#    authentication: "v1.api.auth"
+    # Optional authentication service which should return a true or false result
+    # The authentication service can also add session info in headers using EventEnvelope as a response
+    # and annotate trace with key-values that you want to persist into distributed trace logging.
+    #
+    # You can also route the authentication request to different functions based on HTTP request header
+    # i.e. you can provide a single authentication function or a list of functions selected by header routing.
+    #
+    # If you want to route based on header/value, use the "key: value : service" format.
+    # For routing using header only, use "key: service" format
+    # For default authentication service, use "default: service" format
+    #
+    #    authentication: "v1.api.auth"
+    authentication:
+      - "x-app-name: demo : v1.demo.auth"
+      - "authorization: v1.basic.auth"
+      - "default: v1.api.auth"
     cors: cors_1
     headers: header_1
     # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
@@ -49,14 +62,14 @@ rest:
     upload: "file"
     timeout: 15s
     headers: header_1
-   cors: cors_1
+    cors: cors_1
 
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
     url: "/api/nice/{task}/*"
     timeout: 12
     headers: header_1
-   cors: cors_1
+    cors: cors_1
 
   #
   # When service is a URL, it will relay HTTP or HTTPS requests.

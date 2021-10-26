@@ -19,6 +19,7 @@
 package org.platformlambda.core.util;
 
 import com.sleepycat.je.*;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -311,6 +312,7 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
+    @ZeroTracing
     private static class Cleanup implements LambdaFunction {
 
         @Override

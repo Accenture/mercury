@@ -53,7 +53,7 @@ rest:
     #
 #    authentication: "v1.api.auth"
     authentication:
-    - "x-app-name: demo : v1.app.auth"
+    - "x-app-name: demo : v1.demo.auth"
     - "authorization: v1.basic.auth"
     - "default: v1.api.auth"
     cors: cors_1

@@ -30,8 +30,6 @@ import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,7 +39,6 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 public class RestEndpointTest extends TestBase {
-    private static final Logger log = LoggerFactory.getLogger(RestEndpointTest.class);
 
     private static final String HTTP_REQUEST = "async.http.request";
 
@@ -102,15 +99,14 @@ public class RestEndpointTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void authRoutingTest2() throws IOException {
-        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         LambdaFunction f = (headers, body, instance) -> {
             po.annotateTrace("demo", "will show 'unauthorized'");
             return false;
         };
-        if (!platform.hasRoute("v1.app.auth")) {
-            platform.registerPrivate("v1.app.auth", f, 1);
+        if (!platform.hasRoute("v1.demo.auth")) {
+            platform.registerPrivate("v1.demo.auth", f, 1);
         }
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
@@ -218,7 +214,6 @@ public class RestEndpointTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void postJson() throws AppException, IOException, TimeoutException {
-        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         LambdaFunction f = (headers, body, instance) -> {
@@ -258,7 +253,6 @@ public class RestEndpointTest extends TestBase {
     @Test
     public void postXml() throws AppException, IOException, TimeoutException {
         SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         LambdaFunction f = (headers, body, instance) -> {

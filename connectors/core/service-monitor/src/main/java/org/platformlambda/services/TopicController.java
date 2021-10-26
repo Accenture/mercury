@@ -232,7 +232,7 @@ public class TopicController implements LambdaFunction {
                 topicStore.put(topic, appOrigin);
                 activeTopics.put(topic, System.currentTimeMillis());
                 if (appName != null) {
-                    log.info("{} assigned to {} {}, {}", topic, appOrigin, appName, version);
+                    log.info("{} assigned to {}, {}, {}", topic, appOrigin, appName, version);
                 } else {
                     log.warn("{} reserved by {} but not reachable", topic, appOrigin);
                 }
@@ -240,11 +240,13 @@ public class TopicController implements LambdaFunction {
             }
             if (RELEASE_TOPIC.equals(type) && headers.containsKey(ORIGIN)) {
                 String appOrigin = headers.get(ORIGIN);
+                String appName = headers.get(NAME);
+                String version = headers.get(VERSION);
                 String prevTopic = getTopic(appOrigin);
                 if (prevTopic != null && appOrigin.equals(topicStore.get(prevTopic))) {
                     topicStore.put(prevTopic, AVAILABLE);
                     activeTopics.remove(prevTopic);
-                    log.info("{} released by {}", prevTopic, appOrigin);
+                    log.info("{} released by {}, {}, {}", prevTopic, appOrigin, appName, version);
                     return true;
                 }
             }

@@ -36,6 +36,7 @@ public class PresenceHandler implements LambdaFunction {
     private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String TYPE = "type";
     private static final String NAME = "name";
+    private static final String VERSION = "version";
     private static final String TOPIC = "topic";
     private static final String ALIVE = "keep-alive";
     private static final String DOWNLOAD = "download";
@@ -100,8 +101,12 @@ public class PresenceHandler implements LambdaFunction {
                 return true;
             }
             if (DELETE.equals(type)) {
-                MonitorService.deleteNodeInfo(headers.get(ORIGIN));
-                po.send(MainApp.TOPIC_CONTROLLER, new Kv(ORIGIN, headers.get(ORIGIN)), new Kv(TYPE, RELEASE_TOPIC));
+                String appOrigin = headers.get(ORIGIN);
+                Object appName = MonitorService.getInfo(appOrigin, NAME);
+                Object version = MonitorService.getInfo(appOrigin, VERSION);
+                MonitorService.deleteNodeInfo(appOrigin);
+                po.send(MainApp.TOPIC_CONTROLLER, new Kv(ORIGIN, appOrigin),
+                        new Kv(NAME, appName), new Kv(VERSION, version), new Kv(TYPE, RELEASE_TOPIC));
                 return true;
             }
             if (DOWNLOAD.equals(type)) {
