@@ -259,6 +259,7 @@ public class HttpRelay implements LambdaFunction {
                 Long contentLen = response.getHeaders().getContentLength();
                 BufferedInputStream in = new BufferedInputStream(response.getContent());
                 if (contentLen == null) {
+                    ByteArrayOutputStream bb = new ByteArrayOutputStream();
                     ObjectStreamIO stream = null;
                     ObjectStreamWriter out = null;
                     try {
@@ -268,7 +269,9 @@ public class HttpRelay implements LambdaFunction {
                                 out = new ObjectStreamWriter(stream.getOutputStreamId());
                             }
                             out.write(buffer, 0, len);
+                            bb.write(buffer, 0, len);
                         }
+
                     } catch (IOException e) {
                         /*
                          * this is likely to be an end of stream exception from the HttpClient

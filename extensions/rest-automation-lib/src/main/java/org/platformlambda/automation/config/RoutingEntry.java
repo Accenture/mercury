@@ -45,7 +45,6 @@ public class RoutingEntry {
     private static final String THRESHOLD = "threshold";
     private static final String TRACING = "tracing";
     private static final String SERVICE = "service";
-    private static final String PRIMARY = "primary";
     private static final String METHODS = "methods";
     private static final String URL_LABEL = "url";
     private static final String ID = "id";
@@ -53,6 +52,7 @@ public class RoutingEntry {
     private static final String ORIGIN = "origin";
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
+    private static final String DEFAULT_VALUE = "default";
     private static final String TRUST_ALL_CERT = "trust_all_cert";
     private static final String URL_REWRITE = "url_rewrite";
     private static final String TIMEOUT = "timeout";
@@ -345,12 +345,55 @@ public class RoutingEntry {
                 info.upload = "true".equals(upload) || "file".equals(upload);
             }
             if (entry.containsKey(AUTH)) {
-                String auth = entry.get(AUTH).toString().trim();
-                if (!util.validServiceName(auth)) {
-                    log.error("Skipping entry with invalid authentication service name {}", entry);
-                    return;
-                } else {
-                    info.authService = auth;
+                Object list = entry.get(AUTH);
+                if (list instanceof String) {
+                    String auth = list.toString().trim();
+                    if (util.validServiceName(auth)) {
+                        info.defaultAuthService = auth;
+                    } else {
+                        log.error("Skipping entry with invalid authentication service name {}", entry);
+                        return;
+                    }
+                }
+                if (list instanceof List) {
+                    List<Object> authList = (List<Object>) list;
+                    for (Object o: authList) {
+                        String authEntry = o.toString();
+                        List<String> parts = util.split(authEntry, ": ");
+                        if (parts.size() == 2) {
+                            String authHeader = parts.get(0);
+                            String authService = parts.get(1);
+                            if (util.validServiceName(authService)) {
+                                if (DEFAULT_VALUE.equals(authHeader)) {
+                                    info.defaultAuthService = authService;
+                                } else {
+                                    info.setAuthService(authHeader, "*", authService);
+                                }
+                            } else {
+                                log.error("Skipping entry with invalid authentication service name {}", entry);
+                                return;
+                            }
+
+                        } else if (parts.size() == 3) {
+                            String authHeader = parts.get(0);
+                            String authValue = parts.get(1);
+                            String authService = parts.get(2);
+                            if (util.validServiceName(authService)) {
+                                info.setAuthService(authHeader, authValue, authService);
+                            } else {
+                                log.error("Skipping entry with invalid authentication service name {}", entry);
+                                return;
+                            }
+
+                        } else {
+                            log.error("Skipping entry with invalid authentication config {}", entry);
+                            return;
+                        }
+                    }
+                    if (info.defaultAuthService == null) {
+                        log.error("Skipping entry because it is missing default authentication service {}", entry);
+                        return;
+                    }
                 }
             }
             if (entry.containsKey(THRESHOLD)) {
@@ -478,9 +521,9 @@ public class RoutingEntry {
                             // OPTIONS method is not traced
                             if (m.equals(OPTIONS_METHOD)) {
                                 log.info("{} {} -> {}, timeout={}s", m, nUrl, info.services, info.timeoutSeconds);
-                            } else if (info.authService != null) {
+                            } else if (info.defaultAuthService != null) {
                                 log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
-                                        m, nUrl, info.authService, info.services, info.timeoutSeconds, info.tracing);
+                                        m, nUrl, info.defaultAuthService, info.services, info.timeoutSeconds, info.tracing);
                             } else {
                                 log.info("{} {} -> {}, timeout={}s, tracing={}",
                                         m, nUrl, info.services, info.timeoutSeconds, info.tracing);

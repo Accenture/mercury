@@ -48,7 +48,7 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void connectivityTest() throws TimeoutException, AppException, IOException, InterruptedException {
+    public void connectivityTest() throws TimeoutException, AppException, IOException {
         LambdaFunction f1 = (headers, body, instance) -> {
             log.info("Notification receives {} {}", headers, body);
             return true;

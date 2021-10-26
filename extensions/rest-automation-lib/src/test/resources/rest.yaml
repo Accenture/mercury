@@ -35,7 +35,7 @@ rest:
   #
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
-  - service: ["hello.world", "hello.world.2"]
+  - service: ["hello.world"]
     methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     timeout: 10s
@@ -52,16 +52,16 @@ rest:
     # For default authentication service, use "default: service" format
     #
 #    authentication: "v1.api.auth"
-#    authentication:
-#    - "x-app-name: demo : v1.app.auth"
-#    - "authorization: v1.app.auth"
-#    - "default: v1.api.auth"
+    authentication:
+    - "x-app-name: demo : v1.app.auth"
+    - "authorization: v1.basic.auth"
+    - "default: v1.api.auth"
     cors: cors_1
     headers: header_1
     # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
     # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
     # Default is 50000 bytes, min is 5000, max is 500000
-    threshold: 30000
+    threshold: 5000
     # optionally, you can turn on Distributed Tracing
     tracing: true
 

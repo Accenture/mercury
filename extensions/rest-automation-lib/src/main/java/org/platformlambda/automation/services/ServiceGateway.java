@@ -74,7 +74,7 @@ public class ServiceGateway {
     private static final String FILEPATH = "file:";
     private static final String ETAG = "ETag";
     private static final String IF_NONE_MATCH = "If-None-Match";
-    private static final int BUFFER_SIZE = 8 * 1024;
+    private static final int BUFFER_SIZE = 4 * 1024;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
     private static String defaultTraceIdLabel;
@@ -247,15 +247,33 @@ public class ServiceGateway {
             }
         }
         // check if target service is available
+        String authService = null;
         PostOffice po = PostOffice.getInstance();
-        if (route.info.authService == null) {
-            if (!po.exists(route.info.primary)) {
-                throw new AppException(503, "Service " + route.info.primary + " not reachable");
+        if (!po.exists(route.info.primary)) {
+            throw new AppException(503, "Service " + route.info.primary + " not reachable");
+        }
+        if (route.info.defaultAuthService != null) {
+            List<String> authHeaders = route.info.getAuthHeaders();
+            if (!authHeaders.isEmpty()) {
+                for (String h: authHeaders) {
+                    String v = request.getHeader(h);
+                    if (v != null) {
+                        String svc = route.info.getAuthService(h);
+                        if (svc == null) {
+                            svc = route.info.getAuthService(h, v);
+                        }
+                        if (svc != null) {
+                            authService = svc;
+                            break;
+                        }
+                    }
+                }
             }
-        } else {
-            if (!po.exists(route.info.primary) || !po.exists(route.info.authService)) {
-                throw new AppException(503, "Service " + route.info.primary + " or " +
-                                        route.info.authService + " not reachable");
+            if (authService == null) {
+                authService = route.info.defaultAuthService;
+            }
+            if (!po.exists(authService)) {
+                throw new AppException(503, "Service " + authService + " not reachable");
             }
         }
         AsyncHttpRequest req = new AsyncHttpRequest();
@@ -331,12 +349,12 @@ public class ServiceGateway {
             response.putHeader(traceHeader.get(0), traceHeader.get(1));
         }
         // authentication required?
-        if (route.info.authService != null) {
+        if (authService != null) {
             try {
                 long authTimeout = route.info.timeoutSeconds * 1000L;
                 EventEnvelope authRequest = new EventEnvelope();
                 // the AsyncHttpRequest is sent as a map
-                authRequest.setTo(route.info.authService).setBody(req.toMap());
+                authRequest.setTo(authService).setBody(req.toMap());
                 // distributed tracing required?
                 if (route.info.tracing) {
                     authRequest.setFrom("http.request");
@@ -461,7 +479,7 @@ public class ServiceGateway {
                 }).endHandler(done -> inputComplete.set(true));
             } else {
                 /*
-                 * The input is not JSON, XML or TEXT
+                 * Input is not JSON, XML or TEXT.
                  * Check if the content-length is larger than threshold.
                  * For large payload, it is better to deliver as a stream.
                  */
@@ -541,20 +559,20 @@ public class ServiceGateway {
         }
     }
 
-    private void readInputStream(ObjectStreamWriter stream, Buffer block, int len) {
+    private void readInputStream(ObjectStreamWriter out, Buffer block, int len) {
         try {
             byte[] data = block.getBytes(0, len);
             if (data.length > BUFFER_SIZE) {
                 int bytesRead = 0;
-                byte[] buf = new byte[BUFFER_SIZE];
+                byte[] buffer = new byte[BUFFER_SIZE];
                 ByteArrayInputStream in = new ByteArrayInputStream(data);
                 while (bytesRead < data.length) {
-                    int n = in.read(buf);
+                    int n = in.read(buffer);
                     bytesRead += n;
-                    stream.write(data, 0, n);
+                    out.write(buffer, 0, n);
                 }
             } else {
-                stream.write(data);
+                out.write(data);
             }
         } catch (IOException e) {
             log.error("Unexpected error while reading HTTP input stream", e);

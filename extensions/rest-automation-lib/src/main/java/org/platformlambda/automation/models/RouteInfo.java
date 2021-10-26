@@ -18,11 +18,14 @@
 
 package org.platformlambda.automation.models;
 
-import java.util.List;
+import java.util.*;
 
 public class RouteInfo {
 
-    public String url, authService, corsId, requestTransformId, responseTransformId, primary;
+    private List<String> authHeaders = new ArrayList<>();
+    private Map<String, String> authServices = new HashMap<>();
+
+    public String url, defaultAuthService, corsId, requestTransformId, responseTransformId, primary;
     public List<String> services;
     public int threshold = 50000;
     public boolean tracing = false;
@@ -33,5 +36,31 @@ public class RouteInfo {
     public String host;
     public boolean trustAllCert = false;
     public List<String> urlRewrite;
+
+    public String getAuthService(String headerKey) {
+        return getAuthService(headerKey, "*");
+    }
+
+    public String getAuthService(String headerKey, String headerValue) {
+        if (headerKey == null) {
+            throw new IllegalArgumentException("HTTP header cannot be null");
+        }
+        return authServices.get(headerKey.toLowerCase()+":"+headerValue.toLowerCase());
+    }
+
+    public void setAuthService(String headerKey, String headerValue, String service) {
+        if (headerKey != null && headerValue != null) {
+            String lowerHeader = headerKey.toLowerCase();
+            if (!authHeaders.contains(lowerHeader)) {
+                authHeaders.add(lowerHeader);
+            }
+            String kv = lowerHeader + ":" + headerValue.toLowerCase();
+            authServices.put(kv, service);
+        }
+    }
+
+    public List<String> getAuthHeaders() {
+        return authHeaders;
+    }
 
 }

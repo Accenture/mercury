@@ -1,0 +1,12 @@
+body {
+  margin: 50px;
+  background-color: yellow;
+  font-family: arial, sans-serif;
+  font-size: 12px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 10px;
+}
