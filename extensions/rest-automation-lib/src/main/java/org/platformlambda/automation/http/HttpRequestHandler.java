@@ -45,6 +45,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
 
     private static final String ASYNC_HTTP_RESPONSE = MainModule.ASYNC_HTTP_RESPONSE;
     private static final String TYPE = "type";
+    private static final String ACCEPT = "Accept";
     private static final String GET = "GET";
     private static final String POST = "POST";
     private static final String DATE = "Date";
@@ -91,6 +92,10 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         String method = request.method().name();
         String requestId = util.getUuid();
         AsyncContextHolder holder = new AsyncContextHolder(request);
+        String acceptContent = request.getHeader(ACCEPT);
+        if (acceptContent != null) {
+            holder.setAccept(acceptContent);
+        }
         contexts.put(requestId, holder);
         if (GET.equals(method) && isAdminEndpoint(requestId, request, url)) {
             return;

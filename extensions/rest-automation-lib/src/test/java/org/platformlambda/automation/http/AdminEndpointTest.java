@@ -51,6 +51,18 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertEquals(origin, multi.getElement("origin"));
     }
 
+    @Test
+    public void infoEndpointXmlTest() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info", "application/xml");
+        Assert.assertTrue(response instanceof String);
+        Map<String, Object> result = xmlParser.parse((String) response);
+        MultiLevelMap multi = new MultiLevelMap(result);
+        Assert.assertEquals("rest-automation", multi.getElement("app.name"));
+        Assert.assertEquals("REST", multi.getElement("personality"));
+        String origin = Platform.getInstance().getOrigin();
+        Assert.assertEquals(origin, multi.getElement("origin"));
+    }
+
     @Test(expected = AppException.class)
     public void protectedInfoEndpointTest() throws AppException, IOException {
         Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info");

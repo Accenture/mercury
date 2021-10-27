@@ -206,10 +206,6 @@ public class ServiceGateway {
         String url = request.path();
         String method = request.method().name();
         holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);
-        String acceptContent = request.getHeader(ACCEPT);
-        if (acceptContent != null) {
-            holder.setAccept(acceptContent);
-        }
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         Utility util = Utility.getInstance();
         if (OPTIONS.equals(method)) {
