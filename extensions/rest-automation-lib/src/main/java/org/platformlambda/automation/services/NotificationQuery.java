@@ -20,25 +20,18 @@ package org.platformlambda.automation.services;
 
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.LambdaFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 public class NotificationQuery implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(NotificationQuery.class);
-
     private static final String TOPIC = "topic";
     private static final String TOPICS = "topics";
     private static final String TIME = "time";
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-
-        log.info("---------------->{} {}", headers, body);
-
         if (body instanceof Map) {
             AsyncHttpRequest request = new AsyncHttpRequest(body);
             if (request.getUrl() != null) {
