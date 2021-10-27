@@ -51,6 +51,7 @@ public class ServiceGateway {
 
     private static final CryptoApi crypto = new CryptoApi();
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
+    private static final String HTTP_REQUEST = "http.request";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
     private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
@@ -181,7 +182,7 @@ public class ServiceGateway {
 
     private EtagFile getResourceFile(String path) {
         Utility util = Utility.getInstance();
-        InputStream in = ServiceGateway.class.getResourceAsStream(resourceFolder+path);
+        InputStream in = this.getClass().getResourceAsStream(resourceFolder+path);
         if (in != null) {
             byte[] b = Utility.getInstance().stream2bytes(in);
             return new EtagFile(util.bytes2hex(crypto.getSHA1(b)), b);
@@ -357,7 +358,7 @@ public class ServiceGateway {
                 authRequest.setTo(authService).setBody(req.toMap());
                 // distributed tracing required?
                 if (route.info.tracing) {
-                    authRequest.setFrom("http.request");
+                    authRequest.setFrom(HTTP_REQUEST);
                     authRequest.setTrace(traceId, tracePath);
                 }
                 EventEnvelope authResponse = po.request(authRequest, authTimeout);
@@ -531,7 +532,7 @@ public class ServiceGateway {
                 .setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+Platform.getInstance().getOrigin());
         // enable distributed tracing if needed
         if (route.info.tracing) {
-            event.setFrom("http.request");
+            event.setFrom(HTTP_REQUEST);
             event.setTrace(traceId, tracePath);
         }
         try {
@@ -542,7 +543,7 @@ public class ServiceGateway {
                     if (!secondary.equals(route.info.primary)) {
                         EventEnvelope copy = new EventEnvelope().setTo(secondary).setBody(requestBody);
                         if (route.info.tracing) {
-                            copy.setFrom("http.request");
+                            copy.setFrom(HTTP_REQUEST);
                             copy.setTrace(traceId, tracePath);
                         }
                         try {

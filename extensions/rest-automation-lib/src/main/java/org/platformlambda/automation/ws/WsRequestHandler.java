@@ -100,14 +100,13 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
             return;
         }
         String ip = ws.remoteAddress().hostAddress();
-        String name = path.substring(WS_PREFIX.length());
-        if (!name.contains("/")) {
+        List<String> parts = util.split(path, "/");
+        if (parts.size() < 3) {
             ws.reject();
             return;
         }
-        int colon = name.lastIndexOf('/');
-        String app = name.substring(0, colon);
-        String token = name.substring(colon+1);
+        String app = parts.get(1);
+        String token = parts.get(2);
         WsInfo info = wsEntry.getInfo(app);
         if (info == null) {
             ws.accept();

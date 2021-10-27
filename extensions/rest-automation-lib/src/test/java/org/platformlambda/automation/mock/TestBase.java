@@ -25,15 +25,12 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestBase {
-    private static final Logger log = LoggerFactory.getLogger(TestBase.class);
-
+    protected static final String HTTP_REQUEST = "async.http.request";
     protected static int port;
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
@@ -46,9 +43,19 @@ public class TestBase {
             port = util.str2int(config.getProperty("rest.server.port",
                                 config.getProperty("server.port", "8100")));
             AppStarter.main(new String[0]);
-
+            AtomicInteger count = new AtomicInteger(0);
             LambdaFunction f = (headers, body, instance) -> {
                 AsyncHttpRequest input = new AsyncHttpRequest(body);
+                if ("HEAD".equals(input.getMethod())) {
+                    EventEnvelope result = new EventEnvelope().setHeader("X-Response", "HEAD request received")
+                                    .setHeader("Content-Length", 100);
+                    if (count.incrementAndGet() == 1) {
+                        result.setHeader("Set-Cookie", "first=cookie|second=one");
+                    } else {
+                        result.setHeader("Set-Cookie", "single=cookie");
+                    }
+                    return result;
+                }
                 if (input.getStreamRoute() != null) {
                     ObjectStreamIO stream = new ObjectStreamIO();
                     ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());

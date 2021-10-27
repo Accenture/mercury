@@ -1,12 +1,13 @@
 body {
-  margin: 50px;
-  background-color: yellow;
-  font-family: arial, sans-serif;
-  font-size: 12px;
+  background-color: lightblue;
 }
 
 h1 {
+  color: white;
+  text-align: center;
+}
+
+p {
+  font-family: verdana;
   font-size: 20px;
-  font-weight: bold;
-  margin-top: 10px;
 }

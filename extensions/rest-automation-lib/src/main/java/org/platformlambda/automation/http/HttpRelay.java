@@ -63,6 +63,7 @@ public class HttpRelay implements LambdaFunction {
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
+    private static final String TARGET = "target";
     private static final String GET = "GET";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
@@ -91,7 +92,7 @@ public class HttpRelay implements LambdaFunction {
         if (tempDir == null) {
             // create temp upload directory
             AppConfigReader reader = AppConfigReader.getInstance();
-            String temp = reader.getProperty("app.temp.dir", "/tmp/downloads");
+            String temp = reader.getProperty("app.temp.dir", "/tmp/temp_files_to_delete");
             tempDir = new File(temp);
             if (!tempDir.exists()) {
                 if (tempDir.mkdirs()) {
@@ -188,7 +189,7 @@ public class HttpRelay implements LambdaFunction {
             }
             // annotate trace if any
             PostOffice po = PostOffice.getInstance();
-            po.annotateTrace("target", url);
+            po.annotateTrace(TARGET, url);
             // construct outgoing HTTP request
             GenericUrl target = new GenericUrl(url);
             HttpRequest http;
@@ -203,7 +204,7 @@ public class HttpRelay implements LambdaFunction {
             } else if (DELETE.equals(request.getMethod())) {
                 http = factory.buildDeleteRequest(target);
             } else if (HEAD.equals(request.getMethod())) {
-                http = factory.buildPutRequest(target, content);
+                http = factory.buildHeadRequest(target);
             } else {
                 throw new AppException(405, "Method not allowed");
             }
@@ -319,15 +320,15 @@ public class HttpRelay implements LambdaFunction {
                             // response body is assumed to be XML
                             String text = util.getUTF(b).trim();
                             try {
-                                return resEvent.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
+                                return resEvent.setBody(text.isEmpty() ? new HashMap<>() : xmlReader.parse(text));
                             } catch (Exception e) {
                                 return resEvent.setBody(text);
                             }
-                        } else if ( resContentType.startsWith(TEXT_HTML) ||
-                                    resContentType.startsWith(TEXT_PLAIN) ||
-                                    resContentType.startsWith("text/css") ||
-                                    resContentType.startsWith("application/javascript") ||
-                                    resContentType.startsWith("text/javascript") ) {
+                        } else if (resContentType.startsWith(TEXT_HTML) ||
+                                resContentType.startsWith(TEXT_PLAIN) ||
+                                resContentType.startsWith("text/css") ||
+                                resContentType.startsWith("application/javascript") ||
+                                resContentType.startsWith("text/javascript")) {
                             /*
                              * For API targetHost, the content-types are usually JSON or XML.
                              * HTML, CSS and JS are here as a best effort to return text content.
@@ -347,6 +348,10 @@ public class HttpRelay implements LambdaFunction {
                     setResponseHeaders(resEvent, response.getHeaders());
                 }
                 return resEvent;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw e;
 
             } finally {
                 if (response != null) {

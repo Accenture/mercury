@@ -205,5 +205,5 @@ websocket:
   - application: "notification"
     publish: true
     subscribe: true
-#    recipient: "my.ws.handler"
+    recipient: "my.ws.handler"
 

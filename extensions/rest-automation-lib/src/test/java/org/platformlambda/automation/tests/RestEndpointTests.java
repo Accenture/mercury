@@ -34,13 +34,15 @@ import org.platformlambda.core.util.Utility;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-public class RestEndpointTest extends TestBase {
+public class RestEndpointTests extends TestBase {
 
-    private static final String HTTP_REQUEST = "async.http.request";
+    private static final String MULTIPART_FORM_DATA = "multipart/form-data";
 
     @SuppressWarnings("unchecked")
     @Test
@@ -163,6 +165,37 @@ public class RestEndpointTest extends TestBase {
     }
 
     @Test
+    public void uploadBytesWithPut() throws AppException, IOException, TimeoutException {
+        Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        int len = 0;
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        for (int i=0; i < 100; i++) {
+            byte[] line = util.getUTF("hello world "+i+"\n");
+            bytes.write(line);
+            len += line.length;
+        }
+        byte[] b = bytes.toByteArray();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("PUT");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setBody(b);
+        req.setContentLength(len);
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertTrue(res.getBody() instanceof byte[]);
+        Assert.assertArrayEquals(b, (byte[]) res.getBody());
+    }
+
+    @Test
     public void uploadLargeBlockWithPut() throws AppException, IOException, TimeoutException {
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
@@ -178,7 +211,7 @@ public class RestEndpointTest extends TestBase {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ObjectStreamIO stream = new ObjectStreamIO();
         ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-        for (int i=0; i < 520; i++) {
+        for (int i=0; i < 600; i++) {
             String line = "hello world "+i+"\n";
             byte[] d = util.getUTF(line);
             out.write(d);
@@ -193,7 +226,7 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("PUT");
         req.setUrl("/api/hello/world");
         req.setTargetHost("http://127.0.0.1:"+port);
-        req.setHeader("accept", "application/json");
+        req.setHeader("accept", "application/octet-stream");
         req.setHeader("content-type", "application/octet-stream");
         req.setContentLength(len);
         req.setStreamRoute(stream.getInputStreamId());
@@ -207,8 +240,56 @@ public class RestEndpointTest extends TestBase {
                 body.write((byte[]) o);
             }
         }
-        byte[] bodyBytes = body.toByteArray();
-        Assert.assertArrayEquals(b, bodyBytes);
+        Assert.assertArrayEquals(b, body.toByteArray());
+    }
+
+    @Test
+    public void uploadMultipartWithPost() throws AppException, IOException, TimeoutException {
+        Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        int len = 0;
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        ObjectStreamIO stream = new ObjectStreamIO();
+        ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
+        for (int i=0; i < 600; i++) {
+            String line = "hello world "+i+"\n";
+            byte[] d = util.getUTF(line);
+            out.write(d);
+            byte[] d2 = util.getUTF(line);
+            bytes.write(d2);
+            len += d2.length;
+        }
+        out.close();
+        byte[] b = bytes.toByteArray();
+
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/upload/demo");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setHeader("accept", "application/json");
+        req.setHeader("content-type", MULTIPART_FORM_DATA);
+        req.setContentLength(len);
+        req.setFileName("hello-world.txt");
+        req.setStreamRoute(stream.getInputStreamId());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertNotNull(res.getHeaders().get("stream"));
+        String resultStream = res.getHeaders().get("stream");
+        ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000);
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        for (Object o: in) {
+            if (o instanceof byte[]) {
+                body.write((byte[]) o);
+            }
+        }
+        Assert.assertArrayEquals(b, body.toByteArray());
     }
 
     @SuppressWarnings("unchecked")
@@ -287,6 +368,202 @@ public class RestEndpointTest extends TestBase {
         Assert.assertTrue(map.getElement("body") instanceof Map);
         Map<String, Object> received = (Map<String, Object>) map.getElement("body");
         Assert.assertEquals(data, received);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void postJsonMap() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        Map<String, Object> data = new HashMap<>();
+        data.put("hello", "world");
+        data.put("test", "message");
+        req.setBody(data);
+        req.setHeader("accept", "application/json");
+        req.setHeader("content-type", "application/json");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertTrue(res.getBody() instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
+        Assert.assertEquals("application/json", map.getElement("headers.content-type"));
+        Assert.assertEquals("application/json", map.getElement("headers.accept"));
+        Assert.assertEquals(false, map.getElement("https"));
+        Assert.assertEquals("/api/hello/world", map.getElement("url"));
+        Assert.assertEquals("POST", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals(10, map.getElement("timeout"));
+        Assert.assertTrue(map.getElement("body") instanceof Map);
+        Map<String, Object> received = (Map<String, Object>) map.getElement("body");
+        Assert.assertEquals(data, received);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void sendHttpDelete() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("DELETE");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setHeader("accept", "application/json");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertTrue(res.getBody() instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
+        Assert.assertEquals("application/json", map.getElement("headers.accept"));
+        Assert.assertEquals(false, map.getElement("https"));
+        Assert.assertEquals("/api/hello/world", map.getElement("url"));
+        Assert.assertEquals("DELETE", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals(10, map.getElement("timeout"));
+        Assert.assertNull(map.getElement("body"));
+    }
+
+    @Test
+    public void sendHttpHeadWithCID() throws AppException, IOException, TimeoutException {
+        String traceId = Utility.getInstance().getDateUuid();
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("HEAD");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setHeader("accept", "application/json");
+        req.setHeader("x-correlation-id", traceId);
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Map<String, String> headers = res.getHeaders();
+        // HTTP head response may include custom headers and content-length
+        Assert.assertEquals("HEAD request received", headers.get("x-response"));
+        Assert.assertEquals("100", headers.get("content-length"));
+        // the same correlation-id is returned to the caller
+        Assert.assertEquals(traceId, headers.get("x-correlation-id"));
+    }
+
+    @Test
+    public void sendHttpHeadWithTraceId() throws AppException, IOException, TimeoutException {
+        String traceId = Utility.getInstance().getDateUuid();
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("HEAD");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setHeader("accept", "application/json");
+        req.setHeader("x-trace-id", traceId);
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Map<String, String> headers = res.getHeaders();
+        // HTTP head response may include custom headers and content-length
+        Assert.assertEquals("HEAD request received", headers.get("x-response"));
+        Assert.assertEquals("100", headers.get("content-length"));
+        // the same correlation-id is returned to the caller
+        Assert.assertEquals(traceId, headers.get("x-trace-id"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void postXmlMap() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        Map<String, Object> data = new HashMap<>();
+        data.put("hello", "world");
+        data.put("test", "message");
+        req.setBody(data);
+        req.setHeader("accept", "application/json");
+        req.setHeader("content-type", "application/xml");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertTrue(res.getBody() instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
+        Assert.assertEquals("application/xml", map.getElement("headers.content-type"));
+        Assert.assertEquals("application/json", map.getElement("headers.accept"));
+        Assert.assertEquals(false, map.getElement("https"));
+        Assert.assertEquals("/api/hello/world", map.getElement("url"));
+        Assert.assertEquals("POST", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals(10, map.getElement("timeout"));
+        Assert.assertTrue(map.getElement("body") instanceof Map);
+        Map<String, Object> received = (Map<String, Object>) map.getElement("body");
+        Assert.assertEquals(data, received);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void postList() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            po.annotateTrace("hello", "world");
+            return true;
+        };
+        if (!platform.hasRoute("v1.api.auth")) {
+            platform.registerPrivate("v1.api.auth", f, 1);
+        }
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        Map<String, Object> data = new HashMap<>();
+        data.put("hello", "world");
+        data.put("test", "message");
+        req.setBody(Collections.singletonList(data));
+        req.setHeader("accept", "application/json");
+        req.setHeader("content-type", "application/json");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        Assert.assertTrue(res.getBody() instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
+        Assert.assertEquals("application/json", map.getElement("headers.content-type"));
+        Assert.assertEquals("application/json", map.getElement("headers.accept"));
+        Assert.assertEquals(false, map.getElement("https"));
+        Assert.assertEquals("/api/hello/world", map.getElement("url"));
+        Assert.assertEquals("POST", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals(10, map.getElement("timeout"));
+        Assert.assertTrue(map.getElement("body") instanceof List);
+        List<Map<String, Object>> received = (List<Map<String, Object>>) map.getElement("body");
+        Assert.assertEquals(1, received.size());
+        Assert.assertEquals(data, received.get(0));
     }
 
     @Test
