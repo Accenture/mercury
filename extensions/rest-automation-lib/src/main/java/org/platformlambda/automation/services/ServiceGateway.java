@@ -69,7 +69,6 @@ public class ServiceGateway {
     private static final String PUT = "PUT";
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
-    private static final String ACCEPT = "accept";
     private static final String INDEX_HTML = "index.html";
     private static final String CLASSPATH = "classpath:";
     private static final String FILEPATH = "file:";

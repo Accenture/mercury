@@ -27,7 +27,6 @@ import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.AsyncContextHolder;
 
 import java.io.InputStream;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,6 @@ import java.util.concurrent.ConcurrentMap;
 public class SimpleHttpUtility {
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-    private static final String DATE = "Date";
     private static final String ACCEPT = "Accept";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
