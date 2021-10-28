@@ -230,6 +230,7 @@ public class PostOfficeTest {
     @SuppressWarnings("unchecked")
     @Test
     public void pingTest() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         EventEnvelope result = po.ping(HELLO_WORLD, 5000);
         // ping does not execute function so the execution time is -1
@@ -239,8 +240,11 @@ public class PostOfficeTest {
         Map<String, Object> response = (Map<String, Object>) result.getBody();
         Assert.assertTrue(response.containsKey("time"));
         Assert.assertEquals("pong", response.get("type"));
-        Assert.assertEquals("This response is generated when you make a request without headers and body",
+        Assert.assertEquals(platform.getName(), response.get("app"));
+        Assert.assertEquals(platform.getOrigin(), response.get("origin"));
+        Assert.assertEquals("This response is generated when you send an event without headers and body",
                 response.get("reason"));
+        log.info("Ping successfully - {}", response.get("message"));
     }
 
     @SuppressWarnings("unchecked")
