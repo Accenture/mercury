@@ -48,6 +48,7 @@ public class WorkerQueue extends WorkerQueues {
     private static final String REASON = "reason";
     private static final String MESSAGE = "message";
     private static final String ORIGIN = "origin";
+    private static final String SERVICE = "service";
     private final String origin;
     private final boolean interceptor, useEnvelope, tracing;
     private final int instance;
@@ -157,6 +158,7 @@ public class WorkerQueue extends WorkerQueues {
                     pong.put(TIME, new Date());
                     pong.put(APP, platform.getName());
                     pong.put(ORIGIN, platform.getOrigin());
+                    pong.put(SERVICE, parent);
                     pong.put(REASON, "This response is generated when you send an event without headers and body");
                     pong.put(MESSAGE, "you have reached "+parent);
                     response.setBody(pong);

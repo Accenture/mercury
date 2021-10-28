@@ -239,6 +239,7 @@ public class PostOfficeTest {
         Assert.assertTrue(result.getBody() instanceof Map);
         Map<String, Object> response = (Map<String, Object>) result.getBody();
         Assert.assertTrue(response.containsKey("time"));
+        Assert.assertTrue(response.containsKey("service"));
         Assert.assertEquals("pong", response.get("type"));
         Assert.assertEquals(platform.getName(), response.get("app"));
         Assert.assertEquals(platform.getOrigin(), response.get("origin"));
