@@ -227,6 +227,7 @@ public class PostOfficeTest {
         Assert.assertNull(notFound);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void pingTest() throws AppException, IOException, TimeoutException {
         PostOffice po = PostOffice.getInstance();
@@ -234,6 +235,12 @@ public class PostOfficeTest {
         // ping does not execute function so the execution time is -1
         Assert.assertTrue(result.getExecutionTime() < 0);
         Assert.assertTrue(result.getRoundTrip() >= 0);
+        Assert.assertTrue(result.getBody() instanceof Map);
+        Map<String, Object> response = (Map<String, Object>) result.getBody();
+        Assert.assertTrue(response.containsKey("time"));
+        Assert.assertEquals("pong", response.get("type"));
+        Assert.assertEquals("This response is generated when you make a request without headers and body",
+                response.get("reason"));
     }
 
     @SuppressWarnings("unchecked")

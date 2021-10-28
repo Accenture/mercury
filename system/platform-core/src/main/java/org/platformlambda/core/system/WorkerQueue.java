@@ -34,11 +34,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 public class WorkerQueue extends WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueue.class);
     private static final Utility util = Utility.getInstance();
+    private static final String TYPE = "type";
+    private static final String TIME = "time";
+    private static final String PONG = "pong";
+    private static final String REASON = "reason";
+    private static final String MESSAGE = "message";
     private static final String ORIGIN = "origin";
     private final String origin;
     private final boolean interceptor, useEnvelope, tracing;
@@ -141,8 +148,15 @@ public class WorkerQueue extends WorkerQueues {
                     response.setStatus(200).setBody(result);
                 }
                 if (ping) {
+                    Platform platform = Platform.getInstance();
                     // execution time is not set because there is no need to execute the lambda function
-                    response.setHeader(ORIGIN, Platform.getInstance().getOrigin());
+                    response.setHeader(ORIGIN, platform.getOrigin());
+                    Map<String, Object> pong = new HashMap<>();
+                    pong.put(TYPE, PONG);
+                    pong.put(TIME, new Date());
+                    pong.put(REASON, "This response is generated when you make a request without headers and body");
+                    pong.put(MESSAGE, "you have reached "+platform.getName()+", origin: "+platform.getOrigin());
+                    response.setBody(pong);
                     po.send(response);
                 } else {
                     if (!interceptor && !serviceTimeout) {
