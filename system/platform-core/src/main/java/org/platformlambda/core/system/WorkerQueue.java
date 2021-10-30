@@ -150,7 +150,7 @@ public class WorkerQueue extends WorkerQueues {
                     response.setStatus(200).setBody(result);
                 }
                 if (ping) {
-                    String parent = route.contains("@") ? route.substring(0, route.lastIndexOf('@')) : route;
+                    String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
                     Platform platform = Platform.getInstance();
                     // execution time is not set because there is no need to execute the lambda function
                     Map<String, Object> pong = new HashMap<>();

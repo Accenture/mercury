@@ -30,6 +30,7 @@ public abstract class WorkerQueues {
 
     protected static final ExecutorService executor = Executors.newCachedThreadPool();
     protected static final String READY = "ready:";
+    protected static final String HASH = "#";
     protected final ServiceDef def;
     protected final String route;
     protected MessageConsumer<byte[]> consumer = null;

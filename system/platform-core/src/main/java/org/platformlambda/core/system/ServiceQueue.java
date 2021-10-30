@@ -35,6 +35,7 @@ public class ServiceQueue {
     private static final Logger log = LoggerFactory.getLogger(ServiceQueue.class);
     private static final String INIT = "init:";
     private static final String READY = "ready";
+    private static final String HASH = "#";
     private final ElasticQueue elasticQueue;
     private final String route;
     private final String readyPrefix;
@@ -48,14 +49,13 @@ public class ServiceQueue {
 
     public ServiceQueue(ServiceDef service) {
         this.route = service.getRoute();
-        this.readyPrefix = READY+":" + service.getRoute() + "@";
+        this.readyPrefix = READY+":" + service.getRoute() + HASH;
         this.elasticQueue = new ElasticQueue(route);
         // create consumer
         system = Platform.getInstance().getEventSystem();
         consumer = system.localConsumer(service.getRoute(), new ServiceHandler());
         if (service.isStream()) {
-            // create singleton stream worker with signature suffix "+"
-            streamRoute = route + "+";
+            streamRoute = route + HASH + 1;
             StreamQueue worker = new StreamQueue(service, streamRoute);
             workers.add(worker);
             log.info("{} {} started", "PRIVATE", route);
@@ -65,7 +65,7 @@ public class ServiceQueue {
             int instances = service.getConcurrency();
             for (int i = 0; i < instances; i++) {
                 int n = i + 1;
-                WorkerQueue worker = new WorkerQueue(service, route + "@" + n, n);
+                WorkerQueue worker = new WorkerQueue(service, route + HASH + n, n);
                 workers.add(worker);
             }
             log.info("{} {} with {} instance{} started", service.isPrivate() ? "PRIVATE" : "PUBLIC",
