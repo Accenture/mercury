@@ -33,6 +33,10 @@ import java.util.Map;
 /**
  * This service demonstrates file download.
  *
+ * IMPORTANT - for LambdaFunction, the handleEvent method is the event handler.
+ * Please do not use any global scope variables. All variables must be in functional scope.
+ * If you must use global scope variables, you may use Java Concurrent collections.
+ *
  * It assumes the download request comes from the REST automation app.
  */
 public class FileDownload implements LambdaFunction {

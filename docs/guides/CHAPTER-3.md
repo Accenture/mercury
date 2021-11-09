@@ -353,6 +353,13 @@ To read the event stream of a topic from the beginning, you can set offset to "0
 The system encapsulates the headers and body (aka payload) in an event envelope so that you do not need to do 
 serialization yourself. The payload can be PoJo, Map or Java primitives.
 
+### Thread safety
+
+The "handleEvent" is the event handler for each LamdbaFunction. When you register more than one worker instance for
+your function, please ensure that you use "functional scope" variables instead of global scope variables.
+
+If you must use global scope variables, please use Java Concurrent collections.
+
 ---
 
 | Chapter-4                                 | Home                                     |

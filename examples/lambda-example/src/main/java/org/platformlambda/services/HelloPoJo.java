@@ -30,6 +30,11 @@ import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * IMPORTANT - for LambdaFunction, the handleEvent method is the event handler.
+ * Please do not use any global scope variables. All variables must be in functional scope.
+ * If you must use global scope variables, you may use Java Concurrent collections.
+ */
 public class HelloPoJo implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HelloPoJo.class);
 
