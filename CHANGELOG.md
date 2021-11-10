@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.2.2, 10/25/2021
+## Version 2.2.2, 11/10/2021
 
 ### Added
 
@@ -20,6 +20,7 @@ N/A
 
 1. Improved and streamlined SimpleXmlParser to handle arrays
 2. Bugfix for file upload in Service Gateway (REST automation library)
+3. Update Tomcat from 9.0.50 to 9.0.54
 
 ---
 ## Version 2.2.1, 10/1/2021

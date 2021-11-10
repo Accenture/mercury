@@ -28,7 +28,6 @@ import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.models.AsyncContextHolder;
 
-import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -36,7 +35,6 @@ import java.util.concurrent.ConcurrentMap;
 public class ServiceResponseHandler implements LambdaFunction {
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
-    private static final String DATE = "Date";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_HTML = "text/html";

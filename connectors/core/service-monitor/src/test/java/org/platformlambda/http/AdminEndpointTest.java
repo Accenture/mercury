@@ -309,8 +309,8 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         String text = (String) response;
         InputStream in = this.getClass().getResourceAsStream("/public/sample.txt");
-        String css = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(css, text);
+        String txt = Utility.getInstance().stream2str(in);
+        Assert.assertEquals(txt, text);
     }
 
     @Test
@@ -319,8 +319,8 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         String text = (String) response;
         InputStream in = this.getClass().getResourceAsStream("/public/sample.js");
-        String css = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(css, text);
+        String js = Utility.getInstance().stream2str(in);
+        Assert.assertEquals(js, text);
     }
 
     @Test(expected = AppException.class)
