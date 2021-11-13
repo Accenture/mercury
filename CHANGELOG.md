@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 1. User defined API authentication functions can be selected using custom HTTP request header
-2. Added "exception object" transport in EventEnvelope
+2. Added "exception" transport in EventEnvelope
 
 ### Removed
 

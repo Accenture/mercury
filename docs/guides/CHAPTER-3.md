@@ -360,6 +360,18 @@ your function, please ensure that you use "functional scope" variables instead o
 
 If you must use global scope variables, please use Java Concurrent collections.
 
+### Exception handling
+
+When your lambda function throws exception, the exception will be encapsulated in the result event envelope to
+the calling function.
+
+If your calling function uses RPC, the exception will be caught as an AppException. You can then use the exception's
+`getCause()` method to retrieve the original exception chain from the called function.
+
+If your calling function uses CALLBACK pattern, your callback function can inspect the incoming event envelope and
+use the `getException()` method to obtain the original exception chain from the called function.
+
+
 ---
 
 | Chapter-4                                 | Home                                     |
