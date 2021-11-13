@@ -13,6 +13,7 @@
 
 package org.platformlambda.core.models;
 
+import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -20,7 +21,7 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -62,6 +63,8 @@ public class EventEnvelope {
     // optional
     private static final String OPTIONAL = "+";
     private static final String JSON_TRANSPORT = "j";
+    // serialized exception object
+    private static final String EXCEPTION = "4";
     // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
@@ -70,8 +73,10 @@ public class EventEnvelope {
     private Integer status;
     private Object body;
     private Object encodedBody;
+    private byte[] exceptionBytes;
+    private Throwable exception;
     private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, binary = true, optional = false, encoded = false;
+    private boolean endOfRoute = false, binary = true, optional = false, encoded = false, exRestored = false;
     private int broadcastLevel = 0;
 
     public EventEnvelope() {
@@ -207,6 +212,25 @@ public class EventEnvelope {
             encoded = true;
         }
         return optional? Optional.ofNullable(encodedBody) : encodedBody;
+    }
+
+    /**
+     * Get event exception if any
+     *
+     * @return exception cause
+     */
+    public Throwable getException() {
+        if (!exRestored) {
+            if (exceptionBytes != null) {
+                try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(exceptionBytes))) {
+                    exception = (Throwable) in.readObject();
+                } catch (IOException | ClassNotFoundException e) {
+                    // ignore it because there is nothing we can do
+                }
+            }
+            exRestored = true;
+        }
+        return exception;
     }
 
     /**
@@ -434,6 +458,25 @@ public class EventEnvelope {
     }
 
     /**
+     * Set exception cause
+     *
+     * @param cause of an exception
+     * @return event envelope
+     */
+    public EventEnvelope setException(Throwable cause) {
+        if (cause != null) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            try (ObjectOutputStream stream = new ObjectOutputStream(out)) {
+                stream.writeObject(cause);
+                exceptionBytes = out.toByteArray();
+            } catch (IOException e) {
+                // this won't happen
+            }
+        }
+        return this;
+    }
+
+    /**
      * DO NOT set this manually. The system will set it.
      *
      * @param milliseconds spent
@@ -619,6 +662,9 @@ public class EventEnvelope {
             if (message.containsKey(BODY)) {
                 body = message.get(BODY);
             }
+            if (message.containsKey(EXCEPTION)) {
+                exceptionBytes = (byte[]) message.get(EXCEPTION);
+            }
             if (message.containsKey(OBJ_TYPE)) {
                 type = (String) message.get(OBJ_TYPE);
             }
@@ -707,6 +753,9 @@ public class EventEnvelope {
         }
         if (body != null) {
             message.put(BODY, body);
+        }
+        if (exceptionBytes != null) {
+            message.put(EXCEPTION, exceptionBytes);
         }
         if (type != null) {
             message.put(OBJ_TYPE, type);

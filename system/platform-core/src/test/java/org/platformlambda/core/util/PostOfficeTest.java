@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -75,6 +76,50 @@ public class PostOfficeTest {
         PostOffice po = PostOffice.getInstance();
         Assert.assertFalse(po.exists((String[]) null));
         Assert.assertFalse(po.exists((String) null));
+    }
+
+    @Test
+    public void testExceptionTransport() throws IOException, TimeoutException {
+        String ROUTE = "test.exception";
+        String MESSAGE = "hello world";
+        Platform platform = Platform.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            throw new IllegalArgumentException(MESSAGE);
+        };
+        platform.registerPrivate(ROUTE, f, 1);
+        PostOffice po = PostOffice.getInstance();
+        try {
+            po.request(ROUTE, 5000, "demo");
+            throw new IOException("Event exception transport failed");
+        } catch (AppException e) {
+            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
+            Assert.assertEquals(MESSAGE, e.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void testNestedExceptionTransport() throws IOException, TimeoutException {
+        String ROUTE = "test.exception";
+        String MESSAGE = "hello world";
+        String SQL_ERROR = "sql error";
+        Platform platform = Platform.getInstance();
+        LambdaFunction f = (headers, body, instance) -> {
+            SQLException sqlEx = new SQLException(SQL_ERROR);
+            throw new IllegalArgumentException(MESSAGE, sqlEx);
+        };
+        platform.registerPrivate(ROUTE, f, 1);
+        PostOffice po = PostOffice.getInstance();
+        try {
+            po.request(ROUTE, 5000, "demo");
+            throw new IOException("Event exception transport failed");
+        } catch (AppException e) {
+            Throwable cause = e.getCause();
+            Assert.assertTrue(cause instanceof IllegalArgumentException);
+            Assert.assertEquals(MESSAGE, cause.getMessage());
+            Throwable nested = cause.getCause();
+            Assert.assertTrue(nested instanceof SQLException);
+            Assert.assertEquals(SQL_ERROR, nested.getMessage());
+        }
     }
 
     @Test

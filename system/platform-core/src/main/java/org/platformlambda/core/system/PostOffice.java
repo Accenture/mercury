@@ -786,7 +786,12 @@ public class PostOffice {
                 throw new TimeoutException(to + " timeout for " + timeout + " ms");
             }
             if (result.hasError()) {
-                throw new AppException(result.getStatus(), result.getError());
+                Throwable ex = result.getException();
+                if (ex != null) {
+                    throw new AppException(result.getStatus(), result.getError(), result.getException());
+                } else {
+                    throw new AppException(result.getStatus(), result.getError());
+                }
             }
             return result;
         }
@@ -829,7 +834,7 @@ public class PostOffice {
                     event.setTrace(trace.id, trace.path);
                 }
             }
-            // insert sequence number as correlation ID if not present
+            // insert sequence number when correlation ID if not present
             // so that the caller can correlate the service responses
             if (event.getCorrelationId() == null) {
                 event.setCorrelationId(String.valueOf(seq));

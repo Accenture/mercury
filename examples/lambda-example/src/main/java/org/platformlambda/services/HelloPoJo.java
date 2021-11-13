@@ -25,7 +25,6 @@ import org.platformlambda.models.SamplePoJo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +40,7 @@ public class HelloPoJo implements LambdaFunction {
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException, IOException {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException {
         String id = headers.get("id");
         if (id == null) {
             throw new IllegalArgumentException("Missing parameter 'id'");

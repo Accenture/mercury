@@ -179,13 +179,11 @@ public class WorkerQueue extends WorkerQueues {
             }
 
         } catch (Exception e) {
-            int status;
+            final int status;
             Throwable ex = util.getRootCause(e);
             if (ex instanceof AppException) {
                 status = ((AppException) ex).getStatus();
-            } else if (ex instanceof IllegalArgumentException) {
-                status = 400;
-            } else if (ex instanceof IOException) {
+            } else if (ex instanceof IllegalArgumentException || ex instanceof IOException) {
                 status = 400;
             } else {
                 status = 500;
@@ -203,6 +201,7 @@ public class WorkerQueue extends WorkerQueues {
             if (replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
+                response.setException(e);
                 response.setFrom(def.getRoute());
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
