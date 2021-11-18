@@ -21,7 +21,9 @@ N/A
 
 1. Improved and streamlined SimpleXmlParser to handle arrays
 2. Bugfix for file upload in Service Gateway (REST automation library)
-3. Update Tomcat from 9.0.50 to 9.0.54
+3. Update Tomcat library from 9.0.50 to 9.0.54
+4. Update Spring Boot library to 2.5.6
+5. Update GSON library to 2.8.9
 
 ---
 ## Version 2.2.1, 10/1/2021
