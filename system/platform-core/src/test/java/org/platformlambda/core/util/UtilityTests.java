@@ -98,8 +98,9 @@ public class UtilityTests {
 
     @Test
     public void timestampTest() {
-        Date now = new Date();
         Utility util = Utility.getInstance();
+        String EXACT_SECOND = ".000";
+        Date now = new Date();
         String t = util.getTimestamp();
         Assert.assertTrue(util.isDigits(t));
         String ts = util.getTimestamp(now.getTime());
@@ -115,6 +116,23 @@ public class UtilityTests {
         Assert.assertEquals(iso.substring(0, iso.indexOf('T')), sqlDate);
         java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
         String sqlTime = util.getSqlTimestamp(sqlTs);
+        if (sqlTime.endsWith(EXACT_SECOND)) {
+            sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
+        }
+        Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
+    }
+
+    @Test
+    public void exactSecondTimestampTest() {
+        Utility util = Utility.getInstance();
+        String EXACT_SECOND = ".000";
+        String exact = util.date2str(new Date(), true);
+        Date now = util.str2date(exact);
+        String iso = util.date2str(now);
+        java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
+        String sqlTime = util.getSqlTimestamp(sqlTs);
+        Assert.assertTrue(sqlTime.endsWith(EXACT_SECOND));
+        sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
         Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
     }
 
@@ -321,6 +339,7 @@ public class UtilityTests {
         util.closeConnection(TX_PATH, CloseReason.CloseCodes.CANNOT_ACCEPT, REASON);
         Map<String, String> result = bench.poll(10, TimeUnit.SECONDS);
         log.info("Received close event {}", result);
+        Assert.assertNotNull(result);
         Assert.assertEquals(REASON, result.get("message"));
         Assert.assertEquals("close", result.get("type"));
         Assert.assertEquals(CloseReason.CloseCodes.CANNOT_ACCEPT.getCode(), util.str2int(result.get("status")));
