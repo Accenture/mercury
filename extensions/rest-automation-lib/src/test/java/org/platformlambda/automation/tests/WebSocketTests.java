@@ -126,9 +126,6 @@ public class WebSocketTests extends TestBase {
         client.start();
         Boolean result = matched.poll(20, TimeUnit.SECONDS);
         Assert.assertEquals(true, result);
-        Assert.assertTrue(subscribed.get());
-        Assert.assertTrue(published.get());
-        Assert.assertTrue(messaged.get());
         AsyncHttpRequest check1 = new AsyncHttpRequest();
         check1.setMethod("GET");
         check1.setUrl("/api/notification");
@@ -155,6 +152,9 @@ public class WebSocketTests extends TestBase {
         notifier.publish("another.channel", "test message");
         client.close();
         completion.poll(10, TimeUnit.SECONDS);
+        Assert.assertTrue(subscribed.get());
+        Assert.assertTrue(published.get());
+        Assert.assertTrue(messaged.get());
     }
 
 }
