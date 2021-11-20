@@ -86,20 +86,20 @@ public class WebSocketTests extends TestBase {
             String type = headers.get(TYPE);
             if ("open".equals(type)) {
                 String txPath = headers.get(TX_PATH);
-                Map<String, Object> subscribe = new HashMap<>();
-                subscribe.put("type", "subscribe");
-                subscribe.put("topic", "hello.world");
-                po.send(txPath, subscribe);
+                Map<String, Object> subscribeThis = new HashMap<>();
+                subscribeThis.put("type", "subscribe");
+                subscribeThis.put("topic", "hello.world");
+                po.send(txPath, subscribeThis);
+                po.send(txPath, USER_MESSAGE);
+                Map<String, Object> subscribeThat = new HashMap<>();
+                subscribeThat.put("type", "subscribe");
+                subscribeThat.put("topic", "another.channel");
+                po.send(txPath, subscribeThat);
                 Map<String, Object> publish = new HashMap<>();
                 publish.put("type", "publish");
                 publish.put("topic", "hello.world");
                 publish.put("message", PUBLISH_MESSAGE);
                 po.send(txPath, publish);
-                po.send(txPath, USER_MESSAGE);
-                Map<String, Object> subscribeMore = new HashMap<>();
-                subscribeMore.put("type", "subscribe");
-                subscribeMore.put("topic", "another.channel");
-                po.send(txPath, subscribeMore);
             }
             if ("string".equals(type)) {
                 if (PUBLISH_MESSAGE.equals(body)) {
