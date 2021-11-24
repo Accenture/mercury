@@ -94,6 +94,14 @@ public class ElasticQueue implements AutoCloseable {
                 dbFolder = new File(tmpRoot, instanceId);
             }
             scanExpiredStores(tmpRoot);
+            /*
+             * Normally the system should initialize commit log before using the elastic queue.
+             */
+            boolean deferred = "true".equals(config.getProperty("deferred.commit.log", "false"));
+            if (!deferred) {
+                Database db = getDatabase();
+                log.info("Commit log started - {}", db);
+            }
             alive = new KeepAlive(dbFolder);
             alive.start();
         }
@@ -114,7 +122,7 @@ public class ElasticQueue implements AutoCloseable {
     @Override
     public void close() {
         if (!isClosed()) {
-            if (dbEnv != null) {
+            if (dbEnv != null && !dbEnv.isClosed()) {
                 if (readCounter < writeCounter && writeCounter > MEMORY_BUFFER) {
                     try {
                         PostOffice.getInstance().send(CLEAN_UP_TASK, id + SLASH + currentVersion);
@@ -347,7 +355,6 @@ public class ElasticQueue implements AutoCloseable {
     }
 
     private static class KeepAlive extends Thread {
-
         private static final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         private static final long KEEP_ALIVE_INTERVAL = 20 * 1000;
         private static final long HOUSEKEEPING_INTERVAL = 600 * 1000;
@@ -360,8 +367,6 @@ public class ElasticQueue implements AutoCloseable {
 
         @Override
         public void run() {
-            Database db = getDatabase();
-            log.info("Commit log started - {}", db);
             long t1 = 0;
             long t2 = System.currentTimeMillis();
             while (normal) {
@@ -398,13 +403,10 @@ public class ElasticQueue implements AutoCloseable {
                     // ok to ignore
                 }
             }
-            log.info("Commit log stopped - {}", db);
             bench.offer(true);
         }
 
         public void shutdown() {
-            Database db = getDatabase();
-            log.debug("Stopping {}", db);
             normal = false;
             try {
                 bench.poll(10, TimeUnit.SECONDS);
