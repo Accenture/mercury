@@ -1,6 +1,7 @@
 ﻿# Post Office API
 
-Post Office is a platform abstraction layer that routes events among functions. It maintains a distributed routing table to ensure that service discovery is instantaneous,
+Post Office is a platform abstraction layer that routes events among functions. It maintains a distributed 
+routing table to ensure that service discovery is instantaneous,
 
 ## Obtain an instance of the post office object
 

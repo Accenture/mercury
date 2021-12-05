@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.2.3, 12/5/2021
+
+### Added
+
+1. Transaction journaling
+2. Add default parameter `distributed.trace.aggregation=true` in application.properties such that trace aggregation 
+   can be disabled.
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Update JBoss RestEasy library to 3.15.3.Final
+2. Improved po.search(route) to scan local and remote service registries. Added "remoteOnly" selection.
+
+---
 ## Version 2.2.2, 11/12/2021
 
 ### Added
@@ -47,7 +65,8 @@ Open sources library update - Vert.x 4.1.3, Netty 4.1.68-Final
 
 1. User defined PoJo and Generics mapping
 2. Standardized serializers for default case, snake_case and camelCase
-3. Support of EventEnvelope as input parameter in TypedLambdaFunction so application function can inspect event's metadata
+3. Support of EventEnvelope as input parameter in TypedLambdaFunction so application function can inspect event's 
+   metadata
 4. Application can subscribe to life cycle events of other application instances
 
 ### Removed
@@ -91,7 +110,8 @@ Vert.x is introduced as the in-memory event bus
 
 ### Removed
 
-1. Event Node event stream emulator has been retired. You may use standalone Kafka server as a replacement for development and testing in your laptop.
+1. Event Node event stream emulator has been retired. You may use standalone Kafka server as a replacement for 
+   development and testing in your laptop.
 2. Multi-tenancy namespace configuration has been retired. It is replaced by the "closed user group" feature.
 
 ### Changed
@@ -129,7 +149,8 @@ N/A
 
 1. "kafka.pubsub" is added as a cloud service
 2. File download example in the lambda-example project
-3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
+3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the 
+   transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
 4. Add API to pub/sub engine to support creation of topic with partitions
 5. TypedLambdaFunction is added so that developer can predefine input and output classes in a service without casting
 
@@ -139,7 +160,8 @@ N/A
 
 ### Changed
 
-1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in standalone mode
+1. Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in 
+   standalone mode
 2. Rename "relay" to "targetHost" in AsyncHttpRequest data model
 3. Enhanced routing table distribution by sending a complete list of route tables, thus reducing network admin traffic.
 
@@ -252,11 +274,14 @@ N/A
 
 ### Changed
 
-Application life-cycle management - User provided main application(s) will be started after Spring Boot declares web application ready. This ensures correct Spring autowiring or dependencies are available.
+Application life-cycle management - User provided main application(s) will be started after Spring Boot declares web
+application ready. This ensures correct Spring autowiring or dependencies are available.
 
-Bugfix for locale - String.format(float) returns comma as decimal point that breaks number parser. Replace with BigDecimal decimal point scaling.
+Bugfix for locale - String.format(float) returns comma as decimal point that breaks number parser. 
+Replace with BigDecimal decimal point scaling.
 
-Bugfix for Tomcat 9.0.35 - Change Async servlet default timeout from 30 seconds to -1 so the system can handle the whole life-cycle directly.
+Bugfix for Tomcat 9.0.35 - Change Async servlet default timeout from 30 seconds to -1 so the system can handle the 
+whole life-cycle directly.
 
 ---
 ## Version 1.12.52, 6/11/2020
@@ -285,11 +310,12 @@ N/A
 
 1. Payload segmentation
 
-For large payload in an event, the payload is automatically segmented into 64 KB segments.
-When there are more than one target application instances, the system ensures that the segments of the same event is delivered
-to exactly the same target.
+   For large payload in an event, the payload is automatically segmented into 64 KB segments.
+   When there are more than one target application instances, the system ensures that the segments of the same event 
+   is delivered to exactly the same target.
 
-2. PersistentWsClient added - generalized persistent websocket client for Event Node, Kafka reporter and Hazelcast reporter.
+2. PersistentWsClient added - generalized persistent websocket client for Event Node, Kafka reporter and Hazelcast
+   reporter.
 
 ### Removed
 
@@ -341,7 +367,8 @@ N/A
 
 ### Removed
 
-For simplicity, retire route-substitution admin endpoint. Route substitution uses a simple static table in route-substitution.yaml.
+For simplicity, retire route-substitution admin endpoint. Route substitution uses a simple static table in 
+route-substitution.yaml.
 
 ### Changed
 
@@ -372,7 +399,8 @@ N/A
 
 ### Removed
 
-Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes configMap or other systems of config record.
+Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes 
+configMap or other systems of config record.
 
 ### Changed
 
@@ -393,7 +421,8 @@ N/A
 
 ### Changed
 
-Kafka-connector will shutdown application instance when the EventProducer cannot send event to Kafka. This would allow the infrastructure to restart application instance automatically.
+Kafka-connector will shutdown application instance when the EventProducer cannot send event to Kafka. 
+This would allow the infrastructure to restart application instance automatically.
 
 ---
 ## Version 1.12.31, 2/26/2020
@@ -408,8 +437,13 @@ N/A
 
 ### Changed
 
-1. Kafka-connector now supports external service provider for Kafka properties and credentials. If your application implements a function with route name "kafka.properties.provider" before connecting to cloud, the kafka-connector will retrieve kafka credentials on demand. This addresses case when kafka credentials change after application start-up.
-2. Interceptors are designed to forward requests and thus they do not generate replies. However, if you implement a function as an EventInterceptor, your function can throw exception just like a regular function and the exception will be returned to the calling function. This makes it easier to write interceptors.
+1. Kafka-connector now supports external service provider for Kafka properties and credentials. 
+   If your application implements a function with route name "kafka.properties.provider" before connecting to cloud, 
+   the kafka-connector will retrieve kafka credentials on demand. This addresses case when kafka credentials change 
+   after application start-up.
+2. Interceptors are designed to forward requests and thus they do not generate replies. However, if you implement a 
+   function as an EventInterceptor, your function can throw exception just like a regular function and the exception 
+   will be returned to the calling function. This makes it easier to write interceptors.
 
 ---
 ## Version 1.12.30, 2/6/2020
@@ -432,7 +466,8 @@ N/A
 
 ### Added
 
-1. Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace across systems that support the X-Trace-Id HTTP header.
+1. Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace 
+   across systems that support the X-Trace-Id HTTP header.
 2. Added endpoint and service to shutdown application instance.
 
 ### Removed
@@ -442,7 +477,8 @@ N/A
 ### Changed
 
 1. Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.
-2. Bug fix for hazelcast recovery logic - when a hazelcast node is down, the app instance will restart the hazelcast client and reset routing table correctly.
+2. Bug fix for hazelcast recovery logic - when a hazelcast node is down, the app instance will restart the hazelcast 
+   client and reset routing table correctly.
 3. HSTS header insertion is optional so that we can disable it to avoid duplicated header when API gateway is doing it.
 
 ---
@@ -486,9 +522,11 @@ N/A
 ### Added
 
 1. Simple configuration management is added to event-node, hazelcast-presence and kafka-presence monitors
-2. Added `BeforeApplication` annotation - this allows user application to execute some setup logic before the main application starts. e.g. modifying parameters in application.properties
+2. Added `BeforeApplication` annotation - this allows user application to execute some setup logic before the main 
+   application starts. e.g. modifying parameters in application.properties
 3. Added API playground as a convenient standalone application to render OpenAPI 2.0 and 3.0 yaml and json files
-4. Added argument parser in rest-automation helper app to use a static HTML folder in the local file system if arguments `-html file_path` is given when starting the JAR file.
+4. Added argument parser in rest-automation helper app to use a static HTML folder in the local file system if 
+   arguments `-html file_path` is given when starting the JAR file.
 
 ### Removed
 
@@ -583,8 +621,11 @@ N/A
 
 ### Changed
 
-Minor refactoring of kafka-connector and hazelcast-connector to ensure that they can coexist if you want to include both of these dependencies in your project.
-This is for convenience of dev and testing. In production, please select only one cloud connector library to reduce memory footprint.
+Minor refactoring of kafka-connector and hazelcast-connector to ensure that they can coexist if you want to include 
+both of these dependencies in your project.
+
+This is for convenience of dev and testing. In production, please select only one cloud connector library to reduce
+memory footprint.
 
 ---
 
@@ -605,8 +646,11 @@ N/A
 3. Bug fix for Object Stream housekeeper
 
 By default, GSON serializer converts all numbers to double, resulting in unwanted decimal point for integer and long.
-To handle custom map serialization for correct representation of numbers, an unintended side effect was introduced in earlier releases.
-List of inner PoJo would be incorrectly serialized as map, resulting in casting exception. This release resolves this issue.
+To handle custom map serialization for correct representation of numbers, an unintended side effect was introduced in 
+earlier releases.
+
+List of inner PoJo would be incorrectly serialized as map, resulting in casting exception. 
+This release resolves this issue.
 
 ---
 
@@ -755,13 +799,17 @@ N/A
 
 Hazelcast support is added. This includes two projects (hazelcast-connector and hazelcast-presence).
 
-Hazelcast-connector is a cloud connector library. Hazelcast-presence is the "Presence Monitor" for monitoring the presence status of each application instance.
+Hazelcast-connector is a cloud connector library. Hazelcast-presence is the "Presence Monitor" for monitoring the 
+presence status of each application instance.
 
 ### Removed
 
 `platform-core`
 
-The "fixed resource manager" feature is removed because the same outcome can be achieved at the application level. e.g. The application can broadcast requests to multiple application instances with the same route name and use a callback function to receive response asynchronously. The services can provide resource metrics so that the caller can decide which is the most available instance to contact. 
+The "fixed resource manager" feature is removed because the same outcome can be achieved at the application level. 
+e.g. The application can broadcast requests to multiple application instances with the same route name and use a 
+callback function to receive response asynchronously. The services can provide resource metrics so that the caller
+can decide which is the most available instance to contact. 
 
 For simplicity, resources management is better left to the cloud platform or the application itself.
 

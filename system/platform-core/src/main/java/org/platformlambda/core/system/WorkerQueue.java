@@ -26,7 +26,6 @@ import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class WorkerQueue extends WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueue.class);
@@ -49,17 +46,21 @@ public class WorkerQueue extends WorkerQueues {
     private static final String MESSAGE = "message";
     private static final String ORIGIN = "origin";
     private static final String SERVICE = "service";
+    private static final String INPUT = "input";
+    private static final String OUTPUT = "output";
+    private static final String HEADERS = "headers";
+    private static final String BODY = "body";
+    private static final String STATUS = "status";
+    private static final String EXCEPTION = "exception";
+    private static final String ASYNC = "async";
+    private static final String ANNOTATIONS = "annotations";
+    private static final String PAYLOAD = "payload";
     private final String origin;
     private final boolean interceptor, useEnvelope, tracing;
     private final int instance;
-    private static String traceLogHeader;
 
     public WorkerQueue(ServiceDef def, String route, int instance) {
         super(def, route);
-        if (traceLogHeader == null) {
-            AppConfigReader config = AppConfigReader.getInstance();
-            traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
-        }
         this.instance = instance;
         EventBus system = Platform.getInstance().getEventSystem();
         this.consumer = system.localConsumer(route, new WorkerHandler());
@@ -75,6 +76,11 @@ public class WorkerQueue extends WorkerQueues {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private ProcessStatus processEvent(EventEnvelope event) {
         PostOffice po = PostOffice.getInstance();
+        Map<String, Object> inputOutput = new HashMap<>();
+        Map<String, Object> input = new HashMap<>();
+        input.put(HEADERS, event.getHeaders());
+        input.put(BODY, event.getRawBody());
+        inputOutput.put(INPUT, input);
         TypedLambdaFunction f = def.getFunction();
         if (event.hasError() && f instanceof ServiceExceptionHandler) {
             ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
@@ -83,7 +89,11 @@ public class WorkerQueue extends WorkerQueues {
             } catch (Exception e1) {
                 log.warn("Unhandled exception in error handler of "+route, e1);
             }
-            return new ProcessStatus(event.getStatus(), event.getError());
+            Map<String, Object> output = new HashMap<>();
+            output.put(STATUS, event.getStatus());
+            output.put(EXCEPTION, event.getError());
+            inputOutput.put(OUTPUT, output);
+            return new ProcessStatus(event.getStatus(), event.getError()).setInputOutput(inputOutput);
         }
         try {
             /*
@@ -99,6 +109,7 @@ public class WorkerQueue extends WorkerQueues {
             Object result = ping? null : f.handleEvent(event.getHeaders(),
                                             interceptor || useEnvelope ? event : event.getBody(), instance);
             float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
+            Map<String, Object> output = new HashMap<>();
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
                 boolean serviceTimeout = false;
@@ -146,9 +157,15 @@ public class WorkerQueue extends WorkerQueues {
                             response.setParametricType(resultEvent.getParametricType());
                         }
                     }
+                    if (!response.getHeaders().isEmpty()) {
+                        output.put(HEADERS, response.getHeaders());
+                    }
                 } else {
-                    response.setStatus(200).setBody(result);
+                    response.setBody(result);
                 }
+                output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
+                output.put(STATUS, response.getStatus());
+                inputOutput.put(OUTPUT, output);
                 if (ping) {
                     String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
                     Platform platform = Platform.getInstance();
@@ -169,13 +186,19 @@ public class WorkerQueue extends WorkerQueues {
                         po.send(response);
                     }
                 }
+            } else {
+                EventEnvelope response = new EventEnvelope().setBody(result);
+                output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
+                output.put(STATUS, response.getStatus());
+                output.put(ASYNC, true);
+                inputOutput.put(OUTPUT, output);
             }
             if (diff > 0) {
                 // adjust precision to 3 decimal points
                 BigDecimal ms = new BigDecimal(diff).setScale(3, RoundingMode.HALF_EVEN);
-                return new ProcessStatus(ms.floatValue());
+                return new ProcessStatus(ms.floatValue()).setInputOutput(inputOutput);
             } else {
-                return new ProcessStatus(0);
+                return new ProcessStatus(0).setInputOutput(inputOutput);
             }
 
         } catch (Exception e) {
@@ -195,8 +218,13 @@ public class WorkerQueue extends WorkerQueues {
                 } catch (Exception e2) {
                     log.warn("Unhandled exception in error handler of "+route, e2);
                 }
-                return new ProcessStatus(status, ex.getMessage());
+                Map<String, Object> output = new HashMap<>();
+                output.put(STATUS, status);
+                output.put(EXCEPTION, ex.getMessage());
+                inputOutput.put(OUTPUT, output);
+                return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
             }
+            Map<String, Object> output = new HashMap<>();
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
@@ -219,13 +247,17 @@ public class WorkerQueue extends WorkerQueues {
                     log.warn("Unhandled exception when sending reply from {} - {}", route, nested.getMessage());
                 }
             } else {
+                output.put(ASYNC, true);
                 if (status >= 500) {
                     log.error("Unhandled exception for "+route, ex);
                 } else {
                     log.warn("Unhandled exception for {} - {}", route, ex.getMessage());
                 }
             }
-            return new ProcessStatus(status, ex.getMessage());
+            output.put(STATUS, status);
+            output.put(EXCEPTION, ex.getMessage());
+            inputOutput.put(OUTPUT, output);
+            return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
         }
     }
 
@@ -241,11 +273,11 @@ public class WorkerQueue extends WorkerQueues {
                     log.error("Unable to decode event - {}", e.getMessage());
                     return;
                 }
+                // execute function as a future task
                 executor.submit(()->{
-                    /*
-                     * Execute function as a future task
-                     */
                     PostOffice po = PostOffice.getInstance();
+                    String traceLogHeader = po.getTraceLogHeader();
+                    List<String> journaledRoutes = po.getJournaledRoutes();
                     po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
                     if (event.getTraceId() != null) {
                         ThreadContext.put(traceLogHeader, event.getTraceId());
@@ -255,15 +287,15 @@ public class WorkerQueue extends WorkerQueues {
                     ThreadContext.remove(traceLogHeader);
                     if (tracing && trace != null && trace.id != null && trace.path != null) {
                         try {
-                            /*
-                             * Send the trace info and processing status to
-                             * distributed tracing for logging.
-                             *
-                             * Since tracing has been stopped, this guarantees
-                             * this will not go into an endless loop.
-                             */
+                            // Send tracing information to distributed trace logger
                             EventEnvelope dt = new EventEnvelope();
-                            dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(trace.annotations);
+                            Map<String, Object> payload = new HashMap<>();
+                            payload.put(ANNOTATIONS, trace.annotations);
+                            // send input/output dataset to journal if configured in journal.yaml
+                            if (journaledRoutes.contains(def.getRoute())) {
+                                payload.put(PAYLOAD, ps.inputOutput);
+                            }
+                            dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(payload);
                             dt.setHeader("origin", origin);
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
                             dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);

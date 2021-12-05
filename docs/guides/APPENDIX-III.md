@@ -40,11 +40,13 @@ Optional HTTP request header
 X-App-Instance=origin_id_here
 ```
 
-If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from `any application instance` using the event stream system.
+If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from 
+`any application instance` using the event stream system.
 
 ## Custom health services
 
-You can extend the "/health" endpoint by implementing and registering lambda functions to be added to the health.dependencies.
+You can extend the "/health" endpoint by implementing and registering lambda functions to be added to the 
+health.dependencies.
 
 ```
 mandatory.health.dependencies=cloud.cache.health,cloud.connector.health
@@ -53,15 +55,17 @@ mandatory.health.dependencies=cloud.cache.health,cloud.connector.health
 
 Your custom health service must respond to the following requests:
 
-1. Info request (type=info) - it should return a map that includes (1) service name and (2) href (protocol, hostname and port)
-2. Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. It can throw AppException with status code and error message if health check fails.
+1. Info request (type=info) - it should return a map that includes service name and href (protocol, hostname and port)
+2. Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. 
+   It can throw AppException with status code and error message if health check fails.
 
 The health service can retrieve the "type" of the request from the "headers".
 
 ## Application instance life-cycle events
 
 Any application can subscribe to life-cycle events of other application instances.
-Sample code is available in https://github.com/Accenture/mercury/blob/master/extensions/rest-automation-lib/src/main/java/org/platformlambda/automation/services/NotificationManager.java
+Sample code is available in
+extensions/rest-automation-lib/src/main/java/org/platformlambda/automation/services/NotificationManager.java
 
 To listen to life cycle events, you can do something like this:
 ```

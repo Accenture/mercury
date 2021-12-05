@@ -26,7 +26,8 @@ There are two ways to do versioning:
 
 Versioning would start with adding version in the URI path of a REST endpoint.
 
-In the rest.yaml configuration file, we can define multiple versions of the REST endpoint to route to different versions of backend services.
+In the rest.yaml configuration file, we can define multiple versions of the REST endpoint to route to different 
+versions of backend services.
 
 e.g.
 
@@ -74,7 +75,9 @@ route:
 In the above example, the REST endpoint "/api/hello/world" will route the HTTP request to "hello.world" and
 the system will route "hello.world" to "v2.hello.world".
 
-In this case, we usually deploy more than one REST automation gatways for user facing. We can use DNS routing to route a percentage of current user requests to the REST automation gateway that sends requests to version 2 of the backend service.
+In this case, we usually deploy more than one REST automation gatways for user facing. We can use DNS routing to 
+route a percentage of current user requests to the REST automation gateway that sends requests to version 2 of the 
+backend service.
 
 
 ---

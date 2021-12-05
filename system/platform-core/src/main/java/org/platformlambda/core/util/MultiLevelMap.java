@@ -31,7 +31,7 @@ public class MultiLevelMap {
     }
 
     public MultiLevelMap(Map<String, Object> map) {
-        this.multiLevels = map;
+        this.multiLevels = map == null? new HashMap<>() : map;
     }
 
     public Map<String, Object> getMap() {

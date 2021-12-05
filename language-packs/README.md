@@ -2,7 +2,8 @@
 
 Language packs are designed to be minimalist. It connects to the network through a language-connector.
 
-The language-connector is a "sidecar" application that you can deploy with your application that is built with a language pack.
+The language-connector is a "sidecar" application that you can deploy with your application that is built with a 
+language pack.
 
 ## Python
 

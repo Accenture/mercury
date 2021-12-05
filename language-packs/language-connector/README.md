@@ -2,7 +2,8 @@
 
 ## Language connector
 
-This is the language connector module to be used as a sidecar for your microservices module that is written using a language pack. e.g. Python, Node.js and Go.
+This is the language connector module to be used as a sidecar for your microservices module that is written using a 
+language pack. e.g. Python, Node.js and Go.
 
 ## Build from source
 

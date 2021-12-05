@@ -71,6 +71,7 @@ public class InfoService implements LambdaFunction {
     private static final String SYSTEM_ENV = "environment";
     private static final String APP_PROPS = "properties";
     private static final String MISSING = "missing";
+    private static final String JOURNAL = "journal";
     private static final Date START_TIME = new Date();
     private final String description;
     private final Boolean isServiceMonitor;
@@ -107,9 +108,11 @@ public class InfoService implements LambdaFunction {
                 throw new IllegalArgumentException("Routing table is not visible from a presence monitor - " +
                         "please try it from a regular application instance");
             } else {
+                PostOffice po = PostOffice.getInstance();
                 result.put(ROUTING, getRoutingTable());
+                result.put(JOURNAL, po.getJournaledRoutes());
                 // add route substitution list if any
-                Map<String, String> substitutions = PostOffice.getInstance().getRouteSubstitutionList();
+                Map<String, String> substitutions = po.getRouteSubstitutionList();
                 if (!substitutions.isEmpty()) {
                     result.put(ROUTE_SUBSTITUTION, substitutions);
                 }

@@ -51,15 +51,20 @@ public class PostOffice {
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String MULTICAST_YAML = "multicast.yaml";
+    private static final String JOURNAL_YAML = "journal.yaml";
     private static final String APP_GROUP_PREFIX = "monitor-";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
+    private static final List<String> journaledRoutes = new ArrayList<>();
+    private final String traceLogHeader;
     private static final PostOffice instance = new PostOffice();
 
     private PostOffice() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
         Platform platform = Platform.getInstance();
         try {
             // start built-in services
@@ -67,16 +72,22 @@ public class PostOffice {
             platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 10);
             log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
-            AppConfigReader config = AppConfigReader.getInstance();
             if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
                 loadRouteSubstitution();
             }
-            String location = config.getProperty(MULTICAST_YAML);
-            if (location != null) {
-                log.info("Loading multicast config from {}", location);
+            String multicast = config.getProperty(MULTICAST_YAML);
+            if (multicast != null) {
+                log.info("Loading multicast config from {}", multicast);
                 ConfigReader reader = new ConfigReader();
-                reader.load(location);
-                startMulticast(reader.getMap());
+                reader.load(multicast);
+                loadMulticast(reader.getMap());
+            }
+            String journal = config.getProperty(JOURNAL_YAML);
+            if (journal != null) {
+                log.info("Loading journal config from {}", journal);
+                ConfigReader reader = new ConfigReader();
+                reader.load(journal);
+                loadJournalRoutes(reader.getMap());
             }
 
         } catch (IOException e) {
@@ -97,8 +108,39 @@ public class PostOffice {
         return cloudOrigins;
     }
 
+    public List<String> getJournaledRoutes() {
+        return journaledRoutes;
+    }
+
+    public String getTraceLogHeader() {
+        return traceLogHeader;
+    }
+
     @SuppressWarnings("unchecked")
-    private void startMulticast(Map<String, Object> map) {
+    private void loadJournalRoutes(Map<String, Object> map) {
+        Object o = map.get("journal");
+        if (o == null) {
+            log.warn("Missing 'journal' section");
+        } else if (o instanceof List) {
+            List<Object> entries = (List<Object>) o;
+            for (Object item: entries) {
+                String route = item.toString();
+                if (!journaledRoutes.contains(route)) {
+                    journaledRoutes.add(route);
+                }
+            }
+            if (journaledRoutes.size() > 1) {
+                Collections.sort(journaledRoutes);
+            }
+            log.info("Total {} route{} will be recorded in journal", journaledRoutes.size(),
+                    journaledRoutes.size() == 1? "" : "s");
+        } else {
+            log.warn("Invalid 'journal' section - it must be a list of route names");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadMulticast(Map<String, Object> map) {
         Set<String> list = new HashSet<>();
         Platform platform = Platform.getInstance();
         MultiLevelMap multi = new MultiLevelMap(map);
@@ -207,8 +249,7 @@ public class PostOffice {
     }
 
     /**
-     * User application may obtain the trace ID of the current transaction so it can use for logging
-     * or passing to an external system.
+     * User application may obtain the trace ID of the current transaction
      *
      * @return trace ID of the current transaction
      */
@@ -239,8 +280,7 @@ public class PostOffice {
     }
 
     /**
-     * User application may add key-values using this method so they are shown as annotations
-     * in the trace report.
+     * User application may add key-values using this method
      *
      * @param key of the annotation
      * @param value of the annotation
@@ -911,64 +951,51 @@ public class PostOffice {
     }
 
     /**
+     * Check if all routes in a list exist
+     *
+     * @param routes list of service route names
+     * @return true or false
+     */
+    public boolean exists(String... routes) {
+        if (routes == null || routes.length == 0) {
+            return false;
+        }
+        if (routes.length == 1) {
+            return routeExists(routes[0]);
+        }
+        for (String r: routes) {
+            if (!routeExists(r)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /**
      * Check if a route or origin-ID exists.
      *
-     * The response should be instantaneous because the cloud connector
-     * is designed to maintain a distributed routing table.
+     * The response should be instantaneous using a distributed routing table.
      *
      * @param route name of the target service
      * @return true or false
      */
-    public boolean exists(String... route) {
-        if (route == null || route.length == 0) {
+    private boolean routeExists(String route) {
+        if (route == null) {
             return false;
         }
-        int local = 0;
         Platform platform = Platform.getInstance();
-        List<String> remoteServices = new ArrayList<>();
-        for (String r: route) {
-            if (r == null) {
-                return false;
-            }
-            String actualRoute = substituteRouteIfAny(r);
-            if (platform.hasRoute(actualRoute)) {
-                local++;
-            } else {
-                remoteServices.add(actualRoute);
-            }
-        }
-        // all routes are local
-        if (local == route.length && remoteServices.isEmpty()) {
+        String dest = substituteRouteIfAny(route);
+        if (platform.hasRoute(dest)) {
             return true;
         }
-        // check if the remote services are reachable
         if (Platform.isCloudSelected()) {
-            try {
-                if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
-                    if (remoteServices.size() == 1) {
-                        String dest = remoteServices.get(0);
-                        // optimize when checking for single route
-                        if (dest.contains(".")) {
-                            ConcurrentMap<String, String> targets = cloudRoutes.get(dest);
-                            return targets != null && !targets.isEmpty();
-                        } else {
-                            return cloudOrigins.containsKey(dest);
-                        }
-                    } else {
-                        EventEnvelope response = request(ServiceDiscovery.SERVICE_QUERY, 3000,
-                                remoteServices,
-                                new Kv(ServiceDiscovery.TYPE, ServiceDiscovery.FIND),
-                                new Kv(ServiceDiscovery.ROUTE, "*"));
-                        if (response.getBody() instanceof Boolean) {
-                            return (Boolean) response.getBody();
-                        }
-                    }
+            // check if the remote service is reachable
+            if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+                if (dest.contains(".")) {
+                    ConcurrentMap<String, String> targets = cloudRoutes.get(dest);
+                    return targets != null && !targets.isEmpty();
+                } else {
+                    return cloudOrigins.containsKey(dest);
                 }
-            } catch (IOException | TimeoutException e) {
-                log.warn("Unable to find route {} - {}", route, e.getMessage());
-            } catch (AppException e) {
-                // this should not occur
-                log.error("Unable to find route {} - ({}) {}", route, e.getStatus(), e.getMessage());
             }
         }
         return false;
@@ -978,12 +1005,26 @@ public class PostOffice {
      * Search for all application instances that contain the service route
      *
      * @param route for a service
-     * @return list of application instances
+     * @return list of application instance IDs (aka originId)
+     */
+    public List<String> search(String route) {
+        return search(route, false);
+    }
+
+    /**
+     * Search for all application instances that contain the service route
+     *
+     * @param route for a service
+     * @param remoteOnly if true, search only from service registry. Otherwise, check local registry too.
+     * @return list of application instance IDs (aka originId)
      */
     @SuppressWarnings("unchecked")
-    public List<String> search(String route) {
+    public List<String> search(String route, boolean remoteOnly) {
         Platform platform = Platform.getInstance();
         String actualRoute = substituteRouteIfAny(route);
+        if (!remoteOnly && platform.hasRoute(actualRoute)) {
+            return Collections.singletonList(platform.getOrigin());
+        }
         if (Platform.isCloudSelected()) {
             try {
                 if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
@@ -1001,11 +1042,7 @@ public class PostOffice {
                 log.error("Unable to search route {} - ({}) {}", route, e.getStatus(), e.getMessage());
             }
         }
-        if (platform.hasRoute(actualRoute)) {
-            return Collections.singletonList(platform.getOrigin());
-        } else {
-            return Collections.emptyList();
-        }
+        return Collections.emptyList();
     }
 
 }

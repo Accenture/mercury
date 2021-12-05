@@ -36,7 +36,6 @@ import java.util.Map;
 
 public class MultipartPayload {
     private static final Logger log = LoggerFactory.getLogger(MultipartPayload.class);
-    public static final String OFFSET = "_offset_";
     public static final String ID = "_id_";
     public static final String COUNT = "_blk_";
     public static final String TOTAL = "_max_";
@@ -57,10 +56,6 @@ public class MultipartPayload {
     }
 
     public void incoming(EventEnvelope message) throws IOException {
-        incoming(message, -1);
-    }
-
-    public void incoming(EventEnvelope message, long offset) throws IOException {
         PostOffice po = PostOffice.getInstance();
         Map<String, String> control = message.getHeaders();
         if (message.getTo() != null) {
@@ -68,9 +63,6 @@ public class MultipartPayload {
             // remove special routing qualifier for presence monitor events
             if (to.contains(TO_MONITOR)) {
                 message.setTo(to.substring(0, to.indexOf(TO_MONITOR)));
-            }
-            if (offset >= 0) {
-                message.setHeader(OFFSET, offset);
             }
             po.send(message);
         } else if (isDataBlock(control) && control.containsKey(ID) &&
@@ -92,9 +84,6 @@ public class MultipartPayload {
                     if (total == segments.size()) {
                         EventEnvelope reconstructed = new EventEnvelope();
                         reconstructed.load(segments.toBytes());
-                        if (offset >= 0) {
-                            reconstructed.setHeader(OFFSET, offset);
-                        }
                         cache.remove(id);
                         po.send(reconstructed);
                     } else {

@@ -18,12 +18,15 @@
 
 package org.platformlambda.core.models;
 
+import java.util.Map;
+
 public class ProcessStatus {
 
     public boolean success;
     public float executionTime;
     public int status;
     public String exception;
+    public Map<String, Object> inputOutput;
 
     /**
      * Positive result
@@ -33,6 +36,11 @@ public class ProcessStatus {
     public ProcessStatus(float executionTime) {
         this.executionTime = executionTime;
         this.success = true;
+    }
+
+    public ProcessStatus setInputOutput(Map<String, Object> inputOutput) {
+        this.inputOutput = inputOutput;
+        return this;
     }
 
     /**

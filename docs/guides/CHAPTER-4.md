@@ -288,7 +288,10 @@ You can define a websocket endpoint for 2 purposes:
 
 ### Websocket server service
 
-To deploy a websocket endpoint for your own application, add this "websocket" section to the rest.yaml config file. You also need to update the "rest" section to expose a websocket access token issurance endpoint. You should implement your websocket authentication API. In this example, it is "v1.ws.api.auth". For testing, you can comment out the authentication portion.
+To deploy a websocket endpoint for your own application, add this "websocket" section to the rest.yaml config file. 
+You also need to update the "rest" section to expose a websocket access token issurance endpoint. You should implement 
+your websocket authentication API. In this example, it is "v1.ws.api.auth". For testing, you can comment out the 
+authentication portion.
 
 ```yaml
 websocket:
@@ -312,7 +315,8 @@ rest:
     tracing: true
 ```
 
-This asks the REST automation to route incoming websocket connection, message and close events to your function. In the above example, it is "my.ws.handler" that points to your custom function.
+This asks the REST automation to route incoming websocket connection, message and close events to your function. 
+In the above example, it is "my.ws.handler" that points to your custom function.
 
 ```java
 LambdaFunction myWsHandler = (headers, body, instance) -> {
@@ -347,11 +351,13 @@ wss://hostname/ws/api/notification:{access_token}?optional_query_string
 
 The application name "notification" is an example only. You can define any application name in the rest.yaml config file.
 
-Note that your websocket server handler function will receive all websocket connection to the specific websocket application. Please implement logic to handle individual user which is identified by the "tx_path".
+Note that your websocket server handler function will receive all websocket connection to the specific websocket 
+application. Please implement logic to handle individual user which is identified by the "tx_path".
 
 ### UI keep-alive
 
-Websocket connection is persistent. To release unused resources, REST automation will disconnect any idle websocket connection in 60 seconds. Please implement keep-alive by sending a "hello" message from the UI like this:
+Websocket connection is persistent. To release unused resources, REST automation will disconnect any idle websocket 
+connection in 60 seconds. Please implement keep-alive by sending a "hello" message from the UI like this:
 
 ```json
 {
@@ -395,8 +401,8 @@ A close event contains a header of "type" = "close". The event body contains the
 }
 ```
 
-If your websocket server function creates temporary resource, you may release the resource using the "tx_path" as a reference.
-
+If your websocket server function creates temporary resource, you may release the resource using the "tx_path" 
+as a reference.
 
 WebSocket is usually employed as a notification channel to the browser so that your service can detect "presence" of 
 the user and asynchronously send notification events to the browser.
@@ -432,9 +438,12 @@ rest:
     tracing: true
 ```
 
-The "subscribe" feature must be set to true for the browser to subscribe to one or more notification topics. The "publish" feature, if turn on, allows peer-to-peer messaging. For security, we recommend to set it to false. You can expose a REST endpoint for a user to send events through a backend service.
+The "subscribe" feature must be set to true for the browser to subscribe to one or more notification topics. 
+The "publish" feature, if turn on, allows peer-to-peer messaging. For security, we recommend to set it to false. 
+You can expose a REST endpoint for a user to send events through a backend service.
 
-The `/api/notification` endpoints are for admin purpose if you want to expose them to DevOps. The two admin endpoints show a list of all topics or a list of websocket connections under a specific topic respectively.
+The `/api/notification` endpoints are for admin purpose if you want to expose them to DevOps. The two admin endpoints 
+show a list of all topics or a list of websocket connections under a specific topic respectively.
 
 ### Subscribe to a notification topic
 
@@ -458,13 +467,17 @@ The browser can unsubscribe from a topic like this:
 }
 ```
 
-A browser will also automatically unsubscribe from all subscribed topics when the browser closes. When the connected websocket backend service application instance fails, the websocket connection to the browser will be closed and current subscriptions will be dropped. The browser application should acquire a websocket access token and reconnect to an available backend service instance. Then subscribe to the topic(s) again.
+A browser will also automatically unsubscribe from all subscribed topics when the browser closes. 
+When the connected websocket backend service application instance fails, the websocket connection to the browser 
+will be closed and current subscriptions will be dropped. The browser application should acquire a websocket access
+token and reconnect to an available backend service instance. Then subscribe to the topic(s) again.
 
-Note that a browser can subscribe to more than one notification topics. e.g. system.alerts, user.1200, workflow.100, etc.
+Note that a browser can subscribe to more than one notification topics. e.g. system.alerts, user.120, workflow.100, etc.
 
 ### Notification topic vs service route name
 
-While both notification topics and service route names use the same convention of lower case and "dots", they are maintained in different registries and thus there is no conflict between the two types of names.
+While both notification topics and service route names use the same convention of lower case and "dots", 
+they are maintained in different registries and thus there is no conflict between the two types of names.
 
 ### Publish from a browser
 
@@ -502,7 +515,8 @@ You may customize the standardized `errorPage.html` in the resources folder for 
 
 ## Static HTML folder
 
-You can tell the rest-automation application to use a static HTML folder in the local file system with one of these methods:
+You can tell the rest-automation application to use a static HTML folder in the local file system with one of 
+these methods:
 
 application.properties
 ```
