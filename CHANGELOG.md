@@ -29,7 +29,8 @@ N/A
 ### Added
 
 1. User defined API authentication functions can be selected using custom HTTP request header
-2. Added "exception chain" transport in EventEnvelope
+2. "Exception chaining" feature in EventEnvelope
+3. New "deferred.commit.log" parameter for backward compatibility with older PowerMock in unit tests
 
 ### Removed
 

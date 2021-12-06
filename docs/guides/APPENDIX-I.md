@@ -1,52 +1,54 @@
 # application.properties
 
-| Key                                         | Value (example)                           | Required  |
-|:--------------------------------------------|:------------------------------------------|:----------|
-| application.name or spring.application.name | Application name                          | Yes       |
-| info.app.version                            | major.minor.build (e.g. 1.0.0)            | Yes       |
-| info.app.description                        | Something about application               | Yes       |
-| web.component.scan                          | your own package path or parent path      | Yes       |
-| server.port                                 | e.g. 8083                                 | Yes*      |
-| rest.server.port                            | e.g. 8083                                 | Required*2|
-| spring.mvc.static-path-pattern              | /**                                       | Yes*      |
-| spring.resources.static-locations           | classpath:/public/                        | Yes*      |
-| jax.rs.application.path                     | /api                                      | Optional*1|
-| show.env.variables                          | comma separated list of variable names    | Optional*1|
-| show.application.properties                 | comma separated list of property names    | Optional*1|
-| cloud.connector                             | kafka, hazelcast, none, etc.              | Optional  |
-| cloud.services                              | e.g. some.interesting.service             | Optional  |
-| snake.case.serialization                    | true (recommended)                        | Optional  |
-| env.variables                               | e.g. MY_ENV:my.env                        | Optional  |
-| safe.data.models                            | packages pointing to your PoJo classes    | Optional  |
-| protect.info.endpoints                      | true or false (default is false)          | Optional*1|
-| trace.http.header                           | comma separated list traceId labels       | *2        |
-| trace.log.header                            | default value is X-Trace-Id               | Optional  |
-| index.redirection                           | comma separated list of URI paths         | Optional*1|
-| index.page                                  | default value is index.html               | Optional*1|
-| application.feature.route.substitution      | default value is false                    | Optional  |
-| route.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| application.feature.topic.substitution      | default value is false                    | Optional  |
-| topic.substitution.file                     | comma separated file(s) or classpath(s)   | Optional  |
-| cloud.client.properties                     | e.g. classpath:/kafka.properties          | connectors|
-| kafka.replication.factor                    | 3                                         | Kafka     |
-| default.app.group.id                        | kafka groupId for the app instance        | Optional  |
-| default.monitor.group.id                    | kafka groupId for the presence-monitor    | Optional  |
-| monitor.topic                               | kafka topic for the presence-monitor      | Optional  |
-| app.topic.prefix                            | multiplex (default value, DO NOT change)  | Optional  |
-| app.partitions.per.topic                    | Max Kafka partitions per topic            | Optional  |
-| max.virtual.topics                          | Max virtual topics = partitions * topics  | Optional  |
-| max.closed.user.groups                      | Number of closed user groups              | Optional  |
-| closed.user.group                           | Closed user group (default 1)             | Optional  |
-| transient.data.store                        | Default value: /tmp/reactive              | Optional  |
-| running.in.cloud                            | Default value: false                      | Optional  |
-| multicast.yaml                              | This is used to define config file path   | Optional  |
-| journal.yaml                                | This is used to define config file path   | Optional  |
-| distributed.trace.aggregation               | Default value: true                       | Optional  |
+| Key                                         | Value (example)                          | Required   |
+|:--------------------------------------------|:-----------------------------------------|:-----------|
+| application.name or spring.application.name | Application name                         | Yes        |
+| info.app.version                            | major.minor.build (e.g. 1.0.0)           | Yes        |
+| info.app.description                        | Something about application              | Yes        |
+| web.component.scan                          | your own package path or parent path     | Yes        |
+| server.port                                 | e.g. 8083                                | Yes*       |
+| rest.server.port                            | e.g. 8083                                | Required*2 |
+| spring.mvc.static-path-pattern              | /**                                      | Yes*       |
+| spring.resources.static-locations           | classpath:/public/                       | Yes*       |
+| jax.rs.application.path                     | /api                                     | Optional*1 |
+| show.env.variables                          | comma separated list of variable names   | Optional*1 |
+| show.application.properties                 | comma separated list of property names   | Optional*1 |
+| cloud.connector                             | kafka, hazelcast, none, etc.             | Optional   |
+| cloud.services                              | e.g. some.interesting.service            | Optional   |
+| snake.case.serialization                    | true (recommended)                       | Optional   |
+| env.variables                               | e.g. MY_ENV:my.env                       | Optional   |
+| safe.data.models                            | packages pointing to your PoJo classes   | Optional   |
+| protect.info.endpoints                      | true or false (default is false)         | Optional*1 |
+| trace.http.header                           | comma separated list traceId labels      | *2         |
+| trace.log.header                            | default value is X-Trace-Id              | Optional   |
+| index.redirection                           | comma separated list of URI paths        | Optional*1 |
+| index.page                                  | default value is index.html              | Optional*1 |
+| application.feature.route.substitution      | default value is false                   | Optional   |
+| route.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
+| application.feature.topic.substitution      | default value is false                   | Optional   |
+| topic.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
+| cloud.client.properties                     | e.g. classpath:/kafka.properties         | connectors |
+| kafka.replication.factor                    | 3                                        | Kafka      |
+| default.app.group.id                        | kafka groupId for the app instance       | Optional   |
+| default.monitor.group.id                    | kafka groupId for the presence-monitor   | Optional   |
+| monitor.topic                               | kafka topic for the presence-monitor     | Optional   |
+| app.topic.prefix                            | multiplex (default value, DO NOT change) | Optional   |
+| app.partitions.per.topic                    | Max Kafka partitions per topic           | Optional   |
+| max.virtual.topics                          | Max virtual topics = partitions * topics | Optional   |
+| max.closed.user.groups                      | Number of closed user groups             | Optional   |
+| closed.user.group                           | Closed user group (default 1)            | Optional   |
+| transient.data.store                        | Default value: /tmp/reactive             | Optional   |
+| running.in.cloud                            | Default value: false                     | Optional   |
+| multicast.yaml                              | This is used to define config file path  | Optional   |
+| journal.yaml                                | This is used to define config file path  | Optional   |
+| distributed.trace.aggregation               | Default value: true                      | Optional   |
+| deferred.commit.log                         | Default value: false                     | Optional*3 |
 
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation application only
+`*3` - optional for unit test purpose only. DO NOT set this parameter in "main" branch for production code.
 
-# transcient data store
+# transient data store
 
 The system handles back-pressure automatically by overflowing memory to a transcient data store. 
 As a cloud native best practice, the folder must be under "/tmp". The default is "/tmp/reactive". 
