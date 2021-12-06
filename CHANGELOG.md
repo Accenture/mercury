@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 1. Transaction journaling
-2. Add default parameter `distributed.trace.aggregation=true` in application.properties such that trace aggregation 
-   can be disabled.
+2. Add parameter `distributed.trace.aggregation` in application.properties such that trace aggregation 
+   may be disabled.
 
 ### Removed
 
