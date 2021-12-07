@@ -51,7 +51,7 @@ public class HealthService implements LambdaFunction {
     private static final String STATUS = "status";
     private static final String ORIGIN = "origin";
     private static final String NAME = "name";
-    private static final String STATUS_CODE = "statusCode";
+    private static final String STATUS_CODE = "status_code";
     private static final String REQUIRED = "required";
     private static final String UPSTREAM = "upstream";
     private static final String NOT_FOUND = "not found";
