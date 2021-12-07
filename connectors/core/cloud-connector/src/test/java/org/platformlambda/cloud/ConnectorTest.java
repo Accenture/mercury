@@ -156,6 +156,6 @@ public class ConnectorTest extends TestBase {
         Assert.assertEquals("UP", result.get("status"));
         Assert.assertEquals("cloud-connector", result.get("name"));
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals(200L, multi.getElement("upstream[0].statusCode"));
+        Assert.assertEquals(200L, multi.getElement("upstream[0].status_code"));
     }
 }
