@@ -285,7 +285,7 @@ public class PresenceConnector implements LambdaFunction {
             String topic = topicPartition.substring(0, hyphen);
             int partition = util.str2int(topicPartition.substring(hyphen + 1));
             ps.unsubscribe(topic, partition);
-            ps.unsubscribe(monitorTopic, 1);
+            ps.unsubscribe(monitorTopic, closedUserGroup);
             ServiceLifeCycle.releaseConnecton("disconnected from "+topicPartition);
             topicPartition = null;
         }
