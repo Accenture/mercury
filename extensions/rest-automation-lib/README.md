@@ -427,7 +427,7 @@ configuration file contains a websocket routing entry to the sample.ws.auth and 
 ### Using websocket for simple notification to the browser
 
 If your application requires only publish/subscribe feature, you can remove the "recipient" service from the websocket 
-config. Just add the publish/subscibe features in the rest.yaml config file like this:
+config. Just add the publish/subscribe features in the rest.yaml config file like this:
 
 ```yaml
 websocket:
@@ -509,7 +509,7 @@ If "publish" feature is turned on, the browser can send text events to a topic l
 
 ### Publish from a backend service
 
-For security, we recommend to disable the publish feature in rest.yaml and perform publishing from a backend service.
+For security, we recommend disabling the publish feature in rest.yaml and perform publishing from a backend service.
 
 The following backend service APIs are available
 
