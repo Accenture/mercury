@@ -58,7 +58,7 @@ public class PostOffice {
     private static final ConcurrentMap<Long, TraceInfo> traces = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
-    private static final List<String> journaledRoutes = new ArrayList<>();
+    private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
     private final String traceLogHeader;
     private static final PostOffice instance = new PostOffice();
 
@@ -108,8 +108,12 @@ public class PostOffice {
         return cloudOrigins;
     }
 
+    public boolean isJournaled(String route) {
+        return journaledRoutes.get(route);
+    }
+
     public List<String> getJournaledRoutes() {
-        return journaledRoutes;
+        return new ArrayList<>(journaledRoutes.keySet());
     }
 
     public String getTraceLogHeader() {
@@ -125,12 +129,7 @@ public class PostOffice {
             List<Object> entries = (List<Object>) o;
             for (Object item: entries) {
                 String route = item.toString();
-                if (!journaledRoutes.contains(route)) {
-                    journaledRoutes.add(route);
-                }
-            }
-            if (journaledRoutes.size() > 1) {
-                Collections.sort(journaledRoutes);
+                journaledRoutes.put(route, true);
             }
             log.info("Total {} route{} will be recorded in journal", journaledRoutes.size(),
                     journaledRoutes.size() == 1? "" : "s");

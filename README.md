@@ -468,13 +468,13 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
     "allocated": "534,773,760"
   },
   "personality": "RESOURCES",
-  "additional.info": {
+  "additional_info": {
     "total": {
-      "virtual.topics": 3,
+      "virtual_topics": 3,
       "topics": 2,
       "connections": 3
     },
-    "virtual.topics": [
+    "virtual_topics": [
       "multiplex.0001-000 -> 2021082260f0b955a9ad427db14a9db751340d61, rest-example v2.1.1",
       "multiplex.0001-001 -> 20210822371949df090644428cd98ae0ba91a69b, lambda-example v2.1.1",
       "multiplex.0001-002 -> 2021082295c030edc07a4a4eb5cb78b6421f5fb7, lambda-example v2.1.1"

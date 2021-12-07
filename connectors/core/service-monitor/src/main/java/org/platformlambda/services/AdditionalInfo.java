@@ -70,8 +70,8 @@ public class AdditionalInfo implements LambdaFunction {
             counts.put("topics", pubSub.size());
             result.put("total", counts);
             List<String> vTopics = getVirtualTopics(connections);
-            result.put("virtual.topics", vTopics);
-            counts.put("virtual.topics", vTopics.size());
+            result.put("virtual_topics", vTopics);
+            counts.put("virtual_topics", vTopics.size());
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");

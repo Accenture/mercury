@@ -77,14 +77,14 @@ public class ConnectorTest extends TestBase {
                     "application/json", headers);
             Assert.assertTrue(response instanceof String);
             Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-            Object info = map.get("additional.info");
+            Object info = map.get("additional_info");
             Assert.assertTrue(info instanceof Map);
             Map<String, Object> infoMap = (Map<String, Object>) info;
             Object tt = infoMap.get("topics");
             Assert.assertTrue(tt instanceof List);
             List<String> topicList = (List<String>) tt;
             Assert.assertEquals(2, topicList.size());
-            Object vt = infoMap.get("virtual.topics");
+            Object vt = infoMap.get("virtual_topics");
             Assert.assertTrue(vt instanceof List);
             List<String> vtList = (List<String>) vt;
             if (vtList.isEmpty()) {
@@ -129,7 +129,7 @@ public class ConnectorTest extends TestBase {
         response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info");
         Assert.assertTrue(response instanceof String);
         map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Object info = map.get("additional.info");
+        Object info = map.get("additional_info");
         Assert.assertTrue(info instanceof Map);
         Map<String, Object> infoMap = (Map<String, Object>) info;
         Object monitorList = infoMap.get("monitors");

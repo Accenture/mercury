@@ -277,7 +277,6 @@ public class WorkerQueue extends WorkerQueues {
                 executor.submit(()->{
                     PostOffice po = PostOffice.getInstance();
                     String traceLogHeader = po.getTraceLogHeader();
-                    List<String> journaledRoutes = po.getJournaledRoutes();
                     po.startTracing(def.getRoute(), event.getTraceId(), event.getTracePath());
                     if (event.getTraceId() != null) {
                         ThreadContext.put(traceLogHeader, event.getTraceId());
@@ -292,7 +291,7 @@ public class WorkerQueue extends WorkerQueues {
                             Map<String, Object> payload = new HashMap<>();
                             payload.put(ANNOTATIONS, trace.annotations);
                             // send input/output dataset to journal if configured in journal.yaml
-                            if (journaledRoutes.contains(def.getRoute())) {
+                            if (po.isJournaled(def.getRoute())) {
                                 payload.put(PAYLOAD, ps.inputOutput);
                             }
                             dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(payload);
