@@ -109,7 +109,7 @@ public class PostOffice {
     }
 
     public boolean isJournaled(String route) {
-        return journaledRoutes.get(route);
+        return journaledRoutes.getOrDefault(route, false);
     }
 
     public List<String> getJournaledRoutes() {
