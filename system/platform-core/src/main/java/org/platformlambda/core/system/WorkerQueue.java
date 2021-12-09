@@ -309,7 +309,7 @@ public class WorkerQueue extends WorkerQueues {
                             }
                             po.send(dt);
                         } catch (Exception e) {
-                            log.error("Unable to send distributed tracing - {}", e.getMessage());
+                            log.error("Unable to send to distributed tracing", e);
                         }
                     }
                     /*
