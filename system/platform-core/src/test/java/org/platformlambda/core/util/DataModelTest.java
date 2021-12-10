@@ -355,8 +355,7 @@ public class DataModelTest {
          */
         String HELLO = "hello world";
         EventEnvelope one = new EventEnvelope();
-        EventEnvelope two = new EventEnvelope().setBody(HELLO);
-        one.setBody(two);
+        one.setBody(new EventEnvelope().setBody(HELLO));
         Assert.assertEquals(HELLO, one.getBody());
     }
 

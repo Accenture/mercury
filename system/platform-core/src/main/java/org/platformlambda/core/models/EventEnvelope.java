@@ -443,8 +443,8 @@ public class EventEnvelope {
             payload = o.orElse(null);
         } else if (body instanceof EventEnvelope) {
             EventEnvelope nested = (EventEnvelope) body;
-            payload = nested.getBody();
-            log.warn("Setting body from nested EventEnvelope is discouraged - system will remove the nested envelope");
+            log.warn("Setting body from nested EventEnvelope is discouraged - system will remove the outer envelope");
+            return setBody(nested.getBody());
         } else {
             payload = body;
         }
