@@ -347,11 +347,17 @@ public class DataModelTest {
         Assert.assertEquals("demo", ex.getMessage());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void envelopeAsInputNotAllowed() {
+    @Test
+    public void nestedEventEnvelopeBodyTest() {
+        /*
+         * Event envelope should not be nested.
+         * When it happens, the body from the nested envelope would be used as the payload.
+         */
+        String HELLO = "hello world";
         EventEnvelope one = new EventEnvelope();
-        EventEnvelope two = new EventEnvelope();
+        EventEnvelope two = new EventEnvelope().setBody(HELLO);
         one.setBody(two);
+        Assert.assertEquals(HELLO, one.getBody());
     }
 
 }

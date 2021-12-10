@@ -441,11 +441,11 @@ public class EventEnvelope {
             this.optional = true;
             Optional<Object> o = (Optional<Object>) body;
             payload = o.orElse(null);
+        } else if (body instanceof EventEnvelope) {
+            EventEnvelope nested = (EventEnvelope) body;
+            payload = nested.getBody();
         } else {
             payload = body;
-        }
-        if (payload instanceof EventEnvelope) {
-            throw new IllegalArgumentException("Invalid payload - EventEnvelope can only be used for event transport");
         }
         // encode body and save object type
         this.encoded = true;
