@@ -444,6 +444,7 @@ public class EventEnvelope {
         } else if (body instanceof EventEnvelope) {
             EventEnvelope nested = (EventEnvelope) body;
             payload = nested.getBody();
+            log.warn("Setting body from nested EventEnvelope is discouraged - system will remove the nested envelope");
         } else {
             payload = body;
         }
