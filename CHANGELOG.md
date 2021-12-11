@@ -23,6 +23,7 @@ N/A
 1. Update JBoss RestEasy library to 3.15.3.Final
 2. Improved po.search(route) to scan local and remote service registries. Added "remoteOnly" selection.
 3. Fix bug in releasing presence monitor topic for specific closed user group
+4. Update log4j library to v2.15.0
 
 ---
 ## Version 2.2.2, 11/12/2021
