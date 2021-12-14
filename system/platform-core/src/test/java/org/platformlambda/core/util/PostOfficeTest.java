@@ -307,8 +307,8 @@ public class PostOfficeTest {
             // only process the 2nd event
             if (counter.incrementAndGet() == 2) {
                 Map<String, Object> result = new HashMap<>();
-                result.put("a", headers);
-                result.put("b", body);
+                result.put("metrics", headers);
+                result.put("journal", body);
                 bench.offer(result);
             }
             return null;
@@ -320,7 +320,7 @@ public class PostOfficeTest {
         platform.registerPrivate(TRACE_PROCESSOR, f, 1);
         platform.registerPrivate(MY_FUNCTION, myFunction, 1);
         EventEnvelope event = new EventEnvelope().setTo(MY_FUNCTION).setFrom(FROM)
-                .setTraceId(TRACE_ID).setTracePath("GET /1").setBody(HELLO);
+                .setTraceId(TRACE_ID).setTracePath("GET /api/hello/world").setBody(HELLO);
         // send twice to test caching mechanism
         po.send(event);
         po.send(event);
@@ -328,13 +328,13 @@ public class PostOfficeTest {
         Map<String, Object> result = bench.poll(10, TimeUnit.SECONDS);
         platform.release(TRACE_PROCESSOR);
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals(MY_FUNCTION, multi.getElement("a.service"));
-        Assert.assertEquals(FROM, multi.getElement("a.from"));
-        Assert.assertEquals(TRACE_ID, multi.getElement("a.id"));
-        Assert.assertEquals("true", multi.getElement("a.success"));
-        Assert.assertEquals(HELLO, multi.getElement("b.payload.input.body"));
-        Assert.assertEquals(RETURN_VALUE, multi.getElement("b.payload.output.body"));
-        Assert.assertEquals(WORLD, multi.getElement("b.annotations.hello"));
+        Assert.assertEquals(MY_FUNCTION, multi.getElement("metrics.service"));
+        Assert.assertEquals(FROM, multi.getElement("metrics.from"));
+        Assert.assertEquals(TRACE_ID, multi.getElement("metrics.id"));
+        Assert.assertEquals("true", multi.getElement("metrics.success"));
+        Assert.assertEquals(HELLO, multi.getElement("journal.payload.input.body"));
+        Assert.assertEquals(RETURN_VALUE, multi.getElement("journal.payload.output.body"));
+        Assert.assertEquals(WORLD, multi.getElement("journal.annotations.hello"));
     }
 
     @SuppressWarnings("unchecked")
