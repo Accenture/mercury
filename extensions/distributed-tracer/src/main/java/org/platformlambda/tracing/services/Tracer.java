@@ -47,7 +47,7 @@ public class Tracer implements LambdaFunction {
         Map<String, Object> data = new HashMap<>();
         data.put("type", "trace");
         data.put("trace", transform(headers));
-        data.put("annotations", body);
+        data.put("data", body);
         // send the trace info to all connected UI clients
         PostOffice po = PostOffice.getInstance();
         Set<String> txPaths = WsTrace.getConnections();
