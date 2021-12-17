@@ -21,7 +21,6 @@ package org.platformlambda.automation.tests;
 import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.automation.mock.TestBase;
-import org.platformlambda.automation.services.SimpleNotification;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
@@ -29,6 +28,7 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.UserNotification;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,9 +54,13 @@ public class WebSocketTests extends TestBase {
     @Test
     public void userChannelTest() throws IOException, AppException, TimeoutException, InterruptedException {
         BlockingQueue<Boolean> matched = new ArrayBlockingQueue<>(1);
+        BlockingQueue<Boolean> received = new ArrayBlockingQueue<>(1);
         BlockingQueue<Boolean> completion = new ArrayBlockingQueue<>(1);
+        String HELLO_WORLD_CHANNEL = "hello.world";
+        String ANOTHER_CHANNEL = "another.channel";
         String PUBLISH_MESSAGE = "1234567890";
         String USER_MESSAGE = "user-message";
+        String TEST_MESSAGE = "test message";
         AtomicBoolean subscribed = new AtomicBoolean(false);
         AtomicBoolean published = new AtomicBoolean(false);
         AtomicBoolean messaged = new AtomicBoolean(false);
@@ -88,21 +92,23 @@ public class WebSocketTests extends TestBase {
                 String txPath = headers.get(TX_PATH);
                 Map<String, Object> subscribeThis = new HashMap<>();
                 subscribeThis.put("type", "subscribe");
-                subscribeThis.put("topic", "hello.world");
+                subscribeThis.put("topic", HELLO_WORLD_CHANNEL);
                 po.send(txPath, subscribeThis);
                 po.send(txPath, USER_MESSAGE);
                 Map<String, Object> subscribeThat = new HashMap<>();
                 subscribeThat.put("type", "subscribe");
-                subscribeThat.put("topic", "another.channel");
+                subscribeThat.put("topic", ANOTHER_CHANNEL);
                 po.send(txPath, subscribeThat);
                 Map<String, Object> publish = new HashMap<>();
                 publish.put("type", "publish");
-                publish.put("topic", "hello.world");
+                publish.put("topic", HELLO_WORLD_CHANNEL);
                 publish.put("message", PUBLISH_MESSAGE);
                 po.send(txPath, publish);
             }
             if ("string".equals(type)) {
-                if (PUBLISH_MESSAGE.equals(body)) {
+                if (TEST_MESSAGE.equals(body)) {
+                    received.offer(true);
+                } else if (PUBLISH_MESSAGE.equals(body)) {
                     matched.offer(true);
                 } else {
                     String text = (String) body;
@@ -137,7 +143,7 @@ public class WebSocketTests extends TestBase {
         Assert.assertTrue(checkResult1.containsKey("topics"));
         Assert.assertTrue(checkResult1.get("topics") instanceof List);
         List<String> subscription = (List<String>) checkResult1.get("topics");
-        Assert.assertTrue(subscription.contains("hello.world"));
+        Assert.assertTrue(subscription.contains(HELLO_WORLD_CHANNEL));
         AsyncHttpRequest check2 = new AsyncHttpRequest();
         check2.setMethod("GET");
         check2.setUrl("/api/notification/hello.world");
@@ -146,10 +152,16 @@ public class WebSocketTests extends TestBase {
         EventEnvelope resCheck2 = po.request(HTTP_REQUEST, 5000, check2.toMap());
         Assert.assertTrue(resCheck2.getBody() instanceof Map);
         Map<String, Object> checkResult2 = (Map<String, Object>) resCheck2.getBody();
-        Assert.assertTrue(checkResult2.containsKey("hello.world"));
+        Assert.assertTrue(checkResult2.containsKey(HELLO_WORLD_CHANNEL));
         // backend service can publish directly to browser event channel
-        SimpleNotification notifier = SimpleNotification.getInstance();
-        notifier.publish("another.channel", "test message");
+        UserNotification notifier = UserNotification.getInstance();
+        List<String> topics = notifier.listTopics();
+        Assert.assertTrue(topics.contains(HELLO_WORLD_CHANNEL));
+        Assert.assertTrue(topics.contains(ANOTHER_CHANNEL));
+        Map<String, List<String>> users = notifier.getTopic(HELLO_WORLD_CHANNEL);
+        Assert.assertTrue(users.containsKey(platform.getOrigin()));
+        notifier.publish(ANOTHER_CHANNEL, TEST_MESSAGE);
+        received.poll(10, TimeUnit.SECONDS);
         client.close();
         completion.poll(10, TimeUnit.SECONDS);
         Assert.assertTrue(subscribed.get());

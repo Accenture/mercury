@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.automation.services;
+package org.platformlambda.core.util;
 
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
@@ -30,20 +30,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-public class SimpleNotification {
+public class UserNotification {
     private static final String NOTIFICATION_MANAGER = "notification.manager";
     private static final String TYPE = "type";
     private static final String TOPIC = "topic";
     private static final String PUBLISH = "publish";
     private static final String LIST = "list";
     private static final long TIMEOUT = 12000;
-    private static final SimpleNotification instance = new SimpleNotification();
+    private static final UserNotification instance = new UserNotification();
 
-    private SimpleNotification() {
+    private UserNotification() {
         // singleton
     }
 
-    public static SimpleNotification getInstance() {
+    public static UserNotification getInstance() {
         return instance;
     }
 
@@ -56,7 +56,8 @@ public class SimpleNotification {
                 throw new IllegalArgumentException(e.getMessage());
             }
         } else {
-            throw new IllegalArgumentException("Notification service not reachable");
+            throw new IllegalArgumentException("Notification service not reachable - " +
+                    "did you forget to deploy REST automation");
         }
     }
 
@@ -69,7 +70,8 @@ public class SimpleNotification {
             return result instanceof List? (List<String>) result: new ArrayList<>();
 
         } else {
-            throw new IllegalArgumentException("Notification service not reachable");
+            throw new IllegalArgumentException("Notification service not reachable - " +
+                    "did you forget to deploy REST automation");
         }
     }
 
@@ -85,7 +87,8 @@ public class SimpleNotification {
             return result instanceof Map? (Map<String, List<String>>) result: new HashMap<>();
 
         } else {
-            throw new IllegalArgumentException("Notification service not reachable");
+            throw new IllegalArgumentException("Notification service not reachable - " +
+                    "did you forget to deploy REST automation");
         }
     }
 

@@ -493,9 +493,9 @@ If "publish" feature is turned on, the browser can send text events to a topic l
 
 ### Publish from a backend service
 
-For security, we recommend to disable the publish feature in rest.yaml and perform publishing from a backend service.
+For security, we recommend disabling the publish feature in rest.yaml and perform publishing from a backend service.
 
-The following backend service APIs are available
+There is a convenient class "UserNotification" in the platform core library that provides the following APIs:
 
 ```java
 public void publish(String topic, String message);
