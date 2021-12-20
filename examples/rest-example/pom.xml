@@ -18,7 +18,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <log4j2.version>2.16.0</log4j2.version>
+        <log4j2.version>2.17.0</log4j2.version>
         <artemis.version>2.17.0</artemis.version>
         <hazelcast.version>4.2</hazelcast.version>
         <kafka.version>2.8.1</kafka.version>
