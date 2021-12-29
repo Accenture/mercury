@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.2.3, 12/19/2021
+## Version 2.2.3, 12/29/2021
 
 ### Added
 
@@ -23,10 +23,11 @@ N/A
 1. Update JBoss RestEasy library to 3.15.3.Final
 2. Improved po.search(route) to scan local and remote service registries. Added "remoteOnly" selection.
 3. Fix bug in releasing presence monitor topic for specific closed user group
-4. Update Apache log4j to version 2.17.0
-5. Update Spring Boot parent to version 2.6.1 to fetch Netty 4.1.70.Final
-6. Update Vertx to version 4.2.2
-7. Convenient class "UserNotification" for backend service to publish events to the UI when REST automation is deployed
+4. Update Apache log4j to version 2.17.1
+5. Update Spring Boot parent to version 2.6.1
+6. Update Netty to version 4.1.72.Final
+7. Update Vertx to version 4.2.2
+8. Convenient class "UserNotification" for backend service to publish events to the UI when REST automation is deployed
 
 ---
 ## Version 2.2.2, 11/12/2021
