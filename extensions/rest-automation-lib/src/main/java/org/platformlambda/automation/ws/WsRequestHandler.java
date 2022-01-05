@@ -185,12 +185,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
             })
             .endHandler(end -> log.debug("Session {} completed {}", session, ws.closeStatusCode()))
             .closeHandler(close -> {
-                try {
-                    handleClose(session);
-                } catch (IOException e) {
-                    log.error("Unable to inform {} when closing {} - {}",
-                            MainModule.NOTIFICATION_MANAGER, session, e.getMessage());
-                }
+                handleClose(session);
                 connections.remove(session);
                 try {
                     platform.release(session);
@@ -265,22 +260,32 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         }
     }
 
-    private void handleClose(String txPath) throws IOException {
-        String origin = Platform.getInstance().getOrigin();
-        PostOffice po = PostOffice.getInstance();
+    private void handleClose(String txPath) {
+        final String origin = Platform.getInstance().getOrigin();
+        final PostOffice po = PostOffice.getInstance();
         log.info("Session {} closed", txPath);
         WsMetadata md = connections.get(txPath);
         if (md != null) {
-            String target = md.session + "@" + origin;
             // tell notification manager to clear routing entries
-            po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLOSE), new Kv(TX_PATH, target));
+            String target = md.session + "@" + origin;
+            try {
+                po.broadcast(MainModule.NOTIFICATION_MANAGER, new Kv(TYPE, CLOSE), new Kv(TX_PATH, target));
+            } catch (IOException e) {
+                log.error("Unable to inform {} when closing {} - {}",
+                        MainModule.NOTIFICATION_MANAGER, txPath, e.getMessage());
+            }
             if (!WsEntry.NONE_PROVIDED.equals(md.recipient)) {
                 Map<String, Object> event = new HashMap<>();
                 event.put(APPLICATION, md.application);
                 event.put(ORIGIN, origin);
                 event.put(TX_PATH, target);
                 // broadcast to multiple instance of the recipient service
-                po.broadcast(new EventEnvelope().setTo(md.recipient).setBody(event).setHeader(TYPE, CLOSE));
+                try {
+                    po.broadcast(new EventEnvelope().setTo(md.recipient).setBody(event).setHeader(TYPE, CLOSE));
+                } catch (IOException e) {
+                    log.error("Unable to inform recipient {} when closing {} - {}",
+                            md.recipient, txPath, e.getMessage());
+                }
             }
         }
     }
@@ -334,6 +339,8 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
 
         @Override
         public void run() {
+            final String origin = Platform.getInstance().getOrigin();
+            final PostOffice po = PostOffice.getInstance();
             final long EXPIRY = 60000;
             long t1 = System.currentTimeMillis();
             while (normal) {
@@ -351,7 +358,17 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                         WsMetadata md = connections.get(conn);
                         if (md != null) {
                             connections.remove(conn);
-                            log.warn("{} expired", md.session);
+                            log.warn("Session {} expired", md.session);
+                            // tell notification manager to clear routing entries
+                            String target = md.session + "@" + origin;
+                            try {
+                                po.broadcast(MainModule.NOTIFICATION_MANAGER,
+                                        new Kv(TYPE, CLOSE), new Kv(TX_PATH, target));
+                            } catch (IOException e) {
+                                log.error("Unable to broadcast to {} - {}",
+                                        MainModule.NOTIFICATION_MANAGER, e.getMessage());
+                            }
+                            // drop connection due to inactivity
                             if (!md.ws.isClosed()) {
                                 md.ws.close((short) 1003, "Idle for " + (EXPIRY / 1000) + " seconds");
                             }
