@@ -310,7 +310,12 @@ public class NotificationManager implements LambdaFunction {
                     String txPath = t.substring(0, at);
                     String peerOrigin = t.substring(at + 1);
                     if (origin.equals(peerOrigin)) {
-                        po.send(txPath, body);
+                        try {
+                            po.send(txPath, body);
+                        } catch (IOException e) {
+                            log.warn("Unable to publish to {} because connection may have dropped - {}",
+                                    txPath, e.getMessage());
+                        }
                     } else {
                         if (!isFinal) {
                             peers.add(peerOrigin);
