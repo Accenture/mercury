@@ -1,5 +1,5 @@
 FROM openjdk:11-jre-slim
 EXPOSE 9092
 WORKDIR /app
-COPY target/kafka-standalone-2.2.3.jar .
-ENTRYPOINT ["java","-jar","kafka-standalone-2.2.3.jar"]
+COPY target/kafka-standalone-2.3.0.jar .
+ENTRYPOINT ["java","-jar","kafka-standalone-2.3.0.jar"]
