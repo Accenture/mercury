@@ -71,7 +71,7 @@ public class CryptoApi {
         try {
             KeyPairGenerator kg = KeyPairGenerator.getInstance(RSA);
             kg.initialize(RSA_KEY_SIZE);
-            return KeyPairGenerator.getInstance(RSA).generateKeyPair();
+            return kg.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
             // this does not happen
             return null;
