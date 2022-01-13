@@ -78,10 +78,9 @@ public class CryptoTest {
         byte[] pri = kp.getPrivate().getEncoded();
         // encrypt
         byte[] encrypted = crypto.rsaEncrypt(input, pub);
-        System.out.println(encrypted.length);
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
-        // cannot use assertEquals because we need to do byte-by-byte comparison
+        // do a byte-by-byte comparison
         Assert.assertArrayEquals(input, decrypted);
     }
 
