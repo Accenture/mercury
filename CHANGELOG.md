@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.3.0, 1/13/2022
+## Version 2.3.0, 1/28/2022
 
 ### Added
 
@@ -20,8 +20,9 @@ N/A
 
 1. Update copyright notice
 2. Update Vertx to version 4.2.3
-3. Bugfix - RSA key generator
+3. Bugfix - RSA key generator supporting key length from 1024 to 4096 bits
 4. CryptoAPI - support different AES algorithms and custom IV
+5. Update Spring Boot to version 2.6.3
 
 ---
 ## Version 2.2.3, 12/29/2021
