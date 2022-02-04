@@ -7,7 +7,7 @@
     <artifactId>rest-automation</artifactId>
 
     <packaging>jar</packaging>
-    <version>2.3.0</version>
+    <version>2.3.1</version>
     <name>REST automation library</name>
 
     <parent>
@@ -25,6 +25,7 @@
         <hazelcast.version>4.2</hazelcast.version>
         <kafka.version>2.8.1</kafka.version>
         <gson.version>2.8.9</gson.version>
+        <tomcat.version>9.0.58</tomcat.version>
         <java.version>1.8</java.version>
     </properties>
 
@@ -40,12 +41,11 @@
     </repositories>
 
     <dependencies>
-
         <!-- since this is a library, we set the dependencies as "provided" so you can use newer dependencies -->
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>2.3.0</version>
+            <version>2.3.1</version>
             <scope>provided</scope>
         </dependency>
 
@@ -58,13 +58,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>2.3.0</version>
+            <version>2.3.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>2.3.0</version>
+            <version>2.3.1</version>
             <scope>provided</scope>
         </dependency>
 
