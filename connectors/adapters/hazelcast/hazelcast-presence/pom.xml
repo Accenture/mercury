@@ -50,12 +50,6 @@
             <version>2.3.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>platform-core</artifactId>
-            <version>2.3.1</version>
-        </dependency>
-
         <!-- https://mvnrepository.com/artifact/junit/junit -->
         <dependency>
             <groupId>junit</groupId>
@@ -107,7 +101,7 @@
                 <!-- DO NOT CHANGE THIS
                      AppStarter will find your Main Application(s) -->
                 <configuration>
-                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
+                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
                 </configuration>
                 <executions>
                     <execution>

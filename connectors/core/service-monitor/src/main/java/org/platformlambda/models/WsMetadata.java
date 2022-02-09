@@ -18,18 +18,15 @@
 
 package org.platformlambda.models;
 
-import io.vertx.core.http.ServerWebSocket;
-
 public class WsMetadata {
 
-    public String origin, session;
-    public ServerWebSocket ws;
+    public String origin, session, txPath;
     public long lastAccess = System.currentTimeMillis();
 
-    public WsMetadata(ServerWebSocket ws, String origin, String session) {
-        this.ws = ws;
-        this.origin = origin;
+    public WsMetadata(String session, String txPath, String origin) {
         this.session = session;
+        this.txPath = txPath;
+        this.origin = origin;
     }
 
     public void touch() {
