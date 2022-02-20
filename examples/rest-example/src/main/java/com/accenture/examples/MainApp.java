@@ -72,7 +72,7 @@ public class MainApp implements EntryPoint {
          *
          * platform.startCloudServices();
          */
-        // connect to the network event streams so it can automatically discover other services
+        // connect to the network event streams to automatically discover other services
         platform.connectToCloud();
 
         log.info("Application started");
