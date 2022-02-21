@@ -26,7 +26,7 @@ N/A
 
 ### Added
 
-Add support of queue API in native pub/sub module for improved ESB compatibility
+N/A
 
 ### Removed
 
