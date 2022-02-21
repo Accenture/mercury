@@ -21,9 +21,9 @@ package org.platformlambda.tibco.services;
 import com.tibco.tibjms.admin.TibjmsAdmin;
 import com.tibco.tibjms.admin.TibjmsAdminException;
 import com.tibco.tibjms.admin.TopicInfo;
+import com.tibco.tibjms.admin.QueueInfo;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.tibco.TibcoConnector;
 
@@ -36,6 +36,7 @@ public class TopicManager implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String TOPIC = "topic";
+    private static final String QUEUE = "queue";
     private static final String CREATE = "create";
     private static final String DELETE = "delete";
     private static final String LIST = "list";
@@ -62,21 +63,30 @@ public class TopicManager implements LambdaFunction {
                 String origin = headers.get(TOPIC);
                 return topicPartitions(origin);
             }
-            // if origin is not specified, it will create the dedicated topic for a new application that is starting up
-            if (CREATE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
-                if (headers.containsKey(PARTITIONS)) {
-                    int partitions = Math.max(1, Utility.getInstance().str2int(headers.get(PARTITIONS)));
-                    createTopic(headers.get(TOPIC), partitions);
-                } else {
-                    createTopic(headers.get(TOPIC));
+            if (CREATE.equals(headers.get(TYPE))) {
+                int partitions = Utility.getInstance().str2int(headers.getOrDefault(PARTITIONS, "-1"));
+                if (headers.containsKey(TOPIC)) {
+                    if (partitions > -1) {
+                        createTopic(headers.get(TOPIC), partitions);
+                    } else {
+                        createTopic(headers.get(TOPIC));
+                    }
+                } else if (headers.containsKey(QUEUE)) {
+                    createQueue(headers.get(QUEUE));
                 }
                 return true;
             }
-            // delete topic when an application instance expires
-            if (DELETE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
-                String origin = headers.get(TOPIC);
-                if (topicExists(origin)) {
-                    deleteTopic(origin);
+            if (DELETE.equals(headers.get(TYPE))) {
+                if (headers.containsKey(TOPIC)) {
+                    String topic = headers.get(TOPIC);
+                    if (topicExists(topic)) {
+                        deleteTopic(topic);
+                    }
+                } else if (headers.containsKey(QUEUE)) {
+                    String queue = headers.get(QUEUE);
+                    if (topicExists(queue)) {
+                        deleteQueue(queue);
+                    }
                 }
                 return true;
             }
@@ -90,13 +100,12 @@ public class TopicManager implements LambdaFunction {
         }
         TibjmsAdmin admin = TibcoConnector.getAdminClient();
         try {
-            return admin.getTopic(topic) != null;
+            return admin.getTopic(topic) != null || admin.getQueue(topic) != null;
         } catch (TibjmsAdminException e) {
             return false;
         }
     }
 
-    @SuppressWarnings("unchecked")
     private int topicPartitions(String topic) throws TibjmsAdminException {
         if (topicSubstitution) {
             int n = 0;
@@ -159,6 +168,21 @@ public class TopicManager implements LambdaFunction {
         if (topicExists(topic)) {
             TibjmsAdmin admin = TibcoConnector.getAdminClient();
             admin.destroyTopic(topic);
+        }
+    }
+
+    private void createQueue(String queue) throws TibjmsAdminException {
+        if (!topicExists(queue)) {
+            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            QueueInfo info = new QueueInfo(queue);
+            admin.createQueue(info);
+        }
+    }
+
+    private void deleteQueue(String queue) throws TibjmsAdminException {
+        if (topicExists(queue)) {
+            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            admin.destroyQueue(queue);
         }
     }
 

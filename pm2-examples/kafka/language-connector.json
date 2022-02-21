@@ -7,10 +7,10 @@
         "args":[
             "-Dcloud.connector=kafka",
             "-jar",
-            "language-packs/language-connector/target/language-connector-2.3.1.jar"
+            "language-packs/language-connector/target/language-connector-2.3.2.jar"
         ],
         "watch":[
-            "language-packs/language-connector/target/language-connector-2.3.1.jar"
+            "language-packs/language-connector/target/language-connector-2.3.2.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

@@ -39,6 +39,7 @@ public class TopicManager implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String TOPIC = "topic";
+    private static final String QUEUE = "queue";
     private static final String CREATE = "create";
     private static final String DELETE = "delete";
     private static final String LIST = "list";
@@ -85,21 +86,30 @@ public class TopicManager implements LambdaFunction {
                 String origin = headers.get(TOPIC);
                 return topicPartitions(origin);
             }
-            // if origin is not specified, it will create the dedicated topic for a new application that is starting up
-            if (CREATE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
-                if (headers.containsKey(PARTITIONS)) {
-                    int partitions = Math.max(1, Utility.getInstance().str2int(headers.get(PARTITIONS)));
-                    createTopic(headers.get(TOPIC), partitions);
-                } else {
-                    createTopic(headers.get(TOPIC));
+            if (CREATE.equals(headers.get(TYPE))) {
+                int partitions = Utility.getInstance().str2int(headers.getOrDefault(PARTITIONS, "-1"));
+                if (headers.containsKey(TOPIC)) {
+                    if (partitions > -1) {
+                        createTopic(headers.get(TOPIC), partitions);
+                    } else {
+                        createTopic(headers.get(TOPIC));
+                    }
+                } else if (headers.containsKey(QUEUE)) {
+                    createQueue(headers.get(QUEUE));
                 }
                 return true;
             }
-            // delete topic when an application instance expires
-            if (DELETE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
-                String origin = headers.get(TOPIC);
-                if (topicExists(origin)) {
-                    deleteTopic(origin);
+            if (DELETE.equals(headers.get(TYPE))) {
+                if (headers.containsKey(TOPIC)) {
+                    String topic = headers.get(TOPIC);
+                    if (topicExists(topic)) {
+                        deleteTopic(topic);
+                    }
+                } else if (headers.containsKey(QUEUE)) {
+                    String queue = headers.get(QUEUE);
+                    if (topicExists(queue)) {
+                        deleteQueue(queue);
+                    }
                 }
                 return true;
             }
@@ -166,23 +176,7 @@ public class TopicManager implements LambdaFunction {
             }
             return;
         }
-        if (!topicExists(topic)) {
-            try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
-                ClientMessage m = session.createMessage(false);
-                ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
-                        "createAddress", topic, MULTICAST);
-                ClientMessage reply = requestor.request(m);
-                Object o = ManagementHelper.getResult(reply);
-                if (o instanceof String) {
-                    String result = (String) o;
-                    if (result.startsWith(ADDRESS)) {
-                        log.info("Created {}", topic);
-                    } else {
-                        log.warn("ActiveMQ exception when creating {} {}", topic, o);
-                    }
-                }
-            }
-        }
+        createAddress(topic, true);
     }
 
     private void createTopic(String topic, int partitions) throws Exception {
@@ -194,6 +188,35 @@ public class TopicManager implements LambdaFunction {
         }
     }
 
+    private void createQueue(String queue) throws Exception {
+        createAddress(queue, false);
+    }
+
+    private void createAddress(String address, boolean isTopic) throws Exception {
+        if (!topicExists(address)) {
+            try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+                ClientMessage m = session.createMessage(false);
+                if (isTopic) {
+                    ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
+                            "createAddress", address, MULTICAST);
+                } else {
+                    ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
+                            "createAddress", address);
+                }
+                ClientMessage reply = requestor.request(m);
+                Object o = ManagementHelper.getResult(reply);
+                if (o instanceof String) {
+                    String result = (String) o;
+                    if (result.startsWith(ADDRESS)) {
+                        log.info("Created {} {}", isTopic? TOPIC : QUEUE, address);
+                    } else {
+                        log.warn("ActiveMQ exception when creating {} {}", address, o);
+                    }
+                }
+            }
+        }
+    }
+
     private void deleteTopic(String topic) throws Exception {
         if (topicSubstitution) {
             if (preAllocatedTopics.get(topic) == null) {
@@ -201,15 +224,23 @@ public class TopicManager implements LambdaFunction {
             }
             return;
         }
-        if (topicExists(topic)) {
+        deleteAddress(topic);
+    }
+
+    private void deleteQueue(String queue) throws Exception {
+        deleteAddress(queue);
+    }
+
+    private void deleteAddress(String address) throws Exception {
+        if (topicExists(address)) {
             try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
                 ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
-                        "deleteAddress", topic);
+                        "deleteAddress", address);
                 ClientMessage reply = requestor.request(m);
                 Object o = ManagementHelper.getResult(reply);
                 if (o != null) {
-                    log.warn("ActiveMQ exception when deleting {} {}", topic, o);
+                    log.warn("ActiveMQ exception when deleting {} {}", address, o);
                 }
             }
         }

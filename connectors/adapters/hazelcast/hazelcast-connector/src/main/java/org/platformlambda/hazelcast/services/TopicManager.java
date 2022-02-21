@@ -61,14 +61,12 @@ public class TopicManager implements LambdaFunction {
                 String origin = headers.get(TOPIC);
                 return topicPartitions(origin);
             }
-            // if origin is not specified, it will create the dedicated topic for a new application that is starting up
             if (CREATE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
                 int partitions = headers.containsKey(PARTITIONS)?
                                     Math.max(1, Utility.getInstance().str2int(headers.get(PARTITIONS))) : 1;
                 createTopic(headers.get(TOPIC), partitions);
                 return true;
             }
-            // delete topic when an application instance expires
             if (DELETE.equals(headers.get(TYPE)) && headers.containsKey(TOPIC)) {
                 String origin = headers.get(TOPIC);
                 if (topicExists(origin)) {

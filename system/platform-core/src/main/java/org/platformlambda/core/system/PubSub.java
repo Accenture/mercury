@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
  * The Mercury platform provides abstraction of the underlying event stream system
@@ -40,7 +39,6 @@ import java.util.concurrent.TimeoutException;
 public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);
 
-    public static final String PUBLISHER = "system.pubsub.producer";
     private static PubSubProvider provider;
     private static final PubSub instance = new PubSub();
 
@@ -79,14 +77,31 @@ public class PubSub {
         return provider != null;
     }
 
-    private void checkFeature() throws IOException {
+    private void checkFeature() {
         if (!featureEnabled()) {
-            throw new IOException("Pub/sub feature not implemented in cloud connector");
+            throw new RuntimeException("Pub/sub feature not enabled");
         }
     }
 
-    public void waitForProvider(int seconds) throws TimeoutException {
-        Platform.getInstance().waitForProvider(PUBLISHER, seconds);
+    public void waitForProvider(int seconds) {
+        int waitSeconds = Math.max(1, seconds);
+        int n = 0;
+        while (provider == null && waitSeconds > 0) {
+            n++;
+            if (n % 2 == 0) {
+                log.info("Waiting for Pub/Sub provider to get ready...{}", n);
+            }
+            waitSeconds--;
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // ok to ignore
+            }
+        }
+        if (provider == null) {
+            throw new RuntimeException("Pub/Sub provider not available");
+        }
+        provider.waitForProvider(seconds);
     }
 
     /**
@@ -99,6 +114,18 @@ public class PubSub {
     public boolean createTopic(String topic) throws IOException {
         checkFeature();
         return provider.createTopic(topic);
+    }
+
+    /**
+     * Create a queue before publishing
+     *
+     * @param queue in case the messaging system is an enterprise service bus
+     * @return true when queue is successfully created
+     * @throws IOException in case the queue cannot be created
+     */
+    public boolean createQueue(String queue) throws IOException {
+        checkFeature();
+        return provider.createQueue(queue);
     }
 
     /**
@@ -123,6 +150,17 @@ public class PubSub {
     public void deleteTopic(String topic) throws IOException {
         checkFeature();
         provider.deleteTopic(topic);
+    }
+
+    /**
+     * Delete a queue
+     *
+     * @param queue in case the messaging system is an enterprise service bus
+     * @throws IOException in case the topic cannot be deleted
+     */
+    public void deleteQueue(String queue) throws IOException {
+        checkFeature();
+        provider.deleteQueue(queue);
     }
 
     /**
@@ -180,7 +218,31 @@ public class PubSub {
     }
 
     /**
-     * Unsubscribe from a topic. This will detach the registered lambda function
+     * Send an event to a queue in case of enterprise service bus (ESB)
+     * @param queue name
+     * @param headers are optional
+     * @param body is the message payload, most likely in text
+     * @throws IOException in case the queue is not available
+     */
+    public void send(String queue, Map<String, String> headers, Object body) throws IOException {
+        checkFeature();
+        provider.send(queue, headers, body);
+    }
+
+    /**
+     * Listen to a queue in case of enterprise service bus (ESB)
+     * @param queue name
+     * @param listener function to receive messages from the queue
+     * @param parameters are optional as per ESB implementation
+     * @throws IOException in case the queue is not available
+     */
+    public void listen(String queue, LambdaFunction listener, String... parameters) throws IOException {
+        checkFeature();
+        provider.listen(queue, listener, parameters);
+    }
+
+    /**
+     * Unsubscribe from a topic (or queue). This will detach the registered lambda function
      *
      * @param topic for a store-n-forward pub/sub channel
      * @throws IOException in case topic was not subscribed
@@ -191,7 +253,7 @@ public class PubSub {
     }
 
     /**
-     * Unsubscribe from a topic. This will detach the registered lambda function
+     * Unsubscribe from a topic (or queue). This will detach the registered lambda function
      * @param topic for a store-n-forward pub/sub channel
      * @param partition to be unsubscribed
      * @throws IOException in case topic was not subscribed
@@ -202,7 +264,7 @@ public class PubSub {
     }
 
     /**
-     * Check if a topic exists
+     * Check if a topic (or queue) exists
      *
      * @param topic name
      * @return true if topic exists

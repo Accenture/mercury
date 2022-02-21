@@ -30,7 +30,6 @@ import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.util.Utility;
 import org.platformlambda.tibco.TibcoConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +59,7 @@ public class PubSubManager implements PubSubProvider {
     private static final String EXISTS = "exists";
     private static final String DELETE = "delete";
     private static final String TOPIC = "topic";
+    private static final String QUEUE = "queue";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
     private Session primarySession, secondarySession;
     private final Map<String, String> preAllocatedTopics;
@@ -140,16 +140,25 @@ public class PubSubManager implements PubSubProvider {
     }
 
     @Override
+    public void waitForProvider(int seconds) {
+        // no-op because provider must be ready at this point
+    }
+
+    @Override
     public boolean createTopic(String topic) throws IOException {
-        return createTopic(topic, 1);
+        return createTopicOrQueue(true, topic, -1);
     }
 
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
-        ConnectorConfig.validateTopicName(topic);
+        return createTopicOrQueue(true, topic, partitions);
+    }
+
+    private boolean createTopicOrQueue(boolean isTopic, String topicOrQueue, int partitions) throws IOException {
+        ConnectorConfig.validateTopicName(topicOrQueue);
         try {
             EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
-                    new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
+                    new Kv(TYPE, CREATE), new Kv(isTopic? TOPIC : QUEUE, topicOrQueue), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
             } else {
@@ -164,6 +173,20 @@ public class PubSubManager implements PubSubProvider {
     public void deleteTopic(String topic) throws IOException {
         try {
             PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
+        } catch (TimeoutException | AppException e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean createQueue(String queue) throws IOException {
+        return createTopicOrQueue(false, queue, -1);
+    }
+
+    @Override
+    public void deleteQueue(String queue) throws IOException {
+        try {
+            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(QUEUE, queue));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -221,8 +244,12 @@ public class PubSubManager implements PubSubProvider {
         try {
             startSession(primary);
             Session session = primary? primarySession : secondarySession;
-            Topic destination = session.createTopic(realTopic);
-            MessageProducer producer = session.createProducer(destination);
+            final MessageProducer producer;
+            if (partition == -2) {
+                producer = session.createProducer(session.createQueue(realTopic));
+            } else {
+                producer = session.createProducer(session.createTopic(realTopic));
+            }
             if (body instanceof byte[]) {
                 BytesMessage message = session.createBytesMessage();
                 for (String h : headers.keySet()) {
@@ -256,22 +283,14 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         ConnectorConfig.validateTopicName(topic);
-        String topicPartition = topic + (partition < 0? "" : "." + partition);
-        if (parameters.length == 2 || parameters.length == 3) {
-            if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
-                throw new IOException("topic offset must be numeric");
-            }
-            if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
-                throw new IOException(topicPartition+" is already subscribed");
-            }
-            EventConsumer consumer = new EventConsumer(topic, partition, parameters);
-            consumer.start();
-            // mercury service name must be lower case
-            Platform.getInstance().registerPrivate(topicPartition.toLowerCase(), listener, 1);
-            subscribers.put(topicPartition, consumer);
-        } else {
-            throw new IOException("Check parameters: clientId, groupId and optional offset pointer");
+        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
+        if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
+            throw new IOException(topicPartition+" is already subscribed");
         }
+        EventConsumer consumer = new EventConsumer(topic, partition, parameters);
+        consumer.start();
+        Platform.getInstance().registerPrivate(topicPartition, listener, 1);
+        subscribers.put(topicPartition, consumer);
     }
 
     @Override
@@ -281,7 +300,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
-        String topicPartition = topic + (partition < 0? "" : "." + partition);
+        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);
@@ -296,6 +315,18 @@ public class PubSubManager implements PubSubProvider {
                 throw new IOException(topic + " has not been subscribed by this application instance");
             }
         }
+    }
+
+    @Override
+    public void send(String queue, Map<String, String> headers, Object body) throws IOException {
+        // partition of "-2" is encoded as "queue"
+        publish(queue, -2, headers, body);
+    }
+
+    @Override
+    public void listen(String queue, LambdaFunction listener, String... parameters) throws IOException {
+        // partition of "-2" is encoded as "queue"
+        subscribe(queue, -2, listener, parameters);
     }
 
     @Override
@@ -354,4 +385,5 @@ public class PubSubManager implements PubSubProvider {
             consumer.shutdown();
         }
     }
+
 }

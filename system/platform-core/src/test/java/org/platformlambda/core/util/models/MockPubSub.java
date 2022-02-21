@@ -23,11 +23,17 @@ import org.platformlambda.core.models.PubSubProvider;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class MockPubSub implements PubSubProvider {
 
     private static final Map<String, Integer> topicStore = new HashMap<>();
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
+
+    @Override
+    public void waitForProvider(int seconds) {
+        // no-op
+    }
 
     @Override
     public boolean createTopic(String topic) throws IOException {
@@ -40,6 +46,7 @@ public class MockPubSub implements PubSubProvider {
 
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
+        System.out.println("create topic "+topic+"----"+partitions);
         if (topic.equals("exception")) {
             throw new IOException("demo");
         }
@@ -53,6 +60,16 @@ public class MockPubSub implements PubSubProvider {
             throw new IOException("demo");
         }
         topicStore.remove(topic);
+    }
+
+    @Override
+    public boolean createQueue(String queue) {
+        throw new IllegalArgumentException("Not implemented");
+    }
+
+    @Override
+    public void deleteQueue(String queue) {
+        throw new IllegalArgumentException("Not implemented");
     }
 
     @Override
@@ -83,6 +100,16 @@ public class MockPubSub implements PubSubProvider {
             throw new IOException("demo");
         }
         subscriptions.put(topic, listener);
+    }
+
+    @Override
+    public void send(String queue, Map<String, String> headers, Object body) throws IOException {
+        throw new IllegalArgumentException("Not implemented");
+    }
+
+    @Override
+    public void listen(String queue, LambdaFunction listener, String... parameters) throws IOException {
+        throw new IllegalArgumentException("Not implemented");
     }
 
     @Override

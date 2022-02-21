@@ -50,6 +50,11 @@ public class MockPubSub implements PubSubProvider {
     }
 
     @Override
+    public void waitForProvider(int seconds) {
+        // no-op
+    }
+
+    @Override
     public boolean createTopic(String topic) throws IOException {
         if (topic.equals("exception")) {
             throw new IOException("demo");
@@ -73,6 +78,16 @@ public class MockPubSub implements PubSubProvider {
             throw new IOException("demo");
         }
         topicStore.remove(topic);
+    }
+
+    @Override
+    public boolean createQueue(String queue) throws IOException {
+        return false;
+    }
+
+    @Override
+    public void deleteQueue(String queue) throws IOException {
+        // no-op
     }
 
     @Override
@@ -126,6 +141,16 @@ public class MockPubSub implements PubSubProvider {
             po.sendLater(new EventEnvelope().setTo(route+".mock").setBody("done"),
                     new Date(System.currentTimeMillis()+8000));
         }
+    }
+
+    @Override
+    public void send(String queue, Map<String, String> headers, Object body) throws IOException {
+        // no-op
+    }
+
+    @Override
+    public void listen(String queue, LambdaFunction listener, String... parameters) throws IOException {
+        // no-op
     }
 
     @Override

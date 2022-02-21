@@ -19,7 +19,6 @@
 package org.platformlambda.cloud;
 
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.platformlambda.MainApp;
 import org.platformlambda.cloud.reporter.PresenceConnector;
@@ -34,7 +33,6 @@ import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.mock.MockCloud;
 import org.platformlambda.mock.TestBase;
 import org.platformlambda.models.WsMetadata;
-import org.platformlambda.rest.RestServer;
 import org.platformlambda.util.SimpleHttpRequests;
 import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;

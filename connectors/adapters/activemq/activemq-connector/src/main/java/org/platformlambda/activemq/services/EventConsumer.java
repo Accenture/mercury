@@ -50,6 +50,8 @@ public class EventConsumer {
     private static final String TO_MONITOR = "@"+MONITOR;
     private static final String COMPLETION = "completion.";
     private static final String STOP = "stop";
+    private static final String TOPIC = "topic";
+    private static final String QUEUE = "queue";
     private final String INIT_TOKEN = UUID.randomUUID().toString();
     private final String realTopic, virtualTopic, topic;
     private final int partition;
@@ -92,15 +94,18 @@ public class EventConsumer {
             Platform platform = Platform.getInstance();
             Connection connection = ArtemisConnector.getConnection();
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
-            Topic destination = session.createTopic(realTopic);
-            messageConsumer = session.createConsumer(destination);
+            if (partition == -2) {
+                messageConsumer = session.createConsumer(session.createQueue(realTopic));
+            } else {
+                messageConsumer = session.createConsumer(session.createTopic(realTopic));
+            }
             messageConsumer.setMessageListener(new EventListener());
             String completionHandler = COMPLETION + virtualTopic;
             LambdaFunction f = (headers, body, instance) -> {
                 try {
                     messageConsumer.close();
                     session.close();
-                    log.info("Unsubscribed {}", realTopic);
+                    log.info("Unsubscribed {} {}", partition == -2? QUEUE : TOPIC, realTopic);
                 } catch (JMSException e) {
                     log.error("Unable to close consumer - {}", e.getMessage());
                 } finally {
@@ -117,7 +122,7 @@ public class EventConsumer {
                 return true;
             };
             platform.registerPrivate(completionHandler, f, 1);
-            log.info("Subscribed {}", realTopic);
+            log.info("Subscribed {} {}", partition == -2? QUEUE : TOPIC, realTopic);
 
         } catch (Exception e) {
             log.error("Unable to start - {}", e.getMessage());

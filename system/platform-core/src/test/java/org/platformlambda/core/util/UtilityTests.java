@@ -64,17 +64,8 @@ public class UtilityTests {
         personality.setType(null);
     }
 
-    @Test(expected = IOException.class)
-    public void noPubSub() throws IOException {
-        PubSub ps = PubSub.getInstance();
-        ps.createTopic(HELLO_WORLD);
-    }
-
     @Test
     public void mockPubSub() throws IOException, TimeoutException {
-        Platform platform = Platform.getInstance();
-        LambdaFunction f = (headers, body, instance) -> true;
-        platform.registerPrivate(PubSub.PUBLISHER, f, 1);
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
         ps.waitForProvider(1);
@@ -87,13 +78,27 @@ public class UtilityTests {
         Assert.assertTrue(ps.isStreamingPubSub());
         Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
         Assert.assertTrue(ps.list().contains(HELLO_WORLD));
+        LambdaFunction f = (headers, body, instance) -> true;
         ps.subscribe(HELLO_WORLD, f, "client100", "group100");
         ps.subscribe(HELLO_WORLD, 0, f, "client100", "group100");
         ps.publish(HELLO_WORLD, new HashMap<>(), "hello");
         ps.publish(HELLO_WORLD, 1, new HashMap<>(), "hello");
         ps.unsubscribe(HELLO_WORLD);
         ps.unsubscribe(HELLO_WORLD, 1);
-        platform.release(PubSub.PUBLISHER);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void mockPubSubCreateQueue() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        ps.enableFeature(new MockPubSub());
+        ps.createQueue("demo.queue");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void mockPubSubDeleteQueue() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        ps.enableFeature(new MockPubSub());
+        ps.deleteQueue("demo.queue");
     }
 
     @Test

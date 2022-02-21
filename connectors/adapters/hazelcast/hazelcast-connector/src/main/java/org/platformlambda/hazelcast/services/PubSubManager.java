@@ -74,6 +74,11 @@ public class PubSubManager implements PubSubProvider {
     }
 
     @Override
+    public void waitForProvider(int seconds) {
+        // no-op because provider must be ready at this point
+    }
+
+    @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
     }
@@ -101,6 +106,16 @@ public class PubSubManager implements PubSubProvider {
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
+    }
+
+    @Override
+    public boolean createQueue(String queue) throws IOException {
+        throw new IOException("Not implemented");
+    }
+
+    @Override
+    public void deleteQueue(String queue) throws IOException {
+        throw new IOException("Not implemented");
     }
 
     @Override
@@ -162,7 +177,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         ConnectorConfig.validateTopicName(topic);
-        String topicPartition = partition < 0? topic : topic+"."+partition;
+        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
         if (parameters.length == 2 || parameters.length == 3) {
             if (parameters.length == 3 && !Utility.getInstance().isNumeric(parameters[2])) {
                 throw new IOException("topic offset must be numeric");
@@ -172,12 +187,21 @@ public class PubSubManager implements PubSubProvider {
             }
             EventConsumer consumer = new EventConsumer(topic, partition, parameters);
             consumer.start();
-            // mercury service name must be lower case
-            Platform.getInstance().registerPrivate(topicPartition.toLowerCase(), listener, 1);
+            Platform.getInstance().registerPrivate(topicPartition, listener, 1);
             subscribers.put(topicPartition, consumer);
         } else {
             throw new IOException("Check parameters: clientId, groupId and optional offset pointer");
         }
+    }
+
+    @Override
+    public void send(String queue, Map<String, String> headers, Object body) throws IOException {
+        throw new IOException("Not implemented");
+    }
+
+    @Override
+    public void listen(String queue, LambdaFunction listener, String... parameters) throws IOException {
+        throw new IOException("Not implemented");
     }
 
     @Override
@@ -187,7 +211,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
-        String topicPartition = partition < 0? topic : topic+"."+partition;
+        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);

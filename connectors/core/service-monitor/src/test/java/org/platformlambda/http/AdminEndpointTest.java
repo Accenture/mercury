@@ -22,7 +22,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
@@ -35,8 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AdminEndpointTest extends TestBase {
-
-    private static final SimpleXmlParser xmlParser = new SimpleXmlParser();
 
     @SuppressWarnings("unchecked")
     @Test

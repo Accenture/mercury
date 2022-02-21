@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>tibco-presence</artifactId>
     <packaging>jar</packaging>
-    <version>2.3.1</version>
+    <version>2.3.2</version>
     <name>tibco-presence-monitor</name>
 
     <parent>
@@ -39,13 +39,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>tibco-connector</artifactId>
-            <version>2.3.1</version>
+            <version>2.3.2</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>service-monitor</artifactId>
-            <version>2.3.1</version>
+            <version>2.3.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
