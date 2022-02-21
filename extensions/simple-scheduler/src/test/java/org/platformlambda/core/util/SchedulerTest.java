@@ -77,7 +77,6 @@ public class SchedulerTest {
         public void execute(JobExecutionContext context) {
             JobDataMap parameters = context.getJobDetail().getJobDataMap();
             String job = parameters.getString(JOB_ID);
-            System.out.println("running----"+job+"-----"+new Date());
         }
     }
 

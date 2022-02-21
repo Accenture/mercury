@@ -46,7 +46,6 @@ public class MockPubSub implements PubSubProvider {
 
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
-        System.out.println("create topic "+topic+"----"+partitions);
         if (topic.equals("exception")) {
             throw new IOException("demo");
         }
