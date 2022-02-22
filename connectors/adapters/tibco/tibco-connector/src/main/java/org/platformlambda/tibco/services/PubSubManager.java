@@ -283,7 +283,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         ConnectorConfig.validateTopicName(topic);
-        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
+        String topicPartition = (topic + (partition < 0? "" : "." + partition)).toLowerCase();
         if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
             throw new IOException(topicPartition+" is already subscribed");
         }
@@ -300,7 +300,7 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void unsubscribe(String topic, int partition) throws IOException {
-        String topicPartition = topic + (partition < 0? "" : "." + partition).toLowerCase();
+        String topicPartition = (topic + (partition < 0? "" : "." + partition)).toLowerCase();
         Platform platform = Platform.getInstance();
         if (platform.hasRoute(topicPartition) && subscribers.containsKey(topicPartition)) {
             EventConsumer consumer = subscribers.get(topicPartition);

@@ -100,7 +100,7 @@ public class EventConsumer {
                 messageConsumer = session.createConsumer(session.createTopic(realTopic));
             }
             messageConsumer.setMessageListener(new EventListener());
-            String completionHandler = COMPLETION + virtualTopic;
+            String completionHandler = COMPLETION + virtualTopic.toLowerCase();
             LambdaFunction f = (headers, body, instance) -> {
                 try {
                     messageConsumer.close();
