@@ -60,6 +60,9 @@ public class HttpRelay implements LambdaFunction {
     private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_HTML = "text/html";
     private static final String TEXT_PLAIN = "text/plain";
+    private static final String TEXT_CSS = "text/css";
+    private static final String TEXT_JAVASCRIPT = "text/javascript";
+    private static final String APPLICATION_JAVASCRIPT = "application/javascript";
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
@@ -259,34 +262,8 @@ public class HttpRelay implements LambdaFunction {
                 setResponseHeaders(resEvent, response.getHeaders());
                 Long contentLen = response.getHeaders().getContentLength();
                 BufferedInputStream in = new BufferedInputStream(response.getContent());
-                if (contentLen == null) {
-                    ByteArrayOutputStream bb = new ByteArrayOutputStream();
-                    ObjectStreamIO stream = null;
-                    ObjectStreamWriter out = null;
-                    try {
-                        while ((len = in.read(buffer, 0, buffer.length)) != -1) {
-                            if (out == null) {
-                                stream = new ObjectStreamIO(request.getTimeoutSeconds());
-                                out = new ObjectStreamWriter(stream.getOutputStreamId());
-                            }
-                            out.write(buffer, 0, len);
-                            bb.write(buffer, 0, len);
-                        }
-
-                    } catch (IOException e) {
-                        /*
-                         * this is likely to be an end of stream exception from the HttpClient
-                         * and thus it is a normal use case
-                         */
-                    }
-                    if (out != null) {
-                        out.close();
-                        resEvent.setHeader(STREAM, stream.getInputStreamId());
-                    } else {
-                        resEvent.setBody("");
-                    }
-                    return resEvent;
-                } else {
+                String resContentType = response.getHeaders().getFirstHeaderStringValue(CONTENT_TYPE);
+                if (contentLen != null || isTextResponse(resContentType)) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
                     try {
                         while ((len = in.read(buffer, 0, buffer.length)) != -1) {
@@ -299,7 +276,6 @@ public class HttpRelay implements LambdaFunction {
                          */
                     }
                     byte[] b = out.toByteArray();
-                    String resContentType = response.getHeaders().getFirstHeaderStringValue(CONTENT_TYPE);
                     if (resContentType != null) {
                         if (resContentType.startsWith(APPLICATION_JSON)) {
                             // response body is assumed to be JSON
@@ -326,9 +302,9 @@ public class HttpRelay implements LambdaFunction {
                             }
                         } else if (resContentType.startsWith(TEXT_HTML) ||
                                 resContentType.startsWith(TEXT_PLAIN) ||
-                                resContentType.startsWith("text/css") ||
-                                resContentType.startsWith("application/javascript") ||
-                                resContentType.startsWith("text/javascript")) {
+                                resContentType.startsWith(TEXT_CSS) ||
+                                resContentType.startsWith(APPLICATION_JAVASCRIPT) ||
+                                resContentType.startsWith(TEXT_JAVASCRIPT)) {
                             /*
                              * For API targetHost, the content-types are usually JSON or XML.
                              * HTML, CSS and JS are here as a best effort to return text content.
@@ -338,6 +314,33 @@ public class HttpRelay implements LambdaFunction {
                     }
                     // return unknown content as byte array
                     return resEvent.setBody(b);
+                } else {
+                    ByteArrayOutputStream bb = new ByteArrayOutputStream();
+                    ObjectStreamIO stream = null;
+                    ObjectStreamWriter out = null;
+                    try {
+                        while ((len = in.read(buffer, 0, buffer.length)) != -1) {
+                            if (out == null) {
+                                stream = new ObjectStreamIO(request.getTimeoutSeconds());
+                                out = new ObjectStreamWriter(stream.getOutputStreamId());
+                            }
+                            out.write(buffer, 0, len);
+                            bb.write(buffer, 0, len);
+                        }
+
+                    } catch (IOException e) {
+                        /*
+                         * this is likely to be an end of stream exception from the HttpClient
+                         * and thus it is a normal use case
+                         */
+                    }
+                    if (out != null) {
+                        out.close();
+                        resEvent.setHeader(STREAM, stream.getInputStreamId());
+                    } else {
+                        resEvent.setBody("");
+                    }
+                    return resEvent;
                 }
 
             } catch (HttpResponseException e) {
@@ -367,6 +370,14 @@ public class HttpRelay implements LambdaFunction {
             throw new IllegalArgumentException("Missing target host. e.g. https://hostname");
         }
 
+    }
+
+    private boolean isTextResponse(String contentType) {
+        return  contentType != null && (
+                contentType.startsWith(APPLICATION_JSON) || contentType.startsWith(APPLICATION_XML) ||
+                contentType.startsWith(TEXT_JAVASCRIPT) || contentType.startsWith(APPLICATION_JAVASCRIPT) ||
+                contentType.startsWith(TEXT_CSS) || contentType.startsWith(TEXT_HTML) || contentType.startsWith(TEXT_PLAIN)
+                );
     }
 
     private void setResponseHeaders(EventEnvelope event, HttpHeaders headers) {
