@@ -185,14 +185,13 @@ req.setTargetHost("https://service_provider_host");
 EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
 Map<String, String> resHeaders = res.getHeaders();
 if (resHeaders.containsKey("stream")) {
-    ObjectStreamIO consumer = new ObjectStreamIO(resHeaders.get("stream"));
     /*
      * For demonstration, we are using ByteArrayOutputStream.
      * For production code, you should stream the input to persistent storage
      * or handle the input stream directly.
      */
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ObjectStreamReader in = consumer.getInputStream(1000);
+    ObjectStreamReader in = consumer.getInputStream(resHeaders.get("stream"), 1000);
     for (Object d: in) {
         if (d instanceof byte[]) {
             out.write((byte[]) d);
@@ -202,6 +201,10 @@ if (resHeaders.containsKey("stream")) {
     in.close();
     // handle the result
     byte[] result = out.toByteArray();
+} else {
+    // response is rendered in the "body"
+    // for JSON or XML response, the response is a string
+    String result = (String) res.getBody();
 }
 ```
 
