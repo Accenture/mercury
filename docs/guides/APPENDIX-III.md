@@ -191,7 +191,7 @@ if (resHeaders.containsKey("stream")) {
      * or handle the input stream directly.
      */
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ObjectStreamReader in = consumer.getInputStream(resHeaders.get("stream"), 1000);
+    ObjectStreamReader in = new ObjectStreamReader(resHeaders.get("stream"), 1000);
     for (Object d: in) {
         if (d instanceof byte[]) {
             out.write((byte[]) d);
