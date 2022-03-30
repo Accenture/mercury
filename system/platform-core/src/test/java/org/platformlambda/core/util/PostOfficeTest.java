@@ -438,11 +438,11 @@ public class PostOfficeTest {
     @Test
     public void asyncRequestTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> success = new ArrayBlockingQueue<>(1);
-        String SERVICE = "hello.future.1";
-        String TEXT = "hello world";
-        Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        LambdaFunction f = (headers, body, instance) -> body;
+        final String SERVICE = "hello.future.1";
+        final String TEXT = "hello world";
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f = (headers, body, instance) -> body;
         platform.registerPrivate(SERVICE, f, 1);
         Future<EventEnvelope> future = po.asyncRequest(new EventEnvelope().setTo(SERVICE).setBody(TEXT), 1500);
         future.onSuccess(event -> {
@@ -463,11 +463,12 @@ public class PostOfficeTest {
     public void asyncRequestTimeout() throws IOException, InterruptedException {
         final long TIMEOUT = 500;
         final BlockingQueue<Throwable> exception = new ArrayBlockingQueue<>(1);
-        String SERVICE = "hello.future.2";
-        String TEXT = "hello world";
-        Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        LambdaFunction f = (headers, body, instance) -> {
+        final String SERVICE = "hello.future.2";
+        final String TEXT = "hello world";
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f = (headers, body, instance) -> {
+            log.info("Simulate timeout for {}", SERVICE);
             Thread.sleep(1000);
             return body;
         };
@@ -477,7 +478,7 @@ public class PostOfficeTest {
         Throwable e = exception.poll(5, TimeUnit.SECONDS);
         Assert.assertNotNull(e);
         Assert.assertEquals(TimeoutException.class, e.getClass());
-        Assert.assertEquals(SERVICE+" timeout for "+TIMEOUT+" ms", e.getMessage());
+        Assert.assertEquals("Timeout for "+TIMEOUT+" ms", e.getMessage());
         platform.release(SERVICE);
     }
 
@@ -507,6 +508,75 @@ public class PostOfficeTest {
         Assert.assertNotNull(result);
         Assert.assertEquals(STATUS, (int) result.getStatus());
         Assert.assertEquals(ERROR, result.getBody());
+    }
+
+    @Test
+    public void asyncForkJoinTest() throws IOException, InterruptedException {
+        final BlockingQueue<List<EventEnvelope>> success = new ArrayBlockingQueue<>(1);
+        final String SERVICE = "hello.future.3";
+        final String TEXT = "hello world";
+        final int PARALLEL_INSTANCES = 5;
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f1 = (headers, body, instance) -> body;
+        platform.registerPrivate(SERVICE, f1, PARALLEL_INSTANCES);
+        List<EventEnvelope> request = new ArrayList<>();
+        for (int i=1; i < PARALLEL_INSTANCES + 1; i++) {
+            request.add(new EventEnvelope().setTo(SERVICE).setBody(TEXT + "." + i));
+        }
+        Future<List<EventEnvelope>> future = po.asyncRequest(request, 1500);
+        future.onSuccess(event -> {
+            try {
+                platform.release(SERVICE);
+                success.offer(event);
+            } catch (IOException e) {
+                // ok to ignore
+            }
+        });
+        List<EventEnvelope> result = success.poll(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(PARALLEL_INSTANCES, result.size());
+        for (EventEnvelope r: result) {
+            Assert.assertTrue(r.getBody() instanceof String);
+            String text = (String) r.getBody();
+            Assert.assertTrue(text.startsWith(TEXT));
+            log.info("Received response #{} {} - {}", r.getCorrelationId(), r.getId(), text);
+        }
+    }
+
+    @Test
+    public void asyncForkJoinTimeoutTest() throws IOException, InterruptedException {
+        final long TIMEOUT = 500;
+        final BlockingQueue<Throwable> exception = new ArrayBlockingQueue<>(1);
+        final String SERVICE = "hello.future.4";
+        final String TIMEOUT_SERVICE = "hello.future.timeout";
+        final String TEXT = "hello world";
+        final int PARALLEL_INSTANCES = 5;
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f1 = (headers, body, instance) -> {
+            log.info("Received event {}, {}", headers, body);
+            return body;
+        };
+        final LambdaFunction f2 = (headers, body, instance) -> {
+            log.info("Simulate timeout for {}", TIMEOUT_SERVICE);
+            Thread.sleep(1000);
+            return body;
+        };
+        platform.registerPrivate(SERVICE, f1, PARALLEL_INSTANCES);
+        platform.registerPrivate(TIMEOUT_SERVICE, f2, 1);
+        List<EventEnvelope> request = new ArrayList<>();
+        for (int i=1; i < PARALLEL_INSTANCES; i++) {
+            request.add(new EventEnvelope().setTo(SERVICE).setBody(TEXT + "." + i));
+        }
+        request.add(new EventEnvelope().setTo(TIMEOUT_SERVICE).setBody(TEXT));
+        Future<List<EventEnvelope>> future = po.asyncRequest(request, TIMEOUT);
+        future.onFailure(exception::offer);
+        Throwable e = exception.poll(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(e);
+        Assert.assertEquals(TimeoutException.class, e.getClass());
+        Assert.assertEquals("Timeout for "+TIMEOUT+" ms", e.getMessage());
+        platform.release(SERVICE);
     }
 
     @Test

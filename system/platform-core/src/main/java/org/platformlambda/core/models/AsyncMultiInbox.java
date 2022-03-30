@@ -31,26 +31,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class AsyncInbox extends InboxBase {
-    private static final Logger log = LoggerFactory.getLogger(AsyncInbox.class);
+public class AsyncMultiInbox extends InboxBase {
+    private static final Logger log = LoggerFactory.getLogger(AsyncMultiInbox.class);
 
+    private final int n;
+    private final AtomicInteger total = new AtomicInteger(1);
     private final long begin = System.nanoTime();
-    private final Future<EventEnvelope> future;
+    private final Future<List<EventEnvelope>> future;
     private final long timeout;
     private long timer;
     private MessageConsumer<byte[]> listener;
-    private Promise<EventEnvelope> promise;
+    private Promise<List<EventEnvelope>> promise;
+    private ConcurrentMap<String, EventEnvelope> replies = new ConcurrentHashMap<>();
 
-    public AsyncInbox(String from, String traceId, String tracePath, long timeout) {
+    public AsyncMultiInbox(int n, String from, String traceId, String tracePath, long timeout) {
         final Platform platform = Platform.getInstance();
+        this.n = Math.max(1, n);
+        this.total.set(this.n);
         this.timeout = Math.max(100, timeout);
         this.future = Future.future(promise -> {
             this.promise = promise;
             this.id = "r."+ Utility.getInstance().getUuid();
             String sender = from == null? ASYNC_INBOX : from;
-            this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler(sender));
+            this.listener = platform.getEventSystem().localConsumer(this.id, new AsyncMultiInbox.InboxHandler(sender));
             inboxes.put(id, this);
             timer = platform.getVertx().setTimer(timeout, t -> {
                 abort(id, sender, traceId, tracePath);
@@ -58,12 +68,12 @@ public class AsyncInbox extends InboxBase {
         });
     }
 
-    public Future<EventEnvelope> getFuture() {
+    public Future<List<EventEnvelope>> getFuture() {
         return future;
     }
 
     private void abort(String inboxId, String from, String traceId, String tracePath) {
-        AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
+        AsyncMultiInbox holder = (AsyncMultiInbox) inboxes.get(inboxId);
         if (holder != null) {
             holder.close();
             executor.submit(() -> {
@@ -81,23 +91,30 @@ public class AsyncInbox extends InboxBase {
     }
 
     private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
-        AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
+        AsyncMultiInbox holder = (AsyncMultiInbox) inboxes.get(inboxId);
         if (holder != null) {
-            holder.close();
-            Platform.getInstance().getVertx().cancelTimer(timer);
             float diff = System.nanoTime() - holder.begin;
             reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
-            executor.submit(() -> {
-                PostOffice po = PostOffice.getInstance();
-                String traceLogHeader = po.getTraceLogHeader();
-                po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
-                if (reply.getTraceId() != null) {
-                    ThreadContext.put(traceLogHeader, reply.getTraceId());
+            replies.put(reply.getId(), reply);
+            if (holder.total.decrementAndGet() == 0) {
+                List<EventEnvelope> result = new ArrayList<>();
+                for (String k: replies.keySet()) {
+                    result.add(replies.get(k));
                 }
-                holder.promise.complete(reply);
-                po.stopTracing();
-                ThreadContext.remove(traceLogHeader);
-            });
+                holder.close();
+                Platform.getInstance().getVertx().cancelTimer(timer);
+                executor.submit(() -> {
+                    PostOffice po = PostOffice.getInstance();
+                    String traceLogHeader = po.getTraceLogHeader();
+                    po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
+                    if (reply.getTraceId() != null) {
+                        ThreadContext.put(traceLogHeader, reply.getTraceId());
+                    }
+                    holder.promise.complete(result);
+                    po.stopTracing();
+                    ThreadContext.remove(traceLogHeader);
+                });
+            }
         }
     }
 

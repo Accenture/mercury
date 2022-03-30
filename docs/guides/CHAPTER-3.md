@@ -50,7 +50,7 @@ Future<EventEnvelope> future = po.asyncRequest(new EventEnvelope().setTo(SERVICE
 future.onSuccess(event -> {
     // handle the response event
 }).onFailure(ex -> {
-    // handle exception
+    // handle timeout exception
 });
 ```
 
@@ -243,6 +243,25 @@ event2.setHeader("request", "#2");
 parallelEvents.add(event2);
 
 List<EventEnvelope> responses = po.request(parallelEvents, 3000);
+```
+
+A non-blocking version of fork-n-join is available with the `asyncRequest` method. Only timeout exception will be sent
+to the onFailure method. All other cases will be delivered to the onSuccess method. You should check event.getStatus()
+to handle exception.
+
+```java
+Future<List<EventEnvelope>> asyncRequest(final List<EventEnvelope> event, long timeout) throws IOException;
+
+// example
+List<EventEnvelope> requests = new ArrayList<>();
+requests.add(new EventEnvelope().setTo(SERVICE1).setBody(TEXT1));
+requests.add(new EventEnvelope().setTo(SERVICE2).setBody(TEXT2));
+Future<List<EventEnvelope>> future = po.asyncRequest(requests, 2000);
+future.onSuccess(events -> {
+    // handle the response events
+}).onFailure(ex -> {
+    // handle timeout exception
+});
 ```
 
 ### Inspecting event's metadata

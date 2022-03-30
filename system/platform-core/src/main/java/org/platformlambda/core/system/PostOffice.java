@@ -849,7 +849,7 @@ public class PostOffice {
      * @return list of EventEnvelope, empty or partial results in case of timeouts
      * @throws IOException in case of error
      */
-    public List<EventEnvelope> request(List<EventEnvelope> events, long timeout) throws IOException {
+    public List<EventEnvelope> request(final List<EventEnvelope> events, long timeout) throws IOException {
         if (events == null || events.isEmpty()) {
             throw new IllegalArgumentException("Missing outgoing events");
         }
@@ -886,7 +886,7 @@ public class PostOffice {
             String replyTo = inbox.getId() + "@" + platform.getOrigin();
             int n = 0;
             for (EventEnvelope event : events) {
-                TargetRoute target = destinations.get(n);
+                TargetRoute target = destinations.get(n++);
                 event.setBroadcastLevel(0);
                 event.setReplyTo(replyTo);
                 if (target.isCloud()) {
@@ -894,7 +894,6 @@ public class PostOffice {
                 } else {
                     system.send(target.getManager().getRoute(), event.toBytes());
                 }
-                n++;
             }
             // wait for response
             inbox.waitForResponse(Math.max(10, timeout));
@@ -929,22 +928,87 @@ public class PostOffice {
         // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
-            if (trace.route != null && event.getFrom() == null) {
-                event.setFrom(trace.route);
-            }
             if (trace.id != null && trace.path != null) {
                 event.setTrace(trace.id, trace.path);
+            }
+            if (trace.route != null && event.getFrom() == null) {
+                event.setFrom(trace.route);
             }
         }
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());
-        AsyncInbox inbox = new AsyncInbox(to, timeout);
+        AsyncInbox inbox = new AsyncInbox(event.getFrom(), event.getTraceId(), event.getTracePath(), timeout);
         event.setReplyTo(inbox.getId() + "@" + platform.getOrigin());
         event.setBroadcastLevel(0);
         if (target.isCloud()) {
             MultipartPayload.getInstance().outgoing(target.getManager(), event);
         } else {
             platform.getEventSystem().send(target.getManager().getRoute(), event.toBytes());
+        }
+        return inbox.getFuture();
+    }
+
+    /**
+     * Send parallel requests asynchronously with a future result
+     * <p>
+     * You can retrieve result from the future's
+     * onSuccess(EventEnvelope event)
+     * onFailure(Throwable timeoutException)
+     * <p>
+     * You may check return result EventEnvelope's status to handle error cases.
+     *
+     * @param events list of envelopes
+     * @param timeout in milliseconds
+     * @return future list of result
+     * @throws IOException in case of error
+     */
+    public Future<List<EventEnvelope>> asyncRequest(final List<EventEnvelope> events, long timeout) throws IOException {
+        if (events == null || events.isEmpty()) {
+            throw new IllegalArgumentException("Missing outgoing event");
+        }
+        List<TargetRoute> destinations = new ArrayList<>();
+        int seq = 0;
+        for (EventEnvelope event: events) {
+            seq++;
+            String dest = event.getTo();
+            if (dest == null) {
+                throw new IllegalArgumentException("Missing routing path");
+            }
+            String to = substituteRouteIfAny(dest);
+            event.setTo(to);
+            // propagate trace info
+            TraceInfo trace = getTrace();
+            if (trace != null) {
+                if (trace.id != null && trace.path != null) {
+                    event.setTrace(trace.id, trace.path);
+                }
+                if (trace.route != null && event.getFrom() == null) {
+                    event.setFrom(trace.route);
+                }
+            }
+            // insert sequence number when correlation ID if not present
+            // so that the caller can correlate the service responses
+            if (event.getCorrelationId() == null) {
+                event.setCorrelationId(String.valueOf(seq));
+            }
+            destinations.add(discover(to, event.isEndOfRoute()));
+        }
+        Platform platform = Platform.getInstance();
+        EventBus system = platform.getEventSystem();
+        EventEnvelope first = events.get(0);
+        AsyncMultiInbox inbox = new AsyncMultiInbox(events.size(),
+                first.getFrom(), first.getTraceId(), first.getTracePath(), timeout);
+        String replyTo = inbox.getId() + "@" + platform.getOrigin();
+        int n = 0;
+        for (EventEnvelope event : events) {
+            TargetRoute target = destinations.get(n++);
+            event.setBroadcastLevel(0);
+            event.setReplyTo(replyTo);
+            if (target.isCloud()) {
+                MultipartPayload.getInstance().outgoing(target.getManager(), event);
+            } else {
+                system.send(target.getManager().getRoute(), event.toBytes());
+            }
         }
         return inbox.getFuture();
     }

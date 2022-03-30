@@ -18,6 +18,7 @@
 
 package com.accenture.examples.rest;
 
+import io.vertx.core.Future;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.PostOffice;
@@ -27,18 +28,24 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * This demonstrates non-blocking fork-n-join using future results
+ */
 @Path("/hello")
-public class HelloConcurrent {
+public class AsyncHelloConcurrent {
 
     @GET
     @Path("/concurrent")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
-    public Map<String, Object> hello(@Context HttpServletRequest request) throws IOException, AppException {
+    public void hello(@Context HttpServletRequest request,
+                                     @Suspended AsyncResponse response) throws IOException, AppException {
 
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
@@ -58,29 +65,23 @@ public class HelloConcurrent {
             event.setHeader("request", "#"+(i+1));
             parallelEvents.add(event);
         }
-
-        Map<String, Object> results = new HashMap<>();
-        List<EventEnvelope> responses = po.request(parallelEvents, 3000);
-        /*
-         * Note that for parallel requests, you may received partial results if some target com.accenture.examples.services did not respond.
-         * Therefore, you must check the total number of responses in the list.
-         */
-        if (responses.size() < TOTAL) {
-            throw new AppException(408, "Only "+responses.size()+" of "+TOTAL+" responded");
-        }
-        int n = 0;
-        for (EventEnvelope evt: responses) {
-            Map<String, Object> singleResult = new HashMap<>();
-            singleResult.put("status", evt.getStatus());
-            singleResult.put("headers", evt.getHeaders());
-            singleResult.put("body", evt.getBody());
-            singleResult.put("seq", evt.getCorrelationId());
-            singleResult.put("execution_time", evt.getExecutionTime());
-            singleResult.put("round_trip", evt.getRoundTrip());
-            n++;
-            results.put("result_"+util.zeroFill(n, 999), singleResult);
-        }
-        return results;
+        Future<List<EventEnvelope>> res = po.asyncRequest(parallelEvents, 3000);
+        res.onSuccess(events -> {
+            Map<String, Object> results = new HashMap<>();
+            int n = 0;
+            for (EventEnvelope evt: events) {
+                n++;
+                Map<String, Object> singleResult = new HashMap<>();
+                singleResult.put("status", evt.getStatus());
+                singleResult.put("headers", evt.getHeaders());
+                singleResult.put("body", evt.getBody());
+                singleResult.put("seq", evt.getCorrelationId());
+                singleResult.put("execution_time", evt.getExecutionTime());
+                singleResult.put("round_trip", evt.getRoundTrip());
+                results.put("result_"+util.zeroFill(n, 999), singleResult);
+            }
+            response.resume(results);
+        });
+        res.onFailure(ex -> response.resume(new AppException(408, ex.getMessage())));
     }
-
 }

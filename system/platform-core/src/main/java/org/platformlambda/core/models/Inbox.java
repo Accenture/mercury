@@ -50,8 +50,8 @@ public class Inbox extends InboxBase implements AutoCloseable {
      */
     public Inbox(int n) {
         if (n > 1) {
-            total.set(n);
-            replies = new ConcurrentHashMap<>();
+            this.total.set(n);
+            this.replies = new ConcurrentHashMap<>();
             this.n = n;
         } else {
             this.n = 1;

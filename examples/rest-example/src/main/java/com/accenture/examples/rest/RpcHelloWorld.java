@@ -20,7 +20,6 @@ package com.accenture.examples.rest;
 
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.PostOffice;
 
 import javax.servlet.http.HttpServletRequest;
@@ -36,8 +35,8 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Path("/hello")
-public class HelloWorld {
+@Path("/rpc")
+public class RpcHelloWorld {
 
     private static AtomicInteger seq = new AtomicInteger(0);
 
@@ -54,10 +53,11 @@ public class HelloWorld {
             String key = headers.nextElement();
             forward.put(key, request.getHeader(key));
         }
-        // As a demo, just put the incoming HTTP headers as a payload and a parameter showing the sequence counter.
-        // The echo service will return both.
+        // As a demo, just put the incoming HTTP headers as a payload and a parameter showing the sequence counter
         int n = seq.incrementAndGet();
-        EventEnvelope response = po.request("hello.world", 3000, forward, new Kv("seq", n));
+        EventEnvelope req = new EventEnvelope();
+        req.setTo("hello.world").setBody(forward).setHeader("seq", n);
+        EventEnvelope response = po.request(req, 3000);
 
         Map<String, Object> result = new HashMap<>();
         result.put("status", response.getStatus());
