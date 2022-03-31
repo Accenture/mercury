@@ -3,13 +3,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.platformlambda</groupId>
+    <groupId>io.github.accenture</groupId>
     <artifactId>rest-automation</artifactId>
 
     <packaging>jar</packaging>
     <version>2.3.3</version>
     <name>REST automation library</name>
-
+    <description>REST automation library</description>
+    <url>https://github.com/Accenture/mercury/tree/master/extensions/rest-automation-lib</url>
+    
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -43,7 +45,7 @@
     <dependencies>
         <!-- since this is a library, we set the dependencies as "provided" so you can use newer dependencies -->
         <dependency>
-            <groupId>org.platformlambda</groupId>
+            <groupId>io.github.accenture</groupId>
             <artifactId>platform-core</artifactId>
             <version>2.3.3</version>
             <scope>provided</scope>
@@ -56,13 +58,13 @@
 
 	         For production, please select only one cloud connector to reduce memory footprint. -->
         <dependency>
-            <groupId>org.platformlambda</groupId>
+            <groupId>io.github.accenture</groupId>
             <artifactId>kafka-connector</artifactId>
             <version>2.3.3</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.platformlambda</groupId>
+            <groupId>io.github.accenture</groupId>
             <artifactId>hazelcast-connector</artifactId>
             <version>2.3.3</version>
             <scope>provided</scope>
@@ -160,7 +162,67 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+    
+    <distributionManagement>
+        <repository>
+            <id>ossrh</id>
+            <name>Central Repository OSSRH</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/accenture/mercury.git</connection>
+        <developerConnection>scm:git:ssh://github.com/accenture/mercury.git</developerConnection>
+        <url>http://github.com/accenture/mercury.git</url>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Eric Law</name>
+            <email>eric.law@accenture.com</email>
+            <organization>io.github.accenture</organization>
+            <organizationUrl>http://github.io/accenture/</organizationUrl>
+        </developer>
+    </developers>
 
 </project>
