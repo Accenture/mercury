@@ -2,11 +2,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.platformlambda</groupId>
+    <groupId>io.github.accenture</groupId>
     <artifactId>service-monitor</artifactId>
     <packaging>jar</packaging>
     <version>2.3.3</version>
     <name>service-monitor</name>
+    <description>core components for cloud connectors</description>
+    <url>https://github.com/Accenture/mercury/tree/master/connectors/core/service-monitor</url>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -38,13 +40,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.platformlambda</groupId>
+            <groupId>io.github.accenture</groupId>
             <artifactId>cloud-connector</artifactId>
             <version>2.3.3</version>
         </dependency>
 
         <dependency>
-            <groupId>org.platformlambda</groupId>
+            <groupId>io.github.accenture</groupId>
             <artifactId>rest-spring</artifactId>
             <version>2.3.3</version>
         </dependency>
@@ -141,7 +143,67 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+    
+    <distributionManagement>
+        <repository>
+            <id>ossrh</id>
+            <name>Central Repository OSSRH</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/accenture/mercury.git</connection>
+        <developerConnection>scm:git:ssh://github.com/accenture/mercury.git</developerConnection>
+        <url>http://github.com/accenture/mercury.git</url>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Eric Law</name>
+            <email>eric.law@accenture.com</email>
+            <organization>io.github.accenture</organization>
+            <organizationUrl>http://github.io/accenture/</organizationUrl>
+        </developer>
+    </developers>
 
 </project>
