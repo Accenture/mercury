@@ -28,7 +28,6 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
-import org.platformlambda.mock.MockCloud;
 import org.platformlambda.mock.TestBase;
 import org.platformlambda.models.WsMetadata;
 import org.platformlambda.util.SimpleHttpRequests;
@@ -138,30 +137,6 @@ public class ConnectorTest extends TestBase {
         Assert.assertTrue(monitors.contains(Platform.getInstance().getOrigin()));
         Map<String, WsMetadata> sessions = MonitorService.getSessions();
         Assert.assertEquals(1, sessions.size());
-        // stop current session
-        MockCloud.stopWsClient();
-        log.info("Waiting for member to close");
-        n = 0;
-        while (MonitorService.getSessionCount() > 0 && ++n < 30) {
-            log.info("Waiting for member to close ... {}", n);
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // ok to ignore
-            }
-        }
-        MockCloud.restartWsClient();
-        log.info("Waiting for member to re-connect");
-        n = 0;
-        while (MonitorService.getSessionCount() == 0 && ++n < 30) {
-            log.info("Waiting for member to re-connect ... {}", n);
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // ok to ignore
-            }
-        }
-        log.info("Member count = {}", MonitorService.getSessionCount());
     }
 
 }

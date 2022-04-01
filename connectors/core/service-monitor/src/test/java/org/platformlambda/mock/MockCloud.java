@@ -72,17 +72,4 @@ public class MockCloud implements CloudSetup {
         }
     }
 
-    public static void stopWsClient() {
-        if (ws != null) {
-            ws.close();
-            ws = null;
-        }
-    }
-
-    public static void restartWsClient() {
-        stopWsClient();
-        ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
-        ws.start();
-    }
-
 }
