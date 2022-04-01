@@ -220,9 +220,9 @@ po.broadcast("hello.world", "hey, this is a broadcast message to all hello.world
 
 ```
 
-### Join-n-fork
+### Fork-n-Join
 
-You can perform join-n-fork RPC calls using a parallel version of the `request` method.
+You can perform fork-n-join RPC calls using a parallel version of the `request` method.
 
 ```java
 List<EventEnvelope> request(List<EventEnvelope> events, long timeout) throws IOException;
