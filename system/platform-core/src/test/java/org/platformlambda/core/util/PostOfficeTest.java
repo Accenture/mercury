@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ public class PostOfficeTest {
     }
 
     @Test
-    public void nullOriginTest() {
+    public void nullRouteListTest() {
         PostOffice po = PostOffice.getInstance();
         Assert.assertFalse(po.exists((String[]) null));
         Assert.assertFalse(po.exists((String) null));
@@ -238,7 +238,10 @@ public class PostOfficeTest {
         Assert.assertTrue(po.exists(HELLO_WORLD));
         Assert.assertFalse(po.exists(HELLO_WORLD, "unknown.service"));
         Assert.assertFalse(po.exists(HELLO_WORLD, "unknown.1", "unknown.2"));
-        Assert.assertNotNull(po.search(HELLO_WORLD));
+        List<String> origins = po.search(HELLO_WORLD);
+        Assert.assertTrue(origins.contains(platform.getOrigin()));
+        List<String> remoteOrigins = po.search(HELLO_WORLD, true);
+        Assert.assertTrue(remoteOrigins.isEmpty());
     }
 
     @Test(expected = IOException.class)
@@ -248,12 +251,15 @@ public class PostOfficeTest {
     }
 
     @Test
-    public void deferredDelivery() throws IOException {
+    public void cancelFutureEventTest() throws IOException {
         long FIVE_SECONDS = 5000;
         long now = System.currentTimeMillis();
+        String TRACE_ID = Utility.getInstance().getUuid();
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope event1 = new EventEnvelope().setTo(HELLO_WORLD).setTraceId("24680").setTracePath("GET /1");
-        EventEnvelope event2 = new EventEnvelope().setTo(HELLO_WORLD).setTraceId("12345").setTracePath("GET /2");
+        EventEnvelope event1 = new EventEnvelope().setTo(HELLO_WORLD)
+                .setTraceId(TRACE_ID).setTracePath("GET /1").setBody(1);
+        EventEnvelope event2 = new EventEnvelope().setTo(HELLO_WORLD)
+                .setTraceId(TRACE_ID).setTracePath("GET /2").setBody(2);
         String id1 = po.sendLater(event1, new Date(now+(FIVE_SECONDS/10)));
         String id2 = po.sendLater(event2, new Date(now+FIVE_SECONDS));
         Assert.assertEquals(event1.getId(), id1);
@@ -268,8 +274,67 @@ public class PostOfficeTest {
         long diff = time.getTime() - now;
         Assert.assertEquals(FIVE_SECONDS, diff);
         po.cancelFutureEvent(id2);
-        Date notFound = po.getFutureEventTime(id2);
-        Assert.assertNull(notFound);
+        List<String> futureEvents = po.getFutureEvents(HELLO_WORLD);
+        Assert.assertTrue(futureEvents.contains(id1));
+        po.cancelFutureEvent(id1);
+    }
+
+    @Test
+    public void journalYamlTest() {
+        String MY_FUNCTION = "my.test.function";
+        String ANOTHER_FUNCTION = "another.function";
+        PostOffice po = PostOffice.getInstance();
+        List<String> routes = po.getJournaledRoutes();
+        Assert.assertEquals(2, routes.size());
+        Assert.assertEquals(ANOTHER_FUNCTION, routes.get(0));
+        Assert.assertEquals(MY_FUNCTION, routes.get(1));
+    }
+
+    @Test
+    public void journalTest() throws IOException, InterruptedException {
+        BlockingQueue<Map<String, Object>> bench = new ArrayBlockingQueue<>(1);
+        AtomicInteger counter = new AtomicInteger(0);
+        Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
+        String TRACE_ID = Utility.getInstance().getUuid();
+        String FROM = "unit.test";
+        String HELLO = "hello";
+        String WORLD = "world";
+        String RETURN_VALUE = "some_value";
+        String MY_FUNCTION = "my.test.function";
+        String TRACE_PROCESSOR = "distributed.trace.processor";
+        LambdaFunction f = (headers, body, instance) -> {
+            // only process the 2nd event
+            if (counter.incrementAndGet() == 2) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("metrics", headers);
+                result.put("journal", body);
+                bench.offer(result);
+            }
+            return null;
+        };
+        LambdaFunction myFunction = (headers, body, instance) -> {
+            po.annotateTrace(HELLO, WORLD);
+            return RETURN_VALUE;
+        };
+        platform.registerPrivate(TRACE_PROCESSOR, f, 1);
+        platform.registerPrivate(MY_FUNCTION, myFunction, 1);
+        EventEnvelope event = new EventEnvelope().setTo(MY_FUNCTION).setFrom(FROM)
+                .setTraceId(TRACE_ID).setTracePath("GET /api/hello/world").setBody(HELLO);
+        // send twice to test caching mechanism
+        po.send(event);
+        po.send(event);
+        // wait for function completion
+        Map<String, Object> result = bench.poll(10, TimeUnit.SECONDS);
+        platform.release(TRACE_PROCESSOR);
+        MultiLevelMap multi = new MultiLevelMap(result);
+        Assert.assertEquals(MY_FUNCTION, multi.getElement("metrics.service"));
+        Assert.assertEquals(FROM, multi.getElement("metrics.from"));
+        Assert.assertEquals(TRACE_ID, multi.getElement("metrics.id"));
+        Assert.assertEquals("true", multi.getElement("metrics.success"));
+        Assert.assertEquals(HELLO, multi.getElement("journal.payload.input.body"));
+        Assert.assertEquals(RETURN_VALUE, multi.getElement("journal.payload.output.body"));
+        Assert.assertEquals(WORLD, multi.getElement("journal.annotations.hello"));
     }
 
     @SuppressWarnings("unchecked")
@@ -373,11 +438,11 @@ public class PostOfficeTest {
     @Test
     public void asyncRequestTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> success = new ArrayBlockingQueue<>(1);
-        String SERVICE = "hello.future.1";
-        String TEXT = "hello world";
-        Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        LambdaFunction f = (headers, body, instance) -> body;
+        final String SERVICE = "hello.future.1";
+        final String TEXT = "hello world";
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f = (headers, body, instance) -> body;
         platform.registerPrivate(SERVICE, f, 1);
         Future<EventEnvelope> future = po.asyncRequest(new EventEnvelope().setTo(SERVICE).setBody(TEXT), 1500);
         future.onSuccess(event -> {
@@ -398,11 +463,12 @@ public class PostOfficeTest {
     public void asyncRequestTimeout() throws IOException, InterruptedException {
         final long TIMEOUT = 500;
         final BlockingQueue<Throwable> exception = new ArrayBlockingQueue<>(1);
-        String SERVICE = "hello.future.2";
-        String TEXT = "hello world";
-        Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        LambdaFunction f = (headers, body, instance) -> {
+        final String SERVICE = "hello.future.2";
+        final String TEXT = "hello world";
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f = (headers, body, instance) -> {
+            log.info("Simulate timeout for {}", SERVICE);
             Thread.sleep(1000);
             return body;
         };
@@ -412,7 +478,7 @@ public class PostOfficeTest {
         Throwable e = exception.poll(5, TimeUnit.SECONDS);
         Assert.assertNotNull(e);
         Assert.assertEquals(TimeoutException.class, e.getClass());
-        Assert.assertEquals(SERVICE+" timeout for "+TIMEOUT+" ms", e.getMessage());
+        Assert.assertEquals("Timeout for "+TIMEOUT+" ms", e.getMessage());
         platform.release(SERVICE);
     }
 
@@ -442,6 +508,75 @@ public class PostOfficeTest {
         Assert.assertNotNull(result);
         Assert.assertEquals(STATUS, (int) result.getStatus());
         Assert.assertEquals(ERROR, result.getBody());
+    }
+
+    @Test
+    public void asyncForkJoinTest() throws IOException, InterruptedException {
+        final BlockingQueue<List<EventEnvelope>> success = new ArrayBlockingQueue<>(1);
+        final String SERVICE = "hello.future.3";
+        final String TEXT = "hello world";
+        final int PARALLEL_INSTANCES = 5;
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f1 = (headers, body, instance) -> body;
+        platform.registerPrivate(SERVICE, f1, PARALLEL_INSTANCES);
+        List<EventEnvelope> request = new ArrayList<>();
+        for (int i=1; i < PARALLEL_INSTANCES + 1; i++) {
+            request.add(new EventEnvelope().setTo(SERVICE).setBody(TEXT + "." + i));
+        }
+        Future<List<EventEnvelope>> future = po.asyncRequest(request, 1500);
+        future.onSuccess(event -> {
+            try {
+                platform.release(SERVICE);
+                success.offer(event);
+            } catch (IOException e) {
+                // ok to ignore
+            }
+        });
+        List<EventEnvelope> result = success.poll(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(PARALLEL_INSTANCES, result.size());
+        for (EventEnvelope r: result) {
+            Assert.assertTrue(r.getBody() instanceof String);
+            String text = (String) r.getBody();
+            Assert.assertTrue(text.startsWith(TEXT));
+            log.info("Received response #{} {} - {}", r.getCorrelationId(), r.getId(), text);
+        }
+    }
+
+    @Test
+    public void asyncForkJoinTimeoutTest() throws IOException, InterruptedException {
+        final long TIMEOUT = 500;
+        final BlockingQueue<Throwable> exception = new ArrayBlockingQueue<>(1);
+        final String SERVICE = "hello.future.4";
+        final String TIMEOUT_SERVICE = "hello.future.timeout";
+        final String TEXT = "hello world";
+        final int PARALLEL_INSTANCES = 5;
+        final Platform platform = Platform.getInstance();
+        final PostOffice po = PostOffice.getInstance();
+        final LambdaFunction f1 = (headers, body, instance) -> {
+            log.info("Received event {}, {}", headers, body);
+            return body;
+        };
+        final LambdaFunction f2 = (headers, body, instance) -> {
+            log.info("Simulate timeout for {}", TIMEOUT_SERVICE);
+            Thread.sleep(1000);
+            return body;
+        };
+        platform.registerPrivate(SERVICE, f1, PARALLEL_INSTANCES);
+        platform.registerPrivate(TIMEOUT_SERVICE, f2, 1);
+        List<EventEnvelope> request = new ArrayList<>();
+        for (int i=1; i < PARALLEL_INSTANCES; i++) {
+            request.add(new EventEnvelope().setTo(SERVICE).setBody(TEXT + "." + i));
+        }
+        request.add(new EventEnvelope().setTo(TIMEOUT_SERVICE).setBody(TEXT));
+        Future<List<EventEnvelope>> future = po.asyncRequest(request, TIMEOUT);
+        future.onFailure(exception::offer);
+        Throwable e = exception.poll(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(e);
+        Assert.assertEquals(TimeoutException.class, e.getClass());
+        Assert.assertEquals("Timeout for "+TIMEOUT+" ms", e.getMessage());
+        platform.release(SERVICE);
     }
 
     @Test
@@ -595,15 +730,24 @@ public class PostOfficeTest {
         Assert.assertTrue(result.getBody() instanceof Map);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void infoRouteTest() throws AppException, IOException, TimeoutException {
+        String MY_FUNCTION = "my.test.function";
+        String ANOTHER_FUNCTION = "another.function";
         PostOffice po = PostOffice.getInstance();
         EventEnvelope result = po.request(PostOffice.ACTUATOR_SERVICES, 5000, new Kv("type", "routes"));
         Assert.assertTrue(result.getBody() instanceof Map);
+        MultiLevelMap multi = new MultiLevelMap((Map<String, Object>) result.getBody());
+        Object journalRoutes = multi.getElement("journal");
+        Assert.assertTrue(journalRoutes instanceof List);
+        List<String> routes = (List<String>) journalRoutes;
+        Assert.assertTrue(routes.contains(MY_FUNCTION));
+        Assert.assertTrue(routes.contains(ANOTHER_FUNCTION));
     }
 
     @Test
-    public void livenessTest() throws AppException, IOException, TimeoutException {
+    public void livenessProbeTest() throws AppException, IOException, TimeoutException {
         PostOffice po = PostOffice.getInstance();
         EventEnvelope result = po.request(PostOffice.ACTUATOR_SERVICES, 5000, new Kv("type", "livenessprobe"));
         Assert.assertEquals("OK", result.getBody());
@@ -775,7 +919,7 @@ public class PostOfficeTest {
         }
 
         @Override
-        public Void handleEvent(Map<String, String> headers, PoJo body, int instance) throws Exception {
+        public Void handleEvent(Map<String, String> headers, PoJo body, int instance) {
             PostOffice po = PostOffice.getInstance();
             if (traceId.equals(po.getTraceId())) {
                 log.info("Found trace path '{}'", po.getTrace().path);

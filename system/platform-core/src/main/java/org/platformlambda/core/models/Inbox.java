@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -50,8 +50,8 @@ public class Inbox extends InboxBase implements AutoCloseable {
      */
     public Inbox(int n) {
         if (n > 1) {
-            total.set(n);
-            replies = new ConcurrentHashMap<>();
+            this.total.set(n);
+            this.replies = new ConcurrentHashMap<>();
             this.n = n;
         } else {
             this.n = 1;

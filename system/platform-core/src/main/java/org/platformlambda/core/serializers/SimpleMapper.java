@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 package org.platformlambda.core.serializers;
 
 import com.google.gson.*;
-import org.msgpack.core.annotations.VisibleForTesting;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -335,7 +334,6 @@ public class SimpleMapper {
         return result;
     }
 
-    @VisibleForTesting
     public Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.

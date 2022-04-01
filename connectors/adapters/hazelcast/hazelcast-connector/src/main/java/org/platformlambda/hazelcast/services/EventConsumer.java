@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ public class EventConsumer {
         String realTopic = partition < 0? topic : topic+"."+partition;
         iTopic = client.getReliableTopic(realTopic);
         registrationId = iTopic.addMessageListener(new EventListener());
-        String completionHandler = COMPLETION + realTopic;
+        String completionHandler = COMPLETION + realTopic.toLowerCase();
         LambdaFunction f = (headers, body, instance) -> {
             iTopic.removeMessageListener(registrationId);
             platform.release(completionHandler);

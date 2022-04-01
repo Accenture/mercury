@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -156,6 +156,6 @@ public class ConnectorTest extends TestBase {
         Assert.assertEquals("UP", result.get("status"));
         Assert.assertEquals("cloud-connector", result.get("name"));
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals(200L, multi.getElement("upstream[0].statusCode"));
+        Assert.assertEquals(200L, multi.getElement("upstream[0].status_code"));
     }
 }

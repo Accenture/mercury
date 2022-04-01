@@ -1,0 +1,9 @@
+#
+# To enable journal service for each function, add the function route names here
+#
+# If you change this file, you must update the following PostOfficeTest unit tests:
+# journalYamlTest, journalTest and infoRouteTest
+#
+journal:
+  - "my.test.function"
+  - "another.function"

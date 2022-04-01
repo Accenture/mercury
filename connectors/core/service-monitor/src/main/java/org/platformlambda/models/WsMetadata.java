@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,18 +18,15 @@
 
 package org.platformlambda.models;
 
-import io.vertx.core.http.ServerWebSocket;
-
 public class WsMetadata {
 
-    public String origin, session;
-    public ServerWebSocket ws;
+    public String origin, session, txPath;
     public long lastAccess = System.currentTimeMillis();
 
-    public WsMetadata(ServerWebSocket ws, String origin, String session) {
-        this.ws = ws;
-        this.origin = origin;
+    public WsMetadata(String session, String txPath, String origin) {
         this.session = session;
+        this.txPath = txPath;
+        this.origin = origin;
     }
 
     public void touch() {

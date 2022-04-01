@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ public class MainApp implements EntryPoint {
          *
          * platform.startCloudServices();
          */
-        // connect to the network event streams so it can automatically discover other services
+        // connect to the network event streams to automatically discover other services
         platform.connectToCloud();
 
         log.info("Application started");

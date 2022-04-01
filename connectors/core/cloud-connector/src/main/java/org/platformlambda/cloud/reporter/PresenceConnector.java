@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -285,7 +285,7 @@ public class PresenceConnector implements LambdaFunction {
             String topic = topicPartition.substring(0, hyphen);
             int partition = util.str2int(topicPartition.substring(hyphen + 1));
             ps.unsubscribe(topic, partition);
-            ps.unsubscribe(monitorTopic, 1);
+            ps.unsubscribe(monitorTopic, closedUserGroup);
             ServiceLifeCycle.releaseConnecton("disconnected from "+topicPartition);
             topicPartition = null;
         }

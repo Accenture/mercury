@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -63,17 +63,17 @@ public class JobExecutor implements Job {
              *
              * This would avoid duplicated execution of a scheduled job.
              */
-            final boolean primary;
             String me = Platform.getInstance().getOrigin();
             PostOffice po = PostOffice.getInstance();
-            List<String> peers = po.search(SCHEDULER_SERVICE);
+            List<String> peers = po.search(SCHEDULER_SERVICE, true);
+            final String selected;
             if (peers.size() > 1) {
                 Collections.sort(peers);
-                primary = me.equals(peers.get(0));
-            } else {
-                primary = true;
+                selected = peers.get(0);
+            } else  {
+                selected = me;
             }
-            if (primary) {
+            if (me.equals(selected)) {
                 if (po.exists(job.service)) {
                     try {
                         po.send(event);
@@ -89,7 +89,8 @@ public class JobExecutor implements Job {
                                 job.service, job.parameters, job.service);
                 }
             } else {
-                log.info("Skip service {} with parameters {}", job.service, job.parameters);
+                log.info("Skip service {} with parameters {} because peer {} is handling it",
+                        job.service, job.parameters, selected);
             }
         }
     }

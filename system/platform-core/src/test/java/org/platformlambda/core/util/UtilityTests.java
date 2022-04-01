@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -64,17 +64,8 @@ public class UtilityTests {
         personality.setType(null);
     }
 
-    @Test(expected = IOException.class)
-    public void noPubSub() throws IOException {
-        PubSub ps = PubSub.getInstance();
-        ps.createTopic(HELLO_WORLD);
-    }
-
     @Test
     public void mockPubSub() throws IOException, TimeoutException {
-        Platform platform = Platform.getInstance();
-        LambdaFunction f = (headers, body, instance) -> true;
-        platform.registerPrivate(PubSub.PUBLISHER, f, 1);
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
         ps.waitForProvider(1);
@@ -87,19 +78,34 @@ public class UtilityTests {
         Assert.assertTrue(ps.isStreamingPubSub());
         Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
         Assert.assertTrue(ps.list().contains(HELLO_WORLD));
+        LambdaFunction f = (headers, body, instance) -> true;
         ps.subscribe(HELLO_WORLD, f, "client100", "group100");
         ps.subscribe(HELLO_WORLD, 0, f, "client100", "group100");
         ps.publish(HELLO_WORLD, new HashMap<>(), "hello");
         ps.publish(HELLO_WORLD, 1, new HashMap<>(), "hello");
         ps.unsubscribe(HELLO_WORLD);
         ps.unsubscribe(HELLO_WORLD, 1);
-        platform.release(PubSub.PUBLISHER);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void mockPubSubCreateQueue() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        ps.enableFeature(new MockPubSub());
+        ps.createQueue("demo.queue");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void mockPubSubDeleteQueue() throws IOException {
+        PubSub ps = PubSub.getInstance();
+        ps.enableFeature(new MockPubSub());
+        ps.deleteQueue("demo.queue");
     }
 
     @Test
     public void timestampTest() {
-        Date now = new Date();
         Utility util = Utility.getInstance();
+        String EXACT_SECOND = ".000";
+        Date now = new Date();
         String t = util.getTimestamp();
         Assert.assertTrue(util.isDigits(t));
         String ts = util.getTimestamp(now.getTime());
@@ -115,6 +121,23 @@ public class UtilityTests {
         Assert.assertEquals(iso.substring(0, iso.indexOf('T')), sqlDate);
         java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
         String sqlTime = util.getSqlTimestamp(sqlTs);
+        if (sqlTime.endsWith(EXACT_SECOND)) {
+            sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
+        }
+        Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
+    }
+
+    @Test
+    public void exactSecondTimestampTest() {
+        Utility util = Utility.getInstance();
+        String EXACT_SECOND = ".000";
+        String exact = util.date2str(new Date(), true);
+        Date now = util.str2date(exact);
+        String iso = util.date2str(now);
+        java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
+        String sqlTime = util.getSqlTimestamp(sqlTs);
+        Assert.assertTrue(sqlTime.endsWith(EXACT_SECOND));
+        sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
         Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
     }
 
@@ -321,6 +344,7 @@ public class UtilityTests {
         util.closeConnection(TX_PATH, CloseReason.CloseCodes.CANNOT_ACCEPT, REASON);
         Map<String, String> result = bench.poll(10, TimeUnit.SECONDS);
         log.info("Received close event {}", result);
+        Assert.assertNotNull(result);
         Assert.assertEquals(REASON, result.get("message"));
         Assert.assertEquals("close", result.get("type"));
         Assert.assertEquals(CloseReason.CloseCodes.CANNOT_ACCEPT.getCode(), util.str2int(result.get("status")));

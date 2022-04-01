@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ public class Tracer implements LambdaFunction {
         Map<String, Object> data = new HashMap<>();
         data.put("type", "trace");
         data.put("trace", transform(headers));
-        data.put("annotations", body);
+        data.put("data", body);
         // send the trace info to all connected UI clients
         PostOffice po = PostOffice.getInstance();
         Set<String> txPaths = WsTrace.getConnections();

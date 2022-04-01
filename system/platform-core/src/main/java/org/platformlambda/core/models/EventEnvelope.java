@@ -1,5 +1,5 @@
 /*
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
@@ -441,11 +441,12 @@ public class EventEnvelope {
             this.optional = true;
             Optional<Object> o = (Optional<Object>) body;
             payload = o.orElse(null);
+        } else if (body instanceof EventEnvelope) {
+            EventEnvelope nested = (EventEnvelope) body;
+            log.warn("Setting body from nested EventEnvelope is discouraged - system will remove the outer envelope");
+            return setBody(nested.getBody());
         } else {
             payload = body;
-        }
-        if (payload instanceof EventEnvelope) {
-            throw new IllegalArgumentException("Invalid payload - EventEnvelope can only be used for event transport");
         }
         // encode body and save object type
         this.encoded = true;

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -80,8 +80,13 @@ public class CryptoTest {
         byte[] encrypted = crypto.rsaEncrypt(input, pub);
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
-        // cannot use assertEquals because we need to do byte-by-byte comparison
+        // do a byte-by-byte comparison
         Assert.assertArrayEquals(input, decrypted);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void invalidRsaKeyLength() {
+        crypto.generateRsaKey(1000);
     }
 
     @Test

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ public class MultiLevelMap {
     }
 
     public MultiLevelMap(Map<String, Object> map) {
-        this.multiLevels = map;
+        this.multiLevels = map == null? new HashMap<>() : map;
     }
 
     public Map<String, Object> getMap() {

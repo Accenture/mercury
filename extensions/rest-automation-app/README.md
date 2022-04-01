@@ -216,8 +216,8 @@ You can ask a browser to set a cookie by setting the "Set-Cookie" key-value in a
 converted to a HTTP response header. 
 For details, please see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
 
-There is a convenient "getHtmlDate()" method in the Utility class if you want to set the "Expires" directive in a cookie.
-
+There is a convenient "getHtmlDate()" method in the Utility class if you want to set the "Expires" directive in a 
+cookie.
 
 ### Exception handling
 
@@ -350,10 +350,11 @@ An open event contains a header of "type" = "open". The event body contains the 
 To connect to your websocket server function, the UI may issue a websocket connection request to the following URL:
 
 ```
-wss://hostname/ws/api/notification:{access_token}?optional_query_string
+wss://hostname/ws/api/notification/{access_token}?optional_query_string
 ```
 
-The application name "notification" is an example only. You can define any application name in the rest.yaml config file.
+The application name "notification" is an example only. You can define any application name in the rest.yaml 
+config file.
 
 Note that your websocket server handler function will receive all websocket connection to the specific websocket 
 application. Please implement logic to handle individual user which is identified by the "tx_path".
@@ -426,7 +427,7 @@ configuration file contains a websocket routing entry to the sample.ws.auth and 
 ### Using websocket for simple notification to the browser
 
 If your application requires only publish/subscribe feature, you can remove the "recipient" service from the websocket 
-config. Just add the publish/subscibe features in the rest.yaml config file like this:
+config. Just add the publish/subscribe features in the rest.yaml config file like this:
 
 ```yaml
 websocket:
@@ -457,7 +458,8 @@ The "publish" feature, if turn on, allows peer-to-peer messaging. For security, 
 You can expose a REST endpoint for a user to send events through a backend service.
 
 The `/api/notification` endpoints are for admin purpose if you want to expose them to DevOps. 
-The two admin endpoints show a list of all topics or a list of websocket connections under a specific topic respectively.
+The two admin endpoints show a list of all topics or a list of websocket connections under a specific topic 
+respectively.
 
 ### Subscribe to a notification topic
 
@@ -486,7 +488,7 @@ When the connected websocket backend service application instance fails, the web
 will be closed and current subscriptions will be dropped. The browser application should acquire a websocket access 
 token and reconnect to an available backend service instance. Then subscribe to the topic(s) again.
 
-Note that a browser can subscribe to more than one notification topics. e.g. system.alerts, user.1200, workflow.100, etc.
+Note that a browser can subscribe to more than one notification topics. e.g. system.alerts, user.120, workflow.100, etc.
 
 ### Notification topic vs service route name
 
@@ -507,9 +509,9 @@ If "publish" feature is turned on, the browser can send text events to a topic l
 
 ### Publish from a backend service
 
-For security, we recommend to disable the publish feature in rest.yaml and perform publishing from a backend service.
+For security, we recommend disabling the publish feature in rest.yaml and perform publishing from a backend service.
 
-The following backend service APIs are available
+There is a convenient class "UserNotification" in the platform core library that provides the following APIs:
 
 ```java
 public void publish(String topic, String message);

@@ -2,6 +2,8 @@
 
 Reference implementation for event driven microservices using three levels of digital decoupling
 
+HTML version of this documentation is available at https://accenture.github.io/mercury/
+
 ## Welcome to the Mercury project
 
 The Mercury project is created with one primary objective - 
@@ -45,7 +47,7 @@ async, callback, streaming, pipeline and pub/sub use cases.
 
 Best regards, the Mercury team, Accenture
 
-October 2021
+January 2022
 
 ## Rationale
 
@@ -326,7 +328,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -jar target/rest-example-2.2.2.jar
+java -jar target/rest-example-2.3.3.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -383,7 +385,7 @@ For development and testing, you can start a standalone Kafka server.
 # start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
 cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/kafka-standalone-2.2.2.jar
+java -jar target/kafka-standalone-2.3.3.jar
 # this will run a standalone Kafka server in the foreground
 ```
 
@@ -393,7 +395,7 @@ The next step is to start the "presence-monitor" application.
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -jar target/kafka-presence-2.2.2.jar
+java -jar target/kafka-presence-2.3.3.jar
 # this will run the presence monitor at port 8080 in the foreground
 
 # when an application instance is started, it connects to the presence monitor to get topic.
@@ -409,7 +411,7 @@ Optionally, if you want to test resilience of the presence monitor, you can star
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.2.2.jar
+java -Dserver.port=8081 -jar target/kafka-presence-2.3.3.jar
 # this will run the presence monitor at port 8081 in the foreground
 ```
 
@@ -417,11 +419,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-2.2.2.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.2.2.jar
+java -Dcloud.connector=kafka -jar target/lambda-example-2.3.3.jar
 # the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.2.2.jar
+java -Dcloud.connector=kafka -jar target/rest-example-2.3.3.jar
 # the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this
@@ -468,13 +470,13 @@ You may visit http://127.0.0.1:8080 and select "info". It may look like this:
     "allocated": "534,773,760"
   },
   "personality": "RESOURCES",
-  "additional.info": {
+  "additional_info": {
     "total": {
-      "virtual.topics": 3,
+      "virtual_topics": 3,
       "topics": 2,
       "connections": 3
     },
-    "virtual.topics": [
+    "virtual_topics": [
       "multiplex.0001-000 -> 2021082260f0b955a9ad427db14a9db751340d61, rest-example v2.1.1",
       "multiplex.0001-001 -> 20210822371949df090644428cd98ae0ba91a69b, lambda-example v2.1.1",
       "multiplex.0001-002 -> 2021082295c030edc07a4a4eb5cb78b6421f5fb7, lambda-example v2.1.1"
@@ -658,7 +660,12 @@ ENTRYPOINT ["java","-jar","your-app-name.jar"]
 
 ```
 
-To run the newly built docker image, the command may look like this:
+To build a new docker image locally:
+```
+docker build -t your-app-name:latest .
+```
+
+To run the newly built docker image, try this:
 ```
 docker run -p 8083:8083 -i -t your-app-name:latest
 ```

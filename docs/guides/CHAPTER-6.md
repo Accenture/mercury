@@ -17,18 +17,20 @@ where `service.monitor.0` is used by the presence monitor to communicate with it
 service.monitor.1 and higher topics are used for closed user groups. i.e. service.monitor.1 for closed user group 1 and
 service.monitor.2 for closed user group 2, etc.
 
-Usually all user application instances should use the same closed user group unless you want to logically segregate different
-application domains into their own closed user groups. Application modules in one group are invisible to another group.
+Usually all user application instances should use the same closed user group unless you want to logically segregate 
+different application domains into their own closed user groups. Application modules in one group are invisible to
+another group.
 
-multiplex.x.y topics are used by user application instances. The presence monitor will assign one topic to one application instance
-dynamically and release the topic when the application instance leaves the system. This allows topics to be reused automatically.
+multiplex.x.y topics are used by user application instances. The presence monitor will assign one topic to one 
+application instance dynamically and release the topic when the application instance leaves the system. 
+This allows topics to be reused automatically.
 
-There is a RSVP reservation protocol that the presence monitors will coordinate with each other to assign a unique topic to each
-application instance.
+There is a RSVP reservation protocol that the presence monitors will coordinate with each other to assign a 
+unique topic to each application instance.
 
-The value `x` must be a 4-digit number starting from 0001 and `y` is the partition number for the topic. If the underlying messaging system
-supports pub/sub, the partition number maps to the physical partition of a topic. For enterprise service bus, the partition number
-is a logical identifier that corresponds to a physical topic.
+The value `x` must be a 4-digit number starting from 0001 and `y` is the partition number for the topic. 
+If the underlying messaging system supports pub/sub, the partition number maps to the physical partition of a topic. 
+For enterprise service bus, the partition number is a logical identifier that corresponds to a physical topic.
 
 # Topic Substitution
 
@@ -81,7 +83,9 @@ multiplex:
 
 ### Kafka
 
-Since Kafka is a pub/sub event streaming system with partitioning support, you can use the "#n" suffix to specify the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). (Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
+Since Kafka is a pub/sub event streaming system with partitioning support, you can use the "#n" suffix to specify 
+the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). 
+(Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
 
 If you do not provide the partition number, it is assumed to be the first partition. i.e. partition-0.
 

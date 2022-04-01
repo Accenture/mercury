@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.platformlambda.automation.services;
 
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.util.UserNotification;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -39,9 +40,9 @@ public class NotificationQuery implements LambdaFunction {
                 Map<String, Object> result = new HashMap<>();
                 result.put(TIME, new Date());
                 if (topic == null) {
-                    result.put(TOPICS, SimpleNotification.getInstance().listTopics());
+                    result.put(TOPICS, UserNotification.getInstance().listTopics());
                 } else {
-                    result.put(topic, SimpleNotification.getInstance().getTopic(topic));
+                    result.put(topic, UserNotification.getInstance().getTopic(topic));
                 }
                 return result;
             }

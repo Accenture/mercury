@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -347,11 +347,16 @@ public class DataModelTest {
         Assert.assertEquals("demo", ex.getMessage());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void envelopeAsInputNotAllowed() {
+    @Test
+    public void nestedEventEnvelopeBodyTest() {
+        /*
+         * Event envelope should not be nested.
+         * When it happens, the body from the nested envelope would be used as the payload.
+         */
+        String HELLO = "hello world";
         EventEnvelope one = new EventEnvelope();
-        EventEnvelope two = new EventEnvelope();
-        one.setBody(two);
+        one.setBody(new EventEnvelope().setBody(HELLO));
+        Assert.assertEquals(HELLO, one.getBody());
     }
 
 }

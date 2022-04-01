@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,11 +29,17 @@ import java.util.Map;
  */
 public interface PubSubProvider {
 
+    void waitForProvider(int seconds);
+
     boolean createTopic(String topic) throws IOException;
 
     boolean createTopic(String topic, int partitions) throws IOException;
 
     void deleteTopic(String topic) throws IOException;
+
+    boolean createQueue(String queue) throws IOException;
+
+    void deleteQueue(String queue) throws IOException;
 
     void publish(String topic, Map<String, String> headers, Object body) throws IOException;
 
@@ -42,6 +48,10 @@ public interface PubSubProvider {
     void subscribe(String topic, LambdaFunction listener, String... parameters) throws IOException;
 
     void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException;
+
+    void send(String queue, Map<String, String> headers, Object body) throws IOException;
+
+    void listen(String queue, LambdaFunction listener, String... parameters) throws IOException;
 
     void unsubscribe(String topic) throws IOException;
 

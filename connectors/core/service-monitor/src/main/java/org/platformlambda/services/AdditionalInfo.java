@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -70,8 +70,8 @@ public class AdditionalInfo implements LambdaFunction {
             counts.put("topics", pubSub.size());
             result.put("total", counts);
             List<String> vTopics = getVirtualTopics(connections);
-            result.put("virtual.topics", vTopics);
-            counts.put("virtual.topics", vTopics.size());
+            result.put("virtual_topics", vTopics);
+            counts.put("virtual_topics", vTopics.size());
             return result;
         } else {
             throw new IllegalArgumentException("Usage: type=query");

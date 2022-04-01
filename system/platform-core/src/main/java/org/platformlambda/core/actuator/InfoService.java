@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 
 public class InfoService implements LambdaFunction {
     private static final String ERROR = "error";
-    private static final String SYSTEM_INFO = "additional.info";
+    private static final String ADDITIONAL_INFO = "additional.info";
     private static final String STREAMS = "streams";
     private static final String JAVA_VERSION = "java.version";
     private static final String JAVA_VM_VERSION = "java.vm.version";
@@ -71,6 +71,7 @@ public class InfoService implements LambdaFunction {
     private static final String SYSTEM_ENV = "environment";
     private static final String APP_PROPS = "properties";
     private static final String MISSING = "missing";
+    private static final String JOURNAL = "journal";
     private static final Date START_TIME = new Date();
     private final String description;
     private final Boolean isServiceMonitor;
@@ -107,9 +108,15 @@ public class InfoService implements LambdaFunction {
                 throw new IllegalArgumentException("Routing table is not visible from a presence monitor - " +
                         "please try it from a regular application instance");
             } else {
+                PostOffice po = PostOffice.getInstance();
+                List<String> journaledRoutes = po.getJournaledRoutes();
+                if (journaledRoutes.size() > 1) {
+                    Collections.sort(journaledRoutes);
+                }
                 result.put(ROUTING, getRoutingTable());
+                result.put(JOURNAL, journaledRoutes);
                 // add route substitution list if any
-                Map<String, String> substitutions = PostOffice.getInstance().getRouteSubstitutionList();
+                Map<String, String> substitutions = po.getRouteSubstitutionList();
                 if (!substitutions.isEmpty()) {
                     result.put(ROUTE_SUBSTITUTION, substitutions);
                 }
@@ -126,11 +133,9 @@ public class InfoService implements LambdaFunction {
             // java VM information
             Map<String, Object> jvm = new HashMap<>();
             result.put(JVM, jvm);
-            jvm.put(JAVA_VERSION, System.getProperty(JAVA_VERSION));
-            jvm.put(JAVA_VM_VERSION, System.getProperty(JAVA_VM_VERSION));
-            jvm.put(JAVA_RUNTIME_VERSION, System.getProperty(JAVA_RUNTIME_VERSION));
-            // normalize result - substitute dot with underline
-            normalize(jvm);
+            jvm.put("java_version", System.getProperty(JAVA_VERSION));
+            jvm.put("java_vm_version", System.getProperty(JAVA_VM_VERSION));
+            jvm.put("java_runtime_version", System.getProperty(JAVA_RUNTIME_VERSION));
             // memory usage
             Runtime runtime = Runtime.getRuntime();
             NumberFormat number = NumberFormat.getInstance();
@@ -146,7 +151,10 @@ public class InfoService implements LambdaFunction {
              * check streams resources if any
              */
             result.put(STREAMS, ObjectStreamIO.getStreamInfo());
-            updateResult(SYSTEM_INFO, result);
+            Object more = getAdditionalInfo();
+            if (more != null) {
+                result.put("additional_info", more);
+            }
             result.put(ORIGIN, platform.getOrigin());
             result.put(PERSONALITY, ServerPersonality.getInstance().getType().name());
             Map<String, Object> time = new HashMap<>();
@@ -157,14 +165,16 @@ public class InfoService implements LambdaFunction {
         return result;
     }
 
-    private void updateResult(String service, Map<String, Object> result) {
-        if (Platform.getInstance().hasRoute(service)) {
+    private Object getAdditionalInfo() {
+        if (Platform.getInstance().hasRoute(ADDITIONAL_INFO)) {
             try {
-                EventEnvelope res = PostOffice.getInstance().request(service, 5000, new Kv(TYPE, QUERY));
-                result.put(service, res.getBody());
+                EventEnvelope res = PostOffice.getInstance().request(ADDITIONAL_INFO, 5000, new Kv(TYPE, QUERY));
+                return res.getBody();
             } catch (TimeoutException | IOException | AppException e) {
-                result.put(ERROR, e.getMessage());
+                return "Unable to check additional.info - "+e.getMessage();
             }
+        } else {
+            return null;
         }
     }
 
@@ -225,21 +235,6 @@ public class InfoService implements LambdaFunction {
             Collections.sort(result);
         }
         return result;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void normalize(Map<String, Object> data) {
-        List<String> keys = new ArrayList<>(data.keySet());
-        for (String k: keys) {
-            Object o = data.get(k);
-            if (o instanceof Map) {
-                normalize((Map<String, Object>) o);
-            }
-            if (k.contains(".")) {
-                data.put(k.replace('.', '_'), o);
-                data.remove(k);
-            }
-        }
     }
 
     private Map<String, Object> getEnv() {

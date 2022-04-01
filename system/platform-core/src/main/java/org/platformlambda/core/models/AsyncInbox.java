@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
+import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -30,33 +31,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 
 public class AsyncInbox extends InboxBase {
     private static final Logger log = LoggerFactory.getLogger(AsyncInbox.class);
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
     private final long begin = System.nanoTime();
     private final Future<EventEnvelope> future;
     private final long timeout;
-    private final String to;
     private long timer;
     private MessageConsumer<byte[]> listener;
     private Promise<EventEnvelope> promise;
 
-    public AsyncInbox(String to, long timeout) {
+    public AsyncInbox(String from, String traceId, String tracePath, long timeout) {
         final Platform platform = Platform.getInstance();
-        this.to = to;
         this.timeout = Math.max(100, timeout);
         this.future = Future.future(promise -> {
             this.promise = promise;
             this.id = "r."+ Utility.getInstance().getUuid();
-            this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler());
+            String sender = from == null? ASYNC_INBOX : from;
+            this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler(sender));
             inboxes.put(id, this);
             timer = platform.getVertx().setTimer(timeout, t -> {
-                abort(id);
+                abort(id, sender, traceId, tracePath);
             });
         });
     }
@@ -65,22 +62,42 @@ public class AsyncInbox extends InboxBase {
         return future;
     }
 
-    private void abort(String inboxId) {
+    private void abort(String inboxId, String from, String traceId, String tracePath) {
         AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
         if (holder != null) {
             holder.close();
-            executor.submit(() -> holder.promise.fail(new TimeoutException(to+" timeout for "+holder.timeout+" ms")));
+            executor.submit(() -> {
+                PostOffice po = PostOffice.getInstance();
+                String traceLogHeader = po.getTraceLogHeader();
+                po.startTracing(from, traceId, tracePath);
+                if (traceId != null) {
+                    ThreadContext.put(traceLogHeader, traceId);
+                }
+                holder.promise.fail(new TimeoutException("Timeout for "+holder.timeout+" ms"));
+                po.stopTracing();
+                ThreadContext.remove(traceLogHeader);
+            });
         }
     }
 
-    private void saveResponse(String inboxId, EventEnvelope reply) {
+    private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
         AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
         if (holder != null) {
             holder.close();
             Platform.getInstance().getVertx().cancelTimer(timer);
             float diff = System.nanoTime() - holder.begin;
             reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
-            executor.submit(() -> holder.promise.complete(reply));
+            executor.submit(() -> {
+                PostOffice po = PostOffice.getInstance();
+                String traceLogHeader = po.getTraceLogHeader();
+                po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
+                if (reply.getTraceId() != null) {
+                    ThreadContext.put(traceLogHeader, reply.getTraceId());
+                }
+                holder.promise.complete(reply);
+                po.stopTracing();
+                ThreadContext.remove(traceLogHeader);
+            });
         }
     }
 
@@ -93,13 +110,19 @@ public class AsyncInbox extends InboxBase {
 
     private class InboxHandler implements Handler<Message<byte[]>> {
 
+        final String sender;
+
+        public InboxHandler(String sender) {
+            this.sender = sender == null? ASYNC_INBOX : sender;
+        }
+
         @Override
         public void handle(Message<byte[]> message) {
             try {
                 EventEnvelope event = new EventEnvelope(message.body());
                 String inboxId = event.getReplyTo();
                 if (inboxId != null) {
-                    saveResponse(inboxId, event);
+                    saveResponse(sender, inboxId, event);
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());

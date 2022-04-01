@@ -1,23 +1,26 @@
 # Distributed tracer sample application
 
-This is a sample distributed trace aggregator.
+This is a sample application for the distributed trace aggregator.
+
+DO NOT use this for production. It is meant to be used as a demo app to illustrate how to aggregate trace metrics.
+For production, please write your own custom aggregator.
 
 This application subscribes to the route "distributed.trace.processor" to receive distributed trace information.
 
-In additon to printing the trace information as log messages, it is a websocket server for distributed trace
+In addition to printing the trace information as log messages, it is a websocket server for distributed trace
 UI applications to connect.
 
 # IMPORTANT - distributed trace logging vs trace aggregator
 
 Distributed trace logging should be set as INFO so that the performance metrics information are logged to a centralized
-logging system such as Splunk. This would allow devops team to do production triage. The logging is moderate and it
+logging system such as Splunk. This would allow devops team to do production triage. The non-blocking operation
 does not impact production traffic.
 
-However, when distributed trace aggregator is deployed, the system will generate additional network workload for
+However, when distributed trace aggregator is deployed, the system will generate additional network traffic for
 sending performance metrics to the aggregator.
 
-We therefore recommend using this tool for development purpose only. DO NOT deploy to production as the additional
-network traffic would compete with production traffic.
+If you build your own trace aggregator, please ensure that you save the metrics into a dedicated database to avoid
+competing with production traffic.
 
 ## Turning on tracing
 
@@ -25,6 +28,12 @@ Distributed traces are initiated at the edge by the REST automation system.
 
 To enable distributed trace, please set "tracing=true" for the REST endpoints in the "rest.yaml" file that
 you want to trace. For details, please refer to the REST automation application subproject in the "extensions" packages.
+
+## Transaction journaling
+
+Optionally, you may enable transaction journaling for selected services. To enable journaling, you can define
+the service routes in journal config YAML file. Journaling is a superset of distributed trace. You would need
+to write your own distributed trace aggregator.
 
 ## Demo tracer HTML page
 

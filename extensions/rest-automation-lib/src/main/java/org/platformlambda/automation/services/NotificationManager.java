@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -310,7 +310,12 @@ public class NotificationManager implements LambdaFunction {
                     String txPath = t.substring(0, at);
                     String peerOrigin = t.substring(at + 1);
                     if (origin.equals(peerOrigin)) {
-                        po.send(txPath, body);
+                        try {
+                            po.send(txPath, body);
+                        } catch (IOException e) {
+                            log.warn("Unable to publish to {} because connection may have dropped - {}",
+                                    txPath, e.getMessage());
+                        }
                     } else {
                         if (!isFinal) {
                             peers.add(peerOrigin);

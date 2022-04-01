@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2021 Accenture Technology
+    Copyright 2018-2022 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
@@ -36,8 +35,6 @@ import java.util.Map;
 
 public class AdminEndpointTest extends TestBase {
 
-    private static final SimpleXmlParser xmlParser = new SimpleXmlParser();
-
     @SuppressWarnings("unchecked")
     @Test
     public void infoEndpointTest() throws AppException, IOException {
@@ -49,31 +46,6 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertEquals("RESOURCES", multi.getElement("personality"));
         String origin = Platform.getInstance().getOrigin();
         Assert.assertEquals(origin, multi.getElement("origin"));
-    }
-
-    @Test
-    public void infoEndpointAcceptHtmlTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info", "text/html");
-        Assert.assertTrue(response instanceof String);
-        String html = (String) response;
-        Assert.assertTrue(html.startsWith("<!DOCTYPE html>"));
-        Assert.assertTrue(html.contains("presence-monitor"));
-        Assert.assertTrue(html.endsWith("</html>"));
-    }
-
-    @Test
-    public void infoEndpointAcceptXmlTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info", "application/xml");
-        Assert.assertTrue(response instanceof String);
-        String xml = (String) response;
-        MultiLevelMap map = new MultiLevelMap(xmlParser.parse(xml));
-        Assert.assertEquals("presence-monitor", map.getElement("app.name"));
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedInfoEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -92,12 +64,6 @@ public class AdminEndpointTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals("presence-monitor", multi.getElement("app.name"));
         Assert.assertTrue(result.containsKey("library"));
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedLibEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info/lib");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -136,12 +102,6 @@ public class AdminEndpointTest extends TestBase {
     }
 
     @Test(expected = AppException.class)
-    public void protectedHealthEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/health");
-        System.out.println(response);
-    }
-
-    @Test(expected = AppException.class)
     public void remoteHealthEndpointTest() throws AppException, IOException {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
@@ -170,12 +130,6 @@ public class AdminEndpointTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals("presence-monitor", multi.getElement("app.name"));
         Assert.assertTrue(result.get("env") instanceof Map);
-    }
-
-    @Test(expected = AppException.class)
-    public void protectedEnvEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/env");
-        System.out.println(response);
     }
 
     @Test(expected = AppException.class)
@@ -247,16 +201,6 @@ public class AdminEndpointTest extends TestBase {
         SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume/now", headers, new HashMap<>());
     }
 
-    @Test
-    public void simulatedShutdown() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("X-App-Instance", Platform.getInstance().getOrigin());
-        Object response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/shutdown/simulated",
-                                                    headers, new HashMap<>());
-        Assert.assertTrue(response instanceof String);
-        Assert.assertTrue(response.toString().contains("will be shutdown"));
-    }
-
     @SuppressWarnings("unchecked")
     @Test
     public void suspendAppInstanceOK() throws AppException, IOException {
@@ -281,16 +225,6 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertEquals(200L, result.get("status"));
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
-    }
-
-    @Test
-    public void getIndexPage() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/");
-        Assert.assertTrue(response instanceof String);
-        String text = (String) response;
-        InputStream in = this.getClass().getResourceAsStream("/public/index.html");
-        String css = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(css, text);
     }
 
     @Test
