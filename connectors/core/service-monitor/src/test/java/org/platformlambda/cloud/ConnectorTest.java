@@ -24,6 +24,7 @@ import org.platformlambda.MainApp;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -55,13 +56,18 @@ public class ConnectorTest extends TestBase {
     private static final String MULTIPLES = "multiples";
     private static final String ALIVE = "keep-alive";
     private static final String TOPIC = "topic";
+    private static final String ROUTE = ServiceDiscovery.ROUTE;
+    private static final String SUBSCRIBE_LIFE_CYCLE = "subscribe_life_cycle";
+    private static final String CONNECTION_LIFE_CYCLE = "connection.life.cycle";
 
     @SuppressWarnings("unchecked")
     @Test
     public void connectivityTest() throws AppException, IOException, TimeoutException {
+        Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
-        int n = 1;
-        while (!PresenceHandler.isReady() || MonitorService.getConnections().isEmpty() && n++ < 20) {
+        platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 10000);
+        int n = 0;
+        while (!PresenceHandler.isReady() || MonitorService.getConnections().isEmpty() && ++n < 20) {
             log.info("Waiting for member connection... {}", n);
             try {
                 Thread.sleep(5000);
@@ -69,7 +75,11 @@ public class ConnectorTest extends TestBase {
                 // ok to ignore
             }
         }
-        n = 1;
+        Map<String, Object> connections = MonitorService.getConnections();
+        if (connections.isEmpty()) {
+            throw new IllegalArgumentException("Should have at least one member connection");
+        }
+        n = 0;
         while (n++ < 30) {
             Map<String, String> headers = new HashMap<>();
             headers.put("x-app-instance", Platform.getInstance().getOrigin());
@@ -102,13 +112,6 @@ public class ConnectorTest extends TestBase {
                 break;
             }
         }
-        Map<String, Object> connections = MonitorService.getConnections();
-        for (String c: connections.keySet()) {
-            Object o = connections.get(c);
-            Assert.assertTrue(o instanceof Map);
-            Map<String, Object> conn = (Map<String, Object>) o;
-            conn.put(TOPIC, "multiplex.0001-000");
-        }
         PubSub ps = PubSub.getInstance();
         ps.createTopic("multiplex.0001", 32);
         ps.createTopic("multiplex.0002", 32);
@@ -139,17 +142,12 @@ public class ConnectorTest extends TestBase {
         Assert.assertTrue(monitors.contains(Platform.getInstance().getOrigin()));
         Map<String, WsMetadata> sessions = MonitorService.getSessions();
         Assert.assertEquals(1, sessions.size());
-        // start a connector with invalid path to verify that presence monitor will reject it
-        List<String> invalidPath = new ArrayList<>();
-        String url = "ws://127.0.0.1:"+port+"/invalid/presence";
-        invalidPath.add(url);
-        PersistentWsClient invalidWs = new PersistentWsClient(PresenceConnector.getInstance(), invalidPath);
-        invalidWs.start();
         // stop current session
         MockCloud.stopWsClient();
-        n = 1;
-        while (MonitorService.getSessionCount() > 0 && n++ < 30) {
-            log.info("Waiting for members to close ... {}", n);
+        log.info("Waiting for member to close");
+        n = 0;
+        while (MonitorService.getSessionCount() > 0 && ++n < 30) {
+            log.info("Waiting for member to close ... {}", n);
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -157,17 +155,17 @@ public class ConnectorTest extends TestBase {
             }
         }
         MockCloud.restartWsClient();
-        n = 1;
-        while (MonitorService.getSessionCount() == 0 && n++ < 30) {
-            log.info("Waiting for members to re-connect ... {}", n);
+        log.info("Waiting for member to re-connect");
+        n = 0;
+        while (MonitorService.getSessionCount() == 0 && ++n < 30) {
+            log.info("Waiting for member to re-connect ... {}", n);
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 // ok to ignore
             }
         }
-        invalidWs.close();
-
+        log.info("Member count = {}", MonitorService.getSessionCount());
     }
 
 }
