@@ -1,3 +1,6 @@
+#!/bin/bash
+# A script to build and install all mercury components
+
 MAVEN_CLI_OPTS="--show-version"
 MAVEN_OPTS="-Dmaven.repo.local=./.m2/repository -Djava.awt.headless=true"
 
