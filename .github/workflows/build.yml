@@ -1,7 +1,7 @@
 name: build-all
 on: [push]
 jobs:
-  build-alln:
+  build-all:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
