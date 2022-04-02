@@ -18,7 +18,7 @@ N/A
 
 ### Changed
 
-N/A
+Upgrade Spring Boot from 2.6.3 to 2.6.6
 
 ---
 ## Version 2.3.2, 2/21/2022
