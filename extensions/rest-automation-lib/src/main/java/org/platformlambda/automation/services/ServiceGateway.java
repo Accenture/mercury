@@ -20,6 +20,7 @@ package org.platformlambda.automation.services;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.automation.MainModule;
@@ -309,7 +310,6 @@ public class ServiceGateway {
              */
             String value = headerMap.get(key);
             if (key.equalsIgnoreCase(COOKIE)) {
-                // cookie is not kept in the headers
                 hasCookies = true;
             } else {
                 headers.put(key.toLowerCase(), value);
@@ -317,9 +317,8 @@ public class ServiceGateway {
         }
         // load cookies
         if (hasCookies) {
-            Map<String, io.vertx.core.http.Cookie> cookies = request.cookieMap();
-            for (String item : cookies.keySet()) {
-                io.vertx.core.http.Cookie c = cookies.get(item);
+            Set<Cookie> cookies = request.cookies();
+            for (Cookie c : cookies) {
                 req.setCookie(c.getName(), c.getValue());
             }
         }
@@ -372,6 +371,9 @@ public class ServiceGateway {
                     } else {
                         throw new AppException(401, "Unauthorized");
                     }
+                } else {
+                    log.error("Invalid authentication result from {} - expected boolean response body", authService);
+                    throw new AppException(401, "Unauthorized");
                 }
             } catch (IOException e) {
                 log.error("REST authentication - {}", e.getMessage());
