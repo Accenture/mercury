@@ -18,57 +18,19 @@
 
 package org.platformlambda.servlets;
 
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
-
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
-@WebServlet("/livenessprobe")
-public class LivenessProbe extends InfoServletBase {
+@WebServlet(urlPatterns={"/livenessprobe"}, asyncSupported=true)
+public class LivenessProbe extends ServletBase {
     private static final long serialVersionUID = 3607030982796747671L;
-    private static final String APP_INSTANCE = "X-App-Instance";
-    private static final String TYPE = "type";
     private static final String LIVENESSPROBE = "livenessprobe";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String myOrigin = Platform.getInstance().getOrigin();
-        String origin = request.getHeader(APP_INSTANCE);
-        if (origin == null) {
-            if (protectEndpoint && !isIntranetAddress(request)) {
-                response.sendError(404, "Resource not found");
-                return;
-            }
-            origin = myOrigin;
-        }
-        PostOffice po = PostOffice.getInstance();
-        EventEnvelope event = new EventEnvelope().setHeader(TYPE, LIVENESSPROBE);
-        if (origin.equals(myOrigin)) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
-        } else {
-            if (!po.exists(origin)) {
-                response.sendError(400, origin+" is not reachable");
-                return;
-            }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
-        }
-        try {
-            EventEnvelope result = po.request(event, 10000);
-            response.setContentType(MediaType.TEXT_PLAIN);
-            response.getWriter().write((String) result.getBody());
-        } catch (TimeoutException e) {
-            response.sendError(408, origin+" timeout");
-        } catch (AppException e) {
-            response.sendError(e.getStatus(), e.getMessage());
-        }
-
+        submit(LIVENESSPROBE, request, response);
     }
 
 }

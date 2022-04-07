@@ -18,46 +18,26 @@
 
 package org.platformlambda.servlets;
 
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
-@WebServlet("/info/*")
-public class InfoServlet extends InfoServletBase {
+@WebServlet(urlPatterns={"/info/*"}, asyncSupported=true)
+public class InfoServlet extends ServletBase {
 	private static final long serialVersionUID = 376901501172978505L;
 
-    private static final String APP_INSTANCE = "X-App-Instance";
-    private static final String TYPE = "type";
     private static final String INFO = "info";
     private static final String ROUTES = "routes";
     private static final String LIB = "lib";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String myOrigin = Platform.getInstance().getOrigin();
-        String origin = request.getHeader(APP_INSTANCE);
-        if (origin == null) {
-            if (protectEndpoint && !isIntranetAddress(request)) {
-                response.sendError(404, "Resource not found");
-                return;
-            }
-            origin = myOrigin;
-        }
-        Utility util = Utility.getInstance();
-        PostOffice po = PostOffice.getInstance();
         final String type;
-        List<String> paths = util.split(request.getPathInfo(), "/");
+        List<String> paths = Utility.getInstance().split(request.getPathInfo(), "/");
         if (paths.size() == 1 && LIB.equals(paths.get(0))) {
             type = LIB;
         } else if (paths.size() == 1 && ROUTES.equals(paths.get(0))) {
@@ -65,27 +45,7 @@ public class InfoServlet extends InfoServletBase {
         } else {
             type = INFO;
         }
-        EventEnvelope event = new EventEnvelope().setHeader(TYPE, type);
-        if (origin.equals(myOrigin)) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
-        } else {
-            if (!po.exists(origin)) {
-                response.sendError(400, origin+" is not reachable");
-                return;
-            }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
-        }
-        try {
-            EventEnvelope result = po.request(event, 10000);
-            response.setContentType(MediaType.APPLICATION_JSON);
-            byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getBody());
-            response.setContentLength(b.length);
-            response.getOutputStream().write(b);
-        } catch (TimeoutException e) {
-            response.sendError(408, origin+" timeout");
-        } catch (AppException e) {
-            response.sendError(e.getStatus(), e.getMessage());
-        }
+        submit(type, request, response);
     }
 
 }
