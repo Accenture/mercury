@@ -241,10 +241,10 @@ public class PubSubManager implements PubSubProvider {
         if (ConnectorConfig.topicSubstitutionEnabled()) {
             realTopic = preAllocatedTopics.getOrDefault(realTopic, realTopic);
         }
+        MessageProducer producer = null;
         try {
             startSession(primary);
             Session session = primary? primarySession : secondarySession;
-            final MessageProducer producer;
             if (partition == -2) {
                 producer = session.createProducer(session.createQueue(realTopic));
             } else {
@@ -272,6 +272,14 @@ public class PubSubManager implements PubSubProvider {
             log.error("Unable to publish event to {} - {}", realTopic, e.getMessage());
             // just let the platform such as Kubernetes to restart the application instance
             System.exit(12);
+        } finally {
+            if (producer != null) {
+                try {
+                    producer.close();
+                } catch (JMSException e) {
+                    log.error("Unable to close producer", e);
+                }
+            }
         }
     }
 
