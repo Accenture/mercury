@@ -20,7 +20,7 @@ package org.platformlambda.tibco;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static void main(String[] args) {
-        AppStarter.main(args);
+        RestServer.main(args);
     }
 
     @Override
