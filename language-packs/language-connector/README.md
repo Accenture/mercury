@@ -11,6 +11,6 @@ Please do `mvn clean package` to build the language connector from source.
 
 ## Pre-requisites
 
-JDK 1.8 (Oracle or OpenJDK) and the Maven build system.
+JDK 1.8 or higher (Oracle or OpenJDK) and the Maven build system.
 
 

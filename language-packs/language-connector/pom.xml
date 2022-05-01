@@ -46,6 +46,11 @@
             <artifactId>rest-spring</artifactId>
             <version>2.3.3</version>
         </dependency>
+        <dependency>
+            <groupId>org.platformlambda</groupId>
+            <artifactId>rest-automation</artifactId>
+            <version>2.3.3</version>
+        </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
 

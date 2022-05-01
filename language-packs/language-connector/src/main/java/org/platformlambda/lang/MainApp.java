@@ -18,15 +18,22 @@
 
 package org.platformlambda.lang;
 
+import org.platformlambda.cloud.services.ServiceQuery;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.system.ServiceDiscovery;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
 import org.platformlambda.rest.RestServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @MainApplication
 public class MainApp implements EntryPoint {
+    private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static void main(String[] args) {
         RestServer.main(args);
@@ -39,7 +46,14 @@ public class MainApp implements EntryPoint {
          * get ready to accept language pack client connections
          */
         LanguageConnector.initialize();
-        Platform.getInstance().connectToCloud();
+        Platform platform = Platform.getInstance();
+        AppConfigReader reader = AppConfigReader.getInstance();
+        platform.connectToCloud();
+        String connector = reader.getProperty(PostOffice.CLOUD_CONNECTOR, "none");
+        if ("none".equalsIgnoreCase(connector)) {
+            log.info("Running in standalone mode");
+            platform.register(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
+        }
     }
 
 }

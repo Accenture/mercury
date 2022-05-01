@@ -75,11 +75,13 @@ public class InfoService implements LambdaFunction {
     private static final Date START_TIME = new Date();
     private final String description;
     private final Boolean isServiceMonitor;
+    private final Boolean hasCloudConnector;
 
     public InfoService() {
         AppConfigReader config = AppConfigReader.getInstance();
         description = config.getProperty(APP_DESCRIPTION, Platform.getInstance().getName());
         isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
+        hasCloudConnector = !"none".equalsIgnoreCase(config.getProperty(PostOffice.CLOUD_CONNECTOR, "none"));
     }
 
     @Override
@@ -181,7 +183,8 @@ public class InfoService implements LambdaFunction {
     @SuppressWarnings("unchecked")
     private Map<String, Object> getRoutingTable() throws AppException, TimeoutException {
         Platform platform = Platform.getInstance();
-        if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
+        if (hasCloudConnector &&
+                (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR))) {
             EventEnvelope response;
             try {
                 response = PostOffice.getInstance().request(ServiceDiscovery.SERVICE_QUERY, 8000,
