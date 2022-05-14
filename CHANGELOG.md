@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.3.4, 5/14/2022
+
+### Added
+
+N/A
+
+### Removed
+
+1. Remove swagger-ui distribution from api-playground such that developer can clone the latest version
+
+### Changed
+
+1. Update application.properties (from spring.resources.static-locations to spring.web.resources.static-locations)
+2. Update log4j, Tomcat and netty library version using Spring parent 2.6.6
+
+---
 ## Version 2.3.3, 3/30/2022
 
 ### Added

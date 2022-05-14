@@ -536,7 +536,7 @@ methods:
 
 application.properties
 ```
-spring.resources.static-locations=file:/tmp/html
+spring.web.resources.static-locations=file:/tmp/html
 ```
 
 or startup parameters

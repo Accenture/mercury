@@ -92,7 +92,7 @@ public class ServiceGateway {
         defaultTraceIdLabel = labels.get(0);
         traceIdLabels = labels;
         log.info("HTTP trace headers {}", traceIdLabels);
-        String folder = config.getProperty("spring.resources.static-locations", "classpath:/public");
+        String folder = config.getProperty("spring.web.resources.static-locations", "classpath:/public");
         if (folder.startsWith(CLASSPATH)) {
             String resource = folder.substring(CLASSPATH.length());
             resourceFolder = resource.endsWith("/")? resource.substring(0, resource.length()-1) : resource;

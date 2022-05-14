@@ -29,7 +29,7 @@ import java.io.File;
 public class ParseArguments implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(ParseArguments.class);
 
-    private static final String HTML_FOLDER = "spring.resources.static-locations";
+    private static final String HTML_FOLDER = "spring.web.resources.static-locations";
     private static final String HTML_ARG = "-html";
     private static final String FILE_PATH = "file:/";
 

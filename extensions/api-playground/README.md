@@ -10,10 +10,10 @@ of them to render the documentation.
 
 ## Before you start
 
-1. Clone https://github.com/swagger-api/swagger-ui and copy content in the "dist" folder to the "swagger-ui" folder
-under resources
-2. Remove all *.js.map files from the "swagger-ui" folder
-3. Perform `mvn clean package` to generate the executable JAR
+1. Clone the latest version from https://github.com/swagger-api/swagger-ui
+2. Copy content from the swagger-ui `dist` folder to the "resources/swagger-ui" folder
+3. Remove all *.js.map files from the "swagger-ui" folder
+4. Perform `mvn clean package` to generate the executable JAR
 
 ## OpenAPI specs file folder
 
@@ -25,7 +25,7 @@ To change this file location, you can do:
 application.
 
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.3.3.jar
+java -Dapi.playground.apps=another_location -jar api-playground-2.3.4.jar
 
 where another location is a folder in the local file system.
 ```
@@ -40,25 +40,25 @@ Please visit http://127.0.0.1:8200 after starting this application.
 
 Using default API specs location,
 ```
-java -jar api-playground-2.3.3.jar
+java -jar api-playground-2.3.4.jar
 ```
 
 With user defined API specs location,
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.3.3.jar
+java -Dapi.playground.apps=another_location -jar api-playground-2.3.4.jar
 ```
 
 ## How this application is created?
 
 1. This application is created using "mercury/examples/rest-example" as a template
-2. Clone https://github.com/swagger-api/swagger-ui and copy content in the "dist" folder to the "swagger-ui" folder 
-   under resources
-3. Remove all *.js.map files from the "swagger-ui" folder
-4. Download bootstrap 4.4.1 and Jquery 3.4.1 and save them under bootstrap and jquery folders in the "public" 
+2. Clone https://github.com/swagger-api/swagger-ui
+3. Copy content from its "dist" folder to the "resources/swagger-ui" folder
+4. Remove all *.js.map files from the "swagger-ui" folder
+5. Download bootstrap 4.4.1 and Jquery 3.4.1 and save them under bootstrap and jquery folders in the "public" 
    folder under resources
-5. A custom "HomePage" WebServlet for user to select a OpenAPI 3.0 JSON/YAML file to override the "index.html" page
-6. A sample home.yaml OpenAPI file in the "public/playground" folder
-7. A playgroundApi JAX-RS endpoint to render the home page
+6. A custom "HomePage" WebServlet for user to select a OpenAPI 3.0 JSON/YAML file to override the "index.html" page
+7. A sample home.yaml OpenAPI file in the "public/playground" folder
+8. A playgroundApi JAX-RS endpoint to render the home page
 
 ## Acknowledgements
 
