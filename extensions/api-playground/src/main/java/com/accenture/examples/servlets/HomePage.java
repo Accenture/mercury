@@ -20,6 +20,8 @@ package com.accenture.examples.servlets;
 
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -34,6 +36,7 @@ import java.util.List;
 
 @WebServlet("/index.html")
 public class HomePage extends HttpServlet {
+	private static final Logger log = LoggerFactory.getLogger(HomePage.class);
 
 	private static final long serialVersionUID = -3607030982796747671L;
 
@@ -44,10 +47,32 @@ public class HomePage extends HttpServlet {
 	private static final String END_HYPERLINK = "</a>";
 	private static String indexPage;
 	private static File dir;
+	private static Boolean ready = false;
+
+	public HomePage() {
+		if (indexPage == null || dir == null) {
+			InputStream swagger = this.getClass().getResourceAsStream("/swagger-ui/index.html");
+			if (swagger != null) {
+				ready = true;
+				InputStream res = this.getClass().getResourceAsStream("/index.html");
+				indexPage = Utility.getInstance().stream2str(res);
+				AppConfigReader config = AppConfigReader.getInstance();
+				String location = config.getProperty("api.playground.apps", "/tmp/api-playground");
+				dir = new File(location);
+			} else {
+				log.error("Missing swagger-ui HTML bundle files in the swagger-ui resource folder");
+			}
+		}
+	}
 
 	@Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		initialize();
+		if (!ready) {
+			response.sendError(404, "Did you forget to do " +
+					"'git clone https://github.com/swagger-api/swagger-ui.git' " +
+					"and copy the dist folder to the swagger-ui resource folder?");
+			return;
+		}
 		disableBrowserCache(response);
 		Utility util = Utility.getInstance();
 
@@ -104,18 +129,6 @@ public class HomePage extends HttpServlet {
 			Collections.sort(result);
 		}
 		return result;
-	}
-
-    private void initialize() {
-		if (indexPage == null) {
-			InputStream res = this.getClass().getResourceAsStream("/index.html");
-			indexPage = Utility.getInstance().stream2str(res);
-		}
-		if (dir == null) {
-			AppConfigReader config = AppConfigReader.getInstance();
-			String location = config.getProperty("api.playground.apps", "/tmp/api-playground");
-			dir = new File(location);
-		}
 	}
 
 	private void disableBrowserCache(HttpServletResponse response) {
