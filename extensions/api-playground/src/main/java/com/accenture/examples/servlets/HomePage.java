@@ -118,18 +118,6 @@ public class HomePage extends HttpServlet {
 		}
 	}
 
-    private String getPlayground(HttpServletRequest request) {
-	    if (indexPage == null) {
-	        Utility util = Utility.getInstance();
-	        InputStream res = this.getClass().getResourceAsStream("/index.html");
-	        indexPage = util.stream2str(res);
-        }
-
-
-
-	    return indexPage;
-    }
-
 	private void disableBrowserCache(HttpServletResponse response) {
 		response.setHeader("Cache-Control", "no-cache, no-store");
 		response.setHeader("Pragma", "no-cache");

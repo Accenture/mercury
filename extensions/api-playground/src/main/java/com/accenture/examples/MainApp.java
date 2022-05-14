@@ -23,10 +23,12 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.rest.RestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,15 +47,8 @@ public class MainApp implements EntryPoint {
         ServerPersonality.getInstance().setType(ServerPersonality.Type.APP);
 
         Platform platform = Platform.getInstance();
-        // you can write simple service using anonymous function
+        // This service function is used for the demo swagger page
         LambdaFunction echo = (headers, body, instance) -> {
-            /*
-             * Uncomment the "log.info" statement if you want to see this service receiving the event.
-             * (Note that logging takes time so it will affect your function execution time.)
-             */
-//             log.info("echo @"+instance+" received - "+headers+", "+body);
-
-            // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
             result.put("body", body);
@@ -65,6 +60,20 @@ public class MainApp implements EntryPoint {
         // Each deployment unit can be scaled horizontally by the cloud.
         platform.register("hello.world", echo, 20);
 
+        // ensure the api-playground folder exists
+        AppConfigReader config = AppConfigReader.getInstance();
+        String playgroundFolder = config.getProperty("api.playground.apps", "/tmp/api-playground");
+        File playground = new File(playgroundFolder);
+        if (!playground.exists()) {
+            playground.mkdirs();
+            log.info("API Playground folder created - {}", playground);
+        }
+        String htmlFolder = config.getProperty("temp.html.folder", "/tmp/swagger-ui-js");
+        File htmlDir = new File(htmlFolder);
+        if (!htmlDir.exists()) {
+            htmlDir.mkdirs();
+            log.info("API Playground temp HTML folder created - {}", htmlDir);
+        }
         log.info("Application started");
     }
 

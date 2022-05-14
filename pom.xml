@@ -28,7 +28,6 @@
         <module>connectors/adapters/hazelcast/hazelcast-presence</module>
         <module>connectors/adapters/activemq/activemq-presence</module>
         <!-- Executables for tools -->
-        <module>extensions/api-playground</module>
         <module>extensions/simple-scheduler</module>
         <module>extensions/distributed-tracer</module>
         <module>extensions/rest-automation-app</module>
