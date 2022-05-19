@@ -28,7 +28,6 @@ event-driven system and your application may not work as expected.
 | language.pack.inbox           | RPC inbox handler                      | Language Connector           |
 | language.pack.registry        | Routing registry                       | Language Connector           |
 | pub.sub.controller            | Pub/sub handler                        | Language Connector           |
-| system.deferred.delivery      | Deferred delivery handler              | Language Connector           |
 | object.streams.io             | Object stream manager                  | Language Connector           |
 | cron.scheduler                | Cron job scheduler                     | Scheduler helper application |
 | init.service.monitor.*        | reserved for event stream startup      | service monitor core         |
