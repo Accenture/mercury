@@ -256,17 +256,17 @@ public class UtilityTests {
     public void multiLevelMapTest() {
         String HELLO = "hello";
         String WORLD = "world";
-        String NULL_KEY = "null.key";
+        String NULL_KEY_VALUE = "this.is.nil";
         String NOT_EXIST_KEY = "key.not.exist";
 
         MultiLevelMap mm = new MultiLevelMap();
         mm.setElement(HELLO, WORLD);
-        mm.setElement(NULL_KEY, null);
+        mm.setElement(NULL_KEY_VALUE, null);
 
         Assert.assertEquals(WORLD, mm.getElement(HELLO));
-        Assert.assertNull(mm.getElement(NULL_KEY));
+        Assert.assertNull(mm.getElement(NULL_KEY_VALUE));
 
-        Assert.assertTrue(mm.exists(NULL_KEY));
+        Assert.assertTrue(mm.exists(NULL_KEY_VALUE));
         Assert.assertFalse(mm.exists(NOT_EXIST_KEY));
     }
 
