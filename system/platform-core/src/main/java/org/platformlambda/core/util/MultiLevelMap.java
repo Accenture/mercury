@@ -89,7 +89,7 @@ public class MultiLevelMap {
             return map.get(path);
         }
         if (!isComposite(path)) {
-            return null;
+            return map.get(path);
         }
         Utility util = Utility.getInstance();
         List<String> list = util.split(path, "./");
