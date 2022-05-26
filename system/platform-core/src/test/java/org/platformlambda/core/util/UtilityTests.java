@@ -266,7 +266,10 @@ public class UtilityTests {
         Assert.assertEquals(WORLD, mm.getElement(HELLO));
         Assert.assertNull(mm.getElement(NULL_KEY_VALUE));
 
+        // key exists but value is null
+        Assert.assertTrue(mm.keyExists(NULL_KEY_VALUE));
         Assert.assertFalse(mm.exists(NULL_KEY_VALUE));
+        // key does not exist
         Assert.assertFalse(mm.keyExists(NOT_EXIST_KEY));
     }
 
