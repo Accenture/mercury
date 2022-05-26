@@ -43,8 +43,8 @@ public class MultiLevelMap {
     }
 
     public boolean exists(String compositePath) {
-        Object element = getElement(compositePath, multiLevels);
-        return !(element instanceof NotFound);
+        Object element = getElement(compositePath);
+        return element != null;
     }
 
     /**
@@ -56,8 +56,7 @@ public class MultiLevelMap {
      * @return element
      */
     public Object getElement(String compositePath) {
-        Object element = getElement(compositePath, multiLevels);
-        return element instanceof NotFound? null : element;
+        return getElement(compositePath, multiLevels);
     }
 
     @SuppressWarnings("unchecked")
@@ -134,7 +133,7 @@ public class MultiLevelMap {
             // item not found
             break;
         }
-        return new NotFound();
+        return null;
     }
 
     public MultiLevelMap setElement(String compositePath, Object value) {
@@ -210,8 +209,8 @@ public class MultiLevelMap {
     }
 
     @SuppressWarnings("unchecked")
-    private void setListElement(List<Integer> indexes, List<Object> dataset, Object value) {
-        List<Object> current = expandList(indexes, dataset);
+    private void setListElement(List<Integer> indexes, List<Object> data, Object value) {
+        List<Object> current = expandList(indexes, data);
         int len = indexes.size();
         for (int i=0; i < len; i++) {
             int idx = indexes.get(i);
@@ -227,8 +226,8 @@ public class MultiLevelMap {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Object> expandList(List<Integer> indexes, List<Object> dataset) {
-        List<Object> current = dataset;
+    private List<Object> expandList(List<Integer> indexes, List<Object> data) {
+        List<Object> current = data;
         int len = indexes.size();
         for (int i=0; i < len; i++) {
             int idx = indexes.get(i);
@@ -250,7 +249,7 @@ public class MultiLevelMap {
                 current = newList;
             }
         }
-        return dataset;
+        return data;
     }
 
     private boolean isComposite(String item) {
@@ -318,7 +317,5 @@ public class MultiLevelMap {
             }
         }
     }
-
-    private static class NotFound { }
 
 }

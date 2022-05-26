@@ -253,24 +253,6 @@ public class UtilityTests {
     }
 
     @Test
-    public void multiLevelMapTest() {
-        String HELLO = "hello";
-        String WORLD = "world";
-        String NULL_KEY = "null.key";
-        String NOT_EXIST_KEY = "key.not.exist";
-
-        MultiLevelMap mm = new MultiLevelMap();
-        mm.setElement(HELLO, WORLD);
-        mm.setElement(NULL_KEY, null);
-
-        Assert.assertEquals(WORLD, mm.getElement(HELLO));
-        Assert.assertNull(mm.getElement(NULL_KEY));
-
-        Assert.assertTrue(mm.exists(NULL_KEY));
-        Assert.assertFalse(mm.exists(NOT_EXIST_KEY));
-    }
-
-    @Test
     public void flatMapTest() {
         Utility util = Utility.getInstance();
         Map<String, Object> map = new HashMap<>();
