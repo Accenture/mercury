@@ -85,8 +85,9 @@ public class AsyncInbox extends InboxBase {
         if (holder != null) {
             holder.close();
             Platform.getInstance().getVertx().cancelTimer(timer);
-            float diff = System.nanoTime() - holder.begin;
-            reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
+            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+            // adjust precision to 3 decimal points
+            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
             executor.submit(() -> {
                 PostOffice po = PostOffice.getInstance();
                 String traceLogHeader = po.getTraceLogHeader();

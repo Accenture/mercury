@@ -510,8 +510,6 @@ public class PostOffice {
         long now = System.currentTimeMillis();
         long futureMs = future.getTime();
         long interval = Math.max(1, futureMs - now);
-        // best effort to check if the target can be discovered
-        discover(to, event.isEndOfRoute());
         log.debug("Future event to {} in {} ms", to, interval);
         // schedule the event delivery
         Vertx vertx = Platform.getInstance().getVertx();

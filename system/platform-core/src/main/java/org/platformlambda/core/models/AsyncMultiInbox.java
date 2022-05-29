@@ -93,8 +93,9 @@ public class AsyncMultiInbox extends InboxBase {
     private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
         AsyncMultiInbox holder = (AsyncMultiInbox) inboxes.get(inboxId);
         if (holder != null) {
-            float diff = System.nanoTime() - holder.begin;
-            reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
+            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+            // adjust precision to 3 decimal points
+            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
             replies.put(reply.getId(), reply);
             if (holder.total.decrementAndGet() == 0) {
                 List<EventEnvelope> result = new ArrayList<>();

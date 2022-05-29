@@ -98,8 +98,8 @@ public class Inbox extends InboxBase implements AutoCloseable {
     private void saveResponse(String inboxId, EventEnvelope reply) {
         Inbox holder = (Inbox) inboxes.get(inboxId);
         if (holder != null) {
-            float diff = System.nanoTime() - holder.begin;
-            reply.setRoundTrip(diff / PostOffice.ONE_MILLISECOND);
+            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
             if (holder.n > 1) {
                 holder.addReply(reply);
                 // all parallel responses have arrived

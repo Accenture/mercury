@@ -31,9 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class WorkerQueue extends WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueue.class);
@@ -108,7 +108,9 @@ public class WorkerQueue extends WorkerQueues {
              */
             Object result = ping? null : f.handleEvent(event.getHeaders(),
                                             interceptor || useEnvelope ? event : event.getBody(), instance);
-            float diff = ping? 0 : ((float) (System.nanoTime() - begin)) / PostOffice.ONE_MILLISECOND;
+            float delta = ping? 0 : (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;
+            // adjust precision to 3 decimal points
+            float diff = Float.parseFloat(String.format("%.3f", Math.max(0.0f, delta)));
             Map<String, Object> output = new HashMap<>();
             String replyTo = event.getReplyTo();
             if (replyTo != null) {
@@ -193,13 +195,7 @@ public class WorkerQueue extends WorkerQueues {
                 output.put(ASYNC, true);
                 inputOutput.put(OUTPUT, output);
             }
-            if (diff > 0) {
-                // adjust precision to 3 decimal points
-                BigDecimal ms = new BigDecimal(diff).setScale(3, RoundingMode.HALF_EVEN);
-                return new ProcessStatus(ms.floatValue()).setInputOutput(inputOutput);
-            } else {
-                return new ProcessStatus(0).setInputOutput(inputOutput);
-            }
+            return new ProcessStatus(diff).setInputOutput(inputOutput);
 
         } catch (Exception e) {
             final int status;
