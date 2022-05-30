@@ -30,13 +30,20 @@ handlers for consistency.
 
 # Reactive design
 
-The simplest reactive design is to use the temporary file system as an overflow area for events in case the consumer 
-are slower than the producer.
+Mercury uses the temporary local file system as an overflow area for events when the consumer is 
+slower than the producer. Normally, user application does not have to handle back-pressure.
 
-# Akka
+However, user application may also control back-pressure by implementing alternative flow-control mechanism.
 
-Akka actor is used as the in-memory event bus. We may migrate to Java 1.9 Flow API or reactive stream at a later time.
+# Vertx
 
-# Java Futures
+Akka actor is used as the in-memory event bus in Mercury version 1.0.
 
-We use Java Future for managing thread pool that is used to execute concurrent service functions.
+Since Mercury 2.0, we have migrated from Akka to Eclipse Vertx as the in-memory event system.
+
+# Non-blocking design
+
+Under the hood, Mercury is non-blocking and event-driven. 
+It uses a temporary inbox to emulate synchronous RPC and fork-n-join.
+
+A non-blocking version of RPC and fork-n-join is available using Vertx Future.

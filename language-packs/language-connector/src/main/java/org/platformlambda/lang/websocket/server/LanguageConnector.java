@@ -67,6 +67,7 @@ public class LanguageConnector implements LambdaFunction {
     private static final String REPLY_TO = "reply_to";
     private static final String CID = "cid";
     private static final String EXTRA = "extra";
+    private static final String ROUTING = "routing";
     private static final String LOGIN = "login";
     private static final String ADD = "add";
     private static final String REMOVE = "remove";
@@ -102,6 +103,9 @@ public class LanguageConnector implements LambdaFunction {
     private static final ConcurrentMap<String, String> tokens = new ConcurrentHashMap<>();
 
     public static String getTxPathFromToken(String token) {
+        if (token == null || token.length() == 0) {
+            return null;
+        }
         ConnectionStatus client = connections.get(token);
         return client == null? null : client.getTxPath();
     }
@@ -362,7 +366,17 @@ public class LanguageConnector implements LambdaFunction {
                                     // regular events
                                     if (EVENT.equals(type) && event.containsKey(EVENT)) {
                                         EventEnvelope request = eventFromMap((Map<String, Object>) event.get(EVENT));
-                                        po.send(mapReplyTo(token, request));
+                                        EventEnvelope relay = mapReplyTo(token, request);
+                                        String target = relay.getTo();
+                                        if (!po.exists(target)) {
+                                            String replyTo = relay.getReplyTo();
+                                            if (replyTo != null) {
+                                                relay.setTo(replyTo).setReplyTo(null)
+                                                        .setBody("Route "+target+" not found")
+                                                        .addTag("exception").setStatus(404);
+                                            }
+                                        }
+                                        po.send(relay);
                                     }
                                 }
                             }
@@ -392,13 +406,10 @@ public class LanguageConnector implements LambdaFunction {
             String replyTo = request.getReplyTo();
             if (replyTo.startsWith("->")) {
                 /*
-                 * Encode the client token ID with reply to so the language inbox
-                 * can relay the service response correctly.
-                 *
-                 * Change the replyTo to the language inbox which will intercept
-                 * the service responses.
+                 * Encode the client token ID with reply to so that
+                 * the language inbox can relay the service response correctly
                  */
-                request.setExtra(token+replyTo);
+                request.addTag(ROUTING, token + replyTo);
                 request.setReplyTo(inboxRoute);
             }
         }

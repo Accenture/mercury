@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.3.5, 5/30/2022
+
+### Added
+
+Add tagging feature to handle language connector's routing and exception handling
+
+### Removed
+
+N/A
+
+### Changed
+
+Update Spring Boot parent to version 2.7.0 to fetch Netty 4.1.77 and Spring Framework 5.3.20
+
+---
 ## Version 2.3.4, 5/14/2022
 
 ### Added

@@ -362,7 +362,8 @@ public class EventEnvelope {
     }
 
     /**
-     * Reserved for system use by language pack. DO NOT use in regular application.
+     * This extra field is used to hold a small number of key-values for tagging purpose.
+     * The language pack uses this feature to support special routing to python and node.js applications.
      *
      * @param extra language pack extra routing information
      * @return event envelope
@@ -370,6 +371,88 @@ public class EventEnvelope {
     public EventEnvelope setExtra(String extra) {
         this.extra = extra;
         return this;
+    }
+
+    private Map<String, String> extraToKeyValues() {
+        Map<String, String> map = new HashMap<>();
+        List<String> tags = Utility.getInstance().split(this.extra, "|");
+        for (String t: tags) {
+            int sep = t.indexOf('=');
+            if (sep != -1) {
+                map.put(t.substring(0, sep), t.substring(sep+1));
+            } else {
+                map.put(t, "");
+            }
+        }
+        return map;
+    }
+
+    private String mapToString(Map<String, String> map) {
+        if (map == null || map.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String k: map.keySet()) {
+            sb.append(k);
+            String v = map.get(k);
+            if (v != null && v.length() > 0) {
+                sb.append('=');
+                sb.append(v);
+            }
+            sb.append('|');
+        }
+        return sb.substring(0, sb.length()-1);
+    }
+
+    /**
+     * Add a tag without value to the extra field
+     *
+     * @param key without value
+     * @return event envelope
+     */
+    public EventEnvelope addTag(String key) {
+        return addTag(key, null);
+    }
+
+    /**
+     * Add a tag with key-value to the extra field
+     *
+     * @param key for a new tag
+     * @param value for a new tag
+     * @return event envelope
+     */
+    public EventEnvelope addTag(String key, String value) {
+        if (key != null && key.length() > 0) {
+            Map<String, String> map = extraToKeyValues();
+            map.put(key, value == null? "" : value);
+            this.extra = mapToString(map);
+        }
+        return this;
+    }
+
+    /**
+     * Remove a tag from the extra field
+     *
+     * @param key for a tag
+     * @return event envelope
+     */
+    public EventEnvelope removeTag(String key) {
+        if (key != null && key.length() > 0) {
+            Map<String, String> map = extraToKeyValues();
+            map.remove(key);
+            this.extra = map.isEmpty()? null : mapToString(map);
+        }
+        return this;
+    }
+
+    /**
+     * Retrieve a tag value
+     *
+     * @param key for a tag
+     * @return event envelope
+     */
+    public String getTag(String key) {
+        return key != null && key.length() > 0? extraToKeyValues().get(key) : null;
     }
 
     /**
@@ -470,6 +553,8 @@ public class EventEnvelope {
             try (ObjectOutputStream stream = new ObjectOutputStream(out)) {
                 stream.writeObject(cause);
                 exceptionBytes = out.toByteArray();
+                // for compatibility with language pack (Python and Node.js)
+                this.addTag("exception");
             } catch (IOException e) {
                 // this won't happen
             }

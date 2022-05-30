@@ -42,6 +42,7 @@ public class LanguageInbox implements LambdaFunction {
 
     private static final String TYPE = LanguageConnector.TYPE;
     private static final String EVENT = LanguageConnector.EVENT;
+    private static final String ROUTING = "routing";
     private static final String BLOCK = LanguageConnector.BLOCK;
     private static final String ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
@@ -60,10 +61,12 @@ public class LanguageInbox implements LambdaFunction {
 
     public void process(EventEnvelope event) throws IOException {
         /*
-         * The original sender is encoded in the extra field
-         * It is in the format: "token_id->reply_to"
+         * The original sender is encoded in the extra field as a routing tag.
+         * It's value is in the format: "token_id->reply_to".
+         *
+         * This extra routing tag can be removed after processing.
          */
-        String sender = event.getExtra();
+        String sender = event.getTag(ROUTING);
         if (sender != null && sender.contains("->")) {
             int sep = sender.indexOf("->");
             String token = sender.substring(0, sep);
@@ -88,8 +91,12 @@ public class LanguageInbox implements LambdaFunction {
                 if (event.getTraceId() != null) {
                     relay.setTrace(event.getCorrelationId(), event.getTracePath());
                 }
+                // remove routing tag and forward remaining tags if any
+                event.removeTag(ROUTING);
+                if (event.getExtra() != null) {
+                    relay.setExtra(event.getExtra());
+                }
                 response.put(EVENT, LanguageConnector.mapFromEvent(relay));
-
                 byte[] payload = msgPack.pack(response);
                 int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
                 if (payload.length > maxPayload) {
