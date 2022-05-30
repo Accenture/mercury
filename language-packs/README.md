@@ -14,3 +14,7 @@ For scalable application, please build and start the "language-support" applicat
 
 Your application using the Python language pack will automatically connect to the language-support service.
 
+## Node.js
+
+The node.js language pack will be available soon. It is code complete as of 5/30/2022.
+It will be released once it passes quality check.
