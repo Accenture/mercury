@@ -18,7 +18,8 @@ N/A
 
 ### Changed
 
-Update Spring Boot parent to version 2.7.0 to fetch Netty 4.1.77 and Spring Framework 5.3.20
+1. Update Spring Boot parent to version 2.7.0 to fetch Netty 4.1.77 and Spring Framework 5.3.20
+2. Streamlined language connector transport protocol for compatibility with both Python and Node.js
 
 ---
 ## Version 2.3.4, 5/14/2022
