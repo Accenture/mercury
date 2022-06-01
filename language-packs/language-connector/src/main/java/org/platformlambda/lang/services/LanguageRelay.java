@@ -52,6 +52,7 @@ public class LanguageRelay implements LambdaFunction {
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
+    private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
     private static final LanguageRelay instance = new LanguageRelay();
 
     private LanguageRelay() {
@@ -94,13 +95,9 @@ public class LanguageRelay implements LambdaFunction {
                 event.setBroadcastLevel(3);
             }
             // relay the event
-            Map<String, Object> response = new HashMap<>();
-            response.put(TYPE, EVENT);
-            response.put(EVENT, LanguageConnector.mapFromEvent(event));
-            byte[] payload = msgPack.pack(response);
-            int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
-            if (payload.length > maxPayload) {
-                int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
+            byte[] payload = msgPack.pack(LanguageConnector.mapFromEvent(event));
+            if (payload.length > MAX_PAYLOAD_SIZE) {
+                int total = (payload.length / MAX_PAYLOAD_SIZE) + (payload.length % MAX_PAYLOAD_SIZE == 0 ? 0 : 1);
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
                 for (int i = 0; i < total; i++) {
                     // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
@@ -110,15 +107,18 @@ public class LanguageRelay implements LambdaFunction {
                     inner.setHeader(ID, event.getId());
                     inner.setHeader(COUNT, i + 1);
                     inner.setHeader(TOTAL, total);
-                    byte[] segment = new byte[maxPayload];
+                    byte[] segment = new byte[MAX_PAYLOAD_SIZE];
                     int size = in.read(segment);
-                    inner.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
+                    inner.setBody(size == MAX_PAYLOAD_SIZE ? segment : Arrays.copyOfRange(segment, 0, size));
                     block.put(BLOCK, LanguageConnector.mapFromEvent(inner));
                     PostOffice.getInstance().send(txPath, msgPack.pack(block));
                     log.debug("Sending block {} of {} to {} via {}", i + 1, total, event.getTo(), txPath);
                 }
             } else {
-                PostOffice.getInstance().send(txPath, payload);
+                Map<String, Object> relay = new HashMap<>();
+                relay.put(TYPE, EVENT);
+                relay.put(EVENT, payload);
+                PostOffice.getInstance().send(txPath, msgPack.pack(relay));
             }
 
         } else {

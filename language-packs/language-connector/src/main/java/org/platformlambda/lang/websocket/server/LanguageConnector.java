@@ -85,9 +85,12 @@ public class LanguageConnector implements LambdaFunction {
     private static final String SYSTEM_ALERT = "system.alerts";
     private static final String SYSTEM_CONFIG = "system.config";
     private static final String MAX_PAYLOAD = "max.payload";
+
+    private static final String MSG_ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
+    private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
 
     private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
     private static String apiKey, inboxRoute;
@@ -122,36 +125,33 @@ public class LanguageConnector implements LambdaFunction {
     private static void notifyClient(String txPath, int status, String message) throws IOException {
         Map<String, Object> response = new HashMap<>();
         response.put(TYPE, EVENT);
-        response.put(ROUTE, SYSTEM_ALERT);
         EventEnvelope alert = new EventEnvelope();
         alert.setTo(SYSTEM_ALERT);
         alert.setHeader(STATUS, status);
         alert.setStatus(status);
         alert.setBody(message);
-        response.put(EVENT, LanguageConnector.mapFromEvent(alert));
+        response.put(EVENT, msgPack.pack(LanguageConnector.mapFromEvent(alert)));
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
     private static void sendServerConfig(String txPath, Map<String, Object> config) throws IOException {
         Map<String, Object> response = new HashMap<>();
         response.put(TYPE, EVENT);
-        response.put(ROUTE, SYSTEM_CONFIG);
         EventEnvelope alert = new EventEnvelope();
         alert.setTo(SYSTEM_CONFIG);
         alert.setHeader(TYPE, SYSTEM_CONFIG);
         alert.setBody(config);
-        response.put(EVENT, LanguageConnector.mapFromEvent(alert));
+        response.put(EVENT, msgPack.pack(LanguageConnector.mapFromEvent(alert)));
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
     private static void sendReady(String txPath) throws IOException {
         Map<String, Object> response = new HashMap<>();
         response.put(TYPE, EVENT);
-        response.put(ROUTE, SYSTEM_CONFIG);
         EventEnvelope alert = new EventEnvelope();
         alert.setTo(SYSTEM_CONFIG);
         alert.setHeader(TYPE, READY);
-        response.put(EVENT, LanguageConnector.mapFromEvent(alert));
+        response.put(EVENT, msgPack.pack(LanguageConnector.mapFromEvent(alert)));
         PostOffice.getInstance().send(txPath, msgPack.pack(response));
     }
 
@@ -311,13 +311,14 @@ public class LanguageConnector implements LambdaFunction {
                                             && event.get(API_KEY).equals(apiKey)) {
                                         client.setState(State.AUTHENTICATED);
                                         Map<String, Object> config = new HashMap<>();
-                                        config.put(MAX_PAYLOAD, WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD);
+                                        config.put(MAX_PAYLOAD, MAX_PAYLOAD_SIZE);
                                         sendServerConfig(txPath, config);
                                         log.info("{} authenticated", token);
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
-                                        Utility.getInstance().closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
-                                                "Requires login with "+API_KEY);
+                                        Utility.getInstance().closeConnection(txPath,
+                                                                CloseReason.CloseCodes.CANNOT_ACCEPT,
+                                                                "Requires login with "+API_KEY);
                                     }
                                 } else if (client.getState() == State.AUTHENTICATED) {
                                     // handle registration of public routes
@@ -340,43 +341,38 @@ public class LanguageConnector implements LambdaFunction {
                                     if (BLOCK.equals(type) && event.containsKey(BLOCK)) {
                                         EventEnvelope block = eventFromMap((Map<String, Object>) event.get(BLOCK));
                                         Map<String, String> control = block.getHeaders();
-                                        if (control.size() == 3 && control.containsKey(ID)
+                                        if (control.size() == 3 && control.containsKey(MSG_ID)
                                                 && control.containsKey(COUNT) && control.containsKey(TOTAL)) {
                                             Utility util = Utility.getInstance();
-                                            String id = control.get(ID);
+                                            String msgId = control.get(MSG_ID);
                                             int count = util.str2int(control.get(COUNT));
                                             int total = util.str2int(control.get(TOTAL));
                                             byte[] data = (byte[]) block.getBody();
-                                            if (data != null && count != -1 && total != -1) {
-                                                ByteArrayOutputStream buffer = (ByteArrayOutputStream) cache.get(id);
+                                            if (count != -1 && total != -1) {
+                                                ByteArrayOutputStream buffer = (ByteArrayOutputStream) cache.get(msgId);
                                                 if (count == 1 || buffer == null) {
                                                     buffer = new ByteArrayOutputStream();
-                                                    cache.put(id, buffer);
                                                 }
                                                 buffer.write(data);
                                                 if (count == total) {
-                                                    cache.remove(id);
-                                                    Map<String, Object> evt = (Map<String, Object>) msgPack.unpack(buffer.toByteArray());
-                                                    EventEnvelope request = eventFromMap((Map<String, Object>) evt.get(EVENT));
-                                                    po.send(mapReplyTo(token, request));
+                                                    cache.remove(msgId);
+                                                    byte[] b = buffer.toByteArray();
+                                                    Map<String, Object> m = (Map<String, Object>) msgPack.unpack(b);
+                                                    relayEvent(mapReplyTo(token, eventFromMap(m)));
+                                                } else {
+                                                    cache.put(msgId, buffer);
                                                 }
                                             }
                                         }
                                     }
                                     // regular events
                                     if (EVENT.equals(type) && event.containsKey(EVENT)) {
-                                        EventEnvelope request = eventFromMap((Map<String, Object>) event.get(EVENT));
-                                        EventEnvelope relay = mapReplyTo(token, request);
-                                        String target = relay.getTo();
-                                        if (!po.exists(target)) {
-                                            String replyTo = relay.getReplyTo();
-                                            if (replyTo != null) {
-                                                relay.setTo(replyTo).setReplyTo(null)
-                                                        .setBody("Route "+target+" not found")
-                                                        .addTag("exception").setStatus(404);
-                                            }
+                                        Object inner = event.get(EVENT);
+                                        if (inner instanceof byte[]) {
+                                            byte[] b = (byte[]) inner;
+                                            EventEnvelope data = eventFromMap((Map<String, Object>) msgPack.unpack(b));
+                                            relayEvent(mapReplyTo(token, data));
                                         }
-                                        po.send(relay);
                                     }
                                 }
                             }
@@ -399,6 +395,25 @@ public class LanguageConnector implements LambdaFunction {
         }
         // nothing to return because this is asynchronous
         return null;
+    }
+
+    private void relayEvent(EventEnvelope relay) throws IOException {
+        PostOffice po = PostOffice.getInstance();
+        String target = relay.getTo();
+        try {
+            po.discover(target, false);
+            po.send(relay);
+        } catch (IOException e) {
+            String replyTo = relay.getReplyTo();
+            if (replyTo != null) {
+                relay.setTo(replyTo).setReplyTo(null)
+                        .setBody("Route "+target+" not found")
+                        .addTag("exception").setStatus(404);
+                po.send(relay);
+            } else {
+                log.warn("Unable to relay event - Route {} not found", target);
+            }
+        }
     }
 
     private EventEnvelope mapReplyTo(String token, EventEnvelope request) {

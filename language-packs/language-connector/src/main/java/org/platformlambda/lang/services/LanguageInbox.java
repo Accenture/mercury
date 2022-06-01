@@ -48,6 +48,7 @@ public class LanguageInbox implements LambdaFunction {
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
+    private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
@@ -73,8 +74,6 @@ public class LanguageInbox implements LambdaFunction {
             String replyTo = sender.substring(sep+2);
             String txPath = LanguageConnector.getTxPathFromToken(token);
             if (txPath != null) {
-                Map<String, Object> response = new HashMap<>();
-                response.put(TYPE, EVENT);
                 EventEnvelope relay = new EventEnvelope();
                 relay.setTo(replyTo);
                 if (event.hasError()) {
@@ -96,11 +95,9 @@ public class LanguageInbox implements LambdaFunction {
                 if (event.getExtra() != null) {
                     relay.setExtra(event.getExtra());
                 }
-                response.put(EVENT, LanguageConnector.mapFromEvent(relay));
-                byte[] payload = msgPack.pack(response);
-                int maxPayload = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
-                if (payload.length > maxPayload) {
-                    int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
+                byte[] payload = msgPack.pack(LanguageConnector.mapFromEvent(relay));
+                if (payload.length > MAX_PAYLOAD_SIZE) {
+                    int total = (payload.length / MAX_PAYLOAD_SIZE) + (payload.length % MAX_PAYLOAD_SIZE == 0 ? 0 : 1);
                     ByteArrayInputStream in = new ByteArrayInputStream(payload);
                     for (int i = 0; i < total; i++) {
                         // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
@@ -111,15 +108,18 @@ public class LanguageInbox implements LambdaFunction {
                         inner.setHeader(ID, event.getId());
                         inner.setHeader(COUNT, i + 1);
                         inner.setHeader(TOTAL, total);
-                        byte[] segment = new byte[maxPayload];
+                        byte[] segment = new byte[MAX_PAYLOAD_SIZE];
                         int size = in.read(segment);
-                        inner.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
+                        inner.setBody(size == MAX_PAYLOAD_SIZE ? segment : Arrays.copyOfRange(segment, 0, size));
                         block.put(BLOCK, LanguageConnector.mapFromEvent(inner));
                         PostOffice.getInstance().send(txPath, msgPack.pack(block));
                         log.debug("Sending block {} of {} to {} via {}", i + 1, total, event.getTo(), txPath);
                     }
                 } else {
-                    PostOffice.getInstance().send(txPath, payload);
+                    Map<String, Object> response = new HashMap<>();
+                    response.put(TYPE, EVENT);
+                    response.put(EVENT, payload);
+                    PostOffice.getInstance().send(txPath, msgPack.pack(response));
                 }
 
             } else {
