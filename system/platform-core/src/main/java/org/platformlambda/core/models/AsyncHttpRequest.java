@@ -82,7 +82,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setMethod(String method) {
-        this.method = method;
+        if (method != null) {
+            this.method = method;
+        }
         return this;
     }
 
@@ -91,7 +93,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setUrl(String url) {
-        this.url = url;
+        if (url != null) {
+            this.url = url;
+        }
         return this;
     }
 
@@ -100,7 +104,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setRemoteIp(String ip) {
-        this.ip = ip;
+        if (ip != null) {
+            this.ip = ip;
+        }
         return this;
     }
 
@@ -109,11 +115,13 @@ public class AsyncHttpRequest {
     }
 
     public String getHeader(String key) {
-        return headers.get(key.toLowerCase());
+        return key != null? headers.get(key.toLowerCase()) : null;
     }
 
     public AsyncHttpRequest setHeader(String key, String value) {
-        this.headers.put(key.toLowerCase(), value);
+        if (key != null) {
+            this.headers.put(key.toLowerCase(), value != null? value : "");
+        }
         return this;
     }
 
@@ -209,7 +217,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setStreamRoute(String streamRoute) {
-        this.streamRoute = streamRoute;
+        if (streamRoute != null) {
+            this.streamRoute = streamRoute;
+        }
         return this;
     }
 
@@ -222,7 +232,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setFileName(String fileName) {
-        this.fileName = fileName;
+        if (fileName != null) {
+            this.fileName = fileName;
+        }
         return this;
     }
 
@@ -231,20 +243,20 @@ public class AsyncHttpRequest {
     }
 
     public int getTimeoutSeconds() {
-        return timeoutSeconds;
+        return Math.max(0, timeoutSeconds);
     }
 
     public AsyncHttpRequest setTimeoutSeconds(int timeoutSeconds) {
-        this.timeoutSeconds = timeoutSeconds;
+        this.timeoutSeconds = Math.max(0, timeoutSeconds);
         return this;
     }
 
     public int getContentLength() {
-        return contentLength;
+        return Math.max(0, contentLength);
     }
 
     public AsyncHttpRequest setContentLength(int contentLength) {
-        this.contentLength = contentLength;
+        this.contentLength = Math.max(0, contentLength);
         return this;
     }
 
@@ -253,16 +265,20 @@ public class AsyncHttpRequest {
     }
 
     public String getSessionInfo(String key) {
-        return session.get(key.toLowerCase());
+        return key != null? session.get(key.toLowerCase()) : null;
     }
 
     public AsyncHttpRequest setSessionInfo(String key, String value) {
-        this.session.put(key.toLowerCase(), value);
+        if (key != null) {
+            this.session.put(key.toLowerCase(), value != null? value : "");
+        }
         return this;
     }
 
     public AsyncHttpRequest removeSessionInfo(String key) {
-        this.session.remove(key.toLowerCase());
+        if (key != null) {
+            this.session.remove(key.toLowerCase());
+        }
         return this;
     }
 
@@ -271,16 +287,20 @@ public class AsyncHttpRequest {
     }
 
     public String getCookie(String key) {
-        return cookies.get(key.toLowerCase());
+        return key != null? cookies.get(key.toLowerCase()) : null;
     }
 
     public AsyncHttpRequest setCookie(String key, String value) {
-        this.cookies.put(key.toLowerCase(), value);
+        if (key != null) {
+            this.cookies.put(key.toLowerCase(), value != null? value : "");
+        }
         return this;
     }
 
     public AsyncHttpRequest removeCookie(String key) {
-        this.cookies.remove(key.toLowerCase());
+        if (key != null) {
+            this.cookies.remove(key.toLowerCase());
+        }
         return this;
     }
 
@@ -289,16 +309,20 @@ public class AsyncHttpRequest {
     }
 
     public String getPathParameter(String key) {
-        return pathParams.get(key.toLowerCase());
+        return key != null? pathParams.get(key.toLowerCase()) : null;
     }
 
     public AsyncHttpRequest setPathParameter(String key, String value) {
-        this.pathParams.put(key.toLowerCase(), value);
+        if (key != null) {
+            this.pathParams.put(key.toLowerCase(), value != null? value : "");
+        }
         return this;
     }
 
     public AsyncHttpRequest removePathParameter(String key) {
-        this.pathParams.remove(key.toLowerCase());
+        if (key != null) {
+            this.pathParams.remove(key.toLowerCase());
+        }
         return this;
     }
 
@@ -307,7 +331,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setQueryString(String queryString) {
-        this.queryString = queryString;
+        if (queryString != null) {
+            this.queryString = queryString;
+        }
         return this;
     }
 
@@ -325,7 +351,9 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setUploadTag(String tag) {
-        this.upload = tag;
+        if (tag != null) {
+            this.upload = tag;
+        }
         return this;
     }
 
@@ -373,13 +401,15 @@ public class AsyncHttpRequest {
      */
     @SuppressWarnings("unchecked")
     public String getQueryParameter(String key) {
-        Object para = queryParams.get(key.toLowerCase());
-        if (para instanceof String) {
-            return (String) para;
-        } else if (para instanceof List) {
-            List<String> params = (List<String>) para;
-            if (!params.isEmpty()) {
-                return params.get(0);
+        if (key != null) {
+            Object value = queryParams.get(key.toLowerCase());
+            if (value instanceof String) {
+                return (String) value;
+            } else if (value instanceof List) {
+                List<String> params = (List<String>) value;
+                if (!params.isEmpty()) {
+                    return params.get(0);
+                }
             }
         }
         return null;
@@ -392,38 +422,44 @@ public class AsyncHttpRequest {
      */
     @SuppressWarnings("unchecked")
     public List<String> getQueryParameters(String key) {
-        Object para = queryParams.get(key.toLowerCase());
-        if (para instanceof String) {
-            return Collections.singletonList((String) para);
-        } else if (para instanceof List) {
-            return (List<String>) para;
+        if (key != null) {
+            Object values = queryParams.get(key.toLowerCase());
+            if (values instanceof String) {
+                return Collections.singletonList((String) values);
+            } else if (values instanceof List) {
+                return (List<String>) values;
+            }
         }
         return null;
     }
 
     @SuppressWarnings("unchecked")
     public AsyncHttpRequest setQueryParameter(String key, Object value) {
-        if (value instanceof String) {
-            this.queryParams.put(key.toLowerCase(), value);
-        } else if (value instanceof List) {
-            List<String> params = new ArrayList<>();
-            List<Object> list = (List<Object>) value;
-            for (Object o: list) {
-                if (o != null) {
-                    params.add(o instanceof String ? (String) o : o.toString());
+        if (key != null) {
+            if (value instanceof String) {
+                this.queryParams.put(key.toLowerCase(), value);
+            } else if (value instanceof List) {
+                List<String> params = new ArrayList<>();
+                List<Object> list = (List<Object>) value;
+                for (Object o : list) {
+                    if (o != null) {
+                        params.add(o instanceof String ? (String) o : o.toString());
+                    }
                 }
+                this.queryParams.put(key.toLowerCase(), params);
+            } else if (value == null) {
+                this.queryParams.put(key.toLowerCase(), "");
+            } else {
+                this.queryParams.put(key.toLowerCase(), value.toString());
             }
-            this.queryParams.put(key.toLowerCase(), params);
-        } else if (value == null) {
-            this.queryParams.put(key.toLowerCase(), "");
-        } else {
-            this.queryParams.put(key.toLowerCase(), value.toString());
         }
         return this;
     }
 
     public AsyncHttpRequest removeQueryParameter(String key) {
-        this.queryParams.remove(key.toLowerCase());
+        if (key != null) {
+            this.queryParams.remove(key.toLowerCase());
+        }
         return this;
     }
 
@@ -583,8 +619,6 @@ public class AsyncHttpRequest {
                     queryParams = setLowerCaseQuery((Map<String, Object>) parameters.get(QUERY));
                 }
             }
-        } else {
-            throw new IllegalArgumentException("Expect: Map, actual: "+input.getClass().getSimpleName());
         }
     }
 
