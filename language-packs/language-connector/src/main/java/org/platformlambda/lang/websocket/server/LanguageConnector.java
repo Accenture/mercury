@@ -86,6 +86,8 @@ public class LanguageConnector implements LambdaFunction {
     private static final String SYSTEM_CONFIG = "system.config";
     private static final String MAX_PAYLOAD = "max.payload";
 
+    private static final String TRACE_AGGREGATION = "trace.aggregation";
+
     private static final String MSG_ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
@@ -104,6 +106,13 @@ public class LanguageConnector implements LambdaFunction {
     private static final ConcurrentMap<String, List<String>> routingTable = new ConcurrentHashMap<>();
     // rxPath -> token
     private static final ConcurrentMap<String, String> tokens = new ConcurrentHashMap<>();
+
+    private static boolean aggregation;
+
+    public LanguageConnector() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        aggregation = "true".equalsIgnoreCase(config.getProperty("distributed.trace.aggregation", "true"));
+    }
 
     public static String getTxPathFromToken(String token) {
         if (token == null || token.length() == 0) {
@@ -312,6 +321,7 @@ public class LanguageConnector implements LambdaFunction {
                                         client.setState(State.AUTHENTICATED);
                                         Map<String, Object> config = new HashMap<>();
                                         config.put(MAX_PAYLOAD, MAX_PAYLOAD_SIZE);
+                                        config.put(TRACE_AGGREGATION, aggregation);
                                         sendServerConfig(txPath, config);
                                         log.info("{} authenticated", token);
                                     } else {
