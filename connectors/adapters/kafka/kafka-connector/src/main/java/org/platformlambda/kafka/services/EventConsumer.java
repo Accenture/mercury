@@ -50,6 +50,9 @@ public class EventConsumer extends Thread {
 
     private static final MsgPack msgPack = new MsgPack();
     private static final String OFFSET = "_offset_";
+    private static final String PARTITION = "_partition_";
+    private static final String KEY = "_key_";
+    private static final String TIMESTAMP = "_timestamp_";
     private static final String TYPE = ServiceLifeCycle.TYPE;
     private static final String INIT = ServiceLifeCycle.INIT;
     private static final String DONE = "done";
@@ -99,7 +102,8 @@ public class EventConsumer extends Thread {
              * Subsequent restart of the consumer will resume read from the current offset.
              */
             if (parameters.length == 3) {
-                offset = util.str2long(parameters[2]);
+                long v = util.str2long(parameters[2]);
+                offset = INITIALIZE == v? v : Math.max(-1, v);
             }
         } else {
             throw new IllegalArgumentException("Unable to start consumer for " + realTopic +
@@ -165,33 +169,40 @@ public class EventConsumer extends Thread {
                         continue;
                     }
                     reset = false;
-                    for (TopicPartition tp : p) {
-                        long earliest = getEarliest(tp);
-                        long latest = getLatest(tp);
-                        if (offset < 0) {
-                            consumer.seek(tp, latest);
-                            log.info("Setting offset of {}, partition-{} to latest ({} - {})",
-                                    realTopic, tp.partition(), earliest, latest);
-                        } else if (offset < earliest) {
-                            consumer.seek(tp, earliest);
-                            log.warn("Setting offset of {}, partition-{} to earliest instead of {} ({} - {})",
-                                    realTopic, tp.partition(), offset, earliest, latest);
-                        } else if (offset < latest) {
-                            consumer.seek(tp, offset);
-                            log.info("Setting offset of {}, partition-{} to {} ({} - {})",
-                                    realTopic, tp.partition(), offset, earliest, latest);
-                         } else {
-                            consumer.seek(tp, latest);
-                            if (latest == offset) {
-                                log.info("Setting offset of {}, partition-{} to latest ({} - {})",
-                                        realTopic, tp.partition(), earliest, latest);
-                            } else {
-                                log.warn("Setting offset of {}, partition-{} to latest instead of {} ({} - {})",
-                                        realTopic, tp.partition(), offset, earliest, latest);
+                    if (offset != -1) {
+                        if (p.size() == 1) {
+                            for (TopicPartition tp : p) {
+                                long earliest = getEarliest(tp);
+                                long latest = getLatest(tp);
+                                if (offset < 0) {
+                                    consumer.seek(tp, latest);
+                                    log.info("Setting '{}' READ offset, partition-{} to latest ({} - {})",
+                                            realTopic, tp.partition(), earliest, latest);
+                                } else if (offset < earliest) {
+                                    consumer.seek(tp, earliest);
+                                    log.warn("Setting '{}' READ offset, partition-{} to earliest instead of {} ({} - {})",
+                                            realTopic, tp.partition(), offset, earliest, latest);
+                                } else if (offset < latest) {
+                                    consumer.seek(tp, offset);
+                                    log.info("Setting '{}' READ offset, partition-{} to {} ({} - {})",
+                                            realTopic, tp.partition(), offset, earliest, latest);
+                                } else {
+                                    consumer.seek(tp, latest);
+                                    if (latest == offset) {
+                                        log.info("Setting '{}' READ offset, partition-{} to latest ({} - {})",
+                                                realTopic, tp.partition(), earliest, latest);
+                                    } else {
+                                        log.warn("Setting '{}' READ offset, partition-{} to latest instead of {} ({} - {})",
+                                                realTopic, tp.partition(), offset, earliest, latest);
+                                    }
+                                }
                             }
+                            continue;
+                        } else if (partition == -1) {
+                            log.warn("Unable to override READ offset to {} because there are more than one partitions." +
+                                    " Number of partitions assigned: {}", offset, p.size());
                         }
                     }
-                    continue;
                 }
                 for (ConsumerRecord<String, byte[]> record : records) {
                     Map<String, String> originalHeaders = getSimpleHeaders(record.headers());
@@ -261,10 +272,15 @@ public class EventConsumer extends Thread {
                             /*
                              * Offset is only meaningful when listening to a specific partition.
                              * This allows user application to reposition offset when required.
+                             *
+                             * For direct pub/sub use, kafka specific metadata are encoded in:
+                             * _key_, _timestamp_, _partition_ and _offset_
                              */
-                            if (partition >= 0) {
-                                message.setHeader(OFFSET, String.valueOf(record.offset()));
-                            }
+                            message.setHeader(KEY, record.key());
+                            message.setHeader(TIMESTAMP, record.timestamp());
+                            message.setHeader(PARTITION, record.partition());
+                            message.setHeader(OFFSET, record.offset());
+
                             po.send(message.setTo(virtualTopic));
 
                         } catch (Exception e) {
@@ -278,7 +294,7 @@ public class EventConsumer extends Thread {
             if (e instanceof WakeupException) {
                 log.info("Stopping listener for {}", virtualTopic);
             } else {
-                // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
+                // when this happens, it is better to shut down so that infrastructure can restart the app instance.
                 log.error("Event stream error for {} - {} {}", topicPartition, e.getClass(), e.getMessage());
                 System.exit(10);
             }
