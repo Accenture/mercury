@@ -180,8 +180,8 @@ public class EventConsumer extends Thread {
                                             realTopic, tp.partition(), earliest, latest);
                                 } else if (offset < earliest) {
                                     consumer.seek(tp, earliest);
-                                    log.warn("Setting '{}' READ offset, partition-{} to earliest instead of {} ({} - {})",
-                                            realTopic, tp.partition(), offset, earliest, latest);
+                                    log.warn("Setting '{}' READ offset, partition-{} to earliest instead of " +
+                                             "{} ({} - {})", realTopic, tp.partition(), offset, earliest, latest);
                                 } else if (offset < latest) {
                                     consumer.seek(tp, offset);
                                     log.info("Setting '{}' READ offset, partition-{} to {} ({} - {})",
@@ -192,15 +192,15 @@ public class EventConsumer extends Thread {
                                         log.info("Setting '{}' READ offset, partition-{} to latest ({} - {})",
                                                 realTopic, tp.partition(), earliest, latest);
                                     } else {
-                                        log.warn("Setting '{}' READ offset, partition-{} to latest instead of {} ({} - {})",
-                                                realTopic, tp.partition(), offset, earliest, latest);
+                                        log.warn("Setting '{}' READ offset, partition-{} to latest instead of " +
+                                                 "{} ({} - {})", realTopic, tp.partition(), offset, earliest, latest);
                                     }
                                 }
                             }
                             continue;
                         } else if (partition == -1) {
-                            log.warn("Unable to override READ offset to {} because there are more than one partitions." +
-                                    " Number of partitions assigned: {}", offset, p.size());
+                            log.warn("Unable to override '{}' READ offset to {} because there are more than " +
+                                    "one partitions. Number of partitions assigned: {}", realTopic, offset, p.size());
                         }
                     }
                 }
