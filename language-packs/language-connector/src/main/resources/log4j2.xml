@@ -18,7 +18,7 @@
         <logger name="org.apache.kafka.clients.admin.AdminClientConfig" level="WARN" />
         <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="WARN" />
         <logger name="org.apache.kafka.clients.producer.KafkaProducer" level="WARN" />
+        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="ERROR" />
         <logger name="org.apache.kafka.clients.Metadata" level="WARN" />
-        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN" />
     </Loggers>
 </Configuration>

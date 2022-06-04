@@ -14,7 +14,7 @@ Add tagging feature to handle language connector's routing and exception handlin
 
 ### Removed
 
-N/A
+Remove language pack's pub/sub broadcast feature
 
 ### Changed
 

@@ -18,6 +18,6 @@
         <logger name="org.apache.kafka.common.metrics.Metrics" level="WARN" />
         <logger name="org.apache.kafka.clients.Metadata" level="WARN" />
         <logger name="org.apache.kafka.clients.NetworkClient" level="WARN" />
-        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN" />
+        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="ERROR" />
     </Loggers>
 </Configuration>

@@ -311,7 +311,8 @@ public class PubSubManager implements PubSubProvider {
                 throw new IOException("topic offset must be numeric");
             }
             if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
-                throw new IOException(topicPartition+" is already subscribed");
+                String tp = (topic + (partition < 0? "" : " partition " + partition)).toLowerCase();
+                throw new IOException(tp+" is already subscribed");
             }
             EventConsumer consumer = new EventConsumer(getProperties(), topic, partition, parameters);
             consumer.start();
@@ -347,12 +348,8 @@ public class PubSubManager implements PubSubProvider {
             subscribers.remove(topicPartition);
             consumer.shutdown();
         } else {
-            if (partition > -1) {
-                throw new IOException(topicPartition +
-                        " has not been subscribed by this application instance");
-            } else {
-                throw new IOException(topic + " has not been subscribed by this application instance");
-            }
+            String tp = (topic + (partition < 0? "" : " partition " + partition)).toLowerCase();
+            throw new IOException("No subscription found for " + tp);
         }
     }
 

@@ -22,9 +22,6 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
-import org.platformlambda.core.util.AppConfigReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,35 +31,47 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class TopicListener implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(TopicListener.class);
-
     private static final ConcurrentMap<String, TopicListener> listeners = new ConcurrentHashMap<>();
 
-    private ConcurrentMap<String, Boolean> distributionList = new ConcurrentHashMap<>();
-    private String topic;
-    private static Boolean broadcast;
+    private final ConcurrentMap<String, Boolean> distributionList = new ConcurrentHashMap<>();
+    private final String topic, composite;
+    private final int partition;
 
-    public TopicListener(String topic, String route) {
-        this.topic = topic;
-        listeners.put(topic, this);
-        addRoute(route);
-        AppConfigReader reader = AppConfigReader.getInstance();
-        if (broadcast == null) {
-            broadcast = "true".equals(reader.getProperty("pubsub.broadcast", "false"));
-            if (broadcast) {
-                log.info("Pub/Sub is set to broadcast mode");
-            }
+    public TopicListener(String topic, int partition, String route) {
+        if (topic == null || route == null) {
+            throw new IllegalArgumentException("Missing topic or route");
         }
+        this.topic = topic;
+        this.partition = partition;
+        this.composite = getComposite(topic, partition);
+        listeners.put(this.composite, this);
+        addRoute(route);
     }
 
-    public static TopicListener getListener(String topic) {
-        return listeners.get(topic);
+    private static String getComposite(String topic, int partition) {
+        return topic + '#' + Math.max(-1, partition);
+    }
+
+    public static List<TopicListener> getListeners(String topic) {
+        List<TopicListener> result = new ArrayList<>();
+        for (String k: listeners.keySet()) {
+            TopicListener listener = listeners.get(k);
+            if (listener.getTopic().equals(topic)) {
+                result.add(listener);
+            }
+        }
+        return result;
+    }
+
+    public static TopicListener getListener(String topic, int partition) {
+        return listeners.get(getComposite(topic, partition));
     }
 
     public static void releaseRoute(String route) throws IOException {
         List<String> listenerList = new ArrayList<>(listeners.keySet());
-        for (String topic: listenerList) {
-            TopicListener t = listeners.get(topic);
+        // composite key = topic#partition
+        for (String composite: listenerList) {
+            TopicListener t = listeners.get(composite);
             if (t.hasRoute(route)) {
                 t.removeRoute(route);
             }
@@ -77,25 +86,28 @@ public class TopicListener implements LambdaFunction {
         return topic;
     }
 
+    public int getPartition() {
+        return partition;
+    }
+
     public List<String> getRoutes() {
         return new ArrayList<>(distributionList.keySet());
     }
 
-    public boolean addRoute(String route) {
-        if (distributionList.containsKey(route)) {
-            return false;
-        } else {
-            distributionList.put(route, true);
-            return true;
-        }
+    public void addRoute(String route) {
+        distributionList.put(route, true);
     }
 
     public void removeRoute(String route) throws IOException {
         distributionList.remove(route);
         if (distributionList.isEmpty()) {
-            listeners.remove(topic);
+            listeners.remove(composite);
             PubSub engine = PubSub.getInstance();
-            engine.unsubscribe(topic);
+            if (partition < 0) {
+                engine.unsubscribe(topic);
+            } else {
+                engine.unsubscribe(topic, partition);
+            }
         }
     }
 
@@ -105,13 +117,8 @@ public class TopicListener implements LambdaFunction {
             EventEnvelope event = new EventEnvelope();
             event.setTo(route).setBody(body);
             event.setHeaders(headers);
-            if (broadcast) {
-                // broadcast to application instances that have the target route
-                PostOffice.getInstance().broadcast(event);
-            } else {
-                // load balance among application instances
-                PostOffice.getInstance().send(event);
-            }
+            // Send the event to the next available application instance that provides the target service
+            PostOffice.getInstance().send(event);
         }
         // return nothing since this is asynchronous
         return null;

@@ -21,10 +21,12 @@ package org.platformlambda.lang.services;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
+import org.platformlambda.core.util.Utility;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,8 @@ public class PubSubController implements LambdaFunction {
     private static final String FEATURE = "feature";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
+    private static final String PARTITION = "partition";
+    private static final String PARTITION_COUNT = "partition_count";
     private static final String HEADERS = "headers";
     private static final String BODY = "body";
     private static final String ROUTE = "route";
@@ -50,6 +54,7 @@ public class PubSubController implements LambdaFunction {
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
 
+        Utility util = Utility.getInstance();
         PubSub engine = PubSub.getInstance();
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
@@ -59,54 +64,114 @@ public class PubSubController implements LambdaFunction {
             if (LIST.equals(type)) {
                 return engine.list();
             }
-            if (headers.containsKey(TOPIC)) {
-                String topic = headers.get(TOPIC);
-                if (EXISTS.equals(type)) {
-                    return engine.exists(topic);
-                }
-                if (CREATE.equals(type)) {
-                    return engine.createTopic(topic);
-                }
-                if (DELETE.equals(type)) {
-                    engine.deleteTopic(topic);
-                    return true;
-                }
-                if (PUBLISH.equals(type) && body instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) body;
-                    engine.publish(topic, (Map<String, String>) map.get(HEADERS), map.get(BODY));
-                    return true;
-                }
-                if (SUBSCRIBE.equals(type) && headers.containsKey(ROUTE)) {
-                    String route = headers.get(ROUTE);
-                    if (LanguageConnector.hasRoute(route)) {
-                        List<String> para = body instanceof List? (List<String>) body : Collections.EMPTY_LIST;
-                        TopicListener listener = TopicListener.getListener(topic);
-                        if (listener != null) {
-                            listener.addRoute(route);
-                            log.info("Relaying topic {} to {}", topic, listener.getRoutes());
-                        } else {
-                            engine.subscribe(topic, new TopicListener(topic, route), getParameters(para));
-                            log.info("Relaying topic {} to {}", topic, route);
-                        }
-                        return true;
+            if (!headers.containsKey(TOPIC)) {
+                return false;
+            }
+            String topic = headers.get(TOPIC);
+            if (EXISTS.equals(type)) {
+                return engine.exists(topic);
+            }
+            if (PARTITION_COUNT.equals(type)) {
+                return engine.partitionCount(topic);
+            }
+            if (CREATE.equals(type)) {
+                int partition = Math.max(-1, util.str2int(headers.get(PARTITION)));
+                return engine.createTopic(topic, partition);
+            }
+            if (DELETE.equals(type)) {
+                engine.deleteTopic(topic);
+                return true;
+            }
+            if (PUBLISH.equals(type) && body instanceof Map) {
+                int partition = Math.max(-1, util.str2int(headers.get(PARTITION)));
+                Map<String, Object> map = (Map<String, Object>) body;
+                if (map.containsKey(BODY) && map.containsKey(HEADERS)) {
+                    if (partition < 0) {
+                        engine.publish(topic, (Map<String, String>) map.get(HEADERS), map.get(BODY));
                     } else {
-                        throw new AppException(404, "Route "+route+" not registered with "+topic);
+                        engine.publish(topic, partition, (Map<String, String>) map.get(HEADERS), map.get(BODY));
                     }
+                    return true;
+                } else {
+                    return false;
                 }
-                if (UNSUBSCRIBE.equals(type) && headers.containsKey(ROUTE)) {
-                    String route = headers.get(ROUTE);
-                    if (LanguageConnector.hasRoute(route)) {
-                        TopicListener listener = TopicListener.getListener(topic);
-                        if (listener != null) {
+            }
+            if (SUBSCRIBE.equals(type) && headers.containsKey(ROUTE)) {
+                int partition = Math.max(-1, util.str2int(headers.get(PARTITION)));
+                String route = headers.get(ROUTE);
+                if (LanguageConnector.hasRoute(route)) {
+                    List<String> para = body instanceof List? (List<String>) body : Collections.EMPTY_LIST;
+                    boolean found = false;
+                    boolean all = false;
+                    List<Integer> subscribed = new ArrayList<>();
+                    List<TopicListener> listeners = TopicListener.getListeners(topic);
+                    for (TopicListener listener: listeners) {
+                        found = true;
+                        if (listener.getPartition() < 0) {
+                            all = true;
+                        } else {
+                            subscribed.add(listener.getPartition());
+                        }
+                    }
+                    /*
+                     * Subscription to a pub/sub topic is either all available partitions or a specific partition.
+                     * Otherwise, the READ offset checkpoint logic for an event stream system would break.
+                     */
+                    if (found) {
+                        if (partition >= 0 && all) {
+                            throw new IllegalArgumentException("Cannot subscribe "+route+" to partition "+partition+
+                                    " because all partitions of "+topic+" have been subscribed");
+                        }
+                        if (partition < 0 && !subscribed.isEmpty()) {
+                            throw new IllegalArgumentException("Cannot subscribe "+route+" to all partitions " +
+                                    "because some partitions of topic "+topic+" has been subscribed");
+                        }
+                    }
+                    TopicListener existing = TopicListener.getListener(topic, partition);
+                    if (existing != null) {
+                        existing.addRoute(route);
+                        if (partition < 0) {
+                            log.info("Topic {} attached to {}", topic, existing.getRoutes());
+                        } else {
+                            log.info("Topic {} partition {} attached to {}", topic, partition, existing.getRoutes());
+                        }
+                    } else {
+                        TopicListener listener = new TopicListener(topic, partition, route);
+                        if (partition < 0) {
+                            engine.subscribe(topic, listener, getParameters(para));
+                            log.info("Topic {} attached to {}", topic, route);
+                        } else {
+                            engine.subscribe(topic, partition, listener, getParameters(para));
+                            log.info("Topic {} partition {} attached to {}", topic, partition, route);
+                        }
+                    }
+                    return true;
+                } else {
+                    throw new AppException(404, "Route "+route+" not registered");
+                }
+            }
+            if (UNSUBSCRIBE.equals(type) && headers.containsKey(ROUTE)) {
+                boolean success = false;
+                String route = headers.get(ROUTE);
+                if (LanguageConnector.hasRoute(route)) {
+                    List<TopicListener> listeners = TopicListener.getListeners(topic);
+                    for (TopicListener listener: listeners) {
+                        if (listener.hasRoute(route)) {
                             listener.removeRoute(route);
-                            log.info("Unsubscribed {} from topic {}", route, topic);
-                            return true;
-                        } else {
-                            throw new AppException(404, "Route "+route+" not registered with "+topic);
+                            success = true;
+                            int partition = listener.getPartition();
+                            if (partition < 0) {
+                                log.info("Topic {} detached from {}", topic, route);
+                            } else {
+                                log.info("Topic {} partition {} detached from {}", topic, partition, route);
+                            }
+
                         }
-                    } else {
-                        throw new AppException(404, "Route "+route+" not registered with "+topic);
                     }
+                    return success;
+
+                } else {
+                    throw new AppException(404, "Route "+route+" not registered");
                 }
             }
         }
