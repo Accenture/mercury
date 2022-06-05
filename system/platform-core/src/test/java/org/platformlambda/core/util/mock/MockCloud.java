@@ -39,7 +39,6 @@ import java.util.concurrent.ConcurrentMap;
 @CloudConnector(name="mock.cloud")
 public class MockCloud implements CloudSetup {
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
-    private static final String SERVICE_REGISTRY = "system.service.registry";
     private static final String TYPE = ServiceDiscovery.TYPE;
     private static final String ROUTE = ServiceDiscovery.ROUTE;
     private static final String FIND = ServiceDiscovery.FIND;

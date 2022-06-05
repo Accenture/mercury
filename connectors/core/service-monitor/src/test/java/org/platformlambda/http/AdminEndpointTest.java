@@ -19,6 +19,7 @@
 package org.platformlambda.http;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -27,13 +28,36 @@ import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.mock.TestBase;
 import org.platformlambda.util.SimpleHttpRequests;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AdminEndpointTest extends TestBase {
+    private static final Logger log = LoggerFactory.getLogger(AdminEndpointTest.class);
+
+    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
+
+    private static final AtomicBoolean firstRun = new AtomicBoolean(true);
+
+    @Before
+    public void waitForMockCloud() {
+        if (firstRun.get()) {
+            firstRun.set(false);
+            Platform platform = Platform.getInstance();
+            try {
+                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+                log.info("Mock cloud ready");
+            } catch (TimeoutException e) {
+                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
+            }
+        }
+    }
 
     @SuppressWarnings("unchecked")
     @Test
@@ -73,7 +97,6 @@ public class AdminEndpointTest extends TestBase {
         SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/lib", headers);
     }
 
-    @SuppressWarnings("unchecked")
     @Test(expected = AppException.class)
     public void routeEndpointNotAvailableTest() throws AppException, IOException {
         SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes");
@@ -82,7 +105,7 @@ public class AdminEndpointTest extends TestBase {
     @Test(expected = AppException.class)
     public void protectedRoutesEndpointTest() throws AppException, IOException {
         Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info/routes");
-        System.out.println(response);
+        log.info("This Route Report will not show because the it is expecting an exception - {}", response);
     }
 
     @Test(expected = AppException.class)
@@ -99,6 +122,9 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals("UP", result.get("status"));
+        MultiLevelMap map = new MultiLevelMap(result);
+        Assert.assertEquals("mock-cloud", map.getElement("upstream[0].service"));
+        log.info("health report: {}", result);
     }
 
     @Test(expected = AppException.class)

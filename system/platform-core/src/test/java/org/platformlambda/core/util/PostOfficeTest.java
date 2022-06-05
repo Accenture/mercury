@@ -46,6 +46,7 @@ public class PostOfficeTest {
 
     private static final BlockingQueue<String> bench = new ArrayBlockingQueue<>(1);
     private static final String HELLO_WORLD = "hello.world";
+    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
 
     @BeforeClass
     public static void setup() throws IOException {
@@ -69,6 +70,12 @@ public class PostOfficeTest {
         platform.registerPrivate(HELLO_WORLD, echo, 10);
         // you can convert a private function to public when needed
         platform.makePublic(HELLO_WORLD);
+        try {
+            platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+            log.info("Mock cloud ready");
+        } catch (TimeoutException e) {
+            log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
+        }
     }
 
     @Test

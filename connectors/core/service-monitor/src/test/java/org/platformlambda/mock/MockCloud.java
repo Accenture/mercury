@@ -20,7 +20,6 @@ package org.platformlambda.mock;
 
 import org.platformlambda.cloud.EventProducer;
 import org.platformlambda.cloud.reporter.PresenceConnector;
-import org.platformlambda.cloud.services.CloudHealthCheck;
 import org.platformlambda.cloud.services.ServiceQuery;
 import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.annotations.CloudConnector;
@@ -39,8 +38,9 @@ import java.util.List;
 
 @CloudConnector(name="mock.cloud")
 public class MockCloud implements CloudSetup {
-    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
+
     private static final String CLOUD_MANAGER = "cloud.manager";
+    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
 
     private static final List<String> monitors = new ArrayList<>();
     private static PersistentWsClient ws;
@@ -64,8 +64,8 @@ public class MockCloud implements CloudSetup {
             platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
             platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 10);
-            platform.registerPrivate(CLOUD_CONNECTOR_HEALTH, new CloudHealthCheck(), 2);
             platform.registerPrivate(CLOUD_MANAGER, new MockTopicManager(), 1);
+            platform.registerPrivate(CLOUD_CONNECTOR_HEALTH, new MockCloudHealth(), 2);
             platform.startCloudServices();
         } catch (IOException e) {
             // nothing to worry

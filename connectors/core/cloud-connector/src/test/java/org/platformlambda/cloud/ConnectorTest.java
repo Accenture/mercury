@@ -19,6 +19,7 @@
 package org.platformlambda.cloud;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
@@ -40,11 +41,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConnectorTest extends TestBase {
     private static final Logger log = LoggerFactory.getLogger(ConnectorTest.class);
 
     private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
+
+    private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
+
+    private static final AtomicBoolean firstRun = new AtomicBoolean(true);
+
+    @Before
+    public void waitForMockCloud() {
+        if (firstRun.get()) {
+            firstRun.set(false);
+            Platform platform = Platform.getInstance();
+            try {
+                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+                log.info("Mock cloud ready");
+            } catch (TimeoutException e) {
+                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
+            }
+        }
+    }
 
     @SuppressWarnings("unchecked")
     @Test
