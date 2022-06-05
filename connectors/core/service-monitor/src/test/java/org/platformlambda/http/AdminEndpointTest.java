@@ -105,7 +105,7 @@ public class AdminEndpointTest extends TestBase {
     @Test(expected = AppException.class)
     public void protectedRoutesEndpointTest() throws AppException, IOException {
         Object response = SimpleHttpRequests.get("http://localhost:"+port+"/info/routes");
-        log.info("This Route Report will not show because the it is expecting an exception - {}", response);
+        log.error("This Route Report should not show because the it is expecting an exception - {}", response);
     }
 
     @Test(expected = AppException.class)
