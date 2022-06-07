@@ -214,6 +214,11 @@ public class HttpRelay implements LambdaFunction {
             boolean update = false;
             HttpHeaders httpHeaders = new HttpHeaders();
             Map<String, String> reqHeaders = request.getHeaders();
+            // convert authentication session info into HTTP request headers
+            Map<String, String> sessionInfo = request.getSessionInfo();
+            for (String h: sessionInfo.keySet()) {
+                reqHeaders.put(h, sessionInfo.get(h));
+            }
             for (String h: reqHeaders.keySet()) {
                 if (allowedHeader(h) && !(multipartUpload && h.equalsIgnoreCase(CONTENT_TYPE))) {
                     if (h.equalsIgnoreCase(USER_AGENT)) {
