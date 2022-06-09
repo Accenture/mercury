@@ -231,6 +231,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <skipTests>false</skipTests>
+                    <!-- set forkCount to zero for compatibility with Windows WSL Ubuntu -->
+                    <forkCount>0</forkCount>
                 </configuration>
             </plugin>
             <plugin>
