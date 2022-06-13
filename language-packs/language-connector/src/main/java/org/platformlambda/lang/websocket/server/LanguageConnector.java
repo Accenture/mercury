@@ -411,7 +411,6 @@ public class LanguageConnector implements LambdaFunction {
         PostOffice po = PostOffice.getInstance();
         String target = relay.getTo();
         try {
-            po.discover(target, false);
             po.send(relay);
         } catch (IOException e) {
             String replyTo = relay.getReplyTo();
