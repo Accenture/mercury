@@ -26,7 +26,7 @@ To change this file location, you can do:
 application.
 
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.3.5.jar
+java -Dapi.playground.apps=another_location -jar api-playground-2.3.6.jar
 
 where another location is a folder in the local file system.
 ```
@@ -41,12 +41,12 @@ Please visit http://127.0.0.1:8200 after starting this application.
 
 Using default API specs location,
 ```
-java -jar api-playground-2.3.5.jar
+java -jar api-playground-2.3.6.jar
 ```
 
 With user defined API specs location,
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.3.5.jar
+java -Dapi.playground.apps=another_location -jar api-playground-2.3.6.jar
 ```
 
 ## How this application is created?

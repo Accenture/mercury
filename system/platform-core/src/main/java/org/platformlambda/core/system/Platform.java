@@ -188,11 +188,12 @@ public class Platform {
         if (!Platform.cloudSelected) {
             // guarantee to execute once
             Platform.cloudSelected = true;
-            // set personality to APP automatically
-            ServerPersonality personality = ServerPersonality.getInstance();
             AppConfigReader reader = AppConfigReader.getInstance();
             String name = reader.getProperty(PostOffice.CLOUD_CONNECTOR, "none");
-            if (!"none".equalsIgnoreCase(name)) {
+            if ("none".equalsIgnoreCase(name)) {
+                // there are no cloud connector. Check if there are cloud services.
+                startCloudServices();
+            } else {
                 SimpleClassScanner scanner = SimpleClassScanner.getInstance();
                 List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
                 if (!startService(name, services, true)) {

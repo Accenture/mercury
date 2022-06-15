@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.3.6, 6/15/2022
+
+### Added
+
+Support more than one event stream cluster. User application can share the same event stream cluster
+for pub/sub or connect to an alternative cluster for pub/sub use cases.
+
+### Removed
+
+N/A
+
+### Changed
+
+Cloud connector libraries update to Activemq Artemis version 2.23.0 and Hazelcast 5.1.2
+
+---
 ## Version 2.3.5, 5/30/2022
 
 ### Added

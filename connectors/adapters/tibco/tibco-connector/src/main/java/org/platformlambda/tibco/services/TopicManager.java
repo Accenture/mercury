@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class TopicManager implements LambdaFunction {
     private static final String TYPE = "type";
@@ -41,12 +42,16 @@ public class TopicManager implements LambdaFunction {
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
+    private final String domain;
+    private final Properties properties;
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
 
-    public TopicManager() throws IOException {
-        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
-        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+    public TopicManager(String domain, Properties properties) throws IOException {
+        this.domain = domain;
+        this.properties = properties;
+        this.topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
     }
 
     @Override
@@ -98,7 +103,7 @@ public class TopicManager implements LambdaFunction {
         if (topicSubstitution) {
             return preAllocatedTopics.get(topic) != null;
         }
-        TibjmsAdmin admin = TibcoConnector.getAdminClient();
+        TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
         try {
             return admin.getTopic(topic) != null || admin.getQueue(topic) != null;
         } catch (TibjmsAdminException e) {
@@ -117,7 +122,7 @@ public class TopicManager implements LambdaFunction {
         String firstPartition = topic + ".0";
         if (topicExists(firstPartition)) {
             Utility util = Utility.getInstance();
-            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
             TopicInfo[] topics = admin.getTopics();
             String prefix = topic+".";
             int n = 0;
@@ -143,7 +148,7 @@ public class TopicManager implements LambdaFunction {
             return;
         }
         if (!topicExists(topic)) {
-            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
             TopicInfo info = new TopicInfo(topic);
             admin.createTopic(info);
         }
@@ -166,14 +171,14 @@ public class TopicManager implements LambdaFunction {
             return;
         }
         if (topicExists(topic)) {
-            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
             admin.destroyTopic(topic);
         }
     }
 
     private void createQueue(String queue) throws TibjmsAdminException {
         if (!topicExists(queue)) {
-            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
             QueueInfo info = new QueueInfo(queue);
             admin.createQueue(info);
         }
@@ -181,7 +186,7 @@ public class TopicManager implements LambdaFunction {
 
     private void deleteQueue(String queue) throws TibjmsAdminException {
         if (topicExists(queue)) {
-            TibjmsAdmin admin = TibcoConnector.getAdminClient();
+            TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
             admin.destroyQueue(queue);
         }
     }
@@ -191,7 +196,7 @@ public class TopicManager implements LambdaFunction {
             return new ArrayList<>(preAllocatedTopics.keySet());
         }
         List<String> result = new ArrayList<>();
-        TibjmsAdmin admin = TibcoConnector.getAdminClient();
+        TibjmsAdmin admin = TibcoConnector.getAdminClient(domain, properties);
         TopicInfo[] topics = admin.getTopics();
         for (TopicInfo t: topics) {
             String name = t.getName();

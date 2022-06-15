@@ -65,7 +65,7 @@ public class UtilityTests {
     }
 
     @Test
-    public void mockPubSub() throws IOException, TimeoutException {
+    public void mockPubSub() throws IOException {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
         ps.waitForProvider(1);

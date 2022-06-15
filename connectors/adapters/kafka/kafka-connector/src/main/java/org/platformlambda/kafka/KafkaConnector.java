@@ -42,16 +42,23 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @CloudConnector(name="kafka")
 public class KafkaConnector implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(KafkaConnector.class);
 
+    private static final String SYSTEM = "system";
+    private static final String CLOUD_CLIENT_PROPERTIES = "cloud.client.properties";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
-    private static Properties properties;
 
-    public static synchronized Properties getKafkaProperties() {
+    private static final ConcurrentMap<String, Properties> allProperties = new ConcurrentHashMap<>();
+
+    public static synchronized Properties getKafkaProperties(String location) {
+        // default location is cloud.client.properties
+        Properties properties = allProperties.get(location);
         if (properties == null) {
             properties = new Properties();
             /*
@@ -60,7 +67,7 @@ public class KafkaConnector implements CloudSetup {
              */
             ConfigReader config = null;
             try {
-                config = ConnectorConfig.getConfig("kafka.client.properties",
+                config = ConnectorConfig.getConfig(location,
                         "file:/tmp/config/kafka.properties,classpath:/kafka.properties");
             } catch (IOException e) {
                 log.error("Unable to find kafka properties - {}", e.getMessage());
@@ -80,7 +87,7 @@ public class KafkaConnector implements CloudSetup {
             }
             /*
              * Ping Kafka cluster when the application starts up.
-             * This assumes the broker list is constant over the life time of the application.
+             * This assumes the broker list is constant over the lifetime of the application.
              */
             try {
                 // try 2 times to check if kafka cluster is available
@@ -93,6 +100,7 @@ public class KafkaConnector implements CloudSetup {
             }
             ConnectorConfig.setServiceName("kafka");
             ConnectorConfig.setDisplayUrl(brokers.get(0));
+            allProperties.put(location, properties);
         }
         return properties;
     }
@@ -102,8 +110,9 @@ public class KafkaConnector implements CloudSetup {
         try {
             AppConfigReader config = AppConfigReader.getInstance();
             Platform platform = Platform.getInstance();
-            PubSub ps = PubSub.getInstance();
-            ps.enableFeature(new PubSubManager(getKafkaProperties(), ServiceRegistry.CLOUD_MANAGER));
+            PubSub ps = PubSub.getInstance(SYSTEM);
+            Properties properties = getKafkaProperties(CLOUD_CLIENT_PROPERTIES);
+            ps.enableFeature(new PubSubManager(SYSTEM, properties, ServiceRegistry.CLOUD_MANAGER));
             // is this a regular application?
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector

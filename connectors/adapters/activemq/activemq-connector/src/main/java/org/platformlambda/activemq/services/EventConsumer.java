@@ -33,10 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.jms.*;
 import java.io.IOException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class EventConsumer {
     private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
@@ -59,8 +56,13 @@ public class EventConsumer {
     private long offset = -1;
     private Session session;
     private MessageConsumer messageConsumer;
+    private final String domain;
+    private final Properties properties;
 
-    public EventConsumer(String topic, int partition, String... parameters) throws IOException {
+    public EventConsumer(String domain, Properties properties, String topic, int partition, String... parameters)
+            throws IOException {
+        this.domain = domain;
+        this.properties = properties;
         boolean substitute = ConnectorConfig.topicSubstitutionEnabled();
         Map<String, String> preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         this.topic = topic;
@@ -92,7 +94,7 @@ public class EventConsumer {
         try {
             PostOffice po = PostOffice.getInstance();
             Platform platform = Platform.getInstance();
-            Connection connection = ArtemisConnector.getConnection();
+            Connection connection = ArtemisConnector.getConnection(domain, properties);
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
             if (partition == -2) {
                 messageConsumer = session.createConsumer(session.createQueue(realTopic));
@@ -225,7 +227,7 @@ public class EventConsumer {
                     // transport the headers and payload in original form
                     message.setBody(data).setHeaders(originalHeaders);
                     try {
-                        // mercury service name must be lower case
+                        // mercury service name must be lowercase
                         po.send(message.setTo(virtualTopic.toLowerCase()));
 
                     } catch (Exception e) {

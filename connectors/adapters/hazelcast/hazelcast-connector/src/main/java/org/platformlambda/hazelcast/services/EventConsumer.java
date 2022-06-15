@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 
 public class EventConsumer {
@@ -62,8 +63,12 @@ public class EventConsumer {
     private long offset = -1;
     private UUID registrationId;
     private ITopic<Map<String, Object>> iTopic;
+    private final String domain;
+    private final Properties properties;
 
-    public EventConsumer(String topic, int partition, String... parameters) {
+    public EventConsumer(String domain, Properties properties, String topic, int partition, String... parameters) {
+        this.domain = domain;
+        this.properties = properties;
         this.topic = topic;
         this.partition = partition;
         Utility util = Utility.getInstance();
@@ -90,7 +95,7 @@ public class EventConsumer {
         }
         PostOffice po = PostOffice.getInstance();
         Platform platform = Platform.getInstance();
-        HazelcastInstance client = HazelcastConnector.getClient();
+        HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
         String realTopic = partition < 0? topic : topic+"."+partition;
         iTopic = client.getReliableTopic(realTopic);
         registrationId = iTopic.addMessageListener(new EventListener());

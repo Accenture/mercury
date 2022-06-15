@@ -22,7 +22,6 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.topic.ITopic;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
-import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -38,10 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
@@ -50,7 +46,6 @@ public class PubSubManager implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
 
     private static final MsgPack msgPack = new MsgPack();
-    private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
     private static final String HEADERS = "headers";
@@ -62,10 +57,18 @@ public class PubSubManager implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
 
-    public PubSubManager() {
+    private final String domain;
+    private final Properties properties;
+    private final String cloudManager;
+
+    public PubSubManager(String domain, Properties properties, String cloudManager) {
+        this.domain = domain;
+        this.properties = properties;
+        this.cloudManager = cloudManager;
         try {
             // start Topic Manager
-            Platform.getInstance().registerPrivate(CLOUD_MANAGER, new TopicManager(), 1);
+            log.info("Starting {} pub/sub manager - {}", domain, cloudManager);
+            Platform.getInstance().registerPrivate(cloudManager, new TopicManager(domain, properties), 1);
         } catch (IOException e) {
             log.error("Unable to start producer - {}", e.getMessage());
         }
@@ -75,7 +78,11 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void waitForProvider(int seconds) {
-        // no-op because provider must be ready at this point
+        try {
+            Platform.getInstance().waitForProvider(cloudManager, seconds);
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -87,7 +94,7 @@ public class PubSubManager implements PubSubProvider {
     public boolean createTopic(String topic, int partitions) throws IOException {
         ConnectorConfig.validateTopicName(topic);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
@@ -102,7 +109,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void deleteTopic(String topic) throws IOException {
         try {
-            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
+            PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -156,7 +163,7 @@ public class PubSubManager implements PubSubProvider {
     private void sendEvent(String topic, int partition, Map<String, String> headers, byte[] payload) {
         String realTopic = partition < 0? topic : topic+"."+partition;
         try {
-            HazelcastInstance client = HazelcastConnector.getClient();
+            HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
             ITopic<Map<String, Object>> iTopic = client.getReliableTopic(realTopic);
             Map<String, Object> event = new HashMap<>();
             event.put(HEADERS, headers);
@@ -185,7 +192,7 @@ public class PubSubManager implements PubSubProvider {
             if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
                 throw new IOException(topicPartition+" is already subscribed");
             }
-            EventConsumer consumer = new EventConsumer(topic, partition, parameters);
+            EventConsumer consumer = new EventConsumer(domain, properties, topic, partition, parameters);
             consumer.start();
             Platform.getInstance().registerPrivate(topicPartition, listener, 1);
             subscribers.put(topicPartition, consumer);
@@ -231,7 +238,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public boolean exists(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Boolean) {
                 return (Boolean) response.getBody();
@@ -246,7 +253,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public int partitionCount(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Integer) {
                 return (Integer) response.getBody();
@@ -262,7 +269,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public List<String> list() throws IOException {
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, LIST));
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, LIST));
             if (init.getBody() instanceof List) {
                 return (List<String>) init.getBody();
             } else {

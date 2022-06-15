@@ -28,6 +28,7 @@
 | application.feature.topic.substitution      | default value is false                   | Optional   |
 | topic.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
 | cloud.client.properties                     | e.g. classpath:/kafka.properties         | connectors |
+| user.cloud.client.properties                | e.g. classpath:/second-kafka.properties  | connectors |
 | kafka.replication.factor                    | 3                                        | Kafka      |
 | default.app.group.id                        | kafka groupId for the app instance       | Optional   |
 | default.monitor.group.id                    | kafka groupId for the presence-monitor   | Optional   |
@@ -98,7 +99,7 @@ e.g.
 # Kafka specific configuration
 
 If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to 
-externalize kafka.properties. It is recommended to set `kafka.client.properties=file:/tmp/config/kafka.properties`
+externalize kafka.properties. It is recommended to set `cloud.client.properties=file:/tmp/config/kafka.properties`
 
 Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" 
 refers to an external config file.
@@ -107,7 +108,7 @@ You want also use the embedded config file as a backup like this:
 
 ```
 # this is the configuration used by the kafka.presence monitor
-kafka.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
+cloud.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
 ```
 
 `kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
