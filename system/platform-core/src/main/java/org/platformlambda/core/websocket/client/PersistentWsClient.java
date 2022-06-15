@@ -35,7 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
-public class PersistentWsClient extends Thread implements AutoCloseable {
+public class PersistentWsClient extends Thread {
     private static final Logger log = LoggerFactory.getLogger(PersistentWsClient.class);
 
     private static final long WAIT_INTERVAL = 10000;
@@ -200,7 +200,6 @@ public class PersistentWsClient extends Thread implements AutoCloseable {
         }
     }
 
-    @Override
     public void close() {
         disconnect("Shutdown");
         normal = false;

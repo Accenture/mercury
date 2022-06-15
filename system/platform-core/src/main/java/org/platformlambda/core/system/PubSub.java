@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * The Mercury platform provides abstraction of the underlying event stream system
@@ -38,16 +40,59 @@ import java.util.Map;
  */
 public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);
+    private static final String SYSTEM = "system";
+    private static final ConcurrentMap<String, PubSub> instances = new ConcurrentHashMap<>();
 
-    private static PubSubProvider provider;
-    private static final PubSub instance = new PubSub();
+    private PubSubProvider provider;
 
+    private String instanceName;
+
+    /**
+     * Instances can only be created using the getInstance methods
+     *
+     * The getSystemInstance() is reserved for use by the system itself
+     * The getInstance() can be used by the user application
+     *
+     * In the rare case that more than 2 pub/sub clusters are needed,
+     * use the getInstance(clusterName) method.
+     */
     private PubSub() {
-        // singleton
+        // protected constructor
     }
 
-    public static PubSub getInstance() {
-        return instance;
+    /**
+     * Obtain the pub/sub cluster handler instance
+     *
+     * @param clusterName for referring to an event stream cluster
+     * @return PubSub handler instance
+     */
+    public static synchronized PubSub getInstance(String clusterName) {
+        PubSub ps = instances.get(clusterName);
+        if (ps == null) {
+            ps = new PubSub();
+            ps.instanceName = clusterName;
+            instances.put(clusterName, ps);
+            log.info("Created new PubSub instance ({})", clusterName);
+        }
+        return ps;
+    }
+
+    /**
+     * Obtain the default pub/sub cluster handler instance ('system')
+     * @return PubSub handler instance
+     */
+    public static synchronized PubSub getInstance() {
+        // the default instance is 'system'
+        return getInstance(SYSTEM);
+    }
+
+    /**
+     * Retrieve the pub/sub handler instance name
+     *
+     * @return instance name
+     */
+    public String getInstanceName() {
+        return instanceName;
     }
 
     /**
@@ -60,11 +105,11 @@ public class PubSub {
         if (pubSub == null) {
             throw new IllegalArgumentException("Missing provider");
         }
-        if (PubSub.provider == null) {
-            PubSub.provider = pubSub;
-            log.info("Provider {} loaded", PubSub.provider);
+        if (this.provider == null) {
+            this.provider = pubSub;
+            log.info("Provider {} ({}) loaded", instanceName, this.provider);
         } else {
-            log.warn("Provider {} is already loaded", PubSub.provider);
+            log.error("Provider {} ({}) is already loaded", instanceName, this.provider);
         }
     }
 
@@ -89,7 +134,7 @@ public class PubSub {
         while (provider == null && waitSeconds > 0) {
             n++;
             if (n % 2 == 0) {
-                log.info("Waiting for Pub/Sub provider to get ready...{}", n);
+                log.info("Waiting for Pub/Sub provider to be loaded...{}", n);
             }
             waitSeconds--;
             try {
@@ -193,6 +238,21 @@ public class PubSub {
     /**
      * Subscribe to a topic
      *
+     * For Kafka, the parameters must include a client ID, a group ID and an optional READ offset.
+     * If read offset is not given, the listener will receive the latest events.
+     * Specifying an offset allows the application to rewind time to earlier events.
+     *
+     * e,g, "client-101", "group-101", "0"
+     * where "0" means rewinding the offset to the beginning of the event stream.
+     *
+     * Metadata is available as special headers for each incoming event like this:
+     *  `{_timestamp_=1655234495875, _key_=19706bcf5ea54e1bb8a1d8845946e662, _partition_=0, _offset_=1013, _data_=text}`
+     *
+     * It includes kafka event timestamp, event key, partition number, read offset and whether the event payload
+     * is bytes, map or text.
+     *
+     * Note that metadata tags use the underscore prefix and suffix.
+     *
      * @param topic for a store-n-forward pub/sub channel
      * @param listener function to collect event events
      * @param parameters optional parameters that are cloud connector specific
@@ -205,6 +265,21 @@ public class PubSub {
 
     /**
      * Subscribe to a topic
+     *
+     * For Kafka, the parameters must include a client ID, a group ID and an optional READ offset.
+     * If read offset is not given, the listener will receive the latest events.
+     * Specifying an offset allows the application to rewind time to earlier events.
+     *
+     * e,g, "client-101", "group-101", "0"
+     * where "0" means rewinding the offset to the beginning of the event stream.
+     *
+     * Metadata is available as special headers for each incoming event like this:
+     *  `{_timestamp_=1655234495875, _key_=19706bcf5ea54e1bb8a1d8845946e662, _partition_=0, _offset_=1013, _data_=text}`
+     *
+     * It includes kafka event timestamp, event key, partition number, read offset and whether the event payload
+     * is bytes, map or text.
+     *
+     * Note that metadata tags use the underscore prefix and suffix.
      *
      * @param topic for a store-n-forward pub/sub channel
      * @param partition to be subscribed

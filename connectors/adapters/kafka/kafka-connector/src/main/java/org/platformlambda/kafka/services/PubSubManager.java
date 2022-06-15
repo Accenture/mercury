@@ -61,16 +61,17 @@ public class PubSubManager implements PubSubProvider {
     private String producerId = null;
     private KafkaProducer<String, byte[]> producer = null;
 
-    public PubSubManager(Properties baseProperties, String cloudManager) {
+    public PubSubManager(String domain, Properties baseProperties, String cloudManager) {
         this.baseProperties = baseProperties;
         this.cloudManager = cloudManager;
         try {
             // start Kafka Topic Manager
+            log.info("Starting {} pub/sub manager - {}", domain, cloudManager);
             Platform.getInstance().registerPrivate(cloudManager,
                     new TopicManager(baseProperties, cloudManager), 1);
             preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
         } catch (IOException e) {
-            log.error("Unable to start producer - {}", e.getMessage());
+            log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
         // clean up subscribers when application stops
@@ -125,7 +126,7 @@ public class PubSubManager implements PubSubProvider {
             totalEvents++;
 
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            // when this happens, it is better to shutdown so it can be restarted by infrastructure automatically
+            // when this happens, it is better to shut down so that it can be restarted by infrastructure automatically
             log.error("Unable to publish event to {} - {}", virtualTopic, e.getMessage());
             closeProducer();
             System.exit(20);
@@ -134,7 +135,11 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public void waitForProvider(int seconds) {
-        // no-op because provider must be ready at this point
+        try {
+            Platform.getInstance().waitForProvider(cloudManager, seconds);
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

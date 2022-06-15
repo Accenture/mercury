@@ -72,7 +72,12 @@ public class ConnectorConfig {
 
     public static ConfigReader getConfig(String key, String defaultValue) throws IOException {
         AppConfigReader reader = AppConfigReader.getInstance();
-        List<String> paths = Utility.getInstance().split(reader.getProperty(key, defaultValue), ", ");
+        String location = reader.getProperty(key);
+        if (location == null) {
+            log.warn("Config parameter {} not defined - using default location: {}", key, defaultValue);
+            location = defaultValue;
+        }
+        List<String> paths = Utility.getInstance().split(location, ", ");
         for (String p: paths) {
             ConfigReader config = new ConfigReader();
             try {

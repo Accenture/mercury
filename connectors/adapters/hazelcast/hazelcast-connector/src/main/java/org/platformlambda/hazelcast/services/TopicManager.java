@@ -28,10 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TopicManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
@@ -46,6 +43,13 @@ public class TopicManager implements LambdaFunction {
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
     private static final String TOPIC_STORE = "/topics";
+    private final String domain;
+    private final Properties properties;
+
+    public TopicManager(String domain, Properties properties) {
+        this.domain = domain;
+        this.properties = properties;
+    }
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
@@ -79,7 +83,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     private boolean topicExists(String topic) {
-        HazelcastInstance client = HazelcastConnector.getClient();
+        HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
         IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
         return map.containsKey(topic);
     }
@@ -89,7 +93,7 @@ public class TopicManager implements LambdaFunction {
         if (topicExists(topic)) {
             try {
                 Utility util = Utility.getInstance();
-                HazelcastInstance client = HazelcastConnector.getClient();
+                HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
                 IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
                 Map<String, Object> topicMap = (Map<String, Object>) msgPack.unpack(map.get(topic));
                 return util.str2int(topicMap.getOrDefault(PARTITIONS, 1).toString());
@@ -102,7 +106,7 @@ public class TopicManager implements LambdaFunction {
 
     private void createTopic(String topic, int partitions) {
         if (!topicExists(topic)) {
-            HazelcastInstance client = HazelcastConnector.getClient();
+            HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
             IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
             Map<String, Object> topicMap = new HashMap<>();
             topicMap.put(PARTITIONS, partitions);
@@ -117,14 +121,14 @@ public class TopicManager implements LambdaFunction {
 
     private void deleteTopic(String topic) {
         if (topicExists(topic)) {
-            HazelcastInstance client = HazelcastConnector.getClient();
+            HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
             IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
             map.remove(topic);
         }
     }
 
     private List<String> listTopics() {
-        HazelcastInstance client = HazelcastConnector.getClient();
+        HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
         IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
         return new ArrayList<>(map.keySet());
     }

@@ -21,9 +21,12 @@ package org.platformlambda.hazelcast;
 import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.PubSub;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.hazelcast.services.PubSubManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Properties;
 
 /**
  * This cloud service provides pub/sub service.
@@ -38,10 +41,23 @@ import org.slf4j.LoggerFactory;
 public class PubSubSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(PubSubSetup.class);
 
+    private static final String USER = "user";
+    private static final String USER_CLOUD_CLIENT_PROPERTIES = "user.cloud.client.properties";
+    private static final String CUSTOM_CLOUD_MANAGER_CONFIG = "user.cloud.manager";
+    private static final String CUSTOM_CLOUD_MANAGER_ROUTE = "user.cloud.manager";
+
     @Override
     public void initialize() {
-        if (!PubSub.getInstance().featureEnabled()) {
-            PubSub.getInstance().enableFeature(new PubSubManager());
+        if (!PubSub.getInstance(USER).featureEnabled()) {
+            AppConfigReader config = AppConfigReader.getInstance();
+            String cloudManager = config.getProperty(CUSTOM_CLOUD_MANAGER_CONFIG);
+            if (cloudManager == null) {
+                log.warn("Config parameter {} not defined - using default cloud manager: {}",
+                        CUSTOM_CLOUD_MANAGER_CONFIG, CUSTOM_CLOUD_MANAGER_ROUTE);
+                cloudManager = CUSTOM_CLOUD_MANAGER_ROUTE;
+            }
+            Properties properties = HazelcastConnector.getClusterProperties(USER_CLOUD_CLIENT_PROPERTIES);
+            PubSub.getInstance(USER).enableFeature(new PubSubManager(USER, properties, cloudManager));
             log.info("Started");
         }
     }

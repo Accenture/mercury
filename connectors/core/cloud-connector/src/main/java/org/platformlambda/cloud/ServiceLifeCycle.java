@@ -25,8 +25,7 @@ public class ServiceLifeCycle {
     private final String topic;
     private final String token;
     private final int partition;
-    private static LambdaFunction resetHandler;
-
+    
     /**
      * When offset is set to the special value INITIALIZE, initial load
      * will send an initialization token to the EventConsumer to make sure
@@ -81,20 +80,6 @@ public class ServiceLifeCycle {
                     new Date(System.currentTimeMillis() + FIRST_POLL));
         } catch (IOException e) {
             log.error("Unable to register {} - {}", INIT_HANDLER, e.getMessage());
-        }
-    }
-
-    public static void setResetHandler(LambdaFunction resetHandler) {
-        ServiceLifeCycle.resetHandler = resetHandler;
-    }
-
-    public static void releaseConnecton(String reason) {
-        if (resetHandler != null) {
-            try {
-                resetHandler.handleEvent(new HashMap<>(), reason, 1);
-            } catch (Exception e) {
-                log.error("Unable to release connection - {}", e.getMessage());
-            }
         }
     }
 

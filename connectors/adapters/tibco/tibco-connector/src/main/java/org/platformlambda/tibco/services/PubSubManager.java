@@ -20,8 +20,6 @@ package org.platformlambda.tibco.services;
 
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
-import org.platformlambda.cloud.ServiceLifeCycle;
-import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -36,10 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.jms.*;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
@@ -47,10 +42,8 @@ import java.util.concurrent.TimeoutException;
 public class PubSubManager implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
 
-    private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String PUBLISHER = "event.publisher";
     private static final String TYPE = "type";
-    private static final String STOP = "stop";
     private static final String PARTITIONS = "partitions";
     private static final String PARTITION = "partition";
     private static final String BODY = "body";
@@ -61,87 +54,52 @@ public class PubSubManager implements PubSubProvider {
     private static final String TOPIC = "topic";
     private static final String QUEUE = "queue";
     private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
-    private Session primarySession, secondarySession;
+    private final String domain;
+    private final Properties properties;
+    private final String cloudManager;
     private final Map<String, String> preAllocatedTopics;
 
     @SuppressWarnings("unchecked")
-    public PubSubManager() throws JMSException, IOException {
-        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+    public PubSubManager(String domain, Properties properties, String cloudManager)
+            throws JMSException, IOException {
+        this.domain = domain;
+        this.properties = properties;
+        this.cloudManager = cloudManager;
+        this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
 
         LambdaFunction publisher = (headers, body, instance) -> {
-            if (STOP.equals(headers.get(TYPE))) {
-                stopConnection();
-            } else if (body instanceof Map) {
+            if (body instanceof Map) {
                 Map<String, Object> data = (Map<String, Object>) body;
                 Object topic = data.get(TOPIC);
                 Object partition = data.get(PARTITION);
                 Object payload = data.get(BODY);
                 if (topic instanceof String && partition instanceof Integer) {
-                    sendEvent(false, (String) topic, (int) partition, headers, payload);
+                    sendEvent((String) topic, (int) partition, headers, payload);
                 }
             }
             return true;
         };
-        /*
-         * Setup resetHandler in ServiceLifeCycle
-         *
-         * When the app is disconnected from the presence monitor,
-         * we want to drop the connection with the Tibco cluster
-         * to ensure a clean state in the next session.
-         */
-        LambdaFunction resetHandler = (headers, body, instance) -> {
-            log.info("Closing tibco connection - {}", body);
-            PostOffice.getInstance().send(PUBLISHER, new Kv(TYPE, STOP));
-            return true;
-        };
-        ServiceLifeCycle.setResetHandler(resetHandler);
         Platform platform = Platform.getInstance();
         try {
             // start Topic Manager
-            platform.registerPrivate(CLOUD_MANAGER, new TopicManager(), 1);
+            log.info("Starting {} pub/sub manager - {}", domain, cloudManager);
+            platform.registerPrivate(cloudManager, new TopicManager(domain, properties), 1);
             // start publisher
             platform.registerPrivate(PUBLISHER, publisher, 1);
         } catch (IOException e) {
-            log.error("Unable to start producer - {}", e.getMessage());
+            log.error("Unable to start - {}", e.getMessage());
         }
         // clean up subscribers when application stops
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
-    private void startSession(boolean primary) throws Exception {
-        if (primary) {
-            if (primarySession == null) {
-                Connection connection = TibcoConnector.getConnection();
-                primarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
-                log.debug("Primary session started");
-            }
-        } else {
-            if (secondarySession == null) {
-                Connection connection = TibcoConnector.getConnection();
-                secondarySession = connection.createSession(Session.AUTO_ACKNOWLEDGE);
-                log.debug("Secondary session started");
-            }
-        }
-    }
-
-    private void stopConnection() throws JMSException {
-        if (primarySession != null) {
-            primarySession.close();
-            primarySession = null;
-            log.debug("Primary session stopped");
-        }
-
-        if (secondarySession != null) {
-            secondarySession.close();
-            secondarySession = null;
-            log.debug("Secondary session stopped");
-        }
-        TibcoConnector.stopConnection();
-    }
-
     @Override
     public void waitForProvider(int seconds) {
-        // no-op because provider must be ready at this point
+        try {
+            Platform.getInstance().waitForProvider(cloudManager, seconds);
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -157,7 +115,7 @@ public class PubSubManager implements PubSubProvider {
     private boolean createTopicOrQueue(boolean isTopic, String topicOrQueue, int partitions) throws IOException {
         ConnectorConfig.validateTopicName(topicOrQueue);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, CREATE), new Kv(isTopic? TOPIC : QUEUE, topicOrQueue), new Kv(PARTITIONS, partitions));
             if (init.getBody() instanceof Boolean) {
                 return(Boolean) init.getBody();
@@ -172,7 +130,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void deleteTopic(String topic) throws IOException {
         try {
-            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
+            PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -186,7 +144,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public void deleteQueue(String queue) throws IOException {
         try {
-            PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, DELETE), new Kv(QUEUE, queue));
+            PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, DELETE), new Kv(QUEUE, queue));
         } catch (TimeoutException | AppException e) {
             throw new IOException(e.getMessage());
         }
@@ -203,7 +161,7 @@ public class PubSubManager implements PubSubProvider {
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
             // embedded events are sent by the EventPublisher thread
-            sendEvent(true, topic, partition, eventHeaders, body);
+            sendEvent(topic, partition, eventHeaders, body);
         } else {
             final Object payload;
             if (body instanceof byte[]) {
@@ -236,50 +194,39 @@ public class PubSubManager implements PubSubProvider {
         }
     }
 
-    private void sendEvent(boolean primary, String topic, int partition, Map<String, String> headers, Object body) {
+    private void sendEvent(String topic, int partition, Map<String, String> headers, Object body) {
         String realTopic = partition < 0 ? topic : topic + "." + partition;
         if (ConnectorConfig.topicSubstitutionEnabled()) {
             realTopic = preAllocatedTopics.getOrDefault(realTopic, realTopic);
         }
-        MessageProducer producer = null;
         try {
-            startSession(primary);
-            Session session = primary? primarySession : secondarySession;
-            if (partition == -2) {
-                producer = session.createProducer(session.createQueue(realTopic));
-            } else {
-                producer = session.createProducer(session.createTopic(realTopic));
-            }
-            if (body instanceof byte[]) {
-                BytesMessage message = session.createBytesMessage();
-                for (String h : headers.keySet()) {
-                    message.setStringProperty(h, headers.get(h));
-                }
-                message.writeBytes((byte[]) body);
-                producer.send(message);
+            Connection connection = TibcoConnector.getConnection(domain, properties);
+            try (Session session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
+                 MessageProducer producer = session.createProducer(partition == -2?
+                         session.createQueue(realTopic) : session.createTopic(realTopic))) {
+                if (body instanceof byte[]) {
+                    BytesMessage message = session.createBytesMessage();
+                    for (String h : headers.keySet()) {
+                        message.setStringProperty(h, headers.get(h));
+                    }
+                    message.writeBytes((byte[]) body);
+                    producer.send(message);
 
-            } else if (body instanceof String) {
-                TextMessage message = session.createTextMessage((String) body);
-                for (String h : headers.keySet()) {
-                    message.setStringProperty(h, headers.get(h));
-                }
-                producer.send(message);
+                } else if (body instanceof String) {
+                    TextMessage message = session.createTextMessage((String) body);
+                    for (String h : headers.keySet()) {
+                        message.setStringProperty(h, headers.get(h));
+                    }
+                    producer.send(message);
 
-            } else {
-                log.error("Event to {} not published because it is not Text or Binary", realTopic);
+                } else {
+                    log.error("Event to {} not published because it is not Text or Binary", realTopic);
+                }
             }
         } catch (Exception e) {
             log.error("Unable to publish event to {} - {}", realTopic, e.getMessage());
             // just let the platform such as Kubernetes to restart the application instance
             System.exit(12);
-        } finally {
-            if (producer != null) {
-                try {
-                    producer.close();
-                } catch (JMSException e) {
-                    log.error("Unable to close producer", e);
-                }
-            }
         }
     }
 
@@ -295,7 +242,7 @@ public class PubSubManager implements PubSubProvider {
         if (subscribers.containsKey(topicPartition) || Platform.getInstance().hasRoute(topicPartition)) {
             throw new IOException(topicPartition+" is already subscribed");
         }
-        EventConsumer consumer = new EventConsumer(topic, partition, parameters);
+        EventConsumer consumer = new EventConsumer(domain, properties, topic, partition, parameters);
         consumer.start();
         Platform.getInstance().registerPrivate(topicPartition, listener, 1);
         subscribers.put(topicPartition, consumer);
@@ -340,7 +287,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public boolean exists(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Boolean) {
                 return (Boolean) response.getBody();
@@ -355,7 +302,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public int partitionCount(String topic) throws IOException {
         try {
-            EventEnvelope response = PostOffice.getInstance().request(CLOUD_MANAGER, 20000,
+            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
                     new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
             if (response.getBody() instanceof Integer) {
                 return (Integer) response.getBody();
@@ -371,7 +318,7 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public List<String> list() throws IOException {
         try {
-            EventEnvelope init = PostOffice.getInstance().request(CLOUD_MANAGER, 20000, new Kv(TYPE, LIST));
+            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, LIST));
             if (init.getBody() instanceof List) {
                 return (List<String>) init.getBody();
             } else {

@@ -328,7 +328,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -jar target/rest-example-2.3.5.jar
+java -jar target/rest-example-2.3.6.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -385,7 +385,7 @@ For development and testing, you can start a standalone Kafka server.
 # start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
 cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/kafka-standalone-2.3.5.jar
+java -jar target/kafka-standalone-2.3.6.jar
 # this will run a standalone Kafka server in the foreground
 ```
 
@@ -395,7 +395,7 @@ The next step is to start the "presence-monitor" application.
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -jar target/kafka-presence-2.3.5.jar
+java -jar target/kafka-presence-2.3.6.jar
 # this will run the presence monitor at port 8080 in the foreground
 
 # when an application instance is started, it connects to the presence monitor to get topic.
@@ -411,7 +411,7 @@ Optionally, if you want to test resilience of the presence monitor, you can star
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.3.5.jar
+java -Dserver.port=8081 -jar target/kafka-presence-2.3.6.jar
 # this will run the presence monitor at port 8081 in the foreground
 ```
 
@@ -419,11 +419,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-2.3.5.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.3.5.jar
+java -Dcloud.connector=kafka -jar target/lambda-example-2.3.6.jar
 # the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.3.5.jar
+java -Dcloud.connector=kafka -jar target/rest-example-2.3.6.jar
 # the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this

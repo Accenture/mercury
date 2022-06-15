@@ -48,18 +48,66 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @CloudConnector(name="hazelcast")
 public class HazelcastConnector implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(HazelcastConnector.class);
 
+    private static final String SYSTEM = "system";
+    private static final String CLOUD_CLIENT_PROPERTIES = "cloud.client.properties";
     public static final String BROKER_URL = "bootstrap.servers";
     private static final String CLOUD_CHECK = "cloud.connector.health";
     private static final long MAX_CLUSTER_WAIT = 5 * 60 * 1000;
-    private static Properties properties;
-    private static HazelcastInstance client;
 
-    public static synchronized HazelcastInstance getClient() {
+    private static final ConcurrentMap<String, HazelcastInstance> allClients = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Properties> allProperties = new ConcurrentHashMap<>();
+
+    public static Properties getClusterProperties(String location) {
+        // default location is cloud.client.properties
+        Properties properties = allProperties.get(location);
+        if (properties == null) {
+            ConfigReader clusterConfig = null;
+            try {
+                clusterConfig = ConnectorConfig.getConfig(location,
+                        "file:/tmp/config/hazelcast.properties,classpath:/hazelcast.properties");
+            } catch (IOException e) {
+                log.error("Unable to find hazelcast properties - {}", e.getMessage());
+                System.exit(-1);
+            }
+            properties = new Properties();
+            for (String k : clusterConfig.getMap().keySet()) {
+                properties.setProperty(k, clusterConfig.getProperty(k));
+            }
+            String url = properties.getProperty(BROKER_URL);
+            Utility util = Utility.getInstance();
+            List<String> cluster = util.split(url, ", ");
+            boolean reachable = false;
+            for (String address : cluster) {
+                int colon = address.lastIndexOf(':');
+                if (colon > 1) {
+                    String host = address.substring(0, colon);
+                    int port = util.str2int(address.substring(colon + 1));
+                    if (port > 0) {
+                        // ping the address to confirm it is reachable before making a client connection
+                        if (util.portReady(host, port, 10000)) {
+                            reachable = true;
+                        }
+                    }
+                }
+            }
+            if (!reachable) {
+                log.error("Hazelcast cluster {} is not reachable", cluster);
+                System.exit(-1);
+            }
+            allProperties.put(location, properties);
+        }
+        return properties;
+    }
+
+    public static synchronized HazelcastInstance getClient(String domain, Properties properties) {
+        HazelcastInstance client = allClients.get(domain);
         if (client == null) {
             Utility util = Utility.getInstance();
             String url = properties.getProperty(BROKER_URL);
@@ -86,51 +134,22 @@ public class HazelcastConnector implements CloudSetup {
              */
             client.getLifecycleService().addLifecycleListener(new TopicLifecycleListener());
             // use the first broker URL as the display URL in the info endpoint
-            ConnectorConfig.setServiceName("hazelcast");
-            ConnectorConfig.setDisplayUrl(url);
+            if (SYSTEM.equals(domain)) {
+                ConnectorConfig.setServiceName("hazelcast");
+                ConnectorConfig.setDisplayUrl(url);
+            }
+            allClients.put(domain, client);
         }
         return client;
     }
 
     @Override
     public void initialize() {
-        Utility util = Utility.getInstance();
-        ConfigReader clusterConfig = null;
-        try {
-            clusterConfig = ConnectorConfig.getConfig("cloud.client.properties",
-                    "file:/tmp/config/hazelcast.properties,classpath:/hazelcast.properties");
-        } catch (IOException e) {
-            log.error("Unable to find hazelcast.properties - {}", e.getMessage());
-            System.exit(-1);
-        }
-        properties = new Properties();
-        for (String k : clusterConfig.getMap().keySet()) {
-            properties.setProperty(k, clusterConfig.getProperty(k));
-        }
-        String url = properties.getProperty(BROKER_URL);
-        List<String> cluster = util.split(url, ", ");
-        boolean reachable = false;
-        for (String address : cluster) {
-            int colon = address.lastIndexOf(':');
-            if (colon > 1) {
-                String host = address.substring(0, colon);
-                int port = util.str2int(address.substring(colon + 1));
-                if (port > 0) {
-                    // ping the address to confirm it is reachable before making a client connection
-                    if (util.portReady(host, port, 10000)) {
-                        reachable = true;
-                    }
-                }
-            }
-        }
-        if (!reachable) {
-            log.error("Hazelcast cluster {} is not reachable", cluster);
-            System.exit(-1);
-        }
         try {
             Platform platform = Platform.getInstance();
-            PubSub ps = PubSub.getInstance();
-            ps.enableFeature(new PubSubManager());
+            PubSub ps = PubSub.getInstance(SYSTEM);
+            Properties properties = getClusterProperties(CLOUD_CLIENT_PROPERTIES);
+            ps.enableFeature(new PubSubManager(SYSTEM, properties, ServiceRegistry.CLOUD_MANAGER));
             AppConfigReader config = AppConfigReader.getInstance();
             if (!"true".equals(config.getProperty("service.monitor", "false"))) {
                 // start presence connector

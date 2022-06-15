@@ -56,11 +56,10 @@ public class TopicManager implements LambdaFunction {
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
 
-    public TopicManager() throws Exception {
-        topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
-        preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
-        if (!topicSubstitution && session == null) {
-            Properties properties = ArtemisConnector.getClusterProperties();
+    public TopicManager(Properties properties) throws Exception {
+        this.topicSubstitution = ConnectorConfig.topicSubstitutionEnabled();
+        this.preAllocatedTopics = ConnectorConfig.getTopicSubstitution();
+        if (!this.topicSubstitution && session == null) {
             String cluster = properties.getProperty(ArtemisConnector.BROKER_URL, "tcp://127.0.0.1:61616");
             String userId = properties.getProperty(USER_ID, "");
             String password = properties.getProperty(USER_PWD, "");
