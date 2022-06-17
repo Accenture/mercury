@@ -85,7 +85,7 @@ public class EventConsumer {
         }
     }
 
-    public void start() {
+    public void start() throws IOException {
         final boolean requireInitialization = offset == INITIALIZE;
         if (requireInitialization) {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
@@ -127,8 +127,8 @@ public class EventConsumer {
             log.info("Subscribed {} {}", partition == -2? QUEUE : TOPIC, realTopic);
 
         } catch (Exception e) {
-            log.error("Unable to start - {}", e.getMessage());
-            System.exit(-1);
+            log.error("Unable to start {} {} - {}", partition == -2? QUEUE : TOPIC, realTopic, e.getMessage());
+            throw new IOException(e);
         }
     }
 
