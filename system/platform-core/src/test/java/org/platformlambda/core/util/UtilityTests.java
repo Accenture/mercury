@@ -85,6 +85,7 @@ public class UtilityTests {
         ps.publish(HELLO_WORLD, 1, new HashMap<>(), "hello");
         ps.unsubscribe(HELLO_WORLD);
         ps.unsubscribe(HELLO_WORLD, 1);
+        ps.cleanup();
     }
 
     @Test(expected = IllegalArgumentException.class)

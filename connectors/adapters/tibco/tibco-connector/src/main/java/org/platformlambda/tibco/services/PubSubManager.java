@@ -334,6 +334,11 @@ public class PubSubManager implements PubSubProvider {
         return false;
     }
 
+    @Override
+    public void cleanup() {
+        // no-op
+    }
+
     private void shutdown() {
         for (String topic: subscribers.keySet()) {
             EventConsumer consumer = subscribers.get(topic);

@@ -50,16 +50,22 @@ public class PubSubController implements LambdaFunction {
     private static final String BODY = "body";
     private static final String ROUTE = "route";
 
+    private static final String DOMAIN = "domain";
+
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
 
         Utility util = Utility.getInstance();
-        PubSub engine = PubSub.getInstance();
-        if (headers.containsKey(TYPE)) {
+        if (headers.containsKey(TYPE) && headers.containsKey(DOMAIN)) {
+            String domain = headers.get(DOMAIN);
+            PubSub engine = PubSub.getInstance(domain);
             String type = headers.get(TYPE);
             if (FEATURE.equals(type)) {
                 return engine.featureEnabled();
+            }
+            if (!engine.featureEnabled()) {
+                throw new AppException(500, "Pub/sub domain ("+domain+") not enabled");
             }
             if (LIST.equals(type)) {
                 return engine.list();

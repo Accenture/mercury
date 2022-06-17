@@ -20,10 +20,12 @@ package org.platformlambda.core.system;
 
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +44,8 @@ public class PubSub {
     private static final Logger log = LoggerFactory.getLogger(PubSub.class);
     private static final String SYSTEM = "system";
     private static final ConcurrentMap<String, PubSub> instances = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SubscriberDetails> currentSubscribers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SubscriberDetails> suspendedSubscribers = new ConcurrentHashMap<>();
 
     private PubSubProvider provider;
 
@@ -58,6 +62,15 @@ public class PubSub {
      */
     private PubSub() {
         // protected constructor
+    }
+
+    /**
+     * Retrieve all PubSub instances
+     *
+     * @return map of instances
+     */
+    public static Map<String, PubSub> getInstances() {
+        return instances;
     }
 
     /**
@@ -128,6 +141,10 @@ public class PubSub {
         }
     }
 
+    private String getTopicRef(String topic, int partition) {
+        return topic+'#'+partition;
+    }
+
     public void waitForProvider(int seconds) {
         int waitSeconds = Math.max(1, seconds);
         int n = 0;
@@ -147,6 +164,53 @@ public class PubSub {
             throw new RuntimeException("Pub/Sub provider not available");
         }
         provider.waitForProvider(seconds);
+    }
+
+    public void resumeSubscription() {
+        Utility util = Utility.getInstance();
+        List<String> subscribers = new ArrayList<>(suspendedSubscribers.keySet());
+        for (String subscriber: subscribers) {
+            SubscriberDetails details = suspendedSubscribers.get(subscriber);
+            int hash = subscriber.indexOf('#');
+            if (hash > 0) {
+                String topic = subscriber.substring(0, hash);
+                int partition = util.str2int(subscriber.substring(hash+1));
+                try {
+                    if (partition < 0) {
+                        subscribe(topic, details.listener, details.parameters);
+                    } else {
+                        subscribe(topic, partition, details.listener, details.parameters);
+                    }
+                } catch (Exception e) {
+                    log.error("Unable to suspend topic {} - {}", subscriber, e.getMessage());
+                }
+            }
+        }
+        suspendedSubscribers.clear();
+    }
+
+    public void suspendSubscription() {
+        Utility util = Utility.getInstance();
+        List<String> subscribers = new ArrayList<>(currentSubscribers.keySet());
+        for (String subscriber: subscribers) {
+            suspendedSubscribers.put(subscriber, currentSubscribers.get(subscriber));
+        }
+        for (String subscriber: subscribers) {
+            int hash = subscriber.indexOf('#');
+            if (hash > 0) {
+                String topic = subscriber.substring(0, hash);
+                int partition = util.str2int(subscriber.substring(hash+1));
+                try {
+                    if (partition < 0) {
+                        unsubscribe(topic);
+                    } else {
+                        unsubscribe(topic, partition);
+                    }
+                } catch (Exception e) {
+                    log.error("Unable to suspend topic {} - {}", subscriber, e.getMessage());
+                }
+            }
+        }
     }
 
     /**
@@ -261,6 +325,8 @@ public class PubSub {
     public void subscribe(String topic, LambdaFunction listener, String... parameters) throws IOException {
         checkFeature();
         provider.subscribe(topic, listener, parameters);
+        int partition = -1;
+        currentSubscribers.put(getTopicRef(topic, partition), new SubscriberDetails(listener, parameters));
     }
 
     /**
@@ -290,6 +356,7 @@ public class PubSub {
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         checkFeature();
         provider.subscribe(topic, partition, listener, parameters);
+        currentSubscribers.put(getTopicRef(topic, partition), new SubscriberDetails(listener, parameters));
     }
 
     /**
@@ -325,6 +392,7 @@ public class PubSub {
     public void unsubscribe(String topic) throws IOException {
         checkFeature();
         provider.unsubscribe(topic);
+        currentSubscribers.remove(getTopicRef(topic, -1));
     }
 
     /**
@@ -336,6 +404,7 @@ public class PubSub {
     public void unsubscribe(String topic, int partition) throws IOException {
         checkFeature();
         provider.unsubscribe(topic, partition);
+        currentSubscribers.remove(getTopicRef(topic, partition));
     }
 
     /**
@@ -366,8 +435,33 @@ public class PubSub {
         return provider.list();
     }
 
+    /**
+     * Check if the underlying event stream system support journal streaming
+     *
+     * @return true or false
+     */
     public boolean isStreamingPubSub() {
         return provider.isStreamingPubSub();
+    }
+
+    /**
+     * Tell the pub/sub provider to perform clean up.
+     * e.g. closing connection, etc.
+     */
+    public void cleanup() {
+        provider.cleanup();
+    }
+
+    private static class SubscriberDetails {
+
+        public final LambdaFunction listener;
+        public final String[] parameters;
+
+        public SubscriberDetails(LambdaFunction listener, String... parameters) {
+            this.listener = listener;
+            this.parameters = parameters;
+        }
+
     }
 
 }

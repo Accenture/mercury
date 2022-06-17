@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class NotificationManager implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(NotificationManager.class);
@@ -61,6 +62,8 @@ public class NotificationManager implements LambdaFunction {
     private static final String NAME = "name";
     private static final String TX_PATH = WsEnvelope.TX_PATH;
     private static final String CLEAR = "clear";
+    private static final String START = "start";
+    private static boolean firstRun = true;
 
     private static final ManagedCache tokenCache = ManagedCache.createCache("ws.tokens", 30000);
     private static final ManagedCache eventCache = ManagedCache.createCache("ws.conn.events", 2000);
@@ -77,15 +80,14 @@ public class NotificationManager implements LambdaFunction {
         if (!platform.hasRoute(AUTOMATION_NOTIFICATION)) {
             LambdaFunction f = (headers, body, instance) -> {
                 String type = headers.get(TYPE);
-                if (SUBSCRIBE_LIFE_CYCLE.equals(type)) {
-                    if (po.exists(ServiceDiscovery.SERVICE_REGISTRY)) {
+                if (START.equals(type) && firstRun) {
+                    firstRun = false;
+                    try {
+                        platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 20);
                         po.send(ServiceDiscovery.SERVICE_REGISTRY,
                                 new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
-                    } else {
-                        log.info("Waiting for {} to get ready", ServiceDiscovery.SERVICE_REGISTRY);
-                        EventEnvelope event = new EventEnvelope()
-                                .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
-                        po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
+                    } catch (TimeoutException e) {
+                        log.error("Unable to monitor Member Life Cycle events - {}", e.getMessage());
                     }
                 }
                 if (SUBSCRIBE.equals(type) && headers.containsKey(TOPIC) && headers.containsKey(ORIGIN)
@@ -119,7 +121,6 @@ public class NotificationManager implements LambdaFunction {
                 if (DISCONNECTED.equals(type)) {
                     log.info("disconnected");
                 }
-
                 if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
                     if (origin.equals(headers.get(ORIGIN))) {
                         if (standaloneMode) {
@@ -178,9 +179,7 @@ public class NotificationManager implements LambdaFunction {
         if (standaloneMode) {
             po.send(AUTOMATION_NOTIFICATION, new Kv(TYPE, JOIN), new Kv(ORIGIN, origin));
         } else {
-            EventEnvelope event = new EventEnvelope()
-                                    .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
-            po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
+            po.send(AUTOMATION_NOTIFICATION, new Kv(TYPE, START));
         }
     }
 

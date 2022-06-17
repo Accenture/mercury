@@ -88,8 +88,8 @@ public class EventConsumer {
     }
 
     public void start() throws IOException {
-        final boolean init = offset == INITIALIZE;
-        if (init) {
+        final boolean requireInitialization = offset == INITIALIZE;
+        if (requireInitialization) {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
@@ -105,7 +105,7 @@ public class EventConsumer {
             platform.release(completionHandler);
             log.info("Unsubscribed {}", realTopic);
             String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-            if (init && platform.hasRoute(INIT_HANDLER)) {
+            if (requireInitialization && platform.hasRoute(INIT_HANDLER)) {
                 try {
                     po.send(INIT_HANDLER, DONE);
                 } catch (IOException e) {
