@@ -459,7 +459,15 @@ public class PubSub {
 
         public SubscriberDetails(LambdaFunction listener, String... parameters) {
             this.listener = listener;
-            this.parameters = parameters;
+            if (parameters.length > 2) {
+                // drop offset parameter because it should only be used once
+                String[] trimmed = new String[2];
+                trimmed[0] = parameters[0];
+                trimmed[1] = parameters[1];
+                this.parameters = trimmed;
+            } else {
+                this.parameters = parameters;
+            }
         }
 
     }
