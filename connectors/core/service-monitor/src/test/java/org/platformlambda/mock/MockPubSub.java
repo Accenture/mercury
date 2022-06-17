@@ -194,4 +194,9 @@ public class MockPubSub implements PubSubProvider {
     public boolean isStreamingPubSub() {
         return true;
     }
+
+    @Override
+    public void cleanup() {
+        // no-op
+    }
 }

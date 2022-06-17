@@ -36,6 +36,8 @@ public class PresenceConnector implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PresenceConnector.class);
 
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
+
+    private static final String FAST_KEEP_ALIVE = "member.keep.alive";
     private static final String TYPE = "type";
     private static final String INIT = "init";
     private static final String DONE = "done";
@@ -49,6 +51,7 @@ public class PresenceConnector implements LambdaFunction {
     private static final String INFO = "info";
     private static final String READY = "ready";
     private static final String SEQ = "seq";
+    private static final String COUNT = "count";
     private static final String CREATED = "created";
     private static final String ELAPSED = "elapsed";
     private static final String NAME = "name";
@@ -81,6 +84,20 @@ public class PresenceConnector implements LambdaFunction {
             log.error("closed.user.group is invalid. Please select a number from 1 to "+maxGroups);
             System.exit(-1);
         }
+        LambdaFunction fastKeepAlive = (headers, body, instance) -> {
+            int count = util.str2int(headers.getOrDefault(COUNT, "3"));
+            if (count > 0) {
+                EventEnvelope ping = new EventEnvelope().setTo(FAST_KEEP_ALIVE).setHeader(COUNT, --count);
+                PostOffice.getInstance().sendLater(ping, new Date(System.currentTimeMillis()+5000));
+                sendAppInfo(seq++, true);
+            }
+            return true;
+        };
+        try {
+            Platform.getInstance().registerPrivate(FAST_KEEP_ALIVE, fastKeepAlive, 1);
+        } catch (IOException e) {
+            // ok to ignore
+        }
     }
 
     public static PresenceConnector getInstance() {
@@ -108,13 +125,12 @@ public class PresenceConnector implements LambdaFunction {
         Platform platform  = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String route;
-
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
                     // in case the previous connection was not closed properly
                     if (topicPartition != null) {
-                        closeConsumer();
+                        closeConsumers();
                     }
                     // the open event contains route, txPath, ip, path, query and token
                     route = headers.get(WsEnvelope.ROUTE);
@@ -134,7 +150,7 @@ public class PresenceConnector implements LambdaFunction {
                     state = State.DISCONNECTED;
                     log.info("Disconnected {}", route);
                     if (topicPartition != null) {
-                        closeConsumer();
+                        closeConsumers();
                     }
                     // tell service registry to clear routing table
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
@@ -150,8 +166,9 @@ public class PresenceConnector implements LambdaFunction {
                         log.info("Activated {}", route);
                         String platformVersion = event.getHeaders().get(VERSION);
                         topicPartition = event.getHeaders().get(TOPIC);
-                        startConsumer();
+                        startConsumers();
                         // tell peers that this server has joined
+                        po.send(FAST_KEEP_ALIVE, new Kv(COUNT, 8));
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(VERSION, platformVersion), new Kv(TOPIC, topicPartition),
                                 new Kv(ORIGIN, platform.getOrigin()));
@@ -224,7 +241,7 @@ public class PresenceConnector implements LambdaFunction {
         }
     }
 
-    private void startConsumer() throws IOException {
+    private void startConsumers() throws IOException {
         if (topicPartition != null && topicPartition.contains("-")) {
             AppConfigReader config = AppConfigReader.getInstance();
             Platform platform = Platform.getInstance();
@@ -275,9 +292,16 @@ public class PresenceConnector implements LambdaFunction {
             ps.subscribe(topic, partition, appControl, clientId+"-2", groupId,
                             String.valueOf(ServiceLifeCycle.INITIALIZE));
         }
+        // recovery other consumers
+        Map<String, PubSub> instances = PubSub.getInstances();
+        for (String domain: instances.keySet()) {
+            log.info("Restoring '{}' subscription", domain);
+            PubSub ps = instances.get(domain);
+            ps.resumeSubscription();
+        }
     }
 
-    private void closeConsumer() throws IOException {
+    private void closeConsumers() throws IOException {
         if (topicPartition != null && topicPartition.contains("-")) {
             PubSub ps = PubSub.getInstance();
             Utility util = Utility.getInstance();
@@ -286,9 +310,17 @@ public class PresenceConnector implements LambdaFunction {
             int partition = util.str2int(topicPartition.substring(hyphen + 1));
             ps.unsubscribe(topic, partition);
             ps.unsubscribe(monitorTopic, closedUserGroup);
+            ps.cleanup();
             topicPartition = null;
+            // suspend other consumers
+            Map<String, PubSub> instances = PubSub.getInstances();
+            for (String domain: instances.keySet()) {
+                log.info("Suspending '{}' subscription", domain);
+                PubSub others = instances.get(domain);
+                others.suspendSubscription();
+                others.cleanup();
+            }
         }
-
     }
 
 }

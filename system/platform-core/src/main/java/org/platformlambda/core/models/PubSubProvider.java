@@ -65,4 +65,6 @@ public interface PubSubProvider {
 
     boolean isStreamingPubSub();
 
+    void cleanup();
+
 }

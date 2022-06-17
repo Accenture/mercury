@@ -22,8 +22,10 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.TimeoutException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MockPubSub implements PubSubProvider {
 
@@ -151,5 +153,10 @@ public class MockPubSub implements PubSubProvider {
     @Override
     public boolean isStreamingPubSub() {
         return true;
+    }
+
+    @Override
+    public void cleanup() {
+        // no-op
     }
 }

@@ -54,6 +54,8 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String VERSION = "version";
     private static final String SUBSCRIBE_LIFE_CYCLE = "subscribe_life_cycle";
     private static final String UNSUBSCRIBE_LIFE_CYCLE = "unsubscribe_life_cycle";
+    private static final String SUBSCRIBE_PM_STATUS = "subscribe_pm_status";
+    private static final String UNSUBSCRIBE_PM_STATUS = "unsubscribe_pm_status";
     private static final String JOIN = "join";
     private static final String CONNECTED = "connected";
     private static final String DISCONNECTED = "disconnected";
@@ -81,6 +83,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> lifeCycleSubscribers = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Boolean> pmSubscribers = new ConcurrentHashMap<>();
     private static final ManagedCache cache = ManagedCache.createCache("member.life.cycle.events", 5000);
 
     private static String monitorTopic;
@@ -161,6 +164,20 @@ public class ServiceRegistry implements LambdaFunction {
                 log.info("{} unsubscribed from member life-cycle events", subscriber);
             }
         }
+        if (SUBSCRIBE_PM_STATUS.equals(type) && headers.containsKey(ROUTE)) {
+            String subscriber = headers.get(ROUTE);
+            if (!subscriber.contains("@") && !pmSubscribers.containsKey(subscriber)) {
+                pmSubscribers.put(subscriber, true);
+                log.info("{} subscribed to presence monitor connection status", subscriber);
+            }
+        }
+        if (UNSUBSCRIBE_PM_STATUS.equals(type) && headers.containsKey(ROUTE)) {
+            String subscriber = headers.get(ROUTE);
+            if (!subscriber.contains("@") && pmSubscribers.containsKey(subscriber)) {
+                pmSubscribers.remove(subscriber);
+                log.info("{} unsubscribed from presence monitor connection status", subscriber);
+            }
+        }
         // when a node joins
         if (JOIN.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
@@ -173,6 +190,7 @@ public class ServiceRegistry implements LambdaFunction {
                         log.info("Presence monitor v"+headers.get(VERSION)+" detected");
                     } else {
                         notifyLifeCycleSubscribers(new Kv(TYPE, CONNECTED));
+                        notifyPmSubscribers(new Kv(TYPE, CONNECTED));
                     }
                     registerMyRoutes();
 
@@ -246,6 +264,7 @@ public class ServiceRegistry implements LambdaFunction {
                         }
                     }
                     notifyLifeCycleSubscribers(new Kv(TYPE, DISCONNECTED));
+                    notifyPmSubscribers(new Kv(TYPE, DISCONNECTED));
                 } else {
                     log.info("Peer {} left", origin);
                     removeRoutesFromOrigin(origin);
@@ -428,7 +447,23 @@ public class ServiceRegistry implements LambdaFunction {
                     }
                     po.send(event);
                 } catch (IOException e) {
-                    log.warn("Unable to inform life cycle subscriber {} - {}", subscriber, e.getMessage());
+                    log.warn("Unable to inform Member Life Cycle subscriber {} - {}", subscriber, e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void notifyPmSubscribers(Kv...parameters) {
+        if (!pmSubscribers.isEmpty()) {
+            for (String subscriber: pmSubscribers.keySet()) {
+                try {
+                    EventEnvelope event = new EventEnvelope().setTo(subscriber);
+                    for (Kv kv: parameters) {
+                        event.setHeader(kv.key, kv.value);
+                    }
+                    po.send(event);
+                } catch (IOException e) {
+                    log.warn("Unable to inform PM Status subscriber {} - {}", subscriber, e.getMessage());
                 }
             }
         }

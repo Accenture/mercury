@@ -126,8 +126,8 @@ public class EventConsumer extends Thread {
 
     @Override
     public void run() {
-        final boolean init = offset == INITIALIZE;
-        if (init) {
+        final boolean requireInitialization = offset == INITIALIZE;
+        if (requireInitialization) {
             /*
              * IMPORTANT
              * ---------
@@ -302,7 +302,7 @@ public class EventConsumer extends Thread {
             consumer.close();
             log.info("Unsubscribed {}", topicPartition);
             String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-            if (init && platform.hasRoute(INIT_HANDLER)) {
+            if (requireInitialization && platform.hasRoute(INIT_HANDLER)) {
                 try {
                     po.send(INIT_HANDLER, DONE);
                 } catch (IOException e) {

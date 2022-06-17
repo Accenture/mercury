@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class PubSubManager implements PubSubProvider {
     private static final Logger log = LoggerFactory.getLogger(PubSubManager.class);
@@ -53,8 +54,9 @@ public class PubSubManager implements PubSubProvider {
     private static final String EXISTS = "exists";
     private static final String DELETE = "delete";
     private static final String TOPIC = "topic";
-    private static final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
-    private static long seq = 0, totalEvents = 0;
+    private static final AtomicLong seq = new AtomicLong(0);
+    private final ConcurrentMap<String, EventConsumer> subscribers = new ConcurrentHashMap<>();
+    private long totalEvents = 0;
     private final Properties baseProperties;
     private final String cloudManager;
     private Map<String, String> preAllocatedTopics;
@@ -232,10 +234,15 @@ public class PubSubManager implements PubSubProvider {
         return true;
     }
 
+    @Override
+    public void cleanup() {
+        closeProducer();
+    }
+
     private synchronized void startProducer() {
         if (producer == null) {
             // create unique ID from origin ID by dropping date prefix and adding a sequence suffix
-            String id = (Platform.getInstance().getOrigin()+"ps"+(++seq)).substring(8);
+            String id = (Platform.getInstance().getOrigin()+"ps"+(seq.incrementAndGet())).substring(8);
             Properties properties = getProperties();
             properties.put(ProducerConfig.CLIENT_ID_CONFIG, id);
             producer = new KafkaProducer<>(properties);

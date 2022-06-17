@@ -85,9 +85,9 @@ public class EventConsumer {
         }
     }
 
-    public void start() {
-        final boolean init = offset == INITIALIZE;
-        if (init) {
+    public void start() throws IOException {
+        final boolean requireInitialization = offset == INITIALIZE;
+        if (requireInitialization) {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
@@ -113,7 +113,7 @@ public class EventConsumer {
                 } finally {
                     platform.release(completionHandler);
                     String INIT_HANDLER = INIT + "." + (partition < 0 ? topic : topic + "." + partition);
-                    if (init && platform.hasRoute(INIT_HANDLER)) {
+                    if (requireInitialization && platform.hasRoute(INIT_HANDLER)) {
                         try {
                             po.send(INIT_HANDLER, DONE);
                         } catch (IOException e) {
@@ -127,8 +127,8 @@ public class EventConsumer {
             log.info("Subscribed {} {}", partition == -2? QUEUE : TOPIC, realTopic);
 
         } catch (Exception e) {
-            log.error("Unable to start - {}", e.getMessage());
-            System.exit(-1);
+            log.error("Unable to start {} {} - {}", partition == -2? QUEUE : TOPIC, realTopic, e.getMessage());
+            throw new IOException(e);
         }
     }
 
