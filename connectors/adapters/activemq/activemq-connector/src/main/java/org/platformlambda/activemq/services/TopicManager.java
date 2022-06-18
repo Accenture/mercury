@@ -28,6 +28,7 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -209,7 +210,9 @@ public class TopicManager implements LambdaFunction {
                     if (result.startsWith(ADDRESS)) {
                         log.info("Created {} {}", isTopic? TOPIC : QUEUE, address);
                     } else {
-                        log.warn("ActiveMQ exception when creating {} {}", address, o);
+                        String error = "ActiveMQ exception when creating "+address+" "+o;
+                        log.error(error);
+                        throw new IOException(error);
                     }
                 }
             }
@@ -239,7 +242,9 @@ public class TopicManager implements LambdaFunction {
                 ClientMessage reply = requestor.request(m);
                 Object o = ManagementHelper.getResult(reply);
                 if (o != null) {
-                    log.warn("ActiveMQ exception when deleting {} {}", address, o);
+                    String error = "ActiveMQ exception when deleting "+address+" "+o;
+                    log.error(error);
+                    throw new IOException(error);
                 }
             }
         }

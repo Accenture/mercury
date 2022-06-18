@@ -26,10 +26,7 @@ import org.platformlambda.lang.websocket.server.LanguageConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PubSubController implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(PubSubController.class);
@@ -92,10 +89,11 @@ public class PubSubController implements LambdaFunction {
                 int partition = Math.max(-1, util.str2int(headers.get(PARTITION)));
                 Map<String, Object> map = (Map<String, Object>) body;
                 if (map.containsKey(BODY) && map.containsKey(HEADERS)) {
+                    Map<String, String> textHeaders = normalizeMap(map.get(HEADERS));
                     if (partition < 0) {
-                        engine.publish(topic, (Map<String, String>) map.get(HEADERS), map.get(BODY));
+                        engine.publish(topic, textHeaders, map.get(BODY));
                     } else {
-                        engine.publish(topic, partition, (Map<String, String>) map.get(HEADERS), map.get(BODY));
+                        engine.publish(topic, partition, textHeaders, map.get(BODY));
                     }
                     return true;
                 } else {
@@ -106,7 +104,7 @@ public class PubSubController implements LambdaFunction {
                 int partition = Math.max(-1, util.str2int(headers.get(PARTITION)));
                 String route = headers.get(ROUTE);
                 if (LanguageConnector.hasRoute(route)) {
-                    List<String> para = body instanceof List? (List<String>) body : Collections.EMPTY_LIST;
+                    List<Object> para = body instanceof List? (List<Object>) body : Collections.EMPTY_LIST;
                     boolean found = false;
                     boolean all = false;
                     List<Integer> subscribed = new ArrayList<>();
@@ -184,10 +182,22 @@ public class PubSubController implements LambdaFunction {
         return false;
     }
 
-    private String[] getParameters(List<String> parameters) {
+    private String[] getParameters(List<Object> parameters) {
         String[] result = new String[parameters.size()];
         for (int i=0; i < parameters.size(); i++) {
-            result[i] = parameters.get(i);
+            result[i] = parameters.get(i) == null? "" : parameters.get(i).toString();
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> normalizeMap(Object headers) {
+        Map<String, String> result = new HashMap<>();
+        if (headers instanceof Map) {
+            Map<Object, Object> input = (Map<Object, Object>) headers;
+            for (Object key : input.keySet()) {
+                result.put(key.toString(), input.get(key) == null ? "" : input.get(key).toString());
+            }
         }
         return result;
     }

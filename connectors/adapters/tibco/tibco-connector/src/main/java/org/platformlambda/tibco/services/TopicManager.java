@@ -55,7 +55,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws TibjmsAdminException {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
