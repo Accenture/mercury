@@ -52,7 +52,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
@@ -104,7 +104,7 @@ public class TopicManager implements LambdaFunction {
         return -1;
     }
 
-    private void createTopic(String topic, int partitions) {
+    private void createTopic(String topic, int partitions) throws IOException {
         if (!topicExists(topic)) {
             HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
             IMap<String, byte[]> map = client.getMap(TOPIC_STORE);
@@ -115,6 +115,7 @@ public class TopicManager implements LambdaFunction {
                 map.put(topic, msgPack.pack(topicMap));
             } catch (IOException e) {
                 log.error("Unable to create {} - {}", topic, e.getMessage());
+                throw e;
             }
         }
     }

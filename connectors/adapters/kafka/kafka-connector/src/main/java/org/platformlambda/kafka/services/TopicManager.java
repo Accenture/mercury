@@ -91,7 +91,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
@@ -189,7 +189,7 @@ public class TopicManager implements LambdaFunction {
         return replicationFactor;
     }
 
-    private void createTopic(String topic, int partitions) {
+    private void createTopic(String topic, int partitions) throws IOException {
         if (topicSubstitution) {
             if (preAllocatedTopics.get(topic) == null) {
                 throw new IllegalArgumentException("Missing topic substitution for "+topic);
@@ -209,8 +209,8 @@ public class TopicManager implements LambdaFunction {
                 count++;
                 // check if creation is successful
                 boolean found = false;
-                // try 3 times due to latency
-                for (int i=0; i < 5; i++) {
+                // try a few times due to eventual consistency
+                for (int i=0; i < 10; i++) {
                     found = topicExists(topic);
                     if (found) {
                         break;
@@ -223,7 +223,7 @@ public class TopicManager implements LambdaFunction {
                     log.info("Created {} with {} partition{}, replication factor of {}",
                             topic, partitionCount, partitionCount == 1? "" : "s", replication);
                 } else {
-                    log.error("Unable to create {}", topic);
+                    log.error("Unable to create {} after a few attempts", topic);
                     System.exit(-1);
                 }
             } else {
@@ -232,7 +232,7 @@ public class TopicManager implements LambdaFunction {
             }
         } catch (Exception e) {
             log.error("Unable to create {} - {}", topic, e.getMessage());
-            System.exit(-1);
+            throw new IOException(e);
         }
     }
 
@@ -251,9 +251,9 @@ public class TopicManager implements LambdaFunction {
                 deleteTask.all().get();
                 count++;
                 // check if removal is successful
-                // try 3 times due to eventual consistency latency
+                // try a few times due to eventual consistency
                 boolean found = false;
-                for (int i = 0; i < 5; i++) {
+                for (int i = 0; i < 10; i++) {
                     found = topicExists(topic);
                     if (found) {
                         Thread.sleep(1000);

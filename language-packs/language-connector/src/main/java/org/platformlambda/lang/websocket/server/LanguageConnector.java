@@ -468,9 +468,10 @@ public class LanguageConnector implements LambdaFunction {
             }
         }
         if (map.containsKey(HEADERS)) {
-            Map<String, Object> headers = (Map<String, Object>) map.get(HEADERS);
-            for (String key: headers.keySet()) {
-                event.setHeader(key, headers.get(key));
+            // ensure key-values are strings
+            Map<Object, Object> headers = (Map<Object, Object>) map.get(HEADERS);
+            for (Object key: headers.keySet()) {
+                event.setHeader(key.toString(), headers.get(key) == null? "" : headers.get(key).toString());
             }
         }
         if (map.containsKey(BODY)) {
