@@ -44,7 +44,7 @@ public class PubSubSetup implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(PubSubSetup.class);
 
     private static final String USER = "user";
-    private static final String USER_CLOUD_CLIENT_PROPERTIES = "user.clouod.client.properties";
+    private static final String USER_CLOUD_CLIENT_PROPERTIES = "user.cloud.client.properties";
     private static final String CUSTOM_CLOUD_MANAGER_CONFIG = "user.cloud.manager";
     private static final String CUSTOM_CLOUD_MANAGER_ROUTE = "user.cloud.manager";
 
