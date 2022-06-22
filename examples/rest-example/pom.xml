@@ -18,7 +18,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <artemis.version>2.23.0</artemis.version>
         <hazelcast.version>5.1.2</hazelcast.version>
         <kafka.version>2.8.1</kafka.version>
         <java.version>1.8</java.version>
