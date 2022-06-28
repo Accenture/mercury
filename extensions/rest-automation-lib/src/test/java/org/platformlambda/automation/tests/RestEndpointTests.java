@@ -19,6 +19,7 @@
 package org.platformlambda.automation.tests;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.automation.mock.TestBase;
 import org.platformlambda.core.exception.AppException;
@@ -43,6 +44,11 @@ import java.util.concurrent.TimeoutException;
 public class RestEndpointTests extends TestBase {
 
     private static final String MULTIPART_FORM_DATA = "multipart/form-data";
+
+    @Before
+    public void waitForRestProvider() throws TimeoutException {
+        Platform.getInstance().waitForProvider("ws.notification", 20);
+    }
 
     @SuppressWarnings("unchecked")
     @Test
