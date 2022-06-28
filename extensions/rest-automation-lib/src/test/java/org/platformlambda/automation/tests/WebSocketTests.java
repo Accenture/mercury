@@ -19,6 +19,7 @@
 package org.platformlambda.automation.tests;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.automation.mock.TestBase;
 import org.platformlambda.core.exception.AppException;
@@ -49,6 +50,11 @@ public class WebSocketTests extends TestBase {
     private static final String TX_PATH = "tx_path";
 
     private static final Map<String, Object> store = new HashMap<>();
+
+    @Before
+    public void waitForRestProvider() throws TimeoutException {
+        Platform.getInstance().waitForProvider("ws.notification", 20);
+    }
 
     @SuppressWarnings("unchecked")
     @Test
