@@ -36,15 +36,17 @@ public class UserNotification {
     private static final String TOPIC = "topic";
     private static final String PUBLISH = "publish";
     private static final String LIST = "list";
+    private static final String FORGET_DEPLOY = "Notification service not reachable - " +
+                                                "did you forget to deploy REST automation";
     private static final long TIMEOUT = 12000;
-    private static final UserNotification instance = new UserNotification();
+    private static final UserNotification INSTANCE = new UserNotification();
 
     private UserNotification() {
         // singleton
     }
 
     public static UserNotification getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     public void publish(String topic, String message) {
@@ -56,8 +58,7 @@ public class UserNotification {
                 throw new IllegalArgumentException(e.getMessage());
             }
         } else {
-            throw new IllegalArgumentException("Notification service not reachable - " +
-                    "did you forget to deploy REST automation");
+            throw new IllegalArgumentException(FORGET_DEPLOY);
         }
     }
 
@@ -70,8 +71,7 @@ public class UserNotification {
             return result instanceof List? (List<String>) result: new ArrayList<>();
 
         } else {
-            throw new IllegalArgumentException("Notification service not reachable - " +
-                    "did you forget to deploy REST automation");
+            throw new IllegalArgumentException(FORGET_DEPLOY);
         }
     }
 
@@ -87,8 +87,7 @@ public class UserNotification {
             return result instanceof Map? (Map<String, List<String>>) result: new HashMap<>();
 
         } else {
-            throw new IllegalArgumentException("Notification service not reachable - " +
-                    "did you forget to deploy REST automation");
+            throw new IllegalArgumentException(FORGET_DEPLOY);
         }
     }
 

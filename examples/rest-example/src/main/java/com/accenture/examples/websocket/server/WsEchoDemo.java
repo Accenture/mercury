@@ -20,8 +20,8 @@ package com.accenture.examples.websocket.server;
 
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.websocket.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +48,9 @@ public class WsEchoDemo implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
 
         PostOffice po = PostOffice.getInstance();
-        String route, token, txPath;
+        String route;
+        String token;
+        String txPath;
 
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {

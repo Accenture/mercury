@@ -16,15 +16,12 @@
 
  */
 
-package org.platformlambda.core.system;
+package org.platformlambda.websocket;
 
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
-import org.platformlambda.core.models.WsRouteSet;
-import org.platformlambda.core.services.WsTransmitter;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,10 +58,7 @@ public class WsRegistry {
         String uri = session.getRequestURI().getPath();
         String path = uri.contains("?") ? uri.substring(0, uri.indexOf('?')) : uri;
         WsRouteSet rs = new WsRouteSet(name);
-        createHandler(service, session, new WsEnvelope(rs.getRoute(), rs.getTxPath(), ip, path, session.getQueryString()));
-    }
-
-    public void createHandler(LambdaFunction service, Session session, WsEnvelope connection) throws IOException {
+        WsEnvelope connection = new WsEnvelope(rs.getRoute(), rs.getTxPath(), ip, path, session.getQueryString());
         // update websocket configuration
         WsConfigurator.getInstance().update(session);
         connection.session = session;
@@ -144,10 +138,8 @@ public class WsRegistry {
             List<String> parameters = util.split(query, "&");
             for (String p : parameters) {
                 int eq = p.indexOf('=');
-                if (eq > 1) {
-                    if (IP.equals(p.substring(0, eq))) {
-                        return p.substring(eq+1);
-                    }
+                if (eq > 1 && IP.equals(p.substring(0, eq))) {
+                    return p.substring(eq+1);
                 }
             }
         }

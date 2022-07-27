@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.models;
+package org.platformlambda.websocket;
 
 import org.platformlambda.core.util.Utility;
 
@@ -40,9 +40,13 @@ public class WsEnvelope {
     public static final String CLOSE_CODE = "close_code";
     public static final String CLOSE_REASON = "close_reason";
 
-    public String route, txPath, ip, path, query, origin;
+    public final String route;
+    public final String txPath;
+    public final String ip;
+    public final String path;
+    public final String query;
+    public final String origin;
     public Session session;
-    public boolean encrypt = false;
 
     public WsEnvelope(String route, String txPath, String ip, String path, String query) {
         this.route = route;

@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.util;
 
-import org.platformlambda.core.models.EventBlocks;
 import org.platformlambda.core.models.TimedItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +62,7 @@ public class SimpleCache {
      * @param expiryMs timer
      * @return simple cache object
      */
-    public synchronized static SimpleCache createCache(String name, long expiryMs) {
+    public static synchronized SimpleCache createCache(String name, long expiryMs) {
         SimpleCache simpleCache = getInstance(name);
         if (simpleCache != null) {
             return simpleCache;
@@ -152,7 +151,7 @@ public class SimpleCache {
             while (normal) {
                 long now = System.currentTimeMillis();
                 // avoid scanning frequently
-                if (now - t1 > 2000) {//HOUSEKEEPING_INTERVAL) {
+                if (now - t1 > 5000) {
                     t1 = now;
                     // clean up cache collection
                     for (String key : cacheCollection.keySet()) {

@@ -60,7 +60,8 @@ public class ElasticQueue implements AutoCloseable {
     private static File dbFolder;
     private static KeepAlive alive;
     private static Boolean runningInCloud;
-    private long readCounter, writeCounter;
+    private long readCounter;
+    private long writeCounter;
     private boolean empty = false;
     private byte[] peeked = null;
     private int currentVersion = generation.get();
@@ -356,8 +357,8 @@ public class ElasticQueue implements AutoCloseable {
 
     private static class KeepAlive extends Thread {
         private static final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
-        private static final long KEEP_ALIVE_INTERVAL = 20 * 1000;
-        private static final long HOUSEKEEPING_INTERVAL = 600 * 1000;
+        private static final long KEEP_ALIVE_INTERVAL = 20 * 1000L;
+        private static final long HOUSEKEEPING_INTERVAL = 600 * 1000L;
         private boolean normal = true;
         private final File dir;
 
@@ -384,10 +385,9 @@ public class ElasticQueue implements AutoCloseable {
                     if (files != null) {
                         for (File f : files) {
                             String name = f.getName();
-                            if (name.startsWith("je.stat.") && name.endsWith(".csv") && !name.equals("je.stat.csv")) {
-                                if (now - f.lastModified() > ONE_DAY) {
-                                    outdated.add(f);
-                                }
+                            if (name.startsWith("je.stat.") && name.endsWith(".csv")
+                                    && !name.equals("je.stat.csv") && now - f.lastModified() > ONE_DAY) {
+                                outdated.add(f);
                             }
                         }
                         for (File f : outdated) {

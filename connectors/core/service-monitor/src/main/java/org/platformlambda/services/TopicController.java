@@ -62,8 +62,8 @@ public class TopicController implements LambdaFunction {
     private static final String RELEASE_TOPIC = "release_topic";
     private static final String TOPIC = "topic";
     private static final String AVAILABLE = "*";
-    private static final long INTERVAL = 5 * 1000;
-    private static final long EXPIRY = 60 * 1000;
+    private static final long INTERVAL = 5 * 1000L;
+    private static final long EXPIRY = 60 * 1000L;
     // topic+partition -> origin | AVAILABLE(*)
     private static final ConcurrentMap<String, String> topicStore = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Long> activeTopics = new ConcurrentHashMap<>();
@@ -71,10 +71,11 @@ public class TopicController implements LambdaFunction {
     private static RsvpProcessor rsvpProcessor;
     private static final ConcurrentMap<String, PendingRsvp> bids = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> pendingRsvp = new ConcurrentHashMap<>();
-    private static final long RSVP_TIMEOUT = 20 * 1000;
-    private static final long RSVP_GRACE_PERIOD = 3 * 1000;
+    private static final long RSVP_TIMEOUT = 20 * 1000L;
+    private static final long RSVP_GRACE_PERIOD = 3 * 1000L;
     private static List<String> allTopics;
-    private final int partitionCount, maxVirtualTopics;
+    private final int partitionCount;
+    private final int maxVirtualTopics;
     private final boolean topicSubstitution;
     private final Map<String, String> preAllocatedTopics;
 
@@ -346,7 +347,8 @@ public class TopicController implements LambdaFunction {
                                     new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
                         } catch (IOException e) {
                             try {
-                                util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,e.getMessage());
+                                MonitorService.closeConnection(txPath,
+                                        CloseReason.CloseCodes.TRY_AGAIN_LATER,e.getMessage());
                             } catch (IOException ioe) {
                                 // ok to ignore
                             }

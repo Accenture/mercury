@@ -27,7 +27,7 @@ import java.lang.annotation.*;
  * <p>
  * Smaller sequence will be executed first
  * <p>
- * sequence must be between 1 to 999 (sequence 0 is reserved for config management)
+ * sequence must be between 1 and 999 (sequence 0 is reserved for config management)
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

@@ -50,10 +50,6 @@
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-tomcat</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-logging</artifactId>
                 </exclusion>
                 <exclusion>
@@ -177,6 +173,8 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                    <!--    set forceJavacCompilerUse=true
+                            if compiler cannot find some classes and throw null pointer exception -->
                 </configuration>
             </plugin>
             <plugin>

@@ -35,8 +35,10 @@ public class SimpleMapper {
     private static final String SNAKE_CASE_SERIALIZATION = "snake.case.serialization";
     private static final Set<String> safeModels = new HashSet<>();
     private static final String[] SAFE_GROUPS = {"java.util.", "java.lang."};
-    private final SimpleObjectMapper mapper, snakeMapper, camelMapper;
-    private static final SimpleMapper instance = new SimpleMapper();
+    private final SimpleObjectMapper mapper;
+    private final SimpleObjectMapper snakeMapper;
+    private final SimpleObjectMapper camelMapper;
+    private static final SimpleMapper SIMPLE_MAPPER_INSTANCE = new SimpleMapper();
 
     private SimpleMapper() {
         // Camel or snake case
@@ -83,8 +85,8 @@ public class SimpleMapper {
         /*
          * Gson stores all numbers as Double internally.
          * For Map and List, we want to preserve int and float as numbers and long and double as string.
-         * Since typing information for numbers are lost in a map, this is a best effort for number conversion.
-         * ie. small number in long will be converted to integer and small number in double to float.
+         * Since typing information for numbers are lost in a map, this is the best effort for number conversion.
+         * i.e. small number in long will be converted to integer and small number in double to float.
          *
          * For PoJo, Gson will do the conversion correctly because there are typing information in the class.
          */
@@ -102,7 +104,7 @@ public class SimpleMapper {
     }
 
     public static SimpleMapper getInstance() {
-        return instance;
+        return SIMPLE_MAPPER_INSTANCE;
     }
 
     /**
@@ -171,7 +173,7 @@ public class SimpleMapper {
 
     /// Custom serializers ///
 
-    private class UtcSerializer implements JsonSerializer<Date> {
+    private static class UtcSerializer implements JsonSerializer<Date> {
 
         @Override
         public JsonElement serialize(Date date, Type type, JsonSerializationContext context) {
@@ -179,7 +181,7 @@ public class SimpleMapper {
         }
     }
 
-    private class UtcDeserializer implements JsonDeserializer<Date> {
+    private static class UtcDeserializer implements JsonDeserializer<Date> {
 
         @Override
         public Date deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
@@ -187,7 +189,7 @@ public class SimpleMapper {
         }
     }
 
-    private class SqlDateSerializer implements JsonSerializer<java.sql.Date> {
+    private static class SqlDateSerializer implements JsonSerializer<java.sql.Date> {
 
         @Override
         public JsonElement serialize(java.sql.Date date, Type type, JsonSerializationContext context) {
@@ -195,7 +197,7 @@ public class SimpleMapper {
         }
     }
 
-    private class SqlDateDeserializer implements JsonDeserializer<java.sql.Date> {
+    private static class SqlDateDeserializer implements JsonDeserializer<java.sql.Date> {
 
         @Override
         public java.sql.Date deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
@@ -209,7 +211,7 @@ public class SimpleMapper {
         }
     }
 
-    private class SqlTimeSerializer implements JsonSerializer<java.sql.Time> {
+    private static class SqlTimeSerializer implements JsonSerializer<java.sql.Time> {
 
         @Override
         public JsonElement serialize(java.sql.Time time, Type type, JsonSerializationContext context) {
@@ -217,7 +219,7 @@ public class SimpleMapper {
         }
     }
 
-    private class SqlTimeDeserializer implements JsonDeserializer<java.sql.Time> {
+    private static class SqlTimeDeserializer implements JsonDeserializer<java.sql.Time> {
 
         @Override
         public java.sql.Time deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
@@ -225,7 +227,7 @@ public class SimpleMapper {
         }
     }
 
-    private class BigIntegerSerializer implements JsonSerializer<BigInteger> {
+    private static class BigIntegerSerializer implements JsonSerializer<BigInteger> {
 
         @Override
         public JsonElement serialize(BigInteger number, Type type, JsonSerializationContext context) {
@@ -233,7 +235,7 @@ public class SimpleMapper {
         }
     }
 
-    private class BigIntegerDeserializer implements JsonDeserializer<BigInteger> {
+    private static class BigIntegerDeserializer implements JsonDeserializer<BigInteger> {
 
         @Override
         public BigInteger deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
@@ -251,7 +253,7 @@ public class SimpleMapper {
         }
     }
 
-    private class BigDecimalDeserializer implements JsonDeserializer<BigDecimal> {
+    private static class BigDecimalDeserializer implements JsonDeserializer<BigDecimal> {
 
         @Override
         public BigDecimal deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
@@ -337,7 +339,7 @@ public class SimpleMapper {
     public Object typedNumber(JsonPrimitive p) {
         /*
          * For conversion to map or list, type information is lost for numbers.
-         * This is a best effort to return numbers as Double or Long to avoid loss of precision.
+         * This is the best effort to return numbers as Double or Long to avoid loss of precision.
          */
         String number = p.getAsString();
         if (number.contains(".")) {

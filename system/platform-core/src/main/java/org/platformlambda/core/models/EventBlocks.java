@@ -24,19 +24,13 @@ import java.util.*;
 public class EventBlocks {
     private final Map<Integer, byte[]> buffer = new HashMap<>();
     private final String id;
-    private final int expectedSize;
 
-    public EventBlocks(String id, int expectedSize) {
+    public EventBlocks(String id) {
         this.id = id;
-        this.expectedSize = expectedSize;
     }
 
     public String getId() {
         return id;
-    }
-
-    public int getExpectedSize() {
-        return expectedSize;
     }
 
     public void put(int n, byte[] block) {

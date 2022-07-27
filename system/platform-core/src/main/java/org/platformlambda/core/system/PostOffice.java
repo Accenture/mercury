@@ -60,7 +60,7 @@ public class PostOffice {
     private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
     private final String traceLogHeader;
-    private static final PostOffice instance = new PostOffice();
+    private static final PostOffice INSTANCE = new PostOffice();
 
     private PostOffice() {
         AppConfigReader config = AppConfigReader.getInstance();
@@ -97,7 +97,7 @@ public class PostOffice {
     }
 
     public static PostOffice getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     public ConcurrentMap<String, ConcurrentMap<String, String>> getCloudRoutes() {
@@ -187,11 +187,7 @@ public class PostOffice {
                         } else {
                             String route = e.substring(0, sep).trim();
                             String replacement = e.substring(sep+2).trim();
-                            try {
-                                addRouteSubstitution(route, replacement);
-                            } catch (IllegalArgumentException err) {
-                                log.error("Unable to add route substitution {} - {}", entry, err.getMessage());
-                            }
+                            addRouteSubstitution(e, route, replacement);
                         }
                     }
                 }
@@ -206,12 +202,16 @@ public class PostOffice {
                 int colon = entry.indexOf(':');
                 String route = entry.substring(0, colon).trim();
                 String replacement = entry.substring(colon + 1).trim();
-                try {
-                    addRouteSubstitution(route, replacement);
-                } catch (IllegalArgumentException e) {
-                    log.error("Unable to add route substitution {} - {}", entry, e.getMessage());
-                }
+                addRouteSubstitution(entry, route, replacement);
             }
+        }
+    }
+
+    private void addRouteSubstitution(String entry, String original, String replacement) {
+        try {
+            addRouteSubstitution(original, replacement);
+        } catch (IllegalArgumentException e) {
+            log.error("Unable to add route substitution {} - {}", entry, e.getMessage());
         }
     }
 
@@ -349,10 +349,8 @@ public class PostOffice {
                 }
             } else if (checkCloud) {
                 TargetRoute cloud = getCloudRoute();
-                if (cloud != null) {
-                    if (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin)) {
-                        return cloud;
-                    }
+                if (cloud != null && (origin.startsWith(APP_GROUP_PREFIX) || cloudOrigins.containsKey(origin))) {
+                    return cloud;
                 }
             }
 
@@ -1048,15 +1046,14 @@ public class PostOffice {
         if (platform.hasRoute(dest)) {
             return true;
         }
-        if (Platform.isCloudSelected()) {
-            // check if the remote service is reachable
-            if (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR)) {
-                if (dest.contains(".")) {
-                    ConcurrentMap<String, String> targets = cloudRoutes.get(dest);
-                    return targets != null && !targets.isEmpty();
-                } else {
-                    return cloudOrigins.containsKey(dest);
-                }
+        // check if the remote service is reachable
+        if (Platform.isCloudSelected() &&
+                (platform.hasRoute(ServiceDiscovery.SERVICE_QUERY) || platform.hasRoute(CLOUD_CONNECTOR))) {
+            if (dest.contains(".")) {
+                ConcurrentMap<String, String> targets = cloudRoutes.get(dest);
+                return targets != null && !targets.isEmpty();
+            } else {
+                return cloudOrigins.containsKey(dest);
             }
         }
         return false;

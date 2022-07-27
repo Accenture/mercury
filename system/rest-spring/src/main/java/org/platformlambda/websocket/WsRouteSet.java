@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.models;
+package org.platformlambda.websocket;
 
 import org.platformlambda.core.util.CryptoApi;
 

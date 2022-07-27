@@ -34,6 +34,10 @@ import java.util.concurrent.TimeoutException;
 @Path("/hello")
 public class HelloPoJo {
 
+    private static final String INVALID_RESPONSE = "Invalid service response. Expect: ";
+    private static final String ACTUAL = ", actual: ";
+    private static final String ACTUAL_NULL = ", actual: null";
+
     @GET
     @Path("/pojo/{id}")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
@@ -46,15 +50,15 @@ public class HelloPoJo {
             return response.getBody();
         } else {
             if (response.getBody() == null) {
-                throw new AppException(500, "Invalid service response. Expect: " +
-                        SamplePoJo.class.getName() + ", actual: null");
+                throw new AppException(500, INVALID_RESPONSE + SamplePoJo.class.getName() + ACTUAL_NULL);
             } else {
-                throw new AppException(500, "Invalid service response. Expect: " +
-                        SamplePoJo.class.getName() + ", actual: " + response.getBody().getClass().getName());
+                throw new AppException(500, INVALID_RESPONSE +
+                        SamplePoJo.class.getName() + ACTUAL + response.getBody().getClass().getName());
             }
         }
     }
 
+    @SuppressWarnings("unchecked")
     @GET
     @Path("/generic/{id}")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
@@ -68,21 +72,21 @@ public class HelloPoJo {
         }
         // confirm that the PoJo object is transported correctly over the event stream system
         if (response.getBody() instanceof ObjectWithGenericType) {
-            ObjectWithGenericType result = (ObjectWithGenericType) response.getBody();
-            if (result.getContent() instanceof SamplePoJo) {
+            ObjectWithGenericType<SamplePoJo> result = (ObjectWithGenericType<SamplePoJo>) response.getBody();
+            if (result.getContent() != null) {
                 return response.getBody();
             } else {
-                throw new AppException(500, "Invalid service response. Expect: " +
+                throw new AppException(500, INVALID_RESPONSE +
                         SamplePoJo.class.getSimpleName() + " as a parametric type of " +
-                        ObjectWithGenericType.class.getName()+", actual: " + response.getBody().getClass().getName());
+                        ObjectWithGenericType.class.getName() + ACTUAL + response.getBody().getClass().getName());
             }
         } else {
             if (response.getBody() == null) {
-                throw new AppException(500, "Invalid service response. Expect: " +
-                        ObjectWithGenericType.class.getName() + ", actual: null");
+                throw new AppException(500, INVALID_RESPONSE +
+                        ObjectWithGenericType.class.getName() + ACTUAL_NULL);
             } else {
-                throw new AppException(500, "Invalid service response. Expect: " +
-                        ObjectWithGenericType.class.getName() + ", actual: " + response.getBody().getClass().getName());
+                throw new AppException(500, INVALID_RESPONSE +
+                        ObjectWithGenericType.class.getName() + ACTUAL + response.getBody().getClass().getName());
             }
         }
     }

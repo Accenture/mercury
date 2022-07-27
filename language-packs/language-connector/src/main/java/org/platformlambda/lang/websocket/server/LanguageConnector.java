@@ -22,7 +22,6 @@ import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.Platform;
@@ -31,8 +30,10 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
-import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.services.*;
+import org.platformlambda.websocket.WsConfigurator;
+import org.platformlambda.websocket.WsEnvelope;
+import org.platformlambda.websocket.WsTransmitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +96,8 @@ public class LanguageConnector implements LambdaFunction {
     private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
 
     private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
-    private static String apiKey, inboxRoute;
+    private static String apiKey;
+    private static String inboxRoute;
 
     private enum State {
         OPEN, AUTHENTICATED
@@ -326,8 +328,7 @@ public class LanguageConnector implements LambdaFunction {
                                         log.info("{} authenticated", token);
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
-                                        Utility.getInstance().closeConnection(txPath,
-                                                                CloseReason.CloseCodes.CANNOT_ACCEPT,
+                                        closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
                                                                 "Requires login with "+API_KEY);
                                     }
                                 } else if (client.getState() == State.AUTHENTICATED) {
@@ -390,9 +391,6 @@ public class LanguageConnector implements LambdaFunction {
                     }
                     break;
                 case WsEnvelope.STRING:
-                    // this is likely a keep-alive message from the language pack client
-                    // rxPath is not used as we just want to echo back the keep-alive message.
-                    // rxPath = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
                     String message = (String) body;
                     po.send(txPath, message);
@@ -526,6 +524,17 @@ public class LanguageConnector implements LambdaFunction {
             result.put(EXEC_TIME, event.getExecutionTime());
         }
         return result;
+    }
+
+    public static void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException {
+        if (txPath != null && status != null && message != null) {
+            EventEnvelope error = new EventEnvelope();
+            error.setTo(txPath);
+            error.setHeader(WsTransmitter.STATUS, String.valueOf(status.getCode()));
+            error.setHeader(WsTransmitter.MESSAGE, message);
+            error.setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE);
+            PostOffice.getInstance().send(error);
+        }
     }
 
     private static class ConnectionStatus {

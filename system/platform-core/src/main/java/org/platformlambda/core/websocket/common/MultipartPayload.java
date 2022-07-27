@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceQueue;
+import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -36,6 +37,8 @@ import java.util.Map;
 
 public class MultipartPayload {
     private static final Logger log = LoggerFactory.getLogger(MultipartPayload.class);
+    private static final String DEFAULT_PAYLOAD_SIZE = "65536";
+    private static final String BINARY_SIZE = "websocket.binary.size";
     public static final String ID = "_id_";
     public static final String COUNT = "_blk_";
     public static final String TOTAL = "_max_";
@@ -44,11 +47,15 @@ public class MultipartPayload {
     public static final int OVERHEAD = 256;
     private static final String TO_MONITOR = "@monitor";
     private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
-    private static final int MAX_PAYLOAD = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+    private final int maxPayload;
     private static final MultipartPayload instance = new MultipartPayload();
 
     private MultipartPayload() {
-        log.info("Automatic segmentation when event payload exceeds {}", NumberFormat.getInstance().format(MAX_PAYLOAD));
+        Utility util = Utility.getInstance();
+        AppConfigReader reader = AppConfigReader.getInstance();
+        maxPayload = util.str2int(reader.getProperty(BINARY_SIZE, DEFAULT_PAYLOAD_SIZE)) - OVERHEAD;
+        String threshold = NumberFormat.getInstance().format(maxPayload);
+        log.info("Automatic segmentation when event payload exceeds {}", threshold);
     }
 
     public static MultipartPayload getInstance() {
@@ -76,7 +83,7 @@ public class MultipartPayload {
                 byte[] data = (byte[]) message.getBody();
                 log.debug("Receiving block {} of {} as {} - {} bytes", count, total, id, data.length);
                 Object o = cache.get(id);
-                EventBlocks segments = o instanceof EventBlocks ? (EventBlocks) o : new EventBlocks(id, total);
+                EventBlocks segments = o instanceof EventBlocks ? (EventBlocks) o : new EventBlocks(id);
                 if (segments.exists(count)) {
                     log.error("Duplicated block {} for event {} dropped", count, id);
                 } else {
@@ -116,8 +123,8 @@ public class MultipartPayload {
             event.setEndOfRoute();
             byte[] payload = event.toBytes();
             EventBus system = Platform.getInstance().getEventSystem();
-            if (payload.length > MAX_PAYLOAD) {
-                int total = (payload.length / MAX_PAYLOAD) + (payload.length % MAX_PAYLOAD == 0 ? 0 : 1);
+            if (payload.length > maxPayload) {
+                int total = (payload.length / maxPayload) + (payload.length % maxPayload == 0 ? 0 : 1);
                 ByteArrayInputStream in = new ByteArrayInputStream(payload);
                 for (int i = 0; i < total; i++) {
                     // To distinguish from a normal payload, the segmented block MUST not have a "TO" value.
@@ -126,9 +133,9 @@ public class MultipartPayload {
                                             .setHeader(MultipartPayload.ID, event.getId())
                                             .setHeader(MultipartPayload.COUNT, count)
                                             .setHeader(MultipartPayload.TOTAL, total);
-                    byte[] segment = new byte[MAX_PAYLOAD];
+                    byte[] segment = new byte[maxPayload];
                     int size = in.read(segment);
-                    blk.setBody(size == MAX_PAYLOAD ? segment : Arrays.copyOfRange(segment, 0, size));
+                    blk.setBody(size == maxPayload ? segment : Arrays.copyOfRange(segment, 0, size));
                     /*
                      * To guarantee that the cloud connector can deliver blocks of the same event
                      * to the same destination, we pass id, count and total as the headers

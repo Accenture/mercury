@@ -22,21 +22,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.models.MockPubSub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class UtilityTests {
     private static final Logger log = LoggerFactory.getLogger(UtilityTests.class);
@@ -349,27 +343,6 @@ public class UtilityTests {
         Assert.assertFalse(util.isIntranetAddress("128.1.2.3"));
         Assert.assertFalse(util.isIntranetAddress("hello.world.com"));
         Assert.assertFalse(util.isIntranetAddress("127.0001.1.1"));
-    }
-
-    @Test
-    public void validateCloseConnectionFeature() throws IOException, InterruptedException {
-        final Utility util = Utility.getInstance();
-        final BlockingQueue<Map<String, String>> bench = new ArrayBlockingQueue<>(1);
-        String REASON = "test";
-        String TX_PATH = "unit.test.tx.path";
-        Platform platform = Platform.getInstance();
-        LambdaFunction f = (headers, body, instance) -> {
-            bench.offer(headers);
-            return true;
-        };
-        platform.registerPrivate(TX_PATH, f, 1);
-        util.closeConnection(TX_PATH, CloseReason.CloseCodes.CANNOT_ACCEPT, REASON);
-        Map<String, String> result = bench.poll(10, TimeUnit.SECONDS);
-        log.info("Received close event {}", result);
-        Assert.assertNotNull(result);
-        Assert.assertEquals(REASON, result.get("message"));
-        Assert.assertEquals("close", result.get("type"));
-        Assert.assertEquals(CloseReason.CloseCodes.CANNOT_ACCEPT.getCode(), util.str2int(result.get("status")));
     }
 
     @Test

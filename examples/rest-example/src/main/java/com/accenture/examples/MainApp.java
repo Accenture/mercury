@@ -51,7 +51,7 @@ public class MainApp implements EntryPoint {
             /*
              * Uncomment the "log.info" statement if you want to see this service receiving the event.
              */
-//             log.info("echo #"+instance+" got a request");
+//             log.info("echo #{} got a request", instance);
 
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
@@ -61,16 +61,15 @@ public class MainApp implements EntryPoint {
             result.put("origin", platform.getOrigin());
             return result;
         };
-        // register the above echo service with some concurrent workers in this execution unit
+        // Register the above echo service with some concurrent workers in this execution unit
         // Each deployment unit can be scaled horizontally by the cloud.
         platform.register("hello.world", echo, 20);
-        // Suppose DemoMath is more complex so we write it as a Java class implementing the LambdaFunction interface.
+        // Suppose DemoMath is more complex, we can write it as a Java class implementing the LambdaFunction interface.
         platform.register("math.addition", new DemoMath(), 5);
         /*
          * In distributed mode, cloud services are started automatically when you connect to cloud.
-         * In standalone mode, you can start cloud services programmatically using:
-         *
-         * platform.startCloudServices();
+         * In standalone mode, you can start cloud services programmatically using the platform's
+         * startCloudServices method.
          */
         // connect to the network event streams to automatically discover other services
         platform.connectToCloud();

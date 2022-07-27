@@ -22,6 +22,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.MainApp;
+import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -62,11 +63,33 @@ public class ConnectorTest extends TestBase {
             firstRun.set(false);
             Platform platform = Platform.getInstance();
             try {
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
                 log.info("Mock cloud ready");
+                waitForConnector();
             } catch (TimeoutException e) {
                 log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
+        }
+    }
+
+    private void waitForConnector() {
+        boolean ready = false;
+        PresenceConnector connector = PresenceConnector.getInstance();
+        for (int i=0; i < 20; i++) {
+            if (connector.isConnected() && connector.isReady()) {
+                ready = true;
+                break;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (ready) {
+            log.info("Cloud connection ready");
+        } else {
+            log.error("Cloud connection not ready");
         }
     }
 

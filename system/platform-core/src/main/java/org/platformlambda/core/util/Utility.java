@@ -18,15 +18,12 @@
 
 package org.platformlambda.core.util;
 
-import org.platformlambda.core.models.EventEnvelope;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.Resource;
+import io.github.classgraph.ResourceList;
+import io.github.classgraph.ScanResult;
 import org.platformlambda.core.models.VersionInfo;
-import org.platformlambda.core.models.WsEnvelope;
-import org.platformlambda.core.services.WsTransmitter;
-import org.platformlambda.core.system.PostOffice;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
-import javax.websocket.CloseReason;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -57,11 +54,10 @@ public class Utility {
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
-    private static final String[] JAR_PATHS = { "/BOOT-INF/lib/*.jar", "/WEB-INF/lib/*.jar",
-                                                "/WEB-INF/lib-provided/*.jar", "/lib/*.jar" };
-    private static final String JAR = ".jar";
-    private static final String POM_LOCATION = "pom.properties.location";
-    private static final String POM_PROPERTIES = "/META-INF/maven/*/*/pom.properties";
+    private static final String[] JAR_PATHS = { "BOOT-INF/lib", "WEB-INF/lib",
+                                                "WEB-INF/lib-provided", "lib" };
+    private static final String JAR = "jar";
+    private static final String POM_PROPERTIES = "META-INF/maven";
     private static final String GROUP_ID = "groupId";
     private static final String ARTIFACT_ID = "artifactId";
     private static final String VERSION = "version";
@@ -104,17 +100,13 @@ public class Utility {
 
     private List<String> getJarList(String path) {
         List<String> list = new ArrayList<>();
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        try {
-            Resource[] res = resolver.getResources(path);
-            for (Resource r : res) {
-                String name = r.getFilename();
-                if (name != null) {
-                    list.add(name.endsWith(JAR) ? name.substring(0, name.length() - JAR.length()) : name);
-                }
+        try (ScanResult scan = new ClassGraph().acceptPathsNonRecursive(path).scan()) {
+            ResourceList resources = scan.getResourcesWithExtension(JAR);
+            for (Resource r: resources) {
+                String name = r.getPath();
+                name = name.substring(0, name.length() - JAR.length() - 1);
+                list.add(name.contains("/")? name.substring(name.lastIndexOf('/') + 1) : name);
             }
-        } catch (IOException e) {
-            // ok to ignore
         }
         return list;
     }
@@ -137,24 +129,26 @@ public class Utility {
                 versionInfo.setGroupId("");
                 versionInfo.setArtifactId(name);
                 versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
-                // if not running in IDE, get version information from JAR
+                // get version information from JAR if not running in IDE
                 if (!list.isEmpty()) {
-                    // resolve it from /META-INF/maven/*/*/pom.properties
-                    PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-                    try {
-                        Resource[] res = resolver.getResources(reader.getProperty(POM_LOCATION, POM_PROPERTIES));
-                        if (res.length == 1) {
-                            Properties p = new Properties();
-                            p.load(new ByteArrayInputStream(stream2bytes(res[0].getInputStream())));
-                            if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) && p.containsKey(VERSION)) {
-                                // ensure this is the correct one
-                                if (name.equals(p.getProperty(ARTIFACT_ID))) {
-                                    versionInfo.setGroupId(p.getProperty(GROUP_ID)).setVersion(p.getProperty(VERSION));
+                    // find /META-INF/maven/*/{ApplicationName}/pom.properties
+                    String pomFileName = "/" + name + "/pom.properties";
+                    try (ScanResult scan = new ClassGraph().acceptPaths(POM_PROPERTIES).scan()) {
+                        ResourceList resources = scan.getResourcesWithExtension("properties");
+                        for (Resource r: resources) {
+                            if (r.getPath().endsWith(pomFileName)) {
+                                Properties p = new Properties();
+                                p.load(new ByteArrayInputStream(stream2bytes(r.open())));
+                                if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) &&
+                                        p.containsKey(VERSION) && name.equals(p.getProperty(ARTIFACT_ID))) {
+                                        versionInfo.setGroupId(p.getProperty(GROUP_ID))
+                                                    .setVersion(p.getProperty(VERSION));
                                 }
+                                break;
                             }
                         }
-                    } catch (IOException e) {
-                        // nothing we can do
+                    } catch (IOException ignore) {
+                        // ok to ignore
                     }
                 }
             }
@@ -251,7 +245,7 @@ public class Utility {
     ////////////////////////////////////////
 
     /**
-     * Hierarchical data of a map will be flatten into properties like "this.is.a.key"
+     * Hierarchical data of a map to be converted into properties like "this.is.a.key"
      *
      * @param src map
      * @return flat map
@@ -341,7 +335,7 @@ public class Utility {
      * Generate a RFC 7231 timestamp
      * <p>
      * @param date object
-     * @return timestamp for use in a HTTP header (Example: Tue, 11 May 2021 03:42:46 GMT)
+     * @return timestamp for use in an HTTP header (Example: Tue, 11 May 2021 03:42:46 GMT)
      */
     public String getHtmlDate(Date date) {
         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), UTC_TIME);
@@ -351,7 +345,7 @@ public class Utility {
     /**
      * Parse a RFC 7231 HTML timestamp
      * <p>
-     * @param timestamp from a HTTP header
+     * @param timestamp from an HTTP header
      * @return converted date object
      */
     public Date getHtmlDate(String timestamp) {
@@ -391,10 +385,11 @@ public class Utility {
 
     public byte[] stream2bytes(InputStream stream, boolean closeStream, int maxSize) {
         if (stream == null) {
-            return null;
+            return new byte[0];
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int len, total = 0;
+        int len;
+        int total = 0;
         byte[] buffer = new byte[1024];
         if (stream instanceof ByteArrayInputStream) {
             ByteArrayInputStream in = (ByteArrayInputStream) stream;
@@ -437,23 +432,11 @@ public class Utility {
     }
 
     public boolean bytes2file(File f, byte[] b) {
-        FileOutputStream out = null;
-        try {
-            out = new FileOutputStream(f);
+        try (FileOutputStream out = new FileOutputStream(f)) {
             out.write(b);
-            out.close();
-            out = null;
             return true;
         } catch (IOException e) {
             return false;
-        } finally {
-            if (out != null) {
-                try {
-                    out.close();
-                } catch (IOException e) {
-                    // does not matter
-                }
-            }
         }
     }
 
@@ -489,7 +472,9 @@ public class Utility {
                     }
                 }
             }
-            if (!keep) dir.delete();
+            if (!keep) {
+                dir.delete();
+            }
         }
     }
 
@@ -897,30 +882,13 @@ public class Utility {
             return false;
         }
         InetSocketAddress target = new InetSocketAddress(host, port);
-        Socket s = null;
-        try {
-            s = new Socket();
+        try (Socket s = new Socket()) {
             s.setReuseAddress(true);
             s.bind(null);
             s.connect(target, timeoutMs);
-            s.close();
-            s = null;
             return true;
         } catch (IOException te) {
-            try {
-                s.close();
-                s = null;
-            } catch (IOException e) {
-                // does not matter
-            }
-        } finally {
-            if (s != null) {
-                try {
-                    s.close();
-                } catch (IOException e) {
-                    // does not matter
-                }
-            }
+            // ok to ignore
         }
         return false;
     }
@@ -978,17 +946,6 @@ public class Utility {
         sb.append(seconds);
         sb.append(seconds == 1? " second" : " seconds");
         return sb.toString();
-    }
-
-    public void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException {
-        if (txPath != null && status != null && message != null) {
-            EventEnvelope error = new EventEnvelope();
-            error.setTo(txPath);
-            error.setHeader(WsTransmitter.STATUS, String.valueOf(status.getCode()));
-            error.setHeader(WsTransmitter.MESSAGE, message);
-            error.setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE);
-            PostOffice.getInstance().send(error);
-        }
     }
 
 }

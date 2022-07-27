@@ -502,8 +502,6 @@ public class ServletTest extends TestBase {
         Assert.assertTrue(ready);
         PersistentWsClient client = new PersistentWsClient(connector,
                 Collections.singletonList("ws://127.0.0.1:"+port+"/ws/mock"));
-        // set condition to null or true means no startup condition
-        client.setCondition(() -> true);
         client.start();
 
         try {

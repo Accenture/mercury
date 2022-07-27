@@ -16,13 +16,11 @@
 
  */
 
-package org.platformlambda.core.services;
+package org.platformlambda.websocket;
 
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +29,6 @@ import javax.websocket.CloseReason;
 import javax.websocket.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.security.GeneralSecurityException;
 import java.util.Map;
 
 @ZeroTracing
@@ -46,7 +43,7 @@ public class WsTransmitter implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         try {
             send(headers, body);
-        } catch (RuntimeException | GeneralSecurityException e) {
+        } catch (RuntimeException e) {
             /*
              * Let the underlying websocket system handles the socket clean up.
              * It is likely that the connection is closed before we can detect it.
@@ -57,7 +54,7 @@ public class WsTransmitter implements LambdaFunction {
         return null;
     }
 
-    public void send(Map<String, String> headers, Object body) throws IOException, GeneralSecurityException {
+    public void send(Map<String, String> headers, Object body) throws IOException {
         if (body == null && headers.containsKey(WsEnvelope.TYPE)) {
             if (WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
                 if (session != null && session.isOpen()) {

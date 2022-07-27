@@ -162,15 +162,15 @@ public class ServiceQueue {
                 }
             }
         }
-    }
 
-    private String getWorker(String input) {
-        if (input.startsWith(readyPrefix)) {
-            return input.substring(READY.length()+1);
-        } else if (READY.equals(input) && streamRoute != null) {
-            return streamRoute;
+        private String getWorker(String input) {
+            if (input.startsWith(readyPrefix)) {
+                return input.substring(READY.length()+1);
+            } else if (READY.equals(input) && streamRoute != null) {
+                return streamRoute;
+            }
+            return null;
         }
-        return null;
     }
 
 }

@@ -25,7 +25,7 @@ import java.lang.annotation.*;
  * <p>
  * If a parameter name is used as value, the condition is evaluated as "parameter=true".
  * <p>
- * Otherwise, simple condition is supported. e.g.
+ * Simple condition is supported. e.g.
  * <p>
  * !hello.world - the module will be enabled if hello.world is false
  * <p>

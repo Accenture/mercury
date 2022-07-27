@@ -38,14 +38,6 @@ public class StreamQueue extends WorkerQueues {
         this.started();
     }
 
-    private void processEvent(EventEnvelope event) {
-        try {
-            def.getStreamFunction().handleEvent(event.getHeaders(), event.getBody());
-        } catch (Exception e) {
-            log.error("Unhandled exception for "+route, e);
-        }
-    }
-
     private class StreamHandler implements Handler<Message<byte[]>> {
 
         @Override
@@ -61,5 +53,14 @@ public class StreamQueue extends WorkerQueues {
 
             }
         }
+
+        private void processEvent(EventEnvelope event) {
+            try {
+                def.getStreamFunction().handleEvent(event.getHeaders(), event.getBody());
+            } catch (Exception e) {
+                log.error("Unhandled exception for "+route, e);
+            }
+        }
+        
     }
 }

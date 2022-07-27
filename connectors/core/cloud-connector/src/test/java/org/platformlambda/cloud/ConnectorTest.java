@@ -21,6 +21,7 @@ package org.platformlambda.cloud;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -58,11 +59,33 @@ public class ConnectorTest extends TestBase {
             firstRun.set(false);
             Platform platform = Platform.getInstance();
             try {
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
                 log.info("Mock cloud ready");
+                waitForConnector();
             } catch (TimeoutException e) {
                 log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
+        }
+    }
+
+    private void waitForConnector() {
+        boolean ready = false;
+        PresenceConnector connector = PresenceConnector.getInstance();
+        for (int i=0; i < 20; i++) {
+            if (connector.isConnected() && connector.isReady()) {
+                ready = true;
+                break;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (ready) {
+            log.info("Cloud connection ready");
+        } else {
+            log.error("Cloud connection not ready");
         }
     }
 
@@ -167,10 +190,9 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void healthTest() throws AppException, IOException, TimeoutException {
-        Platform platform = Platform.getInstance();
-        platform.waitForProvider("cloud.connector.health", 10);
+    public void healthTest() throws AppException, IOException {
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
+        log.info("{}", response);
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals("UP", result.get("status"));

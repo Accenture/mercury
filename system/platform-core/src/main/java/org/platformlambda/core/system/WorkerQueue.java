@@ -55,8 +55,10 @@ public class WorkerQueue extends WorkerQueues {
     private static final String ASYNC = "async";
     private static final String ANNOTATIONS = "annotations";
     private static final String PAYLOAD = "payload";
-    private final String origin;
-    private final boolean interceptor, useEnvelope, tracing;
+    private final String myOrigin;
+    private final boolean interceptor;
+    private final boolean useEnvelope;
+    private final boolean tracing;
     private final int instance;
 
     public WorkerQueue(ServiceDef def, String route, int instance) {
@@ -67,194 +69,10 @@ public class WorkerQueue extends WorkerQueues {
         this.interceptor = def.getFunction().getClass().getAnnotation(EventInterceptor.class) != null;
         this.useEnvelope = def.inputIsEnvelope();
         this.tracing = def.getFunction().getClass().getAnnotation(ZeroTracing.class) == null;
-        this.origin = Platform.getInstance().getOrigin();
+        this.myOrigin = Platform.getInstance().getOrigin();
         // tell manager that this worker is ready to process a new event
         system.send(def.getRoute(), READY+route);
         this.started();
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private ProcessStatus processEvent(EventEnvelope event) {
-        PostOffice po = PostOffice.getInstance();
-        Map<String, Object> inputOutput = new HashMap<>();
-        Map<String, Object> input = new HashMap<>();
-        input.put(HEADERS, event.getHeaders());
-        input.put(BODY, event.getRawBody());
-        inputOutput.put(INPUT, input);
-        TypedLambdaFunction f = def.getFunction();
-        if (event.hasError() && f instanceof ServiceExceptionHandler) {
-            ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
-            try {
-                handler.onError(new AppException(event.getStatus(), event.getError()), event);
-            } catch (Exception e1) {
-                log.warn("Unhandled exception in error handler of "+route, e1);
-            }
-            Map<String, Object> output = new HashMap<>();
-            output.put(STATUS, event.getStatus());
-            output.put(EXCEPTION, event.getError());
-            inputOutput.put(OUTPUT, output);
-            return new ProcessStatus(event.getStatus(), event.getError()).setInputOutput(inputOutput);
-        }
-        try {
-            /*
-             * Interceptor can read any input (i.e. including case for empty headers and null body).
-             * The system therefore disables ping when the target function is an interceptor.
-             */
-            boolean ping = !interceptor && event.getHeaders().isEmpty() && event.getBody() == null;
-            long begin = ping? 0 : System.nanoTime();
-            /*
-             * If the service is an interceptor or the input argument is EventEnvelope,
-             * we will pass the original event envelope instead of the message body.
-             */
-            Object result = ping? null : f.handleEvent(event.getHeaders(),
-                                            interceptor || useEnvelope ? event : event.getBody(), instance);
-            float delta = ping? 0 : (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;
-            // adjust precision to 3 decimal points
-            float diff = Float.parseFloat(String.format("%.3f", Math.max(0.0f, delta)));
-            Map<String, Object> output = new HashMap<>();
-            String replyTo = event.getReplyTo();
-            if (replyTo != null) {
-                boolean serviceTimeout = false;
-                EventEnvelope response = new EventEnvelope();
-                response.setTo(replyTo);
-                response.setFrom(def.getRoute());
-                /*
-                 * Preserve correlation ID and notes
-                 *
-                 * "Notes" is usually used by event interceptors. The system does not restrict the content of the notes.
-                 * For example, to save some metadata from the original sender.
-                 */
-                if (event.getCorrelationId() != null) {
-                    response.setCorrelationId(event.getCorrelationId());
-                }
-                if (event.getExtra() != null) {
-                    response.setExtra(event.getExtra());
-                }
-                // propagate the trace to the next service if any
-                if (event.getTraceId() != null) {
-                    response.setTrace(event.getTraceId(), event.getTracePath());
-                }
-                if (result instanceof EventEnvelope) {
-                    EventEnvelope resultEvent = (EventEnvelope) result;
-                    Map<String, String> headers = resultEvent.getHeaders();
-                    if (headers.isEmpty() && resultEvent.getStatus() == 408 && resultEvent.getBody() == null) {
-                        /*
-                         * An empty event envelope with timeout status
-                         * is used by the ObjectStreamService to simulate a READ timeout.
-                         */
-                        serviceTimeout = true;
-                    } else {
-                        /*
-                         * When EventEnvelope is used as a return type, the system will transport
-                         * 1. payload
-                         * 2. key-values (as headers)
-                         * 3. optional parametric types for Java class that uses generic types
-                         */
-                        response.setBody(resultEvent.getBody());
-                        for (String h : headers.keySet()) {
-                            response.setHeader(h, headers.get(h));
-                        }
-                        response.setStatus(resultEvent.getStatus());
-                        if (resultEvent.getParametricType() != null) {
-                            response.setParametricType(resultEvent.getParametricType());
-                        }
-                    }
-                    if (!response.getHeaders().isEmpty()) {
-                        output.put(HEADERS, response.getHeaders());
-                    }
-                } else {
-                    response.setBody(result);
-                }
-                output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
-                output.put(STATUS, response.getStatus());
-                inputOutput.put(OUTPUT, output);
-                if (ping) {
-                    String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
-                    Platform platform = Platform.getInstance();
-                    // execution time is not set because there is no need to execute the lambda function
-                    Map<String, Object> pong = new HashMap<>();
-                    pong.put(TYPE, PONG);
-                    pong.put(TIME, new Date());
-                    pong.put(APP, platform.getName());
-                    pong.put(ORIGIN, platform.getOrigin());
-                    pong.put(SERVICE, parent);
-                    pong.put(REASON, "This response is generated when you send an event without headers and body");
-                    pong.put(MESSAGE, "you have reached "+parent);
-                    response.setBody(pong);
-                    po.send(response);
-                } else {
-                    if (!interceptor && !serviceTimeout) {
-                        response.setExecutionTime(diff);
-                        po.send(response);
-                    }
-                }
-            } else {
-                EventEnvelope response = new EventEnvelope().setBody(result);
-                output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
-                output.put(STATUS, response.getStatus());
-                output.put(ASYNC, true);
-                inputOutput.put(OUTPUT, output);
-            }
-            return new ProcessStatus(diff).setInputOutput(inputOutput);
-
-        } catch (Exception e) {
-            final int status;
-            Throwable ex = util.getRootCause(e);
-            if (ex instanceof AppException) {
-                status = ((AppException) ex).getStatus();
-            } else if (ex instanceof IllegalArgumentException || ex instanceof IOException) {
-                status = 400;
-            } else {
-                status = 500;
-            }
-            if (f instanceof ServiceExceptionHandler) {
-                ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
-                try {
-                    handler.onError(new AppException(status, ex.getMessage()), event);
-                } catch (Exception e2) {
-                    log.warn("Unhandled exception in error handler of "+route, e2);
-                }
-                Map<String, Object> output = new HashMap<>();
-                output.put(STATUS, status);
-                output.put(EXCEPTION, ex.getMessage());
-                inputOutput.put(OUTPUT, output);
-                return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
-            }
-            Map<String, Object> output = new HashMap<>();
-            String replyTo = event.getReplyTo();
-            if (replyTo != null) {
-                EventEnvelope response = new EventEnvelope();
-                response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
-                response.setException(e);
-                response.setFrom(def.getRoute());
-                if (event.getCorrelationId() != null) {
-                    response.setCorrelationId(event.getCorrelationId());
-                }
-                if (event.getExtra() != null) {
-                    response.setExtra(event.getExtra());
-                }
-                // propagate the trace to the next service if any
-                if (event.getTraceId() != null) {
-                    response.setTrace(event.getTraceId(), event.getTracePath());
-                }
-                try {
-                    po.send(response);
-                } catch (Exception nested) {
-                    log.warn("Unhandled exception when sending reply from {} - {}", route, nested.getMessage());
-                }
-            } else {
-                output.put(ASYNC, true);
-                if (status >= 500) {
-                    log.error("Unhandled exception for "+route, ex);
-                } else {
-                    log.warn("Unhandled exception for {} - {}", route, ex.getMessage());
-                }
-            }
-            output.put(STATUS, status);
-            output.put(EXCEPTION, ex.getMessage());
-            inputOutput.put(OUTPUT, output);
-            return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
-        }
     }
 
     private class WorkerHandler implements Handler<Message<byte[]>> {
@@ -291,9 +109,9 @@ public class WorkerQueue extends WorkerQueues {
                                 payload.put(PAYLOAD, ps.inputOutput);
                             }
                             dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(payload);
-                            dt.setHeader("origin", origin);
+                            dt.setHeader(ORIGIN, myOrigin);
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
-                            dt.setHeader("service", def.getRoute()).setHeader("start", trace.startTime);
+                            dt.setHeader(SERVICE, def.getRoute()).setHeader("start", trace.startTime);
                             dt.setHeader("success", ps.success);
                             if (event.getFrom() != null) {
                                 dt.setHeader("from", event.getFrom());
@@ -301,7 +119,7 @@ public class WorkerQueue extends WorkerQueues {
                             if (ps.success) {
                                 dt.setHeader("exec_time", ps.executionTime);
                             } else {
-                                dt.setHeader("status", ps.status).setHeader("exception", ps.exception);
+                                dt.setHeader(STATUS, ps.status).setHeader(EXCEPTION, ps.exception);
                             }
                             po.send(dt);
                         } catch (Exception e) {
@@ -315,7 +133,190 @@ public class WorkerQueue extends WorkerQueues {
                     Platform.getInstance().getEventSystem().send(def.getRoute(), READY+route);
                 });
             }
+        }
 
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        private ProcessStatus processEvent(EventEnvelope event) {
+            PostOffice po = PostOffice.getInstance();
+            Map<String, Object> inputOutput = new HashMap<>();
+            Map<String, Object> input = new HashMap<>();
+            input.put(HEADERS, event.getHeaders());
+            input.put(BODY, event.getRawBody());
+            inputOutput.put(INPUT, input);
+            TypedLambdaFunction f = def.getFunction();
+            if (event.hasError() && f instanceof ServiceExceptionHandler) {
+                ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
+                try {
+                    handler.onError(new AppException(event.getStatus(), event.getError()), event);
+                } catch (Exception e1) {
+                    log.warn("Unhandled exception in error handler of "+route, e1);
+                }
+                Map<String, Object> output = new HashMap<>();
+                output.put(STATUS, event.getStatus());
+                output.put(EXCEPTION, event.getError());
+                inputOutput.put(OUTPUT, output);
+                return new ProcessStatus(event.getStatus(), event.getError()).setInputOutput(inputOutput);
+            }
+            try {
+                /*
+                 * Interceptor can read any input (i.e. including case for empty headers and null body).
+                 * The system therefore disables ping when the target function is an interceptor.
+                 */
+                boolean ping = !interceptor && event.getHeaders().isEmpty() && event.getBody() == null;
+                long begin = ping? 0 : System.nanoTime();
+                /*
+                 * If the service is an interceptor or the input argument is EventEnvelope,
+                 * we will pass the original event envelope instead of the message body.
+                 */
+                Object inputBody = interceptor || useEnvelope ? event : event.getBody();
+                Object result = ping? null : f.handleEvent(event.getHeaders(), inputBody, instance);
+                float delta = ping? 0 : (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;
+                // adjust precision to 3 decimal points
+                float diff = Float.parseFloat(String.format("%.3f", Math.max(0.0f, delta)));
+                Map<String, Object> output = new HashMap<>();
+                String replyTo = event.getReplyTo();
+                if (replyTo != null) {
+                    boolean serviceTimeout = false;
+                    EventEnvelope response = new EventEnvelope();
+                    response.setTo(replyTo);
+                    response.setFrom(def.getRoute());
+                    /*
+                     * Preserve correlation ID and notes
+                     *
+                     * "Notes" is usually used by event interceptors. The system does not restrict the content of the notes.
+                     * For example, to save some metadata from the original sender.
+                     */
+                    if (event.getCorrelationId() != null) {
+                        response.setCorrelationId(event.getCorrelationId());
+                    }
+                    if (event.getExtra() != null) {
+                        response.setExtra(event.getExtra());
+                    }
+                    // propagate the trace to the next service if any
+                    if (event.getTraceId() != null) {
+                        response.setTrace(event.getTraceId(), event.getTracePath());
+                    }
+                    if (result instanceof EventEnvelope) {
+                        EventEnvelope resultEvent = (EventEnvelope) result;
+                        Map<String, String> headers = resultEvent.getHeaders();
+                        if (headers.isEmpty() && resultEvent.getStatus() == 408 && resultEvent.getBody() == null) {
+                            /*
+                             * An empty event envelope with timeout status
+                             * is used by the ObjectStreamService to simulate a READ timeout.
+                             */
+                            serviceTimeout = true;
+                        } else {
+                            /*
+                             * When EventEnvelope is used as a return type, the system will transport
+                             * 1. payload
+                             * 2. key-values (as headers)
+                             * 3. optional parametric types for Java class that uses generic types
+                             */
+                            response.setBody(resultEvent.getBody());
+                            for (String h : headers.keySet()) {
+                                response.setHeader(h, headers.get(h));
+                            }
+                            response.setStatus(resultEvent.getStatus());
+                            if (resultEvent.getParametricType() != null) {
+                                response.setParametricType(resultEvent.getParametricType());
+                            }
+                        }
+                        if (!response.getHeaders().isEmpty()) {
+                            output.put(HEADERS, response.getHeaders());
+                        }
+                    } else {
+                        response.setBody(result);
+                    }
+                    output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
+                    output.put(STATUS, response.getStatus());
+                    inputOutput.put(OUTPUT, output);
+                    if (ping) {
+                        String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
+                        Platform platform = Platform.getInstance();
+                        // execution time is not set because there is no need to execute the lambda function
+                        Map<String, Object> pong = new HashMap<>();
+                        pong.put(TYPE, PONG);
+                        pong.put(TIME, new Date());
+                        pong.put(APP, platform.getName());
+                        pong.put(ORIGIN, platform.getOrigin());
+                        pong.put(SERVICE, parent);
+                        pong.put(REASON, "This response is generated when you send an event without headers and body");
+                        pong.put(MESSAGE, "you have reached "+parent);
+                        response.setBody(pong);
+                        po.send(response);
+                    } else {
+                        if (!interceptor && !serviceTimeout) {
+                            response.setExecutionTime(diff);
+                            po.send(response);
+                        }
+                    }
+                } else {
+                    EventEnvelope response = new EventEnvelope().setBody(result);
+                    output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
+                    output.put(STATUS, response.getStatus());
+                    output.put(ASYNC, true);
+                    inputOutput.put(OUTPUT, output);
+                }
+                return new ProcessStatus(diff).setInputOutput(inputOutput);
+
+            } catch (Exception e) {
+                final int status;
+                Throwable ex = util.getRootCause(e);
+                if (ex instanceof AppException) {
+                    status = ((AppException) ex).getStatus();
+                } else if (ex instanceof IllegalArgumentException || ex instanceof IOException) {
+                    status = 400;
+                } else {
+                    status = 500;
+                }
+                if (f instanceof ServiceExceptionHandler) {
+                    ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
+                    try {
+                        handler.onError(new AppException(status, ex.getMessage()), event);
+                    } catch (Exception e2) {
+                        log.warn("Unhandled exception in error handler of "+route, e2);
+                    }
+                    Map<String, Object> output = new HashMap<>();
+                    output.put(STATUS, status);
+                    output.put(EXCEPTION, ex.getMessage());
+                    inputOutput.put(OUTPUT, output);
+                    return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
+                }
+                Map<String, Object> output = new HashMap<>();
+                String replyTo = event.getReplyTo();
+                if (replyTo != null) {
+                    EventEnvelope response = new EventEnvelope();
+                    response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
+                    response.setException(e);
+                    response.setFrom(def.getRoute());
+                    if (event.getCorrelationId() != null) {
+                        response.setCorrelationId(event.getCorrelationId());
+                    }
+                    if (event.getExtra() != null) {
+                        response.setExtra(event.getExtra());
+                    }
+                    // propagate the trace to the next service if any
+                    if (event.getTraceId() != null) {
+                        response.setTrace(event.getTraceId(), event.getTracePath());
+                    }
+                    try {
+                        po.send(response);
+                    } catch (Exception nested) {
+                        log.warn("Unhandled exception when sending reply from {} - {}", route, nested.getMessage());
+                    }
+                } else {
+                    output.put(ASYNC, true);
+                    if (status >= 500) {
+                        log.error("Unhandled exception for "+route, ex);
+                    } else {
+                        log.warn("Unhandled exception for {} - {}", route, ex.getMessage());
+                    }
+                }
+                output.put(STATUS, status);
+                output.put(EXCEPTION, ex.getMessage());
+                inputOutput.put(OUTPUT, output);
+                return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
+            }
         }
     }
 

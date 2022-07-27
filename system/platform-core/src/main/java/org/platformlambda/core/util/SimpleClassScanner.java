@@ -18,9 +18,9 @@
 
 package org.platformlambda.core.util;
 
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.core.type.filter.AnnotationTypeFilter;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ScanResult;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -34,43 +34,32 @@ public class SimpleClassScanner {
     private static final String PLATFORM_LAMBDA = "org.platformlambda";
     private static final String EX_START = "Invalid package path (";
     private static final String EX_END = "). A proper package should have at least one dot character.";
-    private static final SimpleClassScanner instance = new SimpleClassScanner();
+    private static final SimpleClassScanner INSTANCE = new SimpleClassScanner();
 
     private SimpleClassScanner() {
         // singleton
     }
 
     public static SimpleClassScanner getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
-    public List<Class<?>> getAnnotatedClasses(Class<? extends Annotation> type, boolean includeBasePackage) {
-        List<Class<?>> result = new ArrayList<>();
+    public List<ClassInfo> getAnnotatedClasses(Class<? extends Annotation> type, boolean includeBasePackage) {
+        List<ClassInfo> result = new ArrayList<>();
         Set<String> packages = getPackages(includeBasePackage);
         for (String p : packages) {
-            List<Class<?>> services = getAnnotatedClasses(p, type);
-            for (Class<?> c: services) {
-                result.add(c);
-            }
+            result.addAll(getAnnotatedClasses(p, type));
         }
         return result;
     }
 
-    public List<Class<?>> getAnnotatedClasses(String scanPath, Class<? extends Annotation> type) {
+    public List<ClassInfo> getAnnotatedClasses(String scanPath, Class<? extends Annotation> type) {
         if (!scanPath.contains(".")) {
             throw new IllegalArgumentException(EX_START + scanPath + EX_END);
         }
-        List<Class<?>> result = new ArrayList<>();
-        ClassPathScanningCandidateComponentProvider provider = new ClassPathScanningCandidateComponentProvider(false);
-        provider.addIncludeFilter(new AnnotationTypeFilter(type));
-        for (BeanDefinition beanDef : provider.findCandidateComponents(scanPath)) {
-            try {
-                result.add(Class.forName(beanDef.getBeanClassName()));
-            } catch (ClassNotFoundException e) {
-                // ok to ignore
-            }
+        try (ScanResult sr = new ClassGraph().enableAllInfo().acceptPackages(scanPath).scan()) {
+            return new ArrayList<>(sr.getClassesWithAnnotation(type));
         }
-        return result;
     }
 
     public Set<String> getPackages(boolean includeBasePackage) {

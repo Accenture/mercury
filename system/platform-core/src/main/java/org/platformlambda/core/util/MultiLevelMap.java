@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 public class MultiLevelMap {
-    private Map<String, Object> multiLevels;
+    private final Map<String, Object> multiLevels;
 
     public MultiLevelMap() {
         this.multiLevels = new HashMap<>();

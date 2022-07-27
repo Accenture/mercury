@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.system;
 
+import io.github.classgraph.ClassInfo;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.annotations.CloudConnector;
@@ -42,20 +43,27 @@ public class Platform {
     private static final ConcurrentMap<String, BlockingQueue<Boolean>> serviceTokens = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final String PERSONALITY = "personality";
+    private static final String CONNECTOR = "connector";
+    private static final String SERVICE = "service";
+    private static final String ROUTE = "Route ";
+    private static final String NOT_FOUND = " not found";
+    private static final String INVALID_ROUTE = "Invalid route ";
+
     private static final String INIT = "init:";
     private static String originId;
-    private static boolean cloudSelected = false, cloudServicesStarted = false;
+    private static boolean cloudSelected = false;
+    private static boolean cloudServicesStarted = false;
     private static String appId;
     private static final Vertx vertx = Vertx.vertx();
     private static final EventBus system = vertx.eventBus();
-    private static final Platform instance = new Platform();
+    private static final Platform INSTANCE = new Platform();
 
     private Platform() {
         // singleton
     }
 
     public static Platform getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     /**
@@ -155,7 +163,7 @@ public class Platform {
                 if (!list.isEmpty()) {
                     List<String> loaded = new ArrayList<>();
                     SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-                    List<Class<?>> services = scanner.getAnnotatedClasses(CloudService.class, true);
+                    List<ClassInfo> services = scanner.getAnnotatedClasses(CloudService.class, true);
                     for (String name: list) {
                         if (loaded.contains(name)) {
                             log.error("Cloud service ({}) already loaded", name);
@@ -195,7 +203,7 @@ public class Platform {
                 startCloudServices();
             } else {
                 SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-                List<Class<?>> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
+                List<ClassInfo> services = scanner.getAnnotatedClasses(CloudConnector.class, true);
                 if (!startService(name, services, true)) {
                     log.error("Cloud connector ({}) not found", name);
                 }
@@ -203,11 +211,19 @@ public class Platform {
         }
     }
 
-    private boolean startService(String name, List<Class<?>> services, boolean isConnector) {
+    private boolean startService(String name, List<ClassInfo> services, boolean isConnector) {
         if (name == null) {
             return false;
         }
-        for (Class<?> cls : services) {
+        final String type = isConnector? CONNECTOR : SERVICE;
+        for (ClassInfo info : services) {
+            final Class<?> cls;
+            try {
+                cls = Class.forName(info.getName());
+            } catch (ClassNotFoundException e) {
+                log.error("Unable to start cloud {} ({}) - {}", type, info.getName(), e.getMessage());
+                return false;
+            }
             final String serviceName;
             final String original;
             if (isConnector) {
@@ -226,7 +242,7 @@ public class Platform {
                     if (o instanceof CloudSetup) {
                         CloudSetup cloud = (CloudSetup) o;
                         new Thread(()-> {
-                            log.info("Starting cloud {} {} using {}", isConnector? "connector" : "service", name, cls.getName());
+                            log.info("Starting cloud {} {} using {}", type, name, cls.getName());
                             cloud.initialize();
                             // execute next service if provided
                             if (!nextService.isEmpty()) {
@@ -236,13 +252,12 @@ public class Platform {
                         return true;
                     } else {
                         log.error("Unable to start cloud {} ({}) because it does not inherit {}",
-                                isConnector? "connector" : "service",
-                                cls.getName(), CloudSetup.class.getName());
+                                type, cls.getName(), CloudSetup.class.getName());
                     }
 
-                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                    log.error("Unable to start cloud {} ({}) - {}",
-                            isConnector? "connector" : "service", cls.getName(), e.getMessage());
+                } catch (NoSuchMethodException | InvocationTargetException |
+                        InstantiationException | IllegalAccessException e) {
+                    log.error("Unable to start cloud {} ({}) - {}", type, info.getName(), e.getMessage());
                 }
                 break;
             }
@@ -284,14 +299,14 @@ public class Platform {
 
     public void makePublic(String route) throws IOException {
         if (!hasRoute(route)) {
-            throw new IOException("Route "+route+" not found");
+            throw new IOException(ROUTE+route+NOT_FOUND);
         }
         ServiceDef service = registry.get(route);
         if (service == null) {
-            throw new IOException("Route "+route+" not found");
+            throw new IOException(ROUTE+route+NOT_FOUND);
         }
         if (!service.isPrivate()) {
-            throw new IllegalArgumentException("Route "+route+" is already public");
+            throw new IllegalArgumentException(ROUTE+route+" is already public");
         }
         // set it to public
         service.setPrivate(false);
@@ -376,20 +391,20 @@ public class Platform {
         // guarantee that only valid service name is registered
         Utility util = Utility.getInstance();
         if (!util.validServiceName(route)) {
-            throw new IOException("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters");
+            throw new IOException(INVALID_ROUTE+" name - use 0-9, a-z, period, hyphen or underscore characters");
         }
         String path = util.filteredServiceName(route);
         if (path.length() == 0) {
-            throw new IOException("Invalid route name");
+            throw new IOException(INVALID_ROUTE+" name");
         }
         if (!path.contains(".")) {
-            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
+            throw new IOException(INVALID_ROUTE+route+" because it is missing dot separator(s). e.g. hello.world");
         }
         if (util.reservedExtension(path)) {
-            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
+            throw new IOException(INVALID_ROUTE+route+" because it cannot use a reserved extension");
         }
         if (util.reservedFilename(path)) {
-            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
+            throw new IOException(INVALID_ROUTE+route+" which is a reserved Windows filename");
         }
         return path;
     }
@@ -425,7 +440,7 @@ public class Platform {
             }
 
         } else {
-            throw new IOException("Route "+route+" not found");
+            throw new IOException(ROUTE+route+NOT_FOUND);
         }
     }
 

@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.websocket.common;
+package org.platformlambda.websocket;
 
 import javax.websocket.Session;
 import org.slf4j.Logger;

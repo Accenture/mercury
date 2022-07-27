@@ -32,34 +32,34 @@ public class ActuatorServices implements LambdaFunction {
     private static final String SHUTDOWN = "shutdown";
     private static final String SUSPEND = "suspend";
     private static final String RESUME = "resume";
-    private static final String LIVENESSPROBE = "livenessprobe";
+    private static final String LIVENESS_PROBE = "livenessprobe";
     private static final String USER = "user";
 
-    private static final InfoService info = new InfoService();
-    private static final HealthService health = new HealthService();
+    private static final InfoService infoFunction = new InfoService();
+    private static final HealthService healthFunction = new HealthService();
     private static final LivenessProbe livenessProbe = new LivenessProbe();
-    private static final ShutdownService shutdown = new ShutdownService();
+    private static final ShutdownService shutdownFunction = new ShutdownService();
     private static final SuspendResume suspendResume = new SuspendResume();
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
-            if (LIVENESSPROBE.equals(type)) {
+            if (LIVENESS_PROBE.equals(type)) {
                 return livenessProbe.handleEvent(headers, body, instance);
             }
             if (HEALTH.equals(type)) {
-                return health.handleEvent(headers, body, instance);
+                return healthFunction.handleEvent(headers, body, instance);
             }
             if (INFO.equals(type) || LIB.equals(type) || ROUTES.equals(type) || ENV.equals(type)) {
-                return info.handleEvent(headers, body, instance);
+                return infoFunction.handleEvent(headers, body, instance);
             }
             if (headers.containsKey(USER)) {
                 if (SUSPEND.equals(type) || RESUME.equals(type)) {
                     return suspendResume.handleEvent(headers, body, instance);
                 }
                 if (SHUTDOWN.equals(type)) {
-                    return shutdown.handleEvent(headers, body, instance);
+                    return shutdownFunction.handleEvent(headers, body, instance);
                 }
             }
         }

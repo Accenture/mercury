@@ -27,7 +27,10 @@ import java.util.Date;
 public class SimpleHttpCookie {
 
     private static final String SEPARATOR = "|";
-    private String name, value, domain, path;
+    private final String name;
+    private String value;
+    private String domain;
+    private String path;
     private long maxAge = 0;
 
     private boolean secure = false;

@@ -31,16 +31,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ManagedCache {
     private static final Logger log = LoggerFactory.getLogger(ManagedCache.class);
 
-    private static final long DEFAULT_MAX_ITEMS = 2000;
-    private static final long MIN_EXPIRY = 1000;
-    private static final long FIVE_MINUTES = 5 * 60000;
+    private static final long DEFAULT_MAX_ITEMS = 2000L;
+    private static final long MIN_EXPIRY = 1000L;
+    private static final long FIVE_MINUTES = 5 * 60000L;
     private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
     private static boolean loaded;
     private final String name;
-    private final long expiry, maxItems;
+    private final long expiry;
+    private final long maxItems;
     private final Cache<String, Object> cache;
-    private long lastWrite = 0, lastRead = 0, lastReset = System.currentTimeMillis();
+    private long lastWrite = 0;
+    private long lastRead = 0;
+    private long lastReset = System.currentTimeMillis();
 
     private ManagedCache(Cache<String, Object> cache, String name, long expiryMs, long maxItems) {
         this.cache = cache;
@@ -165,7 +168,7 @@ public class ManagedCache {
         return lastReset;
     }
 
-    private class CleanUp extends Thread {
+    private static class CleanUp extends Thread {
 
         private boolean normal = true;
 

@@ -45,10 +45,12 @@ public class ObjectStreamIO {
     private static final String READ = "read";
     private static final String CLOSE = "close";
     private static final String DATA = "data";
-    private static final String EOF = "eof";
+    private static final String END_OF_STREAM = "eof";
     private static final String STREAM_PREFIX = "stream";
     private static boolean loaded = false;
-    private String inputStreamId, outputStreamId, streamRoute;
+    private String inputStreamId;
+    private String outputStreamId;
+    private String streamRoute;
     private final int expirySeconds;
     private final AtomicBoolean eof = new AtomicBoolean(false);
     private final ConcurrentLinkedQueue<String> callbacks = new ConcurrentLinkedQueue<>();
@@ -127,8 +129,10 @@ public class ObjectStreamIO {
             StreamInfo info = streams.get(id);
             if (now - info.updated > info.expiryMills) {
                 try {
+                    String createdTime = util.date2str(new Date(info.created));
+                    String updatedTime = util.date2str(new Date(info.updated));
                     log.warn("{} expired. Inactivity for {} seconds ({} - {})", id, info.expiryMills / 1000,
-                            util.date2str(new Date(info.created)), util.date2str(new Date(info.updated)));
+                            createdTime, updatedTime);
                     po.send(id, new Kv(TYPE, CLOSE));
                 } catch (IOException e) {
                     log.error("Unable to remove expired {} - {}", id, e.getMessage());
@@ -160,12 +164,12 @@ public class ObjectStreamIO {
                         sendReply(cb, body, DATA);
                     }
                 }
-            } else if (EOF.equals(headers.get(TYPE))) {
+            } else if (END_OF_STREAM.equals(headers.get(TYPE))) {
                 if (!eof.get()) {
                     eof.set(true);
                     String cb = callbacks.poll();
                     if (cb != null) {
-                        sendReply(cb, body, EOF);
+                        sendReply(cb, body, END_OF_STREAM);
                     }
                 }
             }
@@ -190,7 +194,8 @@ public class ObjectStreamIO {
     @ZeroTracing
     private class StreamConsumer implements LambdaFunction {
         private final StreamPublisher publisher;
-        private final String in, out;
+        private final String in;
+        private final String out;
 
         public StreamConsumer(StreamPublisher publisher, String in, String out) {
             this.publisher = publisher;

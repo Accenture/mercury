@@ -27,7 +27,8 @@ import java.util.*;
 
 public class SimpleObjectMapper {
 
-    private final Gson mapGson, objGson;
+    private final Gson mapGson;
+    private final Gson objGson;
 
     public SimpleObjectMapper(Gson mapGson, Gson objGson) {
         this.mapGson = mapGson;
@@ -73,7 +74,8 @@ public class SimpleObjectMapper {
             }
         }
         // return original class
-        if (!outputIsList && !outputIsMap && fromValue.getClass().getName().equals(toValueType.getName())) {
+        String fromClass = fromValue.getClass().getName();
+        if (!outputIsList && !outputIsMap && fromClass.equals(toValueType.getName())) {
             return (T) fromValue;
         }
         if (fromValue instanceof InputStream) {

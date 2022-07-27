@@ -128,9 +128,6 @@ public class WebSocketTest {
         }
         PersistentWsClient client = new PersistentWsClient(connector,
                 Collections.singletonList("ws://127.0.0.1:"+PORT+"/ws/test/hi"));
-        // set condition to null or true means no startup condition
-        client.setCondition(null);
-        client.setCondition(() -> true);
         client.start();
         bench.poll(5, TimeUnit.SECONDS);
         Assert.assertEquals(1, welcome.size());

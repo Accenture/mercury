@@ -24,7 +24,6 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
@@ -49,7 +48,7 @@ public class NotificationManager implements LambdaFunction {
     private static final String LOAD = "load";
     private static final String JOIN = "join";
     private static final String LEAVE = "leave";
-    private static final String CLOSE = WsEnvelope.CLOSE;
+    private static final String CLOSE = "close";
     private static final String TOPIC = "topic";
     private static final String LIST = "list";
     private static final String PUBLISH = "publish";
@@ -60,7 +59,7 @@ public class NotificationManager implements LambdaFunction {
     private static final String DISCONNECTED = "disconnected";
     private static final String ORIGIN = "origin";
     private static final String NAME = "name";
-    private static final String TX_PATH = WsEnvelope.TX_PATH;
+    private static final String TX_PATH = "tx_path";
     private static final String CLEAR = "clear";
     private static final String START = "start";
     private static boolean firstRun = true;
@@ -115,11 +114,8 @@ public class NotificationManager implements LambdaFunction {
                         }
                     }
                 }
-                if (CONNECTED.equals(type)) {
-                    log.info("connected");
-                }
-                if (DISCONNECTED.equals(type)) {
-                    log.info("disconnected");
+                if (CONNECTED.equals(type) || DISCONNECTED.equals(type)) {
+                    log.info(type);
                 }
                 if (JOIN.equals(type) && headers.containsKey(ORIGIN)) {
                     if (origin.equals(headers.get(ORIGIN))) {
