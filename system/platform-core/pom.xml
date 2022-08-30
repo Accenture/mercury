@@ -6,7 +6,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>platform-core</artifactId>
     <packaging>jar</packaging>
-    <version>2.3.6</version>
+    <version>2.5.0</version>
     <name>Mercury core library</name>
 
     <!-- Use Spring Boot as a parent to fetch the correct Spring Framework modules -->
@@ -48,7 +48,7 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>4.3.1</version>
+            <version>4.3.3</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -72,7 +72,7 @@
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>msgpack-core</artifactId>
-            <version>0.9.1</version>
+            <version>0.9.3</version>
         </dependency>
 
         <dependency>
@@ -116,7 +116,7 @@
         <dependency>
             <groupId>com.google.http-client</groupId>
             <artifactId>google-http-client</artifactId>
-            <version>1.42.0</version>
+            <version>1.42.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.httpcomponents</groupId>
