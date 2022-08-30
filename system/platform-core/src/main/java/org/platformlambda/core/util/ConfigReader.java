@@ -20,22 +20,21 @@ package org.platformlambda.core.util;
 
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.common.ConfigBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class ConfigReader implements ConfigBase {
-    private static final Logger log = LoggerFactory.getLogger(ConfigReader.class);
 
     private static final String CLASSPATH = "classpath:";
     private static final String FILEPATH = "file:";
     private static final String JSON = ".json";
     private static final String YML = ".yml";
     private static final String YAML = ".yaml";
-    private static final String PROPERTIES = ".properties";
+    private static final String DOT_PROPERTIES = ".properties";
     /*
      * A normalized map has composite keys expanded into simple key.
      * e.g. "hello.world: 1" becomes "hello: world: 1"
@@ -51,10 +50,6 @@ public class ConfigReader implements ConfigBase {
     public Object getRaw(String key) {
         if (key == null || key.length() == 0) {
             return null;
-        }
-        String v = getSystemProperty(key);
-        if (v != null) {
-            return v;
         }
         Object value = isNormalized? config.getElement(key) : properties.get(key);
         if (value instanceof String) {
@@ -98,8 +93,11 @@ public class ConfigReader implements ConfigBase {
         if (key == null || key.length() == 0) {
             return null;
         }
-        String v = getSystemProperty(key);
-        Object value = v != null? v : (isNormalized? config.getElement(key) : properties.get(key));
+        String systemProperty = getSystemProperty(key);
+        if (systemProperty != null) {
+            return systemProperty;
+        }
+        Object value = isNormalized? config.getElement(key) : properties.get(key);
         if (value instanceof String) {
             String s = (String) value;
             if (s.startsWith("${") && s.endsWith("}")) {
@@ -117,7 +115,7 @@ public class ConfigReader implements ConfigBase {
         return value;
     }
 
-    public String getSystemProperty(String key) {
+    private String getSystemProperty(String key) {
         if (key.isEmpty()) {
             return null;
         }
@@ -133,7 +131,7 @@ public class ConfigReader implements ConfigBase {
     @Override
     public String getProperty(String key) {
         Object o = get(key);
-        return o != null? (o instanceof String? (String) o : o.toString()) : null;
+        return o != null? o.toString() : null;
     }
 
     @Override
@@ -165,7 +163,7 @@ public class ConfigReader implements ConfigBase {
         if (path.startsWith(CLASSPATH)) {
             in = ConfigReader.class.getResourceAsStream(path.substring(CLASSPATH.length()));
         } else if (path.startsWith(FILEPATH)) {
-            in = new FileInputStream(path.substring(FILEPATH.length()));
+            in = Files.newInputStream(Paths.get(path.substring(FILEPATH.length())));
         } else {
             in = ConfigReader.class.getResourceAsStream(path);
         }
@@ -185,7 +183,7 @@ public class ConfigReader implements ConfigBase {
                 enforceKeysAsText(m);
                 config = new MultiLevelMap(normalizeMap(m));
                 isNormalized = true;
-            } else if (path.endsWith(PROPERTIES)) {
+            } else if (path.endsWith(DOT_PROPERTIES)) {
                 properties = new HashMap<>();
                 Properties p = new Properties();
                 p.load(in);
@@ -218,7 +216,7 @@ public class ConfigReader implements ConfigBase {
         return multiMap.getMap();
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private void enforceKeysAsText(Map raw) {
         Set keys = new HashSet(raw.keySet());
         for (Object k: keys) {

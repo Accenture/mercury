@@ -18,6 +18,7 @@
 
 package org.platformlambda.spring.system;
 
+import io.github.classgraph.ClassInfo;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.AppStarter;
@@ -76,8 +77,16 @@ public class SpringEventListener {
                 int n = 0;
                 Map<String, Class<?>> steps = new HashMap<>();
                 for (String p : packages) {
-                    List<Class<?>> services = scanner.getAnnotatedClasses(p, MainApplication.class);
-                    for (Class<?> cls : services) {
+                    List<ClassInfo> services = scanner.getAnnotatedClasses(p, MainApplication.class);
+                    for (ClassInfo info : services) {
+                        log.debug("Scanning {}", info.getName());
+                        final Class<?> cls;
+                        try {
+                            cls = Class.forName(info.getName());
+                        } catch (ClassNotFoundException e) {
+                            log.error("Unable to deploy main application {} - {}", info.getName(), e.getMessage());
+                            continue;
+                        }
                         if (Feature.isRequired(cls)) {
                             MainApplication before = cls.getAnnotation(MainApplication.class);
                             int seq = Math.min(MAX_SEQ, before.sequence());
@@ -97,7 +106,8 @@ public class SpringEventListener {
             if (list.size() > 1) {
                 Collections.sort(list);
             }
-            int n = 0, error = 0;
+            int n = 0;
+            int error = 0;
             for (String seq : list) {
                 Class<?> cls = steps.get(seq);
                 try {

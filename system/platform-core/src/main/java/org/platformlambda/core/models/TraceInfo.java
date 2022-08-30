@@ -26,7 +26,9 @@ import java.util.Map;
 
 public class TraceInfo {
 
-    public String route, id, path;
+    public String route;
+    public String id;
+    public String path;
     public String startTime;
     public Map<String, String> annotations = new HashMap<>();
 

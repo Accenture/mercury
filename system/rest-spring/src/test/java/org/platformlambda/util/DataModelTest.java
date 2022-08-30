@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util;
+package org.platformlambda.util;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -25,8 +25,8 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.models.PoJo;
+import org.platformlambda.websocket.WsRegistry;
 
 import javax.websocket.*;
 import java.io.IOException;

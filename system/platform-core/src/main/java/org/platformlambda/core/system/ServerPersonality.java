@@ -25,7 +25,7 @@ import java.io.File;
 
 public class ServerPersonality {
     private static final Logger log = LoggerFactory.getLogger(ServerPersonality.class);
-    private static final ServerPersonality instance = new ServerPersonality();
+    private static final ServerPersonality INSTANCE = new ServerPersonality();
 
     /**
      * REST is the user facing container that handles REST and websocket requests
@@ -39,7 +39,7 @@ public class ServerPersonality {
     private Type type = Type.APP;
 
     public static ServerPersonality getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     public Type getType() {

@@ -39,7 +39,8 @@ public class DemoMathEndpoint {
 
     @GET
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML, MediaType.TEXT_HTML})
-    public Map<String, Object> adding2numbers(@QueryParam("a") String a, @QueryParam("b") String b) throws IOException, TimeoutException, AppException {
+    public Map<String, Object> adding2numbers(@QueryParam("a") String a, @QueryParam("b") String b)
+            throws IOException, TimeoutException, AppException {
 
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("math.addition", 5000, new Kv("a", a), new Kv("b", b));

@@ -18,6 +18,7 @@
 
 package org.platformlambda.websocket;
 
+import io.github.classgraph.ClassInfo;
 import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ import javax.servlet.annotation.WebListener;
 import javax.websocket.DeploymentException;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -54,8 +55,15 @@ public class WsLoader implements ServletContextListener {
             ServerContainer container = (ServerContainer) sc;
             int total = 0;
             for (String p : packages) {
-                List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, ServerEndpoint.class);
-                for (Class<?> cls : endpoints) {
+                List<ClassInfo> endpoints = scanner.getAnnotatedClasses(p, ServerEndpoint.class);
+                for (ClassInfo info : endpoints) {
+                    final Class<?> cls;
+                    try {
+                        cls = Class.forName(info.getName());
+                    } catch (ClassNotFoundException e) {
+                        log.error("Unable to deploy websocket endpoint {} - {}", info.getName(), e.getMessage());
+                        continue;
+                    }
                     if (!Feature.isRequired(cls)) {
                         continue;
                     }
@@ -63,9 +71,10 @@ public class WsLoader implements ServletContextListener {
                         container.addEndpoint(cls);
                         ServerEndpoint ep = cls.getAnnotation(ServerEndpoint.class);
                         total++;
-                        log.info("{} registered as WEBSOCKET DISPATCHER {}", cls.getName(), Arrays.asList(ep.value()));
+                        log.info("{} registered as WEBSOCKET DISPATCHER {}", info.getName(),
+                                Collections.singletonList(ep.value()));
                     } catch (DeploymentException e) {
-                        log.error("Unable to deploy websocket endpoint {} - {}", cls, e.getMessage());
+                        log.error("Unable to deploy websocket endpoint {} - {}", info.getName(), e.getMessage());
                     }
                 }
             }

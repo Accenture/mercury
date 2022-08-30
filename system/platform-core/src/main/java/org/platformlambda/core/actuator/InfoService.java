@@ -33,7 +33,7 @@ import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class InfoService implements LambdaFunction {
-    private static final String ERROR = "error";
+
     private static final String ADDITIONAL_INFO = "additional.info";
     private static final String STREAMS = "streams";
     private static final String JAVA_VERSION = "java.version";

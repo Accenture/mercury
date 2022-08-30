@@ -35,19 +35,18 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Path("/hello")
 public class AsyncHelloWorld {
 
-    private static AtomicInteger seq = new AtomicInteger(0);
+    private static final AtomicInteger seq = new AtomicInteger(0);
 
     @GET
     @Path("/world")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML, MediaType.TEXT_HTML})
     public void hello(@Context HttpServletRequest request,
-                      @Suspended AsyncResponse response) throws IOException, TimeoutException, AppException {
+                      @Suspended AsyncResponse response) throws IOException {
 
         PostOffice po = PostOffice.getInstance();
         Map<String, Object> forward = new HashMap<>();

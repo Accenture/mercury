@@ -35,7 +35,7 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
     private static final String TYPE = "type";
     private static final String READ = "read";
     private static final String DATA = "data";
-    private static final String EOF = "eof";
+    private static final String END_OF_STREAM = "eof";
     private static final String CLOSE = "close";
 
     private final ObjectBlockReader iterator;
@@ -90,7 +90,7 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
                 Map<String, String> headers = event.getHeaders();
                 if (headers.containsKey(TYPE)) {
                     String type = headers.get(TYPE);
-                    if (type.equals(EOF)) {
+                    if (type.equals(END_OF_STREAM)) {
                         eof = true;
                     } else if (type.equals(DATA)) {
                         return event.getBody();

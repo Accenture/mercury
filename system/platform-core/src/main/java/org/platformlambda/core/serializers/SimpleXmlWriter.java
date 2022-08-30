@@ -27,7 +27,7 @@ import java.util.*;
 
 public class SimpleXmlWriter {
 
-    private final static String SPACES = "  ";
+    private static final String SPACES = "  ";
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_INSTANT;
 
     private enum TagType {

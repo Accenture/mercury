@@ -52,10 +52,9 @@ public class ServiceDef {
         Method[] methods = lambda.getClass().getDeclaredMethods();
         for (Method m: methods) {
             Class<?>[] arguments = m.getParameterTypes();
-            if (HANDLE_EVENT.equals(m.getName()) && arguments.length == 3) {
-                if (arguments[1] == EventEnvelope.class) {
-                    useEnvelope = true;
-                }
+            if (HANDLE_EVENT.equals(m.getName()) && arguments.length == 3 && arguments[1] == EventEnvelope.class) {
+                useEnvelope = true;
+                break;
             }
         }
     }

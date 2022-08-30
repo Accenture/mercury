@@ -18,6 +18,7 @@
 
 package org.platformlambda.spring.system;
 
+import io.github.classgraph.ClassInfo;
 import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.slf4j.Logger;
@@ -49,9 +50,16 @@ public class WebAppLoader implements ServletContextInitializer {
         Set<String> packages = scanner.getPackages(false);
         int totalServlets = 0, totalFilters = 0, totalListeners = 0;
         for (String p : packages) {
-            List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, WebServlet.class);
-            for (Class<?> cls : endpoints) {
-                log.info("Scanning {}", cls);
+            List<ClassInfo> servletEndpoints = scanner.getAnnotatedClasses(p, WebServlet.class);
+            for (ClassInfo info : servletEndpoints) {
+                log.debug("Scanning {}", info.getName());
+                final Class<?> cls;
+                try {
+                    cls = Class.forName(info.getName());
+                } catch (ClassNotFoundException e) {
+                    log.error("Unable to deploy WebServlet {} - {}", info.getName(), e.getMessage());
+                    continue;
+                }
                 WebServlet servlet = cls.getAnnotation(WebServlet.class);
                 if (!Feature.isRequired(cls)) {
                     continue;
@@ -76,8 +84,16 @@ public class WebAppLoader implements ServletContextInitializer {
                     log.error("WebServlet {} is missing value or urlPatterns", cls.getName());
                 }
             }
-            endpoints = scanner.getAnnotatedClasses(p, WebFilter.class);
-            for (Class<?> cls : endpoints) {
+            List<ClassInfo> webFilterEndpoints = scanner.getAnnotatedClasses(p, WebFilter.class);
+            for (ClassInfo info : webFilterEndpoints) {
+                log.debug("Scanning {}", info.getName());
+                final Class<?> cls;
+                try {
+                    cls = Class.forName(info.getName());
+                } catch (ClassNotFoundException e) {
+                    log.error("Unable to deploy WebFilter {} - {}", info.getName(), e.getMessage());
+                    continue;
+                }
                 WebFilter filter = cls.getAnnotation(WebFilter.class);
                 if (!Feature.isRequired(cls)) {
                     continue;
@@ -93,8 +109,16 @@ public class WebAppLoader implements ServletContextInitializer {
                     log.error("WebFilter {} is missing value or urlPatterns", cls.getName());
                 }
             }
-            endpoints = scanner.getAnnotatedClasses(p, WebListener.class);
-            for (Class<?> cls : endpoints) {
+            List<ClassInfo> webListenerEndpoints = scanner.getAnnotatedClasses(p, WebListener.class);
+            for (ClassInfo info : webListenerEndpoints) {
+                log.debug("Scanning {}", info.getName());
+                final Class<?> cls;
+                try {
+                    cls = Class.forName(info.getName());
+                } catch (ClassNotFoundException e) {
+                    log.error("Unable to deploy WebListener {} - {}", info.getName(), e.getMessage());
+                    continue;
+                }
                 if (!Feature.isRequired(cls)) {
                     continue;
                 }

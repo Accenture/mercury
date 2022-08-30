@@ -20,6 +20,7 @@ package org.platformlambda.cloud.reporter;
 
 import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.cloud.services.ServiceRegistry;
+
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
@@ -38,7 +39,17 @@ public class PresenceConnector implements LambdaFunction {
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
 
     private static final String FAST_KEEP_ALIVE = "member.keep.alive";
+
     private static final String TYPE = "type";
+    private static final String OPEN = "open";
+    private static final String CLOSE = "close";
+    private static final String BYTES = "bytes";
+    private static final String STRING = "string";
+    private static final String MAP = "map";
+    private static final String ROUTE = "route";
+    private static final String TX_PATH = "tx_path";
+    private static final String IP = "ip";
+    private static final String PATH = "path";
     private static final String INIT = "init";
     private static final String DONE = "done";
     private static final String INSTANCE = "instance";
@@ -58,17 +69,18 @@ public class PresenceConnector implements LambdaFunction {
     private static final String VERSION = "version";
     private static final String GROUP = "group";
     private static final String TOPIC = "topic";
-    private static final long startTime = System.currentTimeMillis();
-    private static final PresenceConnector instance = new PresenceConnector();
-    private final String created, monitorTopic;
+    private static final long START_TIME = System.currentTimeMillis();
+    private static final PresenceConnector CONNECTOR_INSTANCE = new PresenceConnector();
+    private final String begin;
+    private final String monitorTopic;
     public enum State {
         UNASSIGNED, CONNECTED, DISCONNECTED
     }
     private final int closedUserGroup;
     private State state = State.UNASSIGNED;
     private String monitor;
-    private long seq = 0;
-    private boolean ready = false;
+    private long sequence = 0;
+    private boolean isReady = false;
     private boolean active = true;
     private String topicPartition = null;
 
@@ -76,12 +88,12 @@ public class PresenceConnector implements LambdaFunction {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         monitorTopic = config.getProperty("monitor.topic", "service.monitor");
-        created = Utility.getInstance().date2str(new Date(startTime), true);
+        begin = Utility.getInstance().date2str(new Date(START_TIME), true);
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
         if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
-            log.error("closed.user.group is invalid. Please select a number from 1 to "+maxGroups);
+            log.error("closed.user.group is invalid. Please select a number from 1 to {}", maxGroups);
             System.exit(-1);
         }
         LambdaFunction fastKeepAlive = (headers, body, instance) -> {
@@ -89,7 +101,7 @@ public class PresenceConnector implements LambdaFunction {
             if (count > 0) {
                 EventEnvelope ping = new EventEnvelope().setTo(FAST_KEEP_ALIVE).setHeader(COUNT, --count);
                 PostOffice.getInstance().sendLater(ping, new Date(System.currentTimeMillis()+5000));
-                sendAppInfo(seq++, true);
+                sendAppInfo(sequence++, true);
             }
             return true;
         };
@@ -101,7 +113,7 @@ public class PresenceConnector implements LambdaFunction {
     }
 
     public static PresenceConnector getInstance() {
-        return instance;
+        return CONNECTOR_INSTANCE;
     }
 
     public void setActive(String origin, String user, boolean active) {
@@ -125,28 +137,28 @@ public class PresenceConnector implements LambdaFunction {
         Platform platform  = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String route;
-        if (headers.containsKey(WsEnvelope.TYPE)) {
-            switch (headers.get(WsEnvelope.TYPE)) {
-                case WsEnvelope.OPEN:
+        if (headers.containsKey(TYPE)) {
+            switch (headers.get(TYPE)) {
+                case OPEN:
                     // in case the previous connection was not closed properly
                     if (topicPartition != null) {
                         closeConsumers();
                     }
                     // the open event contains route, txPath, ip, path, query and token
-                    route = headers.get(WsEnvelope.ROUTE);
-                    String ip = headers.get(WsEnvelope.IP);
-                    String path = headers.get(WsEnvelope.PATH);
-                    monitor = headers.get(WsEnvelope.TX_PATH);
-                    ready = false;
+                    route = headers.get(ROUTE);
+                    String ip = headers.get(IP);
+                    String path = headers.get(PATH);
+                    monitor = headers.get(TX_PATH);
+                    isReady = false;
                     state = State.CONNECTED;
-                    sendAppInfo(seq++, false);
+                    sendAppInfo(sequence++, false);
                     log.info("Connected {}, {}, {}", route, ip, path);
                     break;
-                case WsEnvelope.CLOSE:
+                case CLOSE:
                     // the close event contains route and token for this websocket
-                    route = headers.get(WsEnvelope.ROUTE);
+                    route = headers.get(ROUTE);
                     monitor = null;
-                    ready = false;
+                    isReady = false;
                     state = State.DISCONNECTED;
                     log.info("Disconnected {}", route);
                     if (topicPartition != null) {
@@ -156,13 +168,13 @@ public class PresenceConnector implements LambdaFunction {
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE),
                             new Kv(ORIGIN, platform.getOrigin()));
                     break;
-                case WsEnvelope.BYTES:
-                    route = headers.get(WsEnvelope.ROUTE);
+                case BYTES:
+                    route = headers.get(ROUTE);
                     EventEnvelope event = new EventEnvelope();
                     event.load((byte[]) body);
                     if (READY.equals(event.getTo()) && event.getHeaders().containsKey(VERSION) &&
                             event.getHeaders().containsKey(TOPIC)) {
-                        ready = true;
+                        isReady = true;
                         log.info("Activated {}", route);
                         String platformVersion = event.getHeaders().get(VERSION);
                         topicPartition = event.getHeaders().get(TOPIC);
@@ -173,20 +185,20 @@ public class PresenceConnector implements LambdaFunction {
                                 new Kv(VERSION, platformVersion), new Kv(TOPIC, topicPartition),
                                 new Kv(ORIGIN, platform.getOrigin()));
                         // info presence monitor that this app is activated
-                        sendAppInfo(seq++, true);
+                        sendAppInfo(sequence++, true);
                     } else {
                         po.send(event);
                     }
                     break;
-                case WsEnvelope.MAP:
+                case MAP:
                     if (body instanceof Map) {
                         Map<String, Object> data = (Map<String, Object>) body;
                         if (ALIVE.equals(data.get(TYPE))) {
-                            sendAppInfo(seq++, true);
+                            sendAppInfo(sequence++, true);
                         }
                     }
                     break;
-                case WsEnvelope.STRING:
+                case STRING:
                     log.debug("{}", body);
                     break;
                 default:
@@ -201,7 +213,7 @@ public class PresenceConnector implements LambdaFunction {
     }
 
     public boolean isReady() {
-        return ready;
+        return isReady;
     }
 
     private void sendAppInfo(long n, boolean alive) {
@@ -212,13 +224,13 @@ public class PresenceConnector implements LambdaFunction {
                 PostOffice po = PostOffice.getInstance();
                 VersionInfo app = util.getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
-                info.setTo(alive? ALIVE : INFO).setHeader(CREATED, created).setHeader(SEQ, n)
+                info.setTo(alive? ALIVE : INFO).setHeader(CREATED, begin).setHeader(SEQ, n)
                     .setHeader(NAME, Platform.getInstance().getName())
                     .setHeader(VERSION, app.getVersion())
                     .setHeader(GROUP, closedUserGroup)
                     .setHeader(TYPE, ServerPersonality.getInstance().getType());
                 if (alive) {
-                    info.setHeader(ELAPSED, util.elapsedTime(System.currentTimeMillis() - startTime));
+                    info.setHeader(ELAPSED, util.elapsedTime(System.currentTimeMillis() - START_TIME));
                 }
                 if (topicPartition != null) {
                     info.setHeader(TOPIC, topicPartition);
@@ -262,9 +274,9 @@ public class PresenceConnector implements LambdaFunction {
                         po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
                                 new Kv(TYPE, JOIN), new Kv(ORIGIN, platform.getOrigin()), new Kv(TOPIC, topicPartition));
                     }
-                    String INIT_HANDLER = INIT + "." + monitorTopic + "." + closedUserGroup;
-                    if (platform.hasRoute(INIT_HANDLER)) {
-                        po.send(INIT_HANDLER, DONE);
+                    String initHandler = INIT + "." + monitorTopic + "." + closedUserGroup;
+                    if (platform.hasRoute(initHandler)) {
+                        po.send(initHandler, DONE);
                     }
                 }
                 return true;
@@ -282,9 +294,9 @@ public class PresenceConnector implements LambdaFunction {
                         appPending.set(false);
                         log.info("Connected to Closed User Group {}", closedUserGroup);
                     }
-                    String INIT_HANDLER = INIT + "." + topic + "." + partition;
-                    if (platform.hasRoute(INIT_HANDLER)) {
-                        po.send(INIT_HANDLER, DONE);
+                    String initHandler = INIT + "." + topic + "." + partition;
+                    if (platform.hasRoute(initHandler)) {
+                        po.send(initHandler, DONE);
                     }
                 }
                 return true;

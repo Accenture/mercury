@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 
 import java.io.IOException;
@@ -27,7 +26,7 @@ import java.util.Arrays;
 public class ObjectStreamWriter implements AutoCloseable {
     private static final String TYPE = "type";
     private static final String DATA = "data";
-    private static final String EOF = "eof";
+    private static final String END_OF_STREAM = "eof";
 
     private final String streamId;
     private boolean eof = false;
@@ -71,7 +70,7 @@ public class ObjectStreamWriter implements AutoCloseable {
     public void close() throws IOException {
         if (!eof) {
             eof = true;
-            PostOffice.getInstance().send(streamId, new Kv(TYPE, EOF));
+            PostOffice.getInstance().send(streamId, new Kv(TYPE, END_OF_STREAM));
         }
     }
 

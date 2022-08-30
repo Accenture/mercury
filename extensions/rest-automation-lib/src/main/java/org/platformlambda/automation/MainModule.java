@@ -103,7 +103,17 @@ public class MainModule implements EntryPoint {
                     .webSocketHandler(new WsRequestHandler())
                     .requestHandler(new HttpRequestHandler(gateway))
                     .listen(port)
-                    .onSuccess(server -> log.info("REST automation running on port-{}", server.actualPort()))
+                    .onSuccess(server -> {
+                        log.info("REST automation running on port-{}", server.actualPort());
+                        // start a generic notification service
+                        try {
+                            platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
+                            platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);
+                            platform.registerPrivate(NOTIFICATION_QUERY, new NotificationQuery(), 10);
+                        } catch (IOException e) {
+                            log.error("Unable to start notification service", e);
+                        }
+                    })
                     .onFailure(ex -> {
                         log.error("Unable to start - {}", ex.getMessage());
                         System.exit(-1);
@@ -111,10 +121,6 @@ public class MainModule implements EntryPoint {
 
             AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
             timeoutHandler.start();
-            // start a generic notification service
-            platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
-            platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);
-            platform.registerPrivate(NOTIFICATION_QUERY, new NotificationQuery(), 10);
 
         } catch (Exception e) {
             log.error("Unable to start", e);

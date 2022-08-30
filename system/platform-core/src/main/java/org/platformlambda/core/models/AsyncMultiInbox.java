@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AsyncMultiInbox extends InboxBase {
     private static final Logger log = LoggerFactory.getLogger(AsyncMultiInbox.class);
 
-    private final int n;
     private final AtomicInteger total = new AtomicInteger(1);
     private final long begin = System.nanoTime();
     private final Future<List<EventEnvelope>> future;
@@ -49,22 +48,19 @@ public class AsyncMultiInbox extends InboxBase {
     private long timer;
     private MessageConsumer<byte[]> listener;
     private Promise<List<EventEnvelope>> promise;
-    private ConcurrentMap<String, EventEnvelope> replies = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, EventEnvelope> replies = new ConcurrentHashMap<>();
 
     public AsyncMultiInbox(int n, String from, String traceId, String tracePath, long timeout) {
         final Platform platform = Platform.getInstance();
-        this.n = Math.max(1, n);
-        this.total.set(this.n);
+        this.total.set(Math.max(1, n));
         this.timeout = Math.max(100, timeout);
-        this.future = Future.future(promise -> {
-            this.promise = promise;
+        this.future = Future.future(p -> {
+            this.promise = p;
             this.id = "r."+ Utility.getInstance().getUuid();
             String sender = from == null? ASYNC_INBOX : from;
             this.listener = platform.getEventSystem().localConsumer(this.id, new AsyncMultiInbox.InboxHandler(sender));
             inboxes.put(id, this);
-            timer = platform.getVertx().setTimer(timeout, t -> {
-                abort(id, sender, traceId, tracePath);
-            });
+            timer = platform.getVertx().setTimer(timeout, t -> abort(id, sender, traceId, tracePath));
         });
     }
 
@@ -87,35 +83,6 @@ public class AsyncMultiInbox extends InboxBase {
                 po.stopTracing();
                 ThreadContext.remove(traceLogHeader);
             });
-        }
-    }
-
-    private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
-        AsyncMultiInbox holder = (AsyncMultiInbox) inboxes.get(inboxId);
-        if (holder != null) {
-            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
-            // adjust precision to 3 decimal points
-            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
-            replies.put(reply.getId(), reply);
-            if (holder.total.decrementAndGet() == 0) {
-                List<EventEnvelope> result = new ArrayList<>();
-                for (String k: replies.keySet()) {
-                    result.add(replies.get(k));
-                }
-                holder.close();
-                Platform.getInstance().getVertx().cancelTimer(timer);
-                executor.submit(() -> {
-                    PostOffice po = PostOffice.getInstance();
-                    String traceLogHeader = po.getTraceLogHeader();
-                    po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
-                    if (reply.getTraceId() != null) {
-                        ThreadContext.put(traceLogHeader, reply.getTraceId());
-                    }
-                    holder.promise.complete(result);
-                    po.stopTracing();
-                    ThreadContext.remove(traceLogHeader);
-                });
-            }
         }
     }
 
@@ -144,6 +111,35 @@ public class AsyncMultiInbox extends InboxBase {
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());
+            }
+        }
+
+        private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
+            AsyncMultiInbox holder = (AsyncMultiInbox) inboxes.get(inboxId);
+            if (holder != null) {
+                float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+                // adjust precision to 3 decimal points
+                reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
+                replies.put(reply.getId(), reply);
+                if (holder.total.decrementAndGet() == 0) {
+                    List<EventEnvelope> result = new ArrayList<>();
+                    for (String k: replies.keySet()) {
+                        result.add(replies.get(k));
+                    }
+                    holder.close();
+                    Platform.getInstance().getVertx().cancelTimer(timer);
+                    executor.submit(() -> {
+                        PostOffice po = PostOffice.getInstance();
+                        String traceLogHeader = po.getTraceLogHeader();
+                        po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
+                        if (reply.getTraceId() != null) {
+                            ThreadContext.put(traceLogHeader, reply.getTraceId());
+                        }
+                        holder.promise.complete(result);
+                        po.stopTracing();
+                        ThreadContext.remove(traceLogHeader);
+                    });
+                }
             }
         }
     }

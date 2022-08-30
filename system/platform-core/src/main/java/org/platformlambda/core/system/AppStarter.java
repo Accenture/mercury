@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.system;
 
+import io.github.classgraph.ClassInfo;
 import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
@@ -33,7 +34,8 @@ public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
 
     private static final int MAX_SEQ = 999;
-    private static boolean loaded = false, webapp = false;
+    private static boolean loaded = false;
+    private static boolean webapp = false;
     private static String[] args = new String[0];
 
     public static void main(String[] args) {
@@ -68,15 +70,20 @@ public class AppStarter {
         int n = 0;
         Map<String, Class<?>> steps = new HashMap<>();
         for (String p : packages) {
-            List<Class<?>> services = scanner.getAnnotatedClasses(p, main?
+            List<ClassInfo> services = scanner.getAnnotatedClasses(p, main?
                                         MainApplication.class : BeforeApplication.class);
-            for (Class<?> cls : services) {
-                if (Feature.isRequired(cls)) {
-                    int seq = getSequence(cls, main);
-                    String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(++n, MAX_SEQ);
-                    steps.put(key, cls);
-                } else {
-                    log.info("Skipping optional {}", cls);
+            for (ClassInfo info : services) {
+                try {
+                    Class<?> cls = Class.forName(info.getName());
+                    if (Feature.isRequired(cls)) {
+                        int seq = getSequence(cls, main);
+                        String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(++n, MAX_SEQ);
+                        steps.put(key, cls);
+                    } else {
+                        log.info("Skipping optional {}", cls);
+                    }
+                } catch (ClassNotFoundException e) {
+                    log.error("Class {} not found", info.getName());
                 }
             }
         }
@@ -98,7 +105,8 @@ public class AppStarter {
         if (list.size() > 1) {
             Collections.sort(list);
         }
-        int n = 0, error = 0;
+        int n = 0;
+        int error = 0;
         for (String seq : list) {
             Class<?> cls = steps.get(seq);
             try {

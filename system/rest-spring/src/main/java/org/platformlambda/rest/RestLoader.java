@@ -18,6 +18,7 @@
 
 package org.platformlambda.rest;
 
+import io.github.classgraph.ClassInfo;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -70,8 +71,16 @@ public class RestLoader implements ServletContextInitializer {
              */
             int restCount = 0;
             for (String p : packages) {
-                List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, Path.class);
-                for (Class<?> cls : endpoints) {
+                List<ClassInfo> endpoints = scanner.getAnnotatedClasses(p, Path.class);
+                for (ClassInfo info : endpoints) {
+                    log.debug("Scanning {}", info.getName());
+                    final Class<?> cls;
+                    try {
+                        cls = Class.forName(info.getName());
+                    } catch (ClassNotFoundException e) {
+                        log.error("Unable to deploy REST {} - {}", info.getName(), e.getMessage());
+                        continue;
+                    }
                     if (!Feature.isRequired(cls)) {
                         continue;
                     }
@@ -90,8 +99,16 @@ public class RestLoader implements ServletContextInitializer {
              */
             int providerCount = 0;
             for (String p : packages) {
-                List<Class<?>> endpoints = scanner.getAnnotatedClasses(p, Provider.class);
-                for (Class<?> cls : endpoints) {
+                List<ClassInfo> endpoints = scanner.getAnnotatedClasses(p, Provider.class);
+                for (ClassInfo info  : endpoints) {
+                    log.debug("Scanning {}", info.getName());
+                    final Class<?> cls;
+                    try {
+                        cls = Class.forName(info.getName());
+                    } catch (ClassNotFoundException e) {
+                        log.error("Unable to deploy provider {} - {}", info.getName(), e.getMessage());
+                        continue;
+                    }
                     if (!Feature.isRequired(cls)) {
                         continue;
                     }
@@ -108,7 +125,7 @@ public class RestLoader implements ServletContextInitializer {
             reg.setLoadOnStartup(1);
             reg.setAsyncSupported(true);
             // 1. DO NOT set "javax.ws.rs.Application"
-            // 2. Must disable HTML escape to support HTML and XML output
+            // 2. Must disable HTML-escape to support HTML and XML output
             reg.setInitParameter(RESTEASY_DISABLE_HTML_ESCAPE, String.valueOf(true));
             // 3. Set context path mapping
             reg.setInitParameter(RESTEASY_MAPPING_PREFIX, apiPrefix);

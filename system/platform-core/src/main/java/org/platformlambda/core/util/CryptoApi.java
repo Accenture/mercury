@@ -169,7 +169,7 @@ public class CryptoApi {
     /**
      * Verify a digital signature using a public key (RSA)
      * (Python PyCrypto compatibility tested
-     *  example in https://www.dlitz.net/software/pycrypto/api/2.6/)
+     *  example in <a href="https://www.dlitz.net/software/pycrypto/api/2.6/">PyCrypto</a>)
      *
      *  <code>
      *  Package Crypto :: Package Signature :: Module PKCS1_v1_5
@@ -205,7 +205,7 @@ public class CryptoApi {
     public KeyPair generateDsaKey() {
         try {
             KeyPairGenerator kg = KeyPairGenerator.getInstance(DSA);
-            // for compatibility with some scripting languages that do not support 2048 bit key length DSA
+            // for compatibility with some scripting languages that do not support 2048-bit key length DSA
             kg.initialize(1024);
             return kg.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
@@ -390,7 +390,7 @@ public class CryptoApi {
             return hash.digest(data);
         } catch (NoSuchAlgorithmException e) {
             // this should not happen
-            return null;
+            return new byte[0];
         }
     }
 
@@ -405,7 +405,7 @@ public class CryptoApi {
             return hash.digest();
         } catch (NoSuchAlgorithmException e) {
             // this should not happen
-            return null;
+            return new byte[0];
         }
     }
 

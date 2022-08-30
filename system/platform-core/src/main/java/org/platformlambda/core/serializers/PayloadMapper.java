@@ -31,13 +31,13 @@ public class PayloadMapper {
     public static final String PRIMITIVE = "P";
     public static final String NOTHING = "N";
     public static final String JAVA_CLASS_CACHE = "java.class.cache";
-    private static final long FIVE_MINUTE = 5 * 60 * 1000;
+    private static final long FIVE_MINUTE = 5 * 60 * 1000L;
 
     private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
-    private static final PayloadMapper instance = new PayloadMapper();
+    private static final PayloadMapper PAYLOAD_MAPPER_INSTANCE = new PayloadMapper();
 
     public static PayloadMapper getInstance() {
-        return instance;
+        return PAYLOAD_MAPPER_INSTANCE;
     }
 
     @SuppressWarnings("unchecked")

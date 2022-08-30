@@ -24,7 +24,6 @@ import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
@@ -46,16 +45,22 @@ public class MockPresenceMonitor implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MockPresenceMonitor.class);
 
     private static final PubSub ps = PubSub.getInstance();
-    private static final String MONITOR_PARTITION = "@monitor-0";
-    private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
-    private static final String PUT = "put";
+    private static final String TYPE = "type";
+    private static final String STATUS = "status";
+    private static final String MESSAGE = "message";
+    private static final String OPEN = "open";
+    private static final String CLOSE = "close";
+    private static final String BYTES = "bytes";
+    private static final String STRING = "string";
+    private static final String ROUTE = "route";
+    private static final String TX_PATH = "tx_path";
+    private static final String TOKEN = "token";
+    private static final String IP = "ip";
     private static final String ALIVE = "keep-alive";
     private static final String INFO = "info";
-    private static final String TYPE = "type";
     private static final String LEAVE = "leave";
-    private static final String DELETE = "del";
     private static final String ORIGIN = "origin";
     private static final String ID = "id";
     private static final String SEQ = "seq";
@@ -63,12 +68,10 @@ public class MockPresenceMonitor implements LambdaFunction {
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
-    private static final String GET_TOPIC = "get_topic";
     private static final String TOPIC = "topic";
     private static final String VERSION = "version";
     private static final String JOIN = "join";
     private static final String READY = "ready";
-    private static final String TX_PATH = "tx_path";
     private static final long EXPIRY = 60 * 1000;
     private static final String AVAILABLE = "*";
     // topic+partition -> origin | AVAILABLE(*)
@@ -164,14 +167,14 @@ public class MockPresenceMonitor implements LambdaFunction {
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         String route, appOrigin, txPath;
-        if (headers.containsKey(WsEnvelope.TYPE)) {
-            switch (headers.get(WsEnvelope.TYPE)) {
-                case WsEnvelope.OPEN:
+        if (headers.containsKey(TYPE)) {
+            switch (headers.get(TYPE)) {
+                case OPEN:
                     // the open event contains route, txPath, ip, path, query and token
-                    route = headers.get(WsEnvelope.ROUTE);
-                    txPath = headers.get(WsEnvelope.TX_PATH);
-                    appOrigin = headers.get(WsEnvelope.TOKEN);
-                    String ip = headers.get(WsEnvelope.IP);
+                    route = headers.get(ROUTE);
+                    txPath = headers.get(TX_PATH);
+                    appOrigin = headers.get(TOKEN);
+                    String ip = headers.get(IP);
                     log.info("Started {}, {}, {}", route, ip, appOrigin);
                     // check if dependencies are ready
                     if (platform.hasRoute(CLOUD_CONNECTOR)) {
@@ -186,13 +189,18 @@ public class MockPresenceMonitor implements LambdaFunction {
                         myConnections.put(appOrigin, info);
 
                     } else {
-                        util.closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER,"Starting up");
+                        EventEnvelope error = new EventEnvelope();
+                        error.setTo(txPath);
+                        error.setHeader(STATUS, String.valueOf(CloseReason.CloseCodes.TRY_AGAIN_LATER));
+                        error.setHeader(MESSAGE, "Starting up");
+                        error.setHeader(TYPE, CLOSE);
+                        po.send(error);
                     }
                     break;
-                case WsEnvelope.CLOSE:
+                case CLOSE:
                     // the close event contains only the route for this websocket
-                    route = headers.get(WsEnvelope.ROUTE);
-                    appOrigin = headers.get(WsEnvelope.TOKEN);
+                    route = headers.get(ROUTE);
+                    appOrigin = headers.get(TOKEN);
                     route2origin.remove(route);
                     myConnections.remove(appOrigin);
                     log.info("Stopped {}, {}", route, appOrigin);
@@ -207,10 +215,10 @@ public class MockPresenceMonitor implements LambdaFunction {
                         }
                     }
                     break;
-                case WsEnvelope.BYTES:
+                case BYTES:
                     // the data event for byteArray payload contains route and txPath
-                    route = headers.get(WsEnvelope.ROUTE);
-                    txPath = headers.get(WsEnvelope.TX_PATH);
+                    route = headers.get(ROUTE);
+                    txPath = headers.get(TX_PATH);
                     appOrigin = route2origin.get(route);
                     if (body instanceof byte[] && appOrigin != null && myConnections.containsKey(appOrigin)) {
                         EventEnvelope command = new EventEnvelope();
@@ -263,7 +271,7 @@ public class MockPresenceMonitor implements LambdaFunction {
 
                     }
                     break;
-                case WsEnvelope.STRING:
+                case STRING:
                     log.debug("{}", body);
                     break;
                 default:

@@ -46,15 +46,13 @@ public class AsyncInbox extends InboxBase {
     public AsyncInbox(String from, String traceId, String tracePath, long timeout) {
         final Platform platform = Platform.getInstance();
         this.timeout = Math.max(100, timeout);
-        this.future = Future.future(promise -> {
-            this.promise = promise;
+        this.future = Future.future(p -> {
+            this.promise = p;
             this.id = "r."+ Utility.getInstance().getUuid();
             String sender = from == null? ASYNC_INBOX : from;
             this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler(sender));
             inboxes.put(id, this);
-            timer = platform.getVertx().setTimer(timeout, t -> {
-                abort(id, sender, traceId, tracePath);
-            });
+            timer = platform.getVertx().setTimer(timeout, t -> abort(id, sender, traceId, tracePath));
         });
     }
 
@@ -74,28 +72,6 @@ public class AsyncInbox extends InboxBase {
                     ThreadContext.put(traceLogHeader, traceId);
                 }
                 holder.promise.fail(new TimeoutException("Timeout for "+holder.timeout+" ms"));
-                po.stopTracing();
-                ThreadContext.remove(traceLogHeader);
-            });
-        }
-    }
-
-    private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
-        AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
-        if (holder != null) {
-            holder.close();
-            Platform.getInstance().getVertx().cancelTimer(timer);
-            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
-            // adjust precision to 3 decimal points
-            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
-            executor.submit(() -> {
-                PostOffice po = PostOffice.getInstance();
-                String traceLogHeader = po.getTraceLogHeader();
-                po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
-                if (reply.getTraceId() != null) {
-                    ThreadContext.put(traceLogHeader, reply.getTraceId());
-                }
-                holder.promise.complete(reply);
                 po.stopTracing();
                 ThreadContext.remove(traceLogHeader);
             });
@@ -127,6 +103,28 @@ public class AsyncInbox extends InboxBase {
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());
+            }
+        }
+
+        private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
+            AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
+            if (holder != null) {
+                holder.close();
+                Platform.getInstance().getVertx().cancelTimer(timer);
+                float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+                // adjust precision to 3 decimal points
+                reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
+                executor.submit(() -> {
+                    PostOffice po = PostOffice.getInstance();
+                    String traceLogHeader = po.getTraceLogHeader();
+                    po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
+                    if (reply.getTraceId() != null) {
+                        ThreadContext.put(traceLogHeader, reply.getTraceId());
+                    }
+                    holder.promise.complete(reply);
+                    po.stopTracing();
+                    ThreadContext.remove(traceLogHeader);
+                });
             }
         }
     }

@@ -130,7 +130,7 @@ public class SimpleXmlParser {
         Map<String, Map<String, Integer>> childMap = new HashMap<>();
         List<List<String>> kvList = new ArrayList<>();
         NodeList nodes = root.getChildNodes();
-        if (nodes != null && nodes.getLength() > 0) {
+        if (nodes.getLength() > 0) {
             int len = nodes.getLength();
             for (int i=0; i < len; i++) {
                 parseXML(childMap, kvList, nodes.item(i), root.getNodeName());
@@ -178,19 +178,17 @@ public class SimpleXmlParser {
         }
         if (node.getNodeType() == Node.ELEMENT_NODE) {
             NamedNodeMap attributes = node.getAttributes();
-            if (attributes != null) {
-                int count = attributes.getLength();
-                for (int i=0; i < count; i++) {
-                    String attributeName = attributes.item(i).getNodeName();
-                    if (!canIgnore(attributeName)) {
-                        saveKv(kvList, parent+"."+attributeName, attributes.item(i).getNodeValue());
-                    }
+            int count = attributes.getLength();
+            for (int i=0; i < count; i++) {
+                String attributeName = attributes.item(i).getNodeName();
+                if (!canIgnore(attributeName)) {
+                    saveKv(kvList, parent+"."+attributeName, attributes.item(i).getNodeValue());
                 }
             }
             if (!childMap.containsKey(parentPath)) {
                 Map<String, Integer> childCounts = new HashMap<>();
                 NodeList peers = node.getParentNode().getChildNodes();
-                if (peers != null && peers.getLength() > 0) {
+                if (peers.getLength() > 0) {
                     int len = peers.getLength();
                     for (int i = 0; i < len; i++) {
                         Node current = peers.item(i);
@@ -206,7 +204,7 @@ public class SimpleXmlParser {
             }
             Map<String, Integer> childCounts = childMap.get(parentPath);
             NodeList nodes = node.getChildNodes();
-            if (nodes != null && nodes.getLength() > 0) {
+            if (nodes.getLength() > 0) {
                 int len = nodes.getLength();
                 for (int i=0; i < len; i++) {
                     Node current = nodes.item(i);

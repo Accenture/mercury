@@ -71,7 +71,7 @@ public class PostOfficeTest {
         // you can convert a private function to public when needed
         platform.makePublic(HELLO_WORLD);
         try {
-            platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 10000);
+            platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
             log.info("Mock cloud ready");
         } catch (TimeoutException e) {
             log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());

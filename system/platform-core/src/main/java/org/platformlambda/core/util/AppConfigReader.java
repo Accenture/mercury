@@ -29,11 +29,12 @@ public class AppConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
     private static final String APP_PROPS = "classpath:/application.properties";
     private static final String APP_YML = "classpath:/application.yml";
-    private static ConfigReader propReader, yamlReader;
-    private static final AppConfigReader instance = new AppConfigReader();
+    private final ConfigReader propReader;
+    private final ConfigReader yamlReader;
+    private static final AppConfigReader INSTANCE = new AppConfigReader();
 
     public static AppConfigReader getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     private AppConfigReader() {
@@ -65,8 +66,12 @@ public class AppConfigReader implements ConfigBase {
     @Override
     public Object get(String key) {
         // get property value from system, then application.properties and finally application.yml
-        Object value = propReader.isEmpty()? yamlReader.getSystemProperty(key) : propReader.getSystemProperty(key);
-        return value != null? value : (propReader.exists(key) ? propReader.getRaw(key) : yamlReader.getRaw(key));
+        Object value = System.getProperty(key);
+        if (value != null) {
+            return value;
+        } else {
+            return propReader.exists(key) ? propReader.getRaw(key) : yamlReader.getRaw(key);
+        }
     }
 
     @Override
@@ -78,7 +83,11 @@ public class AppConfigReader implements ConfigBase {
     @Override
     public String getProperty(String key) {
         Object value = get(key);
-        return value instanceof String? (String) value : (value == null? null : value.toString());
+        if (value instanceof String) {
+            return (String) value;
+        } else {
+            return value == null? null : value.toString();
+        }
     }
 
     @Override

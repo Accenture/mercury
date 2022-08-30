@@ -45,7 +45,7 @@ public class AsyncHelloConcurrent {
     @Path("/concurrent")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
     public void hello(@Context HttpServletRequest request,
-                                     @Suspended AsyncResponse response) throws IOException, AppException {
+                                     @Suspended AsyncResponse response) throws IOException {
 
         Utility util = Utility.getInstance();
         PostOffice po = PostOffice.getInstance();
@@ -56,9 +56,9 @@ public class AsyncHelloConcurrent {
             String key = headers.nextElement();
             forward.put(key, request.getHeader(key));
         }
-        int TOTAL = 10;
+        int total = 10;
         List<EventEnvelope> parallelEvents = new ArrayList<>();
-        for (int i=0; i < TOTAL; i++) {
+        for (int i=0; i < total; i++) {
             EventEnvelope event = new EventEnvelope();
             event.setTo("hello.world");
             event.setBody(forward);

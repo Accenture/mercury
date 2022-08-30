@@ -24,8 +24,8 @@ import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.websocket.common.MultipartPayload;
-import org.platformlambda.core.websocket.common.WsConfigurator;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
+import org.platformlambda.websocket.WsConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

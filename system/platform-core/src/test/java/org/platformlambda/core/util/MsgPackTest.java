@@ -45,13 +45,15 @@ public class MsgPackTest {
         input.put("hello", "world");
         input.put("boolean", true);
         input.put("array", HELLO_WORLD);
-        input.put("integer", 12345);
+        input.put("integer", 12345L);
         input.put("pojo", pojo);
         input.put(PayloadMapper.NOTHING, null);
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         Assert.assertTrue(o instanceof Map);
         Map<String, Object> result = (Map<String, Object>) o;
+        // long number will be compressed into integer if applicable
+        Assert.assertEquals(Integer.class, result.get("integer").getClass());
         // MsgPack does not transport null elements in a map
         Assert.assertFalse(result.containsKey(PayloadMapper.NOTHING));
         result.remove(PayloadMapper.NOTHING);
@@ -63,8 +65,8 @@ public class MsgPackTest {
     }
 
     @Test
-    public void dataIsInteger() throws IOException {
-        int input = 10;
+    public void dataIsSmallInteger() throws IOException {
+        int input = 10000;
         byte[] b = msgPack.pack(input);
         Object o = msgPack.unpack(b);
         Assert.assertEquals(input, o);

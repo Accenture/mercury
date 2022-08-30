@@ -95,34 +95,15 @@ public class Inbox extends InboxBase implements AutoCloseable {
         }
     }
 
-    private void saveResponse(String inboxId, EventEnvelope reply) {
-        Inbox holder = (Inbox) inboxes.get(inboxId);
-        if (holder != null) {
-            float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
-            reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
-            if (holder.n > 1) {
-                holder.addReply(reply);
-                // all parallel responses have arrived
-                if (holder.total.decrementAndGet() == 0) {
-                    holder.bench.offer(true);
-                }
-            } else {
-                // response has arrived
-                holder.setReply(reply);
-                holder.bench.offer(true);
-            }
-        }
-    }
-
     @Override
     public void close() {
-        Inbox.inboxes.remove(id);
+        InboxBase.inboxes.remove(id);
         if (listener.isRegistered()) {
             listener.unregister();
         }
     }
 
-    private class InboxHandler implements Handler<Message<byte[]>> {
+    private static class InboxHandler implements Handler<Message<byte[]>> {
 
         @Override
         public void handle(Message<byte[]> message) {
@@ -135,6 +116,25 @@ public class Inbox extends InboxBase implements AutoCloseable {
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());
+            }
+        }
+
+        private void saveResponse(String inboxId, EventEnvelope reply) {
+            Inbox holder = (Inbox) inboxes.get(inboxId);
+            if (holder != null) {
+                float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+                reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
+                if (holder.n > 1) {
+                    holder.addReply(reply);
+                    // all parallel responses have arrived
+                    if (holder.total.decrementAndGet() == 0) {
+                        holder.bench.offer(true);
+                    }
+                } else {
+                    // response has arrived
+                    holder.setReply(reply);
+                    holder.bench.offer(true);
+                }
             }
         }
     }

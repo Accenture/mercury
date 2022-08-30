@@ -18,13 +18,12 @@
 
 package org.platformlambda.websocket;
 
+import io.github.classgraph.ClassInfo;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.WsEnvelope;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.system.WsRegistry;
 import org.platformlambda.core.util.SimpleClassScanner;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -62,8 +61,16 @@ public class WsServer {
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
         for (String p : packages) {
-            List<Class<?>> services = scanner.getAnnotatedClasses(p, WebSocketService.class);
-            for (Class<?> cls : services) {
+            List<ClassInfo> services = scanner.getAnnotatedClasses(p, WebSocketService.class);
+            for (ClassInfo info : services) {
+                log.debug("Scanning {}", info.getName());
+                final Class<?> cls;
+                try {
+                    cls = Class.forName(info.getName());
+                } catch (ClassNotFoundException e) {
+                    log.error("Unable to deploy WebSocket Server {} - {}", info.getName(), e.getMessage());
+                    continue;
+                }
                 WebSocketService annotation = cls.getAnnotation(WebSocketService.class);
                 if (annotation.value().length() > 0) {
                     if (!Utility.getInstance().validServiceName(annotation.value())) {
@@ -186,8 +193,9 @@ public class WsServer {
         if (route != null) {
             WsEnvelope envelope = registry.get(route);
             if (envelope != null) {
+                String closeReason = reason.getReasonPhrase() == null? "ok" : reason.getReasonPhrase();
                 log.info("Session-{} {} closed ({}, {})", session.getId(), route,
-                        reason.getCloseCode().getCode(), reason.getReasonPhrase());
+                        reason.getCloseCode().getCode(), closeReason);
                 try {
                     /*
                      * Send close event to the handler to release resources.

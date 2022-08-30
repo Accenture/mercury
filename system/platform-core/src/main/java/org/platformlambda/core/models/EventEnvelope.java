@@ -13,7 +13,6 @@
 
 package org.platformlambda.core.models;
 
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -22,8 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.*;
 
 public class EventEnvelope {
@@ -33,50 +30,64 @@ public class EventEnvelope {
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
     // message-ID
-    private static final String ID = "0";
+    private static final String ID_FLAG = "0";
     // metrics
-    private static final String EXECUTION = "1";
-    private static final String ROUND_TRIP = "2";
+    private static final String EXECUTION_FLAG = "1";
+    private static final String ROUND_TRIP_FLAG = "2";
     // extra routing information for a request from a language pack client
-    private static final String EXTRA = "3";
+    private static final String EXTRA_FLAG = "3";
     // route paths
-    private static final String TO = "T";
-    private static final String REPLY_TO = "R";
-    private static final String FROM = "F";
+    private static final String TO_FLAG = "T";
+    private static final String REPLY_TO_FLAG = "R";
+    private static final String FROM_FLAG = "F";
     // status
-    private static final String STATUS = "S";
+    private static final String STATUS_FLAG = "S";
     // message headers and body
-    private static final String HEADERS = "H";
-    private static final String BODY = "B";
+    private static final String HEADERS_FLAG = "H";
+    private static final String BODY_FLAG = "B";
     // distributed trace ID for tracking a transaction from the edge to multiple levels of services
-    private static final String TRACE_ID = "t";
-    private static final String TRACE_PATH = "p";
+    private static final String TRACE_ID_FLAG = "t";
+    private static final String TRACE_PATH_FLAG = "p";
     // optional correlation ID
-    private static final String CID = "X";
+    private static final String CID_FLAG = "X";
     // object type for automatic serialization
-    private static final String OBJ_TYPE = "O";
-    private static final String PARA_TYPES = "P";
+    private static final String OBJ_TYPE_FLAG = "O";
+    private static final String PARA_TYPES_FLAG = "P";
     // final destination
-    private static final String END_ROUTE = "E";
+    private static final String END_ROUTE_FLAG = "E";
     // broadcast
-    private static final String BROADCAST_LEVEL = "b";
+    private static final String BROADCAST_FLAG = "b";
     // optional
-    private static final String OPTIONAL = "+";
-    private static final String JSON_TRANSPORT = "j";
+    private static final String OPTIONAL_FLAG = "+";
+    private static final String JSON_FLAG = "j";
     // serialized exception object
-    private static final String EXCEPTION = "4";
+    private static final String EXCEPTION_FLAG = "4";
     // special header for setting HTTP cookie for rest-automation
     private static final String SET_COOKIE = "set-cookie";
 
     private final Map<String, String> headers = new HashMap<>();
-    private String id, from, to, replyTo, traceId, tracePath, cid, extra, type, parametricType;
+    private String id;
+    private String from;
+    private String to;
+    private String replyTo;
+    private String traceId;
+    private String tracePath;
+    private String cid;
+    private String extra;
+    private String type;
+    private String parametricType;
     private Integer status;
     private Object body;
     private Object encodedBody;
     private byte[] exceptionBytes;
     private Throwable exception;
-    private Float executionTime, roundTrip;
-    private boolean endOfRoute = false, binary = true, optional = false, encoded = false, exRestored = false;
+    private Float executionTime;
+    private Float roundTrip;
+    private boolean endOfRoute = false;
+    private boolean binary = true;
+    private boolean optional = false;
+    private boolean encoded = false;
+    private boolean exRestored = false;
     private int broadcastLevel = 0;
 
     public EventEnvelope() {
@@ -150,7 +161,12 @@ public class EventEnvelope {
     public String getError() {
         if (hasError()) {
             // body is used to store error message if status is not 200
-            return body == null? "null" : (body instanceof String? (String) body : body.toString());
+            if (body == null) {
+                return "null";
+            } else {
+                return body instanceof String? (String) body : body.toString();
+            }
+
         } else {
             return null;
         }
@@ -264,8 +280,8 @@ public class EventEnvelope {
             sb.append(cls.getName());
             sb.append(',');
         }
-        String parametricType = sb.substring(0, sb.length()-1);
-        TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(parametricType);
+        String pType = sb.substring(0, sb.length()-1);
+        TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(pType);
         try {
             return (T) converter.decode(typed);
         } catch (ClassNotFoundException e) {
@@ -569,8 +585,7 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope setExecutionTime(float milliseconds) {
-        BigDecimal number = new BigDecimal(milliseconds).setScale(3, RoundingMode.HALF_EVEN);
-        this.executionTime = number.floatValue();
+        this.executionTime = Float.parseFloat(String.format("%.3f", milliseconds));
         return this;
     }
 
@@ -581,8 +596,7 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope setRoundTrip(float milliseconds) {
-        BigDecimal number = new BigDecimal(milliseconds).setScale(3, RoundingMode.HALF_EVEN);
-        this.roundTrip = number.floatValue();
+        this.roundTrip = Float.parseFloat(String.format("%.3f", milliseconds));
         return this;
     }
 
@@ -702,76 +716,76 @@ public class EventEnvelope {
         Object o = msgPack.unpack(bytes);
         if (o instanceof Map) {
             Map<String, Object> message = (Map<String, Object>) o;
-            if (message.containsKey(ID)) {
-                id = (String) message.get(ID);
+            if (message.containsKey(ID_FLAG)) {
+                id = (String) message.get(ID_FLAG);
             }
-            if (message.containsKey(TO)) {
-                to = (String) message.get(TO);
+            if (message.containsKey(TO_FLAG)) {
+                to = (String) message.get(TO_FLAG);
             }
-            if (message.containsKey(FROM)) {
-                from = (String) message.get(FROM);
+            if (message.containsKey(FROM_FLAG)) {
+                from = (String) message.get(FROM_FLAG);
             }
-            if (message.containsKey(REPLY_TO)) {
-                replyTo = (String) message.get(REPLY_TO);
+            if (message.containsKey(REPLY_TO_FLAG)) {
+                replyTo = (String) message.get(REPLY_TO_FLAG);
             }
-            if (message.containsKey(TRACE_ID)) {
-                traceId = (String) message.get(TRACE_ID);
+            if (message.containsKey(TRACE_ID_FLAG)) {
+                traceId = (String) message.get(TRACE_ID_FLAG);
             }
-            if (message.containsKey(TRACE_PATH)) {
-                tracePath = (String) message.get(TRACE_PATH);
+            if (message.containsKey(TRACE_PATH_FLAG)) {
+                tracePath = (String) message.get(TRACE_PATH_FLAG);
             }
-            if (message.containsKey(CID)) {
-                cid = (String) message.get(CID);
+            if (message.containsKey(CID_FLAG)) {
+                cid = (String) message.get(CID_FLAG);
             }
-            if (message.containsKey(EXTRA)) {
-                extra = (String) message.get(EXTRA);
+            if (message.containsKey(EXTRA_FLAG)) {
+                extra = (String) message.get(EXTRA_FLAG);
             }
-            if (message.containsKey(OPTIONAL)) {
+            if (message.containsKey(OPTIONAL_FLAG)) {
                 optional = true;
             }
-            if (message.containsKey(STATUS)) {
-                if (message.get(STATUS) instanceof Integer) {
-                    status = (Integer) message.get(STATUS);
+            if (message.containsKey(STATUS_FLAG)) {
+                if (message.get(STATUS_FLAG) instanceof Integer) {
+                    status = (Integer) message.get(STATUS_FLAG);
                 } else {
-                    status = Utility.getInstance().str2int(message.get(STATUS).toString());
+                    status = Utility.getInstance().str2int(message.get(STATUS_FLAG).toString());
                 }
             }
-            if (message.containsKey(HEADERS)) {
-                setHeaders((Map<String, String>) message.get(HEADERS));
+            if (message.containsKey(HEADERS_FLAG)) {
+                setHeaders((Map<String, String>) message.get(HEADERS_FLAG));
             }
-            if (message.containsKey(END_ROUTE)) {
-                endOfRoute = (Boolean) message.get(END_ROUTE);
+            if (message.containsKey(END_ROUTE_FLAG)) {
+                endOfRoute = (Boolean) message.get(END_ROUTE_FLAG);
             }
-            if (message.containsKey(BROADCAST_LEVEL) && message.get(BROADCAST_LEVEL) instanceof Integer) {
-                broadcastLevel = (Integer) message.get(BROADCAST_LEVEL);
+            if (message.containsKey(BROADCAST_FLAG) && message.get(BROADCAST_FLAG) instanceof Integer) {
+                broadcastLevel = (Integer) message.get(BROADCAST_FLAG);
             }
-            if (message.containsKey(BODY)) {
-                body = message.get(BODY);
+            if (message.containsKey(BODY_FLAG)) {
+                body = message.get(BODY_FLAG);
             }
-            if (message.containsKey(EXCEPTION)) {
-                exceptionBytes = (byte[]) message.get(EXCEPTION);
+            if (message.containsKey(EXCEPTION_FLAG)) {
+                exceptionBytes = (byte[]) message.get(EXCEPTION_FLAG);
             }
-            if (message.containsKey(OBJ_TYPE)) {
-                type = (String) message.get(OBJ_TYPE);
+            if (message.containsKey(OBJ_TYPE_FLAG)) {
+                type = (String) message.get(OBJ_TYPE_FLAG);
             }
-            if (message.containsKey(PARA_TYPES)) {
-                parametricType = (String) message.get(PARA_TYPES);
+            if (message.containsKey(PARA_TYPES_FLAG)) {
+                parametricType = (String) message.get(PARA_TYPES_FLAG);
             }
-            if (message.containsKey(EXECUTION)) {
-                if (message.get(EXECUTION) instanceof Float) {
-                    executionTime = (Float) message.get(EXECUTION);
+            if (message.containsKey(EXECUTION_FLAG)) {
+                if (message.get(EXECUTION_FLAG) instanceof Float) {
+                    executionTime = (Float) message.get(EXECUTION_FLAG);
                 } else {
-                    executionTime = Utility.getInstance().str2float((message.get(EXECUTION).toString()));
+                    executionTime = Utility.getInstance().str2float((message.get(EXECUTION_FLAG).toString()));
                 }
             }
-            if (message.containsKey(ROUND_TRIP)) {
-                if (message.get(ROUND_TRIP) instanceof Float) {
-                    roundTrip = (Float) message.get(ROUND_TRIP);
+            if (message.containsKey(ROUND_TRIP_FLAG)) {
+                if (message.get(ROUND_TRIP_FLAG) instanceof Float) {
+                    roundTrip = (Float) message.get(ROUND_TRIP_FLAG);
                 } else {
-                    roundTrip = Utility.getInstance().str2float((message.get(ROUND_TRIP).toString()));
+                    roundTrip = Utility.getInstance().str2float((message.get(ROUND_TRIP_FLAG).toString()));
                 }
             }
-            if (message.containsKey(JSON_TRANSPORT)) {
+            if (message.containsKey(JSON_FLAG)) {
                 binary = false;
             }
         }
@@ -799,64 +813,64 @@ public class EventEnvelope {
     public byte[] toBytes() throws IOException {
         Map<String, Object> message = new HashMap<>();
         if (id != null) {
-            message.put(ID, id);
+            message.put(ID_FLAG, id);
         }
         if (to != null) {
-            message.put(TO, to);
+            message.put(TO_FLAG, to);
         }
         if (from != null) {
-            message.put(FROM, from);
+            message.put(FROM_FLAG, from);
         }
         if (replyTo != null) {
-            message.put(REPLY_TO, replyTo);
+            message.put(REPLY_TO_FLAG, replyTo);
         }
         if (traceId != null) {
-            message.put(TRACE_ID, traceId);
+            message.put(TRACE_ID_FLAG, traceId);
         }
         if (tracePath != null) {
-            message.put(TRACE_PATH, tracePath);
+            message.put(TRACE_PATH_FLAG, tracePath);
         }
         if (cid != null) {
-            message.put(CID, cid);
+            message.put(CID_FLAG, cid);
         }
         if (extra != null) {
-            message.put(EXTRA, extra);
+            message.put(EXTRA_FLAG, extra);
         }
         if (status != null) {
-            message.put(STATUS, status);
+            message.put(STATUS_FLAG, status);
         }
         if (!headers.isEmpty()) {
-            message.put(HEADERS, headers);
+            message.put(HEADERS_FLAG, headers);
         }
         if (endOfRoute) {
-            message.put(END_ROUTE, true);
+            message.put(END_ROUTE_FLAG, true);
         }
         if (broadcastLevel > 0) {
-            message.put(BROADCAST_LEVEL, broadcastLevel);
+            message.put(BROADCAST_FLAG, broadcastLevel);
         }
         if (optional) {
-            message.put(OPTIONAL, true);
+            message.put(OPTIONAL_FLAG, true);
         }
         if (body != null) {
-            message.put(BODY, body);
+            message.put(BODY_FLAG, body);
         }
         if (exceptionBytes != null) {
-            message.put(EXCEPTION, exceptionBytes);
+            message.put(EXCEPTION_FLAG, exceptionBytes);
         }
         if (type != null) {
-            message.put(OBJ_TYPE, type);
+            message.put(OBJ_TYPE_FLAG, type);
         }
         if (parametricType != null) {
-            message.put(PARA_TYPES, parametricType);
+            message.put(PARA_TYPES_FLAG, parametricType);
         }
         if (executionTime != null) {
-            message.put(EXECUTION, executionTime);
+            message.put(EXECUTION_FLAG, executionTime);
         }
         if (roundTrip != null) {
-            message.put(ROUND_TRIP, roundTrip);
+            message.put(ROUND_TRIP_FLAG, roundTrip);
         }
         if (!binary) {
-            message.put(JSON_TRANSPORT, true);
+            message.put(JSON_FLAG, true);
         }
         return msgPack.pack(message);
     }
