@@ -18,10 +18,12 @@
 
 package org.platformlambda.core.actuator;
 
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.LambdaFunction;
 
 import java.util.Map;
 
+@PreLoad(route="actuator.services", instances=10)
 public class ActuatorServices implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String INFO = "info";

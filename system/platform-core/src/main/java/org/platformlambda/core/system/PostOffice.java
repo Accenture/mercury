@@ -18,23 +18,21 @@
 
 package org.platformlambda.core.system;
 
+import io.github.classgraph.ClassInfo;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import org.platformlambda.core.actuator.ActuatorServices;
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.services.DistributedTrace;
 import org.platformlambda.core.services.Multicaster;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.ConfigReader;
-import org.platformlambda.core.util.MultiLevelMap;
-import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.util.*;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -46,10 +44,10 @@ public class PostOffice {
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     public static final String ACTUATOR_SERVICES = "actuator.services";
-    private static final String[] BUILT_IN = {DISTRIBUTED_TRACING, ACTUATOR_SERVICES};
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
+    private static final String MISSING_ROUTING_PATH = "Missing routing path";
     private static final String MULTICAST_YAML = "multicast.yaml";
     private static final String JOURNAL_YAML = "journal.yaml";
     private static final String APP_GROUP_PREFIX = "monitor-";
@@ -65,12 +63,9 @@ public class PostOffice {
     private PostOffice() {
         AppConfigReader config = AppConfigReader.getInstance();
         traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
-        Platform platform = Platform.getInstance();
+        preloadServices();
+
         try {
-            // start built-in services
-            platform.registerPrivate(DISTRIBUTED_TRACING, new DistributedTrace(), 1);
-            platform.registerPrivate(ACTUATOR_SERVICES, new ActuatorServices(), 10);
-            log.info("Includes {}", Arrays.asList(BUILT_IN));
             // load route substitution table if any
             if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
                 loadRouteSubstitution();
@@ -93,6 +88,41 @@ public class PostOffice {
         } catch (IOException e) {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
+        }
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    private void preloadServices() {
+        Platform platform = Platform.getInstance();
+        SimpleClassScanner scanner = SimpleClassScanner.getInstance();
+        Set<String> packages = scanner.getPackages(true);
+        for (String p : packages) {
+            List<ClassInfo> services = scanner.getAnnotatedClasses(p, PreLoad.class);
+            for (ClassInfo info : services) {
+                try {
+                    Class<?> cls = Class.forName(info.getName());
+                    PreLoad preload = cls.getAnnotation(PreLoad.class);
+                    String route = preload.route();
+                    int instances = preload.instances();
+                    boolean isPrivate = preload.isPrivate();
+                    Object o = cls.getDeclaredConstructor().newInstance();
+                    log.info("Loading {}", info.getName());
+                    if (o instanceof TypedLambdaFunction) {
+                        if (isPrivate) {
+                            platform.registerPrivate(route, (TypedLambdaFunction) o, instances);
+                        } else {
+                            platform.register(route, (TypedLambdaFunction) o, instances);
+                        }
+                    } else {
+                        log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
+                                info.getName());
+                    }
+
+                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
+                         IllegalAccessException | NoSuchMethodException | IOException e) {
+                    log.error("Unable to preload {} - {}", info.getName(), e.getMessage());
+                }
+            }
         }
     }
 
@@ -486,12 +516,11 @@ public class PostOffice {
      * @param event envelope
      * @param future time
      * @return eventId of the scheduled delivery
-     * @throws IOException if route not found or invalid parameters
      */
-    public String sendLater(final EventEnvelope event, Date future) throws IOException {
+    public String sendLater(final EventEnvelope event, Date future) {
         String dest = event.getTo();
         if (dest == null) {
-            throw new IllegalArgumentException("Missing routing path");
+            throw new IllegalArgumentException(MISSING_ROUTING_PATH);
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -511,7 +540,8 @@ public class PostOffice {
         log.debug("Future event to {} in {} ms", to, interval);
         // schedule the event delivery
         Vertx vertx = Platform.getInstance().getVertx();
-        long taskId = vertx.setTimer(interval, (id) -> {
+        long taskId = vertx.setTimer(interval, id -> {
+            futureEvents.remove(event.getId());
             try {
                 PostOffice.getInstance().send(event);
             } catch (IOException e) {
@@ -530,11 +560,10 @@ public class PostOffice {
     public void cancelFutureEvent(String id) {
         FutureEvent event = futureEvents.get(id);
         if (event != null) {
-            Utility util = Utility.getInstance();
             Vertx vertx = Platform.getInstance().getVertx();
             vertx.cancelTimer(event.taskId);
             futureEvents.remove(id);
-            log.info("Cancel future event {}, {}", event.to, util.date2str(event.time, true));
+            log.debug("Cancel future event {}, {}", event.to, event.getTime());
         }
     }
 
@@ -623,7 +652,7 @@ public class PostOffice {
     public void send(final EventEnvelope event) throws IOException {
         String dest = event.getTo();
         if (dest == null) {
-            throw new IllegalArgumentException("Missing routing path");
+            throw new IllegalArgumentException(MISSING_ROUTING_PATH);
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -789,7 +818,7 @@ public class PostOffice {
         }
         String dest = event.getTo();
         if (dest == null) {
-            throw new IllegalArgumentException("Missing routing path");
+            throw new IllegalArgumentException(MISSING_ROUTING_PATH);
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -855,7 +884,7 @@ public class PostOffice {
             seq++;
             String dest = event.getTo();
             if (dest == null) {
-                throw new IllegalArgumentException("Missing routing path");
+                throw new IllegalArgumentException(MISSING_ROUTING_PATH);
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
@@ -917,7 +946,7 @@ public class PostOffice {
         }
         String dest = event.getTo();
         if (dest == null) {
-            throw new IllegalArgumentException("Missing routing path");
+            throw new IllegalArgumentException(MISSING_ROUTING_PATH);
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
@@ -968,7 +997,7 @@ public class PostOffice {
             seq++;
             String dest = event.getTo();
             if (dest == null) {
-                throw new IllegalArgumentException("Missing routing path");
+                throw new IllegalArgumentException(MISSING_ROUTING_PATH);
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
@@ -1031,7 +1060,7 @@ public class PostOffice {
     }
     /**
      * Check if a route or origin-ID exists.
-     *
+     * <p>
      * The response should be instantaneous using a distributed routing table.
      *
      * @param route name of the target service

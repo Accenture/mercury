@@ -19,6 +19,7 @@
 package org.platformlambda.core.services;
 
 import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -32,6 +33,7 @@ import java.util.Map;
 
 @EventInterceptor
 @ZeroTracing
+@PreLoad(route="distributed.tracing")
 public class DistributedTrace implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(DistributedTrace.class);
 
