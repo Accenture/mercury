@@ -195,11 +195,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
         }
         event.setHeader(USER, System.getProperty("user.name"));
-        try {
-            po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
-        } catch (IOException e) {
-            log.error("Unable to send shutdown request - {}", e.getMessage());
-        }
+        po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
         httpUtil.sendResponse(requestId, request, 200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
     }
 

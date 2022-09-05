@@ -34,7 +34,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
-import java.util.Map;
 
 public abstract class ServletBase extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(ServletBase.class);
