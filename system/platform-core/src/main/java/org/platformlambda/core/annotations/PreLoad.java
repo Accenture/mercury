@@ -16,26 +16,21 @@
 
  */
 
-package org.platformlambda.core.models;
+package org.platformlambda.core.annotations;
 
-import org.platformlambda.core.util.Utility;
+import java.lang.annotation.*;
 
-import java.util.Date;
+/**
+ * This indicates the class is a service to be preloaded.
+ * (for a class to be preloaded, it must use a default constructor without arguments)
+ */
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface PreLoad {
 
-public class FutureEvent {
-
-    public Date time;
-    public String to;
-    public long taskId;
-
-    public FutureEvent(String to, long taskId, Date time) {
-        this.to = to;
-        this.taskId = taskId;
-        this.time = time;
-    }
-
-    public String getTime() {
-        return Utility.getInstance().date2str(time, true);
-    }
+    String route();
+    int instances() default 1;
+    boolean isPrivate() default true;
 
 }

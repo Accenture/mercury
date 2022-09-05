@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.5.0, 8/29/2022
+## Version 2.5.0, 9/5/2022
 
 ### Added
 
-N/A
+New Preload annotation class to automate pre-registration of LambdaFunction.
 
 ### Removed
 
@@ -19,7 +19,9 @@ to legacy J2EE application without library conflict.
 
 ### Changed
 
-Updated open sources libraries
+Bugfix for proper housekeeping of future events.
+
+Updated open sources libraries.
 
 1. Eclipse vertx-core version 4.3.3
 2. MsgPack version 0.9.3
