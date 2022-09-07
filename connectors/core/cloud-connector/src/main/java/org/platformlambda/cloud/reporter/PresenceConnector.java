@@ -244,6 +244,8 @@ public class PresenceConnector implements LambdaFunction {
                 if (alive && active) {
                     po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
                             new Kv(TYPE, ALIVE), new Kv(TOPIC, topicPartition),
+                            new Kv(NAME, platform.getName()),
+                            new Kv(VERSION, util.getVersionInfo().getVersion()),
                             new Kv(ORIGIN, platform.getOrigin()));
                 }
 

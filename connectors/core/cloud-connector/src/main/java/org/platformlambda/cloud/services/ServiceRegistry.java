@@ -68,7 +68,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String WHEN = "when";
     private static final String NOW = "now";
     private static final String MONITOR = "monitor-";
-    private static final long EXPIRY = 60 * 1000;
+    private static final long EXPIRY = 60 * 1000L;
 
     // static because this is a shared lambda function
     private final boolean presenceMonitor;
@@ -82,6 +82,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> originAppVersion = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> lifeCycleSubscribers = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> pmSubscribers = new ConcurrentHashMap<>();
     private static final ManagedCache cache = ManagedCache.createCache("member.life.cycle.events", 5000);
@@ -98,7 +99,7 @@ public class ServiceRegistry implements LambdaFunction {
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
         if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
-            log.error("closed.user.group is invalid. Please select a number from 1 to "+maxGroups);
+            log.error("closed.user.group is invalid. Please select a number from 1 to {}", maxGroups);
             System.exit(-1);
         }
     }
@@ -187,7 +188,7 @@ public class ServiceRegistry implements LambdaFunction {
             if (!presenceMonitor) {
                 if (origin.equals(myOrigin)) {
                     if (headers.containsKey(VERSION)) {
-                        log.info("Presence monitor v"+headers.get(VERSION)+" detected");
+                        log.info("Presence monitor v{} detected", headers.get(VERSION));
                     } else {
                         notifyLifeCycleSubscribers(new Kv(TYPE, CONNECTED));
                         notifyPmSubscribers(new Kv(TYPE, CONNECTED));
@@ -231,12 +232,14 @@ public class ServiceRegistry implements LambdaFunction {
         if (ALIVE.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
             String topic = headers.get(TOPIC);
+            String name = headers.get(NAME);
+            String version = headers.get(VERSION);
             if (!presenceMonitor) {
                 if (myOrigin.equals(origin)) {
                     removeStalledPeers();
                 } else {
                     if (!cloudOrigins.containsKey(origin)) {
-                        log.info("Peer {} joins", origin);
+                        log.info("Peer {} joins ({} {})", origin, name, version);
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(ORIGIN, origin), new Kv(TOPIC, topic));
                     }
@@ -244,11 +247,14 @@ public class ServiceRegistry implements LambdaFunction {
             }
             cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
             originTopic.put(origin, topic);
+            originAppVersion.put(origin, name+" "+version);
         }
         // when a node leaves
         if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
             String origin = headers.get(ORIGIN);
+            String appVersion = originAppVersion.get(origin);
             originTopic.remove(origin);
+            originAppVersion.remove(origin);
             if (presenceMonitor) {
                 cloudOrigins.remove(origin);
             } else {
@@ -258,7 +264,7 @@ public class ServiceRegistry implements LambdaFunction {
                     List<String> all = new ArrayList<>(cloudOrigins.keySet());
                     for (String o : all) {
                         if (!o.equals(origin)) {
-                            log.info("{} disconnected", o);
+                            log.info("{} disconnected ({})", o, appVersion);
                             removeRoutesFromOrigin(o);
                             notifyLifeCycleSubscribers(new Kv(TYPE, LEAVE), new Kv(ORIGIN, o));
                         }
@@ -266,7 +272,7 @@ public class ServiceRegistry implements LambdaFunction {
                     notifyLifeCycleSubscribers(new Kv(TYPE, DISCONNECTED));
                     notifyPmSubscribers(new Kv(TYPE, DISCONNECTED));
                 } else {
-                    log.info("Peer {} left", origin);
+                    log.info("Peer {} left ({})", origin, appVersion);
                     removeRoutesFromOrigin(origin);
                     notifyLifeCycleSubscribers(new Kv(TYPE, LEAVE), new Kv(ORIGIN, origin));
                     cache.remove(origin);
@@ -291,32 +297,28 @@ public class ServiceRegistry implements LambdaFunction {
                         po.send(request);
                     }
 
-                } else if (body instanceof Map) {
-                    if (!origin.equals(myOrigin)) {
-                        // add a list of routes
-                        Map<String, String> routeMap = (Map<String, String>) body;
-                        int count = routeMap.size();
-                        int n = 0;
-                        for (String route : routeMap.keySet()) {
-                            String personality = routeMap.get(route);
-                            if (addRoute(origin, route, personality)) n++;
-                        }
-                        if (n > 0) {
-                            log.info("Loaded {} route{} from {}", count, count == 1 ? "" : "s", origin);
-                        }
-                        if (headers.containsKey(TOPIC)) {
-                            originTopic.put(origin, headers.get(TOPIC));
-                        }
-                        if (headers.containsKey(NAME)) {
-                            if (!cache.exists(origin)) {
-                                cache.put(origin, true);
-                                notifyLifeCycleSubscribers(new Kv(TYPE, JOIN),
-                                        new Kv(ORIGIN, origin), new Kv(NAME, headers.get(NAME)));
-                            }
-                        }
-                        if (headers.containsKey(EXCHANGE)) {
-                            sendMyRoutes(false);
-                        }
+                } else if (body instanceof Map && !origin.equals(myOrigin)) {
+                    // add a list of routes
+                    Map<String, String> routeMap = (Map<String, String>) body;
+                    int count = routeMap.size();
+                    int n = 0;
+                    for (String route : routeMap.keySet()) {
+                        String personality = routeMap.get(route);
+                        if (addRoute(origin, route, personality)) n++;
+                    }
+                    if (n > 0) {
+                        log.info("Loaded {} route{} from {}", count, count == 1 ? "" : "s", origin);
+                    }
+                    if (headers.containsKey(TOPIC)) {
+                        originTopic.put(origin, headers.get(TOPIC));
+                    }
+                    if (headers.containsKey(NAME) && !cache.exists(origin)) {
+                        cache.put(origin, true);
+                        notifyLifeCycleSubscribers(new Kv(TYPE, JOIN),
+                                new Kv(ORIGIN, origin), new Kv(NAME, headers.get(NAME)));
+                    }
+                    if (headers.containsKey(EXCHANGE)) {
+                        sendMyRoutes(false);
                     }
                 }
             }
@@ -430,7 +432,8 @@ public class ServiceRegistry implements LambdaFunction {
             if (!p.equals(myOrigin)) {
                 Date lastActive = util.str2date(cloudOrigins.get(p));
                 if (now - lastActive.getTime() > EXPIRY) {
-                    log.error("Peer {} stalled", p);
+                    String appVersion = originAppVersion.get(p);
+                    log.error("Peer {} stalled ({})", p, appVersion);
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, p));
                 }
             }
