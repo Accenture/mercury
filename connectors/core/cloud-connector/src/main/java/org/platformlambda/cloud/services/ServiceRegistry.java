@@ -247,6 +247,9 @@ public class ServiceRegistry implements LambdaFunction {
             }
             cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
             originTopic.put(origin, topic);
+            if (!originAppVersion.containsKey(origin) && !myOrigin.equals(origin)) {
+                log.info("Peer {} active ({} {})", origin, name, version);
+            }
             originAppVersion.put(origin, name+" "+version);
         }
         // when a node leaves
