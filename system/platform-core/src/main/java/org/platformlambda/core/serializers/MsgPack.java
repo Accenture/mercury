@@ -19,8 +19,6 @@
 package org.platformlambda.core.serializers;
 
 import org.msgpack.core.*;
-import org.msgpack.value.ImmutableBinaryValue;
-import org.msgpack.value.ImmutableValue;
 import org.msgpack.value.ValueType;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.util.Utility;
