@@ -152,21 +152,11 @@ public class MsgPack {
                 return unpacker.unpackString();
 
             case INTEGER:
-                /*
-                 * msgPack compresses long value into integer or short value to save space
-                 * MessageFormat.POSFIXINT for value 0 - 255 --> Short
-                 * MessageFormat.INT32 for signed integer value
-                 * MessageFormat.UINT16 for value 0 - 2^16-1 --> Integer
-                 * MessageFormat.UINT32 for value 0 - 2^32-1 --> Long
-                 * MessageFormat.UINT64 for value 0 - 2^64-1 --> Long
-                 * MessageFormat.INT64 for signed long value
-                 *
-                 * For simplicity, restore it to either long or integer
-                 */
-                if (mf == MessageFormat.INT64 || mf == MessageFormat.UINT64 || mf == MessageFormat.UINT32) {
-                    return unpacker.unpackLong();
+                Long number = unpacker.unpackLong();
+                if (number > Integer.MAX_VALUE || number < Integer.MIN_VALUE) {
+                    return number;
                 } else {
-                    return unpacker.unpackInt();
+                    return number.intValue();
                 }
 
             case FLOAT:
