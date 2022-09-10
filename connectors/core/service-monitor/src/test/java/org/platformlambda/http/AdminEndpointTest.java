@@ -258,7 +258,7 @@ public class AdminEndpointTest extends TestBase {
         Object response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend/now", headers, new HashMap<>());
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200L, result.get("status"));
+        Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/suspend/now", result.get("path"));
     }
@@ -271,7 +271,7 @@ public class AdminEndpointTest extends TestBase {
         Object response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume/now", headers, new HashMap<>());
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200L, result.get("status"));
+        Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
     }

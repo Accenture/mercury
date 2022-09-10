@@ -85,8 +85,7 @@ public class SimpleMapperTest {
         // sql date is yyyy-mm-dd
         Assert.assertEquals(new java.sql.Date(now.getTime()).toString(), converted.get("sql_date"));
         Assert.assertEquals(iso8601, converted.get("sql_timestamp"));
-        // integer number will be converted to Long number to preserve number precision in GSON
-        Assert.assertEquals(Long.class, converted.get("integer").getClass());
+        Assert.assertEquals(Integer.class, converted.get("integer").getClass());
         String name = "hello world";
         Map<String, Object> input = new HashMap<>();
         input.put("full_name", name);

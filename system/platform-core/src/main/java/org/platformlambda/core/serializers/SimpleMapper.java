@@ -84,7 +84,7 @@ public class SimpleMapper {
         builder.registerTypeAdapter(BigDecimal.class, new BigDecimalDeserializer());
         /*
          * Gson stores all numbers as Double internally.
-         * For Map and List, we want to preserve int and float as numbers and long and double as string.
+         * For Map and List, we want to preserve int and long as one group and float and double as another.
          * Since typing information for numbers are lost in a map, this is the best effort for number conversion.
          * i.e. small number in long will be converted to integer and small number in double to float.
          *
@@ -338,14 +338,26 @@ public class SimpleMapper {
 
     public Object typedNumber(JsonPrimitive p) {
         /*
-         * For conversion to map or list, type information is lost for numbers.
-         * This is the best effort to return numbers as Double or Long to avoid loss of precision.
+         * Type information is lost for numbers.
+         * This is the best effort to keep int/long and float/double value.
+         *
+         * Make int/long handling consistent between SimpleMapper and MsgPack
+         * Double is used to keep floating point number precision
+         *
+         * Note: ternary conditional operator does not work due to different return types
+         *
          */
         String number = p.getAsString();
         if (number.contains(".")) {
             return p.getAsDouble();
+
         } else {
-            return p.getAsLong();
+            long asLong = p.getAsLong();
+            if (asLong > Integer.MAX_VALUE || asLong < Integer.MIN_VALUE) {
+                return asLong;
+            } else {
+                return p.getAsInt();
+            }
         }
     }
 

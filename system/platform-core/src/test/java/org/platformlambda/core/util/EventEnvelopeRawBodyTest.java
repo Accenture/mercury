@@ -27,47 +27,47 @@ public class EventEnvelopeRawBodyTest {
 
     @Test
     public void integerTest() throws IOException {
-        int HELLO = 100;
+        int VALUE = 100;
         EventEnvelope source = new EventEnvelope();
-        source.setBody(HELLO);
+        source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(100, target.getRawBody());
-        Assert.assertEquals(100, target.getBody());
+        Assert.assertEquals(VALUE, target.getRawBody());
+        Assert.assertEquals(VALUE, target.getBody());
     }
 
     @Test
     public void longTest() throws IOException {
-        long HELLO = 100L;
+        Long VALUE = 100L;
         EventEnvelope source = new EventEnvelope();
-        source.setBody(HELLO);
+        source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
         // long will be compressed to integer by MsgPack
-        Assert.assertEquals(100, target.getRawBody());
-        Assert.assertEquals(100, target.getBody());
+        Assert.assertEquals(VALUE.intValue(), target.getRawBody());
+        Assert.assertEquals(VALUE.intValue(), target.getBody());
     }
 
     @Test
     public void floatTest() throws IOException {
-        float HELLO = 1.23f;
+        float VALUE = 1.23f;
         EventEnvelope source = new EventEnvelope();
-        source.setBody(HELLO);
+        source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(1.23f, target.getRawBody());
-        Assert.assertEquals(1.23f, target.getBody());
+        Assert.assertEquals(VALUE, target.getRawBody());
+        Assert.assertEquals(VALUE, target.getBody());
     }
 
     @Test
     public void doubleTest() throws IOException {
-        double HELLO = 1.23d;
+        double VALUE = 1.23d;
         EventEnvelope source = new EventEnvelope();
-        source.setBody(HELLO);
+        source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(1.23d, target.getRawBody());
-        Assert.assertEquals(1.23d, target.getBody());
+        Assert.assertEquals(VALUE, target.getRawBody());
+        Assert.assertEquals(VALUE, target.getBody());
     }
 
     @Test
@@ -86,13 +86,13 @@ public class EventEnvelopeRawBodyTest {
     @Test
     public void dateTest() throws IOException {
         Utility util = Utility.getInstance();
-        Date HELLO = new Date();
+        Date NOW = new Date();
         EventEnvelope source = new EventEnvelope();
-        source.setBody(HELLO);
+        source.setBody(NOW);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(util.date2str(HELLO), target.getRawBody());
-        Assert.assertEquals(util.date2str(HELLO), target.getBody());
+        Assert.assertEquals(util.date2str(NOW), target.getRawBody());
+        Assert.assertEquals(util.date2str(NOW), target.getBody());
     }
 
     @SuppressWarnings("unchecked")

@@ -38,9 +38,9 @@ public class GsonTest {
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
         Map m = mapper.readValue(obj, Map.class);
         Assert.assertEquals(String.class, m.get("date").getClass());
-        Assert.assertEquals(Long.class, m.get("number").getClass());
         // small long number will be converted to integer
-        Assert.assertEquals(Long.class, m.get("small_long").getClass());
+        Assert.assertEquals(Integer.class, m.get("number").getClass());
+        Assert.assertEquals(Integer.class, m.get("small_long").getClass());
         Assert.assertEquals(Long.class, m.get("long_number").getClass());
         Assert.assertEquals(Double.class, m.get("float_number").getClass());
         // small double number will be converted to float
@@ -78,10 +78,10 @@ public class GsonTest {
         sample.date = new Date();
         sample.number = 10;
         sample.smallLong = 200L;
-        sample.longNumber = 2147483648L; // a number larger than Integer.MAX_VALUE (2147483647)
+        sample.longNumber = System.currentTimeMillis();
         sample.floatNumber = 13.3f;
         sample.smallDouble = 26.6d;
-        sample.doubleNumber = 3.5E38d; // a number larger than Float.MAX_VALUE (3.4028235E38)
+        sample.doubleNumber = 3.5E38d;
         sample.name = "hello world";
         sample.bigInteger = new BigInteger("36210000122335678901234002030");
         sample.bigDecimal = new BigDecimal("123456789012345890201231.1416");
