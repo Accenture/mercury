@@ -33,8 +33,6 @@ import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.util.SimpleHttpRequests;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -217,7 +215,7 @@ public class ServletTest extends TestBase {
         Object response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend", headers, new HashMap<>());
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200L, result.get("status"));
+        Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/suspend", result.get("path"));
     }
@@ -230,7 +228,7 @@ public class ServletTest extends TestBase {
         Object response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume", headers, new HashMap<>());
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200L, result.get("status"));
+        Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("ok", result.get("type"));
         Assert.assertEquals("/resume", result.get("path"));
     }
@@ -241,7 +239,7 @@ public class ServletTest extends TestBase {
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/pojo?name=test");
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(101L, result.get("number"));
+        Assert.assertEquals(101, result.get("number"));
         Assert.assertEquals("test", result.get("name"));
     }
 
@@ -270,7 +268,7 @@ public class ServletTest extends TestBase {
         } catch (AppException e) {
             Assert.assertEquals(400, e.getStatus());
             Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(400L, result.get("status"));
+            Assert.assertEquals(400, result.get("status"));
             Assert.assertEquals("IllegalArgumentException", result.get("message"));
             Assert.assertEquals("error", result.get("type"));
         }
@@ -285,7 +283,7 @@ public class ServletTest extends TestBase {
         } catch (AppException e) {
             Assert.assertEquals(500, e.getStatus());
             Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(500L, result.get("status"));
+            Assert.assertEquals(500, result.get("status"));
             Assert.assertEquals("Null pointer exception", result.get("message"));
             Assert.assertEquals("error", result.get("type"));
         }
@@ -300,7 +298,7 @@ public class ServletTest extends TestBase {
         } catch (AppException e) {
             Assert.assertEquals(500, e.getStatus());
             Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(500L, result.get("status"));
+            Assert.assertEquals(500, result.get("status"));
             Assert.assertEquals("IOException", result.get("message"));
             Assert.assertEquals("error", result.get("type"));
         }
@@ -315,7 +313,7 @@ public class ServletTest extends TestBase {
         } catch (AppException e) {
             Assert.assertEquals(401, e.getStatus());
             Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(401L, result.get("status"));
+            Assert.assertEquals(401, result.get("status"));
             Assert.assertEquals("AppException", result.get("message"));
             Assert.assertEquals("error", result.get("type"));
         }

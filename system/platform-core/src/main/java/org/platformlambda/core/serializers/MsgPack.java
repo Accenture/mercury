@@ -19,6 +19,8 @@
 package org.platformlambda.core.serializers;
 
 import org.msgpack.core.*;
+import org.msgpack.value.ImmutableBinaryValue;
+import org.msgpack.value.ImmutableValue;
 import org.msgpack.value.ValueType;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.util.Utility;
@@ -151,12 +153,20 @@ public class MsgPack {
             case STRING:
                 return unpacker.unpackString();
 
+            /*
+             * Type information is lost for numbers.
+             * This is the best effort to keep int/long and float/double value.
+             *
+             * Make int/long handling consistent between SimpleMapper and MsgPack
+             *
+             * Note: ternary conditional operator does not work due to different return types
+             */
             case INTEGER:
-                Long number = unpacker.unpackLong();
-                if (number > Integer.MAX_VALUE || number < Integer.MIN_VALUE) {
-                    return number;
+                Long asLong = unpacker.unpackLong();
+                if (asLong > Integer.MAX_VALUE || asLong < Integer.MIN_VALUE) {
+                    return asLong;
                 } else {
-                    return number.intValue();
+                    return asLong.intValue();
                 }
 
             case FLOAT:
