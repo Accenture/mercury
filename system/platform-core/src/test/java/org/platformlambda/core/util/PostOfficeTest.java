@@ -46,36 +46,33 @@ public class PostOfficeTest {
 
     private static final BlockingQueue<String> bench = new ArrayBlockingQueue<>(1);
     private static final String HELLO_WORLD = "hello.world";
+    private static final String HELLO_ALIAS = "hello.alias";
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
 
     @BeforeClass
     public static void setup() throws IOException {
         AppStarter.main(new String[0]);
         Platform platform = Platform.getInstance();
-        LambdaFunction echo = (headers, body, instance) -> {
-            int c = body instanceof Integer? (int) body : 2;
-            if (c % 2 == 0) {
-                Thread.sleep(1000);
-                // timeout the incoming request
-            }
-            Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
-            result.put("body", body);
-            result.put("instance", instance);
-            result.put("counter", c);
-            result.put("origin", platform.getOrigin());
-            return result;
-        };
-        // private function
-        platform.registerPrivate(HELLO_WORLD, echo, 10);
-        // you can convert a private function to public when needed
-        platform.makePublic(HELLO_WORLD);
         try {
             platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
+            // you can convert a private function to public when needed
+            platform.waitForProvider(HELLO_WORLD, 5);
+            platform.makePublic(HELLO_WORLD);
             log.info("Mock cloud ready");
         } catch (TimeoutException e) {
             log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void aliasRouteTest() throws AppException, IOException, TimeoutException {
+        PostOffice po = PostOffice.getInstance();
+        final String MESSAGE = "test message";
+        EventEnvelope result = po.request(HELLO_ALIAS, 5000, MESSAGE);
+        Assert.assertTrue(result.getBody() instanceof Map);
+        Map<String, Object> body = (Map<String, Object>) result.getBody();
+        Assert.assertEquals(MESSAGE, body.get("body"));
     }
 
     @Test
