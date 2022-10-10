@@ -136,8 +136,8 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
             }
             return true;
         };
-        // generate a 5-digit random number as identifier
-        int r = crypto.nextInt(10000, 100000000);
+        // generate a 6-digit random number as identifier
+        int r = crypto.nextInt(100000, 1000000);
         // ensure uniqueness using a monotonically increasing sequence number
         int n = counter.incrementAndGet();
         final String session = "ws."+r+"."+n;
