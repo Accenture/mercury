@@ -27,6 +27,7 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestBase {
@@ -36,7 +37,7 @@ public class TestBase {
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
     @BeforeClass
-    public static void setup() throws IOException {
+    public static void setup() throws IOException, TimeoutException {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
@@ -77,6 +78,8 @@ public class TestBase {
             };
             Platform platform = Platform.getInstance();
             platform.registerPrivate("hello.world", f, 10);
+            // wait for service to be ready
+            platform.waitForProvider("notification.manager", 20);
         }
     }
 }

@@ -55,6 +55,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String WHEN = "when";
     private static final String NOW = "now";
     private static final String LATER = "later";
+    private static final String NOT_REACHABLE = " is not reachable";
     private static final String KEEP_ALIVE = "keep-alive";
     private static final String CONNECTION_HEADER = "Connection";
     private static final String REGISTRY = "system.service.registry";
@@ -162,7 +163,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
                 return true;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -189,7 +190,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -224,7 +225,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+" is not reachable");
+                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);

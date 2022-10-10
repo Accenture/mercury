@@ -64,18 +64,15 @@ public class ConfigReader implements ConfigBase {
     private String getEnvVariable(String s) {
         if (s.startsWith("${") && s.endsWith("}")) {
             String key = s.substring(2, s.length()-1).trim();
-            String def = null;
+            String defaultValue = null;
             if (key.contains(":")) {
                 int colon = key.indexOf(':');
                 String k = key.substring(0, colon);
-                def = key.substring(colon+1);
+                defaultValue = key.substring(colon+1);
                 key = k;
             }
             String property = System.getenv(key);
-            if (property != null) {
-                return property;
-            }
-            return System.getProperty(key, def);
+            return property != null? property : System.getProperty(key, defaultValue);
 
         } else {
             return null;

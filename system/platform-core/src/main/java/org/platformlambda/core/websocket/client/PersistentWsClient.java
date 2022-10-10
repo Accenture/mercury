@@ -247,7 +247,7 @@ public class PersistentWsClient extends Thread {
             try {
                 Platform.getInstance().release(session);
             } catch (IOException e) {
-                log.error("Unable release service {} - {}", session, e.getMessage());
+                log.error("Unable to release service {} - {}", session, e.getMessage());
             }
             client.close();
             vertx.close();

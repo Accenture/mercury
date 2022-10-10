@@ -347,8 +347,8 @@ public class CryptoApi {
     }
 
     /**
-     * IV does not need to be truly random
-     * so we use the basic pseudo-random generator for performance reason.
+     * IV does not need to be truly random.
+     * Therefore, we use the basic pseudo-random generator for performance reason.
      *
      * @return random value of 16 bytes
      */

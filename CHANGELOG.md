@@ -24,7 +24,7 @@ to legacy J2EE application without library conflict.
 
 Updated open sources libraries.
 
-1. Eclipse vertx-core version 4.3.3
+1. Eclipse vertx-core version 4.3.4
 2. MsgPack version 0.9.3
 3. Google httpclient version 1.42.2
 4. SnakeYaml version 1.31
