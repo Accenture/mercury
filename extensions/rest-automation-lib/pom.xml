@@ -38,6 +38,7 @@
     </repositories>
 
     <dependencies>
+
         <!-- since this is a library, we set the dependencies as "provided" so you can use newer dependencies -->
         <dependency>
             <groupId>org.platformlambda</groupId>
@@ -141,7 +142,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.7</version>
+                <version>0.8.8</version>
                 <executions>
                     <execution>
                         <goals>

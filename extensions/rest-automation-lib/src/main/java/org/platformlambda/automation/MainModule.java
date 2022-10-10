@@ -110,6 +110,11 @@ public class MainModule implements EntryPoint {
                             platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
                             platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);
                             platform.registerPrivate(NOTIFICATION_QUERY, new NotificationQuery(), 10);
+                            // start timeout handler
+                            AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
+                            timeoutHandler.start();
+                            // connect to the event streams
+                            platform.connectToCloud();
                         } catch (IOException e) {
                             log.error("Unable to start notification service", e);
                         }
@@ -119,15 +124,10 @@ public class MainModule implements EntryPoint {
                         System.exit(-1);
                     });
 
-            AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
-            timeoutHandler.start();
-
         } catch (Exception e) {
             log.error("Unable to start", e);
             System.exit(-1);
         }
-        // connect to the event streams
-        platform.connectToCloud();
     }
 
     private ConfigReader getConfig() throws IOException {
