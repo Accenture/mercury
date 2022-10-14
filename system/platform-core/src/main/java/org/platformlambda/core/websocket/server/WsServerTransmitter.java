@@ -49,7 +49,7 @@ public class WsServerTransmitter implements LambdaFunction {
         if (connected && !ws.isClosed()) {
             if (body == null && WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
                 int status = Utility.getInstance().str2int(headers.get(STATUS));
-                String message = headers.get(MESSAGE) == null? "" : headers.get(MESSAGE);
+                String message = headers.get(MESSAGE) == null? "bye" : headers.get(MESSAGE);
                 ws.close((short) (status >= 0? status : 1000), message);
             } else {
                 if (body instanceof byte[]) {
