@@ -7,9 +7,10 @@
 | info.app.description                        | Something about application              | Yes        |
 | web.component.scan                          | your own package path or parent path     | Yes        |
 | server.port                                 | e.g. 8083                                | Yes*       |
+| websocket.server.port                       | e.g. 8085                                | Optional   |
 | rest.server.port                            | e.g. 8083                                | Required*2 |
 | spring.mvc.static-path-pattern              | /**                                      | Yes*       |
-| spring.web.resources.static-locations           | classpath:/public/                       | Yes*       |
+| spring.web.resources.static-locations       | classpath:/public/                       | Yes*       |
 | jax.rs.application.path                     | /api                                     | Optional*1 |
 | show.env.variables                          | comma separated list of variable names   | Optional*1 |
 | show.application.properties                 | comma separated list of property names   | Optional*1 |

@@ -31,6 +31,7 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDef;
 import org.platformlambda.core.util.models.PoJo;
+import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +81,52 @@ public class PostOfficeTest {
         PostOffice po = PostOffice.getInstance();
         Assert.assertFalse(po.exists((String[]) null));
         Assert.assertFalse(po.exists((String) null));
+    }
+
+    @Test
+    public void wsTest() throws InterruptedException {
+        final Utility util = Utility.getInstance();
+        final AppConfigReader config = AppConfigReader.getInstance();
+        final int PORT = util.str2int(config.getProperty("websocket.server.port", "8085"));
+        final String WELCOME = "welcome";
+        final String MESSAGE = "hello world";
+        final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
+        final PostOffice po = PostOffice.getInstance();
+        List<String> welcome = new ArrayList<>();
+        LambdaFunction connector = (headers, body, instance) -> {
+            if ("open".equals(headers.get("type"))) {
+                String txPath = headers.get("tx_path");
+                Assert.assertNotNull(txPath);
+                po.send(txPath, WELCOME.getBytes());
+                po.send(txPath, MESSAGE);
+            }
+            if ("string".equals(headers.get("type"))) {
+                Assert.assertTrue(body instanceof String);
+                String text = (String) body;
+                Assert.assertEquals(MESSAGE, text);
+                bench.offer(true);
+            }
+            if ("bytes".equals(headers.get("type"))) {
+                Assert.assertTrue(body instanceof byte[]);
+                welcome.add(util.getUTF( (byte[]) body));
+            }
+            return true;
+        };
+        for (int i=0; i < 3; i++) {
+            if (Utility.getInstance().portReady("127.0.0.1", PORT, 3000)) {
+                break;
+            } else {
+                log.info("Waiting for websocket server at port-{} to get ready", PORT);
+                Thread.sleep(1000);
+            }
+        }
+        PersistentWsClient client = new PersistentWsClient(connector,
+                Collections.singletonList("ws://127.0.0.1:"+PORT+"/ws/hello"));
+        client.start();
+        bench.poll(5, TimeUnit.SECONDS);
+        Assert.assertEquals(1, welcome.size());
+        Assert.assertEquals(WELCOME, welcome.get(0));
+        client.close();
     }
 
     @Test
@@ -246,6 +293,7 @@ public class PostOfficeTest {
         Assert.assertTrue(origins.contains(platform.getOrigin()));
         List<String> remoteOrigins = po.search(HELLO_WORLD, true);
         Assert.assertTrue(remoteOrigins.isEmpty());
+        Assert.assertTrue(po.exists(platform.getOrigin()));
     }
 
     @Test(expected = IOException.class)

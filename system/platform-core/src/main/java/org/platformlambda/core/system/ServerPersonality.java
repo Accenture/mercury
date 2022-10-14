@@ -21,8 +21,6 @@ package org.platformlambda.core.system;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-
 public class ServerPersonality {
     private static final Logger log = LoggerFactory.getLogger(ServerPersonality.class);
     private static final ServerPersonality INSTANCE = new ServerPersonality();
@@ -52,16 +50,6 @@ public class ServerPersonality {
         }
         this.type = type;
         log.info("Setting personality as {}", type);
-    }
-
-    private void ensureDirExists(File dir) {
-        if (!dir.exists()) {
-            if (dir.mkdirs()) {
-                log.info("Created {}", dir);
-            } else {
-                log.error("Unable to create {}", dir);
-            }
-        }
     }
 
 }

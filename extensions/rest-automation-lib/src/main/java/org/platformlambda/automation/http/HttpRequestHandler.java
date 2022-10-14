@@ -55,6 +55,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String WHEN = "when";
     private static final String NOW = "now";
     private static final String LATER = "later";
+    private static final String SHUTDOWN = "shutdown";
     private static final String NOT_REACHABLE = " is not reachable";
     private static final String KEEP_ALIVE = "keep-alive";
     private static final String CONNECTION_HEADER = "Connection";
@@ -89,7 +90,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         if (KEEP_ALIVE.equals(connectionType)) {
             response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
         }
-        String url = request.path();
+        String uri = request.path();
         String method = request.method().name();
         String requestId = util.getUuid();
         AsyncContextHolder holder = new AsyncContextHolder(request);
@@ -98,23 +99,23 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             holder.setAccept(acceptContent);
         }
         contexts.put(requestId, holder);
-        if (GET.equals(method) && isAdminEndpoint(requestId, request, url)) {
+        if (GET.equals(method) && isAdminEndpoint(requestId, request, uri)) {
             return;
         }
         if (POST.equals(method)) {
-            if ("/shutdown".equals(url)) {
+            if ("/shutdown".equals(uri)) {
                 shutdown(requestId, request);
                 return;
             }
-            if (url.equals("/suspend") || url.equals("/resume") ||
-                    url.equals("/suspend/now") || url.equals("/suspend/later") ||
-                    url.equals("/resume/now") || url.equals("/resume/later")) {
+            if (("/suspend").equals(uri) || ("/resume").equals(uri) ||
+                ("/suspend/now").equals(uri) || ("/suspend/later").equals(uri) ||
+                ("/resume/now").equals(uri) || ("/resume/later").equals(uri)) {
                 suspendResume(requestId, request);
                 return;
             }
         }
         RoutingEntry re = RoutingEntry.getInstance();
-        AssignedRoute route = url.startsWith(WS_PREFIX)? null : re.getRouteInfo(method, url);
+        AssignedRoute route = uri.startsWith(WS_PREFIX)? null : re.getRouteInfo(method, uri);
         int status = 200;
         String error = null;
         if (route == null) {
@@ -163,7 +164,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
                 return true;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -182,22 +183,23 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            httpUtil.sendResponse(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
+            httpUtil.sendError(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
-        EventEnvelope event = new EventEnvelope().setHeader(TYPE, "shutdown");
+        EventEnvelope event = new EventEnvelope().setHeader(TYPE, SHUTDOWN);
         if (origin.equals(Platform.getInstance().getOrigin())) {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
         }
         event.setHeader(USER, System.getProperty("user.name"));
         po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
-        httpUtil.sendResponse(requestId, request, 200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
+        httpUtil.sendResponse(SHUTDOWN, requestId, request, 200,
+                        origin+" will be shutdown in "+GRACE_PERIOD+" ms");
     }
 
     private void suspendResume(String requestId, HttpServerRequest request) {
@@ -205,7 +207,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            httpUtil.sendResponse(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
+            httpUtil.sendError(requestId, request, 400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
         Utility util = Utility.getInstance();
@@ -216,7 +218,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         }
         String type = parts.get(0);
         if (!po.exists(REGISTRY)) {
-            httpUtil.sendResponse(requestId, request, 400, type+" not available in standalone mode");
+            httpUtil.sendError(requestId, request, 400, type+" not available in standalone mode");
             return;
         }
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type)
@@ -225,7 +227,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendResponse(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -241,7 +243,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         if (LATER.equals(when)) {
             message += ". It will take effect in one minute.";
         }
-        httpUtil.sendResponse(requestId, request, 200, message);
+        httpUtil.sendResponse(type, requestId, request, 200, message);
     }
 
     private boolean isLocalHost(HttpServerRequest request) {

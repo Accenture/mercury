@@ -16,12 +16,9 @@
 
  */
 
-package org.platformlambda.websocket;
+package org.platformlambda.core.websocket.server;
 
-import org.platformlambda.core.util.Utility;
-
-import javax.websocket.Session;
-import java.util.List;
+import io.vertx.core.http.ServerWebSocket;
 
 public class WsEnvelope {
 
@@ -39,25 +36,39 @@ public class WsEnvelope {
     public static final String TOKEN = "token";
     public static final String CLOSE_CODE = "close_code";
     public static final String CLOSE_REASON = "close_reason";
+    private final String path, rxPath, txPath;
+    private final ServerWebSocket ws;
+    private long lastAccess = System.currentTimeMillis();
 
-    public final String route;
-    public final String txPath;
-    public final String ip;
-    public final String path;
-    public final String query;
-    public final String origin;
-    public Session session;
-
-    public WsEnvelope(String route, String txPath, String ip, String path, String query) {
-        this.route = route;
-        this.txPath = txPath;
-        this.ip = ip;
+    public WsEnvelope(ServerWebSocket ws, String path, String rxPath, String txPath) {
+        this.ws = ws;
         this.path = path;
-        this.query = query;
-        // this assumes origin is the last element in the URL path
-        List<String> elements = Utility.getInstance().split(path, "/");
-        // the last segment is usually used as the access token
-        this.origin = elements.get(elements.size()-1);
+        this.rxPath = rxPath;
+        this.txPath = txPath;
+    }
+
+    public void touch() {
+        lastAccess = System.currentTimeMillis();
+    }
+
+    public long getLastAccess() {
+        return lastAccess;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public String getRxPath() {
+        return rxPath;
+    }
+
+    public String getTxPath() {
+        return txPath;
+    }
+
+    public ServerWebSocket getWebSocket() {
+        return ws;
     }
 
 }

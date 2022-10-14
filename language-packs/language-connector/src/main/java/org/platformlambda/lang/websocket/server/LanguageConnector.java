@@ -30,14 +30,11 @@ import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
+import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.platformlambda.lang.services.*;
-import org.platformlambda.websocket.WsConfigurator;
-import org.platformlambda.websocket.WsEnvelope;
-import org.platformlambda.websocket.WsTransmitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -86,14 +83,14 @@ public class LanguageConnector implements LambdaFunction {
     private static final String SYSTEM_ALERT = "system.alerts";
     private static final String SYSTEM_CONFIG = "system.config";
     private static final String MAX_PAYLOAD = "max.payload";
-
     private static final String TRACE_AGGREGATION = "trace.aggregation";
-
+    private static final String MESSAGE = "message";
+    private static final int CANNOT_ACCEPT = 1003;
     private static final String MSG_ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
-    private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+    private static final int MAX_PAYLOAD_SIZE = 64 * 1024 - OVERHEAD;
 
     private static final SimpleCache cache = SimpleCache.createCache("payload.segmentation", 60000);
     private static String apiKey;
@@ -328,8 +325,7 @@ public class LanguageConnector implements LambdaFunction {
                                         log.info("{} authenticated", token);
                                     } else {
                                         // txPath, CloseReason.CloseCodes status, String message
-                                        closeConnection(txPath, CloseReason.CloseCodes.CANNOT_ACCEPT,
-                                                                "Requires login with "+API_KEY);
+                                        closeConnection(txPath, CANNOT_ACCEPT, "Requires login with "+API_KEY);
                                     }
                                 } else if (client.getState() == State.AUTHENTICATED) {
                                     // handle registration of public routes
@@ -526,12 +522,12 @@ public class LanguageConnector implements LambdaFunction {
         return result;
     }
 
-    public static void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException {
-        if (txPath != null && status != null && message != null) {
+    public static void closeConnection(String txPath, int status, String message) throws IOException {
+        if (txPath != null && message != null) {
             EventEnvelope error = new EventEnvelope();
             error.setTo(txPath);
-            error.setHeader(WsTransmitter.STATUS, String.valueOf(status.getCode()));
-            error.setHeader(WsTransmitter.MESSAGE, message);
+            error.setHeader(STATUS, status);
+            error.setHeader(MESSAGE, message);
             error.setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE);
             PostOffice.getInstance().send(error);
         }

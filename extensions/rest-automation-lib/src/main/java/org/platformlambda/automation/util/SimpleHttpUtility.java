@@ -45,7 +45,9 @@ public class SimpleHttpUtility {
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_HTML = "text/html";
-    private static final String TEMPLATE = "/errorPage.html";
+    private static final String ERROR_PAGE_HTML = "/errorPage.html";
+    private static final String ERROR = "error";
+    private static final String UTF_8 = "UTF-8";
     private static final String HTTP_UNKNOWN_WARNING = "There may be a problem in processing your request";
     private static final String HTTP_400_WARNING = "The system is unable to process your request";
     private static final String HTTP_500_WARNING = "Something may be broken";
@@ -59,7 +61,7 @@ public class SimpleHttpUtility {
 
     private SimpleHttpUtility() {
         Utility util = Utility.getInstance();
-        InputStream in = this.getClass().getResourceAsStream(TEMPLATE);
+        InputStream in = this.getClass().getResourceAsStream(ERROR_PAGE_HTML);
         template = util.stream2str(in);
     }
 
@@ -138,11 +140,11 @@ public class SimpleHttpUtility {
             for (String para : segments) {
                 int eq = para.indexOf('=');
                 if (eq == -1) {
-                    result.put(URLDecoder.decode(para, "UTF-8"), "");
+                    result.put(URLDecoder.decode(para, UTF_8), "");
                 } else {
                     String key = para.substring(0, eq);
                     String value = para.substring(eq + 1);
-                    result.put(URLDecoder.decode(key, "UTF-8"), URLDecoder.decode(value, "UTF-8"));
+                    result.put(URLDecoder.decode(key, UTF_8), URLDecoder.decode(value, UTF_8));
                 }
             }
         } catch (UnsupportedEncodingException e) {
@@ -151,7 +153,11 @@ public class SimpleHttpUtility {
         return result;
     }
 
-    public void sendResponse(String requestId, HttpServerRequest request, int status, String message) {
+    public void sendError(String requestId, HttpServerRequest request, int status, String message) {
+        sendResponse(ERROR, requestId, request, status, message);
+    }
+
+    public void sendResponse(String type, String requestId, HttpServerRequest request, int status, String message) {
         ServiceGateway.closeContext(requestId);
         String accept = request.getHeader(ACCEPT);
         if (accept == null) {
@@ -178,10 +184,10 @@ public class SimpleHttpUtility {
             Map<String, Object> result = new HashMap<>();
             result.put("status", status);
             result.put("message", message);
-            result.put("type", status < 400? "event" : "error");
+            result.put("type", type);
             result.put("path", request.path());
             if (accept.startsWith(APPLICATION_XML)) {
-                byte[] payload = util.getUTF(xmlWriter.write("error", result));
+                byte[] payload = util.getUTF(xmlWriter.write("root", result));
                 response.putHeader(CONTENT_TYPE, APPLICATION_XML);
                 response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
                 response.write(Buffer.buffer(payload));

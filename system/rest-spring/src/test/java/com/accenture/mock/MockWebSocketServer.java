@@ -21,7 +21,7 @@ package com.accenture.mock;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.websocket.WsEnvelope;
+import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

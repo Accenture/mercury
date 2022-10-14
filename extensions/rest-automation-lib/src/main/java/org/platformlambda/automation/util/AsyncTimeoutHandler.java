@@ -56,7 +56,7 @@ public class AsyncTimeoutHandler extends Thread {
                     if (now - t1 > holder.timeout) {
                         log.warn("Async HTTP Context {} timeout for {} ms", id, now - t1);
                         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
-                        httpUtil.sendResponse(id, holder.request, 408,
+                        httpUtil.sendError(id, holder.request, 408,
                                 "Timeout for " + (holder.timeout / 1000) + " seconds");
                     }
                 }

@@ -21,16 +21,14 @@ package org.platformlambda.automation;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerOptions;
 import org.platformlambda.automation.config.RoutingEntry;
-import org.platformlambda.automation.config.WsEntry;
 import org.platformlambda.automation.http.HttpRelay;
 import org.platformlambda.automation.http.HttpRequestHandler;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.services.*;
 import org.platformlambda.automation.util.AsyncTimeoutHandler;
-import org.platformlambda.automation.ws.WsRequestHandler;
-import org.platformlambda.automation.ws.WsTokenIssuer;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
@@ -44,15 +42,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
-@MainApplication(sequence=2)
+@MainApplication(sequence=1)
 public class MainModule implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainModule.class);
 
     public static final String ASYNC_HTTP_REQUEST = "async.http.request";
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
-    public static final String NOTIFICATION_MANAGER = "notification.manager";
-    private static final String WS_TOKEN_ISSUER = "ws.token.issuer";
-    private static final String NOTIFICATION_QUERY = "ws.notification";
 
     public static void main(String[] args) {
         AppStarter.main(args);
@@ -60,10 +55,10 @@ public class MainModule implements EntryPoint {
 
     /**
      * Starting point for rest-automation
-     *
+     * <p>
      * Note that this module will not start under IDE because
      * mercury dependencies are scoped as "provided" in the pom.xml
-     *
+     * <p>
      * However, you can always test it with a simple unit test by executing RestServer.main(new String[0]);
      *
      * @param args command line arguments if any
@@ -84,15 +79,9 @@ public class MainModule implements EntryPoint {
             ConfigReader config = getConfig();
             RoutingEntry restRouting = RoutingEntry.getInstance();
             restRouting.load(config);
-            WsEntry wsRouting = WsEntry.getInstance();
-            wsRouting.load(config);
             // start service response handler
             ServiceGateway gateway = new ServiceGateway();
             ConcurrentMap<String, AsyncContextHolder> contexts = gateway.getContexts();
-            // "async.http.request" is deployed as PUBLIC to provide "HttpClient as a service"
-            platform.register(ASYNC_HTTP_REQUEST, new HttpRelay(), 300);
-            // "async.http.response" must be PRIVATE because the AsyncContext objects are kept in local memory
-            platform.registerPrivate(ASYNC_HTTP_RESPONSE, new ServiceResponseHandler(contexts), 300);
             // fall back to "server.port" if "rest.server.port" is not configured
             int port = util.str2int(appConfig.getProperty("rest.server.port",
                                     appConfig.getProperty("server.port", "8100")));
@@ -100,24 +89,24 @@ public class MainModule implements EntryPoint {
             Vertx vertx = Vertx.vertx();
             HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
             vertx.createHttpServer(options)
-                    .webSocketHandler(new WsRequestHandler())
                     .requestHandler(new HttpRequestHandler(gateway))
                     .listen(port)
                     .onSuccess(server -> {
                         log.info("REST automation running on port-{}", server.actualPort());
-                        // start a generic notification service
                         try {
-                            platform.register(NOTIFICATION_MANAGER, new NotificationManager(), 10);
-                            platform.registerPrivate(WS_TOKEN_ISSUER, new WsTokenIssuer(), 10);
-                            platform.registerPrivate(NOTIFICATION_QUERY, new NotificationQuery(), 10);
-                            // start timeout handler
-                            AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
-                            timeoutHandler.start();
-                            // connect to the event streams
-                            platform.connectToCloud();
+                            // "async.http.request" is deployed as PUBLIC to provide "HttpClient as a service"
+                            platform.register(ASYNC_HTTP_REQUEST, new HttpRelay(), 300);
+                            // "async.http.response" must be PRIVATE because the AsyncContext are kept in local memory
+                            platform.registerPrivate(ASYNC_HTTP_RESPONSE,
+                                                        new ServiceResponseHandler(contexts), 300);
                         } catch (IOException e) {
-                            log.error("Unable to start notification service", e);
+                            log.error("Unable to register HTTP request/response handlers  - {}", e.getMessage());
                         }
+                        // start timeout handler
+                        AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
+                        timeoutHandler.start();
+                        // connect to the event streams
+                        platform.connectToCloud();
                     })
                     .onFailure(ex -> {
                         log.error("Unable to start - {}", ex.getMessage());
@@ -127,6 +116,16 @@ public class MainModule implements EntryPoint {
         } catch (Exception e) {
             log.error("Unable to start", e);
             System.exit(-1);
+        }
+
+        LambdaFunction f = (headers, body, instance) -> {
+            log.info("{}", body);
+            return body;
+        };
+        try {
+            platform.registerPrivate("hello.world", f, 10);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

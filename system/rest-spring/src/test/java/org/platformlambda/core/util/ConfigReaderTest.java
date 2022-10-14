@@ -131,7 +131,7 @@ public class ConfigReaderTest {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
         Assert.assertEquals("rest-spring", reader.getProperty("hello.name"));
-        Assert.assertEquals("8085", reader.getProperty("hello.server[1]"));
+        Assert.assertEquals("8086", reader.getProperty("hello.server[1]"));
     }
 
     @SuppressWarnings("unchecked")

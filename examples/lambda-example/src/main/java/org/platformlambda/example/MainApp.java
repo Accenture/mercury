@@ -47,7 +47,7 @@ public class MainApp implements EntryPoint {
 
         // You can create a microservice as a lambda function inline or write it as a regular Java class
         LambdaFunction echo = (headers, body, instance) -> {
-            log.info("echo #"+instance+" got a request");
+            log.info("echo #{} got a request", instance);
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
             result.put("body", body);

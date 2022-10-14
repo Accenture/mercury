@@ -3,24 +3,35 @@
 This is a sample application for the distributed trace aggregator.
 
 DO NOT use this for production. It is meant to be used as a demo app to illustrate how to aggregate trace metrics.
+For this demo, the perf metrics are printed onto the standard output.
+
 For production, please write your own custom aggregator.
 
-This application subscribes to the route "distributed.trace.processor" to receive distributed trace information.
+This application provides service using the route "distributed.trace.processor" to receive trace information.
 
 In addition to printing the trace information as log messages, it is a websocket server for distributed trace
 UI applications to connect.
 
 # IMPORTANT - distributed trace logging vs trace aggregator
 
-Distributed trace logging should be set as INFO so that the performance metrics information are logged to a centralized
-logging system such as Splunk. This would allow devops team to do production triage. The non-blocking operation
-does not impact production traffic.
+There are 2 approaches in trace collection:
 
-However, when distributed trace aggregator is deployed, the system will generate additional network traffic for
-sending performance metrics to the aggregator.
+1. Decentralized
 
-If you build your own trace aggregator, please ensure that you save the metrics into a dedicated database to avoid
-competing with production traffic.
+    You can implement a function with route "distributed.tracing" in each application to intercept perf metrics.
+
+2. Centralized
+
+    You can implement a separate application with service called "distributed.trace.processor" to collect
+    traces from all application instances in the system. 
+
+The advantage of decentralized approach is that it is lighter weight. It is like have an agent in each application
+instance to report perf metrics.
+
+The advantage of centralized approach is that you can aggregate traces from all application instances and decide
+how to process them. e.g. You can keep them in a database or search engine for further analysis. However, the
+disadvantage is that it would consume more network traffic in the network event stream system. Therefore, you
+must ensure the network has sufficient capacity to handle the additional workload.
 
 ## Turning on tracing
 
@@ -34,16 +45,6 @@ you want to trace. For details, please refer to the REST automation application 
 Optionally, you may enable transaction journaling for selected services. To enable journaling, you can define
 the service routes in journal config YAML file. Journaling is a superset of distributed trace. You would need
 to write your own distributed trace aggregator.
-
-## Demo tracer HTML page
-
-To demonstrate how to integrate with this distributed trace aggregator, you can deploy this application.
-
-In a localhost environment, you can visit http://127.0.0.1:8300/trace.html.
-In a cloud deployment, the URL will be defined by the cloud administrator.
-
-It will return a sample HTML page that connects to the aggregator's websocket service port and
-display the tracing information in real-time.
 
 ## Sample trace metrics
 
@@ -89,7 +90,7 @@ The trace shows that the event passes through 3 services: "hello.world" at the l
     "id": "fee3d82fd3dd47fc883aefb61f2f2fe8"
   },
   "annotations": {
-    "version": "language-connector 1.12.41",
+    "version": "language-connector 2.6.0",
     "target": "py0356ba1413324686b2828439634a4d37"
   },
   "type": "trace"
@@ -98,11 +99,8 @@ The trace shows that the event passes through 3 services: "hello.world" at the l
 
 ## UI application
 
-You may implement a UI tracer to connect to the aggregator's websocket service port to collect the tracing information.
-
-Visualization is usually done by ingesting the raw tracing metrics information to an external DevOps tool
-such as Graphite or Grafana.
+If you save the perf metrics into a search engine. You can then render the metrics with a dashboard such as 
+Kibana or Grafana.
 
 If you want to do your own visualization, you may implement a single page application (React, Angular, etc.)
-to render and filter the tracing metrics data.
-
+to render the metrics retrieved from the search engine.

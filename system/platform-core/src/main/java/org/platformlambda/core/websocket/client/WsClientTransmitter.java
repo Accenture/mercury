@@ -40,7 +40,7 @@ public class WsClientTransmitter implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (connected) {
+        if (connected && !ws.isClosed()) {
             if (body instanceof byte[]) {
                 ws.writeBinaryMessage(Buffer.buffer((byte[]) body));
             }

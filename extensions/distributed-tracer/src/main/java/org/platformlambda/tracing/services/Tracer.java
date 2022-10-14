@@ -19,15 +19,13 @@
 package org.platformlambda.tracing.services;
 
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
-import org.platformlambda.tracing.ws.WsTrace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 public class Tracer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(Tracer.class);
@@ -48,17 +46,13 @@ public class Tracer implements LambdaFunction {
         data.put("type", "trace");
         data.put("trace", transform(headers));
         data.put("data", body);
-        // send the trace info to all connected UI clients
-        PostOffice po = PostOffice.getInstance();
-        Set<String> txPaths = WsTrace.getConnections();
-        for (String path: txPaths) {
-            po.send(path, data);
-        }
         /*
-         * do not log because the individual applications have already log the trace event.
-         * Otherwise, there would be duplicated log if we forward the log to a centralized logging system
-         * such as Splunk.
+         * this is a demo. Therefore, we just print out the perf metrics.
+         *
+         * In a production system, you should forward to metrics to a centralized dashboard for visualization.
          */
+        String json = SimpleMapper.getInstance().getMapper().writeValueAsString(data);
+        log.info("\n{}", json);
         return true;
     }
 

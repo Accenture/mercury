@@ -73,13 +73,13 @@ public class InfoService implements LambdaFunction {
     private static final String MISSING = "missing";
     private static final String JOURNAL = "journal";
     private static final Date START_TIME = new Date();
-    private final String description;
-    private final Boolean isServiceMonitor;
-    private final Boolean hasCloudConnector;
+    private final String appDesc;
+    private final boolean isServiceMonitor;
+    private final boolean hasCloudConnector;
 
     public InfoService() {
         AppConfigReader config = AppConfigReader.getInstance();
-        description = config.getProperty(APP_DESCRIPTION, Platform.getInstance().getName());
+        appDesc = config.getProperty(APP_DESCRIPTION, Platform.getInstance().getName());
         isServiceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
         hasCloudConnector = !"none".equalsIgnoreCase(config.getProperty(PostOffice.CLOUD_CONNECTOR, "none"));
     }
@@ -100,7 +100,7 @@ public class InfoService implements LambdaFunction {
          */
         app.put(NAME, info.getArtifactId());
         app.put(VERSION, info.getVersion());
-        app.put(DESCRIPTION, description);
+        app.put(DESCRIPTION, appDesc);
         String appId = platform.getAppId();
         if (appId != null) {
             app.put(INSTANCE, appId);

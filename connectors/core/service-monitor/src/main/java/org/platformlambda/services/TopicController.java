@@ -34,7 +34,6 @@ import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,6 +61,7 @@ public class TopicController implements LambdaFunction {
     private static final String RELEASE_TOPIC = "release_topic";
     private static final String TOPIC = "topic";
     private static final String AVAILABLE = "*";
+    private static final int TRY_AGAIN_LATER = 1013;
     private static final long INTERVAL = 5 * 1000L;
     private static final long EXPIRY = 60 * 1000L;
     // topic+partition -> origin | AVAILABLE(*)
@@ -347,8 +347,7 @@ public class TopicController implements LambdaFunction {
                                     new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
                         } catch (IOException e) {
                             try {
-                                MonitorService.closeConnection(txPath,
-                                        CloseReason.CloseCodes.TRY_AGAIN_LATER,e.getMessage());
+                                MonitorService.closeConnection(txPath, TRY_AGAIN_LATER, e.getMessage());
                             } catch (IOException ioe) {
                                 // ok to ignore
                             }

@@ -259,7 +259,7 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("ok", result.get("type"));
+        Assert.assertEquals("suspend", result.get("type"));
         Assert.assertEquals("/suspend/now", result.get("path"));
     }
 
@@ -272,38 +272,8 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("ok", result.get("type"));
+        Assert.assertEquals("resume", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
-    }
-
-    @Test
-    public void getCssPage() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/sample.css");
-        Assert.assertTrue(response instanceof String);
-        String text = (String) response;
-        InputStream in = this.getClass().getResourceAsStream("/public/sample.css");
-        String css = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(css, text);
-    }
-
-    @Test
-    public void getTextPage() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/sample.txt");
-        Assert.assertTrue(response instanceof String);
-        String text = (String) response;
-        InputStream in = this.getClass().getResourceAsStream("/public/sample.txt");
-        String txt = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(txt, text);
-    }
-
-    @Test
-    public void getJsPage() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/sample.js");
-        Assert.assertTrue(response instanceof String);
-        String text = (String) response;
-        InputStream in = this.getClass().getResourceAsStream("/public/sample.js");
-        String js = Utility.getInstance().stream2str(in);
-        Assert.assertEquals(js, text);
     }
 
     @Test(expected = AppException.class)

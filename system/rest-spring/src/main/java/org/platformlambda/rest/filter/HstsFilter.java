@@ -15,7 +15,7 @@
     limitations under the License.
 
  */
-package org.platformlambda.websocket;
+package org.platformlambda.rest.filter;
 
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -25,15 +25,14 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.*;
 import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @WebFilter(asyncSupported = true, value = "/*")
-public class WsFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(WsFilter.class);
+public class HstsFilter implements Filter {
+    private static final Logger log = LoggerFactory.getLogger(HstsFilter.class);
 
     private static final String IP = "ip";
     private static final String PROTOCOL = "x-forwarded-proto";
@@ -45,7 +44,7 @@ public class WsFilter implements Filter {
     private static boolean loaded = false;
     private static List<String> indexPageList = new ArrayList<>();
     private static String indexPage = "index.html";
-    private static Boolean hstsRequired;
+    private static boolean hstsRequired = false;
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -61,7 +60,7 @@ public class WsFilter implements Filter {
             String indexList = reader.getProperty("index.redirection");
             if (indexList != null) {
                 List<String> normalizedList = new ArrayList<>();
-                util.split(indexList, ", ").forEach((s) -> { normalizedList.add(s.endsWith("/")? s : s + "/"); });
+                util.split(indexList, ", ").forEach(s -> { normalizedList.add(s.endsWith("/")? s : s + "/"); });
                 indexPageList = normalizedList;
                 log.info("Index page redirection - {}", indexPageList);
             }
@@ -73,12 +72,7 @@ public class WsFilter implements Filter {
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest req = (HttpServletRequest) request;
             HttpServletResponse res = (HttpServletResponse) response;
-            if (req.getHeader(UPGRADE) != null) {
-                /*
-                 * update query string with caller IP address so that the websocket server endpoint can retrieve it.
-                 */
-                chain.doFilter(new IpWrapper(req), res);
-            } else {
+            if (req.getHeader(UPGRADE) == null) {
                 /*
                  * HTTP Strict Transport Security (HSTS)
                  * https://tools.ietf.org/html/rfc6797
@@ -114,28 +108,5 @@ public class WsFilter implements Filter {
         // no-op
     }
 
-    private class IpWrapper extends HttpServletRequestWrapper {
-
-        private HttpServletRequest request;
-
-        /**
-         * Constructs a request object wrapping the given request.
-         *
-         * @param request The request to wrap
-         * @throws IllegalArgumentException if the request is null
-         */
-        public IpWrapper(HttpServletRequest request) {
-            super(request);
-            this.request = request;
-        }
-
-        @Override
-        public String getQueryString() {
-            String query = request.getQueryString();
-            String ipAddr = IP+"="+request.getRemoteAddr();
-            return query == null? ipAddr : ipAddr+"&"+query;
-        }
-
-    }
 
 }

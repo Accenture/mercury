@@ -46,7 +46,9 @@ public class ObjectStreamIO {
     private static final String CLOSE = "close";
     private static final String DATA = "data";
     private static final String END_OF_STREAM = "eof";
-    private static final String STREAM_PREFIX = "stream";
+    private static final String STREAM_PREFIX = "stream.";
+    private static final String IN = ".in";
+    private static final String OUT = ".out";
     private static boolean loaded = false;
     private String inputStreamId;
     private String outputStreamId;
@@ -78,8 +80,8 @@ public class ObjectStreamIO {
             houseKeeper.start();
         }
         String id = util.getUuid();
-        String in = STREAM_PREFIX+".in."+id;
-        String out = STREAM_PREFIX+".out."+id;
+        String in = STREAM_PREFIX+id+IN;
+        String out = STREAM_PREFIX+id+OUT;
         this.inputStreamId = in + "@" + platform.getOrigin();
         this.outputStreamId = out + "@" + platform.getOrigin();
         StreamPublisher publisher = new StreamPublisher();

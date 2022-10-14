@@ -99,7 +99,7 @@ public class AsyncInbox extends InboxBase {
                 EventEnvelope event = new EventEnvelope(message.body());
                 String inboxId = event.getReplyTo();
                 if (inboxId != null) {
-                    saveResponse(sender, inboxId, event);
+                    saveResponse(sender, inboxId, event.setReplyTo(null));
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());

@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class TestBase {
 
     protected static int port;
+    protected static int wsPort;
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
@@ -36,7 +37,8 @@ public abstract class TestBase {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
-            port = util.str2int(config.getProperty("server.port", "8085"));
+            port = util.str2int(config.getProperty("server.port", "8086"));
+            wsPort = util.str2int(config.getProperty("websocket.server.port", "8085"));
             RestServer.main(new String[0]);
         }
     }
