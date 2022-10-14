@@ -27,7 +27,7 @@ public class LivenessProbe implements LambdaFunction {
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
-        return new EventEnvelope().setBody("OK").setHeader("content-type", "text/plain");
+        return new EventEnvelope().setBody("OK").setHeader("Content-Type", "text/plain");
     }
 
 }

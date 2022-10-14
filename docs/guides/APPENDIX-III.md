@@ -64,8 +64,6 @@ The health service can retrieve the "type" of the request from the "headers".
 ## Application instance life-cycle events
 
 Any application can subscribe to life-cycle events of other application instances.
-Sample code is available in
-extensions/rest-automation-lib/src/main/java/org/platformlambda/automation/services/NotificationManager.java
 
 To listen to life cycle events, you can do something like this:
 ```
@@ -90,9 +88,9 @@ LambdaFunction f = (headers, body, instance) -> {
 platform.registerPrivate(AUTOMATION_NOTIFICATION, f, 1);
 
 ...
-EventEnvelope event = new EventEnvelope()
-                        .setTo(AUTOMATION_NOTIFICATION).setHeader(TYPE, SUBSCRIBE_LIFE_CYCLE);
-po.sendLater(event, new Date(System.currentTimeMillis() + 2000));
+platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 20);
+po.send(ServiceDiscovery.SERVICE_REGISTRY,
+        new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
 ```
 
 ## HttpClient as a service

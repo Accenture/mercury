@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.automation.http;
+package org.platformlambda.automation.tests;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -108,7 +108,6 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertTrue(data.get("routing") instanceof Map);
         Map<String, Object> routes = (Map<String, Object>) data.get("routing");
         Assert.assertTrue(routes.containsKey("async.http.request"));
-        Assert.assertTrue(routes.containsKey("notification.manager"));
     }
 
     @Test(expected = AppException.class)

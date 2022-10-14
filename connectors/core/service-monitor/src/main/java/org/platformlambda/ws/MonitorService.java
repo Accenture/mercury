@@ -29,14 +29,12 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
+import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.platformlambda.models.PendingConnection;
 import org.platformlambda.models.WsMetadata;
-import org.platformlambda.websocket.WsEnvelope;
-import org.platformlambda.websocket.WsTransmitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,12 +62,15 @@ public class MonitorService implements LambdaFunction {
     private static final String CREATED = "created";
     private static final String UPDATED = "updated";
     private static final String MONITOR = "monitor";
+    private static final String STATUS = "status";
+    private static final String MESSAGE = "message";
     private static final String ID = "id";
     private static final String SEQ = "seq";
     private static final String STARTING_UP = "Starting up";
     private static final String TOPIC_ASSIGNED = "Topic already assigned";
     private static final String INVALID_PROTOCOL = "Invalid handshake";
     private static final String GROUP = "group";
+    private static final int TRY_AGAIN_LATER = 1013;
     private static final long ONE_SECOND = 1000;
     private static final long EXPIRY = 60 * ONE_SECOND;
     private static final long GRACE_PERIOD = 40 * ONE_SECOND;
@@ -160,7 +161,7 @@ public class MonitorService implements LambdaFunction {
             try {
                 log.info("Closing connection {} because {}", md.session, reason);
                 pendingConnections.remove(md.session);
-                closeConnection(md.txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, reason);
+                closeConnection(md.txPath, TRY_AGAIN_LATER, reason);
             } catch (IOException e) {
                 // ok to ignore
             }
@@ -207,7 +208,7 @@ public class MonitorService implements LambdaFunction {
             connections.put(route, md);
         } else {
             log.info("Session {} closed - {}", route, STARTING_UP);
-            closeConnection(txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, STARTING_UP);
+            closeConnection(txPath, TRY_AGAIN_LATER, STARTING_UP);
         }
     }
 
@@ -240,7 +241,7 @@ public class MonitorService implements LambdaFunction {
                         } else {
                             // this guarantees that a topic is used exclusively by a single app instance
                             if (isTopicAssigned(md.origin, info)) {
-                                closeConnection(md.txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, TOPIC_ASSIGNED);
+                                closeConnection(md.txPath, TRY_AGAIN_LATER, TOPIC_ASSIGNED);
                             } else {
                                 log.debug("Member {} is alive {}", md.origin, info.get(SEQ));
                             }
@@ -249,7 +250,7 @@ public class MonitorService implements LambdaFunction {
                 }
 
             } catch (Exception e) {
-                closeConnection(md.txPath, CloseReason.CloseCodes.TRY_AGAIN_LATER, INVALID_PROTOCOL);
+                closeConnection(md.txPath, TRY_AGAIN_LATER, INVALID_PROTOCOL);
             }
 
         }
@@ -340,12 +341,12 @@ public class MonitorService implements LambdaFunction {
         return false;
     }
 
-    public static void closeConnection(String txPath, CloseReason.CloseCodes status, String message) throws IOException {
-        if (txPath != null && status != null && message != null) {
+    public static void closeConnection(String txPath, int status, String message) throws IOException {
+        if (txPath != null && message != null) {
             EventEnvelope error = new EventEnvelope();
             error.setTo(txPath);
-            error.setHeader(WsTransmitter.STATUS, String.valueOf(status.getCode()));
-            error.setHeader(WsTransmitter.MESSAGE, message);
+            error.setHeader(STATUS, status);
+            error.setHeader(MESSAGE, message);
             error.setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE);
             PostOffice.getInstance().send(error);
         }

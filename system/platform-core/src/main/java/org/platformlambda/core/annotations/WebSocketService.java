@@ -31,4 +31,6 @@ import java.lang.annotation.*;
 public @interface WebSocketService {
 
     String value();
+
+    String namespace() default "ws";
 }

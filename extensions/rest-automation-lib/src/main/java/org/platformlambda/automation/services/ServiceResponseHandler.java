@@ -158,11 +158,11 @@ public class ServiceResponseHandler implements LambdaFunction {
                     String message = ((String) event.getRawBody()).trim();
                     // make sure it does not look like JSON or XML
                     if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
-                        httpUtil.sendResponse(requestId, holder.request, status, (String) event.getRawBody());
+                        httpUtil.sendError(requestId, holder.request, status, (String) event.getRawBody());
                         return null;
                     }
                 }
-                // With the exception of HEAD method, HTTP response may have a body
+                // Except HEAD method, HTTP response may have a body
                 if (!HEAD.equals(holder.method)) {
                     // output is a stream?
                     Object responseBody = event.getRawBody();
@@ -192,8 +192,8 @@ public class ServiceResponseHandler implements LambdaFunction {
                             }
                         } catch (IOException | RuntimeException e) {
                             log.warn("{} {} interrupted - {}", holder.url, streamId, e.getMessage());
-                            httpUtil.sendResponse(requestId, holder.request,
-                                    e.getMessage().contains("timeout") ? 408 : 500, e.getMessage());
+                            httpUtil.sendError(requestId, holder.request,
+                                    e.getMessage().contains(TIMEOUT) ? 408 : 500, e.getMessage());
                             return null;
                         }
                         // regular output
@@ -207,7 +207,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                             response.write(Buffer.buffer(payload));
                             response.write(HTML_END);
                         } else if (contentType.startsWith(APPLICATION_XML)) {
-                            byte[] payload = util.getUTF(xmlWriter.write("result", responseBody));
+                            byte[] payload = util.getUTF(xmlWriter.write(RESULT, responseBody));
                             response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
                             response.write(Buffer.buffer(payload));
                         } else {
@@ -228,7 +228,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                             // xml must be delivered as a map so we use a wrapper here
                             Map<String, Object> map = new HashMap<>();
                             map.put(RESULT, responseBody);
-                            byte[] payload = util.getUTF(xmlWriter.write("result", map));
+                            byte[] payload = util.getUTF(xmlWriter.write(RESULT, map));
                             response.putHeader(CONTENT_LEN, String.valueOf(payload.length));
                             response.write(Buffer.buffer(payload));
                         } else {

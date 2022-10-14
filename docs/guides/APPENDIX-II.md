@@ -11,6 +11,7 @@ event-driven system and your application may not work as expected.
 | actuator.services             | Reserved for actuator admin endpoint   | platform-core                |
 | elastic.queue.cleanup         | Elastic queue clean up task            | platform-core                |
 | distributed.tracing           | Distributed trace logger               | platform-core                |
+| system.ws.server.cleanup      | Websocket server cleanup service       | platform-core                |
 | distributed.trace.processor   | Distributed trace aggregator           | User defined trace handler   |
 | system.service.registry       | Distributed routing registry           | cloud connectors             |
 | system.service.query          | Distributed routing query              | cloud connectors             |
@@ -22,9 +23,6 @@ event-driven system and your application may not work as expected.
 | cloud.connector               | Cloud event emitter                    | Cloud connectors             |
 | async.http.request            | HTTP request event handler             | REST automation system       |
 | async.http.response           | HTTP response event handler            | REST automation system       |
-| notification.manager          | Simple notification service            | REST automation system       |
-| ws.token.issuer               | Websocket access token issuer          | REST automation system       |
-| ws.notification               | Websocket notification handler         | REST automation system       |
 | language.pack.inbox           | RPC inbox handler                      | Language Connector           |
 | language.pack.registry        | Routing registry                       | Language Connector           |
 | pub.sub.controller            | Pub/sub handler                        | Language Connector           |

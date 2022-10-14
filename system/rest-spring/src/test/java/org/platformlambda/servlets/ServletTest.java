@@ -496,10 +496,10 @@ public class ServletTest extends TestBase {
 
             return true;
         };
-        boolean ready = Utility.getInstance().portReady("127.0.0.1", port, 5000);
+        boolean ready = Utility.getInstance().portReady("127.0.0.1", wsPort, 5000);
         Assert.assertTrue(ready);
         PersistentWsClient client = new PersistentWsClient(connector,
-                Collections.singletonList("ws://127.0.0.1:"+port+"/ws/mock"));
+                Collections.singletonList("ws://127.0.0.1:"+wsPort+"/ws/mock"));
         client.start();
 
         try {

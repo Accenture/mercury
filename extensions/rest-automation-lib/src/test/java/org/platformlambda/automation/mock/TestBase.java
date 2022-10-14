@@ -19,6 +19,7 @@
 package org.platformlambda.automation.mock;
 
 import org.junit.BeforeClass;
+import org.platformlambda.automation.MainModule;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -79,7 +80,7 @@ public class TestBase {
             Platform platform = Platform.getInstance();
             platform.registerPrivate("hello.world", f, 10);
             // wait for service to be ready
-            platform.waitForProvider("notification.manager", 20);
+            platform.waitForProvider(MainModule.ASYNC_HTTP_RESPONSE, 20);
         }
     }
 }

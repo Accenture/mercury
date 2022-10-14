@@ -112,8 +112,7 @@
                 var req = {}
                 req['type'] = 'welcome';
                 // open a web socket
-                var protocol = window.location.protocol == "http:"? "ws" : "wss";
-                ws = new WebSocket(protocol+"://"+window.location.host+"/ws/hello/"+accessToken);
+                ws = new WebSocket("ws://127.0.0.1:8085/ws/hello/"+accessToken);
 
                 ws.onopen = function() {
                     show(eventWithTimestamp("info", "connected"));
@@ -151,7 +150,7 @@
 <div class="container">
     <br/>
     <h4 style="color: #3cb371">Demo</h4>
-    Click "Start Service" to connect to the websocket echo service
+    Click "Start Service" to connect to the websocket echo service at http://127.0.0.1:8085/ws/hello
     <br/><br/>
     <div class="input-group">
         <div class="input-group mb-3">

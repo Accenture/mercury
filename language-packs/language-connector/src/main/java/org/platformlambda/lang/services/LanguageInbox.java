@@ -25,7 +25,6 @@ import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.lang.websocket.server.LanguageConnector;
-import org.platformlambda.websocket.WsConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +47,7 @@ public class LanguageInbox implements LambdaFunction {
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
     private static final int OVERHEAD = MultipartPayload.OVERHEAD;
-    private static final int MAX_PAYLOAD_SIZE = WsConfigurator.getInstance().getMaxBinaryPayload() - OVERHEAD;
+    private static final int MAX_PAYLOAD_SIZE = 64 * 1024 - OVERHEAD;
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {

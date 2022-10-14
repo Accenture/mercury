@@ -112,7 +112,7 @@ public class Inbox extends InboxBase implements AutoCloseable {
                 EventEnvelope event = new EventEnvelope(message.body());
                 String inboxId = event.getReplyTo();
                 if (inboxId != null) {
-                    saveResponse(inboxId, event);
+                    saveResponse(inboxId, event.setReplyTo(null));
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());

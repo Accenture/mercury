@@ -142,14 +142,14 @@ public class ServiceGateway {
                         return;
                     }
                 }
-                httpUtil.sendResponse(requestId, request, status, error);
+                httpUtil.sendError(requestId, request, status, error);
             } else {
                 try {
                     routeRequest(requestId, route, holder);
                 } catch (AppException e) {
-                    httpUtil.sendResponse(requestId, request, e.getStatus(), e.getMessage());
+                    httpUtil.sendError(requestId, request, e.getStatus(), e.getMessage());
                 } catch (IOException e) {
-                    httpUtil.sendResponse(requestId, request, 500, e.getMessage());
+                    httpUtil.sendError(requestId, request, 500, e.getMessage());
                 }
             }
         }
@@ -397,8 +397,7 @@ public class ServiceGateway {
                 contentType = "?";
             }
             if (contentType.startsWith(MULTIPART_FORM_DATA) && POST.equals(method)) {
-                final ObjectStreamIO stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                final ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
+                final StreamHolder stream = new StreamHolder(route.info.timeoutSeconds);
                 request.uploadHandler(upload -> {
                     req.setFileName(upload.filename());
                     final AtomicInteger total = new AtomicInteger();
@@ -406,16 +405,14 @@ public class ServiceGateway {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(out, block, len);
+                            readInputStream(stream.getOutputStream(), block, len);
                         }
                     }).endHandler(end -> {
-                        try {
-                            int size = total.get();
-                            req.setContentLength(size);
+                        int size = total.get();
+                        req.setContentLength(size);
+                        if (size > 0) {
                             req.setStreamRoute(stream.getInputStreamId());
-                            out.close();
-                        } catch (IOException e) {
-                            log.error("Unexpected error while closing HTTP input stream - {}", e.getMessage());
+                            stream.close();
                         }
                         sendRequestToService(request, req, route, requestId, traceIdFinal, tracePathFinal);
                     });
@@ -493,22 +490,19 @@ public class ServiceGateway {
                     }).endHandler(done -> inputComplete.set(true));
                 } else {
                     final AtomicInteger total = new AtomicInteger();
-                    final ObjectStreamIO stream = new ObjectStreamIO(route.info.timeoutSeconds);
-                    final ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
+                    final StreamHolder stream = new StreamHolder(route.info.timeoutSeconds);
                     request.bodyHandler(block -> {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(out, block, len);
+                            readInputStream(stream.getOutputStream(), block, len);
                         }
                         if (inputComplete.get()) {
-                            try {
-                                int size = total.get();
-                                req.setContentLength(size);
+                            int size = total.get();
+                            req.setContentLength(size);
+                            if (size > 0) {
                                 req.setStreamRoute(stream.getInputStreamId());
-                                out.close();
-                            } catch (IOException e) {
-                                log.error("Unexpected error while closing HTTP input stream - {}", e.getMessage());
+                                stream.close();
                             }
                             sendRequestToService(request, req, route, requestId, traceIdFinal, tracePathFinal);
                         }
@@ -553,27 +547,29 @@ public class ServiceGateway {
             }
         } catch (IOException e) {
             SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
-            httpUtil.sendResponse(requestId, request,400, e.getMessage());
+            httpUtil.sendError(requestId, request,400, e.getMessage());
         }
     }
 
     private void readInputStream(ObjectStreamWriter out, Buffer block, int len) {
-        try {
-            byte[] data = block.getBytes(0, len);
-            if (data.length > BUFFER_SIZE) {
-                int bytesRead = 0;
-                byte[] buffer = new byte[BUFFER_SIZE];
-                ByteArrayInputStream in = new ByteArrayInputStream(data);
-                while (bytesRead < data.length) {
-                    int n = in.read(buffer);
-                    bytesRead += n;
-                    out.write(buffer, 0, n);
+        if (out != null && block != null && len > 0) {
+            try {
+                byte[] data = block.getBytes(0, len);
+                if (data.length > BUFFER_SIZE) {
+                    int bytesRead = 0;
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    ByteArrayInputStream in = new ByteArrayInputStream(data);
+                    while (bytesRead < data.length) {
+                        int n = in.read(buffer);
+                        bytesRead += n;
+                        out.write(buffer, 0, n);
+                    }
+                } else {
+                    out.write(data);
                 }
-            } else {
-                out.write(data);
+            } catch (IOException e) {
+                log.error("Unexpected error while reading HTTP input stream", e);
             }
-        } catch (IOException e) {
-            log.error("Unexpected error while reading HTTP input stream", e);
         }
     }
 

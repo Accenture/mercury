@@ -1,41 +1,18 @@
 #
 # REST automation is the recommended way to create REST endpoints properly
-# Note that URL comparison is case insensitive but case sensitivity is preserved
+# Note that URL comparison is case-insensitive but case sensitivity is preserved
 # for the original URL and path parameters
 #
 rest:
-  # The REST automation system includes a built-in websocket notification system.
-  # If you want to enable this feature, you must add the ws.token.issuer service as
-  # shown in this example. For added security, please enable authentication and point
-  # it to a user defined authentication service that may authenticate the user credentials
-  # and validate that the user is allowed to use a specific websocket application.
   #
-  # the "ws.token.issuer" and "ws.notification" are reserved by the system for
-  # websocket connection token issuance and notification topic query services
-  #
-  - service: "ws.token.issuer"
-    methods: ['GET']
-    url: "/api/ws/token/{application}"
-    #    authentication: "v1.ws.api.auth"
-    tracing: true
-  - service: "ws.notification"
-    methods: ['GET']
-    url: "/api/notification"
-    #    authentication: "v1.api.auth"
-    tracing: true
-  - service: "ws.notification"
-    methods: ['GET']
-    url: "/api/notification/{topic}"
-    #    authentication: "v1.api.auth"
-    tracing: true
-
   # service should be a target service name or a list of service names
   # If more than one service name is provided, the first one is the primary target
   # and the rest are secondary target(s). The system will copy the HTTP request event to the secondary targets.
   #
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
-  - service: ["hello.world", "hello.world.2"]
+  #
+  - service: ["hello.world"]
     methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     timeout: 10s
@@ -68,7 +45,7 @@ rest:
   - service: "hello.world"
     methods: ['POST']
     url: "/api/upload/demo"
-    # to support multi-part file upload, set upload to true
+    # to support multipart file upload, set upload to true
     upload: true
     timeout: 15s
     cors: cors_1
@@ -174,36 +151,3 @@ headers:
         - "Cache-Control: no-cache, no-store"
         - "Pragma: no-cache"
         - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
-
-#
-# WebSocket automation is designed primarily for real-time notification.
-# However, you may also use it to receive messages from a browser or external application.
-#
-# You can also send notification events using the NotificationService API
-# Please refer to user guide for details.
-# https://github.com/Accenture/mercury/tree/master/docs/guides
-#
-# The URI prefix "/ws/" is reserved for websocket connections
-# and the format of a valid web-socket URI is /ws/{application}/{token}?query_parameters
-#
-# (Query parameters are not used for authentication.
-# If provided, they will be passed to a configured recipient function)
-#
-# In the following example entry, the application name is "notification".
-# You can use the websocket connection with or without notification feature.
-# If you want notification feature, set "subscribe" to true and your UI can send subscription API
-# via a websocket connection. If you allow the UI to send notification events to other browsers,
-# you can turn on "publish".
-#
-# If you want to handle the input programmatically at the backend, you can set a "recipient" route name
-# that points to a custom function that you provide.
-#
-# When publish/subscribe features are set to false, you must provide a "recipient" function otherwise
-# the websocket becomes a "no-op" connection, thus wasting networking resources.
-#
-websocket:
-  - application: "notification"
-    publish: true
-    subscribe: true
-#    recipient: "my.ws.handler"
-

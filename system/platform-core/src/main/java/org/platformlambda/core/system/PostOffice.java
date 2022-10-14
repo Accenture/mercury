@@ -1079,6 +1079,9 @@ public class PostOffice {
             return false;
         }
         Platform platform = Platform.getInstance();
+        if (route.equals(platform.getOrigin())) {
+            return true;
+        }
         String dest = substituteRouteIfAny(route);
         if (platform.hasRoute(dest)) {
             return true;

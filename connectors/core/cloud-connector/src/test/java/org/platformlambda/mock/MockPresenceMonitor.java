@@ -34,7 +34,6 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +71,7 @@ public class MockPresenceMonitor implements LambdaFunction {
     private static final String VERSION = "version";
     private static final String JOIN = "join";
     private static final String READY = "ready";
+    private static final int TRY_AGAIN_LATER = 1013;
     private static final long EXPIRY = 60 * 1000;
     private static final String AVAILABLE = "*";
     // topic+partition -> origin | AVAILABLE(*)
@@ -191,7 +191,7 @@ public class MockPresenceMonitor implements LambdaFunction {
                     } else {
                         EventEnvelope error = new EventEnvelope();
                         error.setTo(txPath);
-                        error.setHeader(STATUS, String.valueOf(CloseReason.CloseCodes.TRY_AGAIN_LATER));
+                        error.setHeader(STATUS, TRY_AGAIN_LATER);
                         error.setHeader(MESSAGE, "Starting up");
                         error.setHeader(TYPE, CLOSE);
                         po.send(error);

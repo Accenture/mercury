@@ -55,6 +55,9 @@ public class PersistentWsClient extends Thread {
     public static final String IP = "ip";
     public static final String PATH = "path";
     private static final String ALIVE_SEQ = "seq";
+    private static final String PC = "pc.";
+    private static final String IN = ".in";
+    private static final String OUT = ".out";
 
     private final AtomicLong seq = new AtomicLong(1);
     private final AtomicLong aliveSeq = new AtomicLong(0);
@@ -80,7 +83,7 @@ public class PersistentWsClient extends Thread {
         this.urls.addAll(urls);
         Platform platform = Platform.getInstance();
         sessionId = Utility.getInstance().getUuid().substring(0, 8);
-        session = "ws.in."+sessionId;
+        session = PC+sessionId+IN;
         try {
             platform.registerPrivate(session, connector, 1);
         } catch (IOException e) {
@@ -152,19 +155,18 @@ public class PersistentWsClient extends Thread {
             vertx.setTimer(RETRY_TIMER, n -> makeConnection(idleSeconds));
             return;
         }
-        String txPath = "ws.out."+seq.get()+"."+sessionId;
-        String currentSession = seq.get()+"."+sessionId;
+        String txPath = PC+sessionId+"."+seq.get()+OUT;
         Future<WebSocket> connection = client.webSocket(options);
         connection.onSuccess(ws -> {
             seq.incrementAndGet();
             connected.set(true);
-            log.info("Session {} connected to {}", currentSession, options.getURI());
+            log.info("Session {} connected to {}", session, options.getURI());
             WsClientTransmitter tx = new WsClientTransmitter(ws);
             try {
                 platform.registerPrivate(txPath, tx, 1);
             } catch (IOException e1) {
                 // this should never happen
-                log.error("Unable to setup session {} - {}", currentSession, e1.getMessage());
+                log.error("Unable to setup session {} - {}", session, e1.getMessage());
             }
             try {
                 po.send(session, new Kv(TYPE, OPEN), new Kv(IP, target.getHost()+":"+options.getPort()),
@@ -208,11 +210,12 @@ public class PersistentWsClient extends Thread {
                 tx.close();
                 vertx.cancelTimer(keepAlive);
                 String reason = ws.closeReason() == null? "ok" : ws.closeReason();
-                log.info("Session {} closed ({}, {})", currentSession, ws.closeStatusCode(), reason);
+                log.info("Session {} closed ({}, {})", session, ws.closeStatusCode(), reason);
                 try {
                     po.send(session, new Kv(TYPE, CLOSE), new Kv(ROUTE, session), new Kv(TX_PATH, txPath));
                 } catch (IOException e) {
-                    log.warn("Unable to send close signal to {} - {}", session, e.getMessage());
+                    // this happens when PersistentWsClient is closed
+                    log.info("Client {} stopped", session);
                 }
                 try {
                     platform.release(txPath);
@@ -224,7 +227,7 @@ public class PersistentWsClient extends Thread {
             });
             ws.exceptionHandler(e -> {
                 if (connected.get()) {
-                    log.warn("Session {} - {}", currentSession, e.getMessage());
+                    log.warn("Session {} - {}", session, e.getMessage());
                     connected.set(false);
                     ws.close((short) 1000, e.getMessage());
                 }
@@ -247,7 +250,7 @@ public class PersistentWsClient extends Thread {
             try {
                 Platform.getInstance().release(session);
             } catch (IOException e) {
-                log.error("Unable to release service {} - {}", session, e.getMessage());
+                log.info("{} already released", session);
             }
             client.close();
             vertx.close();

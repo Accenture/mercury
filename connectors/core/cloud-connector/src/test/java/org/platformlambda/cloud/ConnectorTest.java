@@ -47,8 +47,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ConnectorTest extends TestBase {
     private static final Logger log = LoggerFactory.getLogger(ConnectorTest.class);
 
-    private static final String NOTIFICATION_INTERNAL = "notification.manager.internal";
-
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
 
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
@@ -92,14 +90,9 @@ public class ConnectorTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void connectivityTest() throws TimeoutException, AppException, IOException {
-        LambdaFunction f1 = (headers, body, instance) -> {
-            log.info("Notification receives {} {}", headers, body);
-            return true;
-        };
         String origin = "unit-test";
         Platform platform = Platform.getInstance();
         platform.waitForProvider("cloud.connector.health", 10);
-        platform.register(NOTIFICATION_INTERNAL, f1, 1);
         PostOffice po = PostOffice.getInstance();
         String URL = "https://127.0.0.1";
         String SERVICE_NAME = "CloudConnector";
@@ -154,13 +147,13 @@ public class ConnectorTest extends TestBase {
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("ok", result.get("type"));
+        Assert.assertEquals("suspend", result.get("type"));
         Assert.assertEquals("/suspend/now", result.get("path"));
         response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume/now", headers, new HashMap<>());
         Assert.assertTrue(response instanceof String);
         result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("ok", result.get("type"));
+        Assert.assertEquals("resume", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv("type", "leave"), new Kv("origin", origin));
     }

@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.6.0, 10/13/2022
+
+In this version, websocket notification example code has been removed from the REST automation system.
+If your application uses this feature, please recover the code from version 2.5.0 and refactor it as a
+separate library.
+
+### Added
+
+N/A
+
+### Removed
+
+Simplify REST automation system by removing websocket notification example in REST automation.
+
+### Changed
+
+1. Replace Tomcat websocket server with Vertx non-blocking websocket server library
+2. Update netty to version 4.1.79.Final
+3. Update kafka client to version 2.8.2
+4. Update snake yaml to version 1.33
+5. Update gson to version 2.9.1
+
+---
 ## Version 2.5.0, 9/10/2022
 
 ### Added
