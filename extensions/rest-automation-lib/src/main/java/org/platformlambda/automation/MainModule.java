@@ -117,16 +117,6 @@ public class MainModule implements EntryPoint {
             log.error("Unable to start", e);
             System.exit(-1);
         }
-
-        LambdaFunction f = (headers, body, instance) -> {
-            log.info("{}", body);
-            return body;
-        };
-        try {
-            platform.registerPrivate("hello.world", f, 10);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private ConfigReader getConfig() throws IOException {
