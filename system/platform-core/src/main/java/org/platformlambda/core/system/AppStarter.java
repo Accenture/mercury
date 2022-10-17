@@ -62,11 +62,17 @@ public class AppStarter {
             loaded = true;
             AppStarter.args = args;
             AppStarter begin = new AppStarter();
-            // run "BeforeApplication" modules
+            // Run "BeforeApplication" modules
             begin.doApps(args, false);
-            // run "MainApplication" modules
+            /*
+             * Initialize event system before loading "MainApplication" modules.
+             * This ensures all "preload" services are loaded.
+             */
+            PostOffice po = PostOffice.getInstance();
+            log.info("Starting application instance {}", po.getAppInstanceId());
+            // Run "MainApplication" modules
             begin.doApps(args, true);
-            // setup websocket server if required
+            // Setup websocket server if required
             try {
                 begin.startHttpServerIfAny();
             } catch (IOException e) {

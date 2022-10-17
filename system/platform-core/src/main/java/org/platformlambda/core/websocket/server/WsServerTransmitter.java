@@ -34,22 +34,19 @@ import java.util.Map;
 public class WsServerTransmitter implements LambdaFunction {
 
     private final ServerWebSocket ws;
-    private boolean connected = true;
     private static final String STATUS = "status";
     private static final String MESSAGE = "message";
+    private boolean connected = true;
 
     public WsServerTransmitter(ServerWebSocket ws) {
         this.ws = ws;
     }
 
-    public void close() {
-        connected = false;
-    }
-
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (connected && !ws.isClosed()) {
-            if (body == null && WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
+            if (WsEnvelope.CLOSE.equals(headers.get(WsEnvelope.TYPE))) {
+                connected = false;
                 int status = Utility.getInstance().str2int(headers.get(STATUS));
                 String message = headers.get(MESSAGE) == null? "bye" : headers.get(MESSAGE);
                 ws.close((short) (status >= 0? status : 1000), message);

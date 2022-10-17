@@ -21,6 +21,7 @@ package org.platformlambda.core.mock;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,9 +85,14 @@ public class WsEcho implements LambdaFunction {
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
                     String message = (String) body;
-                    // just echo the message
-                    po.send(txPath, message);
                     log.info("{} received: {}", route, message);
+                    if ("end".equals(message)) {
+                        log.info("Closing this test connection");
+                        Utility.getInstance().closeConnection(txPath, 1000, "just a test");
+                    } else {
+                        // just echo the message
+                        po.send(txPath, message);
+                    }
                     break;
                 default:
                     // this should not happen

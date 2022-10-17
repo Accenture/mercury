@@ -22,6 +22,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
+import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.VersionInfo;
 
 import java.io.*;
@@ -35,6 +36,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +61,8 @@ public class Utility {
     private static final String NESTED_EXCEPTION_MARKER = "** BEGIN NESTED EXCEPTION **";
     private static final String NESTED_EXCEPTION_START = "MESSAGE:";
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
+    private static final String STATUS = "status";
+    private static final String MESSAGE = "message";
     private static final String[] JAR_PATHS = { "BOOT-INF/lib", "WEB-INF/lib",
                                                 "WEB-INF/lib-provided", "lib" };
     private static final String JAR = "jar";
@@ -950,6 +955,14 @@ public class Utility {
         sb.append(seconds);
         sb.append(seconds == 1? " second" : " seconds");
         return sb.toString();
+    }
+
+    //////////////////////////////////////////////////////////////////
+    // Convenient utility to close a connection of a WebSocketService
+    //////////////////////////////////////////////////////////////////
+    public void closeConnection(String txPath, int status, String message) throws IOException {
+        PostOffice.getInstance().send(txPath, new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE),
+                                              new Kv(STATUS, status), new Kv(MESSAGE, message));
     }
 
 }

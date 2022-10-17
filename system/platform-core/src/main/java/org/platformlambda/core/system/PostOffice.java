@@ -100,17 +100,18 @@ public class PostOffice {
         for (String p : packages) {
             List<ClassInfo> services = scanner.getAnnotatedClasses(p, PreLoad.class);
             for (ClassInfo info : services) {
+                String serviceName = info.getName();
+                log.info("Loading service {}", serviceName);
                 try {
-                    Class<?> cls = Class.forName(info.getName());
+                    Class<?> cls = Class.forName(serviceName);
                     PreLoad preload = cls.getAnnotation(PreLoad.class);
                     List<String> routes = util.split(preload.route(), ", ");
                     if (routes.isEmpty()) {
-                        log.error("Unable to preload {} - missing service route(s)", info.getName());
+                        log.error("Unable to preload {} - missing service route(s)", serviceName);
                     } else {
                         int instances = preload.instances();
                         boolean isPrivate = preload.isPrivate();
                         Object o = cls.getDeclaredConstructor().newInstance();
-                        log.info("Loading {}", info.getName());
                         if (o instanceof TypedLambdaFunction) {
                             for (String r: routes) {
                                 if (isPrivate) {
@@ -121,13 +122,13 @@ public class PostOffice {
                             }
                         } else {
                             log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
-                                    info.getName());
+                                    serviceName);
                         }
                     }
 
                 } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
                          IllegalAccessException | NoSuchMethodException | IOException e) {
-                    log.error("Unable to preload {} - {}", info.getName(), e.getMessage());
+                    log.error("Unable to preload {} - {}", serviceName, e.getMessage());
                 }
             }
         }
@@ -135,6 +136,10 @@ public class PostOffice {
 
     public static PostOffice getInstance() {
         return INSTANCE;
+    }
+
+    public String getAppInstanceId() {
+        return Platform.getInstance().getOrigin();
     }
 
     public ConcurrentMap<String, ConcurrentMap<String, String>> getCloudRoutes() {

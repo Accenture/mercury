@@ -69,21 +69,27 @@ public class PostOfficeTest extends TestBase {
     }
 
     @Test
-    public void wsTest() throws InterruptedException {
+    public void wsTest() throws InterruptedException, IOException {
         final Utility util = Utility.getInstance();
         final AppConfigReader config = AppConfigReader.getInstance();
         final int PORT = util.str2int(config.getProperty("websocket.server.port", "8085"));
         final String WELCOME = "welcome";
         final String MESSAGE = "hello world";
+        final String END = "end";
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         final PostOffice po = PostOffice.getInstance();
         List<String> welcome = new ArrayList<>();
+        List<String> txPaths = new ArrayList<>();
         LambdaFunction connector = (headers, body, instance) -> {
             if ("open".equals(headers.get("type"))) {
                 String txPath = headers.get("tx_path");
+                if (txPaths.isEmpty()) {
+                    txPaths.add(txPath);
+                }
                 Assert.assertNotNull(txPath);
                 po.send(txPath, WELCOME.getBytes());
                 po.send(txPath, MESSAGE);
+                po.send(txPath, END);
             }
             if ("string".equals(headers.get("type"))) {
                 Assert.assertTrue(body instanceof String);
@@ -98,7 +104,7 @@ public class PostOfficeTest extends TestBase {
             return true;
         };
         for (int i=0; i < 3; i++) {
-            if (Utility.getInstance().portReady("127.0.0.1", PORT, 3000)) {
+            if (util.portReady("127.0.0.1", PORT, 3000)) {
                 break;
             } else {
                 log.info("Waiting for websocket server at port-{} to get ready", PORT);
