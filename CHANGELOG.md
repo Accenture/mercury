@@ -338,7 +338,7 @@ N/A
 1. "kafka.pubsub" is added as a cloud service
 2. File download example in the lambda-example project
 3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the 
-   transaction in the log context. For more details, please refer to the [Developer Guide](docs/guides/CHAPTER-5.md)
+   transaction in the log context. For more details, please refer to the [Developer Guide](/guides/CHAPTER-5.md)
 4. Add API to pub/sub engine to support creation of topic with partitions
 5. TypedLambdaFunction is added so that developer can predefine input and output classes in a service without casting
 

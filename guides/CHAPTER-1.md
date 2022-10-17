@@ -12,7 +12,7 @@ through a network event stream system when the calling and called parties reside
 
 ## Building the mercury framework libraries
 
-Please follow the [README](../../README.md) file in the project root to build the Mercury framework libraries 
+Please follow the [README](../README.md) file in the project root to build the Mercury framework libraries 
 from source code.
 
 ## Writing your first microservices function
