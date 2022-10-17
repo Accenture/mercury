@@ -724,4 +724,4 @@ and Microsoft Azure Event Hubs.
 
 ## Developer guide
 
-For more details, please refer to the [Developer Guide](docs/guides/TABLE-OF-CONTENTS.md)
+For more details, please refer to the [Developer Guide](guides/TABLE-OF-CONTENTS.md)

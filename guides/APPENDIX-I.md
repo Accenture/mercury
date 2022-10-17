@@ -7,6 +7,7 @@
 | info.app.description                        | Something about application              | Yes        |
 | web.component.scan                          | your own package path or parent path     | Yes        |
 | server.port                                 | e.g. 8083                                | Yes*       |
+| rest.automation                             | true if you want to enable automation    | Optional   |
 | rest.server.port                            | e.g. 8085                                | Optional   |
 | websocket.server.port                       | (alias for rest.server.port)             | Optional   |
 | static.html.folder                          | classpath:/public/                       | Yes*       |
@@ -50,6 +51,29 @@
 `*1` - when using the "rest-spring" library
 `*2` - applies to the REST automation application only
 `*3` - optional for unit test purpose only. DO NOT set this parameter in "main" branch for production code.
+
+# HTTP and websocket ports
+
+Spring boot uses 'server.port' as the common port for both REST and websocket using Tomcat or a web server
+of your choice.
+
+The platform-core provides non-blocking REST and websocket server functionality when Spring Boot (rest-spring)
+is not used. REST endpoints are defined in rest.yaml and enabled when 'rest.automation=true' is set in the
+application.properties (or application.yml) file.
+
+Websocket endpoints are created using the WebSocketService annotation. If your application does not have
+any REST endpoints in rest.yaml and rest.automation=false, the system will use the port defined in 
+'websocket.server.port'. If your application sets rest.automation=true and REST endpoints are defined
+in rest.yaml, the system will use the port defined in 'rest.server.port'. If both REST and websocket endpoints
+are needed, your websocket endpoints will use the same port as the REST endpoints.
+
+If rest.server.port and websocket.server.port are not provided, the system will look for the port in 'server.port'.
+
+# Combined Spring Boot, REST automation and WebSocketService
+
+This is demonstrated in the rest-example application, it uses Spring Boot (rest-spring) to serve REST endpoints
+and WebSocketService to serve websocket endpoints. In this case, Spring Boot will use 'server.port' and
+WebSocketService will use a different 'websocket.server.port'.
 
 # transient data store
 
