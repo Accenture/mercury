@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>service-monitor</artifactId>
     <packaging>jar</packaging>
-    <version>2.6.0</version>
+    <version>2.7.0</version>
     <name>service-monitor</name>
 
     <parent>
@@ -40,13 +40,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>cloud-connector</artifactId>
-            <version>2.6.0</version>
+            <version>2.7.0</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>2.6.0</version>
+            <version>2.7.0</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

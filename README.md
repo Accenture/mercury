@@ -9,50 +9,51 @@ HTML version of this documentation is available at https://accenture.github.io/m
 The Mercury project is created with one primary objective - 
 `to make software easy to write, read, test, deploy, scale and manage`.
 
-It introduces the concept of platform abstraction and takes event driven programming to the next level of 
-simplicity and sophistication.
+Event-driven and reactive programming is the industry trend. However, writing pub/sub and reactive code
+can be challenging. While sharing the same theory, there are many different implementation of reactive
+libraries such as Akka, Vertx, Spring Reactor, etc.
 
-Everything can be expressed as anonymous functions and they communicate with each other using events. 
-This includes turning synchronous HTTP requests and responses into async events using the REST automation system.
-However, event driven and reactive programming can be challenging. The Mercury framework hides all the
-complexity of event driven and reactive patterns and the magic of inter-service communication.
+Mercury is a platform abstraction layer for in-memory and network event stream systems. It takes
+event-driven programming to the next level of simplicity. You don't need to explicitly write listeners
+and pub/sub code.
 
-If you want digital decoupling, this is the technology that you should invest 30 minutes of your time to get 
-familiar with.
+In addition to traditional pub/sub for digital decoupling among domains, your applications can handle
+real-time events for request-response (RPC), drop-n-forget, callback, pipeline, workflow and streaming.
 
-The pre-requisites are minimal. The foundation technology requires only Java (OpenJDK 8 or higher) and 
-the Maven build system ("mvn"). Docker/Kubernetes are optional. The application modules that you create 
-using the Mercury framework will run in bare metal, VM and any cloud environments.
+Under the hood, Eclipse Vertx is used as the in-memory event system. For network event streams, Kafka,
+ActiveMQ, Hazelcast and TIBCO are encapsulated as 'cloud-connectors'.
 
-This project is created by architects and computer scientists who have spent years to perfect software decoupling, 
-scalability and resilience, high performance and massively parallel processing,
+Mercury uses Java 1.8 Lambda construct so that you can write a 'service' to encapsulate business logic
+in an anonymous function. You don't need any special 'wiring' to make your service responds to requests.
 
-With a very high level of decoupling, you can focus in writing business logic without distraction.
+One service can call another services using the 'Post Office' which is the event emitter that sends and
+receives requests and responses as events.
 
-Since everything can be expressed as anonymous functions, the framework itself is written using this approach, 
-including the cloud connectors and language pack in the project. In this way, you can add new connectors, 
-plugins and language packs as you like. The framework is extensible.
+The system has a built-in REST automation engine in the platform core library. It allows you to declare any
+REST endpoints without code. REST automation turns HTTP requests and responses into asynchronous events for
+high performance non-blocking processing. You can tell REST automation to route a URI path to a 'service'
+that you declare as anonymous function. For backward compatibility, it can also proxy a HTTP call to an 
+external REST endpoint.
 
-The concept is simple. You write your business logic as anonymous functions and packaged them in one or more 
-executables. These executables may be composed as Docker images or alike for deployment. The services in the 
-containers communicate with each other using "service route names".
+It supports Java, Python and Node.js. Network event stream encapsulation is implemented in Java. It includes
+a language connector subproject to serve Python and Node.js.
 
-Mercury supports unlimited service route names on top of event stream and messaging systems such as Kafka, 
-Hazelcast, Tibco EMS and ActiveMQ artemis. While we make the event stream system works as a service mesh, 
-Mercury can be used in standalone mode for applications that use pub/sub directly.
+Mercury powered applications can be deployed in bare metal, VM, kubernetes and 'Function as a service' in
+on-premises infrastructure, data centers or any cloud environments.
 
-In fact, you can encapsulate other event stream or even enterprise service bus (ESB) with Mercury. 
-Just use the connectors as examples. It would make your ESB runs like an event stream system for RPC, 
-async, callback, streaming, pipeline and pub/sub use cases.
+Mercury has been deployed in a few mission critical production systems for the last 5 years. Based on inputs and
+observation from the fields, we have continuously improved the codebase.
 
-Best regards, the Mercury team, Accenture
+We are now preparing for version 3.0. We will provide additional information soon.
 
-May 2022
+Best regards, Cloud Native Microservices team, Accenture
+
+October 2022
 
 ## Rationale
 
-The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need t
-o modernize service-oriented architecture and to transform monolithic applications as manageable and reusable 
+The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need to
+modernize service-oriented architecture and to transform monolithic applications as manageable and reusable 
 pieces, it was first mentioned in 2011 for an architectural style that defines an application as a set of 
 loosely coupled single purpose services.
 
@@ -63,7 +64,11 @@ architectural concept. However, many production systems face operational challen
 quite difficult to decompose a solution down to functional level. This applies to both green field 
 development or application modernization. As a result, many microservices modules are indeed smaller 
 subsystems. Within a traditional microservice, business logic is tightly coupled with 3rd party 
-and open sources libraries including cloud platform client components and drivers. This is suboptimal.
+and open sources libraries including cloud platform client components and drivers. 
+
+Mercury addresses this limitation with 'platform abstaction' (aka 'hexagonal' pattern) such that
+you can encapsulate some platform functionality with a functional wrapper, thus avoiding hard wiring
+your application code with specific dependencies.
 
 ## User friendly reactive programming
 
@@ -273,11 +278,6 @@ The kafka-presence system is fully scalable.
 
 The python language pack is available in https://github.com/Accenture/mercury-python
 
-`rest-automation`
-
-This extension package is a system that automates the creation of REST endpoints by configuration instead of code. 
-Not only it eliminates the repetitive work of writing REST endpoints, it makes HTTP completely non-blocking.
-
 `distributed-tracer`
 
 This extension package is an example application that consolidates distributed trace metrics.
@@ -294,8 +294,10 @@ template.
 It encapsulates Spring Boot, automates JSON/XML/PoJo serialization and simplfies application development. 
 It also allows you to write custom REST endpoints using WebServlet and JAX-RS REST annotations.
 
-For rapid application development, we do recommend you to use the REST automation system to define REST endpoints 
-by configuration rather than code.
+`rest-automation`
+
+For rapid application development, you may use the built-in REST automation system to declare REST endpoints without
+coding. The rest-automation application in the 'example' subprojects may be used as template to get started.
 
 ## Before you start
 
@@ -328,7 +330,7 @@ You can compile the rest-example as a microservices executable like this:
 cd mercury/examples
 cd rest-example
 mvn clean package
-java -jar target/rest-example-2.6.0.jar
+java -jar target/rest-example-2.7.0.jar
 # this will run the rest-example without a cloud connector
 ```
 
@@ -385,7 +387,7 @@ For development and testing, you can start a standalone Kafka server.
 # start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
 cd mercury/connectors/kafka/kafka-standalone/
 mvn clean package
-java -jar target/kafka-standalone-2.6.0.jar
+java -jar target/kafka-standalone-2.7.0.jar
 # this will run a standalone Kafka server in the foreground
 ```
 
@@ -395,7 +397,7 @@ The next step is to start the "presence-monitor" application.
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -jar target/kafka-presence-2.6.0.jar
+java -jar target/kafka-presence-2.7.0.jar
 # this will run the presence monitor at port 8080 in the foreground
 
 # when an application instance is started, it connects to the presence monitor to get topic.
@@ -411,7 +413,7 @@ Optionally, if you want to test resilience of the presence monitor, you can star
 # start another terminal and go to kafka-presence folder
 cd mercury/connectors/kafka/kafka-presence/
 mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.6.0.jar
+java -Dserver.port=8081 -jar target/kafka-presence-2.7.0.jar
 # this will run the presence monitor at port 8081 in the foreground
 ```
 
@@ -419,11 +421,11 @@ java -Dserver.port=8081 -jar target/kafka-presence-2.6.0.jar
 
 ```bash
 # go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.6.0.jar
+java -Dcloud.connector=kafka -jar target/lambda-example-2.7.0.jar
 # the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.6.0.jar
+java -Dcloud.connector=kafka -jar target/rest-example-2.7.0.jar
 # the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
 
 # the lambda-example and rest-example apps will show the topic assignment like this
@@ -702,7 +704,7 @@ you can simply set "tracing=true" in the rest.yaml configuration of the rest-aut
 
 ## JDK compatibility
 
-The Mercury project, with the exception of the `kafka-standalone` subproject, has been tested with OpenJDK and AdaptOpenJDK version 8 to 16.
+The Mercury project has been tested with OpenJDK and AdaptOpenJDK version 8 to 18.
 
 Please use Java version 11 or higher to run the kafka-standalone application which is provided as a convenient tool for
 development and testing. The kafka standalone server would fail due to a known memory mapping bug when running under Java version 1.8.0_292.

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.7.0, 10/16/2022
+
+In this version, REST automation code is moved to platform-core such that REST and Websocket
+service can share the same port.
+
+### Added
+
+AsyncObjectStreamReader is added for non-blocking read operation from an object stream.
+
+### Removed
+
+N/A
+
+### Changed
+
+REST automation becomes part of platform-core and it can co-exist with Spring Web in the rest-spring module.
+
+---
 ## Version 2.6.0, 10/13/2022
 
 In this version, websocket notification example code has been removed from the REST automation system.

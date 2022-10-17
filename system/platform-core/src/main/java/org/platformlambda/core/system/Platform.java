@@ -305,13 +305,12 @@ public class Platform {
         if (service == null) {
             throw new IOException(ROUTE+route+NOT_FOUND);
         }
-        if (!service.isPrivate()) {
-            throw new IllegalArgumentException(ROUTE+route+" is already public");
+        if (service.isPrivate()) {
+            // set it to public
+            service.setPrivate(false);
+            log.info("Converted {} to PUBLIC", route);
+            advertiseRoute(route);
         }
-        // set it to public
-        service.setPrivate(false);
-        log.info("Converted {} to PUBLIC", route);
-        advertiseRoute(route);
     }
 
     @SuppressWarnings("rawtypes")

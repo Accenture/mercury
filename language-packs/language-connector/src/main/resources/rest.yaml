@@ -27,10 +27,10 @@ rest:
     # For default authentication service, use "default: service" format
     #
     #    authentication: "v1.api.auth"
-    authentication:
-      - "x-app-name: demo : v1.demo.auth"
-      - "authorization: v1.basic.auth"
-      - "default: v1.api.auth"
+#    authentication:
+#      - "x-app-name: demo : v1.demo.auth"
+#      - "authorization: v1.basic.auth"
+#      - "default: v1.api.auth"
     cors: cors_1
     headers: header_1
     # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
@@ -43,7 +43,7 @@ rest:
   - service: "hello.world"
     methods: ['POST']
     url: "/api/upload/demo"
-    # to support multi-part file upload, set upload to true
+    # to support multipart file upload, set upload to true
     upload: true
     timeout: 15s
     cors: cors_1

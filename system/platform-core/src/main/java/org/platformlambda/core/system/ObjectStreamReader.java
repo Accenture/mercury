@@ -21,8 +21,6 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -30,7 +28,6 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(ObjectStreamReader.class);
 
     private static final String TYPE = "type";
     private static final String READ = "read";
@@ -58,12 +55,7 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
     public void close() throws IOException {
         if (!closed) {
             closed = true;
-            try {
-                // For graceful resource cleanup, wait for close completion
-                PostOffice.getInstance().request(streamId, 10000, new Kv(TYPE, CLOSE));
-            } catch (TimeoutException | AppException e) {
-                log.warn("Exception while closing {} - {}", streamId, e.getMessage());
-            }
+            PostOffice.getInstance().send(streamId, new Kv(TYPE, CLOSE));
         }
     }
 
@@ -88,13 +80,11 @@ public class ObjectStreamReader implements Iterable<Object>, AutoCloseable {
                     throw new IOException(event.getError());
                 }
                 Map<String, String> headers = event.getHeaders();
-                if (headers.containsKey(TYPE)) {
-                    String type = headers.get(TYPE);
-                    if (type.equals(END_OF_STREAM)) {
-                        eof = true;
-                    } else if (type.equals(DATA)) {
-                        return event.getBody();
-                    }
+                if (DATA.equals(headers.get(TYPE))) {
+                    return event.getBody();
+                }
+                if (END_OF_STREAM.equals(headers.get(TYPE))) {
+                    eof = true;
                 }
             } catch (AppException | IOException | TimeoutException e) {
                 eof = true;

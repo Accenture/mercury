@@ -20,21 +20,27 @@ package org.platformlambda.core.system;
 
 import io.github.classgraph.ClassInfo;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
+import org.platformlambda.automation.config.RoutingEntry;
+import org.platformlambda.automation.http.HttpRelay;
+import org.platformlambda.automation.http.HttpRequestHandler;
+import org.platformlambda.automation.models.AsyncContextHolder;
+import org.platformlambda.automation.services.ServiceGateway;
+import org.platformlambda.automation.services.ServiceResponseHandler;
+import org.platformlambda.automation.util.AsyncTimeoutHandler;
 import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.util.AppConfigReader;
-import org.platformlambda.core.util.Feature;
-import org.platformlambda.core.util.SimpleClassScanner;
-import org.platformlambda.core.util.Utility;
-import org.platformlambda.core.websocket.server.ActuatorServiceHandler;
+import org.platformlambda.core.util.*;
+import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
 import org.platformlambda.core.websocket.server.WsRequestHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +49,9 @@ import java.util.concurrent.ConcurrentMap;
 public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
     private static final ConcurrentMap<String, LambdaFunction> lambdas = new ConcurrentHashMap<>();
+
+    public static final String ASYNC_HTTP_REQUEST = "async.http.request";
+    public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
 
     private static final int MAX_SEQ = 999;
     private static boolean loaded = false;
@@ -58,7 +67,11 @@ public class AppStarter {
             // run "MainApplication" modules
             begin.doApps(args, true);
             // setup websocket server if required
-            begin.startWebSocketServerIfAny();
+            try {
+                begin.startHttpServerIfAny();
+            } catch (IOException e) {
+                log.error("Unable to start HTTP server", e);
+            }
         }
     }
 
@@ -137,7 +150,7 @@ public class AppStarter {
         }
     }
 
-    private void startWebSocketServerIfAny() {
+    private void startHttpServerIfAny() throws IOException {
         // find and execute optional preparation modules
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
@@ -163,26 +176,65 @@ public class AppStarter {
                 }
             }
         }
-        // start websocket server
-        if (!lambdas.isEmpty()) {
+        // start HTTP/websocket server
+        AppConfigReader config = AppConfigReader.getInstance();
+        boolean enableRest = "true".equals(config.getProperty("rest.automation", "false"));
+        if (enableRest || !lambdas.isEmpty()) {
             Utility util = Utility.getInstance();
-            AppConfigReader config = AppConfigReader.getInstance();
-            int port = util.str2int(config.getProperty("websocket.server.port",
-                                    config.getProperty("server.port", "8085")));
+            int port = util.str2int(config.getProperty("rest.server.port",
+                                    config.getProperty("websocket.server.port",
+                                    config.getProperty("server.port", "8085"))));
             if (port > 0) {
+                final ConcurrentMap<String, AsyncContextHolder> contexts;
                 Vertx vertx = Vertx.vertx();
                 HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
-                vertx.createHttpServer(options)
-                        .requestHandler(new ActuatorServiceHandler())
-                        .webSocketHandler(new WsRequestHandler(lambdas))
-                        .listen(port)
-                        .onSuccess(server -> {
-                            log.info("Websocket server running on port-{}", server.actualPort());
-                        })
-                        .onFailure(ex -> {
-                            log.error("Unable to start - {}", ex.getMessage());
-                            System.exit(-1);
-                        });
+                HttpServer server = vertx.createHttpServer(options);
+                if (enableRest) {
+                    ConfigReader restConfig = getRestConfig();
+                    RoutingEntry restRouting = RoutingEntry.getInstance();
+                    restRouting.load(restConfig);
+                    // Start HTTP request and response handlers
+                    ServiceGateway gateway = new ServiceGateway();
+                    contexts = gateway.getContexts();
+                    server.requestHandler(new HttpRequestHandler(gateway));
+                    // Start websocket server if there are websocket endpoints
+                    if (!lambdas.isEmpty()) {
+                        server.webSocketHandler(new WsRequestHandler(lambdas));
+                    }
+                } else {
+                    /*
+                     * REST automation not configured
+                     * 1. start minimalist HTTP handlers to provide actuator endpoints
+                     * 2. start websocket server
+                     */
+                    contexts = null;
+                    server.requestHandler(new MinimalistHttpHandler());
+                    server.webSocketHandler(new WsRequestHandler(lambdas));
+                }
+                server.listen(port)
+                .onSuccess(service -> {
+                    if (contexts != null) {
+                        try {
+                            Platform platform = Platform.getInstance();
+                            platform.registerPrivate(ASYNC_HTTP_REQUEST, new HttpRelay(), 300);
+                            platform.registerPrivate(ASYNC_HTTP_RESPONSE,
+                                                        new ServiceResponseHandler(contexts), 300);
+                        } catch (IOException e) {
+                            log.error("Unable to register HTTP request/response handlers  - {}", e.getMessage());
+                        }
+                        // start timeout handler
+                        AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
+                        timeoutHandler.start();
+                        log.info("Reactive HTTP server running on port-{}", service.actualPort());
+                    }
+                    if (!lambdas.isEmpty()) {
+                        log.info("Websocket server running on port-{}", service.actualPort());
+                    }
+                })
+                .onFailure(ex -> {
+                    log.error("Unable to start - {}", ex.getMessage());
+                    System.exit(-1);
+                });
             }
         }
     }
@@ -211,6 +263,23 @@ public class AppStarter {
                  InvocationTargetException e) {
             log.error("Unable to load {} ({}) - {}", cls.getName(), wsEndpoint, e.getMessage());
         }
+    }
+
+    private ConfigReader getRestConfig() throws IOException {
+        AppConfigReader reader = AppConfigReader.getInstance();
+        List<String> paths = Utility.getInstance().split(reader.getProperty("rest.automation.yaml",
+                "file:/tmp/config/rest.yaml, classpath:/rest.yaml"), ", ");
+        for (String p: paths) {
+            ConfigReader config = new ConfigReader();
+            try {
+                config.load(p);
+                log.info("Loading config from {}", p);
+                return config;
+            } catch (IOException e) {
+                log.warn("Skipping {} - {}", p, e.getMessage());
+            }
+        }
+        throw new IOException("Endpoint configuration not found in "+paths);
     }
 
 }

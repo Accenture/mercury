@@ -61,11 +61,8 @@ public class PostOffice {
     private static final PostOffice INSTANCE = new PostOffice();
 
     private PostOffice() {
-        preloadServices();
-
         AppConfigReader config = AppConfigReader.getInstance();
         traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
-
         try {
             // load route substitution table if any
             if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
@@ -90,6 +87,8 @@ public class PostOffice {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
+        Thread runner = new Thread(this::preloadServices);
+        runner.start();
     }
 
     @SuppressWarnings({"rawtypes"})

@@ -122,7 +122,7 @@ public class PubSub {
             this.provider = pubSub;
             log.info("Provider {} ({}) loaded", instanceName, this.provider);
         } else {
-            log.error("Provider {} ({}) is already loaded", instanceName, this.provider);
+            log.warn("Provider {} ({}) is already loaded", instanceName, this.provider);
         }
     }
 

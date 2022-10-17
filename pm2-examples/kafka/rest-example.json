@@ -7,10 +7,10 @@
         "args":[
             "-Dcloud.connector=kafka",
             "-jar",
-            "examples/rest-example/target/rest-example-2.6.0.jar"
+            "examples/rest-example/target/rest-example-2.7.0.jar"
         ],
         "watch":[
-            "examples/rest-example/target/rest-example-2.6.0.jar"
+            "examples/rest-example/target/rest-example-2.7.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

@@ -20,6 +20,7 @@ package org.platformlambda.core.websocket.server;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
+import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
@@ -29,6 +30,7 @@ import java.util.Map;
 /**
  * Outgoing message handler
  */
+@ZeroTracing
 public class WsServerTransmitter implements LambdaFunction {
 
     private final ServerWebSocket ws;
