@@ -69,7 +69,7 @@ public class PostOfficeTest extends TestBase {
     }
 
     @Test
-    public void wsTest() throws InterruptedException, IOException {
+    public void wsTest() throws InterruptedException {
         final Utility util = Utility.getInstance();
         final AppConfigReader config = AppConfigReader.getInstance();
         final int PORT = util.str2int(config.getProperty("websocket.server.port", "8085"));
