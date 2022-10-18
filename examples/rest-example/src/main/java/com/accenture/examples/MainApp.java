@@ -57,7 +57,7 @@ public class MainApp implements EntryPoint {
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
             result.put("body", body);
-            result.put("instance", String.valueOf(instance));
+            result.put("instance", instance);
             result.put("origin", platform.getOrigin());
             return result;
         };
