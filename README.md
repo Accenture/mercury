@@ -2,8 +2,6 @@
 
 Reference implementation for event driven microservices using three levels of digital decoupling
 
-HTML version of this documentation is available at https://accenture.github.io/mercury/
-
 ## Welcome to the Mercury project
 
 The Mercury project is created with one primary objective - 
