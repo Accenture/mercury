@@ -466,7 +466,7 @@ public class ServletTest extends TestBase {
     }
 
     @Test
-    public void websocketConnectionTest() {
+    public void websocketConnectionTest() throws InterruptedException {
         final BlockingQueue<Boolean> textBench = new ArrayBlockingQueue<>(1);
         final BlockingQueue<Boolean> bytesBench = new ArrayBlockingQueue<>(1);
         String MESSAGE = "hello world";
@@ -482,11 +482,8 @@ public class ServletTest extends TestBase {
             }
             if ("string".equals(headers.get("type"))) {
                 String text = (String) body;
-                if (text.startsWith("{") && text.contains("keep-alive")) {
-                    textBench.offer(true);
-                } else {
-                    Assert.assertEquals(MESSAGE, text);
-                }
+                textBench.offer(true);
+                Assert.assertEquals(MESSAGE, text);
             }
             if ("bytes".equals(headers.get("type"))) {
                 byte[] text = (byte[]) body;
@@ -502,14 +499,9 @@ public class ServletTest extends TestBase {
                 Collections.singletonList("ws://127.0.0.1:"+wsPort+"/ws/mock"));
         client.start();
 
-        try {
-            textBench.poll(5000, TimeUnit.MILLISECONDS);
-            bytesBench.poll(5000, TimeUnit.MILLISECONDS);
-            client.close();
-        } catch (InterruptedException e) {
-            // ok to ignore
-        }
-
+        textBench.poll(5000, TimeUnit.MILLISECONDS);
+        bytesBench.poll(5000, TimeUnit.MILLISECONDS);
+        client.close();
     }
 
 }
