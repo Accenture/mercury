@@ -104,26 +104,30 @@ public class PostOffice {
                 log.info("Loading service {}", serviceName);
                 try {
                     Class<?> cls = Class.forName(serviceName);
-                    PreLoad preload = cls.getAnnotation(PreLoad.class);
-                    List<String> routes = util.split(preload.route(), ", ");
-                    if (routes.isEmpty()) {
-                        log.error("Unable to preload {} - missing service route(s)", serviceName);
-                    } else {
-                        int instances = preload.instances();
-                        boolean isPrivate = preload.isPrivate();
-                        Object o = cls.getDeclaredConstructor().newInstance();
-                        if (o instanceof TypedLambdaFunction) {
-                            for (String r: routes) {
-                                if (isPrivate) {
-                                    platform.registerPrivate(r, (TypedLambdaFunction) o, instances);
-                                } else {
-                                    platform.register(r, (TypedLambdaFunction) o, instances);
-                                }
-                            }
+                    if (Feature.isRequired(cls)) {
+                        PreLoad preload = cls.getAnnotation(PreLoad.class);
+                        List<String> routes = util.split(preload.route(), ", ");
+                        if (routes.isEmpty()) {
+                            log.error("Unable to preload {} - missing service route(s)", serviceName);
                         } else {
-                            log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
-                                    serviceName);
+                            int instances = preload.instances();
+                            boolean isPrivate = preload.isPrivate();
+                            Object o = cls.getDeclaredConstructor().newInstance();
+                            if (o instanceof TypedLambdaFunction) {
+                                for (String r : routes) {
+                                    if (isPrivate) {
+                                        platform.registerPrivate(r, (TypedLambdaFunction) o, instances);
+                                    } else {
+                                        platform.register(r, (TypedLambdaFunction) o, instances);
+                                    }
+                                }
+                            } else {
+                                log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
+                                        serviceName);
+                            }
                         }
+                    } else {
+                        log.info("Skipping optional {}", cls);
                     }
 
                 } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
