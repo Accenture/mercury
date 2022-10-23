@@ -22,7 +22,7 @@ public class TestBase {
     private static final Logger log = LoggerFactory.getLogger(TestBase.class);
 
     protected static final String HELLO_WORLD = "hello.world";
-    protected static final String HELLO_WORLD_ONE = "hello.world.1";
+    protected static final String HELLO_MOCK = "hello.mock";
     protected static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     protected static final int MINIMALIST_HTTP_PORT = 8020;
     private static final String SERVICE_LOADED = "http.service.loaded";
@@ -78,8 +78,8 @@ public class TestBase {
                     return body;
                 }
             };
-            platform.registerPrivate(HELLO_WORLD_ONE, f, 10);
-            platform.makePublic(HELLO_WORLD_ONE);
+            platform.registerPrivate(HELLO_MOCK, f, 10);
+            platform.makePublic(HELLO_MOCK);
             // load minimalist HTTP server
             Vertx vertx = Vertx.vertx();
             HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);

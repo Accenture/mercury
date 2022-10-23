@@ -10,7 +10,7 @@ rest:
   #
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
-  - service: ["hello.world.1"]
+  - service: ["hello.mock"]
     methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
     flow: "hello-world"
@@ -41,7 +41,7 @@ rest:
     # optionally, you can turn on Distributed Tracing
     tracing: true
 
-  - service: "hello.world.1"
+  - service: "hello.mock"
     methods: ['POST']
     url: "/api/upload/demo"
     # to support multipart file upload, set upload to true
