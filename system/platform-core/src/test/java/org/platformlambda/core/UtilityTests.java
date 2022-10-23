@@ -55,8 +55,6 @@ public class UtilityTests {
     @Test(expected = IllegalArgumentException.class)
     public void setServerPersonality() {
         ServerPersonality personality = ServerPersonality.getInstance();
-        personality.setType(ServerPersonality.Type.APP);
-        Assert.assertEquals(ServerPersonality.Type.APP, personality.getType());
         personality.setType(null);
     }
 

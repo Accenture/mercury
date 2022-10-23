@@ -42,9 +42,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.text.NumberFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 
 public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
@@ -56,6 +56,8 @@ public class AppStarter {
     private static final int MAX_SEQ = 999;
     private static boolean loaded = false;
     private static String[] args = new String[0];
+
+    private final long startTime = System.currentTimeMillis();
 
     public static void main(String[] args) {
         if (!loaded) {
@@ -75,7 +77,7 @@ public class AppStarter {
             // Setup websocket server if required
             try {
                 begin.startHttpServerIfAny();
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 log.error("Unable to start HTTP server", e);
             }
         }
@@ -156,7 +158,7 @@ public class AppStarter {
         }
     }
 
-    private void startHttpServerIfAny() throws IOException {
+    private void startHttpServerIfAny() throws IOException, InterruptedException {
         // find and execute optional preparation modules
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
@@ -191,6 +193,7 @@ public class AppStarter {
                                     config.getProperty("websocket.server.port",
                                     config.getProperty("server.port", "8085"))));
             if (port > 0) {
+                final BlockingQueue<Boolean> serverStatus = new ArrayBlockingQueue<>(1);
                 final ConcurrentMap<String, AsyncContextHolder> contexts;
                 Vertx vertx = Vertx.vertx();
                 HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
@@ -219,6 +222,7 @@ public class AppStarter {
                 }
                 server.listen(port)
                 .onSuccess(service -> {
+                    serverStatus.offer(true);
                     if (contexts != null) {
                         try {
                             Platform platform = Platform.getInstance();
@@ -238,9 +242,15 @@ public class AppStarter {
                     }
                 })
                 .onFailure(ex -> {
+                    serverStatus.offer(false);
                     log.error("Unable to start - {}", ex.getMessage());
                     System.exit(-1);
                 });
+                Boolean ready = serverStatus.poll(10, TimeUnit.SECONDS);
+                if (Boolean.TRUE.equals(ready)) {
+                    long diff = System.currentTimeMillis() - startTime;
+                    log.info("Modules loaded in {} ms", NumberFormat.getInstance().format(diff));
+                }
             }
         }
     }
