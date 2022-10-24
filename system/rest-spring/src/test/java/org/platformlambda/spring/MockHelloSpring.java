@@ -19,7 +19,7 @@
 package org.platformlambda.spring;
 
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.util.models.PoJo;
+import org.platformlambda.models.PoJo;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;

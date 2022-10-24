@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.util.models;
+package org.platformlambda.models;
 
 public class PoJo {
 

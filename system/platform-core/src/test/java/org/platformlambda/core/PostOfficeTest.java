@@ -464,7 +464,7 @@ public class PostOfficeTest extends TestBase {
     @Test(expected = TimeoutException.class)
     public void singleRequestWithException() throws TimeoutException, IOException, AppException {
         PostOffice po = PostOffice.getInstance();
-        po.request("hello.world", 500, 0);
+        po.request("hello.world", 800, 2);
     }
 
     @Test
@@ -472,7 +472,7 @@ public class PostOfficeTest extends TestBase {
     public void singleRequest() throws TimeoutException, IOException, AppException {
         int input = 111;
         PostOffice po = PostOffice.getInstance();
-        EventEnvelope response = po.request("hello.world", 500, input);
+        EventEnvelope response = po.request("hello.world", 800, input);
         Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertEquals(input, result.get("body"));
@@ -687,7 +687,7 @@ public class PostOfficeTest extends TestBase {
             event.setHeader("request", "#"+(i+1));
             parallelEvents.add(event);
         }
-        List<EventEnvelope> results = po.request(parallelEvents, 500);
+        List<EventEnvelope> results = po.request(parallelEvents, 800);
         // expect partial results of 2 items because the other two will time out
         Assert.assertEquals(2, results.size());
         // check partial results
@@ -709,7 +709,7 @@ public class PostOfficeTest extends TestBase {
         int input = 111;
         PostOffice po = PostOffice.getInstance();
         // with route substitution in the application.properties, hello.test will route to hello.world
-        EventEnvelope response = po.request("hello.test", 500, input);
+        EventEnvelope response = po.request("hello.test", 800, input);
         Assert.assertEquals(HashMap.class, response.getBody().getClass());
         Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertEquals(input, result.get("body"));
