@@ -199,6 +199,7 @@ public class AppStarter {
                 HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
                 HttpServer server = vertx.createHttpServer(options);
                 if (enableRest) {
+                    // start REST automation system
                     ConfigReader restConfig = getRestConfig();
                     RoutingEntry restRouting = RoutingEntry.getInstance();
                     restRouting.load(restConfig);
@@ -206,18 +207,13 @@ public class AppStarter {
                     ServiceGateway gateway = new ServiceGateway();
                     contexts = gateway.getContexts();
                     server.requestHandler(new HttpRequestHandler(gateway));
-                    // Start websocket server if there are websocket endpoints
-                    if (!lambdas.isEmpty()) {
-                        server.webSocketHandler(new WsRequestHandler(lambdas));
-                    }
                 } else {
-                    /*
-                     * REST automation not configured
-                     * 1. start minimalist HTTP handlers to provide actuator endpoints
-                     * 2. start websocket server
-                     */
+                    // start minimalist HTTP handlers to provide actuator endpoints
                     contexts = null;
                     server.requestHandler(new MinimalistHttpHandler());
+                }
+                // Start websocket server if there are websocket endpoints
+                if (!lambdas.isEmpty()) {
                     server.webSocketHandler(new WsRequestHandler(lambdas));
                 }
                 server.listen(port)
@@ -246,7 +242,7 @@ public class AppStarter {
                     log.error("Unable to start - {}", ex.getMessage());
                     System.exit(-1);
                 });
-                Boolean ready = serverStatus.poll(10, TimeUnit.SECONDS);
+                Boolean ready = serverStatus.poll(20, TimeUnit.SECONDS);
                 if (Boolean.TRUE.equals(ready)) {
                     long diff = System.currentTimeMillis() - startTime;
                     log.info("Modules loaded in {} ms", NumberFormat.getInstance().format(diff));
