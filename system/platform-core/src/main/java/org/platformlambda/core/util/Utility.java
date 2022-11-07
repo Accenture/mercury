@@ -972,11 +972,11 @@ public class Utility {
     // Get value from an environment variable
     //////////////////////////////////////////
 
-    public String getEnvVariable(String s) {
+    public String getEnvVariable(String ref) {
         long threadId = Thread.currentThread().getId();
-        List<String> keys = TEMP_CONFIG.getOrDefault(threadId, new ArrayList<>());
-        if (s != null && s.startsWith("${") && s.endsWith("}")) {
-            String key = s.substring(2, s.length()-1).trim();
+        List<String> observed = TEMP_CONFIG.getOrDefault(threadId, new ArrayList<>());
+        if (ref != null && ref.startsWith("${") && ref.endsWith("}")) {
+            String key = ref.substring(2, ref.length()-1).trim();
             String defaultValue = null;
             if (key.contains(":")) {
                 int colon = key.indexOf(':');
@@ -984,13 +984,13 @@ public class Utility {
                 defaultValue = key.substring(colon+1);
                 key = k;
             }
-            if (keys.contains(key)) {
-                log.warn("Config key '{}' looping detected", key);
+            if (observed.contains(key)) {
+                log.warn("Unable to retrieve value from '{}' due to configuration loop", key);
                 TEMP_CONFIG.remove(threadId);
                 return defaultValue;
             }
-            keys.add(key);
-            TEMP_CONFIG.put(threadId, keys);
+            observed.add(key);
+            TEMP_CONFIG.put(threadId, observed);
             String property = System.getenv(key);
             if (property != null) {
                 TEMP_CONFIG.remove(threadId);
