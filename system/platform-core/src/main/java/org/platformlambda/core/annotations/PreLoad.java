@@ -23,6 +23,12 @@ import java.lang.annotation.*;
 /**
  * This indicates the class is a service to be preloaded.
  * (for a class to be preloaded, it must use a default constructor without arguments)
+ * <p>
+ * envInstances overrides instances from multiple sources.
+ * <p>
+ * 1. To get value from an environment variable, use this format ${ENV_VAR_NAME:defaultValue}.
+ * 2. To get value from application.properties or application.yml, just set it to the parameter name.
+ * Note that System property can override the application.properties/application.yml config.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -31,6 +37,8 @@ public @interface PreLoad {
 
     String route();
     int instances() default 1;
+
+    String envInstances() default "";
     boolean isPrivate() default true;
 
 }

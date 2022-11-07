@@ -55,28 +55,10 @@ public class ConfigReader implements ConfigBase {
         if (value instanceof String) {
             String s = (String) value;
             if (s.startsWith("${") && s.endsWith("}")) {
-                return getEnvVariable(s);
+                return Utility.getInstance().getEnvVariable(s);
             }
         }
         return value;
-    }
-
-    private String getEnvVariable(String s) {
-        if (s.startsWith("${") && s.endsWith("}")) {
-            String key = s.substring(2, s.length()-1).trim();
-            String defaultValue = null;
-            if (key.contains(":")) {
-                int colon = key.indexOf(':');
-                String k = key.substring(0, colon);
-                defaultValue = key.substring(colon+1);
-                key = k;
-            }
-            String property = System.getenv(key);
-            return property != null? property : System.getProperty(key, defaultValue);
-
-        } else {
-            return null;
-        }
     }
 
     /**
@@ -98,15 +80,7 @@ public class ConfigReader implements ConfigBase {
         if (value instanceof String) {
             String s = (String) value;
             if (s.startsWith("${") && s.endsWith("}")) {
-                String k = s.substring(2, s.length()-1).trim();
-                if (!k.isEmpty()) {
-                    if (key.equals(k)) {
-                        return null;
-                    }
-                    // get replacement from parent or environment variable
-                    Object replacement = AppConfigReader.getInstance().get(k);
-                    return replacement != null? replacement : getEnvVariable(s);
-                }
+                return Utility.getInstance().getEnvVariable(s);
             }
         }
         return value;

@@ -21,6 +21,7 @@ package org.platformlambda.core;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServerPersonality;
@@ -351,6 +352,24 @@ public class UtilityTests {
         String expected = "2 days 16 hours 5 minutes 6 seconds";
         final Utility util = Utility.getInstance();
         Assert.assertEquals(expected, util.elapsedTime(time));
+    }
+
+    @Test
+    public void simpleHttpDecodeTest() {
+        SimpleHttpUtility http = SimpleHttpUtility.getInstance();
+        Map<String, String> result = http.decodeQueryString("a=b&x=y");
+        Assert.assertEquals("b", result.get("a"));
+        Assert.assertEquals("y", result.get("x"));
+    }
+
+    @Test
+    public void urlRewriteTest() {
+        SimpleHttpUtility http = SimpleHttpUtility.getInstance();
+        List<String> rewrite = new ArrayList<>();
+        rewrite.add("/api/");
+        rewrite.add("/api/v2/");
+        String url = "/api/hello/world";
+        Assert.assertEquals("/api/v2/hello/world", http.normalizeUrl(url, rewrite));
     }
 
 }

@@ -143,7 +143,8 @@ public class ConfigReaderTest {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.yaml");
         Assert.assertEquals("platform-core", reader.getProperty("hello.name"));
-        Assert.assertEquals("8085", reader.getProperty("hello.location[1]"));
+        AppConfigReader config = AppConfigReader.getInstance();
+        Assert.assertEquals(config.getProperty("server.port"), reader.getProperty("hello.location[1]"));
     }
 
     @SuppressWarnings("unchecked")
@@ -193,6 +194,30 @@ public class ConfigReaderTest {
         Assert.assertEquals(2, reader.getMap().size());
         Assert.assertEquals("world", reader.get("hello"));
         Assert.assertEquals("message", reader.get("test"));
+    }
+
+    @Test
+    public void getPropertyFromEnv() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        String value = config.getProperty("system.path");
+        String path = System.getenv("PATH");
+        Assert.assertEquals(path, value);
+    }
+
+    @Test
+    public void getPropertyFromEnvFromAnotherConfig() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.yaml");
+        Object value = reader.get("hello.path");
+        String path = System.getenv("PATH");
+        Assert.assertEquals(path, value);
+    }
+
+    @Test
+    public void loopingTest() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        Object o = config.get("looping.test");
+        Assert.assertEquals("1000", o);
     }
 
 }

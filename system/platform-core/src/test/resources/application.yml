@@ -12,3 +12,7 @@ oh:
         another:
           - good
     - 456
+
+system.path: '${PATH}'
+
+instances.hello.world: 15

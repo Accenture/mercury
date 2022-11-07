@@ -14,4 +14,4 @@ hello:
   - ${server.port}
   - world:
       blvd: 100
-
+  path: ${system.path}

@@ -24,6 +24,10 @@ import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.VersionInfo;
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.websocket.server.WsEnvelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -35,14 +39,13 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-
-import org.platformlambda.core.system.PostOffice;
-import org.platformlambda.core.websocket.server.WsEnvelope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class Utility {
     private static final Logger log = LoggerFactory.getLogger(Utility.class);
+
+    private static final ConcurrentMap<Long, List<String>> TEMP_CONFIG = new ConcurrentHashMap<>();
     public static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
     public static final String ISO_MS_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
@@ -963,6 +966,49 @@ public class Utility {
     public void closeConnection(String txPath, int status, String message) throws IOException {
         PostOffice.getInstance().send(txPath, new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE),
                                               new Kv(STATUS, status), new Kv(MESSAGE, message));
+    }
+
+    //////////////////////////////////////////
+    // Get value from an environment variable
+    //////////////////////////////////////////
+
+    public String getEnvVariable(String s) {
+        long threadId = Thread.currentThread().getId();
+        List<String> keys = TEMP_CONFIG.getOrDefault(threadId, new ArrayList<>());
+        if (s != null && s.startsWith("${") && s.endsWith("}")) {
+            String key = s.substring(2, s.length()-1).trim();
+            String defaultValue = null;
+            if (key.contains(":")) {
+                int colon = key.indexOf(':');
+                String k = key.substring(0, colon);
+                defaultValue = key.substring(colon+1);
+                key = k;
+            }
+            if (keys.contains(key)) {
+                log.warn("Config key '{}' looping detected", key);
+                TEMP_CONFIG.remove(threadId);
+                return defaultValue;
+            }
+            keys.add(key);
+            TEMP_CONFIG.put(threadId, keys);
+            String property = System.getenv(key);
+            if (property != null) {
+                TEMP_CONFIG.remove(threadId);
+                return property;
+            } else {
+                AppConfigReader config = AppConfigReader.getInstance();
+                String value = config.getProperty(key, defaultValue);
+                if (value != null && value.startsWith("${") && value.endsWith("}")) {
+                    return getEnvVariable(value);
+                } else {
+                    TEMP_CONFIG.remove(threadId);
+                    return value;
+                }
+            }
+        } else {
+            TEMP_CONFIG.remove(threadId);
+            return null;
+        }
     }
 
 }

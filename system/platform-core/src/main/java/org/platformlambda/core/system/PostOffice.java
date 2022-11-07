@@ -87,55 +87,8 @@ public class PostOffice {
             log.error("Unable to start - {}", e.getMessage());
             System.exit(-1);
         }
-        Thread runner = new Thread(this::preloadServices);
+        Thread runner = new Thread(this::loadServices);
         runner.start();
-    }
-
-    @SuppressWarnings({"rawtypes"})
-    private void preloadServices() {
-        Utility util = Utility.getInstance();
-        Platform platform = Platform.getInstance();
-        SimpleClassScanner scanner = SimpleClassScanner.getInstance();
-        Set<String> packages = scanner.getPackages(true);
-        for (String p : packages) {
-            List<ClassInfo> services = scanner.getAnnotatedClasses(p, PreLoad.class);
-            for (ClassInfo info : services) {
-                String serviceName = info.getName();
-                log.info("Loading service {}", serviceName);
-                try {
-                    Class<?> cls = Class.forName(serviceName);
-                    if (Feature.isRequired(cls)) {
-                        PreLoad preload = cls.getAnnotation(PreLoad.class);
-                        List<String> routes = util.split(preload.route(), ", ");
-                        if (routes.isEmpty()) {
-                            log.error("Unable to preload {} - missing service route(s)", serviceName);
-                        } else {
-                            int instances = preload.instances();
-                            boolean isPrivate = preload.isPrivate();
-                            Object o = cls.getDeclaredConstructor().newInstance();
-                            if (o instanceof TypedLambdaFunction) {
-                                for (String r : routes) {
-                                    if (isPrivate) {
-                                        platform.registerPrivate(r, (TypedLambdaFunction) o, instances);
-                                    } else {
-                                        platform.register(r, (TypedLambdaFunction) o, instances);
-                                    }
-                                }
-                            } else {
-                                log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
-                                        serviceName);
-                            }
-                        }
-                    } else {
-                        log.info("Skipping optional {}", cls);
-                    }
-
-                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
-                         IllegalAccessException | NoSuchMethodException | IOException e) {
-                    log.error("Unable to preload {} - {}", serviceName, e.getMessage());
-                }
-            }
-        }
     }
 
     public static PostOffice getInstance() {
@@ -164,6 +117,69 @@ public class PostOffice {
 
     public String getTraceLogHeader() {
         return traceLogHeader;
+    }
+
+    @SuppressWarnings("rawtypes")
+    private void loadServices() {
+        Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
+        SimpleClassScanner scanner = SimpleClassScanner.getInstance();
+        Set<String> packages = scanner.getPackages(true);
+        for (String p : packages) {
+            List<ClassInfo> services = scanner.getAnnotatedClasses(p, PreLoad.class);
+            for (ClassInfo info : services) {
+                String serviceName = info.getName();
+                log.info("Loading service {}", serviceName);
+                try {
+                    Class<?> cls = Class.forName(serviceName);
+                    if (Feature.isRequired(cls)) {
+                        PreLoad preload = cls.getAnnotation(PreLoad.class);
+                        List<String> routes = util.split(preload.route(), ", ");
+                        if (routes.isEmpty()) {
+                            log.error("Unable to preload {} - missing service route(s)", serviceName);
+                        } else {
+                            int instances = getInstancesFromEnv(preload.envInstances(), preload.instances());
+                            boolean isPrivate = preload.isPrivate();
+                            Object o = cls.getDeclaredConstructor().newInstance();
+                            if (o instanceof TypedLambdaFunction) {
+                                for (String r : routes) {
+                                    if (isPrivate) {
+                                        platform.registerPrivate(r, (TypedLambdaFunction) o, instances);
+                                    } else {
+                                        platform.register(r, (TypedLambdaFunction) o, instances);
+                                    }
+                                }
+                            } else {
+                                log.error("Unable to preload {} - class is not TypedLambdaFunction or LambdaFunction",
+                                        serviceName);
+                            }
+                        }
+                    } else {
+                        log.info("Skipping optional {}", cls);
+                    }
+
+                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
+                         IllegalAccessException | NoSuchMethodException | IOException e) {
+                    log.error("Unable to preload {} - {}", serviceName, e.getMessage());
+                }
+            }
+        }
+    }
+
+    private int getInstancesFromEnv(String envInstances, int instances) {
+        if (envInstances == null || envInstances.isEmpty()) {
+            return Math.max(1, instances);
+        } else {
+            final Utility util = Utility.getInstance();
+            final String env;
+            if (envInstances.startsWith("${") && envInstances.endsWith("}")) {
+                env = util.getEnvVariable(envInstances);
+            } else {
+                AppConfigReader config = AppConfigReader.getInstance();
+                env = config.getProperty(envInstances);
+            }
+            return Math.max(1, env != null? util.str2int(env) : instances);
+        }
     }
 
     @SuppressWarnings("unchecked")
