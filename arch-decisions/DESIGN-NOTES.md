@@ -45,5 +45,8 @@ Since Mercury 2.0, we have migrated from Akka to Eclipse Vertx as the in-memory 
 
 Under the hood, Mercury is non-blocking and event-driven. 
 It uses a temporary inbox to emulate synchronous RPC and fork-n-join.
+However, a running function would consume a thread in synchronous RPC.
+Therefore, please avoid using "nested" synchronous RPC in your application.
 
-A non-blocking version of RPC and fork-n-join is available using Vertx Future.
+To reduce memory footprint and thread usage, please use the non-blocking version of 
+RPC and fork-n-join that return as Vertx Future.
