@@ -76,7 +76,7 @@ public class AppStarter {
              */
             PostOffice po = PostOffice.getInstance();
             log.info("Starting application instance {}", po.getAppInstanceId());
-            // Setup websocket server if required
+            // Setup REST automation and websocket server if needed
             try {
                 instance.startHttpServerIfAny();
             } catch (IOException | InterruptedException e) {
