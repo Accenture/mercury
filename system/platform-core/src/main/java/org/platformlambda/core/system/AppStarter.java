@@ -55,7 +55,11 @@ public class AppStarter {
 
     private static final int MAX_SEQ = 999;
     private static boolean loaded = false;
+    private static boolean mainAppLoaded = false;
+    private static boolean springBoot = false;
     private static String[] args = new String[0];
+
+    private static AppStarter instance;
 
     private final long startTime = System.currentTimeMillis();
 
@@ -63,23 +67,38 @@ public class AppStarter {
         if (!loaded) {
             loaded = true;
             AppStarter.args = args;
-            AppStarter begin = new AppStarter();
+            instance = new AppStarter();
             // Run "BeforeApplication" modules
-            begin.doApps(args, false);
+            instance.doApps(args, false);
             /*
              * Initialize event system before loading "MainApplication" modules.
              * This ensures all "preload" services are loaded.
              */
             PostOffice po = PostOffice.getInstance();
             log.info("Starting application instance {}", po.getAppInstanceId());
-            // Run "MainApplication" modules
-            begin.doApps(args, true);
             // Setup websocket server if required
             try {
-                begin.startHttpServerIfAny();
+                instance.startHttpServerIfAny();
             } catch (IOException | InterruptedException e) {
                 log.error("Unable to start HTTP server", e);
             }
+            // Run "MainApplication" modules
+            if (!springBoot) {
+                mainAppLoaded = true;
+                log.info("Loading user application");
+                instance.doApps(args, true);
+            }
+        }
+    }
+
+    public static void runAsSpringBootApp() {
+        springBoot = true;
+    }
+
+    public static void runMainApp() {
+        if (instance != null && !mainAppLoaded) {
+            mainAppLoaded = true;
+            instance.doApps(args, true);
         }
     }
 

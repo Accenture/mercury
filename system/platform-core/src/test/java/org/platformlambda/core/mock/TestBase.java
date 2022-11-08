@@ -54,7 +54,9 @@ public class TestBase {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             port = util.str2int(config.getProperty("server.port", "8100"));
+            AppStarter.runAsSpringBootApp();
             AppStarter.main(new String[0]);
+            AppStarter.runMainApp();
             ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
             Platform platform = Platform.getInstance();
             try {

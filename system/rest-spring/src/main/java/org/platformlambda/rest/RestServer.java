@@ -31,9 +31,11 @@ import org.springframework.context.annotation.ComponentScan;
 public class RestServer extends SpringBootServletInitializer {
 
     public static void main(String[] args) {
-        // Execute BeforeApplication(s) and MainApplication(s)
+        // Declare as a Spring Boot application so that AppStarter will defer loading main applications
+        AppStarter.runAsSpringBootApp();
+        // Execute BeforeApplication(s)
         AppStarter.main(args);
-        // Then run Spring Boot
+        // Spring Boot will invoke the MainAppLoader to load MainApplication(s)
         SpringApplication.run(RestServer.class, args);
     }
 
