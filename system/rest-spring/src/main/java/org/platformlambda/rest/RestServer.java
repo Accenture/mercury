@@ -29,13 +29,11 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan({"org.platformlambda", "${web.component.scan}"})
 @SpringBootApplication
 public class RestServer extends SpringBootServletInitializer {
-    /**
-     * This is started by Spring Boot when the WAR file is deployed
-     * @param args may not be relevant when deployed as WAR
-     */
+
     public static void main(String[] args) {
+        // Execute BeforeApplication(s) and MainApplication(s)
         AppStarter.main(args);
-        // start Spring Boot
+        // Then run Spring Boot
         SpringApplication.run(RestServer.class, args);
     }
 
