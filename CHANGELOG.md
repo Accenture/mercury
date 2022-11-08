@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.7.0, 10/16/2022
+## Version 2.7.0, 11/8/2022
 
 In this version, REST automation code is moved to platform-core such that REST and Websocket
 service can share the same port.
@@ -21,7 +21,9 @@ N/A
 
 ### Changed
 
-REST automation becomes part of platform-core and it can co-exist with Spring Web in the rest-spring module.
+1. REST automation becomes part of platform-core and it can co-exist with Spring Web in the rest-spring module
+2. Enforce Spring Boot lifecycle management such that user apps will start after Spring Boot has loaded all components
+3. Update netty to version 4.1.84.Final
 
 ---
 ## Version 2.6.0, 10/13/2022
