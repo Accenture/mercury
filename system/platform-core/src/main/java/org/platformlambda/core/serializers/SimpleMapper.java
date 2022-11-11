@@ -197,7 +197,7 @@ public class SimpleMapper {
 
         @Override
         public JsonElement serialize(LocalDateTime date, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(date.toString());
+            return new JsonPrimitive(date.toString().replace('T', ' '));
         }
     }
 
@@ -213,7 +213,7 @@ public class SimpleMapper {
 
         @Override
         public JsonElement serialize(java.sql.Date date, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(date.toString().replace('T', ' '));
+            return new JsonPrimitive(date.toString());
         }
     }
 

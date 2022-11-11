@@ -88,7 +88,8 @@ public class SimpleMapperTest {
         Map<String, Object> converted = mapper.readValue(mapper.writeValueAsString(map), Map.class);
         // verify that java.util.Date, java.sql.Date and java.sql.Timestamp can be serialized to ISO-8601 string format
         Assert.assertEquals(iso8601, converted.get("date"));
-        Assert.assertEquals(iso8601NoTimeZone, converted.get("time"));
+        // LocalDateTime string will drop the "T" separator
+        Assert.assertEquals(iso8601NoTimeZone.replace('T', ' '), converted.get("time"));
         // sql date is yyyy-mm-dd
         Assert.assertEquals(new java.sql.Date(now.getTime()).toString(), converted.get("sql_date"));
         Assert.assertEquals(iso8601, converted.get("sql_timestamp"));
