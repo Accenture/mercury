@@ -144,12 +144,18 @@ public class MultiLevelMap {
 
     public MultiLevelMap setElement(String compositePath, Object value) {
         validateCompositePathSyntax(compositePath);
-        setElement(compositePath, value, multiLevels);
+        setElement(compositePath, value, multiLevels, false);
+        return this;
+    }
+
+    public MultiLevelMap removeElement(String compositePath) {
+        validateCompositePathSyntax(compositePath);
+        setElement(compositePath, null, multiLevels, true);
         return this;
     }
 
     @SuppressWarnings("unchecked")
-    private void setElement(String path, Object value, Map<String, Object> map) {
+    private void setElement(String path, Object value, Map<String, Object> map, boolean delete) {
         Utility util = Utility.getInstance();
         List<String> segments = util.split(path, "./");
         if (segments.isEmpty()) {
@@ -197,7 +203,11 @@ public class MultiLevelMap {
 
             } else {
                 if (n == len) {
-                    current.put(p, value);
+                    if (value == null && delete) {
+                        current.remove(p);
+                    } else {
+                        current.put(p, value);
+                    }
                     break;
                 } else {
                     Object next = current.get(p);
