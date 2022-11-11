@@ -34,6 +34,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -696,12 +697,63 @@ public class Utility {
         return str2date(str, false);
     }
 
+    public LocalDateTime str2localtime(String str) {
+        return str2localtime(str, false);
+    }
+
+    public LocalDateTime str2localtime(String str, boolean throwException) {
+        if (str == null) {
+            if (throwException) {
+                throw new IllegalArgumentException("time string cannot be null");
+            } else {
+                return new Date(0).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            }
+        }
+        boolean hasTimeZone = false;
+        if (str.endsWith("Z") || str.contains("+")) {
+            hasTimeZone = true;
+        } else {
+            if (str.length() > 20) {
+                hasTimeZone = str.charAt(str.length() - 5) == '-' || str.charAt(str.length() - 6) == '-';
+            }
+        }
+        if (hasTimeZone) {
+            Date date = str2date(str);
+            return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        } else {
+            /*
+             * Support multiple variance of ISO-8601 without time zone
+             *
+             * 1. 2015-01-06
+             * 2. 2015-01-06 01:02
+             * 3. 2015-01-06 01:02:03
+             * 4. 2015-01-06 01:02:03.123
+             * 5. 2015-01-06T01:02
+             * 6. 2015-01-06T01:02:03
+             * 7. 2015-01-06T01:02:03.123
+             */
+            if (str.length() >= 16 && str.charAt(10) != 'T') {
+                str = str.substring(0, 10) + "T" + str.substring(11);
+            }
+            try {
+                return LocalDateTime.parse(str);
+            } catch (DateTimeParseException e) {
+                if (throwException) {
+                    throw e;
+                } else {
+                    return new Date(0).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                }
+            }
+        }
+    }
+
     public Date str2date(String str, boolean throwException) {
         if (isDigits(str)) {
             return new Date(Long.parseLong(str));
         }
         /*
          * Support multiple variance of ISO-8601
+         * (Note that when time zone is not given, it is set to +0000)
          *
          * 1. 2015-01-06
          * 2. 2015-01-06 01:02:03

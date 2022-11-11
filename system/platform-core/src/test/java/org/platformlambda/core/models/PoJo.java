@@ -20,6 +20,7 @@ package org.platformlambda.core.models;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 public class PoJo {
@@ -32,6 +33,8 @@ public class PoJo {
     private String address;
     private String fullName;
     private Date date;
+
+    private LocalDateTime time;
 
     public int getNumber() {
         return number;
@@ -63,6 +66,14 @@ public class PoJo {
 
     public void setDate(Date date) {
         this.date = date;
+    }
+
+    public LocalDateTime getTime() {
+        return time;
+    }
+
+    public void setTime(LocalDateTime time) {
+        this.time = time;
     }
 
     public String getFullName() {

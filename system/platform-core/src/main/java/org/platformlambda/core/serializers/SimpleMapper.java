@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class SimpleMapper {
@@ -72,6 +73,9 @@ public class SimpleMapper {
         // UTC date
         builder.registerTypeAdapter(Date.class, new UtcSerializer());
         builder.registerTypeAdapter(Date.class, new UtcDeserializer());
+        // LocalDateTime
+        builder.registerTypeAdapter(LocalDateTime.class, new LocalDateTimeSerializer());
+        builder.registerTypeAdapter(LocalDateTime.class, new LocalDateTimeDeserializer());
         // SQL date and time
         builder.registerTypeAdapter(java.sql.Date.class, new SqlDateSerializer());
         builder.registerTypeAdapter(java.sql.Date.class, new SqlDateDeserializer());
@@ -189,11 +193,27 @@ public class SimpleMapper {
         }
     }
 
+    private static class LocalDateTimeSerializer implements JsonSerializer<LocalDateTime> {
+
+        @Override
+        public JsonElement serialize(LocalDateTime date, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(date.toString());
+        }
+    }
+
+    private static class LocalDateTimeDeserializer implements JsonDeserializer<LocalDateTime> {
+
+        @Override
+        public LocalDateTime deserialize(JsonElement json, Type type, JsonDeserializationContext context) throws JsonParseException {
+            return Utility.getInstance().str2localtime(json.getAsString());
+        }
+    }
+
     private static class SqlDateSerializer implements JsonSerializer<java.sql.Date> {
 
         @Override
         public JsonElement serialize(java.sql.Date date, Type type, JsonSerializationContext context) {
-            return new JsonPrimitive(date.toString());
+            return new JsonPrimitive(date.toString().replace('T', ' '));
         }
     }
 

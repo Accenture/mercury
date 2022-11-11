@@ -21,12 +21,13 @@ package org.platformlambda.core;
 import com.google.gson.JsonPrimitive;
 import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleObjectMapper;
-import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.util.Utility;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,17 +73,22 @@ public class SimpleMapperTest {
     @Test
     @SuppressWarnings("unchecked")
     public void mapperSerializationTest() {
+        Utility util = Utility.getInstance();
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
         Date now = new Date();
-        String iso8601 = Utility.getInstance().date2str(now);
+        LocalDateTime time = LocalDateTime.now();
+        String iso8601 = util.date2str(now);
+        String iso8601NoTimeZone = time.toString();
         Map<String, Object> map = new HashMap<>();
         map.put("integer", 100);
         map.put("date", now);
+        map.put("time", time);
         map.put("sql_date", new java.sql.Date(now.getTime()));
         map.put("sql_timestamp", new java.sql.Timestamp(now.getTime()));
         Map<String, Object> converted = mapper.readValue(mapper.writeValueAsString(map), Map.class);
         // verify that java.util.Date, java.sql.Date and java.sql.Timestamp can be serialized to ISO-8601 string format
         Assert.assertEquals(iso8601, converted.get("date"));
+        Assert.assertEquals(iso8601NoTimeZone, converted.get("time"));
         // sql date is yyyy-mm-dd
         Assert.assertEquals(new java.sql.Date(now.getTime()).toString(), converted.get("sql_date"));
         Assert.assertEquals(iso8601, converted.get("sql_timestamp"));
@@ -91,12 +97,13 @@ public class SimpleMapperTest {
         Map<String, Object> input = new HashMap<>();
         input.put("full_name", name);
         input.put("date", iso8601);
+        input.put("time", iso8601NoTimeZone);
         PoJo pojo = mapper.readValue(input, PoJo.class);
         // verify that the time is restored correctly
         Assert.assertEquals(now.getTime(), pojo.getDate().getTime());
+        Assert.assertEquals(time, pojo.getTime());
         // verify that snake case is deserialized correctly
         Assert.assertEquals(name, pojo.getFullName());
-
         // verify input timestamp can be in milliseconds too
         input.put("date", now.getTime());
         pojo = mapper.readValue(input, PoJo.class);

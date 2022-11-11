@@ -6,14 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.7.0, 11/8/2022
+## Version 2.7.0, 11/10/2022
 
 In this version, REST automation code is moved to platform-core such that REST and Websocket
 service can share the same port.
 
 ### Added
 
-AsyncObjectStreamReader is added for non-blocking read operation from an object stream.
+1. AsyncObjectStreamReader is added for non-blocking read operation from an object stream.
+2. Support of LocalDateTime in SimpleMapper
 
 ### Removed
 
