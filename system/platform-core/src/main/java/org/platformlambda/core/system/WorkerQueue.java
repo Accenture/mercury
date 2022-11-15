@@ -26,6 +26,7 @@ import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
+import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,13 +163,23 @@ public class WorkerQueue extends WorkerQueues {
                  * Interceptor can read any input (i.e. including case for empty headers and null body).
                  * The system therefore disables ping when the target function is an interceptor.
                  */
-                boolean ping = !interceptor && event.getHeaders().isEmpty() && event.getBody() == null;
+                boolean ping = !interceptor && event.getHeaders().isEmpty() &&
+                                !event.isOptional() && event.getRawBody() == null;
                 long begin = ping? 0 : System.nanoTime();
                 /*
                  * If the service is an interceptor or the input argument is EventEnvelope,
                  * we will pass the original event envelope instead of the message body.
                  */
-                Object inputBody = interceptor || useEnvelope ? event : event.getBody();
+                final Object inputBody;
+                if (interceptor || useEnvelope) {
+                    inputBody = event;
+                } else {
+                    // automatically convert Map to PoJo
+                    if (PayloadMapper.MAP.equals(event.getType()) && def.getInputClass() != null) {
+                        event.setType(def.getInputClass().getName());
+                    }
+                    inputBody = event.getBody();
+                }
                 Object result = ping? null : f.handleEvent(event.getHeaders(), inputBody, instance);
                 float delta = ping? 0 : (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;
                 // adjust precision to 3 decimal points
