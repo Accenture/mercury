@@ -40,8 +40,7 @@ public class ServiceDef {
     private final Date created = new Date();
     private boolean isPrivateFunction = false;
     private boolean isStreamFunction = false;
-
-    private Class<?> inputClass;
+    private boolean useEnvelope = false;
     private int instances = 1;
 
     @SuppressWarnings("rawtypes")
@@ -53,11 +52,8 @@ public class ServiceDef {
         Method[] methods = lambda.getClass().getDeclaredMethods();
         for (Method m: methods) {
             Class<?>[] arguments = m.getParameterTypes();
-            if (HANDLE_EVENT.equals(m.getName()) && arguments.length == 3) {
-                String clsName = arguments[1].getName();
-                if (clsName.contains(".") && !clsName.startsWith("java.")) {
-                    inputClass = arguments[1];
-                }
+            if (HANDLE_EVENT.equals(m.getName()) && arguments.length == 3 && arguments[1] == EventEnvelope.class) {
+                useEnvelope = true;
                 break;
             }
         }
@@ -127,11 +123,7 @@ public class ServiceDef {
     }
 
     public boolean inputIsEnvelope() {
-        return EventEnvelope.class == inputClass;
-    }
-
-    public Class<?> getInputClass() {
-        return inputClass;
+        return useEnvelope;
     }
 
 }
