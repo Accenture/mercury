@@ -184,6 +184,10 @@ public class EventEnvelope {
         return type;
     }
 
+    public boolean isOptional() {
+        return optional;
+    }
+
     /**
      * Get raw form of event body in Map or Java primitive
      * <p>

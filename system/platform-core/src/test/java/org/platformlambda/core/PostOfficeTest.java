@@ -24,12 +24,11 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.mock.TestBase;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDef;
-import org.platformlambda.core.mock.TestBase;
-import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
@@ -437,8 +436,8 @@ public class PostOfficeTest extends TestBase {
     @Test
     public void eventHasFromAddress() throws IOException, InterruptedException {
         String TRACE_ON = "trace";
-        String FIRST = "hello.world.1";
-        String SECOND = "hello.world.2";
+        String FIRST = "hello.world.one";
+        String SECOND = "hello.world.two";
         Platform platform = Platform.getInstance();
         PostOffice po = PostOffice.getInstance();
         LambdaFunction f1 = (headers, body, instance) -> {
@@ -452,12 +451,12 @@ public class PostOfficeTest extends TestBase {
         platform.register(SECOND, new SimpleInterceptor(), 1);
         // without tracing
         po.send(FIRST, Optional.empty());
-        String result = bench.poll(2, TimeUnit.SECONDS);
+        String result = bench.poll(5, TimeUnit.SECONDS);
         // validate the "from" address
         Assert.assertEquals(FIRST, result);
         // with tracing
         po.send(FIRST, TRACE_ON);
-        result = bench.poll(2, TimeUnit.SECONDS);
+        result = bench.poll(5, TimeUnit.SECONDS);
         Assert.assertEquals(FIRST, result);
     }
 
@@ -940,6 +939,35 @@ public class PostOfficeTest extends TestBase {
         Assert.assertTrue(error.contains(CASTING_ERROR));
         platform.release(POJO_ERROR_CASE);
         platform.release(SIMPLE_CALLBACK);
+    }
+
+    @Test
+    public void testAutoInputMapping() throws AppException, IOException, TimeoutException {
+        String AUTO_MAPPING = "hello.auto.input.mapping";
+        String HELLO_WORLD = "hello world";
+        String NAME = "name";
+        PostOffice po = PostOffice.getInstance();
+        Map<String, Object> map = new HashMap<>();
+        map.put(NAME, HELLO_WORLD);
+        EventEnvelope response = po.request(AUTO_MAPPING, 5000, map);
+        Assert.assertEquals(PoJo.class, response.getBody().getClass());
+        PoJo pojo = (PoJo) response.getBody();
+        Assert.assertEquals(HELLO_WORLD, pojo.getName());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testPrimitiveTransport() throws AppException, IOException, TimeoutException {
+        String HELLO_WORLD = "hello.world";
+        int number = 100;
+        PostOffice po = PostOffice.getInstance();
+        EventEnvelope response = po.request(HELLO_WORLD, 5000, number);
+        Map<String, Object> map = (Map<String, Object>) response.getBody();
+        Assert.assertEquals(number, map.get("body"));
+        Date now = new Date();
+        response = po.request(HELLO_WORLD, 5000, now);
+        map = (Map<String, Object>) response.getBody();
+        Assert.assertEquals(Utility.getInstance().date2str(now), map.get("body"));
     }
 
     private static class SimpleCallback implements TypedLambdaFunction<PoJo, Void>, ServiceExceptionHandler {

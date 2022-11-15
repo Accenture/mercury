@@ -16,6 +16,7 @@ service can share the same port.
 1. AsyncObjectStreamReader is added for non-blocking read operation from an object stream.
 2. Support of LocalDateTime in SimpleMapper
 3. Add "removeElement" method to MultiLevelMap
+4. Automatically convert a map to a PoJo when the sender does not specify class in event body
 
 ### Removed
 
