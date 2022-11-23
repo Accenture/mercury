@@ -120,6 +120,38 @@ public class HttpRelay implements LambdaFunction {
         return factory;
     }
 
+    @SuppressWarnings("unchecked")
+    private String queryParametersToString(AsyncHttpRequest request) {
+        StringBuilder sb = new StringBuilder();
+        Map<String, Object> params = request.getQueryParameters();
+        if (params.isEmpty()) {
+            return null;
+        }
+        for (Map.Entry<String, Object> kv: params.entrySet()) {
+            String k = kv.getKey();
+            Object v = kv.getValue();
+            if (v instanceof String) {
+                sb.append(k);
+                sb.append('=');
+                sb.append(v);
+                sb.append('&');
+            }
+            if (v instanceof List) {
+                List<String> list = (List<String>) v;
+                for (String item: list) {
+                    sb.append(k);
+                    sb.append('=');
+                    sb.append(item);
+                    sb.append('&');
+                }
+            }
+        }
+        if (sb.length() == 0) {
+            return null;
+        }
+        return sb.substring(0, sb.length()-1);
+    }
+
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         Utility util = Utility.getInstance();
@@ -130,6 +162,9 @@ public class HttpRelay implements LambdaFunction {
             HttpRequestFactory factory = getHttpFactory(instance, request.isTrustAllCert());
             // construct target URL
             String qs = request.getQueryString();
+            if (qs == null) {
+                qs = queryParametersToString(request);
+            }
             String url = getUrl(targetHost, request.getUrl()) + (qs == null? "" : "?"+qs);
             boolean multipartUpload = false;
             // get request body if any
@@ -381,14 +416,14 @@ public class HttpRelay implements LambdaFunction {
         return  contentType != null && (
                 contentType.startsWith(APPLICATION_JSON) || contentType.startsWith(APPLICATION_XML) ||
                 contentType.startsWith(TEXT_JAVASCRIPT) || contentType.startsWith(APPLICATION_JAVASCRIPT) ||
-                contentType.startsWith(TEXT_CSS) || contentType.startsWith(TEXT_HTML) || contentType.startsWith(TEXT_PLAIN)
-                );
+                contentType.startsWith(TEXT_CSS) || contentType.startsWith(TEXT_HTML) ||
+                contentType.startsWith(TEXT_PLAIN));
     }
 
     private void setResponseHeaders(EventEnvelope event, HttpHeaders headers) {
         for (String h: headers.keySet()) {
             /*
-             * with the exception of "set-cookie" that allows multiples,
+             * Except "set-cookie" that allows multiples,
              * all other headers are set as single value.
              */
             List<String> values = headers.getHeaderStringValues(h);

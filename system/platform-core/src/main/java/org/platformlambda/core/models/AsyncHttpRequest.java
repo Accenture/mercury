@@ -331,9 +331,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setQueryString(String queryString) {
-        if (queryString != null) {
-            this.queryString = queryString;
-        }
+        this.queryString = queryString;
         return this;
     }
 
@@ -351,9 +349,7 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setUploadTag(String tag) {
-        if (tag != null) {
-            this.upload = tag;
-        }
+        this.upload = tag;
         return this;
     }
 

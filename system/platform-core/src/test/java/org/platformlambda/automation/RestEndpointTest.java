@@ -17,10 +17,7 @@ import org.platformlambda.core.util.Utility;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class RestEndpointTest extends TestBase {
@@ -56,6 +53,11 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("GET");
         req.setHeader("accept", "application/json");
         req.setUrl("/api/hello/world");
+        req.setQueryParameter("x1", "y");
+        List<String> list = new ArrayList<>();
+        list.add("a");
+        list.add("b");
+        req.setQueryParameter("x2", list);
         req.setTargetHost("http://127.0.0.1:"+port);
 
         EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
@@ -67,6 +69,8 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals("GET", map.getElement("method"));
         Assert.assertEquals("127.0.0.1", map.getElement("ip"));
         Assert.assertEquals(10, map.getElement("timeout"));
+        Assert.assertEquals("y", map.getElement("parameters.query.x1"));
+        Assert.assertEquals(list, map.getElement("parameters.query.x2"));
     }
 
     @SuppressWarnings("unchecked")
