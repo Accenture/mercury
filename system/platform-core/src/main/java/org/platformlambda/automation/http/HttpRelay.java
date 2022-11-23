@@ -160,12 +160,25 @@ public class HttpRelay implements LambdaFunction {
         if (targetHost != null) {
             // select a http request factory
             HttpRequestFactory factory = getHttpFactory(instance, request.isTrustAllCert());
+            // normalize URI and query string
+            final String uri;
+            if (request.getUrl().contains("?")) {
+                int sep = request.getUrl().indexOf('?');
+                uri = request.getUrl().substring(0, sep);
+                String q = request.getUrl().substring(sep+1).trim();
+                if (!q.isEmpty()) {
+                    request.setQueryString(q);
+                }
+            } else {
+                uri = request.getUrl();
+            }
             // construct target URL
             String qs = request.getQueryString();
-            if (qs == null) {
-                qs = queryParametersToString(request);
+            String queryParams = queryParametersToString(request);
+            if (queryParams != null) {
+                qs = qs == null? queryParams : qs + "&" + queryParams;
             }
-            String url = getUrl(targetHost, request.getUrl()) + (qs == null? "" : "?"+qs);
+            String url = getUrl(targetHost, uri) + (qs == null? "" : "?" + qs);
             boolean multipartUpload = false;
             // get request body if any
             HttpContent content = null;

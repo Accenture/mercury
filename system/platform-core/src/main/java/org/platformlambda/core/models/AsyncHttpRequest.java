@@ -331,7 +331,12 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setQueryString(String queryString) {
-        this.queryString = queryString;
+        if (queryString != null) {
+            String value = queryString.trim();
+            this.queryString = value.isEmpty()? null : value;
+        } else {
+            this.queryString = null;
+        }
         return this;
     }
 
@@ -349,7 +354,12 @@ public class AsyncHttpRequest {
     }
 
     public AsyncHttpRequest setUploadTag(String tag) {
-        this.upload = tag;
+        if (tag != null) {
+            String value = tag.trim();
+            this.upload = value.isEmpty()? null : value;
+        } else {
+            this.upload = null;
+        }
         return this;
     }
 
