@@ -59,6 +59,7 @@ public class TestBase {
             AppStarter.runMainApp();
             ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
             Platform platform = Platform.getInstance();
+            PostOffice.getInstance().getReady();
             try {
                 platform.waitForProvider(AppStarter.ASYNC_HTTP_RESPONSE, 20);
                 platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);

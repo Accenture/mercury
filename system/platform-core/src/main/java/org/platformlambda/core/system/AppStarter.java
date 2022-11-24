@@ -76,6 +76,7 @@ public class AppStarter {
              */
             PostOffice po = PostOffice.getInstance();
             log.info("Starting application instance {}", po.getAppInstanceId());
+            po.getReady();
             // Setup REST automation and websocket server if needed
             try {
                 instance.startHttpServerIfAny();

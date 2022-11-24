@@ -18,6 +18,7 @@
 
 package org.platformlambda.core;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -32,10 +33,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PayloadSegmentationTest {
+    private static final Logger log = LoggerFactory.getLogger(PayloadSegmentationTest.class);
     private static final String TEST_STRING = "123456789.";
     private static final int CYCLE = 30000;
+
+    @Before
+    public void init() {
+        PostOffice.getInstance().getReady();
+    }
 
     @Test
     public void multiPart() throws IOException, InterruptedException {

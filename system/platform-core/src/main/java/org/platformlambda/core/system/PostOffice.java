@@ -60,6 +60,9 @@ public class PostOffice {
     private final String traceLogHeader;
     private static final PostOffice INSTANCE = new PostOffice();
 
+    private static boolean loaded = false;
+    private static final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
+
     private PostOffice() {
         AppConfigReader config = AppConfigReader.getInstance();
         traceLogHeader = config.getProperty("trace.log.header", "X-Trace-Id");
@@ -95,6 +98,16 @@ public class PostOffice {
         return INSTANCE;
     }
 
+    public void getReady() {
+        if (!loaded) {
+            try {
+                bench.poll(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // ok to ignore
+            }
+        }
+    }
+
     public String getAppInstanceId() {
         return Platform.getInstance().getOrigin();
     }
@@ -121,6 +134,7 @@ public class PostOffice {
 
     @SuppressWarnings("rawtypes")
     private void loadServices() {
+        log.info("Preloading started");
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
@@ -164,6 +178,9 @@ public class PostOffice {
                 }
             }
         }
+        bench.offer(true);
+        loaded = true;
+        log.info("Preloading completed");
     }
 
     private int getInstancesFromEnv(String envInstances, int instances) {
