@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.7.1, 15/6/2022
+
+
+### Added
+
+1. standalone benchmark report app
+2. client and server benchmark apps
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated open sources dependency library version
+1. Netty 4.1.85.Final
+2. Tomcat 9.0.69
+3. Vertx 4.3.5
+4. classgraph 4.8.151
+5. google-http-client 1.42.3
+
+---
 ## Version 2.7.0, 11/11/2022
 
 In this version, REST automation code is moved to platform-core such that REST and Websocket
