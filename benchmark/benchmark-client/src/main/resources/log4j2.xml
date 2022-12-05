@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Appenders>
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line - %msg%n" />
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="${env:LOG_LEVEL:-INFO}" additivity="false">
+            <AppenderRef ref="console" />
+        </Root>
+        <!--<logger name="org.platformlambda.core.system.WorkerQueue" level="DEBUG" />-->
+        <logger name="org.platformlambda.rest.RestServer" level="WARN" />
+        <logger name="org.apache.kafka.streams.StreamsConfig" level="WARN" />
+        <logger name="org.apache.kafka.streams.processor.internals.StreamThread" level="WARN" />
+        <logger name="org.apache.kafka.streams.KafkaStreams" level="WARN" />
+        <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="ERROR" />
+        <logger name="org.apache.kafka.clients.admin.AdminClientConfig" level="WARN" />
+        <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="WARN" />
+        <logger name="org.apache.kafka.clients.producer.KafkaProducer" level="WARN" />
+        <logger name="org.apache.kafka.clients.Metadata" level="WARN" />
+        <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN" />
+    </Loggers>
+</Configuration>

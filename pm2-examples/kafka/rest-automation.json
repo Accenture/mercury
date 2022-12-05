@@ -7,10 +7,10 @@
         "args":[
             "-Dcloud.connector=kafka",
             "-jar",
-            "examples/rest-automation-app/target/rest-automation-app-2.7.0.jar"
+            "examples/rest-automation-app/target/rest-automation-app-2.7.1.jar"
         ],
         "watch":[
-            "examples/rest-automation-app/target/rest-automation-app-2.7.0.jar"
+            "examples/rest-automation-app/target/rest-automation-app-2.7.1.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
