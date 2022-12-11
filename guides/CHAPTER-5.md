@@ -115,8 +115,8 @@ In additon to the parameters defined by Spring Boot, the Mercury framework uses 
 3. safe.data.models - Optional. For higher security, you may specify a list of safe data models to be accepted by 
    the serialization engine. This is to protect against hidden "evil" Java classes in certain open sources that 
    you have not vetted directly.
-4. protected.info.endpoints - Optional. You may protect certain "known" REST endpoints such as "/info" or "/env" 
-   from unauthorized access. It uses a simple API key set in the environment.
+4. protect.info.endpoints - Optional. You may protect certain "known" REST endpoints such as "/info" or "/env" 
+   from unauthorized access.
 5. env.variables - parameters in the application.properties are automatically overriden by Java properties. 
    To allow some environment variables to override your run-time parameters, you may define them in this parameter.
 6. spring.application.name/application.name, info.app.version and info.app.description - please update application 

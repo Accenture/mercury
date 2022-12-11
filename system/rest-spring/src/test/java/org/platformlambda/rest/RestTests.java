@@ -68,73 +68,149 @@ public class RestTests extends TestBase {
         Assert.assertTrue(response instanceof String);
     }
 
-    @Test(expected = AppException.class)
-    public void http404Json() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void http404Json() {
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/json");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void http404Xml() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "application/xml");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    @Test
+    public void http404Xml() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_path", "application/xml"));
+        Assert.assertEquals(404, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        Assert.assertTrue(result.contains("<status>404</status>"));
     }
 
-    @Test(expected = AppException.class)
-    public void http404Html() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "text/html");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    @Test
+    public void http404Html() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_path", "text/html"));
+        Assert.assertEquals(404, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<!DOCTYPE html>"));
+        Assert.assertTrue(result.contains("HTTP-404"));
     }
 
-    @Test(expected = AppException.class)
-    public void http404Text() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "text/plain");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/no_path", headers);
+    @SuppressWarnings("unchecked")
+    @Test
+    public void http404Text() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_path", "text/plain"));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void methodNotAllowedCase() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "application/json");
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/api/hello/world", headers, new HashMap<>());
+    @SuppressWarnings("unchecked")
+    @Test
+    public void methodNotAllowedCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () -> {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Accept", "application/json");
+            SimpleHttpRequests.post("http://127.0.0.1:"+port+"/api/hello/world", headers, new HashMap<>());
+        });
+        Assert.assertEquals(405, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(405, result.get("status"));
+        Assert.assertEquals("Method Not Allowed", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void unsupportedMediaTypeCase() throws AppException, IOException {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "text/plain");
-        headers.put("Accept", "application/json");
-        SimpleHttpRequests.putText("http://127.0.0.1:"+port+"/api/hello/world", "application/json",
-                headers, "test");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void unsupportedMediaTypeCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () -> {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Content-Type", "text/plain");
+            headers.put("Accept", "application/json");
+            SimpleHttpRequests.putText("http://127.0.0.1:"+port+"/api/hello/world", "application/json",
+                    headers, "test");
+        });
+        Assert.assertEquals(415, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(415, result.get("status"));
+        Assert.assertEquals("Unsupported Media Type", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void badRequestCase() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=400", "application/json");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void badRequestCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=400", "application/json"));
+        Assert.assertEquals(400, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(400, result.get("status"));
+        Assert.assertEquals("test", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void unauthorizedCase() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=401", "application/json");
+    @Test
+    public void unauthorizedCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=401", "text/html"));
+        Assert.assertEquals(401, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<!DOCTYPE html>"));
+        Assert.assertTrue(result.contains("HTTP-401"));
+        Assert.assertTrue(result.contains("Unauthorized"));
     }
 
-    @Test(expected = AppException.class)
-    public void forbiddenCase() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=403", "application/json");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void forbiddenCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=403", "text/plain"));
+        Assert.assertEquals(403, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(403, result.get("status"));
+        Assert.assertEquals("Forbidden", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void notAcceptableCase() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=406", "application/json");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void notAcceptableCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=406", "application/json"));
+        Assert.assertEquals(406, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(406, result.get("status"));
+        Assert.assertEquals("Not acceptable", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void notAvailableCase() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=503", "application/json");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void notAvailableCase() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/api/hello/world?test=503", "application/json"));
+        Assert.assertEquals(503, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(503, result.get("status"));
+        Assert.assertEquals("System temporarily unavailable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")

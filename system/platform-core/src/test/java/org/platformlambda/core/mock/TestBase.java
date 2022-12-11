@@ -22,10 +22,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import org.junit.BeforeClass;
-import org.platformlambda.core.models.AsyncHttpRequest;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.*;
+import org.platformlambda.automation.service.MockHelloWorld;
+import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -41,6 +43,7 @@ public class TestBase {
 
     protected static final String HELLO_WORLD = "hello.world";
     protected static final String HELLO_MOCK = "hello.mock";
+    protected static final String HELLO_LIST = "hello.list";
     protected static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     protected static final int MINIMALIST_HTTP_PORT = 8020;
     private static final String SERVICE_LOADED = "http.service.loaded";
@@ -69,37 +72,10 @@ public class TestBase {
             } catch (TimeoutException e) {
                 log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
-            AtomicInteger count = new AtomicInteger(0);
-            LambdaFunction f = (headers, body, instance) -> {
-                AsyncHttpRequest input = new AsyncHttpRequest(body);
-                if ("HEAD".equals(input.getMethod())) {
-                    EventEnvelope result = new EventEnvelope().setHeader("X-Response", "HEAD request received")
-                            .setHeader("Content-Length", 100);
-                    if (count.incrementAndGet() == 1) {
-                        result.setHeader("Set-Cookie", "first=cookie|second=one");
-                    } else {
-                        result.setHeader("Set-Cookie", "single=cookie");
-                    }
-                    return result;
-                }
-                if (input.getStreamRoute() != null) {
-                    ObjectStreamIO stream = new ObjectStreamIO();
-                    ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-                    ObjectStreamReader in = new ObjectStreamReader(input.getStreamRoute(), 10000);
-                    for (Object o: in) {
-                        out.write(o);
-                    }
-                    out.close();
-                    return new EventEnvelope().setBody(input.getBody()).setHeader("stream", stream.getInputStreamId())
-                                                .setHeader("content-type", "application/octet-stream");
-                } else if (input.getBody() instanceof byte[]) {
-                    return new EventEnvelope().setBody(input.getBody())
-                            .setHeader("content-type", "application/octet-stream");
-                } else {
-                    return body;
-                }
-            };
-            platform.registerPrivate(HELLO_MOCK, f, 10);
+            platform.registerPrivate(HELLO_MOCK, new MockHelloWorld(), 10);
+            // hello.list is a special function to test returning result set as a list
+            platform.registerPrivate(HELLO_LIST, (headers, body, instance) ->
+                                                    Collections.singletonList(body), 5);
             platform.makePublic(HELLO_MOCK);
             // load minimalist HTTP server
             Vertx vertx = Vertx.vertx();

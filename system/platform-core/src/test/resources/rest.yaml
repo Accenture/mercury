@@ -50,6 +50,13 @@ rest:
     cors: cors_1
     headers: header_1
 
+  - service: "hello.list"
+    methods: ['POST']
+    url: "/api/hello/list"
+    timeout: 15s
+    cors: cors_1
+    headers: header_1
+
   # demonstrate path parameter and wild card
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']

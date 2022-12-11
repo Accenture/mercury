@@ -71,7 +71,7 @@ public class AuthInterceptor implements LambdaFunction {
                                 }
                                 // forward request to target service(s)
                                 EventEnvelope event = new EventEnvelope();
-                                event.setTo(evt.primary).setBody(req.toMap())
+                                event.setTo(evt.primary).setBody(req)
                                         .setCorrelationId(evt.requestId)
                                         .setReplyTo(ASYNC_HTTP_RESPONSE + "@" + Platform.getInstance().getOrigin());
                                 // enable distributed tracing if needed

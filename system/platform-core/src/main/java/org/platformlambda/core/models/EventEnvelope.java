@@ -548,6 +548,9 @@ public class EventEnvelope {
             EventEnvelope nested = (EventEnvelope) body;
             log.warn("Setting body from nested EventEnvelope is discouraged - system will remove the outer envelope");
             return setBody(nested.getBody());
+        } else if (body instanceof AsyncHttpRequest) {
+            AsyncHttpRequest request = (AsyncHttpRequest) body;
+            return setBody(request.toMap());
         } else {
             payload = body;
         }

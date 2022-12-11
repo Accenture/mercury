@@ -21,6 +21,7 @@ package org.platformlambda.core;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -86,9 +87,11 @@ public class CryptoTest {
         Assert.assertArrayEquals(input, decrypted);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void invalidRsaKeyLength() {
-        crypto.generateRsaKey(1000);
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                                            () -> crypto.generateRsaKey(1000));
+        Assert.assertEquals("Key size must be one of [1024, 2048, 3072, 4096]", ex.getMessage());
     }
 
     @Test

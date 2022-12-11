@@ -61,8 +61,8 @@ public class XmlParserFeatureTest {
             "http://apache.org/xml/features/nonvalidating/load-external-dtd"
     };
 
-    @Test(expected=SAXParseException.class)
-    public void featureTest() throws ParserConfigurationException, IOException, SAXException {
+    @Test
+    public void featureTest() throws ParserConfigurationException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         for (String feature: FEATURES_TO_ENABLE) {
             Assert.assertTrue(setFeature(dbf, feature, true));
@@ -81,8 +81,9 @@ public class XmlParserFeatureTest {
                              "<stockCheck><productId>&xxe;</productId></stockCheck>";
         DocumentBuilder dBuilder = dbf.newDocumentBuilder();
         dBuilder.setErrorHandler(null);
-        Document doc = dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8)));
-        doc.getDocumentElement().normalize();
+        SAXParseException ex = Assert.assertThrows(SAXParseException.class,
+                () -> dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8))));
+        Assert.assertTrue(ex.getMessage().contains("DOCTYPE is disallowed"));
     }
 
     private boolean setFeature(DocumentBuilderFactory dbf, String feature, boolean enable) {

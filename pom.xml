@@ -27,7 +27,7 @@
         <module>connectors/adapters/activemq/activemq-presence</module>
         <!-- Executables for tools -->
         <module>extensions/simple-scheduler</module>
-        <module>extensions/distributed-tracer</module>
+        <module>extensions/distributed-trace-aggregator</module>
         <!-- Executables for language connector -->
         <module>language-packs/language-connector</module>
         <!-- Executables for application examples -->

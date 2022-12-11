@@ -89,7 +89,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
         String method = request.method().name();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin != null && !po.exists(origin)) {
-            sendError(response, uri, 404, "Target ("+origin+") not found");
+            sendError(response, uri, 404, origin+" is not reachable");
             return;
         }
         boolean processed = false;

@@ -174,11 +174,19 @@ public class WorkerQueue extends WorkerQueues {
                 if (interceptor || useEnvelope) {
                     inputBody = event;
                 } else {
-                    // automatically convert Map to PoJo
                     if (PayloadMapper.MAP.equals(event.getType()) && def.getInputClass() != null) {
-                        event.setType(def.getInputClass().getName());
+                        if (def.getInputClass() == AsyncHttpRequest.class) {
+                            // handle special case
+                            event.setType(null);
+                            inputBody = new AsyncHttpRequest(event.getRawBody());
+                        } else {
+                            // automatically convert Map to PoJo
+                            event.setType(def.getInputClass().getName());
+                            inputBody = event.getBody();
+                        }
+                    } else {
+                        inputBody = event.getBody();
                     }
-                    inputBody = event.getBody();
                 }
                 Object result = ping? null : f.handleEvent(event.getHeaders(), inputBody, instance);
                 float delta = ping? 0 : (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;

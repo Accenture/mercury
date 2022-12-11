@@ -60,7 +60,7 @@ public class RestEndpointTest extends TestBase {
         req.setQueryParameter("x2", list);
         req.setTargetHost("http://127.0.0.1:"+port);
 
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/json", map.getElement("headers.accept"));
@@ -86,7 +86,7 @@ public class RestEndpointTest extends TestBase {
         req.setUrl("/api/hello/world");
         req.setTargetHost("http://127.0.0.1:"+port);
         try {
-            po.request(HTTP_REQUEST, 5000, req.toMap());
+            po.request(HTTP_REQUEST, 5000, req);
             throw new IllegalArgumentException("Test is excepted to throw AppException");
         } catch (Exception e) {
             Assert.assertTrue(e instanceof AppException);
@@ -109,7 +109,7 @@ public class RestEndpointTest extends TestBase {
         req.setUrl("/api/hello/world");
         req.setTargetHost("http://127.0.0.1:"+port);
         try {
-            po.request(HTTP_REQUEST, 5000, req.toMap());
+            po.request(HTTP_REQUEST, 5000, req);
             throw new IllegalArgumentException("Test is excepted to throw AppException");
         } catch (Exception e) {
             Assert.assertTrue(e instanceof AppException);
@@ -143,7 +143,7 @@ public class RestEndpointTest extends TestBase {
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setStreamRoute(stream.getInputStreamId());
         req.setContentLength(len);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof byte[]);
         Assert.assertArrayEquals(b, (byte[]) res.getBody());
     }
@@ -166,7 +166,7 @@ public class RestEndpointTest extends TestBase {
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setBody(b);
         req.setContentLength(len);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof byte[]);
         Assert.assertArrayEquals(b, (byte[]) res.getBody());
     }
@@ -198,7 +198,7 @@ public class RestEndpointTest extends TestBase {
         req.setHeader("content-type", "application/octet-stream");
         req.setContentLength(len);
         req.setStreamRoute(stream.getInputStreamId());
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertNotNull(res.getHeaders().get("stream"));
         String resultStream = res.getHeaders().get("stream");
         ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000);
@@ -239,7 +239,7 @@ public class RestEndpointTest extends TestBase {
         req.setContentLength(len);
         req.setFileName("hello-world.txt");
         req.setStreamRoute(stream.getInputStreamId());
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertNotNull(res.getHeaders().get("stream"));
         String resultStream = res.getHeaders().get("stream");
         ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000);
@@ -267,7 +267,7 @@ public class RestEndpointTest extends TestBase {
         req.setBody(json);
         req.setHeader("accept", "application/json");
         req.setHeader("content-type", "application/json");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/json", map.getElement("headers.content-type"));
@@ -298,7 +298,7 @@ public class RestEndpointTest extends TestBase {
         req.setBody(xml);
         req.setHeader("accept", "application/xml");
         req.setHeader("content-type", "application/xml");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/xml", map.getElement("headers.content-type"));
@@ -328,7 +328,7 @@ public class RestEndpointTest extends TestBase {
         req.setBody(data);
         req.setHeader("accept", "application/json");
         req.setHeader("content-type", "application/json");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/json", map.getElement("headers.content-type"));
@@ -345,6 +345,70 @@ public class RestEndpointTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
+    public void testJsonResultList() throws AppException, IOException, TimeoutException {
+        PostOffice po = PostOffice.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/list");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        Map<String, Object> data = new HashMap<>();
+        data.put("hello", "world");
+        data.put("test", "message");
+        req.setBody(data);
+        req.setHeader("accept", "application/json");
+        req.setHeader("content-type", "application/json");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
+        Assert.assertTrue(res.getBody() instanceof List);
+        List<Map<String, Object>> list = (List<Map<String, Object>>) res.getBody();
+        Assert.assertEquals(1, list.size());
+        Assert.assertEquals(HashMap.class, list.get(0).getClass());
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) list.get(0));
+        Assert.assertEquals("application/json", map.getElement("headers.content-type"));
+        Assert.assertEquals("application/json", map.getElement("headers.accept"));
+        Assert.assertEquals(false, map.getElement("https"));
+        Assert.assertEquals("/api/hello/list", map.getElement("url"));
+        Assert.assertEquals("POST", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals(15, map.getElement("timeout"));
+        Assert.assertTrue(map.getElement("body") instanceof Map);
+        Map<String, Object> received = (Map<String, Object>) map.getElement("body");
+        Assert.assertEquals(data, received);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testXmlResultList() throws AppException, IOException, TimeoutException {
+        PostOffice po = PostOffice.getInstance();
+        SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/list");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        Map<String, Object> data = new HashMap<>();
+        data.put("hello", "world");
+        data.put("test", "message");
+        String xml = xmlWriter.write(data);
+        req.setBody(xml);
+        req.setHeader("accept", "application/xml");
+        req.setHeader("content-type", "application/xml");
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
+        Assert.assertTrue(res.getBody() instanceof Map);
+        MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
+        Assert.assertEquals("application/xml", map.getElement("result.headers.content-type"));
+        Assert.assertEquals("application/xml", map.getElement("result.headers.accept"));
+        // xml key-values are parsed as text
+        Assert.assertEquals("false", map.getElement("result.https"));
+        Assert.assertEquals("/api/hello/list", map.getElement("result.url"));
+        Assert.assertEquals("POST", map.getElement("result.method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("result.ip"));
+        Assert.assertEquals("15", map.getElement("result.timeout"));
+        Assert.assertTrue(map.getElement("result.body") instanceof Map);
+        Map<String, Object> received = (Map<String, Object>) map.getElement("result.body");
+        Assert.assertEquals(data, received);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     public void sendHttpDelete() throws AppException, IOException, TimeoutException {
         PostOffice po = PostOffice.getInstance();
         AsyncHttpRequest req = new AsyncHttpRequest();
@@ -352,7 +416,7 @@ public class RestEndpointTest extends TestBase {
         req.setUrl("/api/hello/world");
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setHeader("accept", "application/json");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/json", map.getElement("headers.accept"));
@@ -374,7 +438,7 @@ public class RestEndpointTest extends TestBase {
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setHeader("accept", "application/json");
         req.setHeader("x-correlation-id", traceId);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Map<String, String> headers = res.getHeaders();
         // HTTP head response may include custom headers and content-length
         Assert.assertEquals("HEAD request received", headers.get("x-response"));
@@ -393,7 +457,7 @@ public class RestEndpointTest extends TestBase {
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setHeader("accept", "application/json");
         req.setHeader("x-trace-id", traceId);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Map<String, String> headers = res.getHeaders();
         // HTTP head response may include custom headers and content-length
         Assert.assertEquals("HEAD request received", headers.get("x-response"));
@@ -416,7 +480,7 @@ public class RestEndpointTest extends TestBase {
         req.setBody(data);
         req.setHeader("accept", "application/json");
         req.setHeader("content-type", "application/xml");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/xml", map.getElement("headers.content-type"));
@@ -446,7 +510,7 @@ public class RestEndpointTest extends TestBase {
         req.setBody(Collections.singletonList(data));
         req.setHeader("accept", "application/json");
         req.setHeader("content-type", "application/json");
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertTrue(res.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) res.getBody());
         Assert.assertEquals("application/json", map.getElement("headers.content-type"));
@@ -470,7 +534,7 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("GET");
         req.setUrl("/");
         req.setTargetHost("http://127.0.0.1:"+port);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertEquals("text/html", res.getHeaders().get("content-type"));
         Assert.assertTrue(res.getBody() instanceof String);
         String html = (String) res.getBody();
@@ -487,7 +551,7 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("GET");
         req.setUrl("/sample.css");
         req.setTargetHost("http://127.0.0.1:"+port);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertEquals("text/css", res.getHeaders().get("content-type"));
         Assert.assertTrue(res.getBody() instanceof String);
         String html = (String) res.getBody();
@@ -504,7 +568,7 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("GET");
         req.setUrl("/sample.js");
         req.setTargetHost("http://127.0.0.1:"+port);
-        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req.toMap());
+        EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertEquals("text/javascript", res.getHeaders().get("content-type"));
         Assert.assertTrue(res.getBody() instanceof String);
         String html = (String) res.getBody();

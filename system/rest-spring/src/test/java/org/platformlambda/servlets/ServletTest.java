@@ -57,11 +57,19 @@ public class ServletTest extends TestBase {
         Assert.assertEquals(origin, multi.getElement("origin"));
     }
 
-    @Test(expected = AppException.class)
-    public void remoteInfoEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteInfoEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
@@ -75,11 +83,19 @@ public class ServletTest extends TestBase {
         Assert.assertTrue(result.containsKey("library"));
     }
 
-    @Test(expected = AppException.class)
-    public void remoteLibEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteLibEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/lib", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/lib", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
@@ -96,27 +112,56 @@ public class ServletTest extends TestBase {
         Assert.assertEquals("hello.world", substitution.get("hello.test"));
     }
 
-    @Test(expected = AppException.class)
-    public void remoteRouteEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteRouteEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void healthEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://localhost:"+port+"/health");
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals("UP", result.get("status"));
     }
 
-    @Test(expected = AppException.class)
-    public void remoteHealthEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void protectedEndpointTest() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://localhost:"+port+"/health"));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Resource not found", result.get("message"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteHealthEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @Test
@@ -125,11 +170,19 @@ public class ServletTest extends TestBase {
         Assert.assertEquals("OK", response);
     }
 
-    @Test(expected = AppException.class)
-    public void remoteLivenessEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteLivenessEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
@@ -143,68 +196,136 @@ public class ServletTest extends TestBase {
         Assert.assertTrue(result.get("env") instanceof Map);
     }
 
-    @Test(expected = AppException.class)
-    public void remoteEnvEndpointTest() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteEnvEndpointTest() {
         Map<String, String> headers = new HashMap<>();
         headers.put("x-app-instance", "does-not-exist");
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/env", headers);
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/env", headers));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void shutdownUsingGetWillFail() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/shutdown");
-        Assert.assertTrue(response instanceof String);
-        SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+    @SuppressWarnings("unchecked")
+    @Test
+    public void shutdownUsingGetWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/shutdown"));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void suspendUsingGetWillFail() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/suspend");
-        Assert.assertTrue(response instanceof String);
-        SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+    @SuppressWarnings("unchecked")
+    @Test
+    public void suspendUsingGetWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/suspend"));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void resumeUsingGetWillFail() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/resume");
-        Assert.assertTrue(response instanceof String);
-        SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+    @SuppressWarnings("unchecked")
+    @Test
+    public void resumeUsingGetWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/resume"));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void shutdownWithoutAppInstanceWillFail() throws AppException, IOException {
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/shutdown", new HashMap<>(), new HashMap<>());
+    @SuppressWarnings("unchecked")
+    @Test
+    public void shutdownWithoutAppInstanceWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/shutdown", new HashMap<>(), new HashMap<>()));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(400, result.get("status"));
+        Assert.assertEquals("Missing X-App-Instance in request header", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void shutdownWithIncorrectAppInstanceWillFail() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void shutdownWithIncorrectAppInstanceWillFail() {
         Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", "does-not-exist");
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/shutdown", headers, new HashMap<>());
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/shutdown", headers, new HashMap<>()));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void suspendWithoutAppInstanceWillFail() throws AppException, IOException {
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend", new HashMap<>(), new HashMap<>());
+    @SuppressWarnings("unchecked")
+    @Test
+    public void suspendWithoutAppInstanceWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend", new HashMap<>(), new HashMap<>()));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(400, result.get("status"));
+        Assert.assertEquals("Missing X-App-Instance in request header", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void suspendWithIncorrectAppInstanceWillFail() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void suspendWithIncorrectAppInstanceWillFail() {
         Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", "does-not-exist");
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend", headers, new HashMap<>());
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend", headers, new HashMap<>()));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void resumeWithoutAppInstanceWillFail() throws AppException, IOException {
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume", new HashMap<>(), new HashMap<>());
+    @SuppressWarnings("unchecked")
+    @Test
+    public void resumeWithoutAppInstanceWillFail() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume", new HashMap<>(), new HashMap<>()));
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(400, result.get("status"));
+        Assert.assertEquals("Missing X-App-Instance in request header", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void resumeWithIncorrectAppInstanceWillFail() throws AppException, IOException {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void resumeWithIncorrectAppInstanceWillFail() {
         Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", "does-not-exist");
-        SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume", headers, new HashMap<>());
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume", headers, new HashMap<>()));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
@@ -261,93 +382,74 @@ public class ServletTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void springRestExceptionHandling() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=exception");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(400, e.getStatus());
-            Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(400, result.get("status"));
-            Assert.assertEquals("IllegalArgumentException", result.get("message"));
-            Assert.assertEquals("error", result.get("type"));
-        }
+    public void springRestExceptionHandling() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=exception"));
+        Assert.assertEquals(400, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(400, result.get("status"));
+        Assert.assertEquals("IllegalArgumentException", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void springRestNullHandling() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=null");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(500, e.getStatus());
-            Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(500, result.get("status"));
-            Assert.assertEquals("Null pointer exception", result.get("message"));
-            Assert.assertEquals("error", result.get("type"));
-        }
+    public void springRestNullHandling() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=null"));
+        Assert.assertEquals(500, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(500, result.get("status"));
+        Assert.assertEquals("Null pointer exception", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void springRestIOExceptionHandling() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=io_exception");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(500, e.getStatus());
-            Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(500, result.get("status"));
-            Assert.assertEquals("IOException", result.get("message"));
-            Assert.assertEquals("error", result.get("type"));
-        }
+    public void springRestIOExceptionHandling() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=io_exception"));
+        Assert.assertEquals(500, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(500, result.get("status"));
+        Assert.assertEquals("IOException", result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void springRestAppExceptionHandling() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(401, e.getStatus());
-            Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(e.getMessage(), Map.class);
-            Assert.assertEquals(401, result.get("status"));
-            Assert.assertEquals("AppException", result.get("message"));
-            Assert.assertEquals("error", result.get("type"));
-        }
+    public void springRestAppExceptionHandling() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception"));
+        Assert.assertEquals(401, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(401, result.get("status"));
+        Assert.assertEquals("AppException", result.get("message"));
     }
 
     @Test
-    public void springRestAppExceptionHandlingHtml() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception", "text/html");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(401, e.getStatus());
-            String result = e.getMessage();
-            Assert.assertTrue(result.startsWith("<!DOCTYPE html>"));
-            Assert.assertTrue(result.contains("HTTP-401"));
-        }
+    public void springRestAppExceptionHandlingHtml() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception", "text/html"));
+        Assert.assertEquals(401, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<!DOCTYPE html>"));
+        Assert.assertTrue(result.contains("HTTP-401"));
     }
 
     @Test
-    public void springRestAppExceptionHandlingXml() throws IOException {
-        try {
-            SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception", "application/xml");
-            throw new IOException("it should throw exception");
-        } catch (AppException e) {
-            Assert.assertEquals(401, e.getStatus());
-            String result = e.getMessage();
-            Assert.assertTrue(result.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-            Assert.assertTrue(result.contains("<status>401</status>"));
-        }
-    }
-
-    @Test(expected = AppException.class)
-    public void springRestNotFound() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page");
+    public void springRestAppExceptionHandlingXml() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:" + port + "/pojo?name=app_exception", "application/xml"));
+        Assert.assertEquals(401, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        Assert.assertTrue(result.contains("<status>401</status>"));
     }
 
     @Test
@@ -366,19 +468,37 @@ public class ServletTest extends TestBase {
         Assert.assertTrue(text.contains("Your application is running"));
     }
 
-    @Test(expected = AppException.class)
-    public void pageNotExists() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page");
+    @SuppressWarnings("unchecked")
+    @Test
+    public void pageNotExists() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page"));
+        Assert.assertEquals(404, ex.getStatus());
+        String error = ex.getMessage();
+        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
+        Assert.assertEquals(404, result.get("status"));
+        Assert.assertEquals("Not Found", result.get("message"));
     }
 
-    @Test(expected = AppException.class)
-    public void pageNotExistsXml() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page", "application/xml");
+    @Test
+    public void pageNotExistsXml() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page", "application/xml"));
+        Assert.assertEquals(404, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        Assert.assertTrue(result.contains("<status>404</status>"));
     }
 
-    @Test(expected = AppException.class)
-    public void pageNotExistsHtml() throws AppException, IOException {
-        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page", "text/html");
+    @Test
+    public void pageNotExistsHtml() {
+        AppException ex = Assert.assertThrows(AppException.class, () ->
+                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/no_such_page", "text/html"));
+        Assert.assertEquals(404, ex.getStatus());
+        String result = ex.getMessage();
+        Assert.assertTrue(result.startsWith("<!DOCTYPE html>"));
+        Assert.assertTrue(result.contains("HTTP-404"));
     }
 
     @SuppressWarnings("unchecked")

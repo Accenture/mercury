@@ -20,6 +20,7 @@ package org.platformlambda.core;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.MultiLevelMap;
@@ -175,16 +176,22 @@ public class ConfigReaderTest {
         Assert.assertTrue(submap.containsKey("array"));
     }
 
-    @Test(expected=IOException.class)
-    public void resourceNotFound() throws IOException {
-        ConfigReader reader = new ConfigReader();
-        reader.load("classpath:/notfound.yaml");
+    @Test
+    public void resourceNotFound() {
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConfigReader reader = new ConfigReader();
+            reader.load("classpath:/notfound.yaml");
+        });
+        Assert.assertEquals("classpath:/notfound.yaml not found", ex.getMessage());
     }
 
-    @Test(expected=IOException.class)
-    public void fileNotFound() throws IOException {
-        ConfigReader reader = new ConfigReader();
-        reader.load("file:/notfound.yaml");
+    @Test
+    public void fileNotFound() {
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConfigReader reader = new ConfigReader();
+            reader.load("file:/notfound.yaml");
+        });
+        Assert.assertEquals("file:/notfound.yaml not found", ex.getMessage());
     }
 
     @Test

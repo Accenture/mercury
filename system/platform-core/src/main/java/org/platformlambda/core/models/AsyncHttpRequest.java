@@ -563,6 +563,28 @@ public class AsyncHttpRequest {
 
     @SuppressWarnings("unchecked")
     private void fromMap(Object input) {
+        if (input instanceof AsyncHttpRequest) {
+            AsyncHttpRequest source = (AsyncHttpRequest) input;
+            this.headers = source.headers;
+            this.cookies = source.cookies;
+            this.session = source.session;
+            this.method = source.method;
+            this.ip = source.ip;
+            this.type = source.type;
+            this.url = source.url;
+            this.timeoutSeconds = source.timeoutSeconds;
+            this.fileName = source.fileName;
+            this.contentLength = source.contentLength;
+            this.streamRoute = source.streamRoute;
+            this.body = source.body;
+            this.queryString = source.queryString;
+            this.https = source.https;
+            this.targetHost = source.targetHost;
+            this.trustAllCert = source.trustAllCert;
+            this.upload = source.upload;
+            this.pathParams = source.pathParams;
+            this.queryParams = source.queryParams;
+        }
         if (input instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) input;
             if (map.containsKey(HTTP_HEADERS)) {

@@ -20,12 +20,15 @@ N/A
 
 ### Changed
 
-Updated open sources dependency library version
-1. Netty 4.1.85.Final
-2. Tomcat 9.0.69
-3. Vertx 4.3.5
-4. classgraph 4.8.151
-5. google-http-client 1.42.3
+1. Updated open sources dependencies
+- Netty 4.1.85.Final
+- Tomcat 9.0.69
+- Vertx 4.3.5
+- classgraph 4.8.151
+- google-http-client 1.42.3
+
+2. Improved unit tests to use assertThrows to evaluate exception
+3. Enhanced AsyncHttpRequest serialization
 
 ---
 ## Version 2.7.0, 11/11/2022

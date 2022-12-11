@@ -61,7 +61,7 @@ public abstract class ServletBase extends HttpServlet {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                response.sendError(400, origin+" is not reachable");
+                response.sendError(404, origin+" is not reachable");
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);

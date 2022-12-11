@@ -44,6 +44,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final Logger log = LoggerFactory.getLogger(HttpRequestHandler.class);
 
     private static final String ASYNC_HTTP_RESPONSE = AppStarter.ASYNC_HTTP_RESPONSE;
+    private static final String HOST = "host";
     private static final String TYPE = "type";
     private static final String ACCEPT = "Accept";
     private static final String GET = "GET";
@@ -154,7 +155,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
-            if (protectEndpoint && !type.equals("livenessprobe") && !isLocalHost(request)) {
+            if (protectEndpoint && !isIntranetAddress(request)) {
                 return false;
             }
             origin = platform.getOrigin();
@@ -164,7 +165,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return true;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -191,7 +192,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -227,7 +228,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             event.setTo(PostOffice.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
-                httpUtil.sendError(requestId, request, 400, origin+NOT_REACHABLE);
+                httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return;
             }
             event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
@@ -246,9 +247,8 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         httpUtil.sendResponse(type, requestId, request, 200, message);
     }
 
-    private boolean isLocalHost(HttpServerRequest request) {
-        String host = request.getHeader("host");
-        return host != null && host.contains("127.0.0.1");
+    private boolean isIntranetAddress(HttpServerRequest request) {
+        return Utility.getInstance().isIntranetAddress(request.getHeader(HOST));
     }
 
 }

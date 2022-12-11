@@ -21,7 +21,6 @@ package org.platformlambda.core;
 import io.vertx.core.Future;
 import org.junit.Assert;
 import org.junit.Test;
-import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.AsyncObjectStreamReader;
 import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.ObjectStreamReader;
@@ -185,26 +184,29 @@ public class ObjectStreamTest {
         Assert.assertEquals(3, n);
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void timeoutTest() throws IOException {
         String TEXT = "hello world";
         ObjectStreamIO stream = new ObjectStreamIO();
-
         log.info("Using {}", stream.getInputStreamId());
-
         ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
         out.write(TEXT);
         // stop writing and do not close output stream so there are no more item to come
-        int n = 0;
-        try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 2000)) {
-            for (Object d : in) {
-                n++;
-                if (n == 1) {
-                    Assert.assertEquals(TEXT, d);
-                    log.info("Got the 1st item '{}'. The 2nd item is designed to timeout in 2 seconds.", d);
+
+        String MESSAGE = stream.getInputStreamId() + " timeout for 2000 ms";
+        RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> {
+            int n = 0;
+            try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 2000)) {
+                for (Object d : in) {
+                    n++;
+                    if (n == 1) {
+                        Assert.assertEquals(TEXT, d);
+                        log.info("Got the 1st item '{}'. The 2nd item is designed to timeout in 2 seconds.", d);
+                    }
                 }
             }
-        }
+        });
+        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
 }

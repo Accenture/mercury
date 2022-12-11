@@ -169,10 +169,12 @@ public class PostOfficeTest extends TestBase {
         platform.waitForProvider("cloud.connector", 10);
     }
 
-    @Test(expected = TimeoutException.class)
-    public void findProviderThatDoesNotExists() throws TimeoutException {
+    @Test
+    public void findProviderThatDoesNotExists() {
         Platform platform = Platform.getInstance();
-        platform.waitForProvider("no.such.service", 1);
+        TimeoutException ex = Assert.assertThrows(TimeoutException.class, () ->
+                platform.waitForProvider("no.such.service", 1));
+        Assert.assertTrue(ex.getMessage().startsWith("Giving up no.such.service because it is not ready"));
     }
 
     @Test
@@ -204,38 +206,49 @@ public class PostOfficeTest extends TestBase {
         Assert.assertEquals(id, platform.getAppId());
     }
 
-    @Test(expected = IOException.class)
-    public void registerInvalidRoute() throws IOException {
+    @Test
+    public void registerInvalidRoute() {
         Platform platform = Platform.getInstance();
         LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register("invalidFormat", noOp, 1);
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register("invalidFormat", noOp, 1));
+        Assert.assertEquals("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters",
+                ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void registerNullRoute() throws IOException {
+    @Test
+    public void registerNullRoute() {
         Platform platform = Platform.getInstance();
         LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register(null, noOp, 1);
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register(null, noOp, 1));
+        Assert.assertEquals("Missing service routing path", ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void registerNullService() throws IOException {
+    @Test
+    public void registerNullService() {
         Platform platform = Platform.getInstance();
-        platform.register("no.service", null, 1);
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register("no.service", null, 1));
+        Assert.assertEquals("Missing lambda function", ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void reservedExtensionNotAllowed() throws IOException {
-        Platform platform = Platform.getInstance();
-        LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register("nothing.com", noOp, 1);
-    }
-
-    @Test(expected = IOException.class)
-    public void reservedFilenameNotAllowed() throws IOException {
+    @Test
+    public void reservedExtensionNotAllowed() {
         Platform platform = Platform.getInstance();
         LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register("thumbs.db", noOp, 1);
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register("nothing.com", noOp, 1));
+        Assert.assertEquals("Invalid route nothing.com which is use a reserved extension", ex.getMessage());
+    }
+
+    @Test
+    public void reservedFilenameNotAllowed() {
+        Platform platform = Platform.getInstance();
+        LambdaFunction noOp = (headers, body, instance) -> true;
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register("thumbs.db", noOp, 1));
+        Assert.assertEquals("Invalid route thumbs.db which is a reserved Windows filename", ex.getMessage());
     }
 
     @Test
@@ -256,11 +269,14 @@ public class PostOfficeTest extends TestBase {
         platform.makePublic(SERVICE);
     }
 
-    @Test(expected = IOException.class)
-    public void emptyRouteNotAllowed() throws IOException {
+    @Test
+    public void emptyRouteNotAllowed() {
         Platform platform = Platform.getInstance();
         LambdaFunction noOp = (headers, body, instance) -> true;
-        platform.register("", noOp, 1);
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                platform.register("", noOp, 1));
+        Assert.assertEquals("Invalid route name - use 0-9, a-z, period, hyphen or underscore characters",
+                ex.getMessage());
     }
 
     @Test
@@ -286,14 +302,16 @@ public class PostOfficeTest extends TestBase {
         Assert.assertTrue(po.exists(platform.getOrigin()));
     }
 
-    @Test(expected = IOException.class)
-    public void testNonExistRoute() throws IOException {
+    @Test
+    public void testNonExistRoute() {
         PostOffice po = PostOffice.getInstance();
-        po.send("undefined.route", "OK");
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                po.send("undefined.route", "OK"));
+        Assert.assertEquals("Route undefined.route not found", ex.getMessage());
     }
 
     @Test
-    public void cancelFutureEventTest() throws IOException {
+    public void cancelFutureEventTest() {
         long FIVE_SECONDS = 5000;
         long now = System.currentTimeMillis();
         String TRACE_ID = Utility.getInstance().getUuid();
@@ -460,10 +478,12 @@ public class PostOfficeTest extends TestBase {
         Assert.assertEquals(FIRST, result);
     }
 
-    @Test(expected = TimeoutException.class)
-    public void singleRequestWithException() throws TimeoutException, IOException, AppException {
+    @Test
+    public void singleRequestWithException() {
         PostOffice po = PostOffice.getInstance();
-        po.request("hello.world", 800, 2);
+        TimeoutException ex = Assert.assertThrows(TimeoutException.class, () ->
+                po.request("hello.world", 800, 2));
+        Assert.assertEquals("hello.world timeout for 800 ms", ex.getMessage());
     }
 
     @Test

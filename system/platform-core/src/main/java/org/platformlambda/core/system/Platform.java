@@ -390,17 +390,17 @@ public class Platform {
         // guarantee that only valid service name is registered
         Utility util = Utility.getInstance();
         if (!util.validServiceName(route)) {
-            throw new IOException(INVALID_ROUTE+" name - use 0-9, a-z, period, hyphen or underscore characters");
+            throw new IOException(INVALID_ROUTE+"name - use 0-9, a-z, period, hyphen or underscore characters");
         }
         String path = util.filteredServiceName(route);
         if (path.length() == 0) {
-            throw new IOException(INVALID_ROUTE+" name");
+            throw new IOException(INVALID_ROUTE+"name");
         }
         if (!path.contains(".")) {
             throw new IOException(INVALID_ROUTE+route+" because it is missing dot separator(s). e.g. hello.world");
         }
         if (util.reservedExtension(path)) {
-            throw new IOException(INVALID_ROUTE+route+" because it cannot use a reserved extension");
+            throw new IOException(INVALID_ROUTE+route+" which is use a reserved extension");
         }
         if (util.reservedFilename(path)) {
             throw new IOException(INVALID_ROUTE+route+" which is a reserved Windows filename");

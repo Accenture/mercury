@@ -20,6 +20,7 @@ package org.platformlambda.core;
 
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
@@ -95,9 +96,12 @@ public class PayloadMapperTest {
         SimpleMapper.getInstance().getSafeMapper(Number.class);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test
     public void rejectUnsafeClasses() {
-        SimpleMapper.getInstance().getSafeMapper(UnauthorizedObj.class);
+        String MESSAGE = "Class " + UnauthorizedObj.class.getName() + " not in safe.data.models";
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                () ->  SimpleMapper.getInstance().getSafeMapper(UnauthorizedObj.class));
+        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
     @Test

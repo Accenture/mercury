@@ -53,10 +53,13 @@ public class UtilityTests {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void setServerPersonality() {
         ServerPersonality personality = ServerPersonality.getInstance();
-        personality.setType(null);
+        String MESSAGE = "Personality cannot be null";
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                                                () -> personality.setType(null));
+        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
     @Test
@@ -83,18 +86,23 @@ public class UtilityTests {
         ps.cleanup();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void mockPubSubCreateQueue() throws IOException {
+    @Test
+    public void mockPubSubCreateQueue() {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        ps.createQueue("demo.queue");
+        String MESSAGE = "Not implemented";
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                                            () -> ps.createQueue("demo.queue"));
+        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void mockPubSubDeleteQueue() throws IOException {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        ps.deleteQueue("demo.queue");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                () -> ps.deleteQueue("demo.queue"));
+        Assert.assertEquals("Not implemented", ex.getMessage());
     }
 
     @Test
@@ -338,10 +346,11 @@ public class UtilityTests {
     @Test
     public void intranetIpTest() {
         final Utility util = Utility.getInstance();
-        String[] IP_ADDRESSES = {"localhost:8080", "127.0.0.1", "10.1.2.3", "172.16.1.2", "192.168.1.30"};
+        String[] IP_ADDRESSES = {"127.0.0.1:8080", "127.0.0.1", "10.1.2.3", "172.16.1.2", "192.168.1.30"};
         for (String ip: IP_ADDRESSES) {
             Assert.assertTrue(util.isIntranetAddress(ip));
         }
+        Assert.assertFalse(util.isIntranetAddress("localhost"));
         Assert.assertFalse(util.isIntranetAddress(null));
         Assert.assertFalse(util.isIntranetAddress("128.1.2.3"));
         Assert.assertFalse(util.isIntranetAddress("hello.world.com"));

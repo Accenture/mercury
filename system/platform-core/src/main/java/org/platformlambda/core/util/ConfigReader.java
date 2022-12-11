@@ -24,6 +24,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -130,11 +131,15 @@ public class ConfigReader implements ConfigBase {
 
     @SuppressWarnings("unchecked")
     public void load(String path) throws IOException {
-        InputStream in;
+        InputStream in = null;
         if (path.startsWith(CLASSPATH)) {
             in = ConfigReader.class.getResourceAsStream(path.substring(CLASSPATH.length()));
         } else if (path.startsWith(FILEPATH)) {
-            in = Files.newInputStream(Paths.get(path.substring(FILEPATH.length())));
+            try {
+                in = Files.newInputStream(Paths.get(path.substring(FILEPATH.length())));
+            } catch (IOException e) {
+                // ok to ignore
+            }
         } else {
             in = ConfigReader.class.getResourceAsStream(path);
         }

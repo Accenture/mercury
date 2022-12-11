@@ -20,12 +20,7 @@ package org.platformlambda.core;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.platformlambda.core.models.AsyncHttpRequest;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.ObjectWithGenericType;
-import org.platformlambda.core.models.ObjectWithGenericTypeVariance;
-import org.platformlambda.core.models.PoJo;
-import org.platformlambda.core.models.PoJoVariance;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
 
@@ -102,8 +97,8 @@ public class GenericTypeTest {
         Assert.assertEquals(NUMBER_2, restored2.getNumber());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void rejectMixedTypes() throws IOException {
+    @Test
+    public void rejectMixedTypes() {
         int NUMBER_1 = 100;
         String NAME_1 = "hello world";
         int NUMBER_2 = 200;
@@ -119,8 +114,8 @@ public class GenericTypeTest {
         list.add(2);
         list.add(pojo2);
         EventEnvelope event = new EventEnvelope();
-        event.setBody(list);
-        event.toBytes();
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> event.setBody(list));
+        Assert.assertEquals("Unable to serialize because it is a list of mixed types", ex.getMessage());
     }
 
     @Test
@@ -160,7 +155,7 @@ public class GenericTypeTest {
         byte[] b = event.toBytes();
         EventEnvelope result = new EventEnvelope();
         result.load(b);
-        Assert.assertEquals(result.getBody(), Collections.EMPTY_LIST);
+        Assert.assertEquals(Collections.EMPTY_LIST, result.getBody());
     }
 
     @SuppressWarnings("unchecked")
@@ -189,7 +184,7 @@ public class GenericTypeTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(expected = ClassCastException.class)
+    @Test
     public void missingTypingInfo() throws IOException {
         int id = 100;
         String name = "hello world";
@@ -215,8 +210,11 @@ public class GenericTypeTest {
          * You therefore can retrieve a copy of the HashMap by this:
          * Object content = gs.getContent();
          */
-        PoJo content = gs.getContent();
-        Assert.assertNotNull(content);
+        ClassCastException ex = Assert.assertThrows(ClassCastException.class, () -> {
+            PoJo content = gs.getContent();
+            Assert.assertNotNull(content);
+        });
+        Assert.assertTrue(ex.getMessage().contains("cannot be cast to"));
     }
 
     @Test
@@ -249,7 +247,7 @@ public class GenericTypeTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void parametricHttpObjectTest() throws ClassNotFoundException {
+    public void parametricHttpObjectTest() {
         int id = 100;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
@@ -269,7 +267,7 @@ public class GenericTypeTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void parametricEnvelopeTest() throws ClassNotFoundException, IOException {
+    public void parametricEnvelopeTest() throws IOException {
         int id = 100;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
@@ -307,16 +305,18 @@ public class GenericTypeTest {
         Assert.assertTrue(restored.getRawBody() instanceof Map);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void primitiveObjectTest() throws IOException {
+        String MESSAGE = "Unable to convert a primitive into class " + PoJoVariance.class.getName();
         int id = 100;
         EventEnvelope event = new EventEnvelope();
         event.setBody(id);
         byte[] b = event.toBytes();
         EventEnvelope restored = new EventEnvelope(b);
         Assert.assertEquals(100, restored.getBody());
-
-        PoJoVariance o = restored.getBody(PoJoVariance.class);
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                                                () -> restored.getBody(PoJoVariance.class));
+        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
 }

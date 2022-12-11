@@ -59,10 +59,9 @@ public class GenericTypeTest {
         Assert.assertEquals(name, content.getName());
     }
 
-    @Test(expected=ClassCastException.class)
     @SuppressWarnings("unchecked")
+    @Test
     public void missingTypingInfo() throws IOException {
-
         int id = 100;
         String name = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
@@ -70,14 +69,11 @@ public class GenericTypeTest {
         pojo.setName(name);
         genericObject.setContent(pojo);
         genericObject.setId(100);
-
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         byte[] b = event.toBytes();
-
         EventEnvelope result = new EventEnvelope();
         result.load(b);
-
         Object o = result.getBody();
         Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
@@ -90,8 +86,11 @@ public class GenericTypeTest {
          * You therefore can retrieve a copy of the HashMap by this:
          * Object content = gs.getContent();
          */
-        PoJo content = gs.getContent();
-        Assert.assertNotNull(content);
+        ClassCastException ex = Assert.assertThrows(ClassCastException.class, () -> {
+            PoJo content = gs.getContent();
+            Assert.assertNotNull(content);
+        });
+        Assert.assertTrue(ex.getMessage().contains("cannot be cast to"));
     }
 
     @Test

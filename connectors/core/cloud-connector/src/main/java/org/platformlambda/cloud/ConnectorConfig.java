@@ -29,6 +29,8 @@ import java.util.*;
 public class ConnectorConfig {
     private static final Logger log = LoggerFactory.getLogger(ConnectorConfig.class);
 
+    private static final String INVALID_ROUTE = "Invalid route ";
+
     private static Map<String, String> topicReplacements;
     private static String serviceName, displayUrl;
 
@@ -141,13 +143,13 @@ public class ConnectorConfig {
             throw new IOException("Invalid route name");
         }
         if (!path.contains(".")) {
-            throw new IOException("Invalid route "+route+" because it is missing dot separator(s). e.g. hello.world");
+            throw new IOException(INVALID_ROUTE+route+" because it is missing dot separator(s). e.g. hello.world");
         }
         if (util.reservedExtension(path)) {
-            throw new IOException("Invalid route "+route+" because it cannot use a reserved extension");
+            throw new IOException(INVALID_ROUTE+route+" which is a reserved extension");
         }
         if (util.reservedFilename(path)) {
-            throw new IOException("Invalid route "+route+" which is a reserved Windows filename");
+            throw new IOException(INVALID_ROUTE+route+" which is a reserved Windows filename");
         }
     }
 

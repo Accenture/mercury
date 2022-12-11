@@ -957,6 +957,13 @@ public class Utility {
         return false;
     }
 
+    /**
+     * This function checks if the IP-4 address is an intranet address
+     * ("localhost" is not evaluated as intranet so that it can be used in unit tests)
+     *
+     * @param host IP-4 address
+     * @return true if it is an intranet address
+     */
     public boolean isIntranetAddress(String host) {
         Utility util = Utility.getInstance();
         if (host == null) {
@@ -965,7 +972,7 @@ public class Utility {
         if (host.contains(":")) {
             host = host.substring(0, host.lastIndexOf(':'));
         }
-        if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
+        if ("127.0.0.1".equals(host)) {
             return true;
         }
         List<String> segments = util.split(host, ".");

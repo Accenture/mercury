@@ -158,27 +158,43 @@ public class ConnectorTest extends TestBase {
         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv("type", "leave"), new Kv("origin", origin));
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void checkTopicNameWithoutDot() throws IOException {
         String name = "hello.world";
         ConnectorConfig.validateTopicName(name);
         String invalid = "helloworld";
-        ConnectorConfig.validateTopicName(invalid);
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConnectorConfig.validateTopicName(invalid);
+        });
+        Assert.assertEquals("Invalid route helloworld because it is missing dot separator(s). e.g. hello.world",
+                ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void checkEmptyTopic() throws IOException {
-        ConnectorConfig.validateTopicName("");
+    @Test
+    public void checkEmptyTopic() {
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConnectorConfig.validateTopicName("");
+        });
+        Assert.assertEquals("Invalid route name - use 0-9, a-z, A-Z, period, hyphen or underscore characters",
+                ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void reservedExtension() throws IOException {
-        ConnectorConfig.validateTopicName("hello.com");
+    @Test
+    public void reservedExtension() {
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConnectorConfig.validateTopicName("hello.com");
+        });
+        Assert.assertEquals("Invalid route hello.com which is a reserved extension",
+                ex.getMessage());
     }
 
-    @Test(expected = IOException.class)
-    public void reservedName() throws IOException {
-        ConnectorConfig.validateTopicName("Thumbs.db");
+    @Test
+    public void reservedName() {
+        IOException ex = Assert.assertThrows(IOException.class, () -> {
+            ConnectorConfig.validateTopicName("Thumbs.db");
+        });
+        Assert.assertEquals("Invalid route Thumbs.db which is a reserved Windows filename",
+                ex.getMessage());
     }
 
     @SuppressWarnings("unchecked")
