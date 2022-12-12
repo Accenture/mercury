@@ -105,9 +105,22 @@ maven project.
 We are currently using Tomcat. If your organization prefers Jetty or Undertow, you may adjust the pom.xml file in 
 the `rest-spring` and `platform-core` projects.
 
-## application.properties
+## Application parameters
 
-In additon to the parameters defined by Spring Boot, the Mercury framework uses the following parameters.
+In additon to the parameters defined by Spring Boot, Mercury has additional parameters. Below are some examples.
+Please refer to [Appendix-I](APPENDIX-I.md) for a complete list.
+
+Mercury can run with or without Spring Boot. For compatibility, it uses only application.properties or application.yml as the base configuration file.
+
+If you use a different Spring Boot "profile", please keep Mercury parameters in application.properties or application.yml.
+
+To use environment variables in your application.properties, you may use the standard convention like this:
+
+```
+some.key=${SOME_ENV_VARIABLE:defaultValue}
+```
+
+If you use the ConfigReader to load your own applicaton specific parameter, you may use the standard convention to point to an environment variable or to point to the base configuration in application.properties.
 
 1. web.component.scan - you should add your organizaton packages as a comma separated list to tell Mercury to scan 
    for your packages.
@@ -117,9 +130,7 @@ In additon to the parameters defined by Spring Boot, the Mercury framework uses 
    you have not vetted directly.
 4. protect.info.endpoints - Optional. You may protect certain "known" REST endpoints such as "/info" or "/env" 
    from unauthorized access.
-5. env.variables - parameters in the application.properties are automatically overriden by Java properties. 
-   To allow some environment variables to override your run-time parameters, you may define them in this parameter.
-6. spring.application.name/application.name, info.app.version and info.app.description - please update application 
+5. spring.application.name/application.name, info.app.version and info.app.description - please update application 
    name and information before you start your project. spring.application.name and application.name can be used 
    interchangeably.
 

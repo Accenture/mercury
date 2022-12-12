@@ -26,6 +26,7 @@
 | trace.log.header                            | default value is X-Trace-Id              | Optional   |
 | index.redirection                           | comma separated list of URI paths        | Optional*1 |
 | index.page                                  | default value is index.html              | Optional*1 |
+| hsts.feature                                | default value is true                    | Optional*1 |
 | application.feature.route.substitution      | default value is false                   | Optional   |
 | route.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
 | application.feature.topic.substitution      | default value is false                   | Optional   |
