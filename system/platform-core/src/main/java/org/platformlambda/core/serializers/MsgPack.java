@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MsgPack {
     private static final Utility util = Utility.getInstance();
@@ -274,8 +276,12 @@ public class MsgPack {
             packer.packByte((Byte) o);
         } else if (o instanceof Integer) {
             packer.packInt((Integer) o);
+        } else if (o instanceof AtomicInteger) {
+            packer.packInt(((AtomicInteger) o).get());
         } else if (o instanceof Long) {
             packer.packLong((Long) o);
+        } else if (o instanceof AtomicLong) {
+            packer.packLong(((AtomicLong) o).get());
         } else if (o instanceof Float) {
             packer.packFloat((Float) o);
         } else if (o instanceof Double) {

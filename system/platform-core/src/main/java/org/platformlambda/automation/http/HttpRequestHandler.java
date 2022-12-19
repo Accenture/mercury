@@ -36,6 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
@@ -91,7 +94,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         if (KEEP_ALIVE.equals(connectionType)) {
             response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
         }
-        String uri = request.path();
+        String uri = util.getUrlDecodedPath(request.path());
         String method = request.method().name();
         String requestId = util.getUuid();
         AsyncContextHolder holder = new AsyncContextHolder(request);
@@ -212,8 +215,8 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             return;
         }
         Utility util = Utility.getInstance();
-        String url = request.path();
-        List<String> parts = util.split(url, "/");
+        String uri = util.getUrlDecodedPath(request.path());
+        List<String> parts = util.split(uri, "/");
         if (parts.size() == 1) {
             parts.add(NOW);
         }

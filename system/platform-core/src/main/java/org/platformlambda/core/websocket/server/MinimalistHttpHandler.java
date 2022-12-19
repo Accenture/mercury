@@ -30,6 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import io.vertx.core.buffer.Buffer;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -85,7 +88,8 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
             response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
         }
         response.putHeader(CONTENT_TYPE, JSON);
-        String uri = request.path();
+        String path = util.getUrlDecodedPath(request.path());
+        final String uri = path;
         String method = request.method().name();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin != null && !po.exists(origin)) {

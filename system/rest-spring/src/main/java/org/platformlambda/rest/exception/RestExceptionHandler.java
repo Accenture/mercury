@@ -76,11 +76,23 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         if (template == null) {
             template = util.stream2str(RestExceptionHandler.class.getResourceAsStream(TEMPLATE));
         }
+        String path = Utility.getInstance().getUrlDecodedPath(request.getRequestURI());
+        // for security, drop unsafe portion of URI path
+        if (path.contains("://")) {
+            path = path.substring(0, path.indexOf("://")) + "...";
+        }
+        if (path.contains(" ")) {
+            path = path.substring(0, path.indexOf(' ')) + "...";
+        }
+        // this avoids double URL encoding security vulnerability
+        if (path.contains("%")) {
+            path = path.substring(0, path.indexOf('%')) + "...";
+        }
         Throwable ex = util.getRootCause(exception);
         String cls = ex.getClass().getSimpleName();
         Map<String, Object> result = new HashMap<>();
         result.put(TYPE, ERROR);
-        result.put(PATH, request.getRequestURI());
+        result.put(PATH, path);
         String accept = request.getHeader(ACCEPT);
         String contentType;
         if (accept == null) {
@@ -164,7 +176,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
             Response.ResponseBuilder htmlError = Response.status(status);
             htmlError.header(CONTENT_TYPE, MediaType.TEXT_HTML + CHARSET_UTF);
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
-                    .replace(SET_PATH, request.getRequestURI())
+                    .replace(SET_PATH, path)
                     .replace(SET_MESSAGE, errorMessage);
             if (status >= 500) {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);

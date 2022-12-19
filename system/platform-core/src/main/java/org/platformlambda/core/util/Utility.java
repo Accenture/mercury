@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -1025,6 +1026,17 @@ public class Utility {
     public void closeConnection(String txPath, int status, String message) throws IOException {
         PostOffice.getInstance().send(txPath, new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE),
                                               new Kv(STATUS, status), new Kv(MESSAGE, message));
+    }
+
+    public String getUrlDecodedPath(String uri) {
+        if (uri.contains("%")) {
+            try {
+                uri = URLDecoder.decode(uri, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                // ok to ignore
+            }
+        }
+        return uri;
     }
 
     //////////////////////////////////////////

@@ -76,14 +76,18 @@ public class HealthService implements LambdaFunction {
         Platform platform = Platform.getInstance();
         boolean up = true;
         Map<String, Object> result = new HashMap<>();
-        List<Map<String, Object>> upstream = new ArrayList<>();
-        result.put(UPSTREAM, upstream);
         /*
          * Checking dependencies
          */
+        List<Map<String, Object>> upstream = new ArrayList<>();
         checkServices(upstream, optionalServices, false);
         if (!checkServices(upstream, requiredServices, true)) {
             up = false;
+        }
+        // checkServices will update the "upstream" service list
+        result.put(UPSTREAM, upstream);
+        if (upstream.isEmpty()) {
+            result.put(MESSAGE, "Did you forget to define "+REQUIRED_SERVICES+" or "+OPTIONAL_SERVICES);
         }
         result.put(STATUS, up? "UP" : "DOWN");
         result.put(ORIGIN, platform.getOrigin());
@@ -99,6 +103,7 @@ public class HealthService implements LambdaFunction {
             Map<String, Object> m = new HashMap<>();
             m.put(ROUTE, route);
             m.put(REQUIRED, required);
+            upstream.add(m);
             try {
                 String key = INFO+"/"+route;
                 if (!cache.exists(key)) {
@@ -123,28 +128,23 @@ public class HealthService implements LambdaFunction {
                     }
                 }
             } catch (IOException e) {
+                up = false;
                 if (e.getMessage().contains(NOT_FOUND)) {
-                    /*
-                     * This means the configured health check service is not started.
-                     * Just show a warning message to avoid blocking the health check.
-                     */
-                    m.put(STATUS_CODE, 200);
+                    m.put(STATUS_CODE, 404);
                     m.put(MESSAGE, PLEASE_CHECK+e.getMessage());
                 } else {
                     m.put(STATUS_CODE, 500);
                     m.put(MESSAGE, e.getMessage());
-                    up = false;
                 }
             } catch (TimeoutException e) {
+                up = false;
                 m.put(STATUS_CODE, 408);
                 m.put(MESSAGE, e.getMessage());
-                up = false;
             } catch (AppException e) {
+                up = false;
                 m.put(STATUS_CODE, e.getStatus());
                 m.put(MESSAGE, e.getMessage());
-                up = false;
             }
-            upstream.add(m);
         }
         return up;
     }

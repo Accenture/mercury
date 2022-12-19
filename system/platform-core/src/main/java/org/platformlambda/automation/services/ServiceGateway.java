@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.URLDecoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -134,10 +135,11 @@ public class ServiceGateway {
             SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
             if (error != null) {
                 if (GET.equals(request.method().name()) && status == 404) {
-                    EtagFile file = getStaticFile(request.path());
+                    String path = Utility.getInstance().getUrlDecodedPath(request.path());
+                    EtagFile file = getStaticFile(path);
                     if (file != null) {
                         HttpServerResponse response = request.response();
-                        response.putHeader(CONTENT_TYPE, getFileContentType(request.path()));
+                        response.putHeader(CONTENT_TYPE, getFileContentType(path));
                         String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
                         if (file.equals(ifNoneMatch)) {
                             response.setStatusCode(304);
@@ -209,12 +211,12 @@ public class ServiceGateway {
     }
 
     private void routeRequest(String requestId, AssignedRoute route, AsyncContextHolder holder) throws AppException {
-        HttpServerRequest request = holder.request;
-        String url = request.path();
-        String method = request.method().name();
-        holder.setUrl(url).setMethod(method).setResHeaderId(route.info.responseTransformId);
-        SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         Utility util = Utility.getInstance();
+        HttpServerRequest request = holder.request;
+        String uri = util.getUrlDecodedPath(request.path());
+        String method = request.method().name();
+        holder.setUrl(uri).setMethod(method).setResHeaderId(route.info.responseTransformId);
+        SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         if (OPTIONS.equals(method)) {
             // insert CORS headers for OPTIONS
             if (route.info.corsId == null) {
@@ -285,7 +287,7 @@ public class ServiceGateway {
         if (queryString != null) {
             req.setQueryString(queryString);
         }
-        req.setUrl(httpUtil.normalizeUrl(url, route.info.urlRewrite));
+        req.setUrl(httpUtil.normalizeUrl(uri, route.info.urlRewrite));
         if (route.info.host != null) {
             req.setTargetHost(route.info.host);
             req.setTrustAllCert(route.info.trustAllCert);
@@ -347,7 +349,7 @@ public class ServiceGateway {
         if (route.info.tracing) {
             List<String> traceHeader = getTraceId(request);
             traceId = traceHeader.get(1);
-            tracePath = method + " " + url;
+            tracePath = method + " " + uri;
             if (queryString != null) {
                 tracePath += "?" + queryString;
             }

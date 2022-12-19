@@ -52,7 +52,7 @@ public class RestEndpointTest extends TestBase {
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
         req.setHeader("accept", "application/json");
-        req.setUrl("/api/hello/world");
+        req.setUrl("/api/hello/world?hello world=abc");
         req.setQueryParameter("x1", "y");
         List<String> list = new ArrayList<>();
         list.add("a");
@@ -71,6 +71,26 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(10, map.getElement("timeout"));
         Assert.assertEquals("y", map.getElement("parameters.query.x1"));
         Assert.assertEquals(list, map.getElement("parameters.query.x2"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void uriPathSecurityTest() {
+        PostOffice po = PostOffice.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("GET");
+        req.setHeader("accept", "application/json");
+        req.setUrl("/api/hello/world moved to https://evil.site?hello world=abc");
+        req.setQueryParameter("x1", "y");
+        List<String> list = new ArrayList<>();
+        list.add("a");
+        list.add("b");
+        req.setQueryParameter("x2", list);
+        req.setTargetHost("http://127.0.0.1:"+port);
+        AppException ex = Assert.assertThrows(AppException.class, () -> po.request(HTTP_REQUEST, 5000, req));
+        Assert.assertEquals(404, ex.getStatus());
+        Map<String, Object> error = SimpleMapper.getInstance().getMapper().readValue(ex.getMessage(), Map.class);
+        Assert.assertEquals("/api/hello/world...", error.get("path"));
     }
 
     @SuppressWarnings("unchecked")

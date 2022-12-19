@@ -22,6 +22,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.common.TestBase;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
@@ -33,9 +34,7 @@ import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.util.SimpleHttpRequests;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -130,10 +129,12 @@ public class ServletTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void healthEndpointTest() throws AppException, IOException {
+        String MESSAGE = "Did you forget to define mandatory.health.dependencies or optional.health.dependencies";
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
         Assert.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Assert.assertEquals("UP", result.get("status"));
+        Assert.assertEquals(MESSAGE, result.get("message"));
     }
 
     @SuppressWarnings("unchecked")
@@ -162,6 +163,16 @@ public class ServletTest extends TestBase {
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
         Assert.assertEquals(404, result.get("status"));
         Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void uriPathSecurityTest() {
+        String url = "http://127.0.0.1:"+port+"/api/hello/world moved to https://evil.site?hello world=abc";
+        AppException ex = Assert.assertThrows(AppException.class, () -> SimpleHttpRequests.get(url, new HashMap<>()));
+        Assert.assertEquals(404, ex.getStatus());
+        Map<String, Object> error = SimpleMapper.getInstance().getMapper().readValue(ex.getMessage(), Map.class);
+        Assert.assertEquals("/api/hello/world...", error.get("path"));
     }
 
     @Test

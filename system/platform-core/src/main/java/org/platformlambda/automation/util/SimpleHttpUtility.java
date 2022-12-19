@@ -165,9 +165,21 @@ public class SimpleHttpUtility {
         }
         Utility util = Utility.getInstance();
         HttpServerResponse response = request.response().setStatusCode(status);
+        String path = util.getUrlDecodedPath(request.path());
+        // for security, drop unsafe portion of URI path
+        if (path.contains("://")) {
+            path = path.substring(0, path.indexOf("://")) + "...";
+        }
+        if (path.contains(" ")) {
+            path = path.substring(0, path.indexOf(' ')) + "...";
+        }
+        // this avoids double URL encoding security vulnerability
+        if (path.contains("%")) {
+            path = path.substring(0, path.indexOf('%')) + "...";
+        }
         if (accept.startsWith(TEXT_HTML)) {
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
-                    .replace(SET_PATH, request.path())
+                    .replace(SET_PATH, path)
                     .replace(SET_MESSAGE, message);
             if (status >= 500) {
                 errorPage = errorPage.replace(SET_WARNING, HTTP_500_WARNING);
@@ -185,7 +197,7 @@ public class SimpleHttpUtility {
             result.put("status", status);
             result.put("message", message);
             result.put("type", type);
-            result.put("path", request.path());
+            result.put("path", path);
             if (accept.startsWith(APPLICATION_XML)) {
                 byte[] payload = util.getUTF(xmlWriter.write("root", result));
                 response.putHeader(CONTENT_TYPE, APPLICATION_XML);

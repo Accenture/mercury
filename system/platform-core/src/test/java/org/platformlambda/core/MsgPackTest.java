@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Assert;
 import org.platformlambda.core.util.Utility;
@@ -63,6 +65,23 @@ public class MsgPackTest {
         Assert.assertEquals(Arrays.asList(HELLO_WORLD), result.get("array"));
         // embedded pojo in a map is converted to the pojo's instance string
         Assert.assertEquals(pojoInstanceString, result.get("pojo"));
+    }
+
+    @Test
+    public void dataIsAtomicInteger() throws IOException {
+        AtomicInteger input = new AtomicInteger(10000);
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        Assert.assertEquals(input.get(), o);
+    }
+
+    @Test
+    public void dataIsAtomicLong() throws IOException {
+        AtomicLong input = new AtomicLong(10000);
+        byte[] b = msgPack.pack(input);
+        Object o = msgPack.unpack(b);
+        // smaller number will be packed as integer
+        Assert.assertEquals((int) input.get(), o);
     }
 
     @Test
