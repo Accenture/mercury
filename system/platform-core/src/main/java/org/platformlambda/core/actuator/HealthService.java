@@ -92,7 +92,7 @@ public class HealthService implements LambdaFunction {
         result.put(STATUS, up? "UP" : "DOWN");
         result.put(ORIGIN, platform.getOrigin());
         result.put(NAME, platform.getName());
-        return result;
+        return new EventEnvelope().setBody(result).setStatus(up? 200 : 400);
     }
 
     @SuppressWarnings("unchecked")
