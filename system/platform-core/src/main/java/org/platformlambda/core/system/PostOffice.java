@@ -48,6 +48,7 @@ public class PostOffice {
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String MISSING_ROUTING_PATH = "Missing routing path";
+    private static final String MISSING_EVENT = "Missing outgoing event";
     private static final String MULTICAST_YAML = "multicast.yaml";
     private static final String JOURNAL_YAML = "journal.yaml";
     private static final String APP_GROUP_PREFIX = "monitor-";
@@ -863,7 +864,7 @@ public class PostOffice {
      */
     public EventEnvelope request(final EventEnvelope event, long timeout) throws IOException, TimeoutException, AppException {
         if (event == null) {
-            throw new IllegalArgumentException("Missing outgoing event");
+            throw new IllegalArgumentException(MISSING_EVENT);
         }
         String dest = event.getTo();
         if (dest == null) {
@@ -925,7 +926,7 @@ public class PostOffice {
      */
     public List<EventEnvelope> request(final List<EventEnvelope> events, long timeout) throws IOException {
         if (events == null || events.isEmpty()) {
-            throw new IllegalArgumentException("Missing outgoing events");
+            throw new IllegalArgumentException(MISSING_EVENT);
         }
         List<TargetRoute> destinations = new ArrayList<>();
         int seq = 0;
@@ -991,7 +992,7 @@ public class PostOffice {
      */
     public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout) throws IOException {
         if (event == null) {
-            throw new IllegalArgumentException("Missing outgoing event");
+            throw new IllegalArgumentException(MISSING_EVENT);
         }
         String dest = event.getTo();
         if (dest == null) {
@@ -1038,7 +1039,7 @@ public class PostOffice {
      */
     public Future<List<EventEnvelope>> asyncRequest(final List<EventEnvelope> events, long timeout) throws IOException {
         if (events == null || events.isEmpty()) {
-            throw new IllegalArgumentException("Missing outgoing event");
+            throw new IllegalArgumentException(MISSING_EVENT);
         }
         List<TargetRoute> destinations = new ArrayList<>();
         int seq = 0;

@@ -120,8 +120,8 @@ public class PostOfficeTest extends TestBase {
     }
 
     @Test
-    public void testExceptionTransport() throws IOException, TimeoutException {
-        String ROUTE = "test.exception";
+    public void testExceptionTransport() throws IOException {
+        String ROUTE = "test.exception.1";
         String MESSAGE = "hello world";
         Platform platform = Platform.getInstance();
         LambdaFunction f = (headers, body, instance) -> {
@@ -129,18 +129,17 @@ public class PostOfficeTest extends TestBase {
         };
         platform.registerPrivate(ROUTE, f, 1);
         PostOffice po = PostOffice.getInstance();
-        try {
+        AppException ex = Assert.assertThrows(AppException.class, () -> {
             po.request(ROUTE, 5000, "demo");
-            throw new IOException("Event exception transport failed");
-        } catch (AppException e) {
-            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-            Assert.assertEquals(MESSAGE, e.getCause().getMessage());
-        }
+        });
+        Assert.assertEquals(400, ex.getStatus());
+        Assert.assertEquals(MESSAGE, ex.getMessage());
+        Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
     }
 
     @Test
-    public void testNestedExceptionTransport() throws IOException, TimeoutException {
-        String ROUTE = "test.exception";
+    public void testNestedExceptionTransport() throws IOException {
+        String ROUTE = "test.exception.2";
         String MESSAGE = "hello world";
         String SQL_ERROR = "sql error";
         Platform platform = Platform.getInstance();
@@ -150,17 +149,15 @@ public class PostOfficeTest extends TestBase {
         };
         platform.registerPrivate(ROUTE, f, 1);
         PostOffice po = PostOffice.getInstance();
-        try {
+        AppException ex = Assert.assertThrows(AppException.class, () -> {
             po.request(ROUTE, 5000, "demo");
-            throw new IOException("Event exception transport failed");
-        } catch (AppException e) {
-            Throwable cause = e.getCause();
-            Assert.assertTrue(cause instanceof IllegalArgumentException);
-            Assert.assertEquals(MESSAGE, cause.getMessage());
-            Throwable nested = cause.getCause();
-            Assert.assertTrue(nested instanceof SQLException);
-            Assert.assertEquals(SQL_ERROR, nested.getMessage());
-        }
+        });
+        // the root cause is surfaced in the immediate exception
+        Assert.assertEquals(500, ex.getStatus());
+        Assert.assertEquals(SQL_ERROR, ex.getMessage());
+        Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+        Assert.assertEquals(SQLException.class, ex.getCause().getCause().getClass());
+        Assert.assertEquals(MESSAGE, ex.getCause().getMessage());
     }
 
     @Test
@@ -483,6 +480,17 @@ public class PostOfficeTest extends TestBase {
         PostOffice po = PostOffice.getInstance();
         TimeoutException ex = Assert.assertThrows(TimeoutException.class, () ->
                 po.request("hello.world", 800, 2));
+        Assert.assertEquals("hello.world timeout for 800 ms", ex.getMessage());
+    }
+
+    @Test
+    public void singleRequestWithTimeoutAndException() {
+        PostOffice po = PostOffice.getInstance();
+        EventEnvelope request = new EventEnvelope().setTo("hello.world").setFrom("unit.test")
+                                    .setTrace("test", "TEST /timeout/exception")
+                                    .setHeader("exception", true).setBody(2);
+        TimeoutException ex = Assert.assertThrows(TimeoutException.class, () ->
+                                    po.request(request, 800));
         Assert.assertEquals("hello.world timeout for 800 ms", ex.getMessage());
     }
 

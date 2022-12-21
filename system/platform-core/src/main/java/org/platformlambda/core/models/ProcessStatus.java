@@ -18,24 +18,45 @@
 
 package org.platformlambda.core.models;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class ProcessStatus {
 
-    public boolean success;
-    public float executionTime;
-    public int status;
-    public String exception;
-    public Map<String, Object> inputOutput;
+    private boolean success = true;
+    private boolean delivered = true;
+    private float executionTime;
+    private int status = 0;
+    private String exception;
+    private String deliveryError;
+    private Map<String, Object> inputOutput = new HashMap<>();
 
-    /**
-     * Positive result
-     *
-     * @param executionTime in milliseconds
-     */
-    public ProcessStatus(float executionTime) {
+    public ProcessStatus setUnDelivery(String error) {
+        this.delivered = false;
+        this.deliveryError = error;
+        return this;
+    }
+
+    public boolean isDelivered() {
+        return delivered;
+    }
+
+    public String getDeliveryError() {
+        return deliveryError;
+    }
+
+    public ProcessStatus setExecutionTime(float executionTime) {
         this.executionTime = executionTime;
         this.success = true;
+        return this;
+    }
+
+    public float getExecutionTime() {
+        return executionTime;
+    }
+
+    public boolean isSuccess() {
+        return success;
     }
 
     public ProcessStatus setInputOutput(Map<String, Object> inputOutput) {
@@ -43,16 +64,24 @@ public class ProcessStatus {
         return this;
     }
 
-    /**
-     * Negative result
-     *
-     * @param status code
-     * @param exception message
-     */
-    public ProcessStatus(int status, String exception) {
+    public Map<String, Object> getInputOutput() {
+        return inputOutput;
+    }
+
+    public ProcessStatus setException(int status, String exception) {
         this.status = status;
         this.exception = exception;
         this.success = false;
+        return this;
     }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public String getException() {
+        return exception;
+    }
+
 
 }

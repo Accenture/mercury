@@ -55,6 +55,7 @@ public class WorkerQueue extends WorkerQueues {
     private static final String EXCEPTION = "exception";
     private static final String ASYNC = "async";
     private static final String ANNOTATIONS = "annotations";
+    private static final String UNDELIVERED = "undelivered";
     private static final String PAYLOAD = "payload";
     private final String myOrigin;
     private final boolean interceptor;
@@ -101,30 +102,40 @@ public class WorkerQueue extends WorkerQueues {
                     ThreadContext.remove(traceLogHeader);
                     if (tracing && trace != null && trace.id != null && trace.path != null) {
                         try {
+                            if (!ps.isDelivered()) {
+                                trace.annotate(UNDELIVERED, ps.getDeliveryError());
+                            }
                             // Send tracing information to distributed trace logger
                             EventEnvelope dt = new EventEnvelope();
                             Map<String, Object> payload = new HashMap<>();
                             payload.put(ANNOTATIONS, trace.annotations);
                             // send input/output dataset to journal if configured in journal.yaml
                             if (po.isJournaled(def.getRoute())) {
-                                payload.put(PAYLOAD, ps.inputOutput);
+                                payload.put(PAYLOAD, ps.getInputOutput());
                             }
                             dt.setTo(PostOffice.DISTRIBUTED_TRACING).setBody(payload);
                             dt.setHeader(ORIGIN, myOrigin);
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
                             dt.setHeader(SERVICE, def.getRoute()).setHeader("start", trace.startTime);
-                            dt.setHeader("success", ps.success);
+                            dt.setHeader("success", ps.isSuccess());
                             if (event.getFrom() != null) {
                                 dt.setHeader("from", event.getFrom());
                             }
-                            if (ps.success) {
-                                dt.setHeader("exec_time", ps.executionTime);
-                            } else {
-                                dt.setHeader(STATUS, ps.status).setHeader(EXCEPTION, ps.exception);
+                            dt.setHeader("exec_time", ps.getExecutionTime());
+                            if (!ps.isSuccess()) {
+                                dt.setHeader(STATUS, ps.getStatus()).setHeader(EXCEPTION, ps.getException());
                             }
                             po.send(dt);
                         } catch (Exception e) {
-                            log.error("Unable to send to distributed tracing", e);
+                            log.error("Unable to send to "+PostOffice.DISTRIBUTED_TRACING, e);
+                        }
+                    } else {
+                        if (!ps.isDelivered()) {
+                            log.error("Delivery error - {}, from={}, to={}, type={}, exec_time={}",
+                                    ps.getDeliveryError(),
+                                    event.getFrom(), event.getTo(),
+                                    ps.isSuccess()? "response" : "exception("+ps.getStatus()+", "+ps.getException()+")",
+                                    ps.getExecutionTime());
                         }
                     }
                     /*
@@ -138,6 +149,7 @@ public class WorkerQueue extends WorkerQueues {
 
         @SuppressWarnings({"rawtypes", "unchecked"})
         private ProcessStatus processEvent(EventEnvelope event) {
+            ProcessStatus ps = new ProcessStatus();
             PostOffice po = PostOffice.getInstance();
             Map<String, Object> inputOutput = new HashMap<>();
             Map<String, Object> input = new HashMap<>();
@@ -150,14 +162,15 @@ public class WorkerQueue extends WorkerQueues {
                 try {
                     handler.onError(new AppException(event.getStatus(), event.getError()), event);
                 } catch (Exception e1) {
-                    log.warn("Unhandled exception in error handler of "+route, e1);
+                    ps.setUnDelivery(e1.getMessage());
                 }
                 Map<String, Object> output = new HashMap<>();
                 output.put(STATUS, event.getStatus());
                 output.put(EXCEPTION, event.getError());
                 inputOutput.put(OUTPUT, output);
-                return new ProcessStatus(event.getStatus(), event.getError()).setInputOutput(inputOutput);
+                return ps.setException(event.getStatus(), event.getError()).setInputOutput(inputOutput);
             }
+            long begin = System.nanoTime();
             try {
                 /*
                  * Interceptor can read any input (i.e. including case for empty headers and null body).
@@ -165,7 +178,6 @@ public class WorkerQueue extends WorkerQueues {
                  */
                 boolean ping = !interceptor && event.getHeaders().isEmpty() &&
                                 !event.isOptional() && event.getRawBody() == null;
-                long begin = ping? 0 : System.nanoTime();
                 /*
                  * If the service is an interceptor or the input argument is EventEnvelope,
                  * we will pass the original event envelope instead of the message body.
@@ -232,8 +244,8 @@ public class WorkerQueue extends WorkerQueues {
                              * 3. optional parametric types for Java class that uses generic types
                              */
                             response.setBody(resultEvent.getBody());
-                            for (String h : headers.keySet()) {
-                                response.setHeader(h, headers.get(h));
+                            for (Map.Entry<String, String> kv: headers.entrySet()) {
+                                response.setHeader(kv.getKey(), kv.getValue());
                             }
                             response.setStatus(resultEvent.getStatus());
                             if (resultEvent.getParametricType() != null) {
@@ -249,25 +261,29 @@ public class WorkerQueue extends WorkerQueues {
                     output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
                     output.put(STATUS, response.getStatus());
                     inputOutput.put(OUTPUT, output);
-                    if (ping) {
-                        String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
-                        Platform platform = Platform.getInstance();
-                        // execution time is not set because there is no need to execute the lambda function
-                        Map<String, Object> pong = new HashMap<>();
-                        pong.put(TYPE, PONG);
-                        pong.put(TIME, new Date());
-                        pong.put(APP, platform.getName());
-                        pong.put(ORIGIN, platform.getOrigin());
-                        pong.put(SERVICE, parent);
-                        pong.put(REASON, "This response is generated when you send an event without headers and body");
-                        pong.put(MESSAGE, "you have reached "+parent);
-                        response.setBody(pong);
-                        po.send(response);
-                    } else {
-                        if (!interceptor && !serviceTimeout) {
-                            response.setExecutionTime(diff);
+                    try {
+                        if (ping) {
+                            String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
+                            Platform platform = Platform.getInstance();
+                            // execution time is not set because there is no need to execute the lambda function
+                            Map<String, Object> pong = new HashMap<>();
+                            pong.put(TYPE, PONG);
+                            pong.put(TIME, new Date());
+                            pong.put(APP, platform.getName());
+                            pong.put(ORIGIN, platform.getOrigin());
+                            pong.put(SERVICE, parent);
+                            pong.put(REASON, "This response is generated when you send an event without headers and body");
+                            pong.put(MESSAGE, "you have reached " + parent);
+                            response.setBody(pong);
                             po.send(response);
+                        } else {
+                            if (!interceptor && !serviceTimeout) {
+                                response.setExecutionTime(diff);
+                                po.send(response);
+                            }
                         }
+                    } catch (Exception e2) {
+                        ps.setUnDelivery(e2.getMessage());
                     }
                 } else {
                     EventEnvelope response = new EventEnvelope().setBody(result);
@@ -276,9 +292,13 @@ public class WorkerQueue extends WorkerQueues {
                     output.put(ASYNC, true);
                     inputOutput.put(OUTPUT, output);
                 }
-                return new ProcessStatus(diff).setInputOutput(inputOutput);
+                return ps.setExecutionTime(diff).setInputOutput(inputOutput);
 
             } catch (Exception e) {
+                float delta = (float) (System.nanoTime() - begin) / PostOffice.ONE_MILLISECOND;
+                float diff = Float.parseFloat(String.format("%.3f", Math.max(0.0f, delta)));
+                ps.setExecutionTime(diff);
+                final String replyTo = event.getReplyTo();
                 final int status;
                 Throwable ex = util.getRootCause(e);
                 if (ex instanceof AppException) {
@@ -292,17 +312,16 @@ public class WorkerQueue extends WorkerQueues {
                     ServiceExceptionHandler handler = (ServiceExceptionHandler) f;
                     try {
                         handler.onError(new AppException(status, ex.getMessage()), event);
-                    } catch (Exception e2) {
-                        log.warn("Unhandled exception in error handler of "+route, e2);
+                    } catch (Exception e3) {
+                        ps.setUnDelivery(e3.getMessage());
                     }
                     Map<String, Object> output = new HashMap<>();
                     output.put(STATUS, status);
                     output.put(EXCEPTION, ex.getMessage());
                     inputOutput.put(OUTPUT, output);
-                    return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
+                    return ps.setException(status, ex.getMessage()).setInputOutput(inputOutput);
                 }
                 Map<String, Object> output = new HashMap<>();
-                String replyTo = event.getReplyTo();
                 if (replyTo != null) {
                     EventEnvelope response = new EventEnvelope();
                     response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
@@ -320,8 +339,8 @@ public class WorkerQueue extends WorkerQueues {
                     }
                     try {
                         po.send(response);
-                    } catch (Exception nested) {
-                        log.warn("Unhandled exception when sending reply from {} - {}", route, nested.getMessage());
+                    } catch (Exception e4) {
+                        ps.setUnDelivery(e4.getMessage());
                     }
                 } else {
                     output.put(ASYNC, true);
@@ -334,7 +353,7 @@ public class WorkerQueue extends WorkerQueues {
                 output.put(STATUS, status);
                 output.put(EXCEPTION, ex.getMessage());
                 inputOutput.put(OUTPUT, output);
-                return new ProcessStatus(status, ex.getMessage()).setInputOutput(inputOutput);
+                return ps.setException(status, ex.getMessage()).setInputOutput(inputOutput);
             }
         }
     }

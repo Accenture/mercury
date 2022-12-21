@@ -19,6 +19,7 @@
 package org.platformlambda.core.mock;
 
 import org.platformlambda.core.annotations.PreLoad;
+import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 
@@ -32,8 +33,11 @@ public class HelloWorld implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         int c = body instanceof Integer? (int) body : 2;
         if (c % 2 == 0) {
+            // simulate slow response
             Thread.sleep(1000);
-            // timeout the incoming request
+        }
+        if (headers.containsKey("exception")) {
+            throw new AppException(400, "just a test");
         }
         Map<String, Object> result = new HashMap<>();
         result.put("headers", headers);
