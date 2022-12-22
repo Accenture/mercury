@@ -383,7 +383,9 @@ public class EventEnvelope {
 
     /**
      * This extra field is used to hold a small number of key-values for tagging purpose.
-     * The language pack uses this feature to support special routing to python and node.js applications.
+     * e.g.
+     * 1. The PostOffice uses this to inform a target service about RPC timeout value.
+     * 2. The language pack uses this feature to support special routing to python and node.js applications.
      *
      * @param extra language pack extra routing information
      * @return event envelope
@@ -441,10 +443,10 @@ public class EventEnvelope {
      * @param value for a new tag
      * @return event envelope
      */
-    public EventEnvelope addTag(String key, String value) {
+    public EventEnvelope addTag(String key, Object value) {
         if (key != null && key.length() > 0) {
             Map<String, String> map = extraToKeyValues();
-            map.put(key, value == null? "" : value);
+            map.put(key, value == null? "" : value.toString());
             this.extra = mapToString(map);
         }
         return this;

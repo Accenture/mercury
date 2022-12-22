@@ -67,6 +67,48 @@ public class PostOfficeTest extends TestBase {
         Assert.assertFalse(po.exists((String) null));
     }
 
+    @SuppressWarnings("unchecked")
+    @Test
+    public void rpcTagTest() throws AppException, IOException, TimeoutException {
+        final PostOffice po = PostOffice.getInstance();
+        final long TIMEOUT = 5000;
+        final String RPC = "rpc";
+        final String RPC_TIMEOUT_CHECK = "rpc.timeout.check";
+        EventEnvelope request = new EventEnvelope().setTo(RPC_TIMEOUT_CHECK).setBody("OK");
+        EventEnvelope response = po.request(request, TIMEOUT);
+        Assert.assertTrue(response.getBody() instanceof Map);
+        Map<String, Object> result = (Map<String, Object>) response.getBody();
+        Assert.assertEquals(String.valueOf(TIMEOUT), result.get(RPC));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void parallelRpcTagTest() throws IOException {
+        final PostOffice po = PostOffice.getInstance();
+        final int CYCLE = 3;
+        final long TIMEOUT = 5500;
+        final String RPC = "rpc";
+        final String BODY = "body";
+        final String RPC_TIMEOUT_CHECK = "rpc.timeout.check";
+        List<EventEnvelope> requests = new ArrayList<>();
+        for (int i=0; i < CYCLE; i++) {
+            requests.add(new EventEnvelope().setTo(RPC_TIMEOUT_CHECK).setBody(i+1)
+                    .setTrace("unit-test", "TEST /api/rpc/timeout/tag"));
+        }
+        List<EventEnvelope> responses = po.request(requests, TIMEOUT);
+        Assert.assertEquals(CYCLE, responses.size());
+        List<Integer> payloads = new ArrayList<>();
+        for (EventEnvelope response: responses) {
+            Assert.assertTrue(response.getBody() instanceof Map);
+            Map<String, Object> result = (Map<String, Object>) response.getBody();
+            Assert.assertTrue(result.containsKey(BODY));
+            Assert.assertTrue(result.get(BODY) instanceof Integer);
+            payloads.add((Integer) result.get(BODY));
+            Assert.assertEquals(String.valueOf(TIMEOUT), result.get(RPC));
+        }
+        Assert.assertEquals(CYCLE, payloads.size());
+    }
+
     @Test
     public void wsTest() throws InterruptedException {
         final Utility util = Utility.getInstance();

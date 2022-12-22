@@ -44,6 +44,7 @@ public class PostOffice {
     public static final String CLOUD_SERVICES = "cloud.services";
     public static final String DISTRIBUTED_TRACING = "distributed.tracing";
     public static final String ACTUATOR_SERVICES = "actuator.services";
+    private static final String RPC = "rpc";
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
@@ -886,6 +887,7 @@ public class PostOffice {
         TargetRoute target = discover(to, event.isEndOfRoute());
         try (Inbox inbox = new Inbox(1)) {
             event.setReplyTo(inbox.getId() + "@" + platform.getOrigin());
+            event.addTag(RPC, timeout);
             // broadcast is not possible with RPC call
             event.setBroadcastLevel(0);
             if (target.isCloud()) {
@@ -938,6 +940,7 @@ public class PostOffice {
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
+            event.addTag(RPC, timeout);
             // propagate trace info
             TraceInfo trace = getTrace();
             if (trace != null) {
@@ -1000,6 +1003,7 @@ public class PostOffice {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        event.addTag(RPC, timeout);
         // propagate trace info
         TraceInfo trace = getTrace();
         if (trace != null) {
@@ -1051,6 +1055,7 @@ public class PostOffice {
             }
             String to = substituteRouteIfAny(dest);
             event.setTo(to);
+            event.addTag(RPC, timeout);
             // propagate trace info
             TraceInfo trace = getTrace();
             if (trace != null) {
