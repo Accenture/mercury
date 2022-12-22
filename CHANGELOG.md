@@ -6,13 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.7.1, 15/6/2022
+## Version 2.7.1, 12/22/2022
 
 
 ### Added
 
 1. standalone benchmark report app
 2. client and server benchmark apps
+3. add timeout tag to RPC events
 
 ### Removed
 
@@ -23,8 +24,8 @@ N/A
 1. Updated open sources dependencies
 - Netty 4.1.85.Final
 - Tomcat 9.0.69
-- Vertx 4.3.5
-- classgraph 4.8.151
+- Vertx 4.3.6
+- classgraph 4.8.152
 - google-http-client 1.42.3
 
 2. Improved unit tests to use assertThrows to evaluate exception
