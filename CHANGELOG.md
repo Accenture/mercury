@@ -22,7 +22,7 @@ N/A
 ### Changed
 
 1. Updated open sources dependencies
-- Netty 4.1.85.Final
+- Netty 4.1.86.Final
 - Tomcat 9.0.69
 - Vertx 4.3.6
 - classgraph 4.8.152
