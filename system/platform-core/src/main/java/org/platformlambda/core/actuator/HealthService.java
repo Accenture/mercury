@@ -114,10 +114,7 @@ public class HealthService implements LambdaFunction {
                 }
                 Object info = cache.get(key);
                 if (info instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) info;
-                    for (String k : map.keySet()) {
-                        m.put(k, map.get(k));
-                    }
+                    m.putAll((Map<String, Object>) info);
                 }
                 EventEnvelope res = po.request(route, 10000, new Kv(TYPE, HEALTH));
                 if (res.getBody() instanceof String) {

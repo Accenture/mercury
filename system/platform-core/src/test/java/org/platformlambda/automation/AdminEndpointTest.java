@@ -4,6 +4,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.automation.util.SimpleHttpRequests;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.mock.MockCloud;
 import org.platformlambda.core.mock.TestBase;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
@@ -125,9 +126,34 @@ public class AdminEndpointTest extends TestBase {
     @SuppressWarnings("unchecked")
     @Test
     public void healthEndpointTest() throws AppException, IOException {
+        MockCloud.setSimulateException(false);
         String response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals("UP", result.get("status"));
+        MultiLevelMap map = new MultiLevelMap(result);
+        Assert.assertEquals("UP", map.getElement("status"));
+        Assert.assertEquals("fine", map.getElement("upstream[0].message"));
+        Assert.assertEquals(200, map.getElement("upstream[0].status_code"));
+        Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void simulateHealthCheckFailureTest() {
+        MockCloud.setSimulateException(true);
+        AppException ex = Assert.assertThrows(AppException.class, () -> {
+            SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
+        });
+        // failed health check is returned as HTTP-400
+        Assert.assertEquals(400, ex.getStatus());
+        String response = ex.getMessage();
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        MultiLevelMap map = new MultiLevelMap(result);
+        Assert.assertEquals("DOWN", map.getElement("status"));
+        Assert.assertEquals("just a test", map.getElement("upstream[0].message"));
+        // original status code from upstream service is preserved
+        Assert.assertEquals(500, map.getElement("upstream[0].status_code"));
+        Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
+        MockCloud.setSimulateException(false);
     }
 
     @SuppressWarnings("unchecked")

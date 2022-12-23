@@ -33,10 +33,7 @@ import io.vertx.core.buffer.Buffer;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * HTTP admin endpoints for info, health, env, shutdown, suspend and resume
@@ -107,7 +104,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
                         .onSuccess(result -> {
                             Map<String, String> headers = result.getHeaders();
                             if (result.hasError()) {
-                                sendError(response, uri, result.getStatus(), result.getError());
+                                sendError(response, uri, result.getStatus(), result.getRawBody());
                             } else {
                                 final byte[] b;
                                 if (TEXT_PLAIN.equals(headers.get(CONTENT_TYPE)) &&
@@ -144,8 +141,17 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
         }
         if (!processed) {
             if (uri.equals("/")) {
-                sendResponse("info", response, uri, 200,
-                        "Available endpoints: /info, /info/lib, /info/routes, /health, /env, /livenessprobe");
+                Map<String, Object> instruction = new HashMap<>();
+                List<String> endpoints = new ArrayList<>();
+                instruction.put(MESSAGE, "Minimalist HTTP server supports these actuator endpoints");
+                instruction.put("endpoints", endpoints);
+                endpoints.add("/info");
+                endpoints.add("/info/lib");
+                endpoints.add("/health");
+                endpoints.add("/env");
+                endpoints.add("/livenessprobe");
+                instruction.put("time", new Date());
+                sendResponse("info", response, uri, 200, instruction);
             } else {
                 sendError(response, uri, 404, "Resource not found");
             }
@@ -193,16 +199,22 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
         sendResponse(SHUTDOWN, response, uri, 200, origin+" will be shutdown in "+GRACE_PERIOD+" ms");
     }
 
-    private void sendError(HttpServerResponse response, String uri, int status, String message) {
+    private void sendError(HttpServerResponse response, String uri, int status, Object message) {
         sendResponse("error", response, uri, status, message);
     }
 
-    private void sendResponse(String type, HttpServerResponse response, String uri, int status, String message) {
-        Map<String, Object> error = new HashMap<>();
-        error.put(TYPE, type);
-        error.put(STATUS, status);
-        error.put(MESSAGE, message);
-        error.put(PATH, uri);
+    @SuppressWarnings("unchecked")
+    private void sendResponse(String type, HttpServerResponse response, String uri, int status, Object message) {
+        final Map<String, Object> error;
+        if (message instanceof Map) {
+            error = (Map<String, Object>) message;
+        } else {
+            error = new HashMap<>();
+            error.put(TYPE, type);
+            error.put(STATUS, status);
+            error.put(MESSAGE, message);
+            error.put(PATH, uri);
+        }
         byte[] b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(error);
         response.putHeader(CONTENT_LENGTH, String.valueOf(b.length));
         response.setStatusCode(status);

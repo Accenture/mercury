@@ -19,6 +19,7 @@
 package org.platformlambda.core.mock;
 
 import org.platformlambda.core.annotations.CloudConnector;
+import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -46,9 +47,15 @@ public class MockCloud implements CloudSetup {
     private static final String DOWNLOAD = "download";
     private static final String INFO = "info";
     private static final String HEALTH = "health";
+
+    private static boolean simulateException = false;
     private static final PostOffice po = PostOffice.getInstance();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
+
+    public static void setSimulateException(boolean simulateException) {
+        MockCloud.simulateException = simulateException;
+    }
 
     @SuppressWarnings("unchecked")
     @Override
@@ -115,6 +122,9 @@ public class MockCloud implements CloudSetup {
                 return result;
             }
             if (HEALTH.equals(headers.get(TYPE))) {
+                if (simulateException) {
+                    throw new AppException(500, "just a test");
+                }
                 return "fine";
             }
             return false;
