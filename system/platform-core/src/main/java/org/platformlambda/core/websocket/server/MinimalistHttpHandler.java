@@ -23,6 +23,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -70,7 +71,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
     private static final String[] HEALTH_SERVICE = {"/health", "health"};
     private static final String[] ENV_SERVICE = {"/env", "env"};
     private static final String[] LIVENESSPROBE = {"/livenessprobe", "livenessprobe"};
-    private static final String[][] ADMIN_ENDPOINTS = {INFO_SERVICE, INFO_LIB, INFO_ROUTES,
+    public static final String[][] ADMIN_ENDPOINTS = {INFO_SERVICE, INFO_LIB, INFO_ROUTES,
             HEALTH_SERVICE, ENV_SERVICE, LIVENESSPROBE};
     private static final long GRACE_PERIOD = 5000;
 
@@ -145,11 +146,10 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
                 List<String> endpoints = new ArrayList<>();
                 instruction.put(MESSAGE, "Minimalist HTTP server supports these admin endpoints");
                 instruction.put("endpoints", endpoints);
-                endpoints.add("/info");
-                endpoints.add("/info/lib");
-                endpoints.add("/health");
-                endpoints.add("/env");
-                endpoints.add("/livenessprobe");
+                for (String[] service: ADMIN_ENDPOINTS) {
+                    endpoints.add(service[0]);
+                }
+                instruction.put("name", Platform.getInstance().getName());
                 instruction.put("time", new Date());
                 sendResponse("info", response, uri, 200, instruction);
             } else {

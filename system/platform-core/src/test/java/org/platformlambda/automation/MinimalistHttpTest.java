@@ -9,6 +9,7 @@ import org.platformlambda.core.mock.TestBase;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.MultiLevelMap;
+import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class MinimalistHttpTest extends TestBase {
 
     private static final int HTTP_PORT = MINIMALIST_HTTP_PORT;
+    private static final String[][] ADMIN_ENDPOINTS = MinimalistHttpHandler.ADMIN_ENDPOINTS;
 
     @SuppressWarnings("unchecked")
     @Test
@@ -27,12 +29,13 @@ public class MinimalistHttpTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals("Minimalist HTTP server supports these admin endpoints",
                             multi.getElement("message"));
-        Assert.assertEquals("/info", multi.getElement("endpoints[0]"));
-        Assert.assertEquals("/info/lib", multi.getElement("endpoints[1]"));
-        Assert.assertEquals("/health", multi.getElement("endpoints[2]"));
-        Assert.assertEquals("/env", multi.getElement("endpoints[3]"));
-        Assert.assertEquals("/livenessprobe", multi.getElement("endpoints[4]"));
+        int n = 0;
+        for (String[] service: ADMIN_ENDPOINTS) {
+            Assert.assertEquals(service[0], multi.getElement("endpoints["+n+"]"));
+            n++;
+        }
         Assert.assertTrue(multi.exists("time"));
+        Assert.assertEquals("platform-core", multi.getElement("name"));
     }
 
     @SuppressWarnings("unchecked")
