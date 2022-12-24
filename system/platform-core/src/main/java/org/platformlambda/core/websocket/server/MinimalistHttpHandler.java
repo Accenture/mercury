@@ -143,7 +143,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
             if (uri.equals("/")) {
                 Map<String, Object> instruction = new HashMap<>();
                 List<String> endpoints = new ArrayList<>();
-                instruction.put(MESSAGE, "Minimalist HTTP server supports these actuator endpoints");
+                instruction.put(MESSAGE, "Minimalist HTTP server supports these admin endpoints");
                 instruction.put("endpoints", endpoints);
                 endpoints.add("/info");
                 endpoints.add("/info/lib");

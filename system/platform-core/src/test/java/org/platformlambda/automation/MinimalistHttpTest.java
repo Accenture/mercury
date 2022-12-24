@@ -25,7 +25,7 @@ public class MinimalistHttpTest extends TestBase {
         String response = SimpleHttpRequests.get("http://127.0.0.1:"+ HTTP_PORT);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals("Minimalist HTTP server supports these actuator endpoints",
+        Assert.assertEquals("Minimalist HTTP server supports these admin endpoints",
                             multi.getElement("message"));
         Assert.assertEquals("/info", multi.getElement("endpoints[0]"));
         Assert.assertEquals("/info/lib", multi.getElement("endpoints[1]"));
