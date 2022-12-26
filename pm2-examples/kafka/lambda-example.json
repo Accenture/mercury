@@ -7,6 +7,7 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
+            "-Dmandatory.health.dependencies=cloud.connector.health",
             "-jar",
             "examples/lambda-example/target/lambda-example-2.7.1.jar"
         ],

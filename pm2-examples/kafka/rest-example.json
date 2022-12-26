@@ -6,6 +6,7 @@
         "script":"java",
         "args":[
             "-Dcloud.connector=kafka",
+            "-Dmandatory.health.dependencies=cloud.connector.health",
             "-jar",
             "examples/rest-example/target/rest-example-2.7.1.jar"
         ],
