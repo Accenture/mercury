@@ -33,11 +33,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PayloadSegmentationTest {
-    private static final Logger log = LoggerFactory.getLogger(PayloadSegmentationTest.class);
     private static final String TEST_STRING = "123456789.";
     private static final int CYCLE = 30000;
 

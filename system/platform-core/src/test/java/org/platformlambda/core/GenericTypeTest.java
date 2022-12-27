@@ -248,60 +248,60 @@ public class GenericTypeTest {
     @SuppressWarnings("unchecked")
     @Test
     public void parametricHttpObjectTest() {
-        int id = 100;
-        String name = "hello world";
+        int ID = 100;
+        String NAME = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
         PoJo pojo = new PoJo();
-        pojo.setName(name);
-        pojo.setNumber(100);
+        pojo.setName(NAME);
+        pojo.setNumber(ID);
         genericObject.setContent(pojo);
-        genericObject.setId(100);
+        genericObject.setId(ID);
         AsyncHttpRequest request = new AsyncHttpRequest();
         request.setBody(genericObject);
         AsyncHttpRequest restored = new AsyncHttpRequest(request.toMap());
         ObjectWithGenericType<PoJo> o = restored.getBody(ObjectWithGenericType.class, PoJo.class);
-        Assert.assertEquals(name, o.getContent().getName());
-        Assert.assertEquals(100, o.getContent().getNumber());
-        Assert.assertEquals(100, o.getId());
+        Assert.assertEquals(NAME, o.getContent().getName());
+        Assert.assertEquals(ID, o.getContent().getNumber());
+        Assert.assertEquals(ID, o.getId());
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void parametricEnvelopeTest() throws IOException {
-        int id = 100;
-        String name = "hello world";
+        int ID = 100;
+        String NAME = "hello world";
         ObjectWithGenericType<PoJo> genericObject = new ObjectWithGenericType<>();
         PoJo pojo = new PoJo();
-        pojo.setName(name);
-        pojo.setNumber(100);
+        pojo.setName(NAME);
+        pojo.setNumber(ID);
         genericObject.setContent(pojo);
-        genericObject.setId(100);
+        genericObject.setId(ID);
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         byte[] b = event.toBytes();
         EventEnvelope restored = new EventEnvelope(b);
         ObjectWithGenericTypeVariance<PoJoVariance> o =
                 restored.getBody(ObjectWithGenericTypeVariance.class, PoJoVariance.class);
-        Assert.assertEquals(name, o.getContent().getName());
-        Assert.assertEquals(100, o.getContent().getNumber());
-        Assert.assertEquals(100, o.getId());
+        Assert.assertEquals(NAME, o.getContent().getName());
+        Assert.assertEquals(ID, o.getContent().getNumber());
+        Assert.assertEquals(ID, o.getId());
         Assert.assertTrue(restored.getRawBody() instanceof Map);
     }
 
     @Test
     public void remappingEnvelopeTest() throws IOException {
-        int id = 100;
-        String name = "hello world";
+        int ID = 100;
+        String NAME = "hello world";
         PoJo pojo = new PoJo();
-        pojo.setName(name);
-        pojo.setNumber(100);
+        pojo.setName(NAME);
+        pojo.setNumber(ID);
         EventEnvelope event = new EventEnvelope();
         event.setBody(pojo);
         byte[] b = event.toBytes();
         EventEnvelope restored = new EventEnvelope(b);
         PoJoVariance o = restored.getBody(PoJoVariance.class);
-        Assert.assertEquals(name, o.getName());
-        Assert.assertEquals(100, o.getNumber());
+        Assert.assertEquals(NAME, o.getName());
+        Assert.assertEquals(ID, o.getNumber());
         Assert.assertTrue(restored.getRawBody() instanceof Map);
     }
 

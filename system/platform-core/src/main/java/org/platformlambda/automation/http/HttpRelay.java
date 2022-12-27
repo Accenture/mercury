@@ -387,7 +387,7 @@ public class HttpRelay implements LambdaFunction {
                          * and thus it is a normal use case
                          */
                     }
-                    if (out != null) {
+                    if (stream != null && out != null) {
                         out.close();
                         resEvent.setHeader(STREAM, stream.getInputStreamId());
                     } else {

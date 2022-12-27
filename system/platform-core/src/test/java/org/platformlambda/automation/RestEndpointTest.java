@@ -208,7 +208,6 @@ public class RestEndpointTest extends TestBase {
             len += d2.length;
         }
         out.close();
-        byte[] b = bytes.toByteArray();
 
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("PUT");
@@ -221,14 +220,15 @@ public class RestEndpointTest extends TestBase {
         EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertNotNull(res.getHeaders().get("stream"));
         String resultStream = res.getHeaders().get("stream");
-        ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000);
-        ByteArrayOutputStream body = new ByteArrayOutputStream();
-        for (Object o: in) {
-            if (o instanceof byte[]) {
-                body.write((byte[]) o);
+        try (ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000)) {
+            ByteArrayOutputStream restored = new ByteArrayOutputStream();
+            for (Object o : in) {
+                if (o instanceof byte[]) {
+                    restored.write((byte[]) o);
+                }
             }
+            Assert.assertArrayEquals(bytes.toByteArray(), restored.toByteArray());
         }
-        Assert.assertArrayEquals(b, body.toByteArray());
     }
 
     @Test
@@ -248,7 +248,6 @@ public class RestEndpointTest extends TestBase {
             len += d2.length;
         }
         out.close();
-        byte[] b = bytes.toByteArray();
 
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("POST");
@@ -262,14 +261,15 @@ public class RestEndpointTest extends TestBase {
         EventEnvelope res = po.request(HTTP_REQUEST, 5000, req);
         Assert.assertNotNull(res.getHeaders().get("stream"));
         String resultStream = res.getHeaders().get("stream");
-        ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000);
-        ByteArrayOutputStream body = new ByteArrayOutputStream();
-        for (Object o: in) {
-            if (o instanceof byte[]) {
-                body.write((byte[]) o);
+        try (ObjectStreamReader in = new ObjectStreamReader(resultStream, 30000)) {
+            ByteArrayOutputStream restored = new ByteArrayOutputStream();
+            for (Object o : in) {
+                if (o instanceof byte[]) {
+                    restored.write((byte[]) o);
+                }
             }
+            Assert.assertArrayEquals(bytes.toByteArray(), restored.toByteArray());
         }
-        Assert.assertArrayEquals(b, body.toByteArray());
     }
 
     @SuppressWarnings("unchecked")

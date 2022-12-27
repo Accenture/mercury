@@ -21,7 +21,6 @@ package org.platformlambda.core;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;

@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.platformlambda.core.util.Utility;
 
 import java.io.IOException;
-import java.util.Date;
 
 public class StringConversionTest {
 
@@ -52,7 +51,6 @@ public class StringConversionTest {
         Utility util = Utility.getInstance();
         String expected = "2020-07-09T01:02:03.123Z";
         String timestamp = "2020-07-09T01:02:03.12345678Z";
-        Date d = util.str2date(timestamp);
         Assert.assertEquals(expected, util.date2str(util.str2date(timestamp)));
         expected = "2020-07-09T01:02:03.120Z";
         timestamp = "2020-07-09T01:02:03.12Z";

@@ -28,16 +28,13 @@ import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.models.MockPubSub;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
 public class UtilityTests {
-    private static final Logger log = LoggerFactory.getLogger(UtilityTests.class);
-    
+
     private static final String HELLO_WORLD = "hello.world";
     private static final long ONE_SECOND = 1000;
     private static final long ONE_MINUTE = 60 * ONE_SECOND;

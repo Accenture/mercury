@@ -20,7 +20,6 @@ package org.platformlambda.core;
 
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.models.TypedPayload;
 import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;

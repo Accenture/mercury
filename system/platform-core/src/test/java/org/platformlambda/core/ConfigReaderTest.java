@@ -20,7 +20,6 @@ package org.platformlambda.core;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.platformlambda.core.models.PoJoVariance;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.MultiLevelMap;
