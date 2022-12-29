@@ -118,9 +118,7 @@ public class WorkerQueue extends WorkerQueues {
                             dt.setHeader("id", trace.id).setHeader("path", trace.path);
                             dt.setHeader(SERVICE, def.getRoute()).setHeader("start", trace.startTime);
                             dt.setHeader("success", ps.isSuccess());
-                            if (event.getFrom() != null) {
-                                dt.setHeader("from", event.getFrom());
-                            }
+                            dt.setHeader("from", event.getFrom() == null? "unknown" : event.getFrom());
                             dt.setHeader("exec_time", ps.getExecutionTime());
                             if (!ps.isSuccess()) {
                                 dt.setHeader(STATUS, ps.getStatus()).setHeader(EXCEPTION, ps.getException());
@@ -133,7 +131,7 @@ public class WorkerQueue extends WorkerQueues {
                         if (!ps.isDelivered()) {
                             log.error("Delivery error - {}, from={}, to={}, type={}, exec_time={}",
                                     ps.getDeliveryError(),
-                                    event.getFrom(), event.getTo(),
+                                    event.getFrom() == null? "unknown" : event.getFrom(), event.getTo(),
                                     ps.isSuccess()? "response" : "exception("+ps.getStatus()+", "+ps.getException()+")",
                                     ps.getExecutionTime());
                         }
