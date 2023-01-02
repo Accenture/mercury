@@ -323,10 +323,7 @@ public class HttpRelay implements LambdaFunction {
                             out.write(buffer, 0, len);
                         }
                     } catch (IOException e) {
-                        /*
-                         * this is likely to be an end of stream exception from the HttpClient
-                         * and thus it is a normal use case
-                         */
+                        // No harm because this is likely an end of stream exception from the HttpClient
                     }
                     byte[] b = out.toByteArray();
                     if (resContentType != null) {
@@ -382,12 +379,9 @@ public class HttpRelay implements LambdaFunction {
                         }
 
                     } catch (IOException e) {
-                        /*
-                         * this is likely to be an end of stream exception from the HttpClient
-                         * and thus it is a normal use case
-                         */
+                        // No harm because this is likely an end of stream exception from the HttpClient
                     }
-                    if (stream != null && out != null) {
+                    if (out != null) {
                         out.close();
                         resEvent.setHeader(STREAM, stream.getInputStreamId());
                     } else {
