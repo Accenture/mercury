@@ -49,6 +49,58 @@ public class PostOfficeTest extends TestBase {
     private static final BlockingQueue<String> bench = new ArrayBlockingQueue<>(1);
     private static final String HELLO_ALIAS = "hello.alias";
 
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
+
+    @Test
+    public void concurrentEventTest() throws IOException, InterruptedException {
+        final String SERVICE = "concurrent.service";
+        final String SLOW_SERVICE = "slow.service.1";
+        final int CYCLES = 50;
+        final long TIMEOUT = 10000;
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f1 = (headers, body, instance) -> {
+            // artificially blocking the thread
+            Thread.sleep(500);
+            return body;
+        };
+        // make nested RPC call from f2 to f1
+        LambdaFunction f2 = (headers, body, instance) -> po.request(SLOW_SERVICE, TIMEOUT, body);
+        Platform platform = Platform.getInstance();
+        platform.registerPrivate(SLOW_SERVICE, f1, CYCLES);
+        platform.registerPrivate(SERVICE, f2, CYCLES);
+        long begin = System.currentTimeMillis();
+        BlockingQueue<Boolean> wait = new ArrayBlockingQueue<>(1);
+        AtomicInteger counter = new AtomicInteger(0);
+        AtomicInteger passes = new AtomicInteger(0);
+        for (int i=0; i < CYCLES; i++) {
+            executor.submit(() -> {
+                int count = counter.incrementAndGet();
+                try {
+                    String message = "hello world "+count;
+                    EventEnvelope request = new EventEnvelope().setTo(SERVICE).setBody(message);
+                    request.setTrace("12345", "/TEST");
+                    EventEnvelope response = po.request(request, TIMEOUT);
+                    if (message.equals(response.getBody())) {
+                        passes.incrementAndGet();
+                    }
+                    if (passes.get() >= CYCLES) {
+                        wait.offer(true);
+                    }
+                } catch (Exception e) {
+                    log.error("Exception - {}", e.getMessage());
+                }
+            });
+        }
+        log.info("Wait for concurrent responses from service");
+        wait.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+        long diff = System.currentTimeMillis() - begin;
+        // demonstrate parallelism that the total time consumed should not be too far from the artificial delay
+        log.info("Finished in {} ms", diff);
+        Assert.assertEquals(CYCLES, passes.get());
+        platform.release(SLOW_SERVICE);
+        platform.release(SERVICE);
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     public void aliasRouteTest() throws AppException, IOException, TimeoutException {
@@ -620,6 +672,48 @@ public class PostOfficeTest extends TestBase {
         Assert.assertNotNull(result);
         Assert.assertEquals(STATUS, (int) result.getStatus());
         Assert.assertEquals(ERROR, result.getBody());
+    }
+
+    @Test
+    public void forkJoinTest() throws IOException {
+        final String SERVICE = "hello.fork.n.join";
+        final String SLOW_SERVICE = "slow.service.2";
+        final int SERVICE_INSTANCES = 5;
+        final long TIMEOUT = 10000;
+        PostOffice po = PostOffice.getInstance();
+        LambdaFunction f1 = (headers, body, instance) -> {
+            // artificially blocking the thread
+            Thread.sleep(500);
+            return body;
+        };
+        // make nested RPC call from f2 to f1
+        LambdaFunction f2 = (headers, body, instance) -> po.request(SLOW_SERVICE, TIMEOUT, body);
+        Platform platform = Platform.getInstance();
+        platform.registerPrivate(SLOW_SERVICE, f1, SERVICE_INSTANCES);
+        platform.registerPrivate(SERVICE, f2, SERVICE_INSTANCES);
+        final String TEXT = "hello world";
+        final int INSTANCES = 10;
+        final long begin = System.currentTimeMillis();
+        List<EventEnvelope> request = new ArrayList<>();
+        for (int i=1; i < INSTANCES + 1; i++) {
+            request.add(new EventEnvelope().setTo(SERVICE).setBody(TEXT + "." + i));
+        }
+        List<EventEnvelope> result = po.request(request, 1500);
+        long diff = System.currentTimeMillis() - begin;
+        // Since the number of concurrent requests is 2x of the number of workers,
+        // the total time should be slightly over one second
+        log.info("Elapsed time = {} ms", diff);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(INSTANCES, result.size());
+        for (EventEnvelope r: result) {
+            Assert.assertTrue(r.getBody() instanceof String);
+            String text = (String) r.getBody();
+            Assert.assertTrue(text.startsWith(TEXT));
+            log.info("Received response #{} {} - {}, exec_time = {} ms, round_trip = {} ms",
+                    r.getCorrelationId(), r.getId(), text, r.getExecutionTime(), r.getRoundTrip());
+        }
+        platform.release(SERVICE);
+        platform.release(SLOW_SERVICE);
     }
 
     @Test
