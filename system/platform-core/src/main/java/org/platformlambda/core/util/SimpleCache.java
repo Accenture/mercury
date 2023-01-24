@@ -40,7 +40,6 @@ public class SimpleCache {
     private static final long MIN_EXPIRY = 1000;
     private static final ConcurrentMap<String, SimpleCache> cacheCollection = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
-    private static boolean loaded = false;
     private final String name;
     private final long expiry;
     private final ConcurrentMap<String, TimedItem> cache = new ConcurrentHashMap<>();
@@ -48,8 +47,7 @@ public class SimpleCache {
     private SimpleCache(String name, long expiryMs) {
         this.name = name;
         this.expiry = expiryMs;
-        if (counter.incrementAndGet() == 1 && !loaded) {
-            loaded = true;
+        if (counter.incrementAndGet() == 1) {
             CleanUp cleanUp = new CleanUp();
             cleanUp.start();
         }
