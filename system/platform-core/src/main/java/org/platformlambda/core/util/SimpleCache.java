@@ -92,7 +92,16 @@ public class SimpleCache {
 
     public Object get(String key) {
         TimedItem item = cache.get(key);
-        return item == null? null: item.payload;
+        if (item == null) {
+            return null;
+        } else {
+            if (System.currentTimeMillis() - item.time > expiry) {
+                cache.remove(key);
+                return null;
+            } else {
+                return item.payload;
+            }
+        }
     }
 
     public boolean exists(String key) {

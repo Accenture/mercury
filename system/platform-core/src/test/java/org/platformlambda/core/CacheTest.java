@@ -76,10 +76,15 @@ public class CacheTest {
         Assert.assertFalse(cache2.exists(KEY));
         cache2.put(KEY, DATA);
         Assert.assertTrue(cache2.exists(KEY));
-        Thread.sleep(1050);
+        Thread.sleep(500);
+        // since minimum expiry is 1000 ms, the item should still be there
+        Assert.assertTrue(cache2.exists(KEY));
+        Thread.sleep(500);
+        // test expiry timer accuracy
+        Assert.assertFalse(cache2.exists(KEY));
         // test clean up
         cache2.cleanUp();
-        Assert.assertFalse(cache2.exists(KEY));
+        // test clear cache
         cache2.clear();
     }
 
