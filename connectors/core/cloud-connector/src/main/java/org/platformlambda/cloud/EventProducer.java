@@ -45,7 +45,11 @@ public class EventProducer implements LambdaFunction {
     public static final String BYTES_DATA = "bytes";
     public static final String MAP_DATA = "map";
     public static final String LIST_DATA = "list";
-    private static final SimpleCache cache = SimpleCache.createCache("sticky.destinations", 60000);
+
+    private static final long ONE_MINUTE = 60 * 1000;
+    private static final long TEN_MINUTES = 10 * ONE_MINUTE;
+    private static final SimpleCache stickyDest = SimpleCache.createCache("sticky.destinations", ONE_MINUTE);
+    private static final SimpleCache workLoad = SimpleCache.createCache("service.load.balancer", TEN_MINUTES);
     private static final String ID = MultipartPayload.ID;
     private static final String COUNT = MultipartPayload.COUNT;
     private static final String TOTAL = MultipartPayload.TOTAL;
@@ -56,7 +60,7 @@ public class EventProducer implements LambdaFunction {
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (headers.containsKey(TO) && body instanceof byte[]) {
             List<String> destinations = getDestinations(headers);
-            if (destinations != null) {
+            if (!destinations.isEmpty()) {
                 PubSub ps = PubSub.getInstance();
                 Utility util = Utility.getInstance();
                 byte[] payload = (byte[]) body;
@@ -92,14 +96,14 @@ public class EventProducer implements LambdaFunction {
         String total = headers.get(TOTAL);
         boolean isSegmented = id != null && count != null && total != null;
         if (isSegmented) {
-            Object cached = cache.get(id);
+            Object cached = stickyDest.get(id);
             if (cached instanceof List) {
                 // clear cache because this is the last block
                 if (count.equals(total)) {
-                    cache.remove(id);
+                    stickyDest.remove(id);
                 } else {
                     // reset expiry timer
-                    cache.put(id, cached);
+                    stickyDest.put(id, cached);
                 }
                 log.debug("cached target {} for {} {} {}", cached, id, count, total);
                 return (List<String>) cached;
@@ -123,7 +127,7 @@ public class EventProducer implements LambdaFunction {
                 if (!available.isEmpty()) {
                     if (broadcast) {
                         if (isSegmented) {
-                            cache.put(id, available);
+                            stickyDest.put(id, available);
                         }
                         return available;
                     } else {
@@ -131,7 +135,7 @@ public class EventProducer implements LambdaFunction {
                         if (target != null) {
                             List<String> result = Collections.singletonList(target);
                             if (isSegmented) {
-                                cache.put(id, result);
+                                stickyDest.put(id, result);
                             }
                             return result;
                         }
@@ -139,20 +143,50 @@ public class EventProducer implements LambdaFunction {
                 }
             }
         }
-        return null;
+        return Collections.emptyList();
     }
 
-    private String getNextAvailable(List<String> available) {
-        if (available.size() == 1) {
-            return ServiceRegistry.destinationExists(available.get(0))? available.get(0) : null;
+    private String getNextAvailable(List<String> targetList) {
+        List<String> available = new ArrayList<>();
+        for (String target: targetList) {
+            if (ServiceRegistry.destinationExists(target)) {
+                available.add(target);
+            }
+        }
+        if (available.isEmpty()) {
+            return null;
+        } else if (available.size() == 1) {
+            return available.get(0);
         } else {
-            Collections.shuffle(available);
+            // select target using round-robin protocol
+            Map<String, Long> load = new HashMap<>();
             for (String target: available) {
-                if (ServiceRegistry.destinationExists(target)) {
-                    return target;
+                Object o = workLoad.get(target);
+                if (o instanceof Long) {
+                    load.put(target, (Long) o);
                 }
             }
-            return null;
+            // if new member(s) discovered, reset counts
+            if (load.size() < available.size()) {
+                for (String target: available) {
+                    load.put(target, 0L);
+                }
+            }
+            String selected = available.get(0);
+            long lowest = load.get(selected);
+            // find the lowest load
+            for (Map.Entry<String, Long> target: load.entrySet()) {
+                if (target.getValue() < lowest) {
+                    lowest = target.getValue();
+                    selected = target.getKey();
+                }
+            }
+            for (String target: available) {
+                long v = load.get(target);
+                // increment count for the selected target
+                workLoad.put(target, target.equals(selected)? v + 1 : v);
+            }
+            return selected;
         }
     }
 

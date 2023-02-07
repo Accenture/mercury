@@ -26,7 +26,7 @@ do this
 
 ```agsl
 mvn clean package
-java -jar target/benchmark-server-2.7.1.jar
+java -jar target/benchmark-server-2.8.0.jar
 ```
 
 Once the server is up and running, you will see it connects to Kafka and reports to the presence monitor.

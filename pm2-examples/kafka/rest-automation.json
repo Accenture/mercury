@@ -8,10 +8,10 @@
             "-Dcloud.connector=kafka",
             "-Dmandatory.health.dependencies=cloud.connector.health",
             "-jar",
-            "examples/rest-automation-app/target/rest-automation-app-2.7.1.jar"
+            "examples/rest-automation-app/target/rest-automation-app-2.8.0.jar"
         ],
         "watch":[
-            "examples/rest-automation-app/target/rest-automation-app-2.7.1.jar"
+            "examples/rest-automation-app/target/rest-automation-app-2.8.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",
