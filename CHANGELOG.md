@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.8.0, 2/6/2023
+## Version 2.8.0, 2/11/2023
 
 
 ### Added
@@ -19,10 +19,7 @@ N/A
 
 ### Changed
 
-1. Updated open sources dependencies
-- Gson version 2.10.1
-
-2. Improved load balancing in cloud-connector
+Improved load balancing in cloud-connector
 
 ---
 ## Version 2.7.1, 12/22/2022
