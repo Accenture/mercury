@@ -365,7 +365,6 @@ public class HttpRelay implements LambdaFunction {
                     // return unknown content as byte array
                     return resEvent.setBody(b);
                 } else {
-                    ByteArrayOutputStream bb = new ByteArrayOutputStream();
                     ObjectStreamIO stream = null;
                     ObjectStreamWriter out = null;
                     try {
@@ -375,7 +374,6 @@ public class HttpRelay implements LambdaFunction {
                                 out = new ObjectStreamWriter(stream.getOutputStreamId());
                             }
                             out.write(buffer, 0, len);
-                            bb.write(buffer, 0, len);
                         }
 
                     } catch (IOException e) {
