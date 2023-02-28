@@ -99,18 +99,7 @@ public class HttpErrorHandler implements ErrorController {
         if (template == null) {
             template = util.stream2str(HttpErrorHandler.class.getResourceAsStream(TEMPLATE));
         }
-        String path = Utility.getInstance().getUrlDecodedPath(uri);
-        // for security, drop unsafe portion of URI path
-        if (path.contains("://")) {
-            path = path.substring(0, path.indexOf("://")) + "...";
-        }
-        if (path.contains(" ")) {
-            path = path.substring(0, path.indexOf(' ')) + "...";
-        }
-        // this avoids double URL encoding security vulnerability
-        if (path.contains("%")) {
-            path = path.substring(0, path.indexOf('%')) + "...";
-        }
+        String path = util.getSafeDisplayUri(util.getUrlDecodedPath(uri));
         HashMap<String, Object> error = new HashMap<>();
         error.put(TYPE, status < 300? OK : ERROR);
         error.put(MESSAGE, message);

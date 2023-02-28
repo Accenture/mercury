@@ -74,14 +74,26 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(list, map.getElement("parameters.query.x2"));
     }
 
-    @SuppressWarnings("unchecked")
+
     @Test
     public void uriPathSecurityTest() {
+        uriPathSecurity("/api/hello/world moved to https://evil.site?hello world=abc",
+                "/api/hello/world moved to https");
+        uriPathSecurity("/api/hello/world <div>test</div>",
+                "/api/hello/world ");
+        uriPathSecurity("/api/hello/world > something",
+                "/api/hello/world ");
+        uriPathSecurity("/api/hello/world &nbsp;",
+                "/api/hello/world ");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void uriPathSecurity(String uri, String expected) {
         PostOffice po = PostOffice.getInstance();
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
         req.setHeader("accept", "application/json");
-        req.setUrl("/api/hello/world moved to https://evil.site?hello world=abc");
+        req.setUrl(uri);
         req.setQueryParameter("x1", "y");
         List<String> list = new ArrayList<>();
         list.add("a");
@@ -91,7 +103,7 @@ public class RestEndpointTest extends TestBase {
         AppException ex = Assert.assertThrows(AppException.class, () -> po.request(HTTP_REQUEST, RPC_TIMEOUT, req));
         Assert.assertEquals(404, ex.getStatus());
         Map<String, Object> error = SimpleMapper.getInstance().getMapper().readValue(ex.getMessage(), Map.class);
-        Assert.assertEquals("/api/hello/world...", error.get("path"));
+        Assert.assertEquals(expected, error.get("path"));
     }
 
     @SuppressWarnings("unchecked")

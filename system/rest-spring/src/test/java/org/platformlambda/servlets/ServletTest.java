@@ -172,7 +172,7 @@ public class ServletTest extends TestBase {
         AppException ex = Assert.assertThrows(AppException.class, () -> SimpleHttpRequests.get(url, new HashMap<>()));
         Assert.assertEquals(404, ex.getStatus());
         Map<String, Object> error = SimpleMapper.getInstance().getMapper().readValue(ex.getMessage(), Map.class);
-        Assert.assertEquals("/api/hello/world...", error.get("path"));
+        Assert.assertEquals("/api/hello/world moved to https", error.get("path"));
     }
 
     @Test

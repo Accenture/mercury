@@ -165,18 +165,7 @@ public class SimpleHttpUtility {
         }
         Utility util = Utility.getInstance();
         HttpServerResponse response = request.response().setStatusCode(status);
-        String path = util.getUrlDecodedPath(request.path());
-        // for security, drop unsafe portion of URI path
-        if (path.contains("://")) {
-            path = path.substring(0, path.indexOf("://")) + "...";
-        }
-        if (path.contains(" ")) {
-            path = path.substring(0, path.indexOf(' ')) + "...";
-        }
-        // this avoids double URL encoding security vulnerability
-        if (path.contains("%")) {
-            path = path.substring(0, path.indexOf('%')) + "...";
-        }
+        String path = util.getSafeDisplayUri(util.getUrlDecodedPath(request.path()));
         if (accept.startsWith(TEXT_HTML)) {
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, path)

@@ -76,18 +76,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         if (template == null) {
             template = util.stream2str(RestExceptionHandler.class.getResourceAsStream(TEMPLATE));
         }
-        String path = Utility.getInstance().getUrlDecodedPath(request.getRequestURI());
-        // for security, drop unsafe portion of URI path
-        if (path.contains("://")) {
-            path = path.substring(0, path.indexOf("://")) + "...";
-        }
-        if (path.contains(" ")) {
-            path = path.substring(0, path.indexOf(' ')) + "...";
-        }
-        // this avoids double URL encoding security vulnerability
-        if (path.contains("%")) {
-            path = path.substring(0, path.indexOf('%')) + "...";
-        }
+        String path = util.getSafeDisplayUri(util.getUrlDecodedPath(request.getRequestURI()));
         Throwable ex = util.getRootCause(exception);
         String cls = ex.getClass().getSimpleName();
         Map<String, Object> result = new HashMap<>();

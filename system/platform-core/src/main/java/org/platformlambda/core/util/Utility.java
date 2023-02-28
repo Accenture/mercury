@@ -1039,6 +1039,20 @@ public class Utility {
         return uri;
     }
 
+    public String getSafeDisplayUri(String uri) {
+        String path = dropDangerousSegment(uri, "://");
+        path = dropDangerousSegment(path, "%");
+        path = dropDangerousSegment(path, "<");
+        path = dropDangerousSegment(path, ">");
+        path = dropDangerousSegment(path, "&");
+        path = dropDangerousSegment(path, ";");
+        return path;
+    }
+
+    private String dropDangerousSegment(String uri, String pattern) {
+        return uri.contains(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
+    }
+
     //////////////////////////////////////////
     // Get value from an environment variable
     //////////////////////////////////////////
