@@ -43,9 +43,9 @@ public class EmbeddedKafka extends Thread {
 
     @Override
     public void run() {
-        try (InputStream stream = EmbeddedKafka.class.getResourceAsStream("/kafka.properties")) {
+        try (InputStream stream = EmbeddedKafka.class.getResourceAsStream("/server.properties")) {
             if (stream == null) {
-                throw new IOException("kafka.properties is not available as resource");
+                throw new IOException("server.properties is not available as resource");
             }
             Properties p = new Properties();
             p.load(stream);

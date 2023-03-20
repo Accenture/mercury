@@ -45,7 +45,7 @@ public class MainApp implements EntryPoint {
             EmbeddedZk zk = new EmbeddedZk();
             zk.start();
             int timeout = 10;
-            if (!zkReady(10)) {
+            if (!zkReady(timeout)) {
                 log.error("Application quits because standalone zookeeper does not start in {} seconds", timeout);
                 zk.shutdown();
                 System.exit(-1);

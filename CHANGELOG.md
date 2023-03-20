@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 2.8.0, 2/28/2023
+## Version 2.8.0, 3/20/2023
 
 
 ### Added
@@ -21,6 +21,8 @@ N/A
 
 1. Improved load balancing in cloud-connector
 2. Filter URI to avoid XSS attack
+3. Upgrade to SnakeYaml 2.0 and patch Spring Boot 2.6.8 for compatibility with it
+4. Upgrade to Vertx 4.4.0, classgraph 4.8.157, tomcat 9.0.73
 
 ---
 ## Version 2.7.1, 12/22/2022
