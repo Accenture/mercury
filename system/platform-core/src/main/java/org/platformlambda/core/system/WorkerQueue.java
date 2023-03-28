@@ -184,7 +184,7 @@ public class WorkerQueue extends WorkerQueues {
                 if (interceptor || useEnvelope) {
                     inputBody = event;
                 } else {
-                    if (PayloadMapper.MAP.equals(event.getType()) && def.getInputClass() != null) {
+                    if (event.getRawBody() instanceof Map && def.getInputClass() != null) {
                         if (def.getInputClass() == AsyncHttpRequest.class) {
                             // handle special case
                             event.setType(null);
