@@ -19,7 +19,9 @@
 package org.platformlambda.core.actuator;
 
 import org.platformlambda.core.annotations.PreLoad;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.util.Map;
 
@@ -31,6 +33,7 @@ public class ActuatorServices implements LambdaFunction {
     private static final String LIB = "lib";
     private static final String ENV = "env";
     private static final String HEALTH = "health";
+    private static final String HEALTH_STATUS = "health_status";
     private static final String SHUTDOWN = "shutdown";
     private static final String SUSPEND = "suspend";
     private static final String RESUME = "resume";
@@ -39,16 +42,25 @@ public class ActuatorServices implements LambdaFunction {
 
     private static final InfoService infoFunction = new InfoService();
     private static final HealthService healthFunction = new HealthService();
-    private static final LivenessProbe livenessProbe = new LivenessProbe();
     private static final ShutdownService shutdownFunction = new ShutdownService();
     private static final SuspendResume suspendResume = new SuspendResume();
+    private static final AtomicBoolean healthStatus = new AtomicBoolean(true);
 
     @Override
     public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
+            if (HEALTH_STATUS.equals(type) && body instanceof Boolean) {
+                healthStatus.set((Boolean) body);
+                return true;
+            }
             if (LIVENESS_PROBE.equals(type)) {
-                return livenessProbe.handleEvent(headers, body, instance);
+                if (healthStatus.get()) {
+                    return new EventEnvelope().setBody("OK").setHeader("content-type", "text/plain");
+                } else {
+                    return new EventEnvelope().setBody("Unhealthy. Please check '/health' endpoint.")
+                                    .setStatus(400).setHeader("content-type", "text/plain");
+                }
             }
             if (HEALTH.equals(type)) {
                 return healthFunction.handleEvent(headers, body, instance);

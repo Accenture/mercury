@@ -44,6 +44,7 @@ public class HealthService implements LambdaFunction {
     private static final String TYPE = "type";
     private static final String INFO = "info";
     private static final String HEALTH = "health";
+    private static final String HEALTH_STATUS = "health_status";
     private static final String REQUIRED_SERVICES = "mandatory.health.dependencies";
     private static final String OPTIONAL_SERVICES = "optional.health.dependencies";
     private static final String ROUTE = "route";
@@ -72,8 +73,9 @@ public class HealthService implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
         Platform platform = Platform.getInstance();
+        PostOffice po = PostOffice.getInstance();
         boolean up = true;
         Map<String, Object> result = new HashMap<>();
         /*
@@ -84,6 +86,7 @@ public class HealthService implements LambdaFunction {
         if (!checkServices(upstream, requiredServices, true)) {
             up = false;
         }
+        po.send(PostOffice.ACTUATOR_SERVICES, up, new Kv(TYPE, HEALTH_STATUS));
         // checkServices will update the "upstream" service list
         result.put(UPSTREAM, upstream);
         if (upstream.isEmpty()) {
