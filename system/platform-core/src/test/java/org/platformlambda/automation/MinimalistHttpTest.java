@@ -123,6 +123,9 @@ public class MinimalistHttpTest extends TestBase {
         Assert.assertEquals("fine", map.getElement("upstream[0].message"));
         Assert.assertEquals(200, map.getElement("upstream[0].status_code"));
         Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
+        // livenessProbe is linked to health check
+        String live = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        Assert.assertEquals("OK", live);
     }
 
     @SuppressWarnings("unchecked")
@@ -142,7 +145,18 @@ public class MinimalistHttpTest extends TestBase {
         // original status code from upstream service is preserved
         Assert.assertEquals(500, map.getElement("upstream[0].status_code"));
         Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
+        // livenessProbe is linked to health check
+        AppException live = Assert.assertThrows(AppException.class, () -> {
+            SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        });
+        Assert.assertEquals(400, live.getStatus());
+        Assert.assertEquals("Unhealthy. Please check '/health' endpoint.", live.getMessage());
         MockCloud.setSimulateException(false);
+        // try it again
+        SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/health");
+        String liveAgain = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        Assert.assertEquals("OK", liveAgain);
+
     }
 
     @SuppressWarnings("unchecked")
@@ -157,12 +171,6 @@ public class MinimalistHttpTest extends TestBase {
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
         Assert.assertEquals(404, result.get("status"));
         Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
-    }
-
-    @Test
-    public void livenessEndpointTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
-        Assert.assertEquals("OK", response);
     }
 
     @SuppressWarnings("unchecked")

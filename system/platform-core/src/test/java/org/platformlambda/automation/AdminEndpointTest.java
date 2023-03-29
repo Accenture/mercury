@@ -141,7 +141,7 @@ public class AdminEndpointTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void simulateHealthCheckFailureTest() {
+    public void simulateHealthCheckFailureTest() throws AppException, IOException {
         MockCloud.setSimulateException(true);
         AppException ex = Assert.assertThrows(AppException.class, () -> {
             SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
@@ -163,6 +163,10 @@ public class AdminEndpointTest extends TestBase {
         Assert.assertEquals(400, live.getStatus());
         Assert.assertEquals("Unhealthy. Please check '/health' endpoint.", live.getMessage());
         MockCloud.setSimulateException(false);
+        // try it again
+        SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
+        String liveAgain = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        Assert.assertEquals("OK", liveAgain);
     }
 
     @SuppressWarnings("unchecked")
