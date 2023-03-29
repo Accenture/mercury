@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-N/A
+Link livenessProbe with health check
 
 ### Removed
 
@@ -23,6 +23,7 @@ N/A
 2. Filter URI to avoid XSS attack
 3. Upgrade to SnakeYaml 2.0 and patch Spring Boot 2.6.8 for compatibility with it
 4. Upgrade to Vertx 4.4.0, classgraph 4.8.157, tomcat 9.0.73
+5. Upgrade to Spring Boot 2.7.10
 
 ---
 ## Version 2.7.1, 12/22/2022
