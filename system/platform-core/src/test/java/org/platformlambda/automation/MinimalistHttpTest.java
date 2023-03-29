@@ -147,7 +147,7 @@ public class MinimalistHttpTest extends TestBase {
         Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
         // livenessProbe is linked to health check
         AppException live = Assert.assertThrows(AppException.class, () -> {
-            SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+            SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
         });
         Assert.assertEquals(400, live.getStatus());
         Assert.assertEquals("Unhealthy. Please check '/health' endpoint.", live.getMessage());
