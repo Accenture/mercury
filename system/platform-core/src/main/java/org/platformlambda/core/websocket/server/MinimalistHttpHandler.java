@@ -23,6 +23,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -43,6 +44,8 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
 
     private static final Logger log = LoggerFactory.getLogger(MinimalistHttpHandler.class);
 
+    private static final SimpleXmlWriter xml = new SimpleXmlWriter();
+
     private static final String TYPE = "type";
     private static final String GET = "GET";
     private static final String POST = "POST";
@@ -54,7 +57,8 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
     private static final String LATER = "later";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LENGTH = "Content-Length";
-    private static final String JSON = "application/json";
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String APPLICATION_XML = "application/xml";
     private static final String TEXT_PLAIN = "text/plain";
     private static final String STATUS = "status";
     private static final String MESSAGE = "message";
@@ -83,9 +87,8 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
         if (KEEP_ALIVE.equals(connectionType)) {
             response.putHeader(CONNECTION_HEADER, KEEP_ALIVE);
         }
-        response.putHeader(CONTENT_TYPE, JSON);
-        String path = util.getUrlDecodedPath(request.path());
-        final String uri = path;
+        response.putHeader(CONTENT_TYPE, APPLICATION_JSON);
+        final String uri = util.getUrlDecodedPath(request.path());
         String method = request.method().name();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin != null && !po.exists(origin)) {
@@ -100,25 +103,35 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
                 event.setTo(origin != null? PostOffice.ACTUATOR_SERVICES+"@"+origin : PostOffice.ACTUATOR_SERVICES);
                 try {
                     po.asyncRequest(event, 30000)
-                        .onSuccess(result -> {
-                            Map<String, String> headers = result.getHeaders();
-                            if (result.hasError()) {
-                                sendError(response, uri, result.getStatus(), result.getRawBody());
-                            } else {
+                            .onSuccess(result -> {
+                                final String contentType = result.getHeaders()
+                                        .getOrDefault(CONTENT_TYPE.toLowerCase(), APPLICATION_JSON);
+                                final Object data = result.getRawBody();
                                 final byte[] b;
-                                if (TEXT_PLAIN.equals(headers.get(CONTENT_TYPE)) &&
-                                        result.getRawBody() instanceof String) {
+                                if (TEXT_PLAIN.equals(contentType) && data instanceof String) {
                                     response.putHeader(CONTENT_TYPE, TEXT_PLAIN);
-                                    b = util.getUTF((String) result.getRawBody());
+                                    b = util.getUTF((String) data);
                                 } else {
-                                    b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(result.getRawBody());
+                                    if (APPLICATION_XML.equals(contentType)) {
+                                        response.putHeader(CONTENT_TYPE, APPLICATION_XML);
+                                        if (data instanceof Map) {
+                                            b = util.getUTF(xml.write(data));
+                                        } else {
+                                            b = util.getUTF(data == null? "" : data.toString());
+                                        }
+                                    } else {
+                                        if (data instanceof Map) {
+                                            b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(data);
+                                        } else {
+                                            b = util.getUTF(data == null? "" : data.toString());
+                                        }
+                                    }
                                 }
                                 response.putHeader(CONTENT_LENGTH, String.valueOf(b.length));
                                 response.setStatusCode(result.getStatus());
                                 response.write(Buffer.buffer(b));
                                 response.end();
-                            }
-                        })
+                            })
                         .onFailure(e -> sendError(response, uri, 408, e.getMessage()));
                     processed = true;
                 } catch (IOException e) {

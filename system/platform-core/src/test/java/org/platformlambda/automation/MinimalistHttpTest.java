@@ -124,7 +124,7 @@ public class MinimalistHttpTest extends TestBase {
         Assert.assertEquals(200, map.getElement("upstream[0].status_code"));
         Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
         // livenessProbe is linked to health check
-        String live = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        String live = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
         Assert.assertEquals("OK", live);
     }
 
@@ -154,7 +154,7 @@ public class MinimalistHttpTest extends TestBase {
         MockCloud.setSimulateException(false);
         // try it again
         SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/health");
-        String liveAgain = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/livenessprobe", "text/plain");
+        String liveAgain = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
         Assert.assertEquals("OK", liveAgain);
 
     }

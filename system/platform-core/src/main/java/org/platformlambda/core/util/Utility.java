@@ -1029,9 +1029,9 @@ public class Utility {
     }
 
     public String getUrlDecodedPath(String uri) {
-        if (uri.contains("%")) {
+        if (uri != null && uri.contains("%")) {
             try {
-                uri = URLDecoder.decode(uri, "UTF-8");
+                return URLDecoder.decode(uri, "UTF-8");
             } catch (UnsupportedEncodingException e) {
                 // ok to ignore
             }
@@ -1040,7 +1040,8 @@ public class Utility {
     }
 
     public String getSafeDisplayUri(String uri) {
-        String path = dropDangerousSegment(uri, "://");
+        String path = getUrlDecodedPath(uri);
+        path = dropDangerousSegment(path, "://");
         path = dropDangerousSegment(path, "%");
         path = dropDangerousSegment(path, "<");
         path = dropDangerousSegment(path, ">");
@@ -1050,7 +1051,7 @@ public class Utility {
     }
 
     private String dropDangerousSegment(String uri, String pattern) {
-        return uri.contains(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
+        return uri != null && uri.contains(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
     }
 
     //////////////////////////////////////////

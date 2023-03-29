@@ -165,7 +165,7 @@ public class SimpleHttpUtility {
         }
         Utility util = Utility.getInstance();
         HttpServerResponse response = request.response().setStatusCode(status);
-        String path = util.getSafeDisplayUri(util.getUrlDecodedPath(request.path()));
+        String path = util.getSafeDisplayUri(request.path());
         if (accept.startsWith(TEXT_HTML)) {
             String errorPage = template.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, path)

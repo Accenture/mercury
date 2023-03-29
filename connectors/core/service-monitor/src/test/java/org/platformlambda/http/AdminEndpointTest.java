@@ -142,12 +142,8 @@ public class AdminEndpointTest extends TestBase {
         AppException ex = Assert.assertThrows(AppException.class, () ->
                 SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes"));
         Assert.assertEquals(400, ex.getStatus());
-        String error = ex.getMessage();
-        Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
-        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
-        Assert.assertEquals(400, result.get("status"));
         Assert.assertEquals("Routing table is not visible from a presence monitor - " +
-                "please try it from a regular application instance", result.get("message"));
+                "please try it from a regular application instance", ex.getMessage());
     }
 
     @SuppressWarnings("unchecked")
