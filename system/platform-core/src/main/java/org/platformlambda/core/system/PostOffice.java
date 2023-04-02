@@ -464,7 +464,7 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void broadcast(String to, Kv... parameters) throws IOException {
-        deliver(true, to, parameters);
+        broadcast(asEnvelope(to, null, parameters));
     }
 
     /**
@@ -475,7 +475,14 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void broadcast(String to, Object body) throws IOException {
-        deliver(true, to, body);
+        if (body instanceof Kv) {
+            // in case if a single KV is sent
+            Kv[] keyValue = new Kv[1];
+            keyValue[0] = (Kv) body;
+            broadcast(asEnvelope(to, null, keyValue));
+        } else {
+            broadcast(asEnvelope(to, body));
+        }
     }
 
     /**
@@ -487,7 +494,7 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void broadcast(String to, Object body, Kv... parameters) throws IOException {
-        deliver(true, to, body, parameters);
+        broadcast(asEnvelope(to, body, parameters));
     }
 
     /**
@@ -498,7 +505,7 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void send(String to, Kv... parameters) throws IOException {
-        deliver(false, to, parameters);
+        send(asEnvelope(to, null, parameters));
     }
 
     /**
@@ -509,7 +516,14 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void send(String to, Object body) throws IOException {
-        deliver(false, to, body);
+        if (body instanceof Kv) {
+            // in case if a single KV is sent
+            Kv[] keyValue = new Kv[1];
+            keyValue[0] = (Kv) body;
+            send(asEnvelope(to, null, keyValue));
+        } else {
+            send(asEnvelope(to, body));
+        }
     }
 
     /**
@@ -521,35 +535,10 @@ public class PostOffice {
      * @throws IOException in case of invalid route
      */
     public void send(String to, Object body, Kv... parameters) throws IOException {
-        deliver(false, to, body, parameters);
+        send(asEnvelope(to, body, parameters));
     }
 
-    private void deliver(boolean bc, String to, Kv... parameters) throws IOException {
-        EventEnvelope event = new EventEnvelope().setTo(to);
-        if (parameters != null) {
-            for (Kv kv: parameters) {
-                if (kv.key != null && kv.value != null) {
-                    event.setHeader(kv.key, kv.value);
-                }
-            }
-        }
-        send(bc? event.setBroadcastLevel(1) : event);
-    }
-
-    private void deliver(boolean bc, String to, Object body) throws IOException {
-        if (body instanceof Kv) {
-            // in case if a single KV is sent
-            Kv[] keyValue = new Kv[1];
-            keyValue[0] = (Kv) body;
-            deliver(bc, to, keyValue);
-        } else {
-            EventEnvelope event = new EventEnvelope();
-            event.setTo(to).setBody(body);
-            send(bc? event.setBroadcastLevel(1) : event);
-        }
-    }
-
-    private void deliver(boolean bc, String to, Object body, Kv... parameters) throws IOException {
+    private EventEnvelope asEnvelope(String to, Object body, Kv... parameters) {
         EventEnvelope event = new EventEnvelope().setTo(to).setBody(body);
         if (parameters != null) {
             for (Kv kv: parameters) {
@@ -558,7 +547,7 @@ public class PostOffice {
                 }
             }
         }
-        send(bc? event.setBroadcastLevel(1) : event);
+        return event;
     }
 
     /**
