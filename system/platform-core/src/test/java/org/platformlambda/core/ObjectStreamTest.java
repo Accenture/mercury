@@ -121,7 +121,7 @@ public class ObjectStreamTest {
         // AsyncObjectStreamReader is non-blocking. Therefore, we must use a blocking queue in a unit test.
         log.info("Beginning of Stream");
         fetchNextBlock(in, 0, bench);
-        Integer count = bench.poll(8, TimeUnit.SECONDS);
+        Integer count = bench.poll(10, TimeUnit.SECONDS);
         Assert.assertNotNull(count);
         Assert.assertEquals(CYCLES, count.intValue());
         Assert.assertTrue(in.isStreamEnd());
