@@ -19,7 +19,6 @@
 package org.platformlambda.example;
 
 import org.platformlambda.core.annotations.MainApplication;
-import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;

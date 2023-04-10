@@ -310,7 +310,7 @@ public class PresenceConnector implements LambdaFunction {
         // recovery other consumers
         Map<String, PubSub> instances = PubSub.getInstances();
         instances.keySet().forEach(domain -> {
-            log.info("Restoring '{}' subscription", domain);
+            log.info("Restoring {} subscription", domain);
             PubSub ps = instances.get(domain);
             ps.resumeSubscription();
         });
@@ -330,7 +330,7 @@ public class PresenceConnector implements LambdaFunction {
             // suspend other consumers
             Map<String, PubSub> instances = PubSub.getInstances();
             instances.keySet().forEach(domain -> {
-                log.info("Suspending '{}' subscription", domain);
+                log.info("Suspending {} subscription", domain);
                 PubSub others = instances.get(domain);
                 others.suspendSubscription();
                 others.cleanup();
