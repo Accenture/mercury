@@ -18,18 +18,20 @@
 
 package org.platformlambda.automation.services;
 
+import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.automation.util.SimpleHttpUtility;
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
-import org.platformlambda.core.system.ObjectStreamReader;
+import org.platformlambda.core.system.AsyncObjectStreamReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
+@CoroutineRunner
 @EventInterceptor
-public class ServiceResponseHandler implements LambdaFunction {
+public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final Logger log = LoggerFactory.getLogger(ServiceResponseHandler.class);
 
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
@@ -80,10 +83,9 @@ public class ServiceResponseHandler implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Void handleEvent(Map<String, String> headers, EventEnvelope event, int instance) {
         Utility util = Utility.getInstance();
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
-        EventEnvelope event = (EventEnvelope) body;
         String requestId = event.getCorrelationId();
         if (requestId != null) {
             AsyncContextHolder holder = contexts.get(requestId);
@@ -103,7 +105,10 @@ public class ServiceResponseHandler implements LambdaFunction {
                     for (String h : evtHeaders.keySet()) {
                         String key = h.toLowerCase();
                         String value = evtHeaders.get(h);
-                        // "stream" and "timeout" are reserved as stream ID and read timeout in seconds
+                        /*
+                         * 1. "stream" and "timeout" are reserved as stream ID and read timeout in seconds
+                         * 2. "trace_id" and "trace_path" should be dropped from HTTP response headers
+                         */
                         if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
                             streamId = evtHeaders.get(h);
                         } else if (key.equalsIgnoreCase(TIMEOUT)) {
@@ -158,45 +163,21 @@ public class ServiceResponseHandler implements LambdaFunction {
                     String message = ((String) event.getRawBody()).trim();
                     // make sure it does not look like JSON or XML
                     if (!message.startsWith("{") && !message.startsWith("[") && !message.startsWith("<")) {
-                        httpUtil.sendError(requestId, holder.request, status, (String) event.getRawBody());
+                        httpUtil.sendError(requestId, holder.request, status, message);
                         return null;
                     }
                 }
                 // Except HEAD method, HTTP response may have a body
                 if (!HEAD.equals(holder.method)) {
-                    // output is a stream?
                     Object responseBody = event.getRawBody();
                     if (responseBody == null && streamId != null) {
+                        // output is a stream?
                         response.setChunked(true);
-                        try (ObjectStreamReader in = new ObjectStreamReader(streamId,
-                                                        getReadTimeout(timeoutOverride, holder.timeout))) {
-                            for (Object block : in) {
-                                // update last access time
-                                holder.touch();
-                                /*
-                                 * only bytes or text are supported when using output stream
-                                 * e.g. for downloading a large file
-                                 */
-                                if (block instanceof byte[]) {
-                                    byte[] b = (byte[]) block;
-                                    if (b.length > 0) {
-                                        response.write(Buffer.buffer(b));
-                                    }
-                                }
-                                if (block instanceof String) {
-                                    String text = (String) block;
-                                    if (!text.isEmpty()) {
-                                        response.write((String) block);
-                                    }
-                                }
-                            }
-                        } catch (IOException | RuntimeException e) {
-                            log.warn("{} {} interrupted - {}", holder.url, streamId, e.getMessage());
-                            httpUtil.sendError(requestId, holder.request,
-                                    e.getMessage().contains(TIMEOUT) ? 408 : 500, e.getMessage());
-                            return null;
-                        }
-                        // regular output
+                        AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId,
+                                                         getReadTimeout(timeoutOverride, holder.timeout));
+                        fetchNextBlock(requestId, in, response);
+                        return null;
+
                     } else if (responseBody instanceof Map) {
                         if (contentType.startsWith(TEXT_HTML)) {
                             byte[] start = util.getUTF(HTML_START);
@@ -225,7 +206,7 @@ public class ServiceResponseHandler implements LambdaFunction {
                             response.write(Buffer.buffer(payload));
                             response.write(HTML_END);
                         } else if (contentType.startsWith(APPLICATION_XML)) {
-                            // xml must be delivered as a map so we use a wrapper here
+                            // xml must be delivered as a map
                             Map<String, Object> map = new HashMap<>();
                             map.put(RESULT, responseBody);
                             byte[] payload = util.getUTF(xmlWriter.write(RESULT, map));
@@ -255,6 +236,35 @@ public class ServiceResponseHandler implements LambdaFunction {
             }
         }
         return null;
+    }
+
+    private void fetchNextBlock(String requestId, AsyncObjectStreamReader in, HttpServerResponse response) {
+        Future<Object> block = in.get();
+        block.onSuccess(data -> {
+            if (data != null) {
+                if (data instanceof byte[]) {
+                    byte[] b = (byte[]) data;
+                    if (b.length > 0) {
+                        response.write(Buffer.buffer(b));
+                    }
+                }
+                if (data instanceof String) {
+                    String text = (String) data;
+                    if (!text.isEmpty()) {
+                        response.write((String) data);
+                    }
+                }
+                fetchNextBlock(requestId, in, response);
+            } else {
+                ServiceGateway.closeContext(requestId);
+                response.end();
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    log.error("Unable to close stream {} - {}", in.getId(), e.getMessage());
+                }
+            }
+        });
     }
 
 }

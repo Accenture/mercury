@@ -41,14 +41,19 @@ public class AsyncObjectStreamReader implements AutoCloseable {
 
     public AsyncObjectStreamReader(String streamId, long timeout) {
         this.streamId = streamId;
-        this.timeout = Math.max(1000, timeout);
+        this.timeout = Math.max(2000, timeout);
+    }
+
+    public String getId() {
+        return streamId;
     }
 
     public Future<Object> get() {
-        final PostOffice po = PostOffice.getInstance();
-        return Future.future(p -> {
+        final EventEmitter po = EventEmitter.getInstance();
+        return Future.future(promise -> {
+            Platform platform = Platform.getInstance();
             if (eof || closed) {
-                p.complete(null);
+                platform.getEventExecutor().submit(() -> promise.complete(null));
             } else {
                 EventEnvelope request = new EventEnvelope().setTo(streamId).setHeader(TYPE, READ);
                 try {
@@ -56,17 +61,17 @@ public class AsyncObjectStreamReader implements AutoCloseable {
                             .onSuccess(event -> {
                                 Map<String, String> headers = event.getHeaders();
                                 if (DATA.equals(headers.get(TYPE))) {
-                                    p.complete(event.getBody());
+                                    promise.complete(event.getBody());
                                 }
                                 if (END_OF_STREAM.equals(headers.get(TYPE))) {
                                     eof = true;
-                                    p.complete(null);
+                                    promise.complete(null);
                                 }
                             })
-                            .onFailure(p::fail);
+                            .onFailure(promise::fail);
 
                 } catch (IOException e) {
-                    p.fail(e);
+                    platform.getEventExecutor().submit(() -> promise.fail(e));
                 }
             }
         });
@@ -84,7 +89,7 @@ public class AsyncObjectStreamReader implements AutoCloseable {
     public void close() throws IOException {
         if (!closed) {
             closed = true;
-            PostOffice.getInstance().send(streamId, new Kv(TYPE, CLOSE));
+            EventEmitter.getInstance().send(streamId, new Kv(TYPE, CLOSE));
         }
     }
 }

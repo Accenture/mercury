@@ -1,12 +1,11 @@
 # API playground
 
-This is a standalone application that uses swagger UI for the rendering of OpenAPI 2.0 and 3.0 specification files.
+This is a standalone application that uses swagger UI for the rendering of OpenAPI 3.0 YAML files.
 
-This application is designed as a convenient tool for API design, tests and discussion among developers and 
-product owners.
+This application is designed as a convenient tool for API design and tests.
 
-You can drop your OpenAPI 3.0 JSON or YAML files in the api-playground folder so that you can select anyone
-of them to render the documentation.
+You can drop your OpenAPI 3.0 JSON or YAML files in the api-playground folder so that you can select them
+to render the documentation.
 
 ## Before you start
 
@@ -20,20 +19,17 @@ of them to render the documentation.
 
 The default directory is `/tmp/api-playground`
 
-To change this file location, you can do:
+To change this file location, you can:
 1. update application.properties and rebuild the application, or
 2. change the directory location by overriding the "api.playground.apps" parameter when starting up this 
 application.
 
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.8.0.jar
-
-where another location is a folder in the local file system.
+java -Dapi.playground.apps=another_location -jar api-playground-3.0.0.jar
 ```
 
 When you click the "API playground" in the top navigation bar, it will reload the application dropdown box with the 
 available files in the API specs folder.
-
 
 ## Running this application
 
@@ -41,17 +37,17 @@ Please visit http://127.0.0.1:8200 after starting this application.
 
 Using default API specs location,
 ```
-java -jar api-playground-2.8.0.jar
+java -jar api-playground-3.0.0.jar
 ```
 
 With user defined API specs location,
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-2.8.0.jar
+java -Dapi.playground.apps=another_location -jar api-playground-3.0.0.jar
 ```
 
 ## How this application is created?
 
-1. This application is created using "mercury/examples/rest-example" as a template
+1. This application is created using "mercury/examples/rest-spring-example" as a template
 2. Clone https://github.com/swagger-api/swagger-ui
 3. Copy content from its "dist" folder to the "resources/swagger-ui" folder
 4. Remove all *.js.map files from the "swagger-ui" folder

@@ -1,160 +1,276 @@
 # Introduction
 
-Mercury is all about microservices that are minimalist, event-driven and context bounded.
+Mercury version 3 is a toolkit for writing composable applications.
 
-To this end, we use anonymous functions to encapsulate different domains of business logic and library dependencies.
+At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
+business applications. With modular design, you can assemble platform components and applications to create
+new use cases or to adjust for ever-changing business environment and requirements. Domain driven design (DDD),
+Command Query Responsibility Segregation (CQRS) and Microservices patterns are the popular tools that architects
+use to build composable architecture. You may deploy application in container, serverless or other means.
 
-Under the Mercury framework, business logic wrapped in anonymous functions are callable using a `route name`. 
-Mercury resolves routing automatically so that you do not need to care whether the calling and called functions 
-are in the same memory space or in different application instances. Mercury will route requests using a high 
-performance memory event bus when the calling and called functions are int he same memory space and route requests 
-through a network event stream system when the calling and called parties reside in different containers.
+At the application level, a composable application means that an application is assembled from modular software
+components or functions that are self-contained and pluggable. You can mix-n-match functions to form new applications.
+You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
+can exist, and you can decide how to route user requests to different versions of a function. Applications would be
+easier to design, develop, maintain, deploy, and scale.
 
-## Building the mercury framework libraries
+## Building the platform libraries
 
-Please follow the [README](../README.md) file in the project root to build the Mercury framework libraries 
-from source code.
+The first step is to build Mercury libraries from source.
+To simplify the process, you may publish the libraries in your enterprise artifactory.
 
-## Writing your first microservices function
+```shell
+mkdir sandbox
+cd sandox
+git clone https://github.com/Accenture/mercury.git
+cd mercury
+mvn clean install
+```
 
-Your first function may look like this using Java 1.8 anonymous function syntax:
+The above sample script clones the Mercury open sources project from github and build the libraries from source.
+
+The pre-requisite is maven 3.8.6 and openjdk 1.8 or higher. We have tested mercury with Java version 1.8 to 19.
+
+This will build the mercury libraries and some example applications.
+
+The `platform-core` project is the foundation library for writing composable application.
+
+## Running the lambda-example application
+
+Assuming you follow the suggested project directory above, you can run a sample composable application
+called "lambda-example" like this:
+
+```shell
+cd sandbox/mercury/examples/lambda-example
+java -jar target/lambda-example-3.0.0.jar
+```
+
+You will find the following console output when the app starts
+
+```text
+Exact API paths [/api/event, /api/hello/download, /api/hello/upload, /api/hello/world]
+Wildcard API paths [/api/hello/download/{filename}, /api/hello/generic/{id}]
+```
+
+Application parameters are defined in the resources/application.properties file (or application.yml if you prefer).
+When `rest.automation=true` is defined, the system will parse the "rest.yaml" configuration for REST endpoints.
+
+## REST automation
+
+When REST automation is turned on, the system will start a light weight non-blocking HTTP server.
+By default, it will search for the "rest.yaml" file from "/tmp/config/rest.yaml" and then from "classpath:/rest.yaml".
+Classpath refers to configuration files under the "resources" folder in your source code project.
+
+To instruct the system to load from a specific path. You can add the `rest.automation.yaml` parameter.
+
+To select another server port, change the `rest.server.port` parameter.
+
+```properties
+rest.server.port=8085
+rest.automation=true
+rest.automation.yaml=classpath:/rest.yaml
+```
+
+To create a REST endpoint, you can add an entry in the "rest" section of the "rest.yaml" config file like this:
+
+```yaml
+  - service: "hello.download"
+    methods: [ 'GET' ]
+    url: "/api/hello/download"
+    timeout: 20s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+```
+
+The above example creates the "/api/hello/download" endpoint to route requests to the "hello.download" function.
+We will discuss more about REST automation in [Chapter-3](CHAPTER-3.md).
+
+## Function is an event handler
+
+A function is executed when an event arrives. You can define a "route name" for each function.
+It is created by a class implementing one of the following interfaces:
+
+1. `TypedLambdaFunction` allows you to use PoJo or HashMap as input and output
+2. `LambdaFunction` is untyped, but it will transport PoJo from the caller to the input of your function
+3. `KotlinLambdaFunction` is a typed lambda function using Kotlin suspend function
+
+## Trying the "hello.world" function
+
+With the application started in a command terminal, please use a browser to visit
+http://127.0.0.1:8085/api/hello/world
+
+It will echo the HTTP headers from the browser like this:
+
+```json
+{
+  "headers": {},
+  "instance": 1,
+  "origin": "20230324b709495174a649f1b36d401f43167ba9",
+  "body": {
+    "headers": {
+      "sec-fetch-mode": "navigate",
+      "sec-ch-ua": "\"Google Chrome\";v=\"111\", \"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"111\"",
+      "sec-fetch-site": "none",
+      "sec-ch-ua-mobile": "?0",
+      "accept-language": "en-US,en;q=0.9",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "upgrade-insecure-requests": "1",
+      "sec-fetch-user": "?1",
+      "accept": "text/html,application/xhtml+xml,application/xml,*/*",
+      "sec-fetch-dest": "document",
+      "user-agent": "Mozilla/5.0 Chrome/111.0.0.0 Safari/537.36"
+    },
+    "method": "GET",
+    "ip": "127.0.0.1",
+    "https": false,
+    "url": "/api/hello/world",
+    "timeout": 10
+  }
+}
+```
+
+### Where is the "hello.world" function?
+
+The function is defined in the MainApp class in the source project with the following segment of code:
+
 ```java
-LambdaFunction f = (headers, body, instance) -> {
-	// do some business logic
-	return something
+LambdaFunction echo = (headers, input, instance) -> {
+    log.info("echo #{} got a request", instance);
+    Map<String, Object> result = new HashMap<>();
+    result.put("headers", headers);
+    result.put("body", input);
+    result.put("instance", instance);
+    result.put("origin", platform.getOrigin());
+    return result;
 };
+// Register the above inline lambda function
+platform.register("hello.world", echo, 10);
 ```
 
-The easiest way to write your first microservices module is to use either the "lambda-example" or "rest-example" 
-as a template.
+The Hello World function is written as an inline "lambda function". It is registered programmatically using
+the `platform.register` API.
 
-Let's try with the "rest-example". You should update the application name in both the `application.properties` 
-and the `pom.xml`. Then you can use your favorite IDE to import it as a "maven" project.
+The rest of the functions are written using LambdaFunction, TypedLambdaFunction and KotlinLambdaFunction interfaces.
 
-## Application unit
+## TypedLambdaFunction
 
-The rest-example is a deployable application unit. Behind the curtain, the mercury framework is using Spring Boot 
-to provide REST and websocket capabilities. For microservices modules that do not need REST endpoints, you can use 
-the "lambda-example" as a template.
-
-## Main application
-
-For each application unit, you will need a main application. This is the entry of your application unit.
-
-The `MainApplication` annotation indicates that this is the main method for the application unit. 
-Main application should also implements the `EntryPoint` interface which only has the "start" method. 
-The "args" are optional command line arguments.
-
-In the following example, when the application unit starts, it creates a microservices function and register 
-"hello.world" as its route name. For concurrency, it also specifies 20 worker instances.
-
-Application units are horizontally scalable. Within the application unit, you may specify concurrent "workers". 
-This provides horizontal and verticial scalability respectively.
-
+Let's examine the `SimpleDemoEndpoint` example under the "services" folder. It may look like this:
 
 ```java
-@MainApplication
-public class MainApp implements EntryPoint {
-  
+@CoroutineRunner
+@PreLoad(route = "hello.simple", instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override
-    public void start(String[] args) throws Exception {
-        ServerPersonality.getInstance().setType(ServerPersonality.Type.WEB);
-        Platform platform = Platform.getInstance();
-        LambdaFunction echo = (headers, body, instance) -> {
-            Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
-            result.put("body", body);
-            result.put("instance", instance);
-            result.put("origin", platform.getOrigin());
-            return result;
-        };
-        platform.register("hello.world", echo, 20);
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) 
+            throws Exception {
+        // business logic here
     }
 }
-
 ```
 
-Alternatively, for typed body and response without casting you can use TypedLambdaFunction<I, O> 
-where I and O stand for input and output class respectively.
+The `PreLoad` annotation assigns a route name to the Java class and registers it with an in-memory event system.
+The `instances` parameter tells the system to create a number of workers to serve concurrent requests.
+
+> Note that you don't need a lot of workers to handle a larger number of users
+  and requests provided that the function can finish execution very quickly.
+
+The `CoroutineRunner` annotation advises the system to run this function as a "coroutine".
+There are 3 function execution strategies (Kernel thread pool, coroutine and suspend function).
+We will explain the concept in [Chapter-2](CHAPTER-2.md)
+
+In a composable application, an event-driven function is designed using the first principle of "input-process-output".
+
+In the "hello.simple" function, the input is a HTTP request expressed as a class of `AsyncHttpRequest`.
+You can ignore `headers` input argument for the moment. We will cover it later.
+
+The output is declared as "Object" so that the function can return any data structure using a HashMap or PoJo.
+
+You may want to review the REST endpoint `/api/simple/{task}/*` in the rest.yaml config file to see how it is
+connected to the "hello.simple" function.
+
+We take a minimalist approach for the rest.yaml syntax. The parser will print out errors if it detects any syntax issue.
+
+## Writing your first function
+
+Using the lambda-example as a template, you can create your first application.
+
+Let's create your first function by adding a function in the "services" package folder.
+You will give the route name "my.first.function" in the "PreLoad" annotation.
+
+> Note that route name must use lower case letters and numbers separated by the period character.
 
 ```java
-    TypedLambdaFunction<String, Map<String, String>> lambda = (headers, body, instance) -> {
-        Map<String, String> result = new HashMap<>();
-        result.put("body", body);
-        return result;
-    };
-```
 
-## Calling a function
+@PreLoad(route = "my.first.function", instances = 10)
+public class MyFirstFunction implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
-Unlike traditional programming, you call a function by sending an event instead of calling its method. 
-Mercury resolves routing automatically so events are delivered correctly no matter where the target function is,
-in the same memory space or another computer elsewhere in the network.
-
-To make a service call to a function, you may do the following:
-```
-PostOffice po = PostOffice.getInstance();
-EventEnvelope response = po.request("hello.world", 1000, "a test message");
-System.out.println("I got response here..."+response.getBody());
-
-// the above is an RPC call. For async call, it would be something like this:
-po.send("hello.world", "another message");
-```
-
-You can call the function from another function or a REST endpoint. The latter connects REST API with a 
-microservices function.
-
-The following example forwards a request from the REST endpoint (`GET /api/hello/world`) to the "hello.world" service. 
-Note that there are basic performance metrics from the response object.
-
-```java
-@Path("/hello")
-public class MyRestEndpoint {
-
-    private static AtomicInteger seq = new AtomicInteger(0);
-
-    @GET
-    @Path("/world")
-    @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML, MediaType.TEXT_HTML})
-    public Map<String, Object> hello(@Context HttpServletRequest request) throws IOException, TimeoutException, AppException {
-
-        PostOffice po = PostOffice.getInstance();
-
-        Map<String, Object> forward = new HashMap<>();
-        forward.put("time", new Date());
-
-        Enumeration<String> headers = request.getHeaderNames();
-        while (headers.hasMoreElements()) {
-            String key = headers.nextElement();
-            forward.put(key, request.getHeader(key));
-        }
-        // As a demo, just put the incoming HTTP headers as a payload and a parameter showing the sequence counter.
-        // The eco service will return both.
-        int n = seq.incrementAndGet();
-        EventEnvelope response = po.request("hello.world", 3000, forward, new Kv("seq", n));
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("status", response.getStatus());
-        result.put("headers", response.getHeaders());
-        result.put("body", response.getBody());
-        result.put("execution_time", response.getExecutionTime());
-        result.put("round_trip", response.getRoundTrip());
-        return result;
+    @Override
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) 
+            throws Exception {
+        // your business logic here
+        return input;
     }
-
 }
 ```
 
-## Massive parallel processing
+To connect this function with a REST endpoint, you can declare a new REST endpoint in the rest.yaml like this:
 
-A function is invoked when an event happens. Before the event arrives, the function is just an entry in a routing 
-table, and it does not consume any additional resources like threads.
+```yaml
+  - service: "my.first.function"
+    methods: [ 'GET' ]
+    url: "/api/hello/my/function"
+    timeout: 20s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+```
 
-All functions are running in parallel without special coding. Behind the curtain, the system uses Java futures and 
-asynchronous event loops for very efficient function execution.
+If you do not put any business logic, the above function will echo the incoming HTTP request object back to the
+browser.
 
----
+Now you can examine the input HTTP request object and perform some data transformation before returning a result.
 
-| Chapter-2                           | Home                                     |
-| :----------------------------------:|:----------------------------------------:|
-| [Platform API](CHAPTER-2.md)        | [Table of Contents](TABLE-OF-CONTENTS.md)|
+The AsyncHttpRequest class allows you to access data structure such as HTTP method, URL, path parameters,
+query parameters, cookies, etc.
+
+When you click the "rebuild" button in IDE and run the "MainApp", the new function will be available in the 
+application. Alternatively, you can also do `mvn clean package` to generate a new executable JAR and run the 
+JAR from command line.
+
+To test your new function, visit http://127.0.0.1:8085/api/hello/my/function
+
+## Event driven design
+
+Your function automatically uses an in-memory event bus. The HTTP request from the browser is converted to
+an event by the system and the event is delivered to your function as the "input" argument.
+
+The underlying HTTP server is asynchronous and non-blocking.
+i.e. it does not consume CPU resources while waiting for a response.
+
+This composable architecture allows you to design and implement applications so that you have precise control of
+performance and throughput. Performance tuning is much easier.
+
+## Deploying your new application
+
+You can assemble related functions in a single composable application, and it can be compiled and built into
+a single "executable" for deployment using `mvn clean package`.
+
+The executable JAR is in the target folder. 
+
+Composable application is by definition cloud native. It is designed to be deployable using Kubernetes or serverless.
+
+A sample Dockerfile for your executable JAR may look like this:
+
+```shell
+FROM adoptopenjdk/openjdk11:jre-11.0.11_9-alpine
+EXPOSE 8083
+WORKDIR /app
+COPY target/your-app-name.jar .
+ENTRYPOINT ["java","-jar","your-app-name.jar"]
+```
+<br/>
+
+|                   Home                    |                  Chapter-2                  |
+|:-----------------------------------------:|:-------------------------------------------:|
+| [Table of Contents](TABLE-OF-CONTENTS.md) | [Function Execution Strategy](CHAPTER-2.md) |

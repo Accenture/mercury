@@ -50,6 +50,7 @@ public class AsyncHttpRequest {
     private static final String CONTENT_LENGTH = "size";
     private static final String TRUST_ALL_CERT = "trust_all_cert";
     private static final String TARGET_HOST = "host";
+    private static final String FILE = "file";
 
     private String method;
     private String queryString;
@@ -83,7 +84,7 @@ public class AsyncHttpRequest {
 
     public AsyncHttpRequest setMethod(String method) {
         if (method != null) {
-            this.method = method;
+            this.method = method.toUpperCase();
         }
         return this;
     }
@@ -350,7 +351,7 @@ public class AsyncHttpRequest {
     }
 
     public String getUploadTag() {
-        return upload;
+        return upload == null? FILE : upload;
     }
 
     public AsyncHttpRequest setUploadTag(String tag) {

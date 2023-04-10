@@ -22,7 +22,7 @@ import org.platformlambda.MainApp;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
@@ -58,8 +58,8 @@ public class HouseKeeper implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        PostOffice po = PostOffice.getInstance();
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+        EventEmitter po = EventEmitter.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         String type = headers.get(TYPE);
         // when a new presence monitor joins the system
@@ -87,16 +87,16 @@ public class HouseKeeper implements LambdaFunction {
             String appId = headers.get(INSTANCE);
             monitors.put(origin, new MonitorInstance(appId == null ? origin : appId, System.currentTimeMillis()));
             removeExpiredMonitors();
-            if (body instanceof List) {
+            if (input instanceof List) {
                 // compare connection list
                 Map<String, Object> connections = MonitorService.getConnections();
                 List<String> myConnections = new ArrayList<>(connections.keySet());
-                List<String> peerConnections = (List<String>) body;
+                List<String> peerConnections = (List<String>) input;
                 if (!sameList(myConnections, peerConnections)) {
                     log.debug("Sync up because my list ({}) does not match peer ({})",
                             myConnections.size(), peerConnections.size());
                     // download current connections from peers
-                    PostOffice.getInstance().send(MainApp.PRESENCE_HANDLER+MONITOR_PARTITION,
+                    EventEmitter.getInstance().send(MainApp.PRESENCE_HANDLER+MONITOR_PARTITION,
                             new Kv(TYPE, DOWNLOAD), new Kv(ORIGIN, me));
                 }
             }

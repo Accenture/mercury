@@ -18,15 +18,15 @@
 
 package org.platformlambda.core.models;
 
+import org.platformlambda.core.system.Platform;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public abstract class InboxBase {
 
-    protected static final ExecutorService executor = Executors.newCachedThreadPool();
-    protected static final String ASYNC_INBOX = "async.inbox";
+    protected static final ExecutorService executor = Platform.getInstance().getEventExecutor();
 
     protected String id;
 

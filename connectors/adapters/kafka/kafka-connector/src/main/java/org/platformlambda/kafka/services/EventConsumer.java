@@ -34,7 +34,7 @@ import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -149,7 +149,7 @@ public class EventConsumer extends Thread {
         String origin = Platform.getInstance().getOrigin();
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String virtualTopic = (topic + (partition < 0? "" : "." + partition)).toLowerCase();
         String topicPartition = realTopic + (realPartition < 0? "" : "." + realPartition);
         if (realPartition < 0) {

@@ -5,5 +5,4 @@ Hello World
 
 --------------------------------------------------
 If you see this in your download folder, you have
-successfully tested downloading a file from
-REST automation
+successfully downloaded a test file from the app

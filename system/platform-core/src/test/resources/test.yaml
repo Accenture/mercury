@@ -10,8 +10,10 @@ hello:
   # demonstrate parameter value substitution using application.properties
   name: ${application.name}
   location:
-  - abcde
-  - ${server.port}
+  - '${rest.server.port:8100}'
+  - 'http://127.0.0.1:${server.port}/info'
   - world:
       blvd: 100
+  - '${server.port} is server port'
+  - 'Server port is ${server.port}'
   path: ${system.path}

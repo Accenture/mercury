@@ -1,28 +1,4 @@
-# Additional features
-
-## Admin endpoints to stop, suspend or resume
-
-You can stop, suspend or resume an application instance from a `presence monitor`.
-
-1. `Shutdown` - stop an application so that the container management system will restart it
-2. `Suspend` - tell the application instance not to accept incoming requests
-3. `Resume` - tell the application instance to accept incoming requests
-
-Suspend and resume commands are usually used to simulate error cases for development and regression test purposes.
-
-For example, to simulate a stalled application instance, you can use the "POST /suspend/later" command.
-
-If you do not want your application instance to receive any service request, you can isolate it with the
-"POST /suspend/now" command.
-
-```
-POST /shutdown
-POST /suspend/{now | later}
-POST /resume/{now | later}
-
-HTTP request header
-X-App-Instance=origin_id_here
-```
+# Actuators and HTTP client
 
 ## Actuator endpoints
 
@@ -35,22 +11,30 @@ GET /info/lib
 GET /env
 GET /health
 GET /livenessprobe
-
-Optional HTTP request header
-X-App-Instance=origin_id_here
+POST /shutdown
 ```
 
-If you provide the optional X-App-Instance HTTP header, you can execute the admin endpoint from 
-`any application instance` using the event stream system.
+| Endpoint       | Purpose                                                                             | 
+|:---------------|:------------------------------------------------------------------------------------|
+| /info          | Describe the application                                                            |
+| /info/routes   | Show public routing table                                                           |
+| /info/lib      | List libraries packed with this executable                                          |
+| /env           | List all private and public function route names and selected environment variables |
+| /health        | Application health check endpoint                                                   |
+| /livenessprobe | Check if application is running normally                                            |
+| /shutdown      | Operator may use this endpoint to do a POST command to stop the application         |
+
+For the shutdown endpoint, you must provide an `X-App-Instance` HTTP header where the value is the "origin ID"
+of the application. You can get the value from the "/info" endpoint.
 
 ## Custom health services
 
 You can extend the "/health" endpoint by implementing and registering lambda functions to be added to the 
 health.dependencies.
 
-```
-mandatory.health.dependencies=cloud.cache.health,cloud.connector.health
-#optional.health.dependencies=other.service.health
+```properties
+mandatory.health.dependencies=cloud.connector.health, demo.health
+optional.health.dependencies=other.service.health
 ```
 
 Your custom health service must respond to the following requests:
@@ -59,77 +43,90 @@ Your custom health service must respond to the following requests:
 2. Health check (type=health) - it should return a text string of the health check. e.g. read/write test result. 
    It can throw AppException with status code and error message if health check fails.
 
-The health service can retrieve the "type" of the request from the "headers".
-
-## Application instance life-cycle events
-
-Any application can subscribe to life-cycle events of other application instances.
-
-To listen to life cycle events, you can do something like this:
-```
-String AUTOMATION_NOTIFICATION = "member.life.cycle.listener";
-String appName = platform.getName();
-LambdaFunction f = (headers, body, instance) -> {
-    if (CONNECTED.equals(type)) {
-        // handle connection event - this event is fired when your app is connected to the event stream system
-        log.info("connected");
-    }
-    if (DISCONNECTED.equals(type)) {
-        // handle disconnection event - this event is fired when your app is disconnected from the event stream system
-        log.info("disconnected");
-    }
-    if (JOIN.equals(type) && headers.containsKey(ORIGIN) && appName.equals(headers.get(NAME))) {
-        // handle member join event
-    }
-    if (LEAVE.equals(type) && headers.containsKey(ORIGIN)) {
-        // handle member leave event
-    }
-}
-platform.registerPrivate(AUTOMATION_NOTIFICATION, f, 1);
-
-...
-platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 20);
-po.send(ServiceDiscovery.SERVICE_REGISTRY,
-        new Kv(TYPE, SUBSCRIBE_LIFE_CYCLE), new Kv(ROUTE, AUTOMATION_NOTIFICATION));
-```
-
-## HttpClient as a service
-
-Starting from version 1.12.30, the rest-automation system, when deployed, will provide the "async.http.request" service.
-
-This means you can make a HTTP request without using a HttpClient.
-
-For example, a simple HTTP GET request may look like this:
+A sample health service is available in the `DemoHealth` class of the `lambda-example` project as follows:
 
 ```java
-// the target URL is constructed from the relay 
-PostOffice po = PostOffice.getInstance();
+@PreLoad(route="demo.health", instances=5)
+public class DemoHealth implements LambdaFunction {
+
+    private static final String TYPE = "type";
+    private static final String INFO = "info";
+    private static final String HEALTH = "health";
+
+    @Override
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) {
+        /*
+         * The interface contract for a health check service includes both INFO and HEALTH responses
+         */
+        if (INFO.equals(headers.get(TYPE))) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("service", "demo.service");
+            result.put("href", "http://127.0.0.1");
+            return result;
+        }
+        if (HEALTH.equals(headers.get(TYPE))) {
+            /*
+             * This is a place-holder for checking a downstream service.
+             *
+             * You may implement your own logic to test if a downstream service is running fine.
+             * If running, just return a health status message.
+             * Otherwise,
+             *      throw new AppException(status, message)
+             */
+            return "demo.service is running fine";
+        }
+        throw new IllegalArgumentException("type must be info or health");
+    }
+}
+
+```
+
+## Non-blocking HTTP client
+
+The "async.http.request" function can be used as a non-blocking HTTP client.
+
+To make a HTTP request to an external REST endpoint, you can create a HTTP request object using the `AsyncHttpRequest`
+class and make an async RPC call to the "async.http.request" function like this:
+
+```java
+PostOffice po = new PostOffice(headers, instance);
 AsyncHttpRequest req = new AsyncHttpRequest();
 req.setMethod("GET");
 req.setHeader("accept", "application/json");
-req.setUrl("/api/search?keywords="+body);
-req.setTargetHost("https://service_provider_host");
-try {
-    EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
-    log.info("GOT {} {}", res.getHeaders(), res.getBody());
-    /*
-     * res.getHeaders() contains HTTP response headers
-     * res.getBody() is the HTTP response body
-     *
-     * Note that the HTTP body will be provided as be set a HashMap
-     * if the input content-type is application/json or application/xml.
-     */ 
-    // process HTTP response here (HTTP-200)
-    
-} catch (AppException e) {
-    log.error("Rejected by service provider HTTP-{} {}", 
-               e.getStatus(), e.getMessage().replace("\n", ""));
-    // handle exception here
-}
+req.setUrl("/api/hello/world?hello world=abc");
+req.setQueryParameter("x1", "y");
+List<String> list = new ArrayList<>();
+list.add("a");
+list.add("b");
+req.setQueryParameter("x2", list);
+req.setTargetHost("http://127.0.0.1:8083");
+EventEnvelope request = new EventEnvelope().setTo("async.http.request").setBody(req);
+Future<EventEnvelope> res = po.asyncRequest(request, 5000);
+res.onSuccess(response -> {
+   // do something with the result 
+});
 ```
-In the above example, we are using RPC method. You may also use callback method for handling the HTTP response.
 
-## Sending HTTP request body for HTTP PUT, POST and PATCH methods
+In a suspend function using KotlinLambdaFunction, the same logic may look like this:
+
+```kotlin
+val fastRPC = FastRPC(headers)
+val req = AsyncHttpRequest()
+req.setMethod("GET")
+req.setHeader("accept", "application/json")
+req.setUrl("/api/hello/world?hello world=abc")
+req.setQueryParameter("x1", "y")
+val list: MutableList<String> = ArrayList()
+list.add("a")
+list.add("b")
+req.setQueryParameter("x2", list)
+req.setTargetHost("http://127.0.0.1:8083")
+val request = EventEnvelope().setTo("async.http.request").setBody(req)
+val response = fastRPC.awaitRequest(request, 5000)
+// do something with the result
+```
+
+### Sending HTTP request body for HTTP PUT, POST and PATCH methods
 
 For most cases, you can just set a HashMap into the request body and specify content-type as JSON or XML.
 The system will perform serialization properly.
@@ -141,81 +138,71 @@ AsyncHttpRequest req = new AsyncHttpRequest();
 req.setMethod("POST");
 req.setHeader("accept", "application/json");
 req.setHeader("content-type", "application/json");
-req.setUrl("/api/book/new_book/12345");
+req.setUrl("/api/book");
 req.setTargetHost("https://service_provider_host");
-req.setBody(keyValues);
+req.setBody(mapOfKeyValues);
 // where keyValues is a HashMap
 ```
 
 ## Sending HTTP request body as a stream
 
-For larger payload, you may use streaming method. See sample code below:
+For larger payload, you may use the streaming method. See sample code below:
 
 ```java
 int len;
-byte[] buffer = new byte[BUFFER_SIZE];
-BufferedInputStream in = new BufferedInputStream(someFileInputStream);
+byte[] buffer = new byte[4096];
+FileInputStream in = new FileInputStream(myFile);
 ObjectStreamIO stream = new ObjectStreamIO(timeoutInSeconds);
 ObjectStreamWriter out = stream.getOutputStream();
 while ((len = in.read(buffer, 0, buffer.length)) != -1) {
     out.write(buffer, 0, len);
 }
-// closing the output stream would save an EOF mark in the stream
+// closing the output stream would send a EOF signal to the stream
 out.close();
-// update the AsyncHttpRequest object
-req.setStreamRoute(stream.getRoute());
+// tell the HTTP client to read the input stream
+req.setStreamRoute(stream.getInputStreamId());
 ```
 
-## Handle HTTP response body stream
+## Reading HTTP response body stream
 
 If content length is not given, the response body will be received as a stream.
 
-Your application should check if the HTTP response headers contains a "stream" header.
-Sample code to read the stream may look like this:
+Your application should check if the HTTP response header "stream" exists. Its value is an input "stream ID".
 
-```java
-PostOffice po = PostOffice.getInstance();
-AsyncHttpRequest req = new AsyncHttpRequest();
-req.setMethod("GET");
-req.setHeader("accept", "application/json");
-req.setUrl("/api/search?keywords="+body);
-req.setTargetHost("https://service_provider_host");
-EventEnvelope res = po.request("async.http.request", 5000, req.toMap());
-Map<String, String> resHeaders = res.getHeaders();
-if (resHeaders.containsKey("stream")) {
-    /*
-     * For demonstration, we are using ByteArrayOutputStream.
-     * For production code, you should stream the input to persistent storage
-     * or handle the input stream directly.
-     */
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ObjectStreamReader in = new ObjectStreamReader(resHeaders.get("stream"), 1000);
-    for (Object d: in) {
-        if (d instanceof byte[]) {
-            out.write((byte[]) d);
+For simplicity and readability, we recommend using "suspend function" to read the input byte-array stream.
+
+It may look like this:
+
+```kotlin
+val po = PostOffice(headers, instance)
+val fastRPC = FastRPC(headers)
+
+val req = EventEnvelope().setTo(streamId).setHeader(TYPE, READ)
+while (true) {
+    val event = fastRPC.awaitRequest(req, 5000)
+    if (event.status == 408) {
+        // handle input stream timeout
+        break
+    }
+    if (EOF == event.headers["type"]) {
+        po.send(streamId, Kv("type", "close"))
+        break
+    }
+    if (DATA == event.headers["type"]) {
+        val block = event.body
+        if (block is ByteArray) {
+            // handle the data block from the input stream
         }
     }
-    // remember to close the input stream
-    in.close();
-    // handle the result
-    byte[] result = out.toByteArray();
-} else {
-    // response is rendered in the "body"
-    // for JSON or XML response, the response is a string
-    String result = (String) res.getBody();
 }
 ```
 
 ## Content length for HTTP request
 
-`Important` - Do not set the "content-length" HTTP header because the system will automatically compute the
+IMPORTANT: Do not set the "content-length" HTTP header because the system will automatically compute the
 correct content-length for small payload. For large payload, it will use the chunking method.
+<br/>
 
-The system may use data compression. Manually setting content length for HTTP request body would result
-in unintended side effects.
-
----
-
-| Chapter-1                                | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [Introduction](CHAPTER-1.md)             | [Table of Contents](TABLE-OF-CONTENTS.md)|
+|              Appendix-II               |                   Home                    | 
+|:--------------------------------------:|:-----------------------------------------:|
+| [Reserved route names](APPENDIX-II.md) | [Table of Contents](TABLE-OF-CONTENTS.md) |

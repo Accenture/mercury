@@ -34,7 +34,6 @@ import java.util.List;
 public class HstsFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(HstsFilter.class);
 
-    private static final String IP = "ip";
     private static final String PROTOCOL = "x-forwarded-proto";
     private static final String HTTPS = "https";
     private static final String UPGRADE = "upgrade";

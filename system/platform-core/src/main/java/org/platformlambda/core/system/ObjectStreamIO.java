@@ -18,6 +18,7 @@
 
 package org.platformlambda.core.system;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.*;
@@ -37,10 +38,10 @@ public class ObjectStreamIO {
     private static final Logger log = LoggerFactory.getLogger(ObjectStreamIO.class);
 
     private static final ConcurrentMap<String, StreamInfo> streams = new ConcurrentHashMap<>();
-    private static final AtomicInteger counter = new AtomicInteger(0);
-
-    public static final int DEFAULT_TIMEOUT = 1800;
-
+    private static final AtomicInteger initCounter = new AtomicInteger(0);
+    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final long HOUSEKEEPING_INTERVAL = 30 * 1000L;    // 30 seconds
+    public static final int DEFAULT_TIMEOUT = 30 * 60;              // 30 minutes
     private static final String TYPE = "type";
     private static final String READ = "read";
     private static final String CLOSE = "close";
@@ -49,7 +50,6 @@ public class ObjectStreamIO {
     private static final String STREAM_PREFIX = "stream.";
     private static final String IN = ".in";
     private static final String OUT = ".out";
-    private static boolean loaded = false;
     private String inputStreamId;
     private String outputStreamId;
     private String streamRoute;
@@ -63,7 +63,7 @@ public class ObjectStreamIO {
     }
 
     public ObjectStreamIO(int expirySeconds) throws IOException {
-        this.expirySeconds = Math.max(1, expirySeconds);
+        this.expirySeconds = Math.max(5, expirySeconds);
         this.createStream();
     }
 
@@ -72,13 +72,15 @@ public class ObjectStreamIO {
     }
 
     private void createStream() throws IOException {
-        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
-        if (counter.incrementAndGet() == 1 && !loaded) {
-            loaded = true;
-            HouseKeeper houseKeeper = new HouseKeeper();
-            houseKeeper.start();
+        if (initCounter.incrementAndGet() == 1) {
+            platform.getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredStreams());
+            log.info("Housekeeper started");
         }
+        if (initCounter.get() > 10000) {
+            initCounter.set(10);
+        }
+        Utility util = Utility.getInstance();
         String id = util.getUuid();
         String in = STREAM_PREFIX+id+IN;
         String out = STREAM_PREFIX+id+OUT;
@@ -89,7 +91,7 @@ public class ObjectStreamIO {
         platform.registerPrivateStream(out, publisher);
         platform.registerPrivate(in, consumer, 1);
         streams.put(in, new StreamInfo(expirySeconds));
-        log.info("Stream {} created with expiry of {} seconds", id, expirySeconds);
+        log.info("Stream {} created, idle expiry {} seconds", id, expirySeconds);
     }
 
     public String getInputStreamId() {
@@ -123,7 +125,13 @@ public class ObjectStreamIO {
     }
 
     public static void removeExpiredStreams() {
-        PostOffice po = PostOffice.getInstance();
+        if (housekeeperNotRunning.compareAndSet(true, false)) {
+            Platform.getInstance().getEventExecutor().submit(ObjectStreamIO::checkExpiredStreams);
+        }
+    }
+
+    public static void checkExpiredStreams() {
+        EventEmitter po = EventEmitter.getInstance();
         Utility util = Utility.getInstance();
         long now = System.currentTimeMillis();
         List<String> list = new ArrayList<>(streams.keySet());
@@ -136,7 +144,7 @@ public class ObjectStreamIO {
                     log.warn("{} expired. Inactivity for {} seconds ({} - {})", id, info.expiryMills / 1000,
                             createdTime, updatedTime);
                     po.send(id, new Kv(TYPE, CLOSE));
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Unable to remove expired {} - {}", id, e.getMessage());
                 } finally {
                     streams.remove(id);
@@ -145,6 +153,8 @@ public class ObjectStreamIO {
         }
     }
 
+    @ZeroTracing
+    @CoroutineRunner
     private class StreamPublisher implements StreamFunction {
 
         @Override
@@ -158,40 +168,39 @@ public class ObjectStreamIO {
         }
 
         @Override
-        public void handleEvent(Map<String, String> headers, Object body) throws Exception {
+        public void handleEvent(Map<String, String> headers, Object input) throws Exception {
             if (DATA.equals(headers.get(TYPE))) {
                 if (!eof.get()) {
                     String cb = callbacks.poll();
                     if (cb != null) {
-                        sendReply(cb, body, DATA);
+                        sendReply(cb, input, DATA);
                     }
                 }
-            } else if (END_OF_STREAM.equals(headers.get(TYPE))) {
-                if (!eof.get()) {
-                    eof.set(true);
-                    String cb = callbacks.poll();
-                    if (cb != null) {
-                        sendReply(cb, body, END_OF_STREAM);
-                    }
+            } else if (END_OF_STREAM.equals(headers.get(TYPE)) && !eof.get()) {
+                eof.set(true);
+                String cb = callbacks.poll();
+                if (cb != null) {
+                    sendReply(cb, input, END_OF_STREAM);
                 }
             }
         }
 
-        private void sendReply(String cb, Object body, String type) throws IOException {
-            PostOffice po = PostOffice.getInstance();
+        private void sendReply(String cb, Object input, String type) throws IOException {
+            EventEmitter po = EventEmitter.getInstance();
             if (cb.contains("|")) {
                 int sep = cb.indexOf('|');
                 String callback = cb.substring(0, sep);
                 String extra = cb.substring(sep+1);
                 EventEnvelope eventExtra = new EventEnvelope();
-                eventExtra.setTo(callback).setExtra(extra).setHeader(TYPE, type).setBody(body);
+                eventExtra.setTo(callback).setExtra(extra).setHeader(TYPE, type).setBody(input);
                 po.send(eventExtra);
             } else {
-                po.send(cb, body, new Kv(TYPE, type));
+                po.send(cb, input, new Kv(TYPE, type));
             }
         }
     }
 
+    @CoroutineRunner
     @EventInterceptor
     @ZeroTracing
     private class StreamConsumer implements LambdaFunction {
@@ -206,10 +215,10 @@ public class ObjectStreamIO {
         }
 
         @Override
-        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+        public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
             Platform platform = Platform.getInstance();
-            PostOffice po = PostOffice.getInstance();
-            EventEnvelope event = (EventEnvelope) body;
+            EventEmitter po = EventEmitter.getInstance();
+            EventEnvelope event = (EventEnvelope) input;
             String type = event.getHeaders().get(TYPE);
             String cb = event.getReplyTo();
             String extra = event.getExtra();
@@ -237,37 +246,6 @@ public class ObjectStreamIO {
                 }
             }
             return null;
-        }
-    }
-
-    private static class HouseKeeper extends Thread {
-
-        private static final long INTERVAL = 10000;
-        private boolean normal = true;
-
-        @Override
-        public void run() {
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-            log.info("Started");
-            long t1 = System.currentTimeMillis() - INTERVAL;
-            while (normal) {
-                long now = System.currentTimeMillis();
-                // scan every 10 seconds
-                if (now - t1 > INTERVAL) {
-                    t1 = now;
-                    removeExpiredStreams();
-                }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-            }
-            log.info("Stopped");
-        }
-
-        private void shutdown() {
-            normal = false;
         }
     }
 

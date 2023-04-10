@@ -18,11 +18,13 @@
 
 package com.accenture.services;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.TypedLambdaFunction;
 
 import java.util.Map;
 
+@CoroutineRunner
 @PreLoad(route="in.memory.echo", instances=200)
 public class Echo implements TypedLambdaFunction<Map<String, Object>, Map<String, Object>> {
     @Override

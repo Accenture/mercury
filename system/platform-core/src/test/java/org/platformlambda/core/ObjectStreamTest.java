@@ -23,7 +23,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.system.AsyncObjectStreamReader;
 import org.platformlambda.core.system.ObjectStreamIO;
-import org.platformlambda.core.system.ObjectStreamReader;
 import org.platformlambda.core.system.ObjectStreamWriter;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -40,12 +39,12 @@ public class ObjectStreamTest {
 
     @Test
     public void expiryTest() throws IOException, InterruptedException {
+        final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         Utility util = Utility.getInstance();
         String TEXT = "hello world";
+        // The minimum timeout is 5 seconds if you set it to a smaller value
         ObjectStreamIO stream = new ObjectStreamIO(1);
         ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-        ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 5000);
-        Thread.sleep(500);
         out.write(TEXT);
         Map<String, Object> info = ObjectStreamIO.getStreamInfo();
         Assert.assertNotNull(info.get("count"));
@@ -53,52 +52,28 @@ public class ObjectStreamTest {
         Assert.assertTrue(count > 0);
         String id = stream.getInputStreamId().substring(0, stream.getInputStreamId().indexOf('@'));
         Assert.assertTrue(info.containsKey(id));
-        int n = 0;
-        for (Object data : in) {
-            n++;
+        AsyncObjectStreamReader in = new AsyncObjectStreamReader(stream.getInputStreamId(), 5000);
+        in.get().onSuccess(data -> {
             Assert.assertEquals(TEXT, data);
-            break;
-        }
-        Assert.assertEquals(1, n);
-        // the stream will expire after one second of inactivity
-        Thread.sleep(1200);
+            bench.offer(true);
+        });
+        bench.poll(10, TimeUnit.SECONDS);
+        // The stream is intentionally left open
+        Thread.sleep(1100);
         /*
-         * The system will check expired streams every 20 seconds
+         * The system will check expired streams every 30 seconds
          * To avoid waiting it in a unit test, we force it to remove expired streams
          */
-        ObjectStreamIO.removeExpiredStreams();
-        Map<String, Object> infoAfterExpiry = ObjectStreamIO.getStreamInfo();
-        Assert.assertFalse(infoAfterExpiry.containsKey(id));
-    }
-
-    @Test
-    public void readWrite() throws IOException {
-        int CYCLES = 100;
-        String TEXT = "hello world";
-        /*
-         * Producer creates a new stream with 60 seconds inactivity expiry
-         */
-        ObjectStreamIO stream = new ObjectStreamIO(60);
-        log.info("Using {}", stream.getInputStreamId());
-        // Closing an output stream will send an EOF signal. The try auto-close will do this.
-        try (ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId())) {
-            for (int i = 0; i < CYCLES; i++) {
-                out.write(TEXT + " " + i);
-            }
-        }
-        // ObjectStreamReader is auto-closeable. Remember to close it to release resources.
-        int n = 0;
-        try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 8000)) {
-            for (Object data : in) {
-                n++;
-                // it is an EOF signal when null is received
-                if (data == null) {
-                    log.info("Got {} items where the last one is an EOF signal", n);
-                    break;
-                }
-            }
-        }
-        Assert.assertEquals(CYCLES + 1, n);
+        ObjectStreamIO.checkExpiredStreams();
+        Map<String, Object> allStreams = ObjectStreamIO.getStreamInfo();
+        // The stream has not yet expired
+        Assert.assertTrue(allStreams.containsKey(id));
+        // Sleep past the 5-second mark
+        Thread.sleep(4000);
+        ObjectStreamIO.checkExpiredStreams();
+        allStreams = ObjectStreamIO.getStreamInfo();
+        // It should be gone at this point
+        Assert.assertFalse(allStreams.containsKey(id));
     }
 
     @Test
@@ -108,7 +83,7 @@ public class ObjectStreamTest {
         /*
          * Producer creates a new stream with 60 seconds inactivity expiry
          */
-        ObjectStreamIO stream = new ObjectStreamIO(60);
+        ObjectStreamIO stream = new ObjectStreamIO(1);
         log.info("Using {}", stream.getInputStreamId());
         // Closing an output stream will send an EOF signal. The try auto-close will do this.
         try (ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId())) {
@@ -125,8 +100,7 @@ public class ObjectStreamTest {
         Assert.assertNotNull(count);
         Assert.assertEquals(CYCLES, count.intValue());
         Assert.assertTrue(in.isStreamEnd());
-        Assert.assertFalse(in.isClosed());
-        in.close();
+        Assert.assertTrue(in.isClosed());
     }
 
     private void fetchNextBlock(AsyncObjectStreamReader in, int count, BlockingQueue<Integer> bench) {
@@ -136,77 +110,16 @@ public class ObjectStreamTest {
                 log.info("{}", b);
                 fetchNextBlock(in, count+1, bench);
             } else {
-                bench.offer(count);
-                log.info("End of Stream");
-            }
-        });
-    }
-
-    @Test
-    public void mixedTypeStream() throws IOException {
-        try {
-            timeoutTest();
-        } catch(Exception e) {
-            log.error("{}", e.getMessage());
-        }
-        String TEXT = " hello world";
-        ObjectStreamIO stream = new ObjectStreamIO();
-        log.info("Using {}", stream.getInputStreamId());
-        Assert.assertEquals(ObjectStreamIO.DEFAULT_TIMEOUT, stream.getExpirySeconds());
-        ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-        byte[] b = (1+TEXT).getBytes();
-        out.write(b, 0, b.length);
-        out.write(2+TEXT);
-        out.close();
-        int n = 0;
-        try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 8000)) {
-            for (Object d : in) {
-                n++;
-                if (n == 1) {
-                    Assert.assertTrue(d instanceof byte[]);
-                    String firstOne = Utility.getInstance().getUTF((byte[]) d);
-                    Assert.assertTrue(firstOne.startsWith("1"));
-                    log.info("Got 1st item as bytes - {}", d);
-                }
-                if (n == 2) {
-                    Assert.assertTrue(d instanceof String);
-                    String secondOne = (String) d;
-                    Assert.assertTrue(secondOne.startsWith("2"));
-                    log.info("Got 2nd item as string '{}'", d);
-                }
-                // the last item is an EOF signal of null value
-                if (n == 3) {
-                    Assert.assertNull(d);
-                    log.info("Got 3nd item as an EOF signal");
-                }
-            }
-        }
-        Assert.assertEquals(3, n);
-    }
-
-    @Test
-    public void timeoutTest() throws IOException {
-        String TEXT = "hello world";
-        ObjectStreamIO stream = new ObjectStreamIO();
-        log.info("Using {}", stream.getInputStreamId());
-        ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-        out.write(TEXT);
-        // stop writing and do not close output stream so there are no more item to come
-
-        String MESSAGE = stream.getInputStreamId() + " timeout for 2000 ms";
-        RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> {
-            int n = 0;
-            try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 2000)) {
-                for (Object d : in) {
-                    n++;
-                    if (n == 1) {
-                        Assert.assertEquals(TEXT, d);
-                        log.info("Got the 1st item '{}'. The 2nd item is designed to timeout in 2 seconds.", d);
-                    }
+                try {
+                    in.close();
+                    log.info("End of Stream");
+                } catch (IOException e) {
+                    log.error("Unable to close stream - {}", e.getMessage());
+                } finally {
+                    bench.offer(count);
                 }
             }
         });
-        Assert.assertEquals(MESSAGE, ex.getMessage());
     }
 
 }

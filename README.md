@@ -1,725 +1,340 @@
-# Mercury
+# Mercury 3.0
 
-Reference implementation for event driven microservices using three levels of digital decoupling
+Reference engine for building "Composable architecture and applications".
 
-## Welcome to the Mercury project
+# Welcome to the Mercury project
 
-The Mercury project is created with one primary objective - 
-`to make software easy to write, read, test, deploy, scale and manage`.
+The Mercury project is created with one primary objective -
+`to make software easy to write, read, test, deploy, scale and manage.`
 
-Event-driven and reactive programming is the industry trend. However, writing pub/sub and reactive code
-can be challenging. While sharing the same theory, there are many different implementation of reactive
-libraries such as Akka, Vertx, Spring Reactor, etc.
+Mercury has been powering mission-critical cloud native production applications for the last few years.
+In version 3, Mercury has evolved to the next level. It is bringing event-driven design and the best of
+preemptive and cooperative multitasking as a foundation to build "composable applications."
 
-Mercury is a platform abstraction layer for in-memory and network event stream systems. It takes
-event-driven programming to the next level of simplicity. You don't need to explicitly write listeners
-and pub/sub code.
+You have low-level control to precisely tune your application for optimal performance and throughput
+using three function execution strategies:
 
-In addition to traditional pub/sub for digital decoupling among domains, your applications can handle
-real-time events for request-response (RPC), drop-n-forget, callback, pipeline, workflow and streaming.
+1. kernel thread pool
+2. coroutine
+3. suspend function
 
-Under the hood, Eclipse Vertx is used as the in-memory event system. For network event streams, Kafka,
-ActiveMQ, Hazelcast and TIBCO are encapsulated as 'cloud-connectors'.
+Mercury achieves virtual threading using coroutine and suspend function. It will fully embrace
+Java 19 virtual thread feature when it becomes officially available later in 2023.
 
-Mercury uses Java 1.8 Lambda construct so that you can write a 'service' to encapsulate business logic
-in an anonymous function. You don't need any special 'wiring' to make your service responds to requests.
+April, 2023
 
-One service can call another services using the 'Post Office' which is the event emitter that sends and
-receives requests and responses as events.
+# Write your first composable application
 
-The system has a built-in REST automation engine in the platform core library. It allows you to declare any
-REST endpoints without code. REST automation turns HTTP requests and responses into asynchronous events for
-high performance non-blocking processing. You can tell REST automation to route a URI path to a 'service'
-that you declare as anonymous function. For backward compatibility, it can also proxy a HTTP call to an 
-external REST endpoint.
+To get started with your first application, please refer to the [Developer Guide](guides/TABLE-OF-CONTENTS.md).
 
-It supports Java, Python and Node.js. Network event stream encapsulation is implemented in Java. It includes
-a language connector subproject to serve Python and Node.js.
+# Introduction to composable architecture
 
-Mercury powered applications can be deployed in bare metal, VM, kubernetes and 'Function as a service' in
-on-premises infrastructure, data centers or any cloud environments.
-
-Mercury has been deployed in a few mission critical production systems for the last 5 years. Based on inputs and
-observation from the fields, we have continuously improved the codebase.
-
-We are now preparing for version 3.0. We will provide additional information soon.
-
-Best regards, Cloud Native Microservices team, Accenture
-
-October 2022
-
-## Rationale
-
-The microservices movement is gaining a lot of momentum in recent years. Very much inspired with the need to
-modernize service-oriented architecture and to transform monolithic applications as manageable and reusable 
-pieces, it was first mentioned in 2011 for an architectural style that defines an application as a set of 
-loosely coupled single purpose services.
-
-Classical model of microservices architecture often focuses in the use of REST as interface and the 
-self-containment of data and process. Oftentimes, there is a need for inter-service communication because 
-one service may consume another service. Usually this is done with a service broker. This is an elegant 
-architectural concept. However, many production systems face operational challenges. In reality, it is 
-quite difficult to decompose a solution down to functional level. This applies to both green field 
-development or application modernization. As a result, many microservices modules are indeed smaller 
-subsystems. Within a traditional microservice, business logic is tightly coupled with 3rd party 
-and open sources libraries including cloud platform client components and drivers. 
-
-Mercury addresses this limitation with 'platform abstaction' (aka 'hexagonal' pattern) such that
-you can encapsulate some platform functionality with a functional wrapper, thus avoiding hard wiring
-your application code with specific dependencies.
-
-## User friendly reactive programming
-
-`Summary`
-- Completely and natively event driven
-- Fully open source - Apache-2.0 license
-- Simple configuration and simple API hides all the scaffolding code
-- Code naturally, without worrying about asynchrony
-- Naturally code in functional style, which makes code very portable
-- Mix and match languages - currently Java and Python are supported, Node.js and dotnet are WIP
-- Built-in distributed tracing
-- Avoid going to the network when running in the same process, a huge performance boost for latency 
-  critical applications
-- Doesn't require all services to adopt, will provide the same benefits to those that do adopt it
-- Learn and start coding in less than one hour
-
-`Benefits`
-- Developer productivity - both authoring and maintenance
-- Improves latency of calls within the same process
-- Enables fully reactive implementations
-- Scalability
-- Portability of code between containers and clouds
-- Observability - know who is calling who and when, know where you are in workflows
-- Improves future-proofing - as better eventing libraries/frameworks/platforms become available, they 
-  can be brought in without changing a line of code
-
-`Features`
-- Multiple languages supported - currently Java and Python are supported, Node.js and dotnet are WIP
-- Plug in your favorite event stream. Popular ones are already supported.
-- Multiple eventing patterns supported - pub/sub, broadcast, command, etc.
-- REST automation for event-based services
-- Built in distributed tracing
-
-`Gnarly Use Cases solved with Mercury`
-- Workflows with event-based architecture, utilizing Saga pattern
-- Support of "closed user groups" for added security
-
-## Architecture principles
-
-For simplicity, we advocate 3 architecture principles to write microservices
-
-- minimalist
-- event driven
-- context bound
-
-Minimalist means we want user software to be as small as possible. The Mercury framework allows you to 
-write business logic down to functional level using simple input-process-output pattern.
-
-Event driven promotes loose coupling. All functions should run concurrently and independently of each other.
-
-Lastly, context bound means high level of encapsulation so that a function only expose API contract and 
-nothing else.
-
-### Platform abstraction
-
-Mercury offers the highest level of decoupling where each piece of business logic can be expressed as 
-an anonymous function. A microservices module is a collection of one or more functions. These functions 
-connect to each other using events.
-
-The framework hides the complexity of event-driven programming and cloud platform integration. 
-For the latter, the service mesh interface is fully encapsulated so that user functions do not need 
-to be aware of network connectivity and details of the cloud platform.
-
-### Simple Input-Process-Output function
-
-This is a best practice in software development. Input is fed into an anonymous function. 
-It will process the input according to some API contract and produce some output.
-
-This simplifies software development and unit tests.
-
-### Terminology
-
-1. `Microservices` - Generally, we use this term to refer to an architectural pattern where business 
-   logic is encapsulated in a bounded context, the unit of service is minimalist and services are 
-   consumed in an event driven manner.
-2. `Microservices function` or simply `function` - This refers to the smallest unit that encapsulates 
-   business logic or 3rd party library. As a best practice, we advocate clear separation of business 
-   logic from proprietary libraries. By wrapping 3rd party libaries as functions, we can keep the event 
-   API intact when switching to an alternative library.
-3. `Microservices module` or `microservice` - This refers to a single unit of deployment that contains 
-   at least one public function and optionally some private functions. All functions communicate with 
-   each others through a memory based event stream system within the module. Each microservices module 
-   can be independently deployed and scaled.
-4. `Microservices application` - It is a collection of microservices modules running together as a single 
-   application.
-5. `User facing endpoints` - This refers to public API for REST, websocket or other communication protocols.
-6. `Event API` - Microservices functions expose event APIs internally for inter-service communications. 
-   For example, a user facing endpoint may use REST protocol. The HTTP request is then converted to an event 
-   to a microservice.
-7. `Real-time events` - Messages that are time sensitive. e.g. RPC requests and responses.
-8. `Store-n-forward events` - Events that are not time sensitive. First, a calling function can send an event without 
-   waiting for a response. Second, the called function may not even available when the event is delivered. e.g. data 
-   pipeline applications.
-9. `Streaming events` - This refers to continuous flow of events from one function to another. Note that streaming 
-   can be either real-time or store-n-forward.
-10. `public function` - This means the function is visible to all application containers and instances in the system.
-11. `private function` - This means the function is visible only to functions in the same memory space inside 
-    an application instance.
-12. `route name` - Each service can be uniquely identified with a name.
-13. `closed user groups` - Conceptually, we treat the underlying event stream system as a conduit where one group of 
-    application instances can be logically separated from another group. 
-
-### Post Office
-
-The Mercury framework is a SDK with some cloud connectors and language packs, mainly the Platform and the Post Office 
-APIs. The Platform API allows you to programmatically register functions with "route names". The Post Office API is 
-used to send events from one service to another.
-
-For example, the following codelet sends the text "hello world" from the caller to the function registered as 
-"v1.some.service".
-
-```java
-//-------------------------------------------------
-
-// an example service in container-1
-Platform platform = Platform.getInstance();
-
-LambdaFunction f = (headers, body, instance) -> {
-	// do some business logic
-	System.out.println("I got your request..."+body);
-	return something
-};
-platform.register("v1.some.service", f, 1);
-
-//-------------------------------------------------
-
-// sending events from container-2
-PostOffice po = PostOffice.getInstance();
-
-// making a RPC call
-EventEnvelope response = po.request("v1.some.service", 1000, "hello world");
-System.out.println("I got response here..."+response.getBody());
-
-// making a drop-and-forget async call
-po.send("v1.some.service", "hello world");
-
-//-------------------------------------------------
-
+In cloud migration and IT modernization, we evaluate application portfolio and recommend different
+disposition strategies based on the 7R migration methodology.
+```text
+7R: Retire, retain, re-host, re-platform, replace, re-architect and re-imagine.
 ```
 
-### Inter-service communication patterns
+The most common observation during IT modernization discovery is that there are many complex monolithic applications
+that are hard to modernize quickly.
 
-- RPC `“Request-response”, best for interactivity`
-- Asynchronous `e.g. Drop-n-forget and long queries`
-- Call back `e.g. Progressive rendering`
-- Pipeline `e.g. Work-flow application`
-- Streaming `e.g. Continuous data feed`
-- Broadcast `e.g. Concurrent processing of the same dataset with different outcomes`
+IT modernization is like moving into a new home. It would be the opportunity to clean up and to improve for
+business agility and strategic competitiveness.
 
+Composable architecture is gaining visibility recently because it accelerates organization transformation towards
+a cloud native future. We will discuss how we may reduce modernization risks with this approach.
 
-### How this repository is organized
+# Composability
 
-The Mercury framework includes the following:
-1. system `platform-core and rest-spring`
-2. connectors `kafka, hazelcast, ...`
-3. language packs `python, node.js...`
-4. extensions `rest-automation, api-playground, ...`
-5. documentation `architecture and user guides`
-6. examples `code samples / templates for creating microservices with or without REST endpoints`
+Composability applies to both platform and application levels.
 
+We can trace the root of composability to Service Oriented Architecture (SOA) in 2000 or a technical bulletin on
+"Flow-Based Programming" by IBM in 1971. This is the idea that architecture and applications are built using
+modular building blocks and each block is self-contained with predictable behavior.
 
-## Libraries and components
+At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
+business applications. With modular design, you can assemble platform components and applications to create
+new use cases or to adjust for ever-changing business environment and requirements. Domain driven design (DDD),
+Command Query Responsibility Segregation (CQRS) and Microservices patterns are the popular tools that architects
+use to build composable architecture. You may deploy application in container, serverless or other means.
 
-`platform core`
+At the application level, a composable application means that an application is assembled from modular software
+components or functions that are self-contained and pluggable. You can mix-n-match functions to form new applications.
+You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
+can exist, and you can decide how to route user requests to different versions of a function. Applications would be
+easier to design, develop, maintain, deploy, and scale.
 
-With Mercury, any software module can be expressed as an anonymous functions or a Java class that implements 
-the LambdaFunction interface.
+Composable architecture and applications contribute to business agility.
 
-The platform core library enables the following:
-1. High level of decoupling - You may write business logic as anonymous functions that run concurrently and 
-   independently. In addition to business logic, you may also encapsulate platform components and databases as 
-   anonymous functions.
-2. Event driven programming - Each function is addressable with a unique "route name" and they communicate by 
-   sending events. You make request from one function to another by making a service call through some simple 
-   Mercury Post Office API.
-3. One or more functions can be packaged together as a microservice executable, usually deployed as a Docker 
-   image or similar container technology.
+# Building a composable application
 
-`rest-spring`
+## Microservices
 
-The rest-spring library customizes and simplifies the use of Spring Boot as an application container to hold functions. 
-This includes preconfigured message serializers and exception handlers.
+Since 2014, microservices architectural pattern helps to decompose a big application into smaller pieces of
+“self-contained” services. We also apply digital decoupling techniques to services and domains. Smaller is better.
+However, we are writing code in the same old fashion. One method is calling other methods directly. Functional and
+reactive programming techniques are means to run code in a non-blocking manner, for example Reactive Streams, Akka,
+Vertx, Quarkus Multi/Uni and Spring Reactive Flux/Mono. These are excellent tools, but they do not reduce the
+complexity of business applications.
 
-`cloud-connector` and `service-monitor`
+## Composable application
 
-The cloud-connector and service-monitor are the core libraries to support implementations of various cloud connectors.
+To make an application composable, the software components within a single application should be loosely coupled
+where each component has zero or minimal dependencies.
 
-Mercury supports Kafka, Hazelcast, ActiveMQ-artemis and TIBCO-EMS out of the box. 
+Unlike traditional programming approach, composable application is built from the top down. First, we describe
+a business transaction as an event flow. Second, from the event flow, we identify individual functions for
+business logic. Third, we write user story for each function and write code in a self-contained manner.
+Finally, we write orchestration code to coordinate event flow among the functions, so they work together
+as a single application.
 
-`kafka-connector`
+The individual functions become the building block for a composable application. We can mix-n-match different
+sets of functions to address different business use cases.
 
-This is the kafka specific connector library is designed to work with Kafka version 2.7.0 out of the box
-that you add it into your application's pom.xml. A convenient standalone Kafka server application is available 
-in the `kafka-standalone` project under the `connector/kafka` directory. 
-The standalone Kafka server is a convenient tool for application development and tests in the developer's laptop.
+"Event" is the key for composable application.
 
-`kafka-presence`
+# Event is the communication conduit
 
-This "presence monitor" manages mapping of Kafka topics and detects when an application instance is online or offline. 
-Your application instances will report to the presence monitors (2 monitor instances are enough for 
-large installations). Since version 2.0, it uses a single partition of a topic to serve an application instance.
-To avoid deleting topics, the system can re-use topics and partitions automatically.
+Cloud native applications are deployed as containers or serverless functions. Ideally, they communicate using events.
+For example, the CQRS design pattern is well accepted for building high performance cloud native applications.
 
-The kafka-presence system is fully scalable.
+> Figure 1 - Cloud native applications use event streams to communicate
 
-`language-connector`
+![figure-1.png](diagrams/figure-1.png)
 
-The python language pack is available in https://github.com/Accenture/mercury-python
 
-`distributed-tracer`
+However, within a single application unit, the application is mostly built in a traditional way.
+i.e. one function is calling other functions and libraries directly, thus making the modules and libraries
+tightly coupled. As a result, microservices may become smaller monolithic applications.
 
-This extension package is an example application that consolidates distributed trace metrics.
+To overcome this limitation, we can employ “event-driven design” to make the microservices application unit composable.
 
-`lambda-example`
+An application unit is a collection of functions in memory and an “event bus” is the communication conduit to connect
+the functions together to form a single executable.
 
-This is an example project to illustrate writing microservices without any HTTP application server.
+> Figure 2 – Functions use in-memory event bus to communicate
 
-`rest-example`
+![figure-2.png](diagrams/figure-2.png)
 
-If your application module needs info and health admin endpoints, you may want to use this example project as a 
-template.
+# In-memory event bus
 
-It encapsulates Spring Boot, automates JSON/XML/PoJo serialization and simplfies application development. 
-It also allows you to write custom REST endpoints using WebServlet and JAX-RS REST annotations.
+For a composable application, each function is written using the first principle of “input-process-output” where
+input and output payloads are delivered as events. All input and output are immutable to reduce unintended bugs
+and side effects.
 
-`rest-automation`
+Since input and output for each function is well-defined, test-driven development (TDD) can be done naturally.
+It is also easier to define a user story for each function and the developer does not need to study and integrate
+multiple levels of dependencies, resulting in higher quality code.
 
-For rapid application development, you may use the built-in REST automation system to declare REST endpoints without
-coding. The rest-automation application in the 'example' subprojects may be used as template to get started.
+> Figure 3 - The first principle of a function
 
-## Before you start
+![figure-3.png](diagrams/figure-3.png)
 
-If you haven't already, please start a terminal and clone the repository: 
-```
-git clone https://github.com/Accenture/mercury.git
-cd mercury
-```
+What is a “function”? For example, reading a record from a database and performing some data transformation,
+doing a calculation with a formula, etc.
 
-To get the system up and running, you should compile and build the foundation libraries from sources. 
-This will install the libraries into your ".m2/repository/org/platformlambda" folder.
+> Figure 4 - Connecting output of one function to input of another
 
-`Important` - please close all Java applications and web servers in your PC if any. The build process will invoke unit tests that simulate HTTP and websocket servers.
-
-```bash
-# start a terminal and go to the mercury sandbox folder
-mvn clean install
-```
-
-The platform-core, rest-spring, hazelcast-connector and kafka-connector are libraries and you can rebuild each one 
-individually using `mvn clean install`
-
-The rest of the subprojects are executables that you can rebuild each one with `mvn clean package`.
-
-## Getting started
-
-You can compile the rest-example as a microservices executable like this:
-
-```bash
-cd mercury/examples
-cd rest-example
-mvn clean package
-java -jar target/rest-example-2.8.0.jar
-# this will run the rest-example without a cloud connector
-```
-
-Try http://127.0.0.1:8083/api/hello/world with a browser.
-
-It will respond with some sample output like this:
-
-```json
-{
-  "body" : {
-    "body" : {
-      "accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-      "accept-encoding" : "gzip, deflate, br",
-      "accept-language" : "en-US,en;q=0.9",
-      "cache-control" : "max-age=0",
-      "connection" : "keep-alive",
-      "host" : "127.0.0.1:8083",
-      "time" : "2018-12-21T16:39:33.546Z",
-      "upgrade-insecure-requests" : "1",
-      "user-agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) ..."
-    },
-    "headers" : {
-      "seq" : "4"
-    },
-    "instance" : 4,
-    "origin" : "2018122170c4d0e80ef94b459763636da74d6b5f"
-  },
-  "execution_time" : 0.298,
-  "headers" : { },
-  "round_trip" : 0.862,
-  "status" : 200
-}
-```
-
-The REST endpoint makes a request to the "hello.world" service that echoes back the headers of the HTTP request. 
-The underlying Spring Boot HTTP server has been pre-configured with HTML, JSON and XML message serializers and 
-exception handlers.
-
-If you change the "accept" header to "application/xml", the output will be shown in XML.
-
-To demonstrate concurrent processing, you may visit http://127.0.0.1:8083/api/hello/concurrent
-
-Now try http://127.0.0.1:8083/api/hello/pojo/1
-
-This will return a HTTP-500 "Route hello.pojo not found" error. This is expected behavior because the "hello.pojo" 
-service is not available in the rest-example container. Let's walk thru distributed and scalable application in 
-the next section.
-
-### Scalable application using Kafka
-
-For development and testing, you can start a standalone Kafka server.
-
-```bash
-# start a terminal and go to the mercury sandbox folder, then go to the kafka-standalone folder
-cd mercury/connectors/kafka/kafka-standalone/
-mvn clean package
-java -jar target/kafka-standalone-2.8.0.jar
-# this will run a standalone Kafka server in the foreground
-```
-
-The next step is to start the "presence-monitor" application.
-
-```bash
-# start another terminal and go to kafka-presence folder
-cd mercury/connectors/kafka/kafka-presence/
-mvn clean package
-java -jar target/kafka-presence-2.8.0.jar
-# this will run the presence monitor at port 8080 in the foreground
-
-# when an application instance is started, it connects to the presence monitor to get topic.
-# you will see log similar to the following:
-Adding member 20210405aa0220674e404169a5ec158a99714da6
-Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 begins RSVP
-multiplex.0001-001 assigned to 20210405aa0220674e404169a5ec158a99714da6 lambda-example, 2.1.1
-Monitor (me) 20210405209f8e20ed3f4c0a80b035a50273b922 finished RSVP
-```
-
-Optionally, if you want to test resilience of the presence monitor, you can start another instance like this:
-```bash
-# start another terminal and go to kafka-presence folder
-cd mercury/connectors/kafka/kafka-presence/
-mvn clean package
-java -Dserver.port=8081 -jar target/kafka-presence-2.8.0.jar
-# this will run the presence monitor at port 8081 in the foreground
-```
-
-- You can then run the lambda-example and rest-example applications
-
-```bash
-# go to the lambda-example project folder in one terminal
-java -Dcloud.connector=kafka -jar target/lambda-example-2.8.0.jar
-# the lambda-example will connect to the "presence monitor", obtain a topic and connect to Kafka
-
-# go to the rest-example project folder in another terminal
-java -Dcloud.connector=kafka -jar target/rest-example-2.8.0.jar
-# the rest-example will also connect to the "presence monitor", obtain a topic and connect to Kafka
-
-# the lambda-example and rest-example apps will show the topic assignment like this
-presence.monitor, partition 1 ready
-multiplex.0001, partition 0 ready
-
-```
-
-You may visit http://127.0.0.1:8083/api/hello/pojo/1 with a browser, you will see output like this:
-
-```json
-{
-  "id": 1,
-  "name": "Simple PoJo class",
-  "address": "100 World Blvd, Planet Earth",
-  "date": "2021-04-05T22:13:38.351Z",
-  "instance": 1,
-  "origin": "20210405aa0220674e404169a5ec158a99714da6"
-}
-```
-
-This means the rest-example app accepts the HTTP request and sends the request event to the lambda-example app which 
-in turns return the response event as shown above.
-
-The "cloud.connector=kafka" parameter overrides the application.properties in the rest-example and lambda-example 
-projects so they can select Kafka as the service mesh.
-
-If you use Jetbrains Idea ("IntelliJ") to run your project, please edit the start up config, click 'Modify options' and tick 'add VM options'. This allows you to set default run-time parameters. e.g. "-Dcloud.connector=kafka". Eclipse and other IDE would have similar run-time parameter options.
-
-- Get additional info from the presence monitor
-
-You may visit http://127.0.0.1:8080 and select "info". It may look like this:
-
-```json
-{
-  "app": {
-    "name": "kafka-presence",
-    "description": "Presence Monitor",
-    "version": "2.1.1"
-  },
-  "memory": {
-    "max": "8,524,922,880",
-    "free": "470,420,400",
-    "allocated": "534,773,760"
-  },
-  "personality": "RESOURCES",
-  "additional_info": {
-    "total": {
-      "virtual_topics": 3,
-      "topics": 2,
-      "connections": 3
-    },
-    "virtual_topics": [
-      "multiplex.0001-000 -> 2021082260f0b955a9ad427db14a9db751340d61, rest-example v2.1.1",
-      "multiplex.0001-001 -> 20210822371949df090644428cd98ae0ba91a69b, lambda-example v2.1.1",
-      "multiplex.0001-002 -> 2021082295c030edc07a4a4eb5cb78b6421f5fb7, lambda-example v2.1.1"
-    ],
-    "topics": [
-      "multiplex.0001 (32)",
-      "service.monitor (11)"
-    ],
-    "connections": [
-      {
-        "created": "2021-08-22T17:29:45Z",
-        "origin": "20210822371949df090644428cd98ae0ba91a69b",
-        "name": "lambda-example",
-        "topic": "multiplex.0001-001",
-        "monitor": "20210822c750f194403241c49ef8fae113beff75",
-        "type": "APP",
-        "updated": "2021-08-22T17:29:53Z",
-        "version": "2.1.1",
-        "seq": 2,
-        "group": 1
-      },
-      {
-        "created": "2021-08-22T17:29:55Z",
-        "origin": "2021082295c030edc07a4a4eb5cb78b6421f5fb7",
-        "name": "lambda-example",
-        "topic": "multiplex.0001-002",
-        "monitor": "20210822c750f194403241c49ef8fae113beff75",
-        "type": "APP",
-        "updated": "2021-08-22T17:30:04Z",
-        "version": "2.1.1",
-        "seq": 2,
-        "group": 1
-      },
-      {
-        "created": "2021-08-22T17:29:30Z",
-        "origin": "2021082260f0b955a9ad427db14a9db751340d61",
-        "name": "rest-example",
-        "topic": "multiplex.0001-000",
-        "monitor": "20210822c750f194403241c49ef8fae113beff75",
-        "type": "WEB",
-        "updated": "2021-08-22T17:30:01Z",
-        "version": "2.1.1",
-        "seq": 3,
-        "group": 1
-      }
-    ],
-    "monitors": [
-      "20210822c750f194403241c49ef8fae113beff75 - 2021-08-22T17:30:01Z"
-    ]
-  },
-  "vm": {
-    "java_vm_version": "11.0.10+9",
-    "java_runtime_version": "11.0.10+9",
-    "java_version": "11.0.10"
-  },
-  "streams": {
-    "count": 0
-  },
-  "origin": "20210822c750f194403241c49ef8fae113beff75",
-  "time": {
-    "current": "2021-08-22T17:30:06.712Z",
-    "start": "2021-08-22T17:28:56.128Z"
-  }
-}
+![figure-4.png](diagrams/figure-4.png)
+
+As shown in Figure 4, if function-1 wants to send a request to function-2, we can write “event orchestration code”
+to put the output from function-1 into an event envelope and send it over an in-memory event bus. The event system
+will transport the event envelope to function-2, extract the payload and submit it as “input” to function-2
+
+# Function execution strategy
+
+In event-driven application design, a function is executed when an event arrives as “input.” When a function
+finishes processing, its result set (“output”) is delivered as an event to another function.
+
+> Figure 5 - Executing function through event flow
+
+![figure-5.png](diagrams/figure-5.png)
+
+As shown in Figure 5, functions can send/receive events using an in-memory event bus (aka "event loop").
+
+This event-driven architecture provides the foundation to design and implement composable applications.
+Each function is self-contained and loosely coupled by event flow.
+
+A function receiving an event needs to be executed. There are three ways to do that:
+
+1. Kernel thread pool
+2. Coroutine
+3. Suspend function
+
+## Kernel thread pool
+
+Java supports “preemptive multitasking” using kernel threads. Multiple functions can execute in parallel.
+Preemptive multitasking leverages the multiple cores of a CPU to yield higher performance.
+
+Preemptive multitasking is performed at the kernel level and the operating system is doing the context switching.
+As a result, the maximum number of kernel threads is small. As a rule of thumb, a moderately fast computer can
+support ~200 kernel threads.
+
+> Figure 6 - Multitasking of kernel threads at the hardware and OS level
+
+![figure-6.png](diagrams/figure-6.png)
+
+## Coroutine
+
+Many modern programming languages such as GoLang, Kotlin, Python and Node.js support “cooperative multitasking”
+using “event loop” or “coroutine.” Instead of context switching at the kernel level, functions are executed orderly
+by yielding to each other. The order of execution depends on the event flow of each business transaction.
+
+Since the functions are running cooperatively, the overheads of context switching are low. “Event loop” or
+“Coroutine” technology usually can support tens of thousands of “functions” running in “parallel.”
+Technically, the functions are running sequentially. When each function finishes execution very quickly,
+they appear as running concurrently.
+
+> Figure 7 - Cooperative multitasking of coroutines
+
+![figure-7.png](diagrams/figure-7.png)
+
+Java 1.8 and higher versions support event loop with open sources libraries such as Lightbend Akka and Eclipse Vertx.
+A preview “virtual thread” technology is available in Java version 19. It brings cooperative multitasking by running
+tens of thousands of “virtual threads” in a single kernel thread. This is a major technological breakthrough to close
+the gap with other modern programming languages.
+
+## “Suspend function”
+
+In a typical enterprise application, many functions are waiting for responses most of the time.
+In preemptive multitasking, these functions are using kernel threads and consuming CPU time.
+Too many active kernel threads would turn the application into slow motion.
+
+“Suspend function” not only avoids overwhelming the CPU with excessive kernel threads but also leverages the
+synchronous request-response opportunity into high throughput non-blocking operation.
+
+As the name indicates, “suspend function” can be suspended and resumed. When it is suspended, it yields control
+to the event loop so that other coroutines or suspend functions can run.
+
+In Node.js and GoLang, coroutine and suspend function are the same. Suspend function refers to the “async/await”
+keywords or API of coroutine. In Kotlin, the suspend function extends a coroutine to have the suspend/resume ability.
+
+A function is suspended when it is waiting for a response from the network, a database or from another function.
+It is resumed when a response is received.
+
+> Figure 8 - Improving throughput with suspend function
+
+![figure-8.png](diagrams/figure-8.png)
+
+As shown in Figure 8, a “suspend function” can suspend and resume multiple times during its execution.
+When it suspends, it is not using any CPU time, thus the application has more time to serve other functions.
+This mechanism is so efficient that it can significantly increase the throughput of the application.
+i.e. it can handle many concurrent users, and process more requests.
+
+# Performance and throughput
+
+The ability to select an optimal function execution strategy for a function is critical to the success of a
+composable application. This allows the developer to have low level control of how the application performs and scales.
+
+Without an optimal function execution strategy, performance tuning is usually an educated guess.
+
+In composable application architecture, each function is self-contained and stateless. We can predict the performance
+of each function by selecting an optimal function execution strategy and evaluate it with unit tests and observability.
+Predicting application performance and throughput at design and development time reduces modernization risks.
+
+The pros and cons of each function execution strategy are summarized below:
+
+| Strategy         | Advantage                                                                                                    | Disadvantage                                                                   |
+|:-----------------|:-------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------|
+| Kernel threads   | Highest performance in terms of<br/>operations per seconds                                                   | Lower number of concurrent threads<br/>due to high context switching overheads |
+| Coroutine        | Highest throughput in terms of<br/>concurrent users served by virtual<br/>threads concurrently               | Not suitable for long running tasks                                            |
+| Suspend function | Sequential "non-blocking" for<br/>RPC (request-response) that<br/>makes code easier to read and<br/>maintain | Not suitable for long running tasks                                            |
+
+As shown in the table above, performance and throughput are determined by function execution strategies.
+
+For example, single threaded event driven network proxies such as nginx support twenty times more concurrent 
+connections than multithreaded application servers.
+
+On the other hand, Node.js is not suitable for long running tasks. When one function takes more time to execute, 
+all other functions are blocked and thus degrading the overall application performance. The latest Node.js language 
+adds kernel threads using the “web worker” technology to alleviate this limitation. However, web worker API is more 
+tedious than multithreading in Java and other programming languages.
+
+# The best of both worlds
+
+If we simplify event-driven programming and support all three function execution strategies, we can design and 
+implement composable applications that deliver high performance and high throughput.
+
+The “virtual thread” feature in the upcoming Java version 19 will be a good building block for function execution 
+strategies. Currently it is available as a “preview” feature.
+
+When it becomes available later in 2023, it will have a significant impact on the Java community. It will be at par
+with other programming languages that support event loop. It supports non-blocking sequential programming without 
+explicitly using the “async” and “await” keywords. All current open sources libraries that provide event loop 
+functionality would evolve.
+
+To accelerate this evolution, we have implemented Mercury version 3.0 as an accelerator to build composable 
+applications. It supports the two pillars of composable application – In-memory event bus and selection of 
+function execution strategies.
+
+It integrates with Eclipse Vertx to hide the complexity of event-driven programming and embraces the three function 
+execution strategies using kernel thread pool, coroutine and suspend function. For example, you can turn a regular 
+Java class into a coroutine by adding the annotation “CoroutineRunner.” To simplify writing “suspend function,” 
+you can implement the “KotlinLambdaFunction” class and copy-n-paste your existing Java code into the new Kotlin class, 
+the IDE will automatically convert code for you. With 90% conversion efficiency, you may need minor touch up to 
+finish the rest.
+
+We can construct a composable application with self-contained functions that execute when events arrive. 
+There is a simple event API that we call the “Post Office” to support sequential non-blocking RPC, async, 
+drop and forget, callback, workflow, pipeline, streaming and interceptor patterns.
+
+Sequential non-blocking RPC reduces the effort in application modernization because we can directly port sequential 
+legacy code from a monolithic application to the new composable cloud native design.
+
+Earlier we discussed “event orchestration.” We have an accelerator called “Event Script” that provides 
+“event orchestration” in configuration to eliminate the most tedious coding effort. Event Script creates a 
+composable application in three steps: (1) the product owner and architect describe the business transaction as 
+a flow of events, (2) the developer converts the flow chart into event script and (3) write the individual 
+functions for business logic. The system will connect the various functions together and orchestrate the 
+event flow as a single application.
+
+# What is "event orchestration"?
+
+In traditional programming, we write code to make calls to different methods and libraries. In event-driven 
+programming, we write code to send events, and this is “event orchestration.” We can use events to make RPC call 
+just like traditional programming. It is viable to port legacy orchestration logic into event orchestration code.
+
+To further reduce coding effort, we can use Event Script to do “event orchestration.” This would replace code with 
+simple event flow configuration.
+
+```text
+Note: Event Script is outside the scope of this open sources project.
+      Please contact your Accenture representative if you are interested to use
+      Event Script to further reduce coding effort for composable applications.
 ```
 
-## Built-in service mesh
+# How steep is the learning curve for a developer?
 
-The above demonstrates distributed applications using Kafka as a service mesh.
+The developer can use any coding style to write the individual functions, no matter it is sequential, object-oriented,
+or reactive. One may use any favorite frameworks or libraries. There are no restrictions.
 
-## Built-in pub/sub
+There is a learning curve in writing “event orchestration.” Since event orchestration supports sequential 
+non-blocking RPC, the developer can port existing legacy code to the modern style with direct mapping. 
+Typically, the learning curve is about two weeks. If you are familiar with event-driven programming, the learning
+curve would be lower. To eliminate this learning curve, the developer may use Event Script that replaces orchestration
+code with event flow configuration files. Event Script is designed to have virtually zero API integration for
+exceptionally low learning curve.
 
-You can also use Mercury with other service mesh of your choice. In this case, you can use the built-in pub/sub APIs 
-of Mercury for your app to communicate with Kafka and other event stream systems.
+# Conclusion
 
-To enable Kafka pub/sub without using it as a service mesh, use these parameters in application.properties
-```java
-cloud.connector=none
-cloud.services=kafka.pubsub
-```
+Composability applies to both platform and application levels. We can design and implement better cloud native 
+applications that are composable using event-driven design and the three function execution strategies.
 
-This means the system encapsulates the original pub/sub feature of the underlying event stream system. 
-The built-in publishers and listeners will do the heavy lifting for you in a consistent manner. Note that Kafka
-supports rewinding read "offset" so that your application can read older messages. In Hazelcast, the older events
-are dropped after delivery.
+We can deliver application that demonstrates both high performance and high throughput, an objective that has been 
+technically challenging with traditional means. We can scientifically predict application performance and throughput 
+in design and development time, thus saving time and ensuring consistent product quality.
 
-Example:
-```java
-// setup your subscriber function
-LambdaFunction myFunction = (headers, body, instance) -> {
-  log.info("Got ---> {}", body);
-  return true;
-};
+Composable approach also facilitates the migration of monolithic application into cloud native by decomposing the 
+application to functional level and assembling them into microservices according to domain boundary. 
+It reduces coding effort and application complexity, meaning less project risks.
 
-PubSub ps = PubSub.getInstance();
-/*
- * Pub/sub service starts asynchronously.
- * If your runs pub/sub code before the container is completely initialized, 
- * you may want to "waitForProvider" for a few seconds.
- */
-ps.waitForProvider(10); 
-// this creates a topic with one partition
-ps.createTopic("some.kafka.topic", 1); 
-// this subscribe the topic with your function
-ps.subscribe("some.kafka.topic", myFunction, "client-101", "group-101");
-// this publishes an event to the topic
-ps.publish("some.kafka.topic", null, "my test message");
-```
+Java version 19 is introducing a new “virtual thread” feature in 2023 that will make it at par with other modern 
+programming languages such as GoLang and Node.js. Since Java has the largest enterprise-grade open sources and 
+commercial libraries with easy access to a large pool of trained developers, the availability of virtual thread 
+technology would retain Java as the best option for application modernization and composable applications.
 
-If you run this application for the first time and you do not see the test message, the kafka topic has just been 
-created  when your application starts. Due to racing condition, Kafka would skip the offset and you cannot see the
-first message. Just restart the application and you will see your test message.
+Mercury and Event Script version 3.0 bring virtual thread technology with Kotlin coroutine and suspend function 
+before Java version 19 becomes mainstream.
 
-However, if you create the topic administratively before running this test app, your app will always show the first 
-test message. This is a normal Kafka behavior.
-
-You may also notice that the Kafka client sets the read offset to the latest pointer. To read from the beginning, 
-you may reset the read offset by adding a parameter "0" after the clientId and groupId in the subscribe statement above.
-
-## Work nicely with reactive frameworks
-
-Mercury provides a stream abstraction that can be used with reactive frameworks.
-
-For example, developers using Spring reactor with Mercury may setup a stream between two app modules 
-within the same container or in different containers like this:
-
-```java
-// at the producer app container
-ObjectStreamIO producer = new ObjectStreamIO(TIMEOUT_IN_SECONDS);
-ObjectStreamWriter out = producer.getOutputStream();
-out.write("hello"); // you can send text, bytes, Map or PoJo
-out.write("world");
-out.close(); // to indicate end-of-stream
-        
-String streamId = producer.getRoute();
-// deliver the streamId to the consumer using PostOffice
-//
-// at the consumer app container
-ObjectStreamIO consumer = new ObjectStreamIO(streamId);
-ObjectStreamReader in = consumer.getInputStream(TIMEOUT_IN_MILLISECONDS);
-Flux.fromIterable(in).log()
-    .doOnNext((d) -> {
-        // handle data block
-    }).doOnError((e) -> {
-        // handle exception
-    }).doOnComplete(() -> {
-        // handle completion
-        in.close(); // close I/O stream
-    }).subscribeOn(Schedulers.parallel()).subscribe();
-```
-
-## Write your own microservices
-
-You may use the lambda-example and rest-example as templates to write your own applications.
-
-Please update pom.xml and application.properties for application name accordingly.
-
-## Cloud Native
-
-The Mercury framework is Cloud Native. While it uses the local file system for buffering, it expects local storage 
-to be transient.
-
-If your application needs to use the local file system, please consider it to be transient too, i.e., you cannot 
-rely on it to persist when your application restarts.
-
-If there is a need for data persistence, use external databases or cloud storage.
-
-## Dockerfile
-
-Creating a docker image from the executable is easy. First you need to build your application as an executable 
-with the command `mvn clean package`. The executable JAR is then available in the target directory.
-
-The Dockerfile may look like this:
-
-```bash
-FROM adoptopenjdk/openjdk11:jre-11.0.11_9-alpine
-EXPOSE 8083
-WORKDIR /app
-COPY target/your-app-name.jar .
-ENTRYPOINT ["java","-jar","your-app-name.jar"]
-
-```
-
-To build a new docker image locally:
-```
-docker build -t your-app-name:latest .
-```
-
-To run the newly built docker image, try this:
-```
-docker run -p 8083:8083 -i -t your-app-name:latest
-```
-
-Change the exposed port numnber and application name accordingly. Then build the docker image and publish it to a 
-docker registry so you can deploy from there using Kubernetes or alike.
-
-For security reason, you may want to customize the docker file to use non-priliveged Unix user account. Please 
-consult your company's enterprise architecture team for container management policy.
-
-## VM or bare metal deployment
-
-If you are deploying the application executables in a VM or bare metal, we recommend using a cross-platform process
-manager. The system has been tested with "pm2" (https://www.npmjs.com/package/pm2).
-
-A sample process.json file is shown below. Please edit the file accordingly. You may add "-D" or "-X" parameters 
-before the "-jar" parameter. To start the application executable, please do `pm2 start my-app.json`.
-
-You may create individual process.json for each executable and start them one-by-one. You can then monitor the 
-processes with `pm2 list` or `pm2 monit`.
-
-To deploy using pm2, please browse the pm2-example folder as a starting point.
-
-## Distributed tracing
-
-Microservices are likely to be deployed in a multi-tier environment. As a result, a single transaction may pass 
-through multiple services.
-
-Distributed tracing allows us to visualize the complete service path for each transaction. This enables easy 
-trouble shooting for large scale applications.
-
-With the Mercury framework, distributed tracing does not require code at application level. To enable this feature, 
-you can simply set "tracing=true" in the rest.yaml configuration of the rest-automation application.
-
-## JDK compatibility
-
-The Mercury project has been tested with OpenJDK and AdaptOpenJDK version 8 to 18.
-
-Please use Java version 11 or higher to run the kafka-standalone application which is provided as a convenient tool for
-development and testing. The kafka standalone server would fail due to a known memory mapping bug when running under Java version 1.8.0_292.
-
-## Kafka compatibility
-
-As of December 2020, Mercury has been tested and deployed with Apache Kafka, Confluent Kafka, IBM Event Streams 
-and Microsoft Azure Event Hubs.
-
-## Other consideration
-
-- Timestamp: the Mercury system uses UTC time and ISO-8601 string representation when doing serialization. 
-  https://en.wikipedia.org/wiki/ISO_8601
-
-- UTF8 text encoding: we recommend the use of UTF8 for text strings.
-
-
-## Developer guide
-
-For more details, please refer to the [Developer Guide](guides/TABLE-OF-CONTENTS.md)
+This opens a new frontier of cloud native applications that are composable, scalable, and easy to maintain, 
+thus contributing to business agility.

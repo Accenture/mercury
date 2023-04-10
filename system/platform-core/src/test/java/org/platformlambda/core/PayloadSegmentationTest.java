@@ -18,12 +18,12 @@
 
 package org.platformlambda.core;
 
-import org.junit.Before;
+import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 
@@ -32,16 +32,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
-
 public class PayloadSegmentationTest {
     private static final String TEST_STRING = "123456789.";
     private static final int CYCLE = 30000;
-
-    @Before
-    public void init() {
-        PostOffice.getInstance().getReady();
-    }
 
     @Test
     public void multiPart() throws IOException, InterruptedException {
@@ -58,15 +51,15 @@ public class PayloadSegmentationTest {
         String RECEIVER = "large.payload.receiver";
         Platform platform = Platform.getInstance();
         // create function to receive large payload
-        LambdaFunction f = (headers, body, instance) -> {
-            if (body instanceof byte[]) {
-                byte[] b = (byte[]) body;
+        LambdaFunction f = (headers, input, instance) -> {
+            if (input instanceof byte[]) {
+                byte[] b = (byte[]) input;
                 if (headers.containsKey("to")) {
                     EventEnvelope e = new EventEnvelope();
                     e.load(b);
                     if (e.getTo() != null) {
                         // reconstructed event
-                        PostOffice.getInstance().send(e);
+                        EventEmitter.getInstance().send(e);
                     } else {
                         // segmented payload
                         multipart.incoming(e);

@@ -9,10 +9,10 @@
             "-Dcloud.connector=kafka",
             "-Dmandatory.health.dependencies=cloud.connector.health",
             "-jar",
-            "examples/lambda-example/target/lambda-example-2.8.0.jar"
+            "examples/lambda-example/target/lambda-example-3.0.0.jar"
         ],
         "watch":[
-            "examples/lambda-example/target/lambda-example-2.8.0.jar"
+            "examples/lambda-example/target/lambda-example-3.0.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

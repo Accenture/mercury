@@ -78,7 +78,7 @@ public class ServiceRegistry implements LambdaFunction {
      * cloudOrigins: origin -> last seen
      * originTopic: origin -> topic and partition
      */
-    private static final PostOffice po = PostOffice.getInstance();
+    private static final EventEmitter po = EventEmitter.getInstance();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
     private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
@@ -95,8 +95,9 @@ public class ServiceRegistry implements LambdaFunction {
         AppConfigReader config = AppConfigReader.getInstance();
         presenceMonitor = "true".equals(config.getProperty("service.monitor", "false"));
         monitorTopic = config.getProperty("monitor.topic", "service.monitor");
+        // range: 3 - 30
         int maxGroups = Math.min(30,
-                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
+                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "10"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
         if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
             log.error("closed.user.group is invalid. Please select a number from 1 to {}", maxGroups);
@@ -147,7 +148,7 @@ public class ServiceRegistry implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         Platform platform = Platform.getInstance();
         String myOrigin = platform.getOrigin();
         String type = headers.get(TYPE);
@@ -300,9 +301,9 @@ public class ServiceRegistry implements LambdaFunction {
                         po.send(request);
                     }
 
-                } else if (body instanceof Map && !origin.equals(myOrigin)) {
+                } else if (input instanceof Map && !origin.equals(myOrigin)) {
                     // add a list of routes
-                    Map<String, String> routeMap = (Map<String, String>) body;
+                    Map<String, String> routeMap = (Map<String, String>) input;
                     int count = routeMap.size();
                     int n = 0;
                     for (String route : routeMap.keySet()) {
@@ -413,7 +414,7 @@ public class ServiceRegistry implements LambdaFunction {
 
     private void registerMyRoutes() {
         Platform platform = Platform.getInstance();
-        String personality = platform.getName()+", "+ServerPersonality.getInstance().getType().name();
+        String personality = platform.getName() + ", " + ServerPersonality.getInstance().getType().name();
         String origin = platform.getOrigin();
         // copy local registry to global registry
         ConcurrentMap<String, ServiceDef> routingTable = platform.getLocalRoutingTable();

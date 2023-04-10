@@ -40,7 +40,7 @@ public class TraceInfo {
             this.path = null;
         } else {
             this.id = id;
-            this.path = path == null ? "?" : path;
+            this.path = path;
         }
     }
 
@@ -49,7 +49,7 @@ public class TraceInfo {
     }
 
     public String toString() {
-        return id +" "+annotations;
+        return "id="+id +", annotations="+annotations;
     }
 
 }

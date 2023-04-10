@@ -24,7 +24,7 @@ import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.VersionInfo;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentMap;
 public class Utility {
     private static final Logger log = LoggerFactory.getLogger(Utility.class);
 
-    private static final ConcurrentMap<Long, List<String>> TEMP_CONFIG = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, List<String>> loopDetector = new ConcurrentHashMap<>();
     public static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
     public static final String ISO_MS_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
@@ -68,6 +68,8 @@ public class Utility {
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
     private static final String STATUS = "status";
     private static final String MESSAGE = "message";
+    private static final String ENV_START = "${";
+    private static final String ENV_END = "}";
     private static final String[] JAR_PATHS = { "BOOT-INF/lib", "WEB-INF/lib",
                                                 "WEB-INF/lib-provided", "lib" };
     private static final String JAR = "jar";
@@ -938,8 +940,7 @@ public class Utility {
     //////////////////////////////////
 
     public boolean portReady(String host, int port, int timeoutMs) {
-        // try twice
-        return testPort(host, port, timeoutMs) || testPort(host, port, timeoutMs);
+        return testPort(host, port, timeoutMs);
     }
 
     private boolean testPort(String host, int port, int timeoutMs) {
@@ -1024,7 +1025,7 @@ public class Utility {
     // Convenient utility to close a connection of a WebSocketService
     //////////////////////////////////////////////////////////////////
     public void closeConnection(String txPath, int status, String message) throws IOException {
-        PostOffice.getInstance().send(txPath, new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE),
+        EventEmitter.getInstance().send(txPath, new Kv(WsEnvelope.TYPE, WsEnvelope.CLOSE),
                                               new Kv(STATUS, status), new Kv(MESSAGE, message));
     }
 
@@ -1054,46 +1055,73 @@ public class Utility {
         return uri != null && uri.contains(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
     }
 
-    //////////////////////////////////////////
-    // Get value from an environment variable
-    //////////////////////////////////////////
-
     public String getEnvVariable(String ref) {
-        long threadId = Thread.currentThread().getId();
-        List<String> observed = TEMP_CONFIG.getOrDefault(threadId, new ArrayList<>());
-        if (ref != null && ref.startsWith("${") && ref.endsWith("}")) {
-            String key = ref.substring(2, ref.length()-1).trim();
-            String defaultValue = null;
-            if (key.contains(":")) {
-                int colon = key.indexOf(':');
-                String k = key.substring(0, colon);
-                defaultValue = key.substring(colon+1);
-                key = k;
-            }
-            if (observed.contains(key)) {
-                log.warn("Unable to retrieve value from '{}' due to configuration loop", key);
-                TEMP_CONFIG.remove(threadId);
-                return defaultValue;
-            }
-            observed.add(key);
-            TEMP_CONFIG.put(threadId, observed);
-            String property = System.getenv(key);
-            if (property != null) {
-                TEMP_CONFIG.remove(threadId);
-                return property;
-            } else {
-                AppConfigReader config = AppConfigReader.getInstance();
-                String value = config.getProperty(key, defaultValue);
-                if (value != null && value.startsWith("${") && value.endsWith("}")) {
-                    return getEnvVariable(value);
+        String id = Thread.currentThread().getId() + "/" + Thread.currentThread().getName();
+        String result = getEnvVariable(id, ref);
+        loopDetector.remove(id);
+        return result;
+    }
+
+    /**
+     * Get value from an environment variable or property from the main application.yml or application.properties
+     * <p>
+     * Support one variable inside the "ref" string.
+     * e.g. 'http://127.0.0.1:${server.port}/info'
+     *
+     * @param ref containing an environment variable, system property or application property
+     * @return merged value
+     */
+    private String getEnvVariable(String id, String ref) {
+        List<String> observed = loopDetector.getOrDefault(id, new ArrayList<>());
+        if (ref != null && ref.contains(ENV_START) && ref.contains(ENV_END)) {
+            int begin = ref.indexOf(ENV_START)+2;
+            int end = ref.indexOf(ENV_END);
+            if (begin < end) {
+                String key = ref.substring(begin, end);
+                String defaultValue = null;
+                if (key.contains(":")) {
+                    int colon = key.indexOf(':');
+                    String k = key.substring(0, colon);
+                    defaultValue = key.substring(colon + 1);
+                    key = k;
+                }
+                if (observed.contains(key)) {
+                    log.warn("Config loop for '{}' detected", key);
+                    return mergeWithEnvVariable(ref, defaultValue);
+                }
+                observed.add(key);
+                loopDetector.put(id, observed);
+                String property = System.getenv(key);
+                if (property != null) {
+                    return mergeWithEnvVariable(ref, property);
                 } else {
-                    TEMP_CONFIG.remove(threadId);
-                    return value;
+                    AppConfigReader config = AppConfigReader.getInstance();
+                    String value = config.getProperty(key, defaultValue);
+                    if (value != null && value.contains(ENV_START) && value.contains(ENV_END)) {
+                        // check nested env variable
+                        return mergeWithEnvVariable(ref, getEnvVariable(id, value));
+                    } else {
+                        return mergeWithEnvVariable(ref, value);
+                    }
                 }
             }
+        }
+        return null;
+    }
+
+    private String mergeWithEnvVariable(String ref, String value) {
+        if (ref.startsWith(ENV_START) && ref.endsWith(ENV_END)) {
+            return value;
+        } else if (ref.startsWith(ENV_START)) {
+            int end = ref.indexOf(ENV_END);
+            return value + ref.substring(end + 1);
+        } else if (ref.endsWith(ENV_END)) {
+            int begin = ref.indexOf(ENV_START);
+            return ref.substring(0, begin) + value ;
         } else {
-            TEMP_CONFIG.remove(threadId);
-            return null;
+            int begin = ref.indexOf(ENV_START);
+            int end = ref.indexOf(ENV_END);
+            return ref.substring(0, begin) + value + ref.substring(end+1);
         }
     }
 

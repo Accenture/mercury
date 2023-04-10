@@ -22,20 +22,24 @@ import io.vertx.core.Handler;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.util.ElasticQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ServiceQueue {
     private static final Logger log = LoggerFactory.getLogger(ServiceQueue.class);
-    private static final String INIT = "init:";
     private static final String READY = "ready";
     private static final String HASH = "#";
+    private static final String AS_COROUTINE = "as coroutine";
+    private static final String WORKER_POOL = "in worker pool";
+    private static final String STREAM = "STREAM";
+    private static final String PUBLIC = "PUBLIC";
+    private static final String PRIVATE = "PRIVATE";
     private final ElasticQueue elasticQueue;
     private final String route;
     private final String readyPrefix;
@@ -58,9 +62,9 @@ public class ServiceQueue {
             streamRoute = route + HASH + 1;
             StreamQueue worker = new StreamQueue(service, streamRoute);
             workers.add(worker);
-            log.info("{} {} started", "PRIVATE", route);
+            boolean coroutine = service.getStreamFunction().getClass().getAnnotation(CoroutineRunner.class) != null;
+            log.info("{} {} started {}", STREAM, route, coroutine ? AS_COROUTINE : "");
         } else {
-            // create workers
             streamRoute = null;
             int instances = service.getConcurrency();
             for (int i = 0; i < instances; i++) {
@@ -68,8 +72,23 @@ public class ServiceQueue {
                 WorkerQueue worker = new WorkerQueue(service, route + HASH + n, n);
                 workers.add(worker);
             }
-            log.info("{} {} with {} instance{} started", service.isPrivate() ? "PRIVATE" : "PUBLIC",
-                    route, instances, instances == 1 ? "" : "s");
+            if (service.isKotlin()) {
+                if (instances == 1) {
+                    log.info("{} {} started as suspend function", service.isPrivate() ? PRIVATE : PUBLIC, route);
+                } else {
+                    log.info("{} {} with {} instances started as suspend function",
+                            service.isPrivate() ? PRIVATE : PUBLIC, route, instances);
+                }
+            } else {
+                boolean coroutine = service.getFunction().getClass().getAnnotation(CoroutineRunner.class) != null;
+                if (instances == 1) {
+                    log.info("{} {} started {}", service.isPrivate() ? PRIVATE : PUBLIC,
+                            route, coroutine? AS_COROUTINE : WORKER_POOL);
+                } else {
+                    log.info("{} {} with {} instances started {}", service.isPrivate() ? PRIVATE : PUBLIC,
+                            route, instances, coroutine? AS_COROUTINE : WORKER_POOL);
+                }
+            }
         }
     }
 
@@ -111,29 +130,20 @@ public class ServiceQueue {
         public void handle(Message<Object> message) {
             Object body = message.body();
             if (body instanceof String) {
-                String text = (String) body;
-                if (text.startsWith(INIT)) {
-                    String uuid = text.substring(INIT.length());
-                    BlockingQueue<Boolean> signal = Platform.getInstance().getServiceToken(uuid);
-                    if (signal != null) {
-                        signal.offer(true);
-                    }
-                } else {
-                    String sender = getWorker(text);
-                    if (sender != null && !stopped) {
-                        pool.offer(sender);
-                        if (buffering) {
-                            byte[] event = elasticQueue.read();
-                            if (event == null) {
-                                // Close elastic queue when all messages are cleared
-                                buffering = false;
-                                elasticQueue.close();
-                            } else {
-                                // Guarantees that there is an available worker
-                                String next = pool.poll();
-                                if (next != null) {
-                                    system.send(next, event);
-                                }
+                String sender = getWorker((String) body);
+                if (sender != null && !stopped) {
+                    pool.offer(sender);
+                    if (buffering) {
+                        byte[] event = elasticQueue.read();
+                        if (event == null) {
+                            // Close elastic queue when all messages are cleared
+                            buffering = false;
+                            elasticQueue.close();
+                        } else {
+                            // Guarantees that there is an available worker
+                            String next = pool.poll();
+                            if (next != null) {
+                                system.send(next, event);
                             }
                         }
                     }

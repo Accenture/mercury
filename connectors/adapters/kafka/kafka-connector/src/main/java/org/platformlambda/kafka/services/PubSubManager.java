@@ -25,15 +25,13 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.EventProducer;
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,15 +134,6 @@ public class PubSubManager implements PubSubProvider {
     }
 
     @Override
-    public void waitForProvider(int seconds) {
-        try {
-            Platform.getInstance().waitForProvider(cloudManager, seconds);
-        } catch (TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
     public boolean createTopic(String topic) throws IOException {
         return createTopic(topic, 1);
     }
@@ -152,25 +141,33 @@ public class PubSubManager implements PubSubProvider {
     @Override
     public boolean createTopic(String topic, int partitions) throws IOException {
         ConnectorConfig.validateTopicName(topic);
+        final long timeout = 20 * 1000L;
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEnvelope req = new EventEnvelope().setTo(cloudManager).setHeader(TYPE, CREATE)
+                .setHeader(TOPIC, topic).setHeader(PARTITIONS, partitions);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000,
-                                    new Kv(TYPE, CREATE), new Kv(TOPIC, topic), new Kv(PARTITIONS, partitions));
-            if (init.getBody() instanceof Boolean) {
-                return(Boolean) init.getBody();
+            EventEmitter.getInstance().asyncRequest(req, timeout).onSuccess(bench::offer);
+            EventEnvelope res = bench.poll(timeout, TimeUnit.MILLISECONDS);
+            if (res != null && res.getBody() instanceof Boolean) {
+                return (Boolean) res.getBody();
             } else {
                 return false;
             }
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+        } catch (InterruptedException e) {
+            return false;
         }
     }
 
     @Override
     public void deleteTopic(String topic) throws IOException {
+        final long timeout = 20 * 1000L;
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEnvelope req = new EventEnvelope().setTo(cloudManager).setHeader(TYPE, DELETE).setHeader(TOPIC, topic);
         try {
-            PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, DELETE), new Kv(TOPIC, topic));
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+            EventEmitter.getInstance().asyncRequest(req, timeout).onSuccess(bench::offer);
+            bench.poll(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            // ok to ignore
         }
     }
 
@@ -186,46 +183,56 @@ public class PubSubManager implements PubSubProvider {
 
     @Override
     public boolean exists(String topic) throws IOException {
+        final long timeout = 20 * 1000L;
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEnvelope req = new EventEnvelope().setTo(cloudManager).setHeader(TYPE, EXISTS).setHeader(TOPIC, topic);
         try {
-            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
-                                        new Kv(TYPE, EXISTS), new Kv(TOPIC, topic));
-            if (response.getBody() instanceof Boolean) {
-                return (Boolean) response.getBody();
+            EventEmitter.getInstance().asyncRequest(req, timeout).onSuccess(bench::offer);
+            EventEnvelope res = bench.poll(timeout, TimeUnit.MILLISECONDS);
+            if (res != null && res.getBody() instanceof Boolean) {
+                return (Boolean) res.getBody();
             } else {
                 return false;
             }
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+        } catch (InterruptedException e) {
+            return false;
         }
     }
 
     @Override
     public int partitionCount(String topic) throws IOException {
+        final long timeout = 20 * 1000L;
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEnvelope req = new EventEnvelope().setTo(cloudManager).setHeader(TYPE, PARTITIONS).setHeader(TOPIC, topic);
         try {
-            EventEnvelope response = PostOffice.getInstance().request(cloudManager, 20000,
-                                        new Kv(TYPE, PARTITIONS), new Kv(TOPIC, topic));
-            if (response.getBody() instanceof Integer) {
-                return (Integer) response.getBody();
+            EventEmitter.getInstance().asyncRequest(req, timeout).onSuccess(bench::offer);
+            EventEnvelope res = bench.poll(timeout, TimeUnit.MILLISECONDS);
+            if (res != null && res.getBody() instanceof Integer) {
+                return (Integer) res.getBody();
             } else {
                 return -1;
             }
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+        } catch (InterruptedException e) {
+            return -1;
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public List<String> list() throws IOException {
+        long timeout = 20 * 1000L;
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEnvelope req = new EventEnvelope().setTo(cloudManager).setHeader(TYPE, LIST);
         try {
-            EventEnvelope init = PostOffice.getInstance().request(cloudManager, 20000, new Kv(TYPE, LIST));
-            if (init.getBody() instanceof List) {
-                return (List<String>) init.getBody();
+            EventEmitter.getInstance().asyncRequest(req, timeout).onSuccess(bench::offer);
+            EventEnvelope res = bench.poll(timeout, TimeUnit.MILLISECONDS);
+            if (res != null && res.getBody() instanceof List) {
+                return (List<String>) res.getBody();
             } else {
-                return Collections.EMPTY_LIST;
+                return Collections.emptyList();
             }
-        } catch (TimeoutException | AppException e) {
-            throw new IOException(e.getMessage());
+        } catch (InterruptedException e) {
+            return Collections.emptyList();
         }
     }
 

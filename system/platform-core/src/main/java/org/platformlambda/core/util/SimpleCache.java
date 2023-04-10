@@ -19,6 +19,7 @@
 package org.platformlambda.core.util;
 
 import org.platformlambda.core.models.TimedItem;
+import org.platformlambda.core.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -39,7 +41,9 @@ public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
     private static final long MIN_EXPIRY = 1000;
     private static final ConcurrentMap<String, SimpleCache> cacheCollection = new ConcurrentHashMap<>();
-    private static final AtomicInteger counter = new AtomicInteger(0);
+    private static final AtomicInteger initCounter = new AtomicInteger(0);
+    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final long HOUSEKEEPING_INTERVAL = 30 * 1000L;    // 30 seconds
     private final String name;
     private final long expiry;
     private final ConcurrentMap<String, TimedItem> cache = new ConcurrentHashMap<>();
@@ -47,9 +51,12 @@ public class SimpleCache {
     private SimpleCache(String name, long expiryMs) {
         this.name = name;
         this.expiry = expiryMs;
-        if (counter.incrementAndGet() == 1) {
-            CleanUp cleanUp = new CleanUp();
-            cleanUp.start();
+        if (initCounter.incrementAndGet() == 1) {
+            Platform.getInstance().getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredCache());
+            log.info("Housekeeper started");
+        }
+        if (initCounter.get() > 10000) {
+            initCounter.set(10);
         }
     }
 
@@ -144,41 +151,19 @@ public class SimpleCache {
         return cache.size();
     }
 
-    private static class CleanUp extends Thread {
-        private boolean normal = true;
-
-        private CleanUp() {
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-        }
-
-        @Override
-        public void run() {
-            log.info("Started");
-            long t1 = System.currentTimeMillis();
-            while (normal) {
-                long now = System.currentTimeMillis();
-                // avoid scanning frequently
-                if (now - t1 > 5000) {
-                    t1 = now;
-                    // clean up cache collection
+    private void removeExpiredCache() {
+        if (housekeeperNotRunning.compareAndSet(true, false)) {
+            Platform.getInstance().getEventExecutor().submit(() -> {
+                try {
                     for (String key : cacheCollection.keySet()) {
                         SimpleCache c = cacheCollection.get(key);
                         c.cleanUp();
                     }
+                } finally {
+                    housekeeperNotRunning.set(true);
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-            }
-            log.info("Stopped");
+            });
         }
-
-        private void shutdown() {
-            normal = false;
-        }
-
     }
 
 }

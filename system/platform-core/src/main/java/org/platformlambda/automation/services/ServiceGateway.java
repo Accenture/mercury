@@ -51,7 +51,7 @@ public class ServiceGateway {
     private static final CryptoApi crypto = new CryptoApi();
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
     private static final String HTTP_REQUEST = "http.request";
-    private static final String AUTH_HANDLER = "rest.automation.auth.handler";
+    private static final String AUTH_HANDLER = "http.auth.handler";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
     private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
@@ -253,7 +253,7 @@ public class ServiceGateway {
         }
         // check if target service is available
         String authService = null;
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         if (!po.exists(route.info.primary)) {
             throw new AppException(503, "Service " + route.info.primary + " not reachable");
         }
@@ -375,7 +375,7 @@ public class ServiceGateway {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(stream.getOutputStream(), block, len);
+                            pipeHttpInputToStream(stream.getOutputStream(), block, len);
                         }
                     }).endHandler(end -> {
                         int size = total.get();
@@ -465,7 +465,7 @@ public class ServiceGateway {
                         int len = block.length();
                         if (len > 0) {
                             total.addAndGet(len);
-                            readInputStream(stream.getOutputStream(), block, len);
+                            pipeHttpInputToStream(stream.getOutputStream(), block, len);
                         }
                         if (inputComplete.get()) {
                             int size = total.get();
@@ -486,7 +486,7 @@ public class ServiceGateway {
 
     public void sendRequestToService(HttpServerRequest request, HttpRequestEvent requestEvent) {
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         if (requestEvent.authService != null) {
             try {
                 po.send(AUTH_HANDLER, requestEvent.toMap());
@@ -526,13 +526,13 @@ public class ServiceGateway {
 
     private void sendToSecondaryTarget(EventEnvelope event) {
         try {
-            PostOffice.getInstance().send(event);
+            EventEmitter.getInstance().send(event);
         } catch (Exception e) {
             log.warn("Unable to copy event to {} - {}", event.getTo(), e.getMessage());
         }
     }
 
-    private void readInputStream(ObjectStreamWriter out, Buffer block, int len) {
+    private void pipeHttpInputToStream(ObjectStreamWriter out, Buffer block, int len) {
         if (out != null && block != null && len > 0) {
             try {
                 byte[] data = block.getBytes(0, len);

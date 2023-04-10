@@ -23,16 +23,8 @@ import java.util.Map;
 
 public class CorsInfo {
     private static final String ACCESS_CONTROL_ORIGIN = "access-control-allow-origin";
-    private static final String HTTP = "http://";
-    private static final String HTTPS = "https://";
-    final private String origin;
-    public Map<String, String> options = new HashMap<>();
-    public Map<String, String> headers = new HashMap<>();
-
-    public CorsInfo(String origin) {
-        this.origin = origin != null &&
-                ("*".equals(origin) || origin.startsWith(HTTP) || origin.startsWith(HTTPS))? origin : null;
-    }
+    public final Map<String, String> options = new HashMap<>();
+    public final Map<String, String> headers = new HashMap<>();
 
     public String getOrigin(boolean isOption) {
         return isOption? options.get(ACCESS_CONTROL_ORIGIN) : headers.get(ACCESS_CONTROL_ORIGIN);
@@ -42,22 +34,14 @@ public class CorsInfo {
         int colon = element.indexOf(':');
         String key = element.substring(0, colon).trim().toLowerCase();
         String value = element.substring(colon+1).trim();
-        if (key.equals(ACCESS_CONTROL_ORIGIN) && origin != null) {
-            options.put(key, origin);
-        } else {
-            options.put(key, value);
-        }
+        options.put(key, value);
     }
 
     public void addHeader(String element) {
         int colon = element.indexOf(':');
         String key = element.substring(0, colon).trim().toLowerCase();
         String value = element.substring(colon+1).trim();
-        if (key.equals(ACCESS_CONTROL_ORIGIN) && origin != null) {
-            headers.put(key, origin);
-        } else {
-            headers.put(key, value);
-        }
+        headers.put(key, value);
     }
 
 }

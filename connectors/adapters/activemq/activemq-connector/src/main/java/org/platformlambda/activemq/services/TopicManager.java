@@ -73,7 +73,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
@@ -121,11 +121,11 @@ public class TopicManager implements LambdaFunction {
         if (topicSubstitution) {
             return preAllocatedTopics.get(topic) != null;
         }
-        try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+        try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
             ClientMessage m = session.createMessage(false);
             ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                     "getAddressInfo", topic);
-            ClientMessage reply = requestor.request(m);
+            ClientMessage reply = req.request(m);
             Object o = ManagementHelper.getResult(reply);
             return o instanceof String && ((String) o).startsWith(ADDRESS);
         }
@@ -143,11 +143,11 @@ public class TopicManager implements LambdaFunction {
         if (topicExists(firstPartition)) {
             Utility util = Utility.getInstance();
             List<String> segments = util.split(topic, ".");
-            try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+            try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
                 ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                         "listAddresses", "|");
-                ClientMessage reply = requestor.request(m);
+                ClientMessage reply = req.request(m);
                 Object o = ManagementHelper.getResult(reply);
                 if (o instanceof String) {
                     int n = 0;
@@ -194,7 +194,7 @@ public class TopicManager implements LambdaFunction {
 
     private void createAddress(String address, boolean isTopic) throws Exception {
         if (!topicExists(address)) {
-            try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+            try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
                 if (isTopic) {
                     ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
@@ -203,7 +203,7 @@ public class TopicManager implements LambdaFunction {
                     ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                             "createAddress", address);
                 }
-                ClientMessage reply = requestor.request(m);
+                ClientMessage reply = req.request(m);
                 Object o = ManagementHelper.getResult(reply);
                 if (o instanceof String) {
                     String result = (String) o;
@@ -235,11 +235,11 @@ public class TopicManager implements LambdaFunction {
 
     private void deleteAddress(String address) throws Exception {
         if (topicExists(address)) {
-            try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+            try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
                 ClientMessage m = session.createMessage(false);
                 ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                         "deleteAddress", address);
-                ClientMessage reply = requestor.request(m);
+                ClientMessage reply = req.request(m);
                 Object o = ManagementHelper.getResult(reply);
                 if (o != null) {
                     String error = "ActiveMQ exception when deleting "+address+" "+o;
@@ -256,11 +256,11 @@ public class TopicManager implements LambdaFunction {
         }
         List<String> result = new ArrayList<>();
         Utility util = Utility.getInstance();
-        try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+        try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
             ClientMessage m = session.createMessage(false);
             ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                     "listAddresses", "|");
-            ClientMessage reply = requestor.request(m);
+            ClientMessage reply = req.request(m);
             Object o = ManagementHelper.getResult(reply);
             if (o instanceof String) {
                 List<String> topicList = util.split((String) o, "|");
@@ -278,11 +278,11 @@ public class TopicManager implements LambdaFunction {
         if (topicSubstitution) {
             return true;
         }
-        try (ClientRequestor requestor = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
+        try (ClientRequestor req = new ClientRequestor(session, ACTIVEMQ_MANAGEMENT)) {
             ClientMessage m = session.createMessage(false);
             ManagementHelper.putOperationInvocation(m, ResourceNames.BROKER,
                     "getAddressInfo", topic);
-            ClientMessage reply = requestor.request(m);
+            ClientMessage reply = req.request(m);
             Object o = ManagementHelper.getResult(reply);
             if (o instanceof String) {
                 String result = (String) o;

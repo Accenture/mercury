@@ -77,14 +77,6 @@ public class ConfigReaderTest {
         Assert.assertEquals("12345", value);
     }
 
-    @Test
-    public void loopedKeyIsNull() throws IOException {
-        ConfigReader reader = new ConfigReader();
-        reader.load("classpath:/test.properties");
-        String value = reader.getProperty("recursive.key");
-        Assert.assertNull(value);
-    }
-
     @SuppressWarnings("unchecked")
     @Test
     public void dotFormatterTest() throws IOException {
@@ -144,7 +136,14 @@ public class ConfigReaderTest {
         reader.load("classpath:/test.yaml");
         Assert.assertEquals("platform-core", reader.getProperty("hello.name"));
         AppConfigReader config = AppConfigReader.getInstance();
-        Assert.assertEquals(config.getProperty("server.port"), reader.getProperty("hello.location[1]"));
+        Assert.assertEquals("8100", reader.getProperty("hello.location[0]"));
+        Assert.assertEquals("http://127.0.0.1:"+config.getProperty("server.port")+"/info",
+                                reader.getProperty("hello.location[1]"));
+        Assert.assertEquals(100, reader.get("hello.location[2].world.blvd"));
+        Assert.assertEquals(config.getProperty("server.port")+" is server port",
+                                reader.getProperty("hello.location[3]"));
+        Assert.assertEquals("Server port is "+config.getProperty("server.port"),
+                                reader.getProperty("hello.location[4]"));
     }
 
     @SuppressWarnings("unchecked")
@@ -224,6 +223,14 @@ public class ConfigReaderTest {
         AppConfigReader config = AppConfigReader.getInstance();
         Object o = config.get("looping.test");
         Assert.assertEquals("1000", o);
+    }
+
+    @Test
+    public void loopedKeyIsNull() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("recursive.key");
+        Assert.assertNull(value);
     }
 
 }

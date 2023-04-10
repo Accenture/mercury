@@ -21,7 +21,7 @@ import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.models.EventBlocks;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.ServiceQueue;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.SimpleCache;
@@ -63,7 +63,7 @@ public class MultipartPayload {
     }
 
     public void incoming(EventEnvelope message) throws IOException {
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Map<String, String> control = message.getHeaders();
         if (message.getTo() != null) {
             String to = message.getTo();

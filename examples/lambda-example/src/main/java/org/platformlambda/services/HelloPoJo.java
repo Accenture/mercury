@@ -18,6 +18,7 @@
 
 package org.platformlambda.services;
 
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -30,17 +31,19 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * IMPORTANT - for LambdaFunction, the handleEvent method is the event handler.
- * Please do not use any global scope variables. All variables must be in functional scope.
- * If you must use global scope variables, you may use Java Concurrent collections.
+ * This function is used to demonstrate event transport over a network event stream.
+ * It is not defined in the REST automation system's rest.yaml configuration file.
+ * <p>
+ * You will need this in the rest-spring-example demo.
  */
+@PreLoad(route="hello.pojo", instances=10, isPrivate = false)
 public class HelloPoJo implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(HelloPoJo.class);
 
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws AppException {
         String id = headers.get("id");
         if (id == null) {
             throw new IllegalArgumentException("Missing parameter 'id'");

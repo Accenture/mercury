@@ -23,9 +23,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.MockPubSub;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.models.MockPubSub;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
 
@@ -63,7 +63,6 @@ public class UtilityTests {
     public void mockPubSub() throws IOException {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        ps.waitForProvider(1);
         ps.createTopic(HELLO_WORLD);
         Assert.assertTrue(ps.exists(HELLO_WORLD));
         ps.deleteTopic(HELLO_WORLD);
@@ -73,7 +72,7 @@ public class UtilityTests {
         Assert.assertTrue(ps.isStreamingPubSub());
         Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
         Assert.assertTrue(ps.list().contains(HELLO_WORLD));
-        LambdaFunction f = (headers, body, instance) -> true;
+        LambdaFunction f = (headers, input, instance) -> true;
         ps.subscribe(HELLO_WORLD, f, "client100", "group100");
         ps.subscribe(HELLO_WORLD, 0, f, "client100", "group100");
         ps.publish(HELLO_WORLD, new HashMap<>(), "hello");

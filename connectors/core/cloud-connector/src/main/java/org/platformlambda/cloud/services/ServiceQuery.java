@@ -46,18 +46,19 @@ public class ServiceQuery implements LambdaFunction {
     public ServiceQuery() {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
+        // range: 3 - 30
         int maxGroups = Math.min(30,
-                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
+                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "10"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
         if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
-            log.error("closed.user.group is invalid. Please select a number from 1 to "+maxGroups);
+            log.error("closed.user.group is invalid. Please select a number from 1 to {}", maxGroups);
             System.exit(-1);
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) {
         String type = headers.get(TYPE);
         if (INFO.equals(type)) {
             Platform platform = Platform.getInstance();
@@ -86,8 +87,8 @@ public class ServiceQuery implements LambdaFunction {
         } else if (FIND.equals(type) && headers.containsKey(ROUTE)) {
             String route = headers.get(ROUTE);
             if (route.equals("*")) {
-                if (body instanceof List) {
-                    return exists((List<String>) body);
+                if (input instanceof List) {
+                    return exists((List<String>) input);
                 } else {
                     return false;
                 }

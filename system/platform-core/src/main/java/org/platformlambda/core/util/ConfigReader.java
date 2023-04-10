@@ -54,7 +54,7 @@ public class ConfigReader implements ConfigBase {
         Object value = isNormalized? config.getElement(key) : properties.get(key);
         if (value instanceof String) {
             String s = (String) value;
-            if (s.startsWith("${") && s.endsWith("}")) {
+            if (s.contains("${") && s.contains("}")) {
                 return Utility.getInstance().getEnvVariable(s);
             }
         }
@@ -79,7 +79,7 @@ public class ConfigReader implements ConfigBase {
         Object value = isNormalized? config.getElement(key) : properties.get(key);
         if (value instanceof String) {
             String s = (String) value;
-            if (s.startsWith("${") && s.endsWith("}")) {
+            if (s.contains("${") && s.contains("}")) {
                 return Utility.getInstance().getEnvVariable(s);
             }
         }

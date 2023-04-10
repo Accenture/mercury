@@ -19,8 +19,8 @@
 package org.platformlambda.servlets;
 
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -51,16 +51,16 @@ public class ShutdownServlet extends HttpServlet {
             response.sendError(400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, SHUTDOWN);
         if (origin.equals(Platform.getInstance().getOrigin())) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 response.sendError(404, origin+" is not reachable");
                 return;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         event.setHeader(USER, System.getProperty("user.name"));
         po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));

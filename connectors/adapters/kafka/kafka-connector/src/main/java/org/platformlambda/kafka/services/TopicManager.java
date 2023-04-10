@@ -25,7 +25,7 @@ import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -52,7 +52,8 @@ public class TopicManager implements LambdaFunction {
     private final Map<String, String> preAllocatedTopics;
     private AdminClient admin;
     private long lastAccess = 0;
-    private int count = 0, seq = 0;
+    private int count = 0;
+    private int seq = 0;
 
     public TopicManager(Properties baseProperties, String cloudManager) throws IOException {
         this.baseProperties = baseProperties;
@@ -91,7 +92,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();
@@ -291,45 +292,26 @@ public class TopicManager implements LambdaFunction {
         return result;
     }
 
-    private class InactivityMonitor extends Thread {
-        private boolean normal = true;
+    private class InactivityMonitor {
         private final String cloudManager;
 
         public InactivityMonitor(String cloudManager) {
             this.cloudManager = cloudManager;
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
         }
 
-        @Override
-        public void run() {
-            final long INTERVAL = 20 * 1000;
-            final long IDLE = 60 * 1000;
-            long t0 = System.currentTimeMillis();
-            while (normal) {
-                long now = System.currentTimeMillis();
-                if (now - t0 > INTERVAL) {
-                    t0 = now;
-                    if (admin != null && now - lastAccess > IDLE) {
-                        try {
-                            PostOffice.getInstance().send(cloudManager, new Kv(TYPE, STOP));
-                        } catch (IOException e) {
-                            // ok to ignore
-                        }
+        public void start() {
+            Platform.getInstance().getVertx().setPeriodic(20 * 1000L, t -> {
+                final long idle = 60 * 1000L;
+                final long now = System.currentTimeMillis();
+                if (admin != null && now - lastAccess > idle) {
+                    try {
+                        EventEmitter.getInstance().send(cloudManager, new Kv(TYPE, STOP));
+                    } catch (IOException e) {
+                        // ok to ignore
                     }
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-            }
-            log.info("Stopped");
+            });
         }
-
-        private void shutdown() {
-            normal = true;
-        }
-
     }
 
 }

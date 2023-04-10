@@ -44,7 +44,7 @@ public class ObjectStreamWriter implements AutoCloseable {
                 byte[] b = (byte[]) payload;
                 write(b, 0, b.length);
             } else {
-                PostOffice.getInstance().send(streamId, payload, new Kv(TYPE, DATA));
+                EventEmitter.getInstance().send(streamId, payload, new Kv(TYPE, DATA));
             }
         }
     }
@@ -62,7 +62,7 @@ public class ObjectStreamWriter implements AutoCloseable {
             }
             // always create a new byte array
             byte[] b = start == end? new byte[0] : Arrays.copyOfRange(payload, start, end);
-            PostOffice.getInstance().send(streamId, b, new Kv(TYPE, DATA));
+            EventEmitter.getInstance().send(streamId, b, new Kv(TYPE, DATA));
         }
     }
 
@@ -70,7 +70,7 @@ public class ObjectStreamWriter implements AutoCloseable {
     public void close() throws IOException {
         if (!eof) {
             eof = true;
-            PostOffice.getInstance().send(streamId, new Kv(TYPE, END_OF_STREAM));
+            EventEmitter.getInstance().send(streamId, new Kv(TYPE, END_OF_STREAM));
         }
     }
 

@@ -23,7 +23,7 @@ import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -50,30 +50,31 @@ public class MainScheduler implements EntryPoint {
     public static final String SCHEDULER_SERVICE = "cron.scheduler";
     public static final String GLOBAL_GROUP = "global";
     public static final String TYPE = "type";
-    public static final String START = "start";
-    public static final String STOP = "stop";
+    public static final String START_COMMAND = "start";
+    public static final String STOP_COMMAND = "stop";
     public static final String ORIGIN = "origin";
     private static final String SCHEDULER = "scheduler";
-    private static final ConcurrentMap<String, ScheduledJob> jobs = new ConcurrentHashMap<>();
+    private static final String JOBS = "jobs[";
+    private static final ConcurrentMap<String, ScheduledJob> scheduledJobs = new ConcurrentHashMap<>();
 
-    private static Scheduler scheduler;
+    private static Scheduler schedulerService;
 
     public static void main(String[] args) {
         RestServer.main(args);
     }
 
     public static ScheduledJob getJob(String id) {
-        return id == null? null : jobs.get(id);
+        return id == null? null : scheduledJobs.get(id);
     }
 
     public static List<String> getJobs() {
-        return new ArrayList<>(jobs.keySet());
+        return new ArrayList<>(scheduledJobs.keySet());
     }
 
     public static void stopJob(String id) throws SchedulerException {
         ScheduledJob j = getJob(id);
         if (j != null && j.stopTime == null) {
-            scheduler.deleteJob(j.job.getKey());
+            schedulerService.deleteJob(j.job.getKey());
             j.stopTime = new Date();
             j.startTime = null;
             log.info("Stopped job={}, service={}, cron={}", id, j.service, j.cronSchedule);
@@ -83,13 +84,13 @@ public class MainScheduler implements EntryPoint {
     public static void startJob(String id) throws SchedulerException {
         ScheduledJob j = getJob(id);
         if (j != null && j.startTime == null) {
-            scheduler.addJob(j.job, true);
+            schedulerService.addJob(j.job, true);
             CronTrigger trigger = TriggerBuilder.newTrigger()
                     .withSchedule(CronScheduleBuilder.cronSchedule(j.cronSchedule))
                     .forJob(id, GLOBAL_GROUP).build();
             j.startTime = new Date();
             j.stopTime = null;
-            scheduler.scheduleJob(trigger);
+            schedulerService.scheduleJob(trigger);
             log.info("Scheduled job={}, service={}, cron={}", id, j.service, j.cronSchedule);
         }
     }
@@ -100,7 +101,7 @@ public class MainScheduler implements EntryPoint {
             EventEnvelope event = new EventEnvelope().setTo(j.service);
             event.setHeaders(j.parameters);
             try {
-                PostOffice.getInstance().send(event);
+                EventEmitter.getInstance().send(event);
                 j.lastExecution = new Date();
                 j.count++;
             } catch (IOException e) {
@@ -117,12 +118,12 @@ public class MainScheduler implements EntryPoint {
         Platform platform = Platform.getInstance();
         String origin = platform.getOrigin();
         // create service for leader election and synchronization of job start/stop status
-        LambdaFunction f = (headers, body, instance) -> {
+        LambdaFunction f = (headers, input, instance) -> {
             if (!origin.equals(headers.get(ORIGIN)) && headers.containsKey(JOB_ID)) {
-                if (START.equals(headers.get(TYPE))) {
+                if (START_COMMAND.equals(headers.get(TYPE))) {
                     startJob(headers.get(JOB_ID));
                 }
-                if (STOP.equals(headers.get(TYPE))) {
+                if (STOP_COMMAND.equals(headers.get(TYPE))) {
                     stopJob(headers.get(JOB_ID));
                 }
                 return true;
@@ -138,11 +139,11 @@ public class MainScheduler implements EntryPoint {
             List<Object> list = (List<Object>) o;
             for (int i=0; i < list.size(); i++) {
                 // use composite key so values can be overridden by application.properties and system.properties
-                String name = config.getProperty("jobs["+i+"].name");
-                String service = config.getProperty("jobs["+i+"].service");
-                String schedule = config.getProperty("jobs["+i+"].cron");
-                String desc = config.getProperty("jobs["+i+"].description");
-                Object parameters = config.get("jobs["+i+"].parameters");
+                String name = config.getProperty(JOBS+i+"].name");
+                String service = config.getProperty(JOBS+i+"].service");
+                String schedule = config.getProperty(JOBS+i+"].cron");
+                String desc = config.getProperty(JOBS+i+"].description");
+                Object parameters = config.get(JOBS+i+"].parameters");
                 if (name != null && schedule != null && service != null) {
                     ScheduledJob j = new ScheduledJob(name, service, schedule);
                     j.description = desc == null? name : desc;
@@ -153,34 +154,34 @@ public class MainScheduler implements EntryPoint {
                         }
                     }
                     j.addParameter(SCHEDULER, origin);
-                    jobs.put(name, j);
+                    scheduledJobs.put(name, j);
 
                 } else {
-                    log.error("Invalid job entry - missing name, schedule and service - "+list.get(i));
+                    log.error("Invalid job entry - missing name, schedule and service - {}", list.get(i));
                 }
             }
         }
         // Schedule jobs now
         SchedulerFactory schedulerFactory = new StdSchedulerFactory();
-        scheduler = schedulerFactory.getScheduler();
+        schedulerService = schedulerFactory.getScheduler();
         // load jobs
-        for (String id: jobs.keySet()) {
-            ScheduledJob j = jobs.get(id);
+        for (String id: scheduledJobs.keySet()) {
+            ScheduledJob j = scheduledJobs.get(id);
             j.job = JobBuilder.newJob(JobExecutor.class).storeDurably(true)
                               .usingJobData(JOB_ID, id).withIdentity(id, GLOBAL_GROUP).build();
-            scheduler.addJob(j.job, true);
+            schedulerService.addJob(j.job, true);
             CronTrigger trigger = TriggerBuilder.newTrigger()
                     .withSchedule(CronScheduleBuilder.cronSchedule(j.cronSchedule))
                     .forJob(id, GLOBAL_GROUP).build();
             j.startTime = new Date();
-            scheduler.scheduleJob(trigger);
+            schedulerService.scheduleJob(trigger);
             log.info("Scheduled job={}, service={}, cron={}", id, j.service, j.cronSchedule);
         }
-        scheduler.start();
+        schedulerService.start();
         // shutdown schedule when app stops
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                scheduler.shutdown();
+                schedulerService.shutdown();
             } catch (SchedulerException e) {
                 log.error("Error while stopping scheduler - {}", e.getMessage());
             }

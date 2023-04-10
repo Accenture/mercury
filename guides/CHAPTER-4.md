@@ -1,312 +1,407 @@
-﻿# REST automation
+﻿# Event orchestration
 
-REST automation turns HTTP requests and responses into events for truly non-blocking operation.
+In traditional programming, we can write modular software components and wire them together as a single application.
+There are many ways to do that. You can rely on a "dependency injection" framework. In many cases, you would need
+to write orchestration logic to coordinate how the various components talk to each other to process a transaction.
 
-## Library and Application
+In a composable application, you write modular functions using the first principle of "input-process-output".
 
-The REST automation system consists of a library and an application. This sub-project is the library.
+Functions communicate with each other using events and each function has a "handleEvent" method to process "input"
+and return result as "output". Writing software component in the first principle makes Test Driven Development (TDD)
+straight forward. You can write mock function and unit tests before you put in actual business logic.
 
-## REST endpoint creation
+Mocking an event-driven function in a composable application is as simple as overriding the function's route name
+with a mock function.
 
-It allows us to create REST and websocket endpoints by configuration instead of code.
+## Register a function with the in-memory event system
 
-Let us examine the idea with a sample configuration.
+There are two ways to register a function:
 
-## REST endpoint routing
+1. Programmatic registration
+2. Declarative registration
 
-A routing entry is a simple mapping of URL to a microservice.
+In programmatic registration, you can register a function like this:
 
-## YAML syntax
-
-```yaml
-rest:
-  # service should be a target service name or a list of service names
-  # If more than one service name is provided, the first one is the primary target
-  # and the rest are secondary target(s). The system will copy the HTTP request event to the secondary targets.
-  #
-  # This feature is used for seamless legacy system migration where we can send
-  # the same request to the old and the new services at the same time for A/B comparison.
-  - service: ["hello.world", "hello.world.2"]
-    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
-    url: "/api/hello/world"
-    timeout: 10s
-    # Optional authentication service which should return a true or false result
-    # The authentication service can also add session info in headers using EventEnvelope as a response
-    # and annotate trace with key-values that you want to persist into distributed trace logging.
-    #
-    # You can also route the authentication request to different functions based on HTTP request header
-    # i.e. you can provide a single authentication function or a list of functions selected by header routing.
-    #
-    # If you want to route based on header/value, use the "key: value : service" format.
-    # For routing using header only, use "key: service" format
-    # For default authentication service, use "default: service" format
-    #
-    #    authentication: "v1.api.auth"
-    authentication:
-      - "x-app-name: demo : v1.demo.auth"
-      - "authorization: v1.basic.auth"
-      - "default: v1.api.auth"
-    cors: cors_1
-    headers: header_1
-    # for HTTP request body that is not JSON/XML, it will be turned into a stream if it is undefined
-    # or larger than threshold. Otherwise, it will be delivered as a byte array in the message body.
-    # Default is 50000 bytes, min is 5000, max is 500000
-    threshold: 30000
-    # optionally, you can turn on Distributed Tracing
-    tracing: true
-
-  - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/test/ok*"
-    # optional "upload" key if it is a multi-part file upload
-    upload: "file"
-    timeout: 15s
-    headers: header_1
-    cors: cors_1
-
-  - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/nice/{task}/*"
-    timeout: 12
-    headers: header_1
-    cors: cors_1
-
-  #
-  # When service is a URL, it will relay HTTP or HTTPS requests.
-  # "trust_all_cert" and "url_rewrite" are optional.
-  #
-  # For target host with self-signed certificate, you may set "trust_all_cert" to true.
-  # trust_all_cert: true
-  #
-  # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
-  # e.g. url_rewrite: ['/api/v1', '/v1/api']
-  # In this example, "/api/v1" will be replaced with "/v1/api"
-  #
-  - service: "http://127.0.0.1:8100"
-    trust_all_cert: true
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/v1/*"
-    url_rewrite: ['/api/v1', '/api']
-    timeout: 20
-    cors: cors_1
-    headers: header_1
-    tracing: true
-
-#
-# CORS HEADERS for pre-flight (HTTP OPTIONS) and normal cases
-#
-cors:
-
-  - id: cors_1
-    options:
-      - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
-      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
-      - "Access-Control-Max-Age: 86400"
-    headers:
-      - "Access-Control-Allow-Origin: *"
-      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, OPTIONS"
-      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, Accept, Content-Type, X-Requested-With"
-      - "Access-Control-Allow-Credentials: true"
-
-#
-# add/drop/keep header parameters
-#
-headers:
-
-  - id: header_1
-    # headers to be inserted
-    add: ["hello-world: nice"]
-#    keep: ['x-session-id', 'user-agent']
-    drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding']
+```shell
+Platform platform = Platform.getInstance();
+platform.registerPrivate("my.function", new MyFunction(), 10);
 ```
 
-The `service` must be a service that is registered as public function.
+In the above example, You obtain a singleton instance of the Platform API class and use the "register" method
+to register a private function `MyFunction` with a route name "my.function".
 
-The system will find the service at run-time. If the service is not available, the user will see HTTP-503 
-"Service not reachable".
+In declarative approach, you use the `PreLoad` annotation to declare a class to hold the event handler.
 
-The `keep` and `drop` entries are mutually exclusive where `keep` has precedent over `drop`. When keep is empty 
-and drop is not, it will drop only the headers in the drop list. The `add` entry allows the developer to insert 
-additional header key-values before it reaches the target service that serves the REST endpoint.
+Your function should implement the LambdaFunction, TypedLambdaFunction or KotlinLambdaFunction. 
+While LambdaFunction is untyped, the event system can transport PoJo and your function should
+test the object type and cast it to the correct PoJo.
 
-For content types of XML and JSON, the system will try to convert the input stream into a map.
+TypedLambdaFunction and KotlinLambdaFunction are typed, and you must declare the input and output classes
+according to the input/output API contract of your function.
 
-For binary content type, the system will check if the input stream is larger than a threshold.
-`threshold` - the default threshold buffer is 50,000 bytes, min is 5,000 and max is 500,000
+For example, the SimpleDemoEndpoint has the "PreLoad" annotation to declare the route name and number of worker
+instances.
 
-If the input stream is small, it will convert the input stream into a byte array and store it in the "body" parameter.
-
-if the input stream is large, it will return a stream ID so that your service can read the data as a stream.
-
-Cors header processing is optional. If present, it will return the configured key-values for pre-flight and regular 
-responses.
-
-## URL matching
-
-For performance and readability reason, the system is not using regular expression for URL matching. 
-Instead it is using wildcard and path parameters.
-
-### wildcard
-
-The wildcard `*` character may be used as a URL path segment or as a suffix in a segment. 
-Characters after the wildcard character in a segment will be ignored.
-
-e.g. the following are valid wildcard URLs
-
-```
-/api/hello/world/*
-/api/hello*/world*/*
-```
-
-### path parameters
-
-The `{}` bracket can be used to indicate a path parameter. The value inside the bracket is the path parameter ID.
-
-For example, the following URL will set path parameter "first_name" and "last_name".
-
-```
-/api/hello/{first_name}/{last_name}
-```
-
-### HTTP request dataset
-
-The HTTP request (headers, query, body) will be encoded as a Map and the target service will receive it as the 
-message `body`.
-
-```yaml
-headers: key-values of HTTP headers
-cookies: optional key-values
-method: HTTP request method
-ip: caller's remote IP address
-parameters: 
-  path: optional path parameters
-  query: optional query or URL encoded request body parameters
-url: URL of the incoming request
-timeout: timeout value (in seconds) of the REST endpoint
-
-# optional (body or stream)
-body: byte array of input data if it is smaller than a given threshold
-stream: stream-ID of incoming data stream (e.g. file)
-filename: filename if it is a file upload
-content-length: number of bytes of the incoming stream
-
-```
-
-For Java, you can use AsyncHttpRequest as a convenient wrapper to read this dataset.
+By default, LambdaFunction and TypedLambdaFunction are executed using "kernel thread pool" for the worker instances.
+To change a function to a coroutine, you can add the `CoroutineRunner` annotation.
 
 ```java
-AsyncHttpRequest request = new AsyncHttpRequest(body);
+@CoroutineRunner
+@PreLoad(route = "hello.simple", instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
+    @Override
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance)
+            throws Exception {
+        // business logic here
+    }
+}
 ```
 
-### Http response body
+Once a function is created using the declarative method, you can override it with a mock function by using the
+programmatic registration method in a unit test.
 
-For simple use case, you can just send text, bytes or Map as the return value in your service.
+## Private vs public functions
 
-For advanced use cases, you can send status code, set HTTP headers if your service returns an EventEnvelope object.
+When you use the programmatic registration approach, you can use the "register" or the "registerPrivate" method to
+register the function as "public" or "private" respectively. For declarative approach, the `PreLoad` annotation
+contains a parameter to define the visibility of the function.
 
-### HTTP status code
+```java
+// or register it as "public"
+platform.register("my.function", new MyFunction(), 10);
 
-If your service set status code directly, you should use the standard 3-digit HTTP status code because it will be 
-sent to the browser directly. i.e. 200 means OK and 404 is NOT_FOUND, etc.
-
-### Setting cookies
-
-You can ask a browser to set a cookie by setting the "Set-Cookie" key-value in an EventEnvelope's header which will be 
-converted to a HTTP response header. 
-For details, please see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-
-There is a convenient "getHtmlDate()" method in the Utility class if you want to set the "Expires" directive in a cookie.
-
-
-### Exception handling
-
-If your service throws exception, it will automatically translate into a regular HTTP exception with status code 
-and message.
-
-To control the HTTP error code, your service should use the AppException class. It allows you to set HTTP status code
-and error message directly.
-
-### Input stream
-
-If you want to support file upload, you can specify the `upload` parameter in the rest.yaml configuration file.
-The default value is "file". If your user uses different tag, you must change the `upload` parameter to match the
-upload tag.
-
-If incoming request is a file, your service will see the "stream", "filename" and "content-length" parameters.
-If incoming request is a byte stream, your service will find the "stream" and "content-length" parameters.
-
-### Output stream
-
-If your service wants to send the output to the browser as a stream of text or bytes, you can create an ObjectStreamIO 
-with a timeout value. You can then set the streamId in the HTTP header "stream". You should also set the HTTP header 
-"timeout" to tell the REST endpoint to use it as IO stream read timeout value. The "stream" and "timeout" headers 
-are used by the REST automation framework. They will not be set as HTTP response headers.
-
-You timeout value should be short and yet good enough for your service to send one block of data. The timer will be 
-reset when there is I/O activity. One use case of output stream is file download.
-
-### Location of the YAML configuration file
-
-By default, the system will search for `file:/tmp/config/rest.yaml` and then `classpath:/rest.yaml`.
-
-If needed, you can change this in the `rest.automation.yaml` property in the application.properties file.
-
-The `/tmp/config/rest.yaml` allows you to externalize the REST automation configuration without rebuilding 
-the REST automation helper application.
-
-### Running the REST automation helper application
-
-Before you build this application, you should follow the README in the top level project to build the Mercury 
-libraries (platform-core, rest-core, rest-spring, kafka-connector, hazelcast-connector).
-
-Then you can build this helper app and run with:
-```
-java -Dcloud.connector=event.node target/rest-automation...jar
+// register a function as "private"
+platform.registerPrivate("my.function", new MyFunction(), 10);
 ```
 
-If you plan to use Hazelcast or Kafka as the network event stream system, you should also build the corresponding 
-presence monitor (hazelcast-presence and kafka-presence).
+A private function is visible by other functions in the same application memory space.
 
-Once the Mercury libraries and the presence monitors are built. You can start either Hazelcast or Kafka and build 
-this helper app.
+A public function is accessible by other function from another application instance using service mesh or HTTP method.
+We will discuss inter-container communication in [Chapter-7](CHAPTER-7.md) and [Chapter-8](CHAPTER-8.md).
 
-You can run the app with:
-```
-java -Dcloud.connector=event.node target/rest-automation...jar
-or
-java -Dcloud.connector=hazelcast -Dcloud.services=hazelcast.reporter target/rest-automation...jar
-or
-java -Dcloud.connector=kafka -Dcloud.services=kafka.reporter target/rest-automation...jar
-```
+## Post Office API
 
-## Custom HTML error page
+To send an asynchronous event or an event RPC call from one function to another, you can use the `PostOffice` APIs.
 
-You may customize the standardized `errorPage.html` in the resources folder for your organization.
+In your function, you can obtain an instance of the PostOffice like this:
 
-## Static HTML folder
-
-You can tell the rest-automation application to use a static HTML folder in the local file system with one of 
-these methods:
-
-application.properties
-```
-spring.web.resources.static-locations=file:/tmp/html
+```java
+@Override
+public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance)
+        throws Exception {
+    PostOffice po = new PostOffice(headers, instance);
+    // e.g. po.send and po.asyncRequest for sending asynchronous event and making RPC call
+}
 ```
 
-or startup parameters
+The PostOffice API detects if tracing is enabled in the incoming requeset. If yes, it will propagate tracing
+information to the "downstream" functions.
+
+## Event patterns
+
+1. RPC `“Request-response”, best for interactivity`
+2. Asynchronous `e.g. Drop-n-forget`
+3. Callback `e.g. Progressive rendering`
+4. Pipeline `e.g. Work-flow application`
+5. Streaming `e.g. File transfer`
+
+### Request-response (RPC)
+
+In enterprise application, RPC is the most common pattern in making call from one function to another.
+
+The "calling" function makes a request and waits for the response from the "called" function.
+
+In Mercury version 3, there are 2 types of RPC calls - "asynchronous" and "sequential non-blocking".
+
+#### Asynchronous RPC
+
+You can use the `asyncRequest` method to make an asynchronous RPC call. Asynchronous means that the response
+will be delivered to the `onSuccess` or `onFailure` callback method.
+
+Note that normal response and exception are sent to the onSuccess method and timeout exception to the onFailure
+method.
+
+If you set "timeoutException" to false, the timeout exception will be delivered to the onSuccess callback and
+the onFailure callback will be ignored.
+
+```java
+Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout) 
+                                   throws IOException;
+Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout, 
+                                   boolean timeoutException) throws IOException;
+
+// example
+EventEnvelope request = new EventEnvelope().setTo(SERVICE).setBody(TEXT);
+Future<EventEnvelope> response = po.asyncRequest(request, 2000);
+response.onSuccess(result -> {
+    // handle the response event
+}).onFailure(ex -> {
+    // handle timeout exception
+});
 ```
-java -jar rest-automation.jar -html file:/tmp/html
+
+The timeout value is measured in milliseconds.
+
+#### Asynchronous fork-n-join
+
+A special version of RPC is the fork-n-join API. This allows you to make concurrent requests to multiple functions.
+The system will consolidate all responses and return them as a list of events.
+
+Normal responses and user defined exceptions are sent to the onSuccess method and timeout exception to the onFailure
+method. Your function will receive all responses or a timeout exception.
+
+If you set "timeoutException" to false, partial results will be delivered to the onSuccess method when one or
+more services fail to respond on-time. The onFailure method is not required.
+
+```java
+Future<List<EventEnvelope>> asyncRequest(final List<EventEnvelope> event, long timeout) 
+                                         throws IOException;
+
+Future<List<EventEnvelope>> asyncRequest(final List<EventEnvelope> event, long timeout, 
+                                         boolean timeoutException) throws IOException;
+
+// example
+List<EventEnvelope> requests = new ArrayList<>();
+requests.add(new EventEnvelope().setTo(SERVICE1).setBody(TEXT1));
+requests.add(new EventEnvelope().setTo(SERVICE2).setBody(TEXT2));
+Future<List<EventEnvelope>> responses = po.asyncRequest(requests, 2000);
+responses.onSuccess(events -> {
+    // handle the response events
+}).onFailure(ex -> {
+    // handle timeout exception
+});
 ```
 
-# API definition file (rest.yaml)
+#### Asynchronous programming technique
 
-Please design and deploy your own rest.yaml file in /tmp/config/rest.yaml
+When your function is a service by itself, asynchronous RPC and fork-n-join require different programming approaches. 
 
-The rest.yaml in "/tmp/config" will override the sample rest.yaml in the resources folder.
+There are two ways to do that:
+1. Your function returns an immediate result and waits for the response(s) to the onSuccess or onFailure callback
+2. Your function is implemented as an "EventInterceptor"
 
----
+For the first approach, your function can return an immediate result telling the caller that your function would need
+time to process the request. This works when the caller can be reached by a callback.
 
-| Chapter-5                                   | Home                                     |
-| :------------------------------------------:|:----------------------------------------:|
-| [Traditional REST endpoints](CHAPTER-5.md)  | [Table of Contents](TABLE-OF-CONTENTS.md)|
+For the second approach, your function is annotated with the keyword `EventInterceptor`. 
+It can immediately return a "null" response that will be ignored by the event system. Your function can inspect
+the "replyTo" address, correlation ID, trace ID and trace path in the incoming event and use it to return a future 
+response to the caller.
+
+#### Sequential non-blocking RPC and fork-n-join
+
+To simplify coding, you can implement a "suspend function" using the KotlinLambdaFunction interface.
+
+The following code segment illustrates the creation of the "hello.world" function that makes a non-blocking RPC
+call to "another.service".
+
+```kotlin
+@PreLoad(route="hello.world", instances=10)
+class FileUploadDemo: KotlinLambdaFunction<AsyncHttpRequest, Any> {
+    override suspend fun handleEvent(headers: Map<String, String>, input: AsyncHttpRequest, 
+                                     instance: Int): Any {
+        val fastRPC = FastRPC(headers)
+        // your business logic here...
+        val req = EventEnvelope().setTo("another.service").setBody(myPoJo)
+        return fastRPC.awaitRequest(req, 5000)
+    }
+}
+```
+
+The API method signature for non-blocking RPC and fork-n-join are as follows:
+
+```kotlin
+@Throws(IOException::class)
+suspend fun awaitRequest(request: EventEnvelope, timeout: Long): EventEnvelope
+
+@Throws(IOException::class)
+suspend fun awaitRequest(requests: List<EventEnvelope>, timeout: Long): List<EventEnvelope>
+```
+
+### Asynchronous drop-n-forget
+
+To make an asynchronous call from one function to another, use the `send` method.
+
+```java
+void send(String to, Kv... parameters) throws IOException;
+void send(String to, Object body) throws IOException;
+void send(String to, Object body, Kv... parameters) throws IOException;
+void send(final EventEnvelope event) throws IOException;
+```
+Kv is a key-value pair for holding one parameter.
+
+Asynchronous event calls are handled in the background without blocking so that your function can continue processing
+additional business logic. For example, sending a notification message to a user.
+
+### Callback
+
+You can declare another function as a "callback". When you send a request to another function, you can set the 
+"replyTo" address in the request event. When a response is received, your callback function will be invoked to 
+handle the response event.
+
+```java
+EventEnvelope req = new EventEnvelope().setTo("some.service")
+                        .setBody(myPoJo).setReplyTo("my.callback");
+po.send(req);
+```
+
+In the above example, you have a callback function with route name "my.callback". You send the request event
+with a MyPoJo object as payload to the "some.service" function. When a response is received, the "my.callback"
+function will get the response as input.
+
+### Pipeline
+
+Pipeline is a linked list of event calls. There are many ways to do pipeline. One way is to keep the pipeline plan
+in an event's header and pass the event across multiple functions where you can set the "replyTo" address from the next
+task in a pipeline. You should handle exception cases when a pipeline breaks in the middle of a transaction.
+
+An example of the pipeline header key-value may look like this:
+
+```properties
+pipeline=service.1, service.2, service.3, service.4, service.5
+```
+
+In the above example, when the pipeline event is received by a function, the function can check its position
+in the pipeline by comparing its own route name with the pipeline plan.
+
+```java
+PostOffice po = new PostOffice(headers, instance);
+
+// some business logic here...
+String myRoute = po.getRoute();
+```
+Suppose myRoute is "service.2", the function can send the response event to "service.3".
+When "service.3" receives the event, it can send its response event to the next one. i.e. "service.4".
+
+When the event reaches the last service ("service.5"), the processing will complete.
+
+### Streaming
+
+If you set a function as singleton (i.e. one worker instance), it will receive event in an orderly fashion.
+This way you can "stream" events to the function, and it will process the events one by one.
+
+Another means to do streaming is to create an "ObjectStreamIO" event stream like this:
+
+```java
+ObjectStreamIO stream = new ObjectStreamIO(60);
+ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
+out.write(messageOne);
+out.write(messageTwo);
+out.close();
+
+String streamId = stream.getInputStreamId();
+// pass the streamId to another function
+```
+
+In the code segment above, your function creates an object event stream and writes 2 messages into the stream
+It then obtains the streamId of the event stream. When another function receives the stream ID, it can read
+the data blocks orderly.
+
+Note that when you can declare "end of stream" by closing the output stream. If you do not close the stream,
+it remains open and idle. If a function is trying to read an input stream using the stream ID, it will time out.
+
+A stream will be automatically closed when the idle inactivity timer is reached. In the above example, 
+ObjectStreamIO(60) means an idle inactivity timer of 60 seconds.
+
+> IMPORTANT: To improve the non-blocking design of your function, you can implement your function as a
+             KotlinLambdaFunction. If you need to send many blocks of data continuously in a "while"
+             loop, you should add the "yield()" statement before it writes a block of data to the 
+             output stream. This way, a long-running function will be non-blocking.
+
+There are two ways to read an input event stream - asynchronous or sequential non-blocking.
+
+#### AsyncObjectStreamReader
+
+To read events from a stream, you can create an instance of the AsyncObjectStreamReader like this:
+
+```java
+AsyncObjectStreamReader in = new AsyncObjectStreamReader(stream.getInputStreamId(), 8000);
+Future<Object> block = in.get();
+block.onSuccess(b -> {
+    if (b != null) {
+        // process the data block
+    } else {
+        // end of stream. Do additional processing.
+        in.close();
+    }
+});
+```
+
+The above illustrates reading the first block of data. The function would need to iteratively read the stream
+until end of stream (i.e. when the stream returns null). As a result, asynchronous application code for stream
+processing is more challenging to write and maintain.
+
+#### Sequential non-blocking method
+
+The industry trend is to use sequential non-blocking method instead of "asynchronous programming" because your code
+will be much easier to read.
+
+You can use the `awaitRequest` method to read the next block of data from an event stream.
+
+An example for reading a stream is shown in the `FileUploadDemo` kotlin class in the lambda-example project.
+It is using a simple "while" loop to read the stream. When the function fetches the next block of data using
+the `awaitRequest` method, the function is suspended until the next data block or "end of stream" signal is received.
+
+It may look like this:
+
+```kotlin
+val po = PostOffice(headers, instance)
+val fastRPC = FastRPC(headers)
+
+val req = EventEnvelope().setTo(streamId).setHeader(TYPE, READ)
+while (true) {
+    val event = fastRPC.awaitRequest(req, 5000)
+    if (event.status == 408) {
+        // handle input stream timeout
+        break
+    }
+    if (EOF == event.headers[TYPE]) {
+        po.send(streamId, Kv(TYPE, CLOSE))
+        break
+    }
+    if (DATA == event.headers[TYPE]) {
+        val block = event.body
+        if (block is ByteArray) {
+            // handle the data block from the input stream
+        }
+    }
+}
+```
+
+Since the code style is "sequential non-blocking", using a "while" loop does not block the "event loop" provided
+that you are using "await" API inside the while-loop.
+
+In this fashion, the intent of the code is clear. Sequential non-blocking method offers high throughput because
+it does not consume CPU resources while the function is waiting for a response from another function.
+
+We recommend sequential non-blocking style for more sophisticated event streaming logic.
+
+> Note: "await" methods are only supported in KotlinLambdaFunction which is a suspend function.
+        When Java 19 virtual thread feature becomes officially available, we will enhance
+        the function execution strategies.
+
+## Orchestration layer
+
+Once you have implemented modular functions in a self-contained manner, the best practice is to write one or more
+functions to do "event orchestration".
+
+Think of the orchestration function as a music conductor who guides the whole team to perform.
+
+For event orchestration, your function can be the "conductor" that sends events to the individual functions so that
+they operate together as a single application. To simplify design, the best practice is to apply event orchestration
+for each transaction or use case. The event orchestration function also serves as a living documentation about how
+your application works. It makes your code more readable.
+
+## Event Script
+
+To simplify and automate event orchestration, there is an enterprise add-on module called "Event Script".
+This is the idea of "config over code" or "declarative programming". The primary purpose of "Event Script"
+is to reduce coding effort so that the team can focus their energy in improving application design and code quality. 
+Please contact your Accenture representative if you would like to evaluate the additional tool.
+
+In the next chapter, we will discuss the build, test and deploy process.
+<br/>
+
+|            Chapter-3            |                   Home                    |               Chapter-5                |
+|:-------------------------------:|:-----------------------------------------:|:--------------------------------------:|
+| [REST automation](CHAPTER-3.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Build, test and deploy](CHAPTER-5.md) |

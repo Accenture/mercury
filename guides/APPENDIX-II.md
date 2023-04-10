@@ -1,47 +1,72 @@
 # Reserved route names
 
-The Mercury foundation functions are also written using the same event-driven API in platform-core. 
-The following route names are reserved for the internal system functions.
+The Mercury foundation code is written using the same event API and each function has a route name.
 
-Please DO NOT use them in your application functions as it would disrupt the normal operation of the
-event system and your application may not work as expected.
+The following route names are reserved. Please DO NOT use them in your application functions to avoid breaking
+the system unintentionally.
 
-| Route name                    | Purpose                                | Modules                      |
-| :-----------------------------|:---------------------------------------|:-----------------------------|
-| actuator.services             | Reserved for actuator admin endpoint   | platform-core                |
-| elastic.queue.cleanup         | Elastic queue clean up task            | platform-core                |
-| distributed.tracing           | Distributed trace logger               | platform-core                |
-| system.ws.server.cleanup      | Websocket server cleanup service       | platform-core                |
-| rest.automation.auth.handler  | REST automation authenticator          | platform-core                |
-| distributed.trace.processor   | Distributed trace aggregator           | User defined trace handler   |
-| system.service.registry       | Distributed routing registry           | cloud connectors             |
-| system.service.query          | Distributed routing query              | cloud connectors             |
-| cloud.connector.health        | Cloud connector health service         | cloud connectors             |
-| additional.info               | Additional info service                | cloud connectors             |
-| cloud.manager                 | Cloud manager service                  | Cloud connectors             |
-| presence.service              | Presence reporter service              | cloud connectors             |
-| presence.housekeeper          | Presence housekeeper service           | cloud connectors             |
-| cloud.connector               | Cloud event emitter                    | Cloud connectors             |
-| async.http.request            | HTTP request event handler             | REST automation system       |
-| async.http.response           | HTTP response event handler            | REST automation system       |
-| language.pack.inbox           | RPC inbox handler                      | Language Connector           |
-| language.pack.registry        | Routing registry                       | Language Connector           |
-| pub.sub.controller            | Pub/sub handler                        | Language Connector           |
-| object.streams.io             | Object stream manager                  | Language Connector           |
-| cron.scheduler                | Cron job scheduler                     | Scheduler helper application |
-| init.service.monitor.*        | reserved for event stream startup      | service monitor core         |
-| completion.service.monitor.*  | reserved for event stream clean up     | service monitor core         |
-| init.multiplex.*              | reserved for event stream startup      | cloud connector core         |
-| completion.multiplex.*        | reserved for event stream clean up     | cloud connector core         |
+| Route                        | Purpose                               | Modules          |
+|:-----------------------------|:--------------------------------------|:-----------------|
+| actuator.services            | Actuator endpoint services            | platform-core    |
+| elastic.queue.cleanup        | Elastic event buffer clean up task    | platform-core    |
+| distributed.tracing          | Distributed tracing logger            | platform-core    |
+| system.ws.server.cleanup     | Websocket server cleanup service      | platform-core    |
+| http.auth.handler            | REST automation authentication router | platform-core    |
+| event.api.service            | Event API service                     | platform-core    |
+| stream.to.bytes              | Event API helper function             | platform-core    |
+| system.service.registry      | Distributed routing registry          | Connector        |
+| system.service.query         | Distributed routing query             | Connector        |
+| cloud.connector.health       | Cloud connector health service        | Connector        |
+| cloud.manager                | Cloud manager service                 | Connector        |
+| presence.service             | Presence signal service               | Connector        |
+| presence.housekeeper         | Presence keep-alive service           | Connector        |
+| cloud.connector              | Cloud event emitter                   | Connector        |
+| init.multiplex.*             | reserved for event stream startup     | Connector        |
+| completion.multiplex.*       | reserved for event stream clean up    | Connector        |
+| async.http.request           | HTTP request event handler            | REST automation  |
+| async.http.response          | HTTP response event handler           | REST automation  |
+| cron.scheduler               | Cron job scheduler                    | Simple Scheduler |
+| init.service.monitor.*       | reserved for event stream startup     | Service monitor  |
+| completion.service.monitor.* | reserved for event stream clean up    | Service monitor  |
 
-# Distributed trace processor
+## Optional user defined functions
 
-The route name "distributed.trace.processor" is reserved for user defined trace handler. 
-If you implement a function with this route name, it will receive trace metrics in a real-time basis. 
-You may then decide how to persist the metrics. e.g. Elastic Search or a database.
+The following optional route names will be detected by the system to execute additional features.
 
----
+| Route                        | Purpose                                                                               |
+|:-----------------------------|:--------------------------------------------------------------------------------------|
+| additional.info              | User application function to return information<br/> about your application status    |
+| distributed.trace.forwarder  | Custom function to forward performance metrics<br/> to a telemetry system             |
+| transaction.journal.recorder | Custom function to record transaction request-response<br/> payloads into an audit DB |
 
-| Appendix-III                              | Home                                     |
-| :----------------------------------------:|:----------------------------------------:|
-| [Additional features](APPENDIX-III.md)    | [Table of Contents](TABLE-OF-CONTENTS.md)|
+The `additional.info` function, if implemented, will be invoked from the "/info" endpoint and its response
+will be merged into the "/info" response.
+
+For `distributed.trace.forwarder` and `transaction.journal.recorder`, please refer to Chapter 5 for details.
+
+## Reserved event header names
+
+The following event headers are injected by the system as READ only key-values. They are available from the
+input "headers". However, they are not part of the EventEnvelope.
+
+| Header        | Purpose                                    | 
+|:--------------|:-------------------------------------------|
+| my_route      | route name of your function                |
+| my_trace_id   | trace ID, if any, for the incoming event   |
+| my_trace_path | trace path, if any, for the incoming event | 
+
+You can create a trackable PostOffice using the "headers" and the "instance" parameters in the input arguments
+of your function. The FastRPC instance requires only the "headers" parameters.
+
+```java
+// Java
+PostOffice po = new PostOffice(headers, instance);
+
+// Kotlin
+val fastRPC = FastRPC(headers);
+```
+<br/>
+
+|               Appendix-I                |                   Home                    |                Appendix-III                 |
+|:---------------------------------------:|:-----------------------------------------:|:-------------------------------------------:|
+| [application.properties](APPENDIX-I.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Actuator and HTTP client](APPENDIX-III.md) |

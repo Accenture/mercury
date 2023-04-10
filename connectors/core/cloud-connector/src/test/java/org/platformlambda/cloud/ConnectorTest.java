@@ -26,8 +26,8 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.mock.TestBase;
@@ -40,7 +40,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConnectorTest extends TestBase {
@@ -51,17 +53,18 @@ public class ConnectorTest extends TestBase {
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
 
     @Before
-    public void waitForMockCloud() {
+    public void waitForMockCloud() throws InterruptedException {
         if (firstRun.get()) {
             firstRun.set(false);
+            final int WAIT = 20;
+            final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
             Platform platform = Platform.getInstance();
-            try {
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
+            platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, WAIT).onSuccess(bench::offer);
+            Boolean success = bench.poll(WAIT, TimeUnit.SECONDS);
+            if (Boolean.TRUE.equals(success)) {
                 log.info("Mock cloud ready");
-                waitForConnector();
-            } catch (TimeoutException e) {
-                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
+            waitForConnector();
         }
     }
 
@@ -88,11 +91,12 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void connectivityTest() throws TimeoutException, AppException, IOException {
+    public void connectivityTest() throws AppException, IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         String origin = "unit-test";
         Platform platform = Platform.getInstance();
         platform.waitForProvider("cloud.connector.health", 10);
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String URL = "https://127.0.0.1";
         String SERVICE_NAME = "CloudConnector";
         ConnectorConfig.setDisplayUrl(URL);
@@ -103,28 +107,47 @@ public class ConnectorTest extends TestBase {
         Assert.assertEquals(URL, url);
         Assert.assertEquals(SERVICE_NAME, name);
         Assert.assertEquals("user.topic.one", topicSubstitution.get("multiplex.0001.0"));
-        po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000,
-                new Kv("type", "join"), new Kv("origin", origin), new Kv("topic", "multiplex.0001-001"));
-        po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000,
-                new Kv("type", "join"), new Kv("origin", platform.getOrigin()), new Kv("topic", "multiplex.0001-000"));
-        po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000,
-                new Kv("type", "add"), new Kv("origin", origin),
-                new Kv("route", "hello.world"), new Kv("personality", "WEB"));
+        EventEnvelope req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY)
+                                    .setHeader("type", "join").setHeader("origin", origin)
+                                    .setHeader("topic", "multiplex.0001-001");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY)
+                .setHeader("type", "join").setHeader("origin", platform.getOrigin())
+                .setHeader("topic", "multiplex.0001-000");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
+        req.setHeader("type", "add").setHeader("topic", "multiplex.0001-001");
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY)
+                    .setHeader("type", "add").setHeader("origin", origin).setHeader("route", "hello.world")
+                    .setHeader("personality", "WEB");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
         Map<String, Object> routes = new HashMap<>();
         routes.put("hello.test", "WEB");
         routes.put("hello.demo", "WEB");
         routes.put("to.be.removed", "WEB");
-        po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000, routes,
-                new Kv("type", "add"), new Kv("origin", origin),
-                new Kv("personality", "WEB"));
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY).setBody(routes)
+                    .setHeader("type", "add").setHeader("origin", origin)
+                    .setHeader("personality", "WEB");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
         po.broadcast("hello.world", "something");
         po.send("hello.demo@"+origin, "something else");
-        po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000, routes,
-                new Kv("type", "unregister"), new Kv("origin", origin),
-                new Kv("route", "to.be.removed"));
-        EventEnvelope queryResult = po.request(ServiceDiscovery.SERVICE_QUERY, 5000,
-                new Kv("type", "search"), new Kv("route", "hello.world"));
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_REGISTRY).setBody(routes)
+                .setHeader("type", "unregister").setHeader("origin", origin)
+                .setHeader("route", "to.be.removed");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_QUERY)
+                .setHeader("type", "search")
+                .setHeader("origin", origin).setHeader("route", "hello.world");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        EventEnvelope queryResult = bench.poll(10, TimeUnit.SECONDS);
+        assert queryResult != null;
         Assert.assertTrue(queryResult.getBody() instanceof List);
+        List<String> list = (List<String>) queryResult.getBody();
+        Assert.assertFalse(list.isEmpty());
         List<String> instances = (List<String>) queryResult.getBody();
         Assert.assertTrue(instances.contains("unit-test"));
         Assert.assertTrue(instances.contains(platform.getOrigin()));
@@ -137,8 +160,12 @@ public class ConnectorTest extends TestBase {
         String nodeList = nodes.toString();
         Assert.assertTrue(nodeList.contains("unit-test"));
         Assert.assertTrue(po.exists("hello.demo"));
-        queryResult = po.request(ServiceDiscovery.SERVICE_QUERY, 5000,
-                Collections.singletonList("hello.world"), new Kv("type", "find"), new Kv("route", "*"));
+        req = new EventEnvelope().setTo(ServiceDiscovery.SERVICE_QUERY)
+                .setBody(Collections.singletonList("hello.world")).setHeader("type", "find")
+                .setHeader("route", "*");
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        queryResult = bench.poll(10, TimeUnit.SECONDS);
+        assert queryResult != null;
         Assert.assertEquals(true, queryResult.getBody());
         Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", Platform.getInstance().getOrigin());
@@ -162,36 +189,30 @@ public class ConnectorTest extends TestBase {
         String name = "hello.world";
         ConnectorConfig.validateTopicName(name);
         String invalid = "helloworld";
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
-            ConnectorConfig.validateTopicName(invalid);
-        });
+        IOException ex = Assert.assertThrows(IOException.class, () -> ConnectorConfig.validateTopicName(invalid));
         Assert.assertEquals("Invalid route helloworld because it is missing dot separator(s). e.g. hello.world",
                 ex.getMessage());
     }
 
     @Test
     public void checkEmptyTopic() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
-            ConnectorConfig.validateTopicName("");
-        });
+        IOException ex = Assert.assertThrows(IOException.class, () -> ConnectorConfig.validateTopicName(""));
         Assert.assertEquals("Invalid route name - use 0-9, a-z, A-Z, period, hyphen or underscore characters",
                 ex.getMessage());
     }
 
     @Test
     public void reservedExtension() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
-            ConnectorConfig.validateTopicName("hello.com");
-        });
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                ConnectorConfig.validateTopicName("hello.com"));
         Assert.assertEquals("Invalid route hello.com which is a reserved extension",
                 ex.getMessage());
     }
 
     @Test
     public void reservedName() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
-            ConnectorConfig.validateTopicName("Thumbs.db");
-        });
+        IOException ex = Assert.assertThrows(IOException.class, () ->
+                ConnectorConfig.validateTopicName("Thumbs.db"));
         Assert.assertEquals("Invalid route Thumbs.db which is a reserved Windows filename",
                 ex.getMessage());
     }

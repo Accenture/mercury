@@ -28,7 +28,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.hazelcast.HazelcastConnector;
@@ -93,14 +93,14 @@ public class EventConsumer {
             ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, INIT_TOKEN);
             initialLoad.start();
         }
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Platform platform = Platform.getInstance();
         HazelcastInstance client = HazelcastConnector.getClient(domain, properties);
         String realTopic = partition < 0? topic : topic+"."+partition;
         iTopic = client.getReliableTopic(realTopic);
         registrationId = iTopic.addMessageListener(new EventListener());
         String completionHandler = COMPLETION + realTopic.toLowerCase();
-        LambdaFunction f = (headers, body, instance) -> {
+        LambdaFunction f = (headers, input, instance) -> {
             iTopic.removeMessageListener(registrationId);
             platform.release(completionHandler);
             log.info("Unsubscribed {}", realTopic);
@@ -122,7 +122,7 @@ public class EventConsumer {
         String realTopic = partition < 0? topic : topic+"."+partition;
         String completionHandler = COMPLETION + realTopic;
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         if (platform.hasRoute(completionHandler)) {
             try {
                 po.send(completionHandler, STOP);
@@ -139,7 +139,7 @@ public class EventConsumer {
         @Override
         public void onMessage(Message<Map<String, Object>> evt) {
             Utility util = Utility.getInstance();
-            PostOffice po = PostOffice.getInstance();
+            EventEmitter po = EventEmitter.getInstance();
             String origin = Platform.getInstance().getOrigin();
             Map<String, Object> event = evt.getMessageObject();
             Object h = event.get(HEADERS);

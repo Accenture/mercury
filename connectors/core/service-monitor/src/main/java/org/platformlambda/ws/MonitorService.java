@@ -25,7 +25,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.ManagedCache;
 import org.platformlambda.core.util.Utility;
@@ -44,8 +44,8 @@ import java.util.concurrent.ConcurrentMap;
 public class MonitorService implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MonitorService.class);
 
-    private static final String CLOUD_MANAGER = MainApp.CLOUD_MANAGER;
-    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
+    private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
+    private static final String CLOUD_CONNECTOR = EventEmitter.CLOUD_CONNECTOR;
     private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
     private static final String TYPE = "type";
@@ -169,15 +169,15 @@ public class MonitorService implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
         if (headers.containsKey(WsEnvelope.TYPE)) {
             String type = headers.get(WsEnvelope.TYPE);
             if (WsEnvelope.OPEN.equals(type)) {
                 handleOpen(headers);
             } else if (WsEnvelope.CLOSE.equals(type)) {
                 handleClose(headers);
-            } else if (WsEnvelope.BYTES.equals(type) && body instanceof byte[]) {
-                handleBytes(headers, (byte[]) body);
+            } else if (WsEnvelope.BYTES.equals(type) && input instanceof byte[]) {
+                handleBytes(headers, (byte[]) input);
             }
             return true;
         } else {
@@ -214,7 +214,7 @@ public class MonitorService implements LambdaFunction {
 
     private void handleBytes(Map<String, String> headers, byte[] payload) throws IOException {
         String route = headers.get(WsEnvelope.ROUTE);
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         WsMetadata md = connections.get(route);
         if (md != null) {
             md.touch();
@@ -259,7 +259,7 @@ public class MonitorService implements LambdaFunction {
     @SuppressWarnings("unchecked")
     private void handleClose(Map<String, String> headers) throws IOException {
         String route = headers.get(WsEnvelope.ROUTE);
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         WsMetadata md = connections.get(route);
         connections.remove(route);
         if (md != null) {
@@ -290,7 +290,7 @@ public class MonitorService implements LambdaFunction {
                 throw new IllegalArgumentException("Invalid closed user group ("+groupId+")");
             }
             // send leave event to the closed user group
-            PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + groupId,
+            EventEmitter.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + groupId,
                     new Kv(TYPE, LEAVE), new Kv(ORIGIN, closedApp));
             log.info("tell group {} that {} has left", groupId, closedApp);
 
@@ -348,7 +348,7 @@ public class MonitorService implements LambdaFunction {
             error.setHeader(STATUS, status);
             error.setHeader(MESSAGE, message);
             error.setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE);
-            PostOffice.getInstance().send(error);
+            EventEmitter.getInstance().send(error);
         }
     }
 

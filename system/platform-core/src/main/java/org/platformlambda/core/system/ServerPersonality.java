@@ -25,14 +25,8 @@ public class ServerPersonality {
     private static final Logger log = LoggerFactory.getLogger(ServerPersonality.class);
     private static final ServerPersonality INSTANCE = new ServerPersonality();
 
-    /**
-     * REST is the user facing container that handles REST and websocket requests
-     * WEB is the web-tier microservices container
-     * APP is the application-tier microservices container
-     * RESOURCES is the resources-tier microservices container
-     */
     public enum Type {
-        REST, WEB, APP, RESOURCES
+        REST, APP, RESOURCES
     }
     private Type type = Type.APP;
 
@@ -44,6 +38,15 @@ public class ServerPersonality {
         return type;
     }
 
+    /**
+     * REST indicates that the deployed application is user facing
+     * <p>
+     * APP signals that the deployed application holds business logic
+     * <p>
+     * RESOURCES is a resources-tier service. e.g. database service, MQ gateway, legacy service proxy or utility.
+     *
+     * @param type can be REST, APP or RESOURCES
+     */
     public void setType(Type type) {
         if (type == null) {
             throw new IllegalArgumentException("Personality cannot be null");

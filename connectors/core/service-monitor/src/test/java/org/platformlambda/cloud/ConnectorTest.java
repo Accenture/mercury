@@ -24,10 +24,11 @@ import org.junit.Test;
 import org.platformlambda.MainApp;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.mock.TestBase;
@@ -38,10 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConnectorTest extends TestBase {
@@ -58,17 +62,22 @@ public class ConnectorTest extends TestBase {
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
 
     @Before
-    public void waitForMockCloud() {
+    public void waitForMockCloud() throws InterruptedException {
         if (firstRun.get()) {
             firstRun.set(false);
+            final int WAIT = 20;
+            final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
             Platform platform = Platform.getInstance();
-            try {
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
+
+            List<String> providers = new ArrayList<>();
+            providers.add(CLOUD_CONNECTOR_HEALTH);
+            providers.add(ServiceDiscovery.SERVICE_REGISTRY);
+            platform.waitForProviders(providers, WAIT).onSuccess(bench::offer);
+            Boolean success = bench.poll(WAIT, TimeUnit.SECONDS);
+            if (Boolean.TRUE.equals(success)) {
                 log.info("Mock cloud ready");
-                waitForConnector();
-            } catch (TimeoutException e) {
-                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
+            waitForConnector();
         }
     }
 
@@ -95,10 +104,9 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void connectivityTest() throws AppException, IOException, TimeoutException {
-        Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 10000);
+    public void connectivityTest() throws AppException, IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEmitter po = EventEmitter.getInstance();
         int n = 0;
         while (!PresenceHandler.isReady() || MonitorService.getConnections().isEmpty() && ++n < 20) {
             log.info("Waiting for member connection... {}", n);
@@ -156,8 +164,11 @@ public class ConnectorTest extends TestBase {
         po.send(MainApp.PRESENCE_HANDLER, connections,
                 new Kv(TYPE, PUT), new Kv(ORIGIN, origin), new Kv(MULTIPLES, true));
         // use RPC to wait for completion
-        po.request(MainApp.PRESENCE_HOUSEKEEPER, 5000,
-                new Kv(TYPE, MainApp.MONITOR_ALIVE), new Kv(ORIGIN, origin));
+        EventEnvelope req = new EventEnvelope().setTo(MainApp.PRESENCE_HOUSEKEEPER)
+                .setHeader(TYPE, MainApp.MONITOR_ALIVE).setHeader(ORIGIN, origin);
+        po.asyncRequest(req, 5000).onSuccess(bench::offer);
+        bench.poll(10, TimeUnit.SECONDS);
+
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
         Assert.assertTrue(response instanceof String);
         Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);

@@ -18,14 +18,15 @@
 
 package org.platformlambda.core.mock;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import org.junit.BeforeClass;
 import org.platformlambda.automation.service.MockHelloWorld;
+import org.platformlambda.core.services.LongRunningRpcSimulator;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -35,7 +36,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestBase {
@@ -43,17 +46,21 @@ public class TestBase {
 
     protected static final String HELLO_WORLD = "hello.world";
     protected static final String HELLO_MOCK = "hello.mock";
+    protected static final String LONG_RUNNING_RPC = "long.running.rpc";
+    protected static final String LONG_RUNNING_RPC_ALIAS = "long.running.rpc.alias";
     protected static final String HELLO_LIST = "hello.list";
     protected static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     protected static final int MINIMALIST_HTTP_PORT = 8020;
+    protected static final String APP_ID = Utility.getInstance().getDateUuid()+"-"+System.getProperty("user.name");
     private static final String SERVICE_LOADED = "http.service.loaded";
     protected static int port;
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
     @BeforeClass
-    public static void setup() throws IOException {
+    public static void setup() throws IOException, InterruptedException {
         if (startCounter.incrementAndGet() == 1) {
+            Platform.setAppId(APP_ID);
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             port = util.str2int(config.getProperty("server.port", "8100"));
@@ -61,21 +68,20 @@ public class TestBase {
             AppStarter.main(new String[0]);
             AppStarter.runMainApp();
             ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
+            blockingWait(AppStarter.ASYNC_HTTP_RESPONSE, 20);
+            blockingWait(CLOUD_CONNECTOR_HEALTH, 20);
+            // you can convert a private function to public when needed
+            blockingWait(HELLO_WORLD, 5);
+            log.info("Mock cloud ready");
+
             Platform platform = Platform.getInstance();
-            PostOffice.getInstance().getReady();
-            try {
-                platform.waitForProvider(AppStarter.ASYNC_HTTP_RESPONSE, 20);
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
-                // you can convert a private function to public when needed
-                platform.waitForProvider(HELLO_WORLD, 5);
-                log.info("Mock cloud ready");
-            } catch (TimeoutException e) {
-                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
-            }
             platform.registerPrivate(HELLO_MOCK, new MockHelloWorld(), 10);
+            platform.registerKotlinPrivate(LONG_RUNNING_RPC, new LongRunningRpcSimulator(), 15);
+            // test registering the same function with an alias route name
+            platform.registerKotlin(LONG_RUNNING_RPC_ALIAS, new LongRunningRpcSimulator(), 10);
             // hello.list is a special function to test returning result set as a list
-            platform.registerPrivate(HELLO_LIST, (headers, body, instance) ->
-                                                    Collections.singletonList(body), 5);
+            platform.registerPrivate(HELLO_LIST, (headers, input, instance) ->
+                                                    Collections.singletonList(input), 5);
             platform.makePublic(HELLO_MOCK);
             // load minimalist HTTP server
             Vertx vertx = Vertx.vertx();
@@ -85,7 +91,7 @@ public class TestBase {
             server.listen(MINIMALIST_HTTP_PORT)
                     .onSuccess(service -> {
                         try {
-                            platform.registerPrivate(SERVICE_LOADED, (headers, body, instance) -> true, 1);
+                            platform.registerPrivate(SERVICE_LOADED, (headers, input, instance) -> true, 1);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
@@ -94,11 +100,15 @@ public class TestBase {
                         log.error("Unable to start - {}", ex.getMessage());
                         System.exit(-1);
                     });
-            try {
-                platform.waitForProvider(SERVICE_LOADED, 20);
-            } catch (TimeoutException e) {
-                throw new RuntimeException(e);
-            }
+
+            blockingWait(SERVICE_LOADED, 20);
         }
+    }
+
+    private static boolean blockingWait(String provider, int seconds) throws InterruptedException {
+        BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
+        Future<Boolean> status = Platform.getInstance().waitForProvider(provider, seconds);
+        status.onSuccess(found -> bench.offer(found));
+        return Boolean.TRUE.equals(bench.poll(12, TimeUnit.SECONDS));
     }
 }

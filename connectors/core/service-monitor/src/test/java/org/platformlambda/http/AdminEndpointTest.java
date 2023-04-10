@@ -34,8 +34,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -47,17 +51,19 @@ public class AdminEndpointTest extends TestBase {
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
 
     @Before
-    public void waitForMockCloud() {
+    public void waitForMockCloud() throws InterruptedException {
         if (firstRun.get()) {
             firstRun.set(false);
+            final int WAIT = 20;
+            final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
             Platform platform = Platform.getInstance();
-            try {
-                platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, 20);
+            platform.waitForProvider(CLOUD_CONNECTOR_HEALTH, WAIT)
+                    .onSuccess(status -> bench.offer(status));
+            Boolean success = bench.poll(WAIT, TimeUnit.SECONDS);
+            if (success) {
                 log.info("Mock cloud ready");
-                waitForConnector();
-            } catch (TimeoutException e) {
-                log.error("{} not ready - {}", CLOUD_CONNECTOR_HEALTH, e.getMessage());
             }
+            waitForConnector();
         }
     }
 
@@ -138,12 +144,15 @@ public class AdminEndpointTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void routeEndpointNotAvailableTest() {
-        AppException ex = Assert.assertThrows(AppException.class, () ->
-                SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes"));
-        Assert.assertEquals(400, ex.getStatus());
-        Assert.assertEquals("Routing table is not visible from a presence monitor - " +
-                "please try it from a regular application instance", ex.getMessage());
+    public void routeEndpointNotAvailableTest() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes");
+        Assert.assertTrue(response instanceof String);
+        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        MultiLevelMap multi = new MultiLevelMap(result);
+        Assert.assertEquals("presence-monitor", multi.getElement("app.name"));
+        Assert.assertEquals(Collections.emptyMap(), multi.getElement("routing"));
+        Assert.assertEquals("Routing table is not visible from a presence monitor",
+                multi.getElement("message"));
     }
 
     @SuppressWarnings("unchecked")

@@ -9,7 +9,6 @@
         <Root level="${env:LOG_LEVEL:-INFO}" additivity="false">
             <AppenderRef ref="console" />
         </Root>
-        <!--<logger name="org.platformlambda.core.system.WorkerQueue" level="DEBUG" />-->
         <logger name="org.platformlambda.rest.RestServer" level="WARN" />
         <logger name="org.apache.kafka.streams.processor.internals.StreamThread" level="WARN" />
         <logger name="org.apache.kafka.streams.KafkaStreams" level="WARN" />

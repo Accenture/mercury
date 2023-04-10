@@ -1,203 +1,139 @@
 # application.properties
 
-| Key                                         | Value (example)                          | Required   |
-|:--------------------------------------------|:-----------------------------------------|:-----------|
-| application.name or spring.application.name | Application name                         | Yes        |
-| info.app.version                            | major.minor.build (e.g. 1.0.0)           | Yes        |
-| info.app.description                        | Something about application              | Yes        |
-| web.component.scan                          | your own package path or parent path     | Yes        |
-| server.port                                 | e.g. 8083                                | Yes*       |
-| rest.automation                             | true if you want to enable automation    | Optional   |
-| rest.server.port                            | e.g. 8085                                | Optional   |
-| websocket.server.port                       | (alias for rest.server.port)             | Optional   |
-| static.html.folder                          | classpath:/public/                       | Yes*       |
-| spring.web.resources.static-locations       | (alias for static.html.folder)           | Yes*       |
-| spring.mvc.static-path-pattern              | /**                                      | Yes*       |
-| jax.rs.application.path                     | /api                                     | Optional*1 |
-| show.env.variables                          | comma separated list of variable names   | Optional*1 |
-| show.application.properties                 | comma separated list of property names   | Optional*1 |
-| cloud.connector                             | kafka, hazelcast, none, etc.             | Optional   |
-| cloud.services                              | e.g. some.interesting.service            | Optional   |
-| snake.case.serialization                    | true (recommended)                       | Optional   |
-| env.variables                               | e.g. MY_ENV:my.env                       | Optional   |
-| safe.data.models                            | packages pointing to your PoJo classes   | Optional   |
-| protect.info.endpoints                      | true or false (default is false)         | Optional*1 |
-| trace.http.header                           | comma separated list traceId labels      | *2         |
-| trace.log.header                            | default value is X-Trace-Id              | Optional   |
-| index.redirection                           | comma separated list of URI paths        | Optional*1 |
-| index.page                                  | default value is index.html              | Optional*1 |
-| hsts.feature                                | default value is true                    | Optional*1 |
-| application.feature.route.substitution      | default value is false                   | Optional   |
-| route.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
-| application.feature.topic.substitution      | default value is false                   | Optional   |
-| topic.substitution.file                     | comma separated file(s) or classpath(s)  | Optional   |
-| cloud.client.properties                     | e.g. classpath:/kafka.properties         | connectors |
-| user.cloud.client.properties                | e.g. classpath:/second-kafka.properties  | connectors |
-| kafka.replication.factor                    | 3                                        | Kafka      |
-| default.app.group.id                        | kafka groupId for the app instance       | Optional   |
-| default.monitor.group.id                    | kafka groupId for the presence-monitor   | Optional   |
-| monitor.topic                               | kafka topic for the presence-monitor     | Optional   |
-| app.topic.prefix                            | multiplex (default value, DO NOT change) | Optional   |
-| app.partitions.per.topic                    | Max Kafka partitions per topic           | Optional   |
-| max.virtual.topics                          | Max virtual topics = partitions * topics | Optional   |
-| max.closed.user.groups                      | Number of closed user groups             | Optional   |
-| closed.user.group                           | Closed user group (default 1)            | Optional   |
-| transient.data.store                        | Default value: /tmp/reactive             | Optional   |
-| running.in.cloud                            | Default value: false                     | Optional   |
-| multicast.yaml                              | This is used to define config file path  | Optional   |
-| journal.yaml                                | This is used to define config file path  | Optional   |
-| distributed.trace.aggregation               | Default value: true                      | Optional   |
-| deferred.commit.log                         | Default value: false                     | Optional*3 |
+| Key                                        | Value (example)                                               | Required  |
+|:-------------------------------------------|:--------------------------------------------------------------|:----------|
+| application.name                           | Application name                                              | Yes       |
+| spring.application.name                    | Alias for application name                                    | Yes*1     |
+| info.app.version                           | major.minor.build (e.g. 1.0.0)                                | Yes       |
+| info.app.description                       | Something about your application                              | Yes       |
+| web.component.scan                         | your own package path or parent path                          | Yes       |
+| server.port                                | e.g. 8083                                                     | Yes*1     |
+| rest.automation                            | true if you want to enable automation                         | Optional  |
+| rest.server.port                           | e.g. 8085                                                     | Optional  |
+| websocket.server.port                      | Alias for rest.server.port                                    | Optional  |
+| static.html.folder                         | classpath:/public/                                            | Yes*      |
+| spring.web.resources.static-locations      | (alias for static.html.folder)                                | Yes*1     |
+| spring.mvc.static-path-pattern             | /**                                                           | Yes*1     |
+| jax.rs.application.path                    | /api                                                          | Optional* |
+| show.env.variables                         | comma separated list of variable names                        | Optional  |
+| show.application.properties                | comma separated list of property names                        | Optional  |
+| cloud.connector                            | kafka, hazelcast, none, etc.                                  | Optional  |
+| cloud.services                             | e.g. some.interesting.service                                 | Optional  |
+| snake.case.serialization                   | true (recommended)                                            | Optional  |
+| safe.data.models                           | packages pointing to your PoJo classes                        | Optional  |
+| protect.info.endpoints                     | true to disable actuators. Default: true                      | Optional  |
+| trace.http.header                          | comma separated list. Default "X-Trace-Id"                    | Optional  |
+| index.redirection                          | comma separated list of URI paths                             | Optional* |
+| index.page                                 | default is index.html                                         | Optional* |
+| hsts.feature                               | default is true                                               | Optional* |
+| application.feature.route.substitution     | default is false                                              | Optional  |
+| route.substitution.file                    | points to a config file                                       | Optional  |
+| application.feature.topic.substitution     | default is false                                              | Optional  |
+| topic.substitution.file                    | points to a config file                                       | Optional  |
+| kafka.replication.factor                   | 3                                                             | Kafka     |
+| cloud.client.properties                    | e.g. classpath:/kafka.properties                              | Connector |
+| user.cloud.client.properties               | e.g. classpath:/second-kafka.properties                       | Connector |
+| default.app.group.id                       | groupId for the app instance.<br/>Default: appGroup           | Connector |
+| default.monitor.group.id                   | groupId for the presence-monitor.<br/>Default: monitorGroup   | Connector |
+| monitor.topic                              | topic for the presence-monitor.<br/>Default: service.monitor  | Connector |
+| app.topic.prefix                           | Default: multiplex (DO NOT change)                            | Connector |
+| app.partitions.per.topic                   | Max Kafka partitions per topic.<br/>Default: 32               | Connector |
+| max.virtual.topics                         | Max virtual topics = partitions * topics.<br/> Default: 288   | Connector |
+| max.closed.user.groups                     | Number of closed user groups. <br/>Default: 10, range: 3 - 30 | Connector |
+| closed.user.group                          | Closed user group. Default: 1                                 | Connector |
+| transient.data.store                       | Default is "/tmp/reactive"                                    | Optional  |
+| running.in.cloud                           | Default is false (set to true if containerized)               | Optional  |
+| multicast.yaml                             | points to the multicast.yaml config file                      | Optional  |
+| journal.yaml                               | points to the journal.yaml config file                        | Optional  |
+| deferred.commit.log                        | Default is false (may be set to true in unit tests)           | Optional  |
 
-`*1` - when using the "rest-spring" library
-`*2` - applies to the REST automation application only
-`*3` - optional for unit test purpose only. DO NOT set this parameter in "main" branch for production code.
+`*` - when using the "rest-spring" library
 
-# HTTP and websocket ports
+# HTTP and websocket port assignment
 
-Spring boot uses 'server.port' as the common port for both REST and websocket using Tomcat or a web server
-of your choice.
+If `rest.automation=true` and `rest.server.port or server.port` are configured, the system will start
+a light weight non-blocking HTTP server. If `rest.server.port` is not available, it will fall back to `server.port`.
 
-The platform-core provides non-blocking REST and websocket server functionality when Spring Boot (rest-spring)
-is not used. REST endpoints are defined in rest.yaml and enabled when 'rest.automation=true' is set in the
-application.properties (or application.yml) file.
+If `rest.automation=false` and you have a websocket server endpoint annotated as `WebsocketService`, the system
+will start a non-blocking Websocket server with a minimalist HTTP server that provides actuator services.
+If `websocket.server.port` is not available, it will fall back to `rest.server.port` or `server.port`.
 
-Websocket endpoints are created using the WebSocketService annotation. If your application does not have
-any REST endpoints in rest.yaml and rest.automation=false, the system will use the port defined in 
-'websocket.server.port'. If your application sets rest.automation=true and REST endpoints are defined
-in rest.yaml, the system will use the port defined in 'rest.server.port'. If both REST and websocket endpoints
-are needed, your websocket endpoints will use the same port as the REST endpoints.
+If you add Spring Boot dependency, Spring Boot will use `server.port` to start Tomcat or similar HTTP server.
 
-If rest.server.port and websocket.server.port are not provided, the system will look for the port in 'server.port'.
+The built-in light weight non-blocking HTTP server and Spring Boot can co-exist when you configure
+`rest.server.port` and `server.port` to use different ports.
 
-# Combined Spring Boot, REST automation and WebSocketService
+# Transient data store
 
-This is demonstrated in the rest-example application, it uses Spring Boot (rest-spring) to serve REST endpoints
-and WebSocketService to serve websocket endpoints. In this case, Spring Boot will use 'server.port' and
-WebSocketService will use a different 'websocket.server.port'.
-
-# transient data store
-
-The system handles back-pressure automatically by overflowing memory to a transcient data store. 
+The system handles back-pressure automatically by overflowing events from memory to a transient data store. 
 As a cloud native best practice, the folder must be under "/tmp". The default is "/tmp/reactive". 
 The "running.in.cloud" must be set to false when your apps are running in IDE or in your laptop. 
 When running in kubernetes, it can be set to true.
 
 # safe.data.models
 
-PoJo may execute Java code. As a result, it is possible to inject malicious code that does harm when 
+PoJo may contain Java code. As a result, it is possible to inject malicious code that does harm when 
 deserializing a PoJo. This security risk applies to any JSON serialization engine.
 
-For added security and peace of mind, you may want to white list your PoJo package paths.
-When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController, 
-Servlets will respect this setting and enforce PoJo white listing.
+For added security and peace of mind, you may want to protect your PoJo package paths.
+When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController and 
+Servlets will respect this setting and enforce PoJo filtering.
 
-Usually you do not need to use the serializer in your code because it is much better to deal with PoJo in your IDE.
-However, if there is a genuine need to do low level coding, you may use the pre-configured serializer so that the 
-serialization behavior is consistent.
+If there is a genuine need to programmatically perform serialization, you may use the pre-configured serializer 
+so that the serialization behavior is consistent.
 
-You can get an instance of the serializer with `SimpleMapper.getInstance().getWhiteListMapper()`.
+You can get an instance of the serializer with `SimpleMapper.getInstance().getMapper()`.
+
+The serializer may perform snake case or camel serialization depending on the parameter `snake.case.serialization`.
+
+If you want to ensure snake case or camel, you can select the serializer like this:
+
+```java
+SimpleObjectMapper snakeCaseMapper = SimpleMapper.getInstance().getSnakeCaseMapper();
+SimpleObjectMapper camelCaseMapper = SimpleMapper.getInstance().getCamelCaseMapper();
+```
 
 # trace.http.header
 
-Identify the HTTP header for traceId. When configured with more than one label, the system will retrieve traceID 
-from the corresponding HTTP header and propagate it through the transaction that may be served by multiple services.
+The `trace.http.header` sets the HTTP header for trace ID. When configured with more than one label, the system will
+retrieve trace ID from the corresponding HTTP header and propagate it through the transaction that may be served by 
+multiple services.
 
-If traceId is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
+If trace ID is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
 
-e.g. 
+```text
 X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
 or
 X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
-
-# trace.log.header
-
-If tracing is enabled for a transaction, this will insert the trace-ID into the logger's ThreadContext using the 
-trace.log.header.
-
-Note that trace.log.header is case sensitive and you must put the corresponding value in log4j2.xml.
-The default value is "X-Trace-Id" if this parameter is not provided in application.properties.
-e.g.
-
-```xml
-<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger:%line [%X{X-Trace-Id}] - %msg%n" />
 ```
 
 # Kafka specific configuration
 
 If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to 
-externalize kafka.properties. It is recommended to set `cloud.client.properties=file:/tmp/config/kafka.properties`
+externalize kafka.properties like this:
+
+```properties
+cloud.client.properties=file:/tmp/config/kafka.properties
+```
 
 Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" 
 refers to an external config file.
 
 You want also use the embedded config file as a backup like this:
 
-```
-# this is the configuration used by the kafka.presence monitor
+```properties
 cloud.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
 ```
 
-`kafka.replication.factor` is usually determined by DevOps. Contact your administrator for the correct value. 
-If the available number of kafka brokers are more than the replication factor, it will use the given replication factor.
-Otherwise, the system will fall back to a smaller value and this optimization may not work in production.
-Therefore, please discuss with your DevOps administrator for the optimal replication factor value.
+# Distributed trace logging
 
-```
-Number of replicated copies = replication factor - 1
-```
-
-# presence monitor
-
-You will deploy a "presence monitor" to assign topics to any connected user application instances. 
-
-Your user application instances will connect to the presence monitor using websocket. 
-When an application instance fails, the presence monitor can detect it immediately so that its peer application 
-instances can update the routing table.
-
-# distributed trace logging, aggregation and transaction journaling
-
-To enable distributed trace logging, please set this in log4j2.xml. For cloud native apps, you should redirect 
-logging from standard out to a centralized logging system such as Elastic Search or Splunk.
+To enable distributed trace logging, please set this in log4j2.xml:
 
 ```
 <logger name="org.platformlambda.core.services.DistributedTrace" level="INFO" />
 ```
+<br/>
 
-Distributed trace aggregation will be available when you deploy your custom aggregation service with the route name
-`distributed.trace.processor`. 
-
-If you want to disable aggregation for an application, set "distributed.trace.aggregation" to false
-in application.properties.
-
-Journaling service will be available with you deploy your custom aggregation service with the route name 
-`distributed.trace.processor` and configure the "journal.yaml" parameter in application.properties pointing 
-to a YAML file containing the following:
-
-```
-journal:
- - "my.service.1"
- - ...
-# my.service.1 is an example. You should enter the correct route names for your services to be journaled.
-```
-
-The system will send transaction input/output payloads to the journaling service when trace is turned on and 
-journal.yaml contains the service route name.
-
-For security and privacy, transaction journal should be saved to a database with access control because the 
-transaction payload may contain sensitive information.
-
-# Spring Boot
-
-The foundation code uses Spring Boot in the "rest-spring" library. For loose coupling, we use the `@MainApplication` 
-as a replacement for the `SpringApplication`. Please refer to the MainApp class in the "rest-example" project.
-This allows us to use any REST application server when technology evolves.
-
-If your code uses Spring Boot or Spring Framework directly, you can set the corresponding key-values in the 
-application.properties file in the resources folder. e.g. changing the "auto-configuration" parameters.
-
----
-
-| Appendix-II                              | Home                                     |
-| :---------------------------------------:|:----------------------------------------:|
-| [Reserved route names](APPENDIX-II.md)   | [Table of Contents](TABLE-OF-CONTENTS.md)|
+|          Chapter-8           |                   Home                    |              Appendix-II               |
+|:----------------------------:|:-----------------------------------------:|:--------------------------------------:|
+| [Service mesh](CHAPTER-8.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Reserved route names](APPENDIX-II.md) |

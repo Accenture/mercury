@@ -20,12 +20,13 @@ package org.platformlambda.core.websocket.server;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.ServerWebSocket;
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -47,11 +49,13 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
     private static final String HOUSEKEEPER = "system.ws.server.cleanup";
     private static final String IN = ".in";
     private static final String OUT = ".out";
+    private static final long HOUSEKEEPING_INTERVAL = 10 * 1000L;      // 10 seconds
 
     private static final CryptoApi crypto = new CryptoApi();
 
     private static final ConcurrentMap<String, WsEnvelope> connections = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
+    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
 
     private final ConcurrentMap<String, LambdaFunction> lambdas;
     private final List<String> urls = new ArrayList<>();
@@ -60,11 +64,12 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         this.lambdas = lambdas;
         urls.addAll(lambdas.keySet());
         if (urls.size() > 1) {
-            Collections.sort(urls, Comparator.reverseOrder());
+            urls.sort(Comparator.reverseOrder());
         }
-        IdleCheck idleChecker = new IdleCheck();
-        idleChecker.start();
         Platform platform = Platform.getInstance();
+        IdleCheck idle = new IdleCheck();
+        platform.getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> idle.removeExpiredConnections());
+        log.info("Housekeeper started");
         try {
             platform.registerPrivate(HOUSEKEEPER, new WsHousekeeper(), 1);
         } catch (IOException e) {
@@ -81,7 +86,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         } else {
             ws.accept();
             final Platform platform = Platform.getInstance();
-            final PostOffice po = PostOffice.getInstance();
+            final EventEmitter po = EventEmitter.getInstance();
             final String ip = ws.remoteAddress().hostAddress();
             final String token = uri.substring(uri.lastIndexOf('/')+1);
             final String query = ws.query();
@@ -134,6 +139,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                 log.info("Session {} closed ({}, {})", session, ws.closeStatusCode(), reason);
                 try {
                     EventEnvelope closing = new EventEnvelope().setTo(rxPath);
+                    // send the close signal to the websocket listener function before closing it
                     closing.setHeader(WsEnvelope.ROUTE, rxPath)
                             .setHeader(WsEnvelope.TOKEN, token)
                             .setHeader(WsEnvelope.CLOSE_CODE, ws.closeStatusCode())
@@ -165,84 +171,73 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         return null;
     }
 
-    private static class IdleCheck extends Thread {
-        private boolean normal = true;
+    private static class IdleCheck {
+        private final long timeout;
+        private final long expiry;
 
-        public IdleCheck() {
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-            log.info("Started");
-        }
-
-        @Override
-        public void run() {
+        private IdleCheck() {
             final AppConfigReader config = AppConfigReader.getInstance();
             final Utility util = Utility.getInstance();
-            final long timeout = util.str2long(config.getProperty("websocket.idle.timeout", "60"));
-            log.info("Websocket server idle timeout = {} seconds", timeout);
-            final long expiry = Math.min(30000, timeout * 1000);
-            long t1 = System.currentTimeMillis();
-            while (normal) {
-                long now = System.currentTimeMillis();
-                if (now - t1 > 5000) {
-                    t1 = now;
-                    List<String> sessions = new ArrayList<>();
-                    for (String conn : connections.keySet()) {
-                        WsEnvelope md = connections.get(conn);
-                        if (now - md.getLastAccess() > expiry) {
-                            sessions.add(conn);
-                        }
+            timeout = util.str2long(config.getProperty("websocket.idle.timeout", "60"));
+            expiry = Math.min(30000, timeout * 1000);
+            log.info("Websocket server idle expiry {} seconds", timeout);
+        }
+
+        private void removeExpiredConnections() {
+            if (housekeeperNotRunning.compareAndSet(true, false)) {
+                Platform.getInstance().getEventExecutor().submit(() -> {
+                    try {
+                        checkExpiredConnections();
+                    } finally {
+                        housekeeperNotRunning.set(true);
                     }
-                    for (String conn : sessions) {
-                        WsEnvelope md = connections.get(conn);
-                        if (md != null) {
-                            connections.remove(conn);
-                            log.warn("Websocket {} expired ({}, {})", md.getPath(), md.getRxPath(), md.getTxPath());
-                            // drop connection due to inactivity
-                            if (!md.getWebSocket().isClosed()) {
-                                md.getWebSocket().close((short) 1003, "Idle for " + timeout + " seconds");
-                            }
-                        }
-                    }
-                }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
+                });
             }
         }
 
-        public void shutdown() {
-            normal = false;
-            log.info("Stopped");
+        private void checkExpiredConnections() {
+            long now = System.currentTimeMillis();
+            List<String> sessions = new ArrayList<>();
+            for (String conn : connections.keySet()) {
+                WsEnvelope md = connections.get(conn);
+                if (now - md.getLastAccess() > expiry) {
+                    sessions.add(conn);
+                }
+            }
+            for (String conn : sessions) {
+                WsEnvelope md = connections.get(conn);
+                if (md != null) {
+                    connections.remove(conn);
+                    log.warn("Websocket {} expired ({}, {})", md.getPath(), md.getRxPath(), md.getTxPath());
+                    // drop connection due to inactivity
+                    if (!md.getWebSocket().isClosed()) {
+                        md.getWebSocket().close((short) 1003, "Idle for " + timeout + " seconds");
+                    }
+                }
+            }
         }
     }
 
+    @CoroutineRunner
     @EventInterceptor
     private static class WsHousekeeper implements LambdaFunction {
 
         @Override
-        public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-            if (body instanceof EventEnvelope) {
-                EventEnvelope event = (EventEnvelope) body;
+        public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+            if (input instanceof EventEnvelope) {
+                EventEnvelope event = (EventEnvelope) input;
                 String session = event.getCorrelationId();
                 if (session != null) {
+                    Platform platform = Platform.getInstance();
                     String rxPath = session + IN;
                     String txPath = session + OUT;
-                    silentRelease(rxPath);
-                    silentRelease(txPath);
+                    platform.release(rxPath);
+                    platform.release(txPath);
                 }
             }
             return null;
         }
 
-        private void silentRelease(String route) {
-            try {
-                Platform.getInstance().release(route);
-            } catch (IOException e) {
-                log.error("Unable to release {} - {}", route, e.getMessage());
-            }
-        }
     }
 
 }

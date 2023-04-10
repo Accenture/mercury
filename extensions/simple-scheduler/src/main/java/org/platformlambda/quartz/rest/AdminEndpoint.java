@@ -21,7 +21,7 @@ package org.platformlambda.quartz.rest;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.quartz.MainScheduler;
 import org.platformlambda.quartz.models.ScheduledJob;
 import org.quartz.SchedulerException;
@@ -37,8 +37,8 @@ public class AdminEndpoint {
     private static final String JOB_ID = MainScheduler.JOB_ID;
     private static final String SCHEDULER_SERVICE = MainScheduler.SCHEDULER_SERVICE;
     private static final String TYPE = MainScheduler.TYPE;;
-    private static final String START = MainScheduler.START;
-    private static final String STOP = MainScheduler.STOP;
+    private static final String START = MainScheduler.START_COMMAND;
+    private static final String STOP = MainScheduler.STOP_COMMAND;
     private static final String ORIGIN = MainScheduler.ORIGIN;
 
     @GET
@@ -80,7 +80,7 @@ public class AdminEndpoint {
         if (job.startTime != null) {
             throw new IllegalArgumentException("Job "+name+" already started");
         }
-        PostOffice.getInstance().broadcast(SCHEDULER_SERVICE, new Kv(ORIGIN, Platform.getInstance().getOrigin()),
+        EventEmitter.getInstance().broadcast(SCHEDULER_SERVICE, new Kv(ORIGIN, Platform.getInstance().getOrigin()),
                                             new Kv(TYPE, START), new Kv(JOB_ID, name));
         MainScheduler.startJob(job.name);
         Map<String, Object> result = new HashMap<>();
@@ -101,7 +101,7 @@ public class AdminEndpoint {
         if (job.stopTime != null) {
             throw new IllegalArgumentException("Job "+name+" already stopped");
         }
-        PostOffice.getInstance().broadcast(SCHEDULER_SERVICE, new Kv(ORIGIN, Platform.getInstance().getOrigin()),
+        EventEmitter.getInstance().broadcast(SCHEDULER_SERVICE, new Kv(ORIGIN, Platform.getInstance().getOrigin()),
                                             new Kv(TYPE, STOP), new Kv(JOB_ID, name));
         MainScheduler.stopJob(job.name);
         Map<String, Object> result = new HashMap<>();

@@ -29,8 +29,6 @@ import java.util.Map;
  */
 public interface PubSubProvider {
 
-    void waitForProvider(int seconds);
-
     boolean createTopic(String topic) throws IOException;
 
     boolean createTopic(String topic, int partitions) throws IOException;

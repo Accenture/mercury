@@ -20,7 +20,7 @@ package com.accenture.mock;
 
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,12 +31,10 @@ import java.util.Map;
 public class MockWebSocketServer implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MockWebSocketServer.class);
 
-
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        PostOffice po = PostOffice.getInstance();
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+        EventEmitter po = EventEmitter.getInstance();
         String route, token, txPath;
-
         if (headers.containsKey(WsEnvelope.TYPE)) {
             switch (headers.get(WsEnvelope.TYPE)) {
                 case WsEnvelope.OPEN:
@@ -59,7 +57,7 @@ public class MockWebSocketServer implements LambdaFunction {
                     // the data event for byteArray payload contains route and txPath
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    byte[] payload = (byte[]) body;
+                    byte[] payload = (byte[]) input;
                     // echo the byte payload
                     po.send(txPath, payload);
                     log.info("{} got {} bytes", route, payload.length);
@@ -68,14 +66,14 @@ public class MockWebSocketServer implements LambdaFunction {
                     // the data event for string payload contains route and txPath
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    String message = (String) body;
+                    String message = (String) input;
                     // just echo the message
                     po.send(txPath, message);
                     log.info("{} received: {}", route, message);
                     break;
                 default:
                     // this should not happen
-                    log.error("Invalid event {} {}", headers, body);
+                    log.error("Invalid event {} {}", headers, input);
                     break;
             }
         }

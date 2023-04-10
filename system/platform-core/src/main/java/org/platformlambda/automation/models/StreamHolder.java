@@ -56,7 +56,6 @@ public class StreamHolder {
         if (out != null) {
             try {
                 out.close();
-                log.info("{} closed", getInputStreamId());
             } catch (IOException e) {
                 log.error("Unable to close stream - {}", e.getMessage());
             }

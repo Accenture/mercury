@@ -34,8 +34,8 @@ public class MockApp implements EntryPoint {
     @Override
     public void start(String[] args) throws IOException {
         Platform platform = Platform.getInstance();
-        LambdaFunction mock = (headers, body, instance) -> {
-            log.info("Received {} {}", headers, body);
+        LambdaFunction mock = (headers, input, instance) -> {
+            log.info("Received {} {}", headers.isEmpty()? "*" : headers, input);
             return true;
         };
         platform.register("hello.world", mock, 5);

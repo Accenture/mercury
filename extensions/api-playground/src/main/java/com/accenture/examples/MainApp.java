@@ -20,8 +20,6 @@ package com.accenture.examples;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.rest.RestServer;
@@ -29,8 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 @MainApplication
 public class MainApp implements EntryPoint {
@@ -45,21 +41,6 @@ public class MainApp implements EntryPoint {
 
         // Set personality to WEB - this must be done in the beginning
         ServerPersonality.getInstance().setType(ServerPersonality.Type.APP);
-
-        Platform platform = Platform.getInstance();
-        // This service function is used for the demo swagger page
-        LambdaFunction echo = (headers, body, instance) -> {
-            Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
-            result.put("body", body);
-            result.put("instance", instance);
-            result.put("origin", platform.getOrigin());
-            return result;
-        };
-        // register the above echo service with some concurrent workers in this execution unit
-        // Each deployment unit can be scaled horizontally by the cloud.
-        platform.register("hello.world", echo, 20);
-
         // ensure the api-playground folder exists
         AppConfigReader config = AppConfigReader.getInstance();
         String playgroundFolder = config.getProperty("api.playground.apps", "/tmp/api-playground");

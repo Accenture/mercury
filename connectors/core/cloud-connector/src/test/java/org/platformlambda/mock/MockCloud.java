@@ -25,8 +25,8 @@ import org.platformlambda.cloud.services.ServiceQuery;
 import org.platformlambda.cloud.services.ServiceRegistry;
 import org.platformlambda.core.annotations.CloudConnector;
 import org.platformlambda.core.models.CloudSetup;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
@@ -57,7 +57,7 @@ public class MockCloud implements CloudSetup {
         PersistentWsClient ws = new PersistentWsClient(PresenceConnector.getInstance(), monitors);
         ws.start();
         try {
-            platform.registerPrivate(PostOffice.CLOUD_CONNECTOR, new EventProducer(), 1);
+            platform.registerPrivate(EventEmitter.CLOUD_CONNECTOR, new EventProducer(), 1);
             platform.registerPrivate(ServiceDiscovery.SERVICE_QUERY, new ServiceQuery(), 10);
             platform.registerPrivate(ServiceDiscovery.SERVICE_REGISTRY, new ServiceRegistry(), 10);
             platform.registerPrivate(CLOUD_CONNECTOR_HEALTH, new CloudHealthCheck(), 2);

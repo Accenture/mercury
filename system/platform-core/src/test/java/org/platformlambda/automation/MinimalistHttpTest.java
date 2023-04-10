@@ -9,7 +9,6 @@ import org.platformlambda.core.mock.TestBase;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.MultiLevelMap;
-import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,7 +18,14 @@ import java.util.Map;
 public class MinimalistHttpTest extends TestBase {
 
     private static final int HTTP_PORT = MINIMALIST_HTTP_PORT;
-    private static final String[][] ADMIN_ENDPOINTS = MinimalistHttpHandler.ADMIN_ENDPOINTS;
+    private static final String[] INFO_SERVICE = {"/info", "info"};
+    private static final String[] INFO_LIB = {"/info/lib", "lib"};
+    private static final String[] INFO_ROUTES = {"/info/routes", "routes"};
+    private static final String[] HEALTH_SERVICE = {"/health", "health"};
+    private static final String[] ENV_SERVICE = {"/env", "env"};
+    private static final String[] LIVENESSPROBE = {"/livenessprobe", "livenessprobe"};
+    private static final String[][] ADMIN_ENDPOINTS = {INFO_SERVICE, INFO_LIB, INFO_ROUTES,
+            HEALTH_SERVICE, ENV_SERVICE, LIVENESSPROBE};
 
     @SuppressWarnings("unchecked")
     @Test
@@ -123,9 +129,6 @@ public class MinimalistHttpTest extends TestBase {
         Assert.assertEquals("fine", map.getElement("upstream[0].message"));
         Assert.assertEquals(200, map.getElement("upstream[0].status_code"));
         Assert.assertEquals("mock.connector", map.getElement("upstream[0].service"));
-        // livenessProbe is linked to health check
-        String live = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
-        Assert.assertEquals("OK", live);
     }
 
     @SuppressWarnings("unchecked")
@@ -156,7 +159,6 @@ public class MinimalistHttpTest extends TestBase {
         SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/health");
         String liveAgain = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
         Assert.assertEquals("OK", liveAgain);
-
     }
 
     @SuppressWarnings("unchecked")
@@ -171,6 +173,12 @@ public class MinimalistHttpTest extends TestBase {
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
         Assert.assertEquals(404, result.get("status"));
         Assert.assertEquals("does-not-exist is not reachable", result.get("message"));
+    }
+
+    @Test
+    public void livenessEndpointTest() throws AppException, IOException {
+        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+HTTP_PORT+"/livenessprobe", "text/plain");
+        Assert.assertEquals("OK", response);
     }
 
     @SuppressWarnings("unchecked")
@@ -366,4 +374,5 @@ public class MinimalistHttpTest extends TestBase {
         Assert.assertEquals(404, result.get("status"));
         Assert.assertEquals("Resource not found", result.get("message"));
     }
+
 }

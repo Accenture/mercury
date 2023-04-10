@@ -4,6 +4,14 @@
 # for the original URL and path parameters
 #
 rest:
+  # "event.api.service" accepts an external application making event call to a function in this app instance.
+  # It handles both RPC and drop-n-forget async requests
+  # Optionally, you can add "authentication" service to validate incoming request from the external application.
+  - service: [ "event.api.service" ]
+    methods: [ 'POST' ]
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
   #
   # service should be a target service name or a list of service names
   # If more than one service name is provided, the first one is the primary target
@@ -59,13 +67,13 @@ rest:
   # demonstrate path parameter and wild card
   - service: "hello.world"
     methods: ['GET', 'PUT', 'POST']
-    url: "/api/nice/{task}/*"
+    url: "/api/simple/{task}/*"
     timeout: 12
     cors: cors_1
     headers: header_1
 
   #
-  # When service is a URL, it will relay HTTP or HTTPS requests.
+  # When service is a URL, it will relay the HTTP or HTTPS requests.
   # "trust_all_cert" and "url_rewrite" are optional.
   #
   # For target host with self-signed certificate, you may set "trust_all_cert" to true.
@@ -74,6 +82,9 @@ rest:
   # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
   # e.g. url_rewrite: ['/api/v1', '/v1/api']
   # In this example, "/api/v1" will be replaced with "/v1/api"
+  #
+  # In this example, the rest.yaml parser will print a warning about the "trust_all_cert" parameter
+  # because it is not relevant for non-secure a HTTP endpoint.
   #
   - service: "http://127.0.0.1:8100"
     trust_all_cert: true
@@ -98,21 +109,17 @@ rest:
 # Access-Control-Allow-Origin must be "*" or domain name starting with "http://" or "https://"
 # The use of wildcard "*" should only be allowed for non-prod environments.
 #
-# For production, please add the "api.origin" key in the application.properties.
-# In this example, the api.origin value will be used to override the value
-# in "Access-Control-Allow-Origin".
+# For production, please add the "api.origin" key in application.properties.
 #
 cors:
   - id: cors_1
-    # origin is optional. If present, it will replace Access-Control-Allow-Origin value in options and headers
-    origin: ${api.origin}
     options:
-      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Origin: ${api.origin:*}"
       - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Max-Age: 86400"
     headers:
-      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Origin: ${api.origin:*}"
       - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Allow-Credentials: true"

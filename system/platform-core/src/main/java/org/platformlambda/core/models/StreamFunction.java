@@ -41,10 +41,10 @@ public interface StreamFunction {
      * Implement this handler to receive events
      *
      * @param headers of an event
-     * @param body of an event
+     * @param input of an event
      * @throws Exception in case of error
      */
-    void handleEvent(Map<String, String> headers, Object body) throws Exception;
+    void handleEvent(Map<String, String> headers, Object input) throws Exception;
 
     /**
      * Send a ready signal to the manager to fetch the next event.

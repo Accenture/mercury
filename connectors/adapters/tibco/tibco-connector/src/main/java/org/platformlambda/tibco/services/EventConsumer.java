@@ -24,7 +24,7 @@ import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.platformlambda.tibco.TibcoConnector;
@@ -92,7 +92,7 @@ public class EventConsumer {
             initialLoad.start();
         }
         try {
-            PostOffice po = PostOffice.getInstance();
+            EventEmitter po = EventEmitter.getInstance();
             Platform platform = Platform.getInstance();
             Connection connection = TibcoConnector.getConnection(domain, properties);
             session = connection.createSession(Session.AUTO_ACKNOWLEDGE);
@@ -103,7 +103,7 @@ public class EventConsumer {
             }
             messageConsumer.setMessageListener(new EventListener());
             String completionHandler = COMPLETION + virtualTopic.toLowerCase();
-            LambdaFunction f = (headers, body, instance) -> {
+            LambdaFunction f = (headers, input, instance) -> {
                 try {
                     messageConsumer.close();
                     session.close();
@@ -135,7 +135,7 @@ public class EventConsumer {
     public void shutdown() {
         String completionHandler = COMPLETION + virtualTopic;
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         if (platform.hasRoute(completionHandler)) {
             try {
                 po.send(completionHandler, STOP);
@@ -150,7 +150,7 @@ public class EventConsumer {
         @SuppressWarnings("unchecked")
         @Override
         public void onMessage(Message evt) {
-            PostOffice po = PostOffice.getInstance();
+            EventEmitter po = EventEmitter.getInstance();
             String origin = Platform.getInstance().getOrigin();
             try {
                 Enumeration<String> headerNames = evt.getPropertyNames();

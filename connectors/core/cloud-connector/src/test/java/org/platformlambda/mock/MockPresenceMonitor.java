@@ -25,7 +25,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
@@ -44,7 +44,7 @@ public class MockPresenceMonitor implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(MockPresenceMonitor.class);
 
     private static final PubSub ps = PubSub.getInstance();
-    private static final String CLOUD_CONNECTOR = PostOffice.CLOUD_CONNECTOR;
+    private static final String CLOUD_CONNECTOR = EventEmitter.CLOUD_CONNECTOR;
     private static final String APP_GROUP = ServiceRegistry.APP_GROUP;
     private static final String TYPE = "type";
     private static final String STATUS = "status";
@@ -76,7 +76,6 @@ public class MockPresenceMonitor implements LambdaFunction {
     private static final String AVAILABLE = "*";
     // topic+partition -> origin | AVAILABLE(*)
     private static final ConcurrentMap<String, String> topicStore = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, Long> activeTopics = new ConcurrentHashMap<>();
     private static List<String> allTopics;
     private final int partitionCount, maxVirtualTopics;
     private final boolean topicSubstitution;
@@ -162,10 +161,10 @@ public class MockPresenceMonitor implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String route, appOrigin, txPath;
         if (headers.containsKey(TYPE)) {
             switch (headers.get(TYPE)) {
@@ -220,9 +219,9 @@ public class MockPresenceMonitor implements LambdaFunction {
                     route = headers.get(ROUTE);
                     txPath = headers.get(TX_PATH);
                     appOrigin = route2origin.get(route);
-                    if (body instanceof byte[] && appOrigin != null && myConnections.containsKey(appOrigin)) {
+                    if (input instanceof byte[] && appOrigin != null && myConnections.containsKey(appOrigin)) {
                         EventEnvelope command = new EventEnvelope();
-                        command.load((byte[]) body);
+                        command.load((byte[]) input);
                         boolean register = INFO.equals(command.getTo());
                         boolean alive = ALIVE.equals(command.getTo());
                         if (myConnections.containsKey(appOrigin)) {
@@ -272,7 +271,7 @@ public class MockPresenceMonitor implements LambdaFunction {
                     }
                     break;
                 case STRING:
-                    log.debug("{}", body);
+                    log.debug("{}", input);
                     break;
                 default:
                     break;
@@ -332,7 +331,7 @@ public class MockPresenceMonitor implements LambdaFunction {
                 throw new IllegalArgumentException("Invalid closed user group ("+groupId+")");
             }
             // send leave event to the closed user group
-            PostOffice.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + groupId,
+            EventEmitter.getInstance().send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + groupId,
                     new Kv(TYPE, LEAVE), new Kv(ORIGIN, closedApp));
             log.info("tell group {} that {} has left", groupId, closedApp);
 

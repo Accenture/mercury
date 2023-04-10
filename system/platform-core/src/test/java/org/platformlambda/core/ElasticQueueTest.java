@@ -63,12 +63,12 @@ public class ElasticQueueTest {
     }
 
     @Test
-    public void normalPayload() throws IOException, AppException, TimeoutException {
+    public void normalPayload() throws IOException {
         readWrite("normal.payload.test", 10);
     }
 
     @Test
-    public void largePayload() throws IOException, AppException, TimeoutException {
+    public void largePayload() throws IOException {
         readWrite("large.payload.test", 90000);
     }
 

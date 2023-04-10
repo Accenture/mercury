@@ -6,7 +6,7 @@
     <groupId>com.accenture.mercury</groupId>
     <artifactId>parent-mercury</artifactId>
     <packaging>pom</packaging>
-    <version>2.8.0</version>
+    <version>3.0.0</version>
     <name>Parent Mercury</name>
     <modules>
         <!-- Core libraries -->
@@ -27,13 +27,9 @@
         <module>connectors/adapters/activemq/activemq-presence</module>
         <!-- Executables for tools -->
         <module>extensions/simple-scheduler</module>
-        <module>extensions/distributed-trace-aggregator</module>
-        <!-- Executables for language connector -->
-        <module>language-packs/language-connector</module>
         <!-- Executables for application examples -->
         <module>examples/lambda-example</module>
-	<module>examples/rest-example</module>
-	<module>examples/rest-automation-app</module>
+	<module>examples/rest-spring-example</module>
     </modules>
 </project>
 

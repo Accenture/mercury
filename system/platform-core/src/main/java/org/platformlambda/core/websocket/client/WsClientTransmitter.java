@@ -41,16 +41,16 @@ public class WsClientTransmitter implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
         if (connected && !ws.isClosed()) {
-            if (body instanceof byte[]) {
-                ws.writeBinaryMessage(Buffer.buffer((byte[]) body));
+            if (input instanceof byte[]) {
+                ws.writeBinaryMessage(Buffer.buffer((byte[]) input));
             }
-            if (body instanceof String) {
-                ws.writeTextMessage((String) body);
+            if (input instanceof String) {
+                ws.writeTextMessage((String) input);
             }
-            if (body instanceof Map) {
-                ws.writeTextMessage(SimpleMapper.getInstance().getMapper().writeValueAsString(body));
+            if (input instanceof Map) {
+                ws.writeTextMessage(SimpleMapper.getInstance().getMapper().writeValueAsString(input));
             }
             return true;
         } else {

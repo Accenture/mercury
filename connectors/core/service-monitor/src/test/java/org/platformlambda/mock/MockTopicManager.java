@@ -21,15 +21,12 @@ package org.platformlambda.mock;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.Utility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 public class MockTopicManager implements LambdaFunction {
-    private static final Logger log = LoggerFactory.getLogger(MockTopicManager.class);
 
     private static final String TYPE = "type";
     private static final String PARTITIONS = "partitions";
@@ -38,7 +35,6 @@ public class MockTopicManager implements LambdaFunction {
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String EXISTS = "exists";
-    private static final String STOP = "stop";
     private final PubSub ps;
 
     public MockTopicManager() {
@@ -46,7 +42,7 @@ public class MockTopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();

@@ -3,7 +3,7 @@ package org.platformlambda.cloud;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -43,13 +43,13 @@ public class ServiceLifeCycle {
 
     public void start() {
         final Platform platform = Platform.getInstance();
-        final PostOffice po = PostOffice.getInstance();
+        final EventEmitter po = EventEmitter.getInstance();
         final Utility util = Utility.getInstance();
         final PubSub ps = PubSub.getInstance();
         final String INIT_HANDLER = INIT + "." + (partition < 0? topic : topic + "." + partition);
         final List<String> task = new ArrayList<>();
-        LambdaFunction f = (headers, body, instance) -> {
-            if (INIT.equals(body)) {
+        LambdaFunction f = (headers, input, instance) -> {
+            if (INIT.equals(input)) {
                 int n = util.str2int(headers.get(SEQUENCE));
                 try {
                     Map<String, String> event = new HashMap<>();

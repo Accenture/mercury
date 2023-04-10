@@ -18,49 +18,62 @@
 
 package org.platformlambda.services;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.models.ObjectWithGenericType;
 import org.platformlambda.models.SamplePoJo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * IMPORTANT - for LambdaFunction, the handleEvent method is the event handler.
- * Please do not use any global scope variables. All variables must be in functional scope.
- * If you must use global scope variables, you may use Java Concurrent collections.
+ * This demo function assumes the request comes from REST automation as an HTTP request event.
+ * <p>
+ * Since this function executes very fast, we set the function execution strategy
+ * as "coroutine" using the CoroutineRunner annotation.
+ * <p>
+ * IMPORTANT: LambdaFunction should be self-contained without shared objects.
+ *            If you must use shared objects, use "static final" atomic or concurrent version of the
+ *            Java class.
  */
-public class HelloGeneric implements LambdaFunction {
+@CoroutineRunner
+@PreLoad(route="hello.generic", instances=10)
+public class HelloGeneric implements TypedLambdaFunction<AsyncHttpRequest, Object> {
+    private static final Logger log = LoggerFactory.getLogger(HelloGeneric.class);
+    private static final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws AppException, IOException {
-        String id = headers.get("id");
-        if (id == null) {
-            throw new IllegalArgumentException("Missing parameter 'id'");
-        }
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) throws AppException {
+        // Demonstrate that authentication service can pass session information here
+        log.info("Got session information {}", input.getSessionInfo());
+        // simple validation
+        String id = input.getPathParameter("id");
         if (id.equals("1")) {
-            // to set status, key-values or parametric types, we can use EventEnvelope as a result wrapper
+            // To set status, key-values or parametric types, we can use EventEnvelope as a result wrapper
             EventEnvelope result = new EventEnvelope();
             ObjectWithGenericType<SamplePoJo> genericObject = new ObjectWithGenericType<>();
-            // return some place-holder values to demonstrate the PoJo can be transported over the network
+            // Return some place-holder values to demonstrate the PoJo can be transported over the network
             SamplePoJo mock = new SamplePoJo(1, "Generic class with parametric type SamplePoJo",
                                     "200 World Blvd, Planet Earth");
-            // set current timestamp to indicate that the object is a new one
+            // Set current timestamp to indicate that the object is a new one
             mock.setDate(new Date());
-            // set instance count and service origin ID to show that the object comes from a different instance
+            // Set instance count and service origin ID to show that the object comes from a different instance
             mock.setInstance(instance);
             mock.setOrigin(Platform.getInstance().getOrigin());
-
-            genericObject.setId(101);
+            // Increment the counter for demo purpose
+            genericObject.setId(counter.incrementAndGet());
             genericObject.setContent(mock);
-
+            // Set the sample pojo into the generic object holder
             result.setBody(genericObject);
             result.setParametricType(SamplePoJo.class);
-
             return result;
         } else {
             throw new AppException(404, "Not found. Try id = 1");

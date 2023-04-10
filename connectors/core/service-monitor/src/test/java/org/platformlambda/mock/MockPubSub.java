@@ -24,7 +24,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 
@@ -47,11 +47,6 @@ public class MockPubSub implements PubSubProvider {
         for (String item: map.keySet()) {
             topicStore.put(item, 1);
         }
-    }
-
-    @Override
-    public void waitForProvider(int seconds) {
-        // no-op
     }
 
     @Override
@@ -100,7 +95,7 @@ public class MockPubSub implements PubSubProvider {
     @Override
     public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
         String route = topic+"."+partition;
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
         if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
             EventEnvelope event = new EventEnvelope();
@@ -124,22 +119,13 @@ public class MockPubSub implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         String route = topic+"."+partition;
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Platform platform = Platform.getInstance();
         platform.registerPrivate(route, listener, 1);
         subscriptions.put(topic, listener);
         if (parameters.length == 3 && parameters[2].equals("-100")) {
             final ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, UUID.randomUUID().toString());
             initialLoad.start();
-            LambdaFunction f = (headers, body, instance) -> {
-                String topicPartition = partition < 0? topic : topic + "." + partition;
-                String INIT_HANDLER =  "init." + topicPartition;
-                po.send(INIT_HANDLER, "done");
-                return true;
-            };
-            platform.registerPrivate(route+".mock", f, 1);
-            po.sendLater(new EventEnvelope().setTo(route+".mock").setBody("done"),
-                    new Date(System.currentTimeMillis()+8000));
         }
     }
 

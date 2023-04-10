@@ -26,7 +26,7 @@ do this
 
 ```agsl
 mvn clean package
-java -jar target/benchmark-server-2.8.0.jar
+java -jar target/benchmark-server-3.0.0.jar
 ```
 
 Once the server is up and running, you will see it connects to Kafka and reports to the presence monitor.
@@ -57,4 +57,4 @@ It will show something like this:
 }
 ```
 
-Now you can run the benchmark client tests. Please refer to the benchmark-client sub-project's README file.
+Now you can run the benchmark client tests. Please refer to the benchmark-client subproject's README file.

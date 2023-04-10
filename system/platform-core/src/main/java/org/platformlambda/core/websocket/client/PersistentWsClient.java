@@ -26,7 +26,7 @@ import io.vertx.core.http.WebSocketConnectOptions;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -136,7 +136,7 @@ public class PersistentWsClient extends Thread {
             return;
         }
         final Platform platform = Platform.getInstance();
-        final PostOffice po = PostOffice.getInstance();
+        final EventEmitter po = EventEmitter.getInstance();
         final WebSocketConnectOptions options;
         final URL target;
         try {
@@ -217,12 +217,7 @@ public class PersistentWsClient extends Thread {
                     // this happens when PersistentWsClient is closed
                     log.info("Client {} stopped", session);
                 }
-                try {
-                    platform.release(txPath);
-                } catch (IOException e2) {
-                    // this should never happen
-                    log.error("Unable to release session {} - {}", txPath, e2.getMessage());
-                }
+                platform.release(txPath);
                 vertx.setTimer(RETRY_TIMER, n -> makeConnection(idleSeconds));
             });
             ws.exceptionHandler(e -> {
@@ -247,10 +242,9 @@ public class PersistentWsClient extends Thread {
     public void close() {
         running = false;
         if (client != null) {
-            try {
-                Platform.getInstance().release(session);
-            } catch (IOException e) {
-                log.info("{} already released", session);
+            boolean success = Platform.getInstance().release(session);
+            if (!success) {
+                log.debug("{} already released", session);
             }
             client.close();
             vertx.close();

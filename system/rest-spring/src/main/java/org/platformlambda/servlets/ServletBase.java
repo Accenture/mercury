@@ -21,8 +21,9 @@ package org.platformlambda.servlets;
 import io.vertx.core.Future;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleXmlWriter;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -34,11 +35,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
+import java.util.Map;
 
 public abstract class ServletBase extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(ServletBase.class);
+    private static final SimpleXmlWriter xml = new SimpleXmlWriter();
 
     private static final String TYPE = "type";
+    private static final String ACCEPT = "Accept";
+    private static final String ACCEPT_CONTENT = ACCEPT.toLowerCase();
+    private static final String CONTENT_TYPE = "content-type";
     private static final String HOST = "host";
     private static final String APP_INSTANCE = "X-App-Instance";
     protected static final AppConfigReader config = AppConfigReader.getInstance();
@@ -55,16 +61,18 @@ public abstract class ServletBase extends HttpServlet {
             }
         }
         final String origin = appOrigin == null? myOrigin : appOrigin;
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type);
+        String accept = request.getHeader(ACCEPT);
+        event.setHeader(ACCEPT_CONTENT, accept != null? accept : MediaType.APPLICATION_JSON);
         if (origin.equals(myOrigin)) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 response.sendError(404, origin+" is not reachable");
                 return;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         AsyncContext context = request.startAsync();
         Future<EventEnvelope> result = po.asyncRequest(event, 10000);
@@ -72,14 +80,28 @@ public abstract class ServletBase extends HttpServlet {
             Utility util = Utility.getInstance();
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             res.setStatus(evt.getStatus());
-            Object data = evt.getBody();
+            final Object data = evt.getRawBody();
+            final String contentType = evt.getHeaders().getOrDefault(CONTENT_TYPE, MediaType.APPLICATION_JSON);
             final byte[] b;
-            if (data instanceof String) {
+            if (MediaType.TEXT_PLAIN.equals(contentType) && data instanceof String) {
                 res.setContentType(MediaType.TEXT_PLAIN);
                 b = util.getUTF((String) data);
             } else {
-                res.setContentType(MediaType.APPLICATION_JSON);
-                b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(evt.getBody());
+                if (MediaType.APPLICATION_XML.equals(contentType)) {
+                    res.setContentType(MediaType.APPLICATION_XML);
+                    if (data instanceof Map) {
+                        b = util.getUTF(xml.write(data));
+                    } else {
+                        b = util.getUTF(data == null? "" : data.toString());
+                    }
+                } else {
+                    res.setContentType(MediaType.APPLICATION_JSON);
+                    if (data instanceof Map) {
+                        b = SimpleMapper.getInstance().getMapper().writeValueAsBytes(data);
+                    } else {
+                        b = util.getUTF(data == null? "" : data.toString());
+                    }
+                }
             }
             res.setContentLength(b.length);
             try {

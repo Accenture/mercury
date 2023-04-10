@@ -18,10 +18,12 @@
 
 package org.platformlambda.core;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.serializers.MsgPack;
 import org.platformlambda.core.serializers.PayloadMapper;
-import org.platformlambda.core.models.PoJo;
+import org.platformlambda.core.util.Utility;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -29,9 +31,6 @@ import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.junit.Assert;
-import org.platformlambda.core.util.Utility;
 
 public class MsgPackTest {
 

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Websocket Echo Demo</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" >
+
+    <script type="text/javascript">
+        /*
+         * This is a sample javascript code to connect to the demo websocket endpoint
+         * Please note that your browser application must implement the following:
+         * 1. Connection URL is /ws/demo/hello
+         * 2. Keep-alive protocol.
+         */
+        var setupEnterKey = true;
+        var msg = [];
+        var max_items = 15;
+        var connected = false;
+        var ws = null;
+        var ping = null;
+        /*
+         * KEEP-ALIVE PROTOCOL
+         *
+         * WebSocket connection is persistent and it is important to tell the backend that your browser application
+         * is not stalled. Keep-alive protocol also allows your browser app to detect if notification backend service
+         * is offline. When backend is offline, the browser app can inform the user and retry the connection later.
+         *
+         * The standard websocket timeout is 60 seconds. We recommend setting the keep-alive interval
+         * between 20-30 seconds.
+         */
+        var pingInterval = 30000;
+
+        function show(input) {
+            // push input as the first item in the array
+            msg.unshift(input);
+            while (msg.length > max_items) {
+                msg.pop();
+            }
+            var s = ''
+            for (i in msg) {
+                s += msg[i];
+                s += '\n';
+            }
+            document.getElementById('message').innerHTML = s;
+        }
+
+        function disconnectFromEdge() {
+            if (connected) {
+                ws.close();
+            } else {
+                show(eventWithTimestamp("error", "already disconnected"));
+            }
+        }
+
+        function keepAlive() {
+            if (connected) {
+                ws.send(eventWithTimestamp("ping", "keep alive"));
+                ping = setTimeout(keepAlive, pingInterval);
+            }
+        }
+
+        function eventWithTimestamp(msg_type, message) {
+            var s = {}
+            s['type'] = msg_type;
+            s['message'] = message;
+            s['time'] = getTimestamp();
+            return JSON.stringify(s);
+        }
+
+        function getTimestamp() {
+            var s = (new Date())+"";
+            var gmt = s.indexOf('GMT');
+            return gmt > 0? s.substring(0, gmt).trim() : s;
+        }
+
+        function resume() {
+            document.getElementById('message').style.display = "none";
+            document.getElementById('resume').style.display = "none";
+            document.getElementById('connect').style.display = "inline"
+        }
+
+        function connectToEdge() {
+            if (setupEnterKey) {
+                setupEnterKey = false;
+                var input = document.getElementById('app');
+                input.addEventListener("keyup", function(event) {
+                  // Number 13 is the "Enter" key on the keyboard
+                  if (event.keyCode === 13) {
+                    // Cancel the default action, if needed
+                    event.preventDefault();
+                    if (ws != null && input.value.length > 0) {
+                        ws.send(input.value);
+                        input.value = "";
+                    }
+                  }
+                });
+            }
+
+            if ("WebSocket" in window) {
+                document.getElementById('message').style.display = "block";
+                var accessToken = document.getElementById('app').value;
+                if (accessToken.length == 0) {
+                    accessToken = "hello-world";
+                }
+                if (connected) {
+                    show(eventWithTimestamp("error", "already connected"));
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    return;
+                }
+                var req = {}
+                req['type'] = 'welcome';
+                // open a web socket
+                ws = new WebSocket("ws://127.0.0.1:8086/ws/hello/"+accessToken);
+
+                ws.onopen = function() {
+                    show(eventWithTimestamp("info", "connected"));
+                    connected = true;
+                    ws.send(JSON.stringify(req));
+                    document.getElementById('connect').style.display = "none"
+                    document.getElementById('disconnect').style.display = "inline"
+                    ping = setTimeout(keepAlive, pingInterval);
+                };
+
+                ws.onmessage = function(evt) {
+                    show(evt.data);
+                };
+
+                ws.onclose = function(evt) {
+                    connected = false;
+                    clearTimeout(ping);
+                    show(eventWithTimestamp("info", "disconnected - ("+evt.code+") "+evt.reason));
+                    document.getElementById('message').style.display = "block";
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    document.getElementById('disconnect').style.display = "none";
+                    ws = null;
+                };
+
+            }  else {
+                show("WebSocket NOT supported by your Browser");
+            }
+        }
+      </script>
+
+</head>
+<body>
+
+<div class="container">
+    <br/>
+    <h4 style="color: #3cb371">Demo</h4>
+    Click "Start Service" to connect to the websocket echo service at http://127.0.0.1:8085/ws/hello
+    <br/><br/>
+    <div class="input-group">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Message</span>
+            </div>
+            <input id="app" type="text" class="form-control" name="app" placeholder="Enter your test message once it is connected">
+        </div>
+    </div>
+    <div style="height: 10px"></div>
+    <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
+    <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+    <button id="resume" style="display: none" type="button" class="btn btn-warning" onclick="javascript:resume()">Continue</button>
+    <hr>
+    <pre id="message" class="border border-success rounded" style="background-color: #3c3c3c; color: white; display: none;"></pre>
+</div>
+
+</body>
+</html>

@@ -23,22 +23,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public abstract class WorkerQueues {
     private static final Logger log = LoggerFactory.getLogger(WorkerQueues.class);
 
-    protected static final ExecutorService executor = Executors.newCachedThreadPool();
+    protected static final ExecutorService executor = Platform.getInstance().getEventExecutor();
     protected static final String READY = "ready:";
     protected static final String HASH = "#";
     protected final ServiceDef def;
     protected final String route;
+    protected final String parentRoute;
     protected MessageConsumer<byte[]> consumer = null;
     protected boolean stopped = false;
 
     protected WorkerQueues(ServiceDef def, String route) {
         this.def = def;
         this.route = route;
+        this.parentRoute = route.contains("#")? route.substring(0, route.lastIndexOf('#')) : route;
     }
 
     protected void started() {

@@ -89,18 +89,19 @@ public class PresenceConnector implements LambdaFunction {
         AppConfigReader config = AppConfigReader.getInstance();
         monitorTopic = config.getProperty("monitor.topic", "service.monitor");
         begin = Utility.getInstance().date2str(new Date(START_TIME), true);
+        // range: 3 to 30
         int maxGroups = Math.min(30,
-                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
+                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "10"))));
         closedUserGroup = util.str2int(config.getProperty("closed.user.group", "1"));
         if (closedUserGroup < 1 || closedUserGroup > maxGroups) {
             log.error("closed.user.group is invalid. Please select a number from 1 to {}", maxGroups);
             System.exit(-1);
         }
-        LambdaFunction fastKeepAlive = (headers, body, instance) -> {
+        LambdaFunction fastKeepAlive = (headers, input, instance) -> {
             int count = util.str2int(headers.getOrDefault(COUNT, "3"));
             if (count > 0) {
                 EventEnvelope ping = new EventEnvelope().setTo(FAST_KEEP_ALIVE).setHeader(COUNT, --count);
-                PostOffice.getInstance().sendLater(ping, new Date(System.currentTimeMillis()+5000));
+                EventEmitter.getInstance().sendLater(ping, new Date(System.currentTimeMillis()+5000));
                 sendAppInfo(sequence++, true);
             }
             return true;
@@ -133,9 +134,9 @@ public class PresenceConnector implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         Platform platform  = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String route;
         if (headers.containsKey(TYPE)) {
             switch (headers.get(TYPE)) {
@@ -171,7 +172,7 @@ public class PresenceConnector implements LambdaFunction {
                 case BYTES:
                     route = headers.get(ROUTE);
                     EventEnvelope event = new EventEnvelope();
-                    event.load((byte[]) body);
+                    event.load((byte[]) input);
                     if (READY.equals(event.getTo()) && event.getHeaders().containsKey(VERSION) &&
                             event.getHeaders().containsKey(TOPIC)) {
                         isReady = true;
@@ -191,15 +192,15 @@ public class PresenceConnector implements LambdaFunction {
                     }
                     break;
                 case MAP:
-                    if (body instanceof Map) {
-                        Map<String, Object> data = (Map<String, Object>) body;
+                    if (input instanceof Map) {
+                        Map<String, Object> data = (Map<String, Object>) input;
                         if (ALIVE.equals(data.get(TYPE))) {
                             sendAppInfo(sequence++, true);
                         }
                     }
                     break;
                 case STRING:
-                    log.debug("{}", body);
+                    log.debug("{}", input);
                     break;
                 default:
                     break;
@@ -221,7 +222,7 @@ public class PresenceConnector implements LambdaFunction {
             try {
                 Utility util = Utility.getInstance();
                 Platform platform = Platform.getInstance();
-                PostOffice po = PostOffice.getInstance();
+                EventEmitter po = EventEmitter.getInstance();
                 VersionInfo app = util.getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, begin).setHeader(SEQ, n)
@@ -259,7 +260,7 @@ public class PresenceConnector implements LambdaFunction {
         if (topicPartition != null && topicPartition.contains("-")) {
             AppConfigReader config = AppConfigReader.getInstance();
             Platform platform = Platform.getInstance();
-            PostOffice po = PostOffice.getInstance();
+            EventEmitter po = EventEmitter.getInstance();
             PubSub ps = PubSub.getInstance();
             Utility util = Utility.getInstance();
             int hyphen = topicPartition.lastIndexOf('-');
@@ -269,8 +270,8 @@ public class PresenceConnector implements LambdaFunction {
             String clientId = platform.getOrigin();
             // subscribe to closed user group
             final AtomicBoolean topicPending = new AtomicBoolean(true);
-            LambdaFunction topicControl = (headers, body, instance) -> {
-                if (INIT.equals(body) && INIT.equals(headers.get(TYPE))) {
+            LambdaFunction topicControl = (headers, input, instance) -> {
+                if (INIT.equals(input) && INIT.equals(headers.get(TYPE))) {
                     if (topicPending.get()) {
                         topicPending.set(false);
                         po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
@@ -287,11 +288,11 @@ public class PresenceConnector implements LambdaFunction {
                         String.valueOf(ServiceLifeCycle.INITIALIZE));
             // subscribe to assigned topic and partition
             final AtomicBoolean appPending = new AtomicBoolean(true);
-            LambdaFunction appControl = (headers, body, instance) -> {
-                if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
+            LambdaFunction appControl = (headers, input, instance) -> {
+                if (LOOP_BACK.equals(input) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
                     po.send(headers.get(REPLY_TO), true);
                 }
-                if (INIT.equals(body) && INIT.equals(headers.get(TYPE))) {
+                if (INIT.equals(input) && INIT.equals(headers.get(TYPE))) {
                     if (appPending.get()) {
                         appPending.set(false);
                         log.info("Connected to Closed User Group {}", closedUserGroup);
@@ -308,11 +309,11 @@ public class PresenceConnector implements LambdaFunction {
         }
         // recovery other consumers
         Map<String, PubSub> instances = PubSub.getInstances();
-        for (String domain: instances.keySet()) {
+        instances.keySet().forEach(domain -> {
             log.info("Restoring '{}' subscription", domain);
             PubSub ps = instances.get(domain);
             ps.resumeSubscription();
-        }
+        });
     }
 
     private void closeConsumers() throws IOException {
@@ -328,12 +329,12 @@ public class PresenceConnector implements LambdaFunction {
             topicPartition = null;
             // suspend other consumers
             Map<String, PubSub> instances = PubSub.getInstances();
-            for (String domain: instances.keySet()) {
+            instances.keySet().forEach(domain -> {
                 log.info("Suspending '{}' subscription", domain);
                 PubSub others = instances.get(domain);
                 others.suspendSubscription();
                 others.cleanup();
-            }
+            });
         }
     }
 

@@ -22,5 +22,5 @@ import java.util.Map;
 
 public interface TypedLambdaFunction<I, O> {
 
-    O handleEvent(Map<String, String> headers, I body, int instance) throws Exception;
+    O handleEvent(Map<String, String> headers, I input, int instance) throws Exception;
 }

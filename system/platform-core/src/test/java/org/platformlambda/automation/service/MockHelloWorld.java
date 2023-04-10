@@ -18,23 +18,22 @@
 
 package org.platformlambda.automation.service;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
-import org.platformlambda.core.system.ObjectStreamIO;
-import org.platformlambda.core.system.ObjectStreamReader;
-import org.platformlambda.core.system.ObjectStreamWriter;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@CoroutineRunner
 public class MockHelloWorld implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
     private static final AtomicInteger count = new AtomicInteger(0);
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest body, int instance) throws IOException {
-        AsyncHttpRequest input = new AsyncHttpRequest(body); // test AsyncHttpRequest clone initializer
+        AsyncHttpRequest input = new AsyncHttpRequest(body); // test AsyncHttpRequest clone feature
         if ("HEAD".equals(input.getMethod())) {
             EventEnvelope result = new EventEnvelope().setHeader("X-Response", "HEAD request received")
                     .setHeader("Content-Length", 100);
@@ -46,14 +45,7 @@ public class MockHelloWorld implements TypedLambdaFunction<AsyncHttpRequest, Obj
             return result;
         }
         if (input.getStreamRoute() != null) {
-            ObjectStreamIO stream = new ObjectStreamIO();
-            ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
-            ObjectStreamReader in = new ObjectStreamReader(input.getStreamRoute(), 10000);
-            for (Object o: in) {
-                out.write(o);
-            }
-            out.close();
-            return new EventEnvelope().setBody(input.getBody()).setHeader("stream", stream.getInputStreamId())
+            return new EventEnvelope().setBody(input.getBody()).setHeader("stream", input.getStreamRoute())
                     .setHeader("content-type", "application/octet-stream");
         } else if (input.getBody() instanceof byte[]) {
             return new EventEnvelope().setBody(input.getBody())

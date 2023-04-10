@@ -24,7 +24,7 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.AppConfigReader;
@@ -36,11 +36,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 
 public class TopicController implements LambdaFunction {
     private static final Logger log = LoggerFactory.getLogger(TopicController.class);
+
+    private static final ExecutorService rsvpExecutor = Executors.newSingleThreadExecutor();
 
     private static final String MONITOR_PARTITION = MainApp.MONITOR_PARTITION;
     private static final String TYPE = "type";
@@ -62,7 +63,6 @@ public class TopicController implements LambdaFunction {
     private static final String TOPIC = "topic";
     private static final String AVAILABLE = "*";
     private static final int TRY_AGAIN_LATER = 1013;
-    private static final long INTERVAL = 5 * 1000L;
     private static final long EXPIRY = 60 * 1000L;
     // topic+partition -> origin | AVAILABLE(*)
     private static final ConcurrentMap<String, String> topicStore = new ConcurrentHashMap<>();
@@ -176,9 +176,9 @@ public class TopicController implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
         Utility util = Utility.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         if (headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
@@ -277,121 +277,111 @@ public class TopicController implements LambdaFunction {
         return assigned;
     }
 
-    private class RsvpProcessor extends Thread {
+    private class RsvpProcessor {
 
-        private boolean normal = true;
+        private void start() {
+            Platform platform = Platform.getInstance();
+            platform.getVertx().setPeriodic(5 * 1000L, t -> checkStalledMembers());
+            platform.getVertx().setPeriodic(1000L, t -> rsvpExecutor.submit(this::rsvpLoop));
+        }
 
-        @Override
-        public void run() {
-            log.info("RSVP processor started");
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-
-            long t0 = System.currentTimeMillis();
-            Utility util = Utility.getInstance();
-            PubSub ps = PubSub.getInstance();
-            PostOffice po = PostOffice.getInstance();
-            String myOrigin = Platform.getInstance().getOrigin();
-            List<String> currentTopics = new ArrayList<>();
-            while (normal) {
-                long now = System.currentTimeMillis();
-                // any RSVP requests for me?
-                if (hasRsvpRights()) {
-                    // start RSVP
-                    try {
-                        po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION,
-                                new Kv(TYPE, RSVP_START), new Kv(MONITOR, myOrigin));
-                    } catch (IOException e) {
-                        // ok to ignore
-                    }
-                    List<String> requests = new ArrayList<>(pendingRsvp.keySet());
-                    for (String appOrigin: requests) {
-                        String txPath = pendingRsvp.get(appOrigin);
-                        pendingRsvp.remove(appOrigin);
-                        try {
-                            // check if appOrigin has a topic in store
-                            String topicPartition = nextTopic(appOrigin);
-                            int hyphen = topicPartition.lastIndexOf('-');
-                            String topic = topicPartition.substring(0, hyphen);
-                            if (topicSubstitution) {
-                                int partition = util.str2int(topicPartition.substring(hyphen+1));
-                                String virtualTopic = topic + "." + partition;
-                                if (!preAllocatedTopics.containsKey(virtualTopic)) {
-                                    throw new IOException("Missing topic substitution for "+virtualTopic);
-                                }
-                            }
-                            if (!currentTopics.contains(topic)) {
-                                if (!topicSubstitution) {
-                                    // automatically create topic if not exist
-                                    if (ps.exists(topic)) {
-                                        int actualPartitions = ps.partitionCount(topic);
-                                        if (actualPartitions < partitionCount) {
-                                            log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
-                                                    topic, partitionCount, actualPartitions);
-                                            log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart",
-                                                    topic);
-                                            throw new IOException("Insufficient partitions in " + topic);
-                                        }
-                                    } else {
-                                        ps.createTopic(topic, partitionCount);
-                                    }
-                                }
-                                currentTopics.add(topic);
-                            }
-                            po.send(MainApp.TOPIC_CONTROLLER+MONITOR_PARTITION,
-                                    new Kv(TYPE, CONFIRM_TOPIC), new Kv(MONITOR, myOrigin),
-                                    new Kv(TOPIC, topicPartition), new Kv(ORIGIN, appOrigin));
-                            po.send(txPath, new EventEnvelope().setTo(READY)
-                                    .setHeader(TOPIC, topicPartition)
-                                    .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
-                            po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
-                                    new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
-                        } catch (IOException e) {
-                            try {
-                                MonitorService.closeConnection(txPath, TRY_AGAIN_LATER, e.getMessage());
-                            } catch (IOException ioe) {
-                                // ok to ignore
-                            }
-                        }
-                    }
-                    // finished RSVP
-                    try {
-                        po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION,
-                                new Kv(TYPE, RSVP_COMPLETE), new Kv(MONITOR, myOrigin));
-                    } catch (IOException e) {
-                        // ok to ignore
-                    }
+        private void rsvpLoop() {
+            if (hasRsvpRights()) {
+                List<String> requests = new ArrayList<>(pendingRsvp.keySet());
+                if (requests.isEmpty()) {
+                    return;
                 }
-                if (now - t0 > INTERVAL) {
-                    t0 = now;
-                    // remove stalled connections
-                    MonitorService.clearStalledConnection();
-                    // remove inactive topics
-                    Map<String, String> topics = getAssignedTopics();
-                    for (String t : topics.keySet()) {
-                        if (activeTopics.containsKey(t)) {
-                            if (now - activeTopics.get(t) > EXPIRY) {
-                                activeTopics.remove(t);
-                                topicStore.put(t, AVAILABLE);
-                                log.info("{} expired", t);
-                            }
-                        } else {
-                            // to be evaluated in next cycle
-                            activeTopics.put(t, now);
-                        }
-                    }
-                }
+                Utility util = Utility.getInstance();
+                PubSub ps = PubSub.getInstance();
+                EventEmitter po = EventEmitter.getInstance();
+                String myOrigin = Platform.getInstance().getOrigin();
+                List<String> currentTopics = new ArrayList<>();
+                // start RSVP
                 try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
+                    po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION,
+                            new Kv(TYPE, RSVP_START), new Kv(MONITOR, myOrigin));
+                } catch (IOException e) {
+                    // ok to ignore
+                }
+                for (String appOrigin: requests) {
+                    String txPath = pendingRsvp.get(appOrigin);
+                    pendingRsvp.remove(appOrigin);
+                    try {
+                        // check if appOrigin has a topic in store
+                        String topicPartition = nextTopic(appOrigin);
+                        int hyphen = topicPartition.lastIndexOf('-');
+                        String topic = topicPartition.substring(0, hyphen);
+                        if (topicSubstitution) {
+                            int partition = util.str2int(topicPartition.substring(hyphen+1));
+                            String virtualTopic = topic + "." + partition;
+                            if (!preAllocatedTopics.containsKey(virtualTopic)) {
+                                throw new IOException("Missing topic substitution for "+virtualTopic);
+                            }
+                        }
+                        if (!currentTopics.contains(topic)) {
+                            if (!topicSubstitution) {
+                                // automatically create topic if not exist
+                                if (ps.exists(topic)) {
+                                    int actualPartitions = ps.partitionCount(topic);
+                                    if (actualPartitions < partitionCount) {
+                                        log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
+                                                topic, partitionCount, actualPartitions);
+                                        log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart",
+                                                topic);
+                                        throw new IOException("Insufficient partitions in " + topic);
+                                    }
+                                } else {
+                                    ps.createTopic(topic, partitionCount);
+                                }
+                            }
+                            currentTopics.add(topic);
+                        }
+                        po.send(MainApp.TOPIC_CONTROLLER+MONITOR_PARTITION,
+                                new Kv(TYPE, CONFIRM_TOPIC), new Kv(MONITOR, myOrigin),
+                                new Kv(TOPIC, topicPartition), new Kv(ORIGIN, appOrigin));
+                        po.send(txPath, new EventEnvelope().setTo(READY)
+                                .setHeader(TOPIC, topicPartition)
+                                .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
+                        po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
+                                new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
+                    } catch (IOException e) {
+                        try {
+                            MonitorService.closeConnection(txPath, TRY_AGAIN_LATER, e.getMessage());
+                        } catch (IOException ioe) {
+                            // ok to ignore
+                        }
+                    }
+                }
+                // finished RSVP
+                try {
+                    po.send(MainApp.TOPIC_CONTROLLER + MONITOR_PARTITION,
+                            new Kv(TYPE, RSVP_COMPLETE), new Kv(MONITOR, myOrigin));
+                } catch (IOException e) {
                     // ok to ignore
                 }
             }
-            log.info("RSVP processor stopped");
         }
 
-        private void shutdown() {
-            normal = false;
+        private void checkStalledMembers() {
+            // remove stalled connections
+            MonitorService.clearStalledConnection();
+            // remove inactive topics
+            long now = System.currentTimeMillis();
+            Map<String, String> topics = getAssignedTopics();
+            for (String t : topics.keySet()) {
+                if (activeTopics.containsKey(t)) {
+                    if (now - activeTopics.get(t) > EXPIRY) {
+                        activeTopics.remove(t);
+                        topicStore.put(t, AVAILABLE);
+                        log.info("{} expired", t);
+                    }
+                } else {
+                    // to be evaluated in next cycle
+                    activeTopics.put(t, now);
+                }
+            }
         }
+
     }
 
 }

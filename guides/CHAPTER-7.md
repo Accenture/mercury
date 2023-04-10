@@ -1,87 +1,159 @@
-# Version control
+# Event over HTTP
 
-Sometimes, it would be useful to deploy more than one version of the same service in an environment.
+The in-memory event system allows functions to communicate with each other in the same application memory space.
 
-This allows us to test new versions without impacting existing functionality.
+In composable architecture, applications are modular components in a network. Some transactions may require
+the services of more than one application. "Event over HTTP" extends the event system beyond a single application.
 
-Version control is supported in the REST automation system and the Post Office event core engine.
+The Event API service (`event.api.service`) is a built-in function in the system.
 
-To do that, we can add a prefix or suffix to a service route name.
+## The Event API endpoint
 
-For example, the service route name is originally "hello.world". The versioned services would be:
+To enable "Event over HTTP", you must first turn on the REST automation engine and a light weight non-blocking 
+HTTP server with the following parameters in the application.properties file:
 
-```
-v1.hello.world - the current version
-v2.hello.world - the next version of the service with functional improvement or bug fix
-```
-
-There are two ways to do versioning:
-
-1. REST automation
-2. Route substitution
-
- Let's examine how to do versioning from the REST automation system.
-
-# REST automation
-
-Versioning would start with adding version in the URI path of a REST endpoint.
-
-In the rest.yaml configuration file, we can define multiple versions of the REST endpoint to route to different 
-versions of backend services.
-
-e.g.
-
-```
-  - service: "v1.hello.world"
-    methods: ['GET']
-    url: "/api/v1/hello/world"
-  - service: "v2.hello.world"
-    methods: ['GET']
-    url: "/api/v2/hello/world"
+```properties
+rest.server.port=8085
+rest.automation=true
 ```
 
-In this case, the UI application must be aware of the different versions of URI path.
+and then check if the following entry is available in the "rest.yaml" endpoint definition file. 
+If not, update "rest.yaml" accordingly. The "timeout" value is set to 60 seconds to fit common use cases.
 
-# Route substitution
-
-Route substitution works differently. The URI path of a specific REST endpoint is version neutral. 
-
-e.g.
-```
-  - service: "hello.world"
-    methods: ['GET']
-    url: "/api/hello/world"
+```yaml
+  - service: [ "event.api.service" ]
+    methods: [ 'POST' ]
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
 ```
 
-We would create a route substitution to automatically change the routing.
+This will expose the Event API endpoint at port 8085 and URL "/api/event". 
 
-you can turn on route substitution with the following parameters in application.properties
+In kubernetes, The Event API endpoint of each application is reachable through internal DNS and there is no need
+to create "ingress" for this purpose.
 
-```
-application.feature.route.substitution=true
-route.substitution.file=file:/tmp/config/route-substitution.yaml,classpath:/route-substitution.yaml
-```
+## Test drive Event API
 
-You can point the `route.substitution.file` to a file. e.g. file:/tmp/config/route-substitution.yaml
+You may now test drive the Event API service.
 
-The content of route substitution file may look like this:
+First, build and run the lambda-example application in port 8085.
 
-```
-route:
-  substitution:
-    - "hello.world -> v2.hello.world"
+```shell
+cd examples/lambda-example
+java -jar target/lambda-example-3.0.0.jar
 ```
 
-In the above example, the REST endpoint "/api/hello/world" will route the HTTP request to "hello.world" and
-the system will route "hello.world" to "v2.hello.world".
+Second, build and run the rest-spring-example application.
 
-In this case, we usually deploy more than one REST automation gatways for user facing. We can use DNS routing to 
-route a percentage of current user requests to the REST automation gateway that sends requests to version 2 of the 
-backend service.
+```shell
+cd examples/rest-spring-example
+java -jar target/rest-spring-example-3.0.0.jar
+```
 
+The rest-spring-example application will run as a Spring Boot application in port 8083 and 8086.
 
----
+These two applications will start independently.
 
-| Chapter-8                                 | Home                                     |
-| :----------------------------------------:|:----------------------------------------:|
-| [Multicast](CHAPTER-8.md)                 | [Table of Contents](TABLE-OF-CONTENTS.md)|
+You may point your browser to http://127.0.0.1:8083/api/pojo/http/1 to invoke the `HelloPojoEventOverHttp` 
+endpoint service that will in turn makes an Event API call to the lambda-example's "hello.pojo" service.
+
+You will see the following response in the browser. This means the rest-spring-example application has successfully
+made an event API call to the lambda-example application using the Event API endpoint.
+
+```json
+{
+  "id": 1,
+  "name": "Simple PoJo class",
+  "address": "100 World Blvd, Planet Earth",
+  "date": "2023-03-27T23:17:19.257Z",
+  "instance": 6,
+  "seq": 66,
+  "origin": "2023032791b6938a47614cf48779b1cf02fc89c4"
+}
+```
+
+To examine how the application makes the Event API call, please refer to the `HelloPojoEventOverHttp` class
+in the rest-spring-example. The class is extracted below:
+
+```java
+@Path("/pojo")
+public class HelloPoJoEventOverHttp {
+
+    @GET
+    @Path("/http/{id}")
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON})
+    public void getPoJo(@PathParam("id") Integer id, @Suspended AsyncResponse response) 
+            throws IOException {
+        AppConfigReader config = AppConfigReader.getInstance();
+        String remotePort = config.getProperty("lambda.example.port", "8085");
+        String remoteEndpoint = "http://127.0.0.1:"+remotePort+"/api/event";
+        String traceId = Utility.getInstance().getUuid();
+        PostOffice po = new PostOffice("hello.pojo.endpoint", traceId, "GET /api/pojo/http");
+        EventEnvelope req = new EventEnvelope().setTo("hello.pojo").setHeader("id", id);
+        Future<EventEnvelope> res = po.asyncRequest(req, 5000, remoteEndpoint, true);
+        res.onSuccess(event -> {
+            // confirm that the PoJo object is transported correctly over the event stream system
+            if (event.getBody() instanceof SamplePoJo) {
+                response.resume(event.getBody());
+            } else {
+                response.resume(new AppException(event.getStatus(), event.getError()));
+            }
+        });
+        res.onFailure(response::resume);
+    }
+}
+```
+
+The method signatures of the Event API is shown as follows:
+
+### Asynchronous API (Java)
+
+```java
+public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout,
+                                          String eventEndpoint, boolean rpc) throws IOException;
+```
+
+### Sequential non-blocking API (Kotlin suspend function)
+
+```kotlin
+suspend fun awaitRequest(request: EventEnvelope?, timeout: Long, 
+                         eventEndpoint: String, rpc: Boolean): EventEnvelope
+```
+
+The eventEndpoint is a fully qualified URL. e.g. `http://peer/api/event`
+
+The "rpc" boolean value is set to true so that the response from the service of the peer application instance 
+will be delivered. For drop-n-forget use case, you can set the "rpc" value to false. It will immediately return
+a HTTP-202 response.
+
+## Advantages
+
+The Event API exposes all public functions of an application instance to the network using a single REST endpoint.
+
+The advantages of Event API includes:
+
+1. Convenient - you do not need to write or configure individual endpoint for each public service
+2. Efficient - events are transported in binary format from one application to another
+3. Secure - you can protect the Event API endpoint with an authentication service
+
+The following configuration adds authentication service to the Event API endpoint:
+```yaml
+  - service: [ "event.api.service" ]
+    methods: [ 'POST' ]
+    url: "/api/event"
+    timeout: 60s
+    authentication: "v1.api.auth"
+    tracing: true
+```
+
+This enforces every incoming request to the Event API endpoint to be authenticated by the "v1.api.auth" service
+before passing to the Event API service. You can plug in your own authentication service such as OAuth 2.0 
+"bearer token" validation.
+
+Please refer to [Chapter-3](CHAPTER-3.md) for details.
+<br/>
+
+|          Chapter-6          |                   Home                    |          Chapter-8           |
+|:---------------------------:|:-----------------------------------------:|:----------------------------:|
+| [Spring Boot](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Service mesh](CHAPTER-8.md) |

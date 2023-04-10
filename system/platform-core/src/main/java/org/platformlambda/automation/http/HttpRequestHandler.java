@@ -29,7 +29,7 @@ import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -47,6 +47,8 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     private static final String HOST = "host";
     private static final String TYPE = "type";
     private static final String ACCEPT = "Accept";
+    private static final String ACCEPT_CONTENT = ACCEPT.toLowerCase();
+    private static final String APPLICATION_JSON = "application/json";
     private static final String GET = "GET";
     private static final String POST = "POST";
     private static final String DATE = "Date";
@@ -151,7 +153,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
 
     private boolean executeActuator(String requestId, HttpServerRequest request, String type) {
         Platform platform = Platform.getInstance();
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
@@ -161,26 +163,28 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             origin = platform.getOrigin();
         }
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type);
+        String accept = request.getHeader(ACCEPT);
+        event.setHeader(ACCEPT_CONTENT, accept != null? accept : APPLICATION_JSON);
         if (origin.equals(Platform.getInstance().getOrigin())) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return true;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         event.setCorrelationId(requestId).setReplyTo(ASYNC_HTTP_RESPONSE +"@"+ platform.getOrigin());
         try {
             po.send(event);
         } catch (IOException e) {
-            log.warn("Unable to send request to {} - {}", PostOffice.ACTUATOR_SERVICES, e.getMessage());
+            log.warn("Unable to send request to {} - {}", EventEmitter.ACTUATOR_SERVICES, e.getMessage());
         }
         return true;
     }
 
     private void shutdown(String requestId, HttpServerRequest request) {
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
@@ -189,13 +193,13 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         }
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, SHUTDOWN);
         if (origin.equals(Platform.getInstance().getOrigin())) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         event.setHeader(USER, System.getProperty("user.name"));
         po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
@@ -204,7 +208,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
     }
 
     private void suspendResume(String requestId, HttpServerRequest request) {
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
         String origin = request.getHeader(APP_INSTANCE);
         if (origin == null) {
@@ -225,13 +229,13 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type)
                 .setHeader(USER, System.getProperty("user.name"));
         if (origin.equals(Platform.getInstance().getOrigin())) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 httpUtil.sendError(requestId, request, 404, origin+NOT_REACHABLE);
                 return;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         String when = parts.get(1).equals(NOW) ? NOW : LATER;
         event.setHeader(WHEN, when);

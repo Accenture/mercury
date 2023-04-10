@@ -52,7 +52,7 @@ public class TopicManager implements LambdaFunction {
     }
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         if (headers.containsKey(TYPE)) {
             if (LIST.equals(headers.get(TYPE))) {
                 return listTopics();

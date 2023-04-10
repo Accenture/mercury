@@ -19,8 +19,8 @@
 package org.platformlambda.servlets;
 
 import org.platformlambda.core.models.EventEnvelope;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
 
 import javax.servlet.http.HttpServletRequest;
@@ -46,17 +46,17 @@ public class SuspendResume {
             response.sendError(400, "Missing "+ APP_INSTANCE +" in request header");
             return;
         }
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type)
                 .setHeader(USER, System.getProperty("user.name"));
         if (origin.equals(Platform.getInstance().getOrigin())) {
-            event.setTo(PostOffice.ACTUATOR_SERVICES);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES);
         } else {
             if (!po.exists(origin)) {
                 response.sendError(404, origin+" is not reachable");
                 return;
             }
-            event.setTo(PostOffice.ACTUATOR_SERVICES+"@"+origin);
+            event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         List<String> path = Utility.getInstance().split(request.getPathInfo(), "/");
         String when = !path.isEmpty() && path.get(0).equals(NOW) ? NOW : LATER;

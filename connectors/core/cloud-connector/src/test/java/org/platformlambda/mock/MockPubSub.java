@@ -23,20 +23,18 @@ import org.platformlambda.cloud.ServiceLifeCycle;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.models.PubSubProvider;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
 public class MockPubSub implements PubSubProvider {
+    private static final Logger log = LoggerFactory.getLogger(MockPubSub.class);
     private static final Map<String, Integer> topicStore = new HashMap<>();
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
-
-    @Override
-    public void waitForProvider(int seconds) {
-        // no-op
-    }
 
     @Override
     public boolean createTopic(String topic) throws IOException {
@@ -82,18 +80,22 @@ public class MockPubSub implements PubSubProvider {
     }
 
     @Override
-    public void publish(String topic, int partition, Map<String, String> headers, Object body) throws IOException {
-        String route = topic+"."+partition;
-        PostOffice po = PostOffice.getInstance();
-        Map<String, String> eventHeaders = headers == null? new HashMap<>() : headers;
-        if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
-            EventEnvelope event = new EventEnvelope();
-            event.load((byte[]) body);
-            String to = event.getTo();
-            int sep = to.indexOf("@monitor");
-            po.send(sep > 1? event.setTo(to.substring(0, sep)) : event);
-        } else {
-            po.send(new EventEnvelope().setTo(route).setHeaders(headers).setBody(body));
+    public void publish(String topic, int partition, Map<String, String> headers, Object body) {
+        try {
+            String route = topic + "." + partition;
+            EventEmitter po = EventEmitter.getInstance();
+            Map<String, String> eventHeaders = headers == null ? new HashMap<>() : headers;
+            if (eventHeaders.containsKey(EventProducer.EMBED_EVENT) && body instanceof byte[]) {
+                EventEnvelope event = new EventEnvelope();
+                event.load((byte[]) body);
+                String to = event.getTo();
+                int sep = to.indexOf("@monitor");
+                po.send(sep > 1 ? event.setTo(to.substring(0, sep)) : event);
+            } else {
+                po.send(new EventEnvelope().setTo(route).setHeaders(headers).setBody(body));
+            }
+        } catch (IOException e) {
+            log.warn("Unable to delivery event to {} - {}", topic, e.getMessage());
         }
     }
 
@@ -108,14 +110,14 @@ public class MockPubSub implements PubSubProvider {
     @Override
     public void subscribe(String topic, int partition, LambdaFunction listener, String... parameters) throws IOException {
         String route = topic+"."+partition;
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Platform platform = Platform.getInstance();
         platform.registerPrivate(route, listener, 1);
         subscriptions.put(topic, listener);
         if (parameters.length == 3 && parameters[2].equals("-100")) {
             final ServiceLifeCycle initialLoad = new ServiceLifeCycle(topic, partition, UUID.randomUUID().toString());
             initialLoad.start();
-            LambdaFunction f = (headers, body, instance) -> {
+            LambdaFunction f = (headers, input, instance) -> {
                 String topicPartition = partition < 0? topic : topic + "." + partition;
                 String INIT_HANDLER =  "init." + topicPartition;
                 po.send(INIT_HANDLER, "done");

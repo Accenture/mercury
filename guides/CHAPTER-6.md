@@ -1,133 +1,224 @@
-# Cloud connectors
+# Spring Boot integration
 
-Mercury has been integrated and tested with both event stream systems and enterprise service bus messaging systems.
+While the platform-core foundation code includes a light weight non-blocking HTTP server, you can also turn your
+application into a regular Spring Boot application.
 
-1. Event stream system - Apache Kafka
-2. Messaging system - Hazelcast
-3. Enterprise Service Bus - ActiveMQ artemis and Tibco EMS
+There are two ways to do that:
 
-# Reusable topics
+1. Add dependency for Spring Boot version 2.7.10 and implement your Spring Boot main application
+2. Add the `rest-spring` add-on library for a pre-configured Spring Boot experience
 
-The default topics include the following:
+## Add platform-core to an existing Spring Boot application
 
-1. service.monitor.n
-2. multiplex.x.y
+For option 1, the platform-core library can co-exist with Spring Boot. You can write code specific to Spring Boot
+and the Spring framework ecosystem. Please make sure you add the following startup code to your Spring Boot
+main application's startup sequence like this:
 
-where `service.monitor.0` is used by the presence monitor to communicate with its peers for fault tolerant operation.
-service.monitor.1 and higher topics are used for closed user groups. i.e. service.monitor.1 for closed user group 1 and
-service.monitor.2 for closed user group 2, etc.
+```java
+@SpringBootApplication
+public class MyMainApp extends SpringBootServletInitializer {
 
-Usually all user application instances should use the same closed user group unless you want to logically segregate 
-different application domains into their own closed user groups. Application modules in one group are invisible to
-another group.
+    public static void main(String[] args) {
+        AppStarter.main(args);
+        SpringApplication.run(MyMainApp.class, args);
+    }
 
-multiplex.x.y topics are used by user application instances. The presence monitor will assign one topic to one 
-application instance dynamically and release the topic when the application instance leaves the system. 
-This allows topics to be reused automatically.
-
-There is a RSVP reservation protocol that the presence monitors will coordinate with each other to assign a 
-unique topic to each application instance.
-
-The value `x` must be a 4-digit number starting from 0001 and `y` is the partition number for the topic. 
-If the underlying messaging system supports pub/sub, the partition number maps to the physical partition of a topic. 
-For enterprise service bus, the partition number is a logical identifier that corresponds to a physical topic.
-
-# Topic Substitution
-
-Some enterprises do not allow automatic creation of messaging topics by user applications.
-
-In this case, you can turn on topic substitution with the following parameters in application.properties
-
+}
 ```
-application.feature.topic.substitution=true
-topic.substitution.file=file:/tmp/config/topic-substitution.yaml,classpath:/topic-substitution.yaml
-```
+We suggest running `AppStarter.main` before the `SpringApplication.run` statement. This would allow the platform-core
+foundation code to load the event-driven functions into memory before Spring Boot starts.
 
-You can point the `topic.substitution.file` to a file.
+## Use the rest-spring library in your application
 
-## Supported cloud connectors
+Adding the `rest-spring` library in your application would turn it into a pre-configured Spring Boot application.
 
-Kafka, ActiveMQ and Tibco support mapping of system topics to pre-allocated topics. 
-Hazelcast topics are generated dynamically and thus topic pre-allocation is not required.
+The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
+built-in light weight non-blocking HTTP server.
 
-Let's examine the configuration concept with two sample topic substitution files.
+If you want to disable the light weight HTTP server, you can set `rest.automation=false` in application.properties.
+The REST automation engine and the light weight HTTP server will be turned off.
 
-### ActiveMQ and Tibco
+> IMPORTANT: the platform-core library assumes the application configuration files to be either
+  application.yml or application.properties. If you use custom Spring profile, please keep the
+  application.yml or application.properties for the platform-core. If you use default Spring 
+  profile, both platform-core and Spring Boot will use the same configuration files.
 
-```yaml
-#
-# topic substitution example
-#
-# The default service monitor and multiplex topics are prefixed as service.monitor and multiplex.n
-# where n starts from 0001
-#
-service:
-  monitor:
-    0: some.topic.one
-    1: some.topic.two
-    2: some.topic.three
-    3: some.topic.four
+You can customize your error page using the default `errorPage.html` from the platform-core's or 
+rest-spring's resources folder in the source project. The default page is shown below.
 
-#
-# the 4-digit segment ID must be quoted to preserve the number of digits when the system parses this config file
-#
-multiplex:
-  "0001":
-    0: user.topic.one
-    1: user.topic.two
-    2: user.topic.three
-    3: user.topic.four
-    4: user.topic.five
-    5: user.topic.six
+This is the HTML error page that the platform-core or rest-spring library will render. You can update it with
+your corporate UI style. Please keep the parameters (status, message, path, warning) intact.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HTTP Error</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<div>
+    <h3>HTTP-${status}</h3>
+    <div>${warning}</div><br/>
+    <table>
+        <tbody>
+        <tr><td style="font-style: italic; width: 100px">Type</td><td>error</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Status</td><td>${status}</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Message</td><td>${message}</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Path</td><td>${path}</td></tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>
 ```
 
-### Kafka
+If you want to keep REST automation's light weight HTTP server together with Spring Boot's Tomcat or other 
+application server, please add the following to your application.properties file:
 
-Since Kafka is a pub/sub event streaming system with partitioning support, you can use the "#n" suffix to specify 
-the partition number for each replacement topic to map to the system topics (service.monitor.n and multiple.x.y). 
-(Note that the "#n" syntax is not applicable to ActiveMQ and Tibco connectors above)
-
-If you do not provide the partition number, it is assumed to be the first partition. i.e. partition-0.
-
-```yaml
-#
-# topic substitution example
-#
-# The default service monitor and multiplex topics are prefixed as service.monitor and multiplex.n
-# where n starts from 0001
-#
-# PARTITION DEFINITION
-# --------------------
-# For the replacement topic, an optional partition number can be defined using the "#n" suffix.
-# Partition number must be a positive number from 0 to the max partition of the specific topic.
-#
-# If partition number if not given, the entire topic will be used to send/receive events.
-# e.g.
-# SERVICE.APP.ONE is a topic of at least one partition
-# user.app#0 is the topic "user.app" and partition "0"
-#
-service:
-  monitor:
-    0: SERVICE.APP.ONE#0
-    1: SERVICE.APP.TWO#0
-    2: SERVICE.APP.THREE#0
-    3: SERVICE.APP.FOUR#0
-
-#
-# the 4-digit segment ID must be quoted to preserve the number of digits when the system parses this config file
-#
-multiplex:
-  "0001":
-    0: user.app#0
-    1: user.app#1
-    2: user.app#2
-    3: user.app#3
-    4: user.app#4
-    5: user.app#5
+```properties
+server.port=8083
+rest.server.port=8085
+rest.automation=true
 ```
 
----
+The platform-core will use `rest.server.port` instead of `server.port` so that the light weight HTTP server and
+Spring Boot's Tomcat can co-exist.
 
-| Chapter-7                           | Home                                     |
-| :----------------------------------:|:----------------------------------------:|
-| [Version Control](CHAPTER-7.md)     | [Table of Contents](TABLE-OF-CONTENTS.md)|
+## The rest-spring-example demo application
+
+Let's review the `rest-spring-example` demo application in the "examples/rest-spring-example" project.
+
+You can use the rest-spring-example as a template to quickly create a Spring Boot application.
+
+In addition to the REST automation engine that let you create REST endpoints by configuration, you can also
+programmatically create REST endpoints with the following choices:
+
+1. JAX-RS
+2. Spring Controller
+3. Servlet 3.1
+
+We will examine asynchronous REST endpoint with the `AsyncHelloWorld` class.
+
+Since the platform-core is event-driven, we would like to use JAX-RS asynchronous HTTP context `AsyncResponse`
+in the REST endpoints so that the endpoint does not block.
+
+```java
+@Path("/hello")
+public class AsyncHelloWorld {
+
+    private static final AtomicInteger seq = new AtomicInteger(0);
+
+    @GET
+    @Path("/world")
+    @Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
+    public void hello(@Context HttpServletRequest request,
+                      @Suspended AsyncResponse response) {
+
+        String traceId = Utility.getInstance().getUuid();
+        PostOffice po = new PostOffice("hello.world.endpoint", traceId, "GET /api/hello/world");
+        Map<String, Object> forward = new HashMap<>();
+
+        Enumeration<String> headers = request.getHeaderNames();
+        while (headers.hasMoreElements()) {
+            String key = headers.nextElement();
+            forward.put(key, request.getHeader(key));
+        }
+        // As a demo, just put the incoming HTTP headers as a payload and add a counter
+        // The echo service will return both.
+        int n = seq.incrementAndGet();
+        EventEnvelope req = new EventEnvelope();
+        req.setTo("hello.world").setBody(forward).setHeader("seq", n);
+        Future<EventEnvelope> res = po.asyncRequest(req, 3000);
+        res.onSuccess(event -> {
+            Map<String, Object> result = new HashMap<>();
+            result.put("status", event.getStatus());
+            result.put("headers", event.getHeaders());
+            result.put("body", event.getBody());
+            result.put("execution_time", event.getExecutionTime());
+            result.put("round_trip", event.getRoundTrip());
+            response.resume(result);
+        });
+        res.onFailure(ex -> response.resume(new AppException(408, ex.getMessage())));
+    }
+}
+```
+
+In this hello world REST endpoint, JAX-RS run the "hello" method asynchronously without waiting for a response.
+
+The example code copies the HTTP requests and sends it as the request payload to the "hello.world" function.
+The function is defined in the MainApp like this:
+
+```java
+Platform platform = Platform.getInstance();
+LambdaFunction echo = (headers, input, instance) -> {
+    Map<String, Object> result = new HashMap<>();
+    result.put("headers", headers);
+    result.put("body", input);
+    result.put("instance", instance);
+    result.put("origin", platform.getOrigin());
+    return result;
+};
+platform.register("hello.world", echo, 20);
+```
+
+When "hello.world" responds, its result set will be returned to the `onSuccess` method as the "future response".
+
+The "onSuccess" method then sends the response to the browser using JAX-RS resume mechanism.
+
+The `AsyncHelloConcurrent` is the same as the `AsyncHelloWorld` except that it performs a "fork-n-join" operation
+to multiple instances of the "hello.world" function.
+
+Unlike "rest.yaml" that defines tracing by configuration, you can turn on tracing programmatically in a JAX-RS
+endpoint. To enable tracing, the function sets the trace ID and path in the PostOffice constructor. 
+
+When you try the endpoint at http://127.0.0.1:8083/api/hello/world, it will echo your HTTP request headers. 
+In the command terminal, you will see tracing information in the console log like this:
+
+```text
+DistributedTrace:67 - trace={path=GET /api/hello/world, service=hello.world, success=true, 
+  origin=20230403364f70ebeb54477f91986289dfcd7b75, exec_time=0.249, start=2023-04-03T04:42:43.445Z, 
+  from=hello.world.endpoint, id=e12e871096ba4938b871ee72ef09aa0a, round_trip=20.018, status=200}
+```
+
+## light weight non-blocking websocket server
+
+If you want to turn on a non-blocking websocket server, you can add the following configuration to 
+application.properties.
+
+```properties
+server.port=8083
+websocket.server.port=8085
+```
+
+The above assumes Spring Boot runs on port 8083 and the websocket server runs on port 8085.
+
+You can create a websocket service with a Java class like this:
+
+```java
+@WebSocketService("hello")
+public class WsEchoDemo implements LambdaFunction {
+
+    @Override
+    public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+        // handle the incoming websocket events (type = open, close, bytes or string)
+    }
+}
+```
+
+The above creates a websocket service at the URL "/ws/hello" server endpoint.
+
+Please review the example code in the WsEchoDemo class in the rest-spring-example project for details.
+
+If you want to use Spring Boot's Tomcat websocket server, you can disable the non-blocking websocket server feature
+by removing the `websocket.server.port` configuration and any classes with the `WebSocketService` annotation.
+
+To try out the demo websocket server, visit http://127.0.0.1:8083 and select "Websocket demo".
+<br/>
+
+|               Chapter-5                |                   Home                    |            Chapter-7            |
+|:--------------------------------------:|:-----------------------------------------:|:-------------------------------:|
+| [Build, test and deploy](CHAPTER-4.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event over HTTP](CHAPTER-7.md) |

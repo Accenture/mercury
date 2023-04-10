@@ -22,19 +22,20 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.common.TestBase;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.client.PersistentWsClient;
 import org.platformlambda.util.SimpleHttpRequests;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -601,9 +602,9 @@ public class ServletTest extends TestBase {
         final BlockingQueue<Boolean> textBench = new ArrayBlockingQueue<>(1);
         final BlockingQueue<Boolean> bytesBench = new ArrayBlockingQueue<>(1);
         String MESSAGE = "hello world";
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         Utility util = Utility.getInstance();
-        LambdaFunction connector = (headers, body, instance) -> {
+        LambdaFunction connector = (headers, input, instance) -> {
             if ("open".equals(headers.get("type"))) {
                 String txPath = headers.get("tx_path");
                 Assert.assertNotNull(txPath);
@@ -612,12 +613,12 @@ public class ServletTest extends TestBase {
                 po.send(txPath, util.getUTF(MESSAGE));
             }
             if ("string".equals(headers.get("type"))) {
-                String text = (String) body;
+                String text = (String) input;
                 textBench.offer(true);
                 Assert.assertEquals(MESSAGE, text);
             }
             if ("bytes".equals(headers.get("type"))) {
-                byte[] text = (byte[]) body;
+                byte[] text = (byte[]) input;
                 bytesBench.offer(true);
                 Assert.assertEquals(MESSAGE, util.getUTF(text));
             }

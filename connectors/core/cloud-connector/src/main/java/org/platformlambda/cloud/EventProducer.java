@@ -57,13 +57,13 @@ public class EventProducer implements LambdaFunction {
     private static final String BROADCAST = MultipartPayload.BROADCAST;
  
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
-        if (headers.containsKey(TO) && body instanceof byte[]) {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+        if (headers.containsKey(TO) && input instanceof byte[]) {
             List<String> destinations = getDestinations(headers);
             if (!destinations.isEmpty()) {
                 PubSub ps = PubSub.getInstance();
                 Utility util = Utility.getInstance();
-                byte[] payload = (byte[]) body;
+                byte[] payload = (byte[]) input;
                 for (String dest : destinations) {
                     String topicPartition = ServiceRegistry.getTopic(dest);
                     if (topicPartition != null) {

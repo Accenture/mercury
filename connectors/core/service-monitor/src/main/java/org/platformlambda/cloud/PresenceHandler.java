@@ -22,7 +22,7 @@ import org.platformlambda.MainApp;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.services.MonitorAlive;
 import org.platformlambda.ws.MonitorService;
 import org.platformlambda.services.TopicController;
@@ -54,8 +54,8 @@ public class PresenceHandler implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
-        PostOffice po = PostOffice.getInstance();
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
+        EventEmitter po = EventEmitter.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         if (headers.containsKey(ORIGIN) && headers.containsKey(TYPE)) {
             String type = headers.get(TYPE);
@@ -75,11 +75,11 @@ public class PresenceHandler implements LambdaFunction {
                     return false;
                 }
             }
-            if (PUT.equals(type) && headers.containsKey(ORIGIN) && body instanceof Map) {
+            if (PUT.equals(type) && headers.containsKey(ORIGIN) && input instanceof Map) {
                 if (headers.containsKey(MULTIPLES)) {
                     String monitorOrigin = headers.get(ORIGIN);
                     if (!myOrigin.equals(monitorOrigin)) {
-                        Map<String, Map<String, Object>> connections = (Map<String, Map<String, Object>>) body;
+                        Map<String, Map<String, Object>> connections = (Map<String, Map<String, Object>>) input;
                         for (String appOrigin: connections.keySet()) {
                             Map<String, Object> metadata = connections.get(appOrigin);
                             MonitorService.updateNodeInfo(appOrigin, metadata);
@@ -91,7 +91,7 @@ public class PresenceHandler implements LambdaFunction {
                     }
                 } else {
                     String appOrigin = headers.get(ORIGIN);
-                    Map<String, Object> metadata = (Map<String, Object>) body;
+                    Map<String, Object> metadata = (Map<String, Object>) input;
                     MonitorService.updateNodeInfo(appOrigin, metadata);
                     if (metadata.containsKey(TOPIC)) {
                         po.send(MainApp.TOPIC_CONTROLLER, new Kv(TYPE, ALIVE), new Kv(NAME, metadata.get(NAME)),

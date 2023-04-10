@@ -19,6 +19,7 @@
 package org.platformlambda.automation.services;
 
 import org.platformlambda.automation.models.HttpRequestEvent;
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.AsyncHttpRequest;
@@ -26,13 +27,16 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
+import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
+@CoroutineRunner
 @ZeroTracing
 @EventInterceptor
 public class AuthInterceptor implements LambdaFunction {
@@ -42,13 +46,16 @@ public class AuthInterceptor implements LambdaFunction {
     private static final String ASYNC_HTTP_RESPONSE = AppStarter.ASYNC_HTTP_RESPONSE;
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
-        if (body instanceof EventEnvelope) {
-            EventEnvelope input = (EventEnvelope) body;
-            PostOffice po = PostOffice.getInstance();
-            HttpRequestEvent evt = new HttpRequestEvent(input.getBody());
-            if (evt.authService != null && evt.requestId != null && !evt.httpRequest.isEmpty()) {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
+        if (input instanceof EventEnvelope) {
+            EventEnvelope incomingEvent = (EventEnvelope) input;
+            Utility util = Utility.getInstance();
+            EventEmitter po = EventEmitter.getInstance();
+            HttpRequestEvent evt = new HttpRequestEvent(incomingEvent.getBody());
+            if (evt.authService != null && evt.requestId != null &&
+                    evt.httpRequest != null && !evt.httpRequest.isEmpty()) {
                 AsyncHttpRequest req = new AsyncHttpRequest(evt.httpRequest);
+                String path = util.getSafeDisplayUri(req.getUrl());
                 EventEnvelope authRequest = new EventEnvelope();
                 // the AsyncHttpRequest is sent as a map
                 authRequest.setTo(evt.authService).setBody(evt.httpRequest);
@@ -96,22 +103,27 @@ public class AuthInterceptor implements LambdaFunction {
                                         }
                                     }
                                 } catch (IOException e) {
-                                    sendError(evt, 400, e.getMessage());
+                                    sendError(evt, 400, e.getMessage(), path);
                                 }
                             } else {
-                                sendError(evt, 401, "Unauthorized");
+                                sendError(evt, 401, "Unauthorized", path);
                             }
                         })
-                        .onFailure(e -> sendError(evt, 408, e.getMessage()));
+                        .onFailure(e -> sendError(evt, 408, e.getMessage(), path));
             }
         }
         return null;
     }
 
-    private void sendError(HttpRequestEvent evt, int status, String message) {
-        PostOffice po = PostOffice.getInstance();
+    private void sendError(HttpRequestEvent evt, int status, String message, String path) {
+        EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope();
-        event.setTo(ASYNC_HTTP_RESPONSE).setCorrelationId(evt.requestId).setStatus(status).setBody(message);
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", status);
+        result.put("message", message);
+        result.put("type", "error");
+        result.put("path", path);
+        event.setTo(ASYNC_HTTP_RESPONSE).setCorrelationId(evt.requestId).setStatus(status).setBody(result);
         // enable distributed tracing if needed
         if (evt.tracing) {
             event.setFrom(evt.authService);
@@ -126,7 +138,7 @@ public class AuthInterceptor implements LambdaFunction {
 
     private void sendToSecondaryTarget(EventEnvelope event) {
         try {
-            PostOffice.getInstance().send(event);
+            EventEmitter.getInstance().send(event);
         } catch (Exception e) {
             log.warn("Unable to copy event to {} - {}", event.getTo(), e.getMessage());
         }

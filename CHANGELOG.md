@@ -6,12 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.0, 4/10/2023
+
+This is a major release with some breaking changes. Please refer to Chapter-10 (Migration guide) for details.
+This version brings the best of preemptive and cooperating multitasking to Java (version 1.8 to 19) before
+Java 19 virtual thread feature becomes officially available.
+
+### Added
+
+1. Updated function execution engine supporting kernel thread pool, Kotlin coroutine and suspend function
+2. "Event over HTTP" service for inter-container communication
+
+### Removed
+
+Remove blocking APIs
+
+### Changed
+
+Upgrade "async.http.request" to use vertx web client for non-blocking operation
+
+---
 ## Version 2.8.0, 3/20/2023
 
 
 ### Added
 
-Link livenessProbe with health check
+N/A
 
 ### Removed
 
@@ -23,7 +43,6 @@ N/A
 2. Filter URI to avoid XSS attack
 3. Upgrade to SnakeYaml 2.0 and patch Spring Boot 2.6.8 for compatibility with it
 4. Upgrade to Vertx 4.4.0, classgraph 4.8.157, tomcat 9.0.73
-5. Upgrade to Spring Boot 2.7.10
 
 ---
 ## Version 2.7.1, 12/22/2022

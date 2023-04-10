@@ -130,15 +130,15 @@ public class EventEnvelope {
         return extra;
     }
 
-    public Integer getStatus() {
+    public int getStatus() {
         return status == null? 200 : status;
     }
 
-    public Float getExecutionTime() {
-        return executionTime == null? -1.0f : executionTime;
+    public float getExecutionTime() {
+        return executionTime == null? 0.0f : executionTime;
     }
 
-    public Float getRoundTrip() {
+    public float getRoundTrip() {
         return roundTrip == null? 0.0f : roundTrip;
     }
 

@@ -23,17 +23,19 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import org.platformlambda.automation.config.RoutingEntry;
-import org.platformlambda.automation.http.HttpRelay;
 import org.platformlambda.automation.http.HttpRequestHandler;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.services.ServiceGateway;
 import org.platformlambda.automation.services.ServiceResponseHandler;
-import org.platformlambda.automation.util.AsyncTimeoutHandler;
+import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.annotations.BeforeApplication;
 import org.platformlambda.core.annotations.MainApplication;
+import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.models.KotlinLambdaFunction;
 import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 import org.platformlambda.core.util.*;
 import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
 import org.platformlambda.core.websocket.server.WsRequestHandler;
@@ -45,13 +47,17 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AppStarter {
     private static final Logger log = LoggerFactory.getLogger(AppStarter.class);
-    private static final ConcurrentMap<String, LambdaFunction> lambdas = new ConcurrentHashMap<>();
-
+    private static final ConcurrentMap<String, LambdaFunction> wsLambdas = new ConcurrentHashMap<>();
+    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final long HOUSEKEEPING_INTERVAL = 10 * 1000L;    // 10 seconds
     public static final String ASYNC_HTTP_REQUEST = "async.http.request";
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
+    private static final String SKIP_OPTIONAL = "Skipping optional {}";
+    private static final String CLASS_NOT_FOUND = "Class {} not found";
 
     private static final int MAX_SEQ = 999;
     private static boolean loaded = false;
@@ -70,13 +76,8 @@ public class AppStarter {
             instance = new AppStarter();
             // Run "BeforeApplication" modules
             instance.doApps(args, false);
-            /*
-             * Initialize event system before loading "MainApplication" modules.
-             * This ensures all "preload" services are loaded.
-             */
-            PostOffice po = PostOffice.getInstance();
-            log.info("Starting application instance {}", po.getAppInstanceId());
-            po.getReady();
+            // preload services
+            preload();
             // Setup REST automation and websocket server if needed
             try {
                 instance.startHttpServerIfAny();
@@ -125,10 +126,10 @@ public class AppStarter {
                         String key = util.zeroFill(seq, MAX_SEQ) + "." + util.zeroFill(++n, MAX_SEQ);
                         steps.put(key, cls);
                     } else {
-                        log.info("Skipping optional {}", cls);
+                        log.info(SKIP_OPTIONAL, cls);
                     }
                 } catch (ClassNotFoundException e) {
-                    log.error("Class {} not found", info.getName());
+                    log.error(CLASS_NOT_FOUND, info.getName());
                 }
             }
         }
@@ -178,10 +179,85 @@ public class AppStarter {
         }
     }
 
-    private void startHttpServerIfAny() throws IOException, InterruptedException {
-        // find and execute optional preparation modules
+    @SuppressWarnings("rawtypes")
+    private static void preload() {
+        log.info("Preloading started");
+        Utility util = Utility.getInstance();
+        Platform platform = Platform.getInstance();
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(true);
+        for (String p : packages) {
+            List<ClassInfo> services = scanner.getAnnotatedClasses(p, PreLoad.class);
+            for (ClassInfo info : services) {
+                String serviceName = info.getName();
+                log.info("Loading service {}", serviceName);
+                try {
+                    Class<?> cls = Class.forName(serviceName);
+                    if (Feature.isRequired(cls)) {
+                        PreLoad preload = cls.getAnnotation(PreLoad.class);
+                        List<String> routes = util.split(preload.route(), ", ");
+                        if (routes.isEmpty()) {
+                            log.error("Unable to preload {} - missing service route(s)", serviceName);
+                        } else {
+                            int instances = getInstancesFromEnv(preload.envInstances(), preload.instances());
+                            boolean isPrivate = preload.isPrivate();
+                            Object o = cls.getDeclaredConstructor().newInstance();
+                            if (o instanceof TypedLambdaFunction) {
+                                for (String r : routes) {
+                                    if (isPrivate) {
+                                        platform.registerPrivate(r, (TypedLambdaFunction) o, instances);
+                                    } else {
+                                        platform.register(r, (TypedLambdaFunction) o, instances);
+                                    }
+                                }
+                            } else if (o instanceof KotlinLambdaFunction) {
+                                for (String r : routes) {
+                                    if (isPrivate) {
+                                        platform.registerKotlinPrivate(r, (KotlinLambdaFunction) o, instances);
+                                    } else {
+                                        platform.registerKotlin(r, (KotlinLambdaFunction) o, instances);
+                                    }
+                                }
+                            } else {
+                                log.error("Unable to preload {} - {} does not implement {} or {}", serviceName,
+                                        o.getClass(),
+                                        TypedLambdaFunction.class.getSimpleName(),
+                                        KotlinLambdaFunction.class.getSimpleName());
+                            }
+                        }
+                    } else {
+                        log.info(SKIP_OPTIONAL, cls);
+                    }
+
+                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
+                         IllegalAccessException | NoSuchMethodException | IOException e) {
+                    log.error("Unable to preload {} - {}", serviceName, e.getMessage());
+                }
+            }
+        }
+        log.info("Preloading completed");
+    }
+
+    private static int getInstancesFromEnv(String envInstances, int instances) {
+        if (envInstances == null || envInstances.isEmpty()) {
+            return Math.max(1, instances);
+        } else {
+            final Utility util = Utility.getInstance();
+            final String env;
+            if (envInstances.contains("${") && envInstances.contains("}")) {
+                env = util.getEnvVariable(envInstances);
+            } else {
+                AppConfigReader config = AppConfigReader.getInstance();
+                env = config.getProperty(envInstances);
+            }
+            return Math.max(1, env != null? util.str2int(env) : instances);
+        }
+    }
+
+    private void startHttpServerIfAny() throws IOException, InterruptedException {
+        // find and execute optional preparation modules
+        final SimpleClassScanner scanner = SimpleClassScanner.getInstance();
+        final Set<String> packages = scanner.getPackages(true);
         for (String p : packages) {
             List<ClassInfo> services = scanner.getAnnotatedClasses(p, WebSocketService.class);
             for (ClassInfo info : services) {
@@ -194,30 +270,30 @@ public class AppStarter {
                                 log.error("Unable to load {} ({}) because the path is not a valid service name",
                                         cls.getName(), annotation.value());
                             }
-                            loadLambda(cls, annotation.namespace(), annotation.value());
+                            loadWebsocketServices(cls, annotation.namespace(), annotation.value());
                         }
                     } else {
-                        log.info("Skipping optional {}", cls);
+                        log.info(SKIP_OPTIONAL, cls);
                     }
                 } catch (ClassNotFoundException e) {
-                    log.error("Class {} not found", info.getName());
+                    log.error(CLASS_NOT_FOUND, info.getName());
                 }
             }
         }
         // start HTTP/websocket server
-        AppConfigReader config = AppConfigReader.getInstance();
-        boolean enableRest = "true".equals(config.getProperty("rest.automation", "false"));
-        if (enableRest || !lambdas.isEmpty()) {
-            Utility util = Utility.getInstance();
-            int port = util.str2int(config.getProperty("rest.server.port",
-                                    config.getProperty("websocket.server.port",
+        final AppConfigReader config = AppConfigReader.getInstance();
+        final boolean enableRest = "true".equals(config.getProperty("rest.automation", "false"));
+        if (enableRest || !wsLambdas.isEmpty()) {
+            final Utility util = Utility.getInstance();
+            final int port = util.str2int(config.getProperty("websocket.server.port",
+                                    config.getProperty("rest.server.port",
                                     config.getProperty("server.port", "8085"))));
             if (port > 0) {
                 final BlockingQueue<Boolean> serverStatus = new ArrayBlockingQueue<>(1);
                 final ConcurrentMap<String, AsyncContextHolder> contexts;
-                Vertx vertx = Vertx.vertx();
-                HttpServerOptions options = new HttpServerOptions().setTcpKeepAlive(true);
-                HttpServer server = vertx.createHttpServer(options);
+                // create a dedicated vertx event loop instance for the HTTP server
+                final Vertx vertx = Vertx.vertx();
+                final HttpServer server = vertx.createHttpServer(new HttpServerOptions().setTcpKeepAlive(true));
                 if (enableRest) {
                     // start REST automation system
                     ConfigReader restConfig = getRestConfig();
@@ -233,45 +309,45 @@ public class AppStarter {
                     server.requestHandler(new MinimalistHttpHandler());
                 }
                 // Start websocket server if there are websocket endpoints
-                if (!lambdas.isEmpty()) {
-                    server.webSocketHandler(new WsRequestHandler(lambdas));
+                if (!wsLambdas.isEmpty()) {
+                    server.webSocketHandler(new WsRequestHandler(wsLambdas));
                 }
                 server.listen(port)
                 .onSuccess(service -> {
                     serverStatus.offer(true);
                     if (contexts != null) {
+                        Platform platform = Platform.getInstance();
                         try {
-                            Platform platform = Platform.getInstance();
-                            platform.registerPrivate(ASYNC_HTTP_REQUEST, new HttpRelay(), 300);
                             platform.registerPrivate(ASYNC_HTTP_RESPONSE,
-                                                        new ServiceResponseHandler(contexts), 300);
+                                                        new ServiceResponseHandler(contexts), 200);
                         } catch (IOException e) {
                             log.error("Unable to register HTTP request/response handlers  - {}", e.getMessage());
                         }
                         // start timeout handler
-                        AsyncTimeoutHandler timeoutHandler = new AsyncTimeoutHandler(contexts);
-                        timeoutHandler.start();
+                        Housekeeper housekeeper = new Housekeeper(contexts);
+                        platform.getVertx().setPeriodic(HOUSEKEEPING_INTERVAL,
+                                                        t -> housekeeper.removeExpiredConnections());
+                        log.info("AsyncHttpContext housekeeper started");
                         log.info("Reactive HTTP server running on port-{}", service.actualPort());
                     }
-                    if (!lambdas.isEmpty()) {
+                    if (!wsLambdas.isEmpty()) {
                         log.info("Websocket server running on port-{}", service.actualPort());
                     }
                 })
                 .onFailure(ex -> {
-                    serverStatus.offer(false);
                     log.error("Unable to start - {}", ex.getMessage());
                     System.exit(-1);
                 });
                 Boolean ready = serverStatus.poll(20, TimeUnit.SECONDS);
                 if (Boolean.TRUE.equals(ready)) {
-                    long diff = System.currentTimeMillis() - startTime;
-                    log.info("Modules loaded in {} ms", NumberFormat.getInstance().format(diff));
+                    String diff = NumberFormat.getInstance().format(System.currentTimeMillis() - startTime);
+                    log.info("Modules loaded in {} ms", diff);
                 }
             }
         }
     }
 
-    private void loadLambda(Class<?> cls, String namespace, String value) {
+    private void loadWebsocketServices(Class<?> cls, String namespace, String value) {
         Utility util = Utility.getInstance();
         List<String> parts = util.split(namespace + "/" + value, "/");
         StringBuilder sb = new StringBuilder();
@@ -284,7 +360,7 @@ public class AppStarter {
         try {
             Object o = cls.getDeclaredConstructor().newInstance();
             if (o instanceof LambdaFunction) {
-                lambdas.put(path, (LambdaFunction) o);
+                wsLambdas.put(path, (LambdaFunction) o);
                 log.info("{} loaded as WEBSOCKET SERVER endpoint {}", cls.getName(), wsEndpoint);
             } else {
                 log.error("Unable to load {} ({}) because it is not an instance of {}",
@@ -312,6 +388,44 @@ public class AppStarter {
             }
         }
         throw new IOException("Endpoint configuration not found in "+paths);
+    }
+
+    private static class Housekeeper {
+        private final ConcurrentMap<String, AsyncContextHolder> contexts;
+
+        private Housekeeper(ConcurrentMap<String, AsyncContextHolder> contexts) {
+            this.contexts = contexts;
+        }
+
+        private void removeExpiredConnections() {
+            if (housekeeperNotRunning.compareAndSet(true, false)) {
+                Platform.getInstance().getEventExecutor().submit(() -> {
+                    try {
+                        checkAsyncTimeout();
+                    } finally {
+                        housekeeperNotRunning.set(true);
+                    }
+                });
+            }
+        }
+
+        private void checkAsyncTimeout() {
+            // check async context timeout
+            if (!contexts.isEmpty()) {
+                List<String> list = new ArrayList<>(contexts.keySet());
+                long now = System.currentTimeMillis();
+                for (String id : list) {
+                    AsyncContextHolder holder = contexts.get(id);
+                    long t1 = holder.lastAccess;
+                    if (now - t1 > holder.timeout) {
+                        log.warn("Async HTTP Context {} timeout for {} ms", id, now - t1);
+                        SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
+                        httpUtil.sendError(id, holder.request, 408,
+                                "Timeout for " + (holder.timeout / 1000) + " seconds");
+                    }
+                }
+            }
+        }
     }
 
 }

@@ -37,7 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @MainApplication
@@ -45,7 +46,6 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static final String MONITOR_PARTITION = "@monitor-0";
-    public static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     public static final String PRESENCE_HANDLER = "presence.service";
     public static final String PRESENCE_HOUSEKEEPER = "presence.housekeeper";
     public static final String TOPIC_CONTROLLER = "topic.controller";
@@ -64,24 +64,34 @@ public class MainApp implements EntryPoint {
 
     @Override
     public void start(String[] args) {
-        try {
-            setup();
-        } catch (Exception e) {
-            log.error("Unable to start", e);
-            System.exit(-1);
-        }
+        ServerPersonality.getInstance().setType(ServerPersonality.Type.RESOURCES);
+        Platform platform = Platform.getInstance();
+        platform.connectToCloud();
+        List<String> providers = new ArrayList<>();
+        providers.add(ServiceRegistry.CLOUD_MANAGER);
+        providers.add(ServiceDiscovery.SERVICE_REGISTRY);
+        platform.waitForProviders(providers, 20).onSuccess(done -> {
+            if (Boolean.TRUE.equals(done)) {
+                try {
+                    setup();
+                } catch (Exception e) {
+                    log.error("Unable to start", e);
+                    System.exit(-1);
+                }
+            } else {
+                log.error("Cloud connector not ready");
+                System.exit(-2);
+            }
+        });
+
     }
 
-    private void setup() throws TimeoutException, IOException {
-        ServerPersonality.getInstance().setType(ServerPersonality.Type.RESOURCES);
+    private void setup() throws IOException {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
-        Platform platform = Platform.getInstance();
         PubSub ps = PubSub.getInstance();
-        PostOffice po = PostOffice.getInstance();
-        platform.connectToCloud();
-        platform.waitForProvider(CLOUD_MANAGER, 20);
-        platform.waitForProvider(ServiceDiscovery.SERVICE_REGISTRY, 20);
+        Platform platform = Platform.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         // start additional info service
         platform.registerPrivate(ADDITIONAL_INFO, new AdditionalInfo(), 3);
         // broadcast heart beat to presence monitor peers
@@ -93,9 +103,9 @@ public class MainApp implements EntryPoint {
         platform.registerPrivate(PRESENCE_HANDLER, new PresenceHandler(), 1);
         // start consumer
         String monitorTopic = config.getProperty("monitor.topic", "service.monitor");
-        // max.closed.user.groups (3 to 30)
+        // range: 3 - 30
         int maxGroups = Math.min(30,
-                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "30"))));
+                Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "10"))));
         int requiredPartitions = maxGroups + 1;
         if (!ConnectorConfig.topicSubstitutionEnabled()) {
             // automatically create topic if not exist
@@ -115,11 +125,11 @@ public class MainApp implements EntryPoint {
         }
         String clientId = platform.getOrigin();
         final AtomicBoolean pending = new AtomicBoolean(true);
-        LambdaFunction service = (headers, body, instance) -> {
-            if (LOOP_BACK.equals(body) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
+        LambdaFunction service = (headers, input, instance) -> {
+            if (LOOP_BACK.equals(input) && headers.containsKey(REPLY_TO) && clientId.equals(headers.get(ORIGIN))) {
                 po.send(headers.get(REPLY_TO), true);
             }
-            if (INIT.equals(body) && INIT.equals(headers.get(TYPE))) {
+            if (INIT.equals(input) && INIT.equals(headers.get(TYPE))) {
                 if (pending.get()) {
                     pending.set(false);
                     po.send(PRESENCE_HANDLER, new Kv(TYPE, INIT), new Kv(ORIGIN, platform.getOrigin()));

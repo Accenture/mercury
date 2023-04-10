@@ -19,13 +19,11 @@
 package org.platformlambda.example;
 
 import org.platformlambda.core.annotations.MainApplication;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.services.FileDownload;
-import org.platformlambda.services.HelloGeneric;
-import org.platformlambda.services.HelloPoJo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,27 +40,28 @@ public class MainApp implements EntryPoint {
 
     @Override
     public void start(String[] args) throws Exception {
-        // Start the platform
+        // Obtain the platform singleton instance
         Platform platform = Platform.getInstance();
-
         // You can create a microservice as a lambda function inline or write it as a regular Java class
-        LambdaFunction echo = (headers, body, instance) -> {
+        LambdaFunction echo = (headers, input, instance) -> {
             log.info("echo #{} got a request", instance);
             Map<String, Object> result = new HashMap<>();
             result.put("headers", headers);
-            result.put("body", body);
+            result.put("body", input);
             result.put("instance", instance);
             result.put("origin", platform.getOrigin());
             return result;
         };
-
-        // register your services
+        // Register the above inline lambda function
         platform.register("hello.world", echo, 10);
-        platform.register("hello.pojo", new HelloPoJo(), 5);
-        platform.register("hello.generic", new HelloGeneric(), 5);
-        platform.register("hello.download", new FileDownload(), 5);
-
-        // connect to cloud according to "cloud.connector" in application.properties
+        /*
+         * There are a few demo services in the "services" folder.
+         * They use the "PreLoad" annotation to load automatically.
+         *
+         * If you are using Kafka or other messaging system as a service mesh,
+         * you can set the "cloud.connector" in application.properties
+         * and call the "connectToCloud" method.
+         */
         platform.connectToCloud();
     }
 

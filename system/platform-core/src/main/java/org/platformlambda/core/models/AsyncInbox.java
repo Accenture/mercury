@@ -23,36 +23,49 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
-import org.apache.logging.log4j.ThreadContext;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 public class AsyncInbox extends InboxBase {
     private static final Logger log = LoggerFactory.getLogger(AsyncInbox.class);
 
+    private final String start = Utility.getInstance().date2str(new Date());
     private final long begin = System.nanoTime();
     private final Future<EventEnvelope> future;
+    private final String traceId;
+    private final String tracePath;
+    private final String from;
+    private final String to;
     private final long timeout;
+    private final boolean timeoutException;
     private long timer;
     private MessageConsumer<byte[]> listener;
     private Promise<EventEnvelope> promise;
 
-    public AsyncInbox(String from, String traceId, String tracePath, long timeout) {
+    public AsyncInbox(String from, String to, String traceId, String tracePath, long timeout,
+                      boolean timeoutException) {
         final Platform platform = Platform.getInstance();
+        this.timeoutException = timeoutException;
+        this.from = from == null? "unknown" : from;
+        this.to = to;
+        this.traceId = traceId;
+        this.tracePath = tracePath;
         this.timeout = Math.max(100, timeout);
         this.future = Future.future(p -> {
             this.promise = p;
             this.id = "r."+ Utility.getInstance().getUuid();
-            String sender = from == null? ASYNC_INBOX : from;
-            this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler(sender));
+            this.listener = platform.getEventSystem().localConsumer(this.id, new InboxHandler());
             inboxes.put(id, this);
-            timer = platform.getVertx().setTimer(timeout, t -> abort(id, sender, traceId, tracePath));
+            timer = platform.getVertx().setTimer(timeout, t -> abort(this.id));
         });
     }
 
@@ -60,20 +73,17 @@ public class AsyncInbox extends InboxBase {
         return future;
     }
 
-    private void abort(String inboxId, String from, String traceId, String tracePath) {
+    private void abort(String inboxId) {
         AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
         if (holder != null) {
             holder.close();
+            String error = "Timeout for " + holder.timeout + " ms";
             executor.submit(() -> {
-                PostOffice po = PostOffice.getInstance();
-                String traceLogHeader = po.getTraceLogHeader();
-                po.startTracing(from, traceId, tracePath);
-                if (traceId != null) {
-                    ThreadContext.put(traceLogHeader, traceId);
+                if (timeoutException) {
+                    holder.promise.fail(new TimeoutException(error));
+                } else {
+                    holder.promise.complete(new EventEnvelope().setStatus(408).setBody(error));
                 }
-                holder.promise.fail(new TimeoutException("Timeout for "+holder.timeout+" ms"));
-                po.stopTracing();
-                ThreadContext.remove(traceLogHeader);
             });
         }
     }
@@ -87,11 +97,8 @@ public class AsyncInbox extends InboxBase {
 
     private class InboxHandler implements Handler<Message<byte[]>> {
 
-        final String sender;
-
-        public InboxHandler(String sender) {
-            this.sender = sender == null? ASYNC_INBOX : sender;
-        }
+        private static final String UNDERSCORE = "_";
+        private static final String ANNOTATIONS = "annotations";
 
         @Override
         public void handle(Message<byte[]> message) {
@@ -99,32 +106,65 @@ public class AsyncInbox extends InboxBase {
                 EventEnvelope event = new EventEnvelope(message.body());
                 String inboxId = event.getReplyTo();
                 if (inboxId != null) {
-                    saveResponse(sender, inboxId, event.setReplyTo(null));
+                    saveResponse(inboxId, event.setReplyTo(null));
                 }
             } catch (IOException e) {
                 log.error("Unable to decode event - {}", e.getMessage());
             }
         }
 
-        private void saveResponse(String sender, String inboxId, EventEnvelope reply) {
+        private void saveResponse(String inboxId, EventEnvelope reply) {
             AsyncInbox holder = (AsyncInbox) inboxes.get(inboxId);
             if (holder != null) {
                 holder.close();
                 Platform.getInstance().getVertx().cancelTimer(timer);
-                float diff = (float) (System.nanoTime() - holder.begin) / PostOffice.ONE_MILLISECOND;
+                float diff = (float) (System.nanoTime() - holder.begin) / EventEmitter.ONE_MILLISECOND;
                 // adjust precision to 3 decimal points
-                reply.setRoundTrip(Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff))));
-                executor.submit(() -> {
-                    PostOffice po = PostOffice.getInstance();
-                    String traceLogHeader = po.getTraceLogHeader();
-                    po.startTracing(sender, reply.getTraceId(), reply.getTracePath());
-                    if (reply.getTraceId() != null) {
-                        ThreadContext.put(traceLogHeader, reply.getTraceId());
+                float roundTrip = Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff)));
+                reply.setRoundTrip(roundTrip);
+                Map<String, Object> traceExtra = new HashMap<>();
+                Map<String, Object> annotations = new HashMap<>();
+                traceExtra.put(ANNOTATIONS, annotations);
+                // decode trace annotations from reply event
+                Map<String, String> headers = reply.getHeaders();
+                if (headers.containsKey(UNDERSCORE)) {
+                    int count = Utility.getInstance().str2int(headers.get(UNDERSCORE));
+                    for (int i=1; i <= count; i++) {
+                        String kv = headers.get(UNDERSCORE+i);
+                        if (kv != null) {
+                            int eq = kv.indexOf('=');
+                            if (eq > 0) {
+                                annotations.put(kv.substring(0, eq), kv.substring(eq+1));
+                            }
+                        }
                     }
+                    headers.remove(UNDERSCORE);
+                    for (int i=1; i <= count; i++) {
+                        headers.remove(UNDERSCORE+i);
+                    }
+                }
+                executor.submit(() -> {
                     holder.promise.complete(reply);
-                    po.stopTracing();
-                    ThreadContext.remove(traceLogHeader);
                 });
+                if (to != null && holder.traceId != null && holder.tracePath != null) {
+                    try {
+                        EventEnvelope dt = new EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING)
+                                .setBody(traceExtra)
+                                .setHeader("origin", Platform.getInstance().getOrigin())
+                                .setHeader("id", holder.traceId)
+                                .setHeader("service", to)
+                                .setHeader("from", holder.from)
+                                .setHeader("exec_time", reply.getExecutionTime())
+                                .setHeader("round_trip", roundTrip)
+                                .setHeader("success", true)
+                                .setHeader("status", reply.getStatus())
+                                .setHeader("start", start)
+                                .setHeader("path", holder.tracePath);
+                        EventEmitter.getInstance().send(dt);
+                    } catch (Exception e) {
+                        log.error("Unable to send to " + EventEmitter.DISTRIBUTED_TRACING, e);
+                    }
+                }
             }
         }
     }

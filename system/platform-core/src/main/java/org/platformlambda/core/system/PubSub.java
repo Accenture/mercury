@@ -80,14 +80,15 @@ public class PubSub {
      * @return PubSub handler instance
      */
     public static synchronized PubSub getInstance(String clusterName) {
-        PubSub ps = instances.get(clusterName);
-        if (ps == null) {
-            ps = new PubSub();
+        if (!instances.containsKey(clusterName)) {
+            PubSub ps = new PubSub();
             ps.instanceName = clusterName;
             instances.put(clusterName, ps);
             log.info("Created new PubSub instance ({})", clusterName);
+            return ps;
+        } else {
+            return instances.get(clusterName);
         }
-        return ps;
     }
 
     /**
@@ -121,8 +122,6 @@ public class PubSub {
         if (this.provider == null) {
             this.provider = pubSub;
             log.info("Provider {} ({}) loaded", instanceName, this.provider);
-        } else {
-            log.warn("Provider {} ({}) is already loaded", instanceName, this.provider);
         }
     }
 
@@ -137,33 +136,12 @@ public class PubSub {
 
     private void checkFeature() {
         if (!featureEnabled()) {
-            throw new RuntimeException("Pub/sub feature not enabled");
+            throw new IllegalArgumentException("Pub/sub feature not enabled");
         }
     }
 
     private String getTopicRef(String topic, int partition) {
         return topic+'#'+partition;
-    }
-
-    public void waitForProvider(int seconds) {
-        int waitSeconds = Math.max(1, seconds);
-        int n = 0;
-        while (provider == null && waitSeconds > 0) {
-            n++;
-            if (n % 2 == 0) {
-                log.info("Waiting for Pub/Sub provider to be loaded...{}", n);
-            }
-            waitSeconds--;
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // ok to ignore
-            }
-        }
-        if (provider == null) {
-            throw new RuntimeException("Pub/Sub provider not available");
-        }
-        provider.waitForProvider(seconds);
     }
 
     public void resumeSubscription() {

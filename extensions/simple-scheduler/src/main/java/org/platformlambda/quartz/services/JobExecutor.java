@@ -20,7 +20,7 @@ package org.platformlambda.quartz.services;
 
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.quartz.MainScheduler;
 import org.platformlambda.quartz.models.ScheduledJob;
 import org.quartz.Job;
@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 
 public class JobExecutor implements Job {
     private static final Logger log = LoggerFactory.getLogger(JobExecutor.class);
@@ -64,34 +63,36 @@ public class JobExecutor implements Job {
              * This would avoid duplicated execution of a scheduled job.
              */
             String me = Platform.getInstance().getOrigin();
-            PostOffice po = PostOffice.getInstance();
-            List<String> peers = po.search(SCHEDULER_SERVICE, true);
-            final String selected;
-            if (peers.size() > 1) {
-                Collections.sort(peers);
-                selected = peers.get(0);
-            } else  {
-                selected = me;
-            }
-            if (me.equals(selected)) {
-                if (po.exists(job.service)) {
-                    try {
-                        po.send(event);
-                        job.lastExecution = new Date();
-                        job.count++;
-                        log.info("Execute service {} with parameters {}", job.service, job.parameters);
-                    } catch (IOException e) {
-                        log.error("Unable to execute service {} with parameters {} - {}",
-                                job.service, job.parameters, e.getMessage());
+            EventEmitter po = EventEmitter.getInstance();
+            po.search(SCHEDULER_SERVICE, true)
+                .onSuccess(peers -> {
+                    final String selected;
+                    if (peers.size() > 1) {
+                        Collections.sort(peers);
+                        selected = peers.get(0);
+                    } else  {
+                        selected = me;
                     }
-                } else {
-                    log.error("Unable to execute service {} with parameters {} - route {} not found",
-                                job.service, job.parameters, job.service);
-                }
-            } else {
-                log.info("Skip service {} with parameters {} because peer {} is handling it",
-                        job.service, job.parameters, selected);
-            }
+                    if (me.equals(selected)) {
+                        if (po.exists(job.service)) {
+                            try {
+                                po.send(event);
+                                job.lastExecution = new Date();
+                                job.count++;
+                                log.info("Execute service {} with parameters {}", job.service, job.parameters);
+                            } catch (IOException e) {
+                                log.error("Unable to execute service {} with parameters {} - {}",
+                                        job.service, job.parameters, e.getMessage());
+                            }
+                        } else {
+                            log.error("Unable to execute service {} with parameters {} - route {} not found",
+                                    job.service, job.parameters, job.service);
+                        }
+                    } else {
+                        log.info("Skip service {} with parameters {} because peer {} is handling it",
+                                job.service, job.parameters, selected);
+                    }
+                });
         }
     }
 }

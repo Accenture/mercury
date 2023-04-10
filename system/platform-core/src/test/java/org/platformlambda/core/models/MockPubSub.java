@@ -30,11 +30,6 @@ public class MockPubSub implements PubSubProvider {
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
 
     @Override
-    public void waitForProvider(int seconds) {
-        // no-op
-    }
-
-    @Override
     public boolean createTopic(String topic) throws IOException {
         if (topic.equals("exception")) {
             throw new IOException("demo");

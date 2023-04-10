@@ -18,18 +18,21 @@
 
 package org.platformlambda.core.mock;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PostOffice;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@PreLoad(route="rpc.timeout.check", instances = 10)
+@CoroutineRunner
+@PreLoad(route="rpc.timeout.check", instances = 50)
 public class RpcTimeoutCheck implements TypedLambdaFunction<EventEnvelope, Map<String, Object>> {
 
-    private static final String RPC = "rpc";
+    private static final String RPC = EventEmitter.RPC;
     private static final String BODY = "body";
 
     @Override
@@ -37,8 +40,9 @@ public class RpcTimeoutCheck implements TypedLambdaFunction<EventEnvelope, Map<S
         Map<String, Object> result = new HashMap<>();
         result.put(RPC, event.getTag(RPC));
         if (event.getBody() instanceof Integer) {
+            PostOffice po = new PostOffice(headers, instance);
             result.put(BODY, event.getBody());
-            PostOffice.getInstance().annotateTrace(BODY, String.valueOf(event.getBody()));
+            po.annotateTrace(BODY, String.valueOf(event.getBody()));
         }
         return result;
     }

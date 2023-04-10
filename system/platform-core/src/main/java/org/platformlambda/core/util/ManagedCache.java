@@ -20,12 +20,14 @@ package org.platformlambda.core.util;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.platformlambda.core.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ManagedCache {
@@ -33,10 +35,10 @@ public class ManagedCache {
 
     private static final long DEFAULT_MAX_ITEMS = 2000L;
     private static final long MIN_EXPIRY = 1000L;
-    private static final long FIVE_MINUTES = 5 * 60000L;
     private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
-    private static final AtomicInteger counter = new AtomicInteger(0);
-    private static boolean loaded;
+    private static final AtomicInteger initCounter = new AtomicInteger(0);
+    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final long HOUSEKEEPING_INTERVAL = 10 * 60 * 1000L; // 10 minutes
     private final String name;
     private final long expiry;
     private final long maxItems;
@@ -50,10 +52,12 @@ public class ManagedCache {
         this.name = name;
         this.expiry = expiryMs;
         this.maxItems = maxItems;
-        if (counter.incrementAndGet() == 1 && !loaded) {
-            loaded = true;
-            CleanUp cleanUp = new CleanUp();
-            cleanUp.start();
+        if (initCounter.incrementAndGet() == 1) {
+            Platform.getInstance().getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredCache());
+            log.info("Housekeeper started");
+        }
+        if (initCounter.get() > 10000) {
+            initCounter.set(10);
         }
     }
 
@@ -76,7 +80,7 @@ public class ManagedCache {
      * @param maxItems maximum number of cached objects
      * @return cache instance
      */
-    public synchronized static ManagedCache createCache(String name, long expiryMs, long maxItems) {
+    public static synchronized ManagedCache createCache(String name, long expiryMs, long maxItems) {
         ManagedCache managedCache = getInstance(name);
         if (managedCache != null) {
             return managedCache;
@@ -168,42 +172,19 @@ public class ManagedCache {
         return lastReset;
     }
 
-    private static class CleanUp extends Thread {
-
-        private boolean normal = true;
-
-        private CleanUp() {
-            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-        }
-
-        @Override
-        public void run() {
-            log.info("Started");
-            long t1 = System.currentTimeMillis();
-            while (normal) {
-                long now = System.currentTimeMillis();
-                // avoid scanning frequently
-                if (now - t1 > FIVE_MINUTES) {
-                    t1 = now;
-                    // clean up cache collection
+    private void removeExpiredCache() {
+        if (housekeeperNotRunning.compareAndSet(true, false)) {
+            Platform.getInstance().getEventExecutor().submit(() -> {
+                try {
                     for (String key : cacheCollection.keySet()) {
                         ManagedCache c = cacheCollection.get(key);
                         c.cleanUp();
                     }
+                } finally {
+                    housekeeperNotRunning.set(true);
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ok to ignore
-                }
-            }
-            log.info("Stopped");
+            });
         }
-
-        private void shutdown() {
-            normal = false;
-        }
-
     }
 
 }

@@ -23,6 +23,6 @@ import java.util.Map;
 public interface LambdaFunction extends TypedLambdaFunction<Object, Object> {
 
     @Override
-    Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception;
+    Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception;
 
 }

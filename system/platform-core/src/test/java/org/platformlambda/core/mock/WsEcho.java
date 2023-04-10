@@ -20,7 +20,7 @@ package org.platformlambda.core.mock;
 
 import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
@@ -40,15 +40,15 @@ public class WsEcho implements LambdaFunction {
      * Utility.getInstance().closeConnection(txPath, reasonCode, message);
      *
      * @param headers contains routing information of a websocket connection
-     * @param body can be string or byte array as per websocket specification
+     * @param input can be string or byte array as per websocket specification
      * @param instance is always 1 because the service is a singleton for each websocket connection
      * @return null because there is nothing to return
      * @throws IOException in case there are errors in routing
      */
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
 
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         String route;
         String token;
         String txPath;
@@ -75,7 +75,7 @@ public class WsEcho implements LambdaFunction {
                     // the data event for byteArray payload contains route and txPath
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    byte[] payload = (byte[]) body;
+                    byte[] payload = (byte[]) input;
                     // just tell the browser that I have received the bytes
                     po.send(txPath, payload);
                     log.info("{} got {} bytes", route, payload.length);
@@ -84,7 +84,7 @@ public class WsEcho implements LambdaFunction {
                     // the data event for string payload contains route and txPath
                     route = headers.get(WsEnvelope.ROUTE);
                     txPath = headers.get(WsEnvelope.TX_PATH);
-                    String message = (String) body;
+                    String message = (String) input;
                     log.info("{} received: {}", route, message);
                     if ("end".equals(message)) {
                         log.info("Closing this test connection");
@@ -96,7 +96,7 @@ public class WsEcho implements LambdaFunction {
                     break;
                 default:
                     // this should not happen
-                    log.error("Invalid event {} {}", headers, body);
+                    log.error("Invalid event {} {}", headers, input);
                     break;
             }
         }

@@ -58,11 +58,11 @@ public class OriginTrackedYamlLoader extends YamlProcessor {
     }
 
     private Yaml createYaml(LoaderOptions loaderOptions) {
-        BaseConstructor constructor = new OriginTrackingConstructor(loaderOptions);
+        BaseConstructor constructor = new OriginTrackedYamlLoader.OriginTrackingConstructor(loaderOptions);
         DumperOptions dumperOptions = new DumperOptions();
         // PATCHED: 3/20/2023 - make Spring Boot 2.6.8 compatible with SnakeYaml 2.0
         Representer representer = new Representer(dumperOptions);
-        LimitedResolver resolver = new LimitedResolver();
+        OriginTrackedYamlLoader.LimitedResolver resolver = new OriginTrackedYamlLoader.LimitedResolver();
         return new Yaml(constructor, representer, dumperOptions, loaderOptions, resolver);
     }
 
@@ -96,7 +96,7 @@ public class OriginTrackedYamlLoader extends YamlProcessor {
                 return constructTrackedObject(node, super.constructObject(node));
             }
             if (node instanceof ScalarNode) {
-                if (!(node instanceof KeyScalarNode)) {
+                if (!(node instanceof OriginTrackedYamlLoader.KeyScalarNode)) {
                     return constructTrackedObject(node, super.constructObject(node));
                 }
             }
@@ -107,7 +107,7 @@ public class OriginTrackedYamlLoader extends YamlProcessor {
         }
 
         private void replaceMappingNodeKeys(MappingNode node) {
-            node.setValue(node.getValue().stream().map(KeyScalarNode::get).collect(Collectors.toList()));
+            node.setValue(node.getValue().stream().map(OriginTrackedYamlLoader.KeyScalarNode::get).collect(Collectors.toList()));
         }
 
         private Object constructTrackedObject(Node node, Object value) {
@@ -139,12 +139,12 @@ public class OriginTrackedYamlLoader extends YamlProcessor {
         static NodeTuple get(NodeTuple nodeTuple) {
             Node keyNode = nodeTuple.getKeyNode();
             Node valueNode = nodeTuple.getValueNode();
-            return new NodeTuple(KeyScalarNode.get(keyNode), valueNode);
+            return new NodeTuple(OriginTrackedYamlLoader.KeyScalarNode.get(keyNode), valueNode);
         }
 
         private static Node get(Node node) {
             if (node instanceof ScalarNode) {
-                return new KeyScalarNode((ScalarNode) node);
+                return new OriginTrackedYamlLoader.KeyScalarNode((ScalarNode) node);
             }
             return node;
         }

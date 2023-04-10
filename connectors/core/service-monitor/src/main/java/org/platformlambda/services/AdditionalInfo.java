@@ -50,7 +50,7 @@ public class AdditionalInfo implements LambdaFunction {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws IOException {
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws IOException {
         if (QUERY.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
             // connection list

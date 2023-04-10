@@ -18,25 +18,29 @@
 
 package org.platformlambda.cloud.services;
 
+import io.vertx.core.Future;
 import org.platformlambda.cloud.ConnectorConfig;
 import org.platformlambda.cloud.reporter.PresenceConnector;
-import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.Inbox;
-import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.core.annotations.ZeroTracing;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.Platform;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CloudHealthCheck implements LambdaFunction {
+@EventInterceptor
+@ZeroTracing
+public class CloudHealthCheck implements TypedLambdaFunction<EventEnvelope, Void> {
+    private static final Logger log = LoggerFactory.getLogger(CloudHealthCheck.class);
 
     private static final String CLOUD_MANAGER = ServiceRegistry.CLOUD_MANAGER;
     private static final String TYPE = "type";
@@ -58,81 +62,93 @@ public class CloudHealthCheck implements LambdaFunction {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object handleEvent(Map<String, String> headers, Object body, int instance) throws Exception {
+    public Void handleEvent(Map<String, String> headers, EventEnvelope input, int instance) throws Exception {
         if (INFO.equals(headers.get(TYPE))) {
             Map<String, Object> result = new HashMap<>();
             result.put("service", ConnectorConfig.getServiceName());
             result.put("href", ConnectorConfig.getDisplayUrl());
             result.put("topics", ConnectorConfig.topicSubstitutionEnabled()? "pre-allocated" : "on-demand");
-            return result;
+            sendResponse(input, result);
         }
         if (HEALTH.equals(headers.get(TYPE))) {
             if (presenceMonitor) {
-                PostOffice po = PostOffice.getInstance();
-                EventEnvelope response = po.request(CLOUD_MANAGER, TIMEOUT, new Kv(TYPE, LIST),
-                        new Kv(ORIGIN, Platform.getInstance().getOrigin()));
-                if (response.getBody() instanceof List) {
-                    List<String> topicList = (List<String>) response.getBody();
-                    String message;
-                    if (topicList.isEmpty()) {
-                        message = "System does not have any topics";
-                    } else {
-                        message = "System contains " +
-                                topicList.size() + " " + (topicList.size() == 1 ? "topic" : "topics");
-                    }
-                    String echo = doLoopbackTest(monitorTopicPartition);
-                    return echo+"; "+message;
+                EventEmitter po = EventEmitter.getInstance();
+                EventEnvelope req = new EventEnvelope().setTo(CLOUD_MANAGER).setHeader(TYPE, LIST)
+                                            .setHeader(ORIGIN, Platform.getInstance().getOrigin());
+                Future<EventEnvelope> res = po.asyncRequest(req, TIMEOUT);
+                res.onSuccess(evt -> {
+                    if (evt.getBody() instanceof List) {
+                        List<String> topicList = (List<String>) evt.getBody();
+                        String message;
+                        if (topicList.isEmpty()) {
+                            message = "System does not have any topics";
+                        } else {
+                            message = "System contains " +
+                                    topicList.size() + " " + (topicList.size() == 1 ? "topic" : "topics");
+                        }
+                        doLoopbackTest(input, monitorTopicPartition, message);
 
-                } else {
-                    throw new AppException(500, "Unable to list topics");
-                }
+                    } else {
+                        sendError(input, 500, "Unable to list topics");
+                    }
+                });
+
 
             } else {
                 PresenceConnector connector = PresenceConnector.getInstance();
                 boolean ready = connector.isConnected() && connector.isReady();
+                boolean offline = false;
                 if (ready) {
                     String topicPartition = PresenceConnector.getInstance().getTopic();
                     if (topicPartition != null) {
-                        return doLoopbackTest(topicPartition);
+                        doLoopbackTest(input, topicPartition, null);
+                    } else {
+                        offline = true;
                     }
+                } else {
+                    offline = true;
                 }
-                return "offline";
+                if (offline) {
+                    sendResponse(input, "offline");
+                }
             }
         } else {
-            throw new IllegalArgumentException("Usage: type=health");
+            sendError(input, 400, "Usage: type=health");
         }
+        return null;
     }
 
-    private String doLoopbackTest(String topicPartition) throws AppException, IOException {
+    private void doLoopbackTest(EventEnvelope input, String topicPartition, String message) {
         String topic = getTopic(topicPartition);
         int partition = getPartition(topicPartition);
         long begin = System.currentTimeMillis();
         // wait for reply
         PubSub ps = PubSub.getInstance();
         String me = Platform.getInstance().getOrigin();
-        Inbox inbox = new Inbox(1);
-        // String topic, int partition, Map<String, String> headers, Object body
+        String from = input.getFrom();
+        String traceId = input.getTraceId();
+        String tracePath = input.getTracePath();
+        AsyncInbox inbox = new AsyncInbox(from, "cloud.connector", traceId, tracePath, TIMEOUT, true);
         Map<String, String> parameters = new HashMap<>();
         parameters.put(REPLY_TO, inbox.getId()+"@"+me);
         parameters.put(ORIGIN, me);
-        ps.publish(topic, partition, parameters, LOOP_BACK);
-        inbox.waitForResponse(TIMEOUT);
-        EventEnvelope pong = inbox.getReply();
-        inbox.close();
-        if (pong == null) {
-            throw new AppException(408, "Loopback test timeout for " + TIMEOUT + " ms");
+        try {
+            ps.publish(topic, partition, parameters, LOOP_BACK);
+            Future<EventEnvelope> res = inbox.getFuture();
+            res.onSuccess(pong -> {
+                if (pong.getBody() instanceof Boolean && Boolean.TRUE.equals(pong.getBody())) {
+                    long diff = System.currentTimeMillis() - begin;
+                    String text = "Loopback test took " + diff + " ms" + (message == null? "" : "; "+message);
+                    sendResponse(input, text);
+                } else {
+                    sendError(input, 500, "Loopback failed");
+                }
+            });
+            res.onFailure(ex -> sendError(input, 408, ex.getMessage()));
+
+        } catch (IOException e) {
+            sendError(input, 500, e.getMessage());
         }
-        if (pong.hasError()) {
-            throw new AppException(pong.getStatus(), pong.getError());
-        }
-        if (pong.getBody() instanceof Boolean) {
-            Boolean pingOk = (Boolean) pong.getBody();
-            if (pingOk) {
-                long diff = System.currentTimeMillis() - begin;
-                return "Loopback test took " + diff + " ms";
-            }
-        }
-        throw new AppException(500, "Loopback test failed");
     }
 
     private String getTopic(String topicPartition) {
@@ -146,6 +162,30 @@ public class CloudHealthCheck implements LambdaFunction {
             return -1;
         } else {
             return Utility.getInstance().str2int(topicPartition.substring(topicPartition.lastIndexOf('-')+1));
+        }
+    }
+
+    private void sendResponse(EventEnvelope input, Object result) {
+        EventEnvelope response = new EventEnvelope().setTo(input.getReplyTo())
+                .setBody(result)
+                .setCorrelationId(input.getCorrelationId())
+                .setTrace(input.getTraceId(), input.getTracePath());
+        try {
+            EventEmitter.getInstance().send(response);
+        } catch (IOException e) {
+            log.error("Unable to deliver response to {} - {}", input.getReplyTo(), e.getMessage());
+        }
+    }
+
+    private void sendError(EventEnvelope input, int status, String message) {
+        EventEnvelope response = new EventEnvelope().setTo(input.getReplyTo())
+                .setBody(message).setStatus(status)
+                .setCorrelationId(input.getCorrelationId())
+                .setTrace(input.getTraceId(), input.getTracePath());
+        try {
+            EventEmitter.getInstance().send(response);
+        } catch (IOException e) {
+            log.error("Unable to deliver response to {} - {}", input.getReplyTo(), e.getMessage());
         }
     }
 
