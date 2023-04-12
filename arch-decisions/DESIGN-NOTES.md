@@ -24,7 +24,7 @@ a vehicle for event metadata, headers and payload.
 
 The SimpleMapper and EventEnvelope classes are used to hide the complexity of serialization.
 
-## Custom JSON and XML serializers for JAX-RS and Spring Boot
+## Custom JSON and XML serializers
 
 For the `rest-spring` project, we have customized JAX-RS, Spring Boot and Servlet serialization and exception 
 handlers for consistency.
