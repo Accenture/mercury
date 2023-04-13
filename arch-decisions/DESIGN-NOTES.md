@@ -43,7 +43,7 @@ Akka actor is used as the in-memory event bus in Mercury version 1.
 Since Mercury version 2, we have migrated from Akka to Eclipse Vertx as the in-memory event system.
 
 In Mercury version 3, we extend it to be fully non-blocking and provide low-level control of application
-performance and throughput as follows.
+performance and throughput.
 
 ## Non-blocking design
 
