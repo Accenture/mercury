@@ -9,7 +9,7 @@ The Event API service (`event.api.service`) is a built-in function in the system
 
 ## The Event API endpoint
 
-To enable "Event over HTTP", you must first turn on the REST automation engine and a light weight non-blocking 
+To enable "Event over HTTP", you must first turn on the REST automation engine and a lightweight non-blocking 
 HTTP server with the following parameters in the application.properties file:
 
 ```properties

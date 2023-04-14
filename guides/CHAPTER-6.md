@@ -1,6 +1,6 @@
 # Spring Boot integration
 
-While the platform-core foundation code includes a light weight non-blocking HTTP server, you can also turn your
+While the platform-core foundation code includes a lightweight non-blocking HTTP server, you can also turn your
 application into a regular Spring Boot application.
 
 There are two ways to do that:
@@ -33,10 +33,10 @@ foundation code to load the event-driven functions into memory before Spring Boo
 Adding the `rest-spring` library in your application would turn it into a pre-configured Spring Boot application.
 
 The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
-built-in light weight non-blocking HTTP server.
+built-in lightweight non-blocking HTTP server.
 
-If you want to disable the light weight HTTP server, you can set `rest.automation=false` in application.properties.
-The REST automation engine and the light weight HTTP server will be turned off.
+If you want to disable the lightweight HTTP server, you can set `rest.automation=false` in application.properties.
+The REST automation engine and the lightweight HTTP server will be turned off.
 
 > IMPORTANT: the platform-core library assumes the application configuration files to be either
   application.yml or application.properties. If you use custom Spring profile, please keep the
@@ -76,7 +76,7 @@ your corporate UI style. Please keep the parameters (status, message, path, warn
 </html>
 ```
 
-If you want to keep REST automation's light weight HTTP server together with Spring Boot's Tomcat or other 
+If you want to keep REST automation's lightweight HTTP server together with Spring Boot's Tomcat or other 
 application server, please add the following to your application.properties file:
 
 ```properties
@@ -85,7 +85,7 @@ rest.server.port=8085
 rest.automation=true
 ```
 
-The platform-core will use `rest.server.port` instead of `server.port` so that the light weight HTTP server and
+The platform-core will use `rest.server.port` instead of `server.port` so that the lightweight HTTP server and
 Spring Boot's Tomcat can co-exist.
 
 ## The rest-spring-example demo application
@@ -184,7 +184,7 @@ DistributedTrace:67 - trace={path=GET /api/hello/world, service=hello.world, suc
   from=hello.world.endpoint, id=e12e871096ba4938b871ee72ef09aa0a, round_trip=20.018, status=200}
 ```
 
-## light weight non-blocking websocket server
+## lightweight non-blocking websocket server
 
 If you want to turn on a non-blocking websocket server, you can add the following configuration to 
 application.properties.

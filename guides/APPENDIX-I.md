@@ -52,7 +52,7 @@
 # HTTP and websocket port assignment
 
 If `rest.automation=true` and `rest.server.port or server.port` are configured, the system will start
-a light weight non-blocking HTTP server. If `rest.server.port` is not available, it will fall back to `server.port`.
+a lightweight non-blocking HTTP server. If `rest.server.port` is not available, it will fall back to `server.port`.
 
 If `rest.automation=false` and you have a websocket server endpoint annotated as `WebsocketService`, the system
 will start a non-blocking Websocket server with a minimalist HTTP server that provides actuator services.
@@ -60,7 +60,7 @@ If `websocket.server.port` is not available, it will fall back to `rest.server.p
 
 If you add Spring Boot dependency, Spring Boot will use `server.port` to start Tomcat or similar HTTP server.
 
-The built-in light weight non-blocking HTTP server and Spring Boot can co-exist when you configure
+The built-in lightweight non-blocking HTTP server and Spring Boot can co-exist when you configure
 `rest.server.port` and `server.port` to use different ports.
 
 # Transient data store

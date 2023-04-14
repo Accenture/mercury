@@ -1,6 +1,6 @@
 # Composable application example
 
-The lambda-example demonstrates REST automation (light weight non-blocking HTTP server) that allows you
+The lambda-example demonstrates REST automation (lightweight non-blocking HTTP server) that allows you
 to create REST endpoints by configuration instead of code.
 
 It illustrates building individual event-driven functions using Java (LambdaFunction and TypedLambdaFunction) and

@@ -57,7 +57,7 @@ When `rest.automation=true` is defined, the system will parse the "rest.yaml" co
 
 ## REST automation
 
-When REST automation is turned on, the system will start a light weight non-blocking HTTP server.
+When REST automation is turned on, the system will start a lightweight non-blocking HTTP server.
 By default, it will search for the "rest.yaml" file from "/tmp/config/rest.yaml" and then from "classpath:/rest.yaml".
 Classpath refers to configuration files under the "resources" folder in your source code project.
 

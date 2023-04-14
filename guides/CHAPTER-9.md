@@ -499,7 +499,7 @@ Mercury libraries are designed to co-exist with your favorite frameworks and too
 the `LambdaFunction`, `TypedLambdaFunction` or `KotlinLambdaFunction`, you can use any coding style and frameworks
 as you like, including sequential, object-oriented and reactive programming styles.
 
-Mercury has a built-in light weight non-blocking HTTP server, but you can also use Spring Boot and other
+Mercury has a built-in lightweight non-blocking HTTP server, but you can also use Spring Boot and other
 application server framework with it.
 
 A sample Spring Boot integration is provided in the "rest-spring" project. It is an optional feature, and you can
