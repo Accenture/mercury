@@ -522,7 +522,12 @@ public class PostOfficeTest extends TestBase {
         String RETURN_VALUE = "some_value";
         String MY_FUNCTION = "my.test.function";
         LambdaFunction f = (headers, input, instance) -> {
-            bench.offer((Map<String, Object>) input);
+            // guarantee that this function has received the correct trace and journal
+            Map<String, Object> trace = (Map<String, Object>) input;
+            MultiLevelMap map = new MultiLevelMap(trace);
+            if (TRACE_ID.equals(map.getElement("trace.id"))) {
+                bench.offer(trace);
+            }
             return null;
         };
         LambdaFunction myFunction = (headers, input, instance) -> {
@@ -561,7 +566,12 @@ public class PostOfficeTest extends TestBase {
         String RETURN_VALUE = "some_value";
         String SIMPLE_FUNCTION = "another.simple.function";
         LambdaFunction f = (headers, input, instance) -> {
-            bench.offer((Map<String, Object>) input);
+            // guarantee that this function has received the correct trace
+            Map<String, Object> trace = (Map<String, Object>) input;
+            MultiLevelMap map = new MultiLevelMap(trace);
+            if (TRACE_ID.equals(map.getElement("trace.id"))) {
+                bench.offer(trace);
+            }
             return null;
         };
         LambdaFunction myFunction = (headers, input, instance) -> {
