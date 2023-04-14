@@ -184,7 +184,7 @@ DistributedTrace:67 - trace={path=GET /api/hello/world, service=hello.world, suc
   from=hello.world.endpoint, id=e12e871096ba4938b871ee72ef09aa0a, round_trip=20.018, status=200}
 ```
 
-## lightweight non-blocking websocket server
+## Lightweight non-blocking websocket server
 
 If you want to turn on a non-blocking websocket server, you can add the following configuration to 
 application.properties.

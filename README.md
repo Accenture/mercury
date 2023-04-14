@@ -144,7 +144,8 @@ will transport the event envelope to function-2, extract the payload and submit 
 # Function execution strategy
 
 In event-driven application design, a function is executed when an event arrives as “input.” When a function
-finishes processing, its result set (“output”) is delivered as an event to another function.
+finishes processing, your application can command the event system to route the result set (“output”) as an
+event to another function.
 
 > Figure 5 - Executing function through event flow
 
