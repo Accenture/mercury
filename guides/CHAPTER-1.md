@@ -17,7 +17,7 @@ easier to design, develop, maintain, deploy, and scale.
 ## Building the platform libraries
 
 The first step is to build Mercury libraries from source.
-To simplify the process, you may publish the libraries in your enterprise artifactory.
+To simplify the process, you may publish the libraries to your enterprise artifactory.
 
 ```shell
 mkdir sandbox
