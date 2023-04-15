@@ -1,6 +1,6 @@
 # Reserved route names
 
-The Mercury foundation code is written using the same event API and each function has a route name.
+The Mercury foundation code is written using the same core API and each function has a route name.
 
 The following route names are reserved. Please DO NOT use them in your application functions to avoid breaking
 the system unintentionally.
@@ -31,7 +31,7 @@ the system unintentionally.
 
 ## Optional user defined functions
 
-The following optional route names will be detected by the system to execute additional features.
+The following optional route names will be detected by the system for additional user defined features.
 
 | Route                        | Purpose                                                                               |
 |:-----------------------------|:--------------------------------------------------------------------------------------|
@@ -42,11 +42,12 @@ The following optional route names will be detected by the system to execute add
 The `additional.info` function, if implemented, will be invoked from the "/info" endpoint and its response
 will be merged into the "/info" response.
 
-For `distributed.trace.forwarder` and `transaction.journal.recorder`, please refer to Chapter 5 for details.
+For `distributed.trace.forwarder` and `transaction.journal.recorder`, please refer to [Chapter-5](CHAPTER-5.md)
+for details.
 
 ## Reserved event header names
 
-The following event headers are injected by the system as READ only key-values. They are available from the
+The following event headers are injected by the system as READ only metadata. They are available from the
 input "headers". However, they are not part of the EventEnvelope.
 
 | Header        | Purpose                                    | 

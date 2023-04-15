@@ -1,6 +1,6 @@
 # Function execution strategies
 
-## Defining a function
+## Define a function
 
 In a composable application, each function is self-contained with zero or minimal dependencies.
 
@@ -14,8 +14,7 @@ As discussed in Chapter-1, a function may look like this:
 public class MyFirstFunction implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) 
-            throws Exception {
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         // your business logic here
         return input;
     }
@@ -25,23 +24,23 @@ public class MyFirstFunction implements TypedLambdaFunction<AsyncHttpRequest, Ob
 A function is an event listener with the "handleEvent" method. The data structures of input and output are defined
 by API interface contract during application design phase.
 
-In the above example, the input is AsyncHttpRequest because this function is designed to handle a HTTP request event
+In the above example, the input is AsyncHttpRequest because this function is designed to handle an HTTP request event
 from a REST endpoint defined in the "rest.yaml" configuration file. We set the output as "Object" so that there is
 flexibility in returning a HashMap or a PoJo. You can also enforce the use of a PoJo by updating the output type.
 
 A single transaction may involve multiple functions. For example, the user submits a form from a browser that
-sends a HTTP request to a function. In MVC pattern, the function receiving the user's input is the "controller".
+sends an HTTP request to a function. In MVC pattern, the function receiving the user's input is the "controller".
 It carries out input validation and forwards the event to a business logic function (the "view")
-that performs some processing and then submit the event to a data persistent function (the "model") to save
+that performs some processing and then submits the event to a data persistent function (the "model") to save
 a record into the database.
 
 In cloud native application, the transaction flow may be more sophisticated than the typical "mvc" style. You can do
 "event orchestration" in the function receiving the HTTP request and then make event requests to various functions.
 
-This "event orchestration" can be done by code using a set of event-driven API that we call the "PostOffice".
+This "event orchestration" can be done by code using the "PostOffice" and/or "FastRPC" API.
 
 To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
-Event Script is available as an enterprise add-on library from Accenture.
+Event Script is available as an optional enterprise add-on module from Accenture.
 
 ## Extensible authentication function
 
@@ -51,7 +50,7 @@ for a REST endpoint refers to a function in your application.
 An authentication function can be written using a TypedLambdaFunction that takes the input as a "AsyncHttpRequest".
 Your authentication function can return a boolean value to indicate if the request should be accepted or rejected.
 
-A typical authentication function may validate a HTTP header or cookie. e.g. forward the "Bearer token" from the
+A typical authentication function may validate an HTTP header or cookie. e.g. forward the "Bearer token" from the
 "Authorization" header to your organization's OAuth 2.0 Identity Provider for validation.
 
 To approve an incoming request, your custom authentication function can return `true`.
@@ -72,8 +71,8 @@ You can also control the status code and error message by throwing an `AppExcept
 throw new AppException(401, "Invalid credentials");
 ```
 
-A composable application is assembled from modular functions. For example, data persistence functions and
-authentication functions are likely to be reusable in many applications.
+A composable application is assembled from a collection of modular functions. For example, data persistence functions
+and authentication functions are likely to be reusable in many applications.
 
 ## Number of workers for a function
 
@@ -100,17 +99,17 @@ A function is executed when an event arrives. There are three function execution
 | Coroutine        | Highest throughput in terms of<br/>concurrent users served by virtual<br/>threads concurrently                | Not suitable for long running tasks                                            |
 | Suspend function | Synchronous "non-blocking" for<br/>RPC (request-response) that<br/>makes code easier to read and<br/>maintain | Not suitable for long running tasks                                            |
 
-### Kernel threads
+### Kernel thread pool
 
 When you write a function using LambdaFunction and TypedLambdaFunction, the function will be executed using
-"kernel threads" and Java will run your function in native "preemptive multitasking" mode.
+"kernel thread pool" and Java will run your function in native "preemptive multitasking" mode.
 
 While preemptive multitasking fully utilizes the CPU, its context switching overheads may increase as the number of
 kernel threads grow. As a rule of thumb, you should control the maximum number of kernel threads to less than 200.
 
 The parameter `event.worker.pool` is defined with a default value of 100. You can change this value to adjust to
 the actual CPU power in your environment. Keep the default value for best performance unless you have tested the
-limit in your environment scientifically.
+limit in your environment.
 
 > When you have more concurrent requests, your application may slow down because some functions
   are blocked when the number of concurrent kernel threads is reached.
@@ -138,32 +137,31 @@ For ease of programming, we recommend using suspend function to handle RPC calls
 
 When you add the `CoroutineRunner` annotation in your function, the system will run your function as a coroutine.
 
-Normally, coroutines are executed in an event loop using a single kernel thread. Note that the underlying Eclipse vertx
-is a multithreaded event system that executes coroutines in a small number of event loops concurrently for better 
-performance. As a result, the system can handle tens of thousands of coroutines running concurrently.
+Normally, coroutines are executed in an event loop using a single kernel thread. Note that the underlying Eclipse
+vertx is a multithreaded event system that executes coroutines in a small number of event loops concurrently for
+better performance. As a result, the system can handle tens of thousands of coroutines running concurrently.
 
 Since coroutine is running in a single thread, you must avoid writing "blocking" code because it would slow down
 the whole application significantly.
 
-If your function can finish processing very quickly, coroutine is ideal. It is the easiest way to turn a Java class
-into a coroutine by using the CoroutineRunner annotation.
+If your function can finish processing very quickly, coroutine is ideal.
 
 ### Suspend function
 
-A suspend function is a coroutine that can be suspended and resumed. The best use case for a suspend function is for
-handling of "sequential non-blocking" request-response. This is the same as "async/await" in node.js and other
+A suspend function is a coroutine that can be suspended and resumed. The best use case for a suspend function is
+for handling of "sequential non-blocking" request-response. This is the same as "async/await" in node.js and other
 programming language.
 
-To implement a "suspend function", you must implement the KotlinLambdaFunction and write code in Kotlin.
+To implement a "suspend function", you must implement the KotlinLambdaFunction interface and write code in Kotlin.
 
 If you are new to Kotlin, please download and run JetBrains Intellij IDE. The quickest way to get productive in Kotlin
 is to write a few statements of Java code in a placeholder class and then copy-n-paste the Java statements into the
 KotlinLambdaFunction's handleEvent method. Intellij will automatically convert Java code into Kotlin.
 
-The automated code conversion is mostly accurate (roughly 90%) and you may need some touch up to polish 
-the converted Kotlin code.
+The automated code conversion is mostly accurate (roughly 90%). You may need some touch up to polish the converted
+Kotlin code.
 
-In a suspend function, you can use a set of "await" methods to make synchronous request-response (RPC) calls.
+In a suspend function, you can use a set of "await" methods to make non-blocking request-response (RPC) calls.
 For example, to make a RPC call to another function, you can use the `awaitRequest` method.
 
 Please refer to the `FileUploadDemo` class in the "examples/lambda-example" project.
@@ -196,9 +194,9 @@ while (true) {
     }
 }
 ```
-In the above code segment, it has a "while" loop to make RPC calls to "fetch" blocks of data from a stream.
-The status of the stream is indicated in the event header "type". If it is end of stream, it will exit the
-"while" loop.
+In the above code segment, it has a "while" loop to make RPC calls to continuously "fetch" blocks of data 
+from a stream. The status of the stream is indicated in the event header "type". It will exit the "while" loop
+when it detects the "End of Stream (EOF)" signal.
 
 Suspend function will be "suspended" when it is waiting for a response. When it is suspended, it does not
 consume CPU resources, thus your application can handle a large number of concurrent users and requests.
@@ -220,7 +218,7 @@ control to the event loop so that other coroutines and suspend functions will no
 function.
 
 Suspend function is a powerful way to write high throughput application. Your code is presented in a sequential
-style that is easier to write and maintain.
+flow that is easier to write and maintain.
 
 You may want to try the demo "file upload" REST endpoint to see how suspend function behaves. If you follow Chapter-1,
 your lambda example application is already running. To test the file upload endpoint, here is a simple Python script:

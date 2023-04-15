@@ -86,7 +86,7 @@ rest:
   # In this example, "/api/v1" will be replaced with "/v1/api"
   #
   # In this example, the rest.yaml parser will print a warning about the "trust_all_cert" parameter
-  # because it is not relevant for non-secure a HTTP endpoint.
+  # because it is not relevant for non-secure an HTTP endpoint.
   #
   - service: "http://127.0.0.1:8100"
     trust_all_cert: true

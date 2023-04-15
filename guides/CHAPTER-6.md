@@ -1,7 +1,7 @@
 # Spring Boot integration
 
 While the platform-core foundation code includes a lightweight non-blocking HTTP server, you can also turn your
-application into a regular Spring Boot application.
+application into an executable Spring Boot application.
 
 There are two ways to do that:
 
@@ -12,7 +12,7 @@ There are two ways to do that:
 
 For option 1, the platform-core library can co-exist with Spring Boot. You can write code specific to Spring Boot
 and the Spring framework ecosystem. Please make sure you add the following startup code to your Spring Boot
-main application's startup sequence like this:
+main application like this:
 
 ```java
 @SpringBootApplication
@@ -26,11 +26,11 @@ public class MyMainApp extends SpringBootServletInitializer {
 }
 ```
 We suggest running `AppStarter.main` before the `SpringApplication.run` statement. This would allow the platform-core
-foundation code to load the event-driven functions into memory before Spring Boot starts.
+foundation code to load the event-listener functions into memory before Spring Boot starts.
 
 ## Use the rest-spring library in your application
 
-Adding the `rest-spring` library in your application would turn it into a pre-configured Spring Boot application.
+You can the `rest-spring` library to your application and turn it into a pre-configured Spring Boot application.
 
 The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
 built-in lightweight non-blocking HTTP server.
@@ -43,11 +43,11 @@ The REST automation engine and the lightweight HTTP server will be turned off.
   application.yml or application.properties for the platform-core. If you use default Spring 
   profile, both platform-core and Spring Boot will use the same configuration files.
 
-You can customize your error page using the default `errorPage.html` from the platform-core's or 
-rest-spring's resources folder in the source project. The default page is shown below.
+You can customize your error page using the default `errorPage.html` by copying it from the platform-core's or 
+rest-spring's resources folder to your source project. The default page is shown below.
 
-This is the HTML error page that the platform-core or rest-spring library will render. You can update it with
-your corporate UI style. Please keep the parameters (status, message, path, warning) intact.
+This is the HTML error page that the platform-core or rest-spring library uses. You can update it with
+your corporate style guide. Please keep the parameters (status, message, path, warning) intact.
 
 ```html
 <!DOCTYPE html>
@@ -85,21 +85,20 @@ rest.server.port=8085
 rest.automation=true
 ```
 
-The platform-core will use `rest.server.port` instead of `server.port` so that the lightweight HTTP server and
-Spring Boot's Tomcat can co-exist.
+The platform-core and Spring Boot will use `rest.server.port` and `server.port` respectively.
 
 ## The rest-spring-example demo application
 
 Let's review the `rest-spring-example` demo application in the "examples/rest-spring-example" project.
 
-You can use the rest-spring-example as a template to quickly create a Spring Boot application.
+You can use the rest-spring-example as a template to create a Spring Boot application.
 
 In addition to the REST automation engine that let you create REST endpoints by configuration, you can also
-programmatically create REST endpoints with the following choices:
+programmatically create REST endpoints with the following approaches:
 
-1. JAX-RS
-2. Spring Controller
-3. Servlet 3.1
+1. JAX-RS REST endpoints
+2. Spring RestControllers
+3. Servlet 3.1 WebServlets
 
 We will examine asynchronous REST endpoint with the `AsyncHelloWorld` class.
 
@@ -147,7 +146,7 @@ public class AsyncHelloWorld {
 }
 ```
 
-In this hello world REST endpoint, JAX-RS run the "hello" method asynchronously without waiting for a response.
+In this hello world REST endpoint, JAX-RS runs the "hello" method asynchronously without waiting for a response.
 
 The example code copies the HTTP requests and sends it as the request payload to the "hello.world" function.
 The function is defined in the MainApp like this:
@@ -165,9 +164,9 @@ LambdaFunction echo = (headers, input, instance) -> {
 platform.register("hello.world", echo, 20);
 ```
 
-When "hello.world" responds, its result set will be returned to the `onSuccess` method as the "future response".
+When "hello.world" responds, its result set will be returned to the `onSuccess` method as a "future response".
 
-The "onSuccess" method then sends the response to the browser using JAX-RS resume mechanism.
+The "onSuccess" method then sends the response to the browser using the JAX-RS resume mechanism.
 
 The `AsyncHelloConcurrent` is the same as the `AsyncHelloWorld` except that it performs a "fork-n-join" operation
 to multiple instances of the "hello.world" function.
@@ -196,6 +195,8 @@ websocket.server.port=8085
 
 The above assumes Spring Boot runs on port 8083 and the websocket server runs on port 8085.
 
+> Note that "websocket.server.port" is an alias of "rest.server.port"
+
 You can create a websocket service with a Java class like this:
 
 ```java
@@ -214,7 +215,8 @@ The above creates a websocket service at the URL "/ws/hello" server endpoint.
 Please review the example code in the WsEchoDemo class in the rest-spring-example project for details.
 
 If you want to use Spring Boot's Tomcat websocket server, you can disable the non-blocking websocket server feature
-by removing the `websocket.server.port` configuration and any classes with the `WebSocketService` annotation.
+by removing the `websocket.server.port` configuration and any websocket service classes with the `WebSocketService`
+annotation.
 
 To try out the demo websocket server, visit http://127.0.0.1:8083 and select "Websocket demo".
 <br/>

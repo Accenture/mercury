@@ -25,12 +25,10 @@ Note that MainApplication is mandatory. You must have at least one "main applica
 > Note: Please adjust the parameter "web.component.scan" in application.properties 
         to point to your user application package(s) in your source code project.
 
-If your whole application uses the "declarative" approach in defining your functions, you may just print
-a greeting message in the "start" method. If you have additional start up logic, you may add them in the
-"start" method.
+If your application does not require additional startup logic, you may just print a greeting message.
 
-The `AppStarter.main()` statement in the "main" method is used when you want to start your application directly
-from the IDE. You can "right-click" the main method and select "run".
+The `AppStarter.main()` statement in the "main" method is used when you want to start your application within the IDE.
+You can "right-click" the main method and select "run".
 
 You can also build and run the application from command line like this:
 
@@ -63,7 +61,7 @@ Since the source project contains both Java and Kotlin, we have replaced javadoc
 documentation engine for both Java and Kotlin. Javadoc is useful if you want to write and publish your own libraries.
 
 To generate Java and Kotlin source documentation, please run "mvn dokka:dokka". You may "cd" to the platform-core
-project to try the maven dokka command to generate some source documentation. The doc home page will be available
+project to try the maven dokka command to generate some source documentation. The home page will be available
 in "target/dokka/index.html"
 
 ## Writing your functions
@@ -71,17 +69,17 @@ in "target/dokka/index.html"
 Please follow the step-by-step learning guide in [Chapter-1](CHAPTER-1.md) to write your own functions. You can then
 configure new REST endpoints to use your new functions.
 
-In [Chapter-1](CHAPTER-2.md), we have discussed the three function execution strategies to optimize your application to the full
-potential of stability, performance and throughput.
+In [Chapter-1](CHAPTER-2.md), we have discussed the three function execution strategies to optimize your application
+to the full potential of stability, performance and throughput.
 
 ## HTTP forwarding
 
-In [Chapter-3](CHAPTER-3.md), we have presented the configuration syntax for the "rest.yaml" REST automation definition file.
-Please review the sample rest.yaml file in the lambda-example project. You may notice that it has an entry 
-for HTTP forwarding. The following entry in the sample rest.yaml file illustrates a HTTP forwarding endpoint.
-In HTTP forwarding, you can replace the "service" route name with a direct HTTP target host. You can do "URL rewrite"
-to change the URL path to the target endpoint path. In the below example, `/api/v1/*` will be mapped to `/api/*`
-in the target endpoint.
+In [Chapter-3](CHAPTER-3.md), we have presented the configuration syntax for the "rest.yaml" REST automation 
+definition file. Please review the sample rest.yaml file in the lambda-example project. You may notice that
+it has an entry for HTTP forwarding. The following entry in the sample rest.yaml file illustrates an HTTP 
+forwarding endpoint. In HTTP forwarding, you can replace the "service" route name with a direct HTTP target host.
+You can do "URL rewrite" to change the URL path to the target endpoint path. In the below example, 
+`/api/v1/*` will be mapped to `/api/*` in the target endpoint.
 
 ```yaml
   - service: "http://127.0.0.1:${rest.server.port}"
@@ -165,10 +163,10 @@ public void rpcTest() throws IOException, InterruptedException {
 Note that the PostOffice instance can be created with tracing information in a Unit Test. The above example
 tells the system that the sender is "unit.test", the trace ID is 12345 and the trace path is "POST /api/hello/world".
 
-For unit test, we need to convert the asynchronous code into "synchronous" so that unit test can run sequentially.
-"BlockingQueue" is a good choice for this.
+For unit test, we need to convert the asynchronous code into "synchronous" execution so that unit test can run
+sequentially. "BlockingQueue" is a good choice for this.
 
-The "hello.world" is an echo function. The above unit test sends an event containing a key-value {"a":"b"} and
+The "hello.world" is an echo function. The above unit test sends an event containing a key-value `{"a":"b"}` and
 the payload of a HashMap from the DemoPoJo.
 
 If the function is designed to handle PoJo, we can send PoJo directly instead of a Map.
@@ -303,7 +301,7 @@ In the above unit test, we use the ObjectStreamIO to emulate a file stream and w
 The unit test then makes an RPC call to the "hello.upload" with the emulated HTTP request event.
 
 The "hello.upload" is a Kotlin suspend function. It will be executed when the event arrives.
-After saving the test file, it will return a HTTP response object that the unit test can validate.
+After saving the test file, it will return an HTTP response object that the unit test can validate.
 
 In this fashion, you can create unit tests to test suspend functions in an event-driven manner.
 
@@ -388,7 +386,7 @@ payloads will be forwarded to your custom audit function. The input to your audi
 containing the performance metrics data and a "journal" section with the request and response payloads in clear form.
 
 > IMPORTANT: journaling may contain sensitive personally identifiable data and secrets. Please check
-             security compliance before storing them into an access restricted audit data store.
+             security compliance before storing them into access restricted audit data store.
 
 <br/>
 

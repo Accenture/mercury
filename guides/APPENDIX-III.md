@@ -30,7 +30,7 @@ of the application. You can get the value from the "/info" endpoint.
 ## Custom health services
 
 You can extend the "/health" endpoint by implementing and registering lambda functions to be added to the 
-health.dependencies.
+"health check" dependencies.
 
 ```properties
 mandatory.health.dependencies=cloud.connector.health, demo.health
@@ -85,8 +85,8 @@ public class DemoHealth implements LambdaFunction {
 
 The "async.http.request" function can be used as a non-blocking HTTP client.
 
-To make a HTTP request to an external REST endpoint, you can create a HTTP request object using the `AsyncHttpRequest`
-class and make an async RPC call to the "async.http.request" function like this:
+To make an HTTP request to an external REST endpoint, you can create an HTTP request object using the
+`AsyncHttpRequest` class and make an async RPC call to the "async.http.request" function like this:
 
 ```java
 PostOffice po = new PostOffice(headers, instance);
@@ -126,7 +126,7 @@ val response = fastRPC.awaitRequest(request, 5000)
 // do something with the result
 ```
 
-### Sending HTTP request body for HTTP PUT, POST and PATCH methods
+### Send HTTP request body for HTTP PUT, POST and PATCH methods
 
 For most cases, you can just set a HashMap into the request body and specify content-type as JSON or XML.
 The system will perform serialization properly.
@@ -144,7 +144,7 @@ req.setBody(mapOfKeyValues);
 // where keyValues is a HashMap
 ```
 
-## Sending HTTP request body as a stream
+## Send HTTP request body as a stream
 
 For larger payload, you may use the streaming method. See sample code below:
 
@@ -163,7 +163,7 @@ out.close();
 req.setStreamRoute(stream.getInputStreamId());
 ```
 
-## Reading HTTP response body stream
+## Read HTTP response body stream
 
 If content length is not given, the response body will be received as a stream.
 
@@ -177,18 +177,18 @@ It may look like this:
 val po = PostOffice(headers, instance)
 val fastRPC = FastRPC(headers)
 
-val req = EventEnvelope().setTo(streamId).setHeader(TYPE, READ)
+val req = EventEnvelope().setTo(streamId).setHeader("type", "read")
 while (true) {
     val event = fastRPC.awaitRequest(req, 5000)
     if (event.status == 408) {
         // handle input stream timeout
         break
     }
-    if (EOF == event.headers["type"]) {
+    if ("eof" == event.headers["type"]) {
         po.send(streamId, Kv("type", "close"))
         break
     }
-    if (DATA == event.headers["type"]) {
+    if ("data" == event.headers["type"]) {
         val block = event.body
         if (block is ByteArray) {
             // handle the data block from the input stream

@@ -3,6 +3,9 @@
 The platform-core foundation library contains a built-in non-blocking HTTP server that you can use to create REST
 endpoints. Behind the curtain, it is using the vertx web client and server libraries.
 
+The REST automation system is not a code generator. The REST endpoints in the rest.yaml file are handled by
+the system directly - "Config is the code".
+
 We will use the "rest.yaml" sample configuration file in the "lambda-example" project to elaborate the configuration
 approach.
 
@@ -12,9 +15,9 @@ The rest.yaml configuration has three sections:
 2. CORS header processing
 3. HTTP header transformation
 
-## Turning on the REST automation engine
+## Turn on the REST automation engine
 
-REST automation is optional. To turn on REST automation, prepare the following parameters in the
+REST automation is optional. To turn on REST automation, add or update the following parameters in the
 application.properties file (or application.yml if you like).
 
 ```properties
@@ -25,8 +28,8 @@ rest.automation.yaml=classpath:/rest.yaml
 
 When `rest.automation=true`, you can configure the server port using `rest.server.port` or `server.port`.
 
-REST automation can co-exist with Spring Boot. Please use `rest.server.port` for REST automation because
-Spring Boot uses `server.port`.
+REST automation can co-exist with Spring Boot. Please use `rest.server.port` for REST automation and
+`server.port` for Spring Boot.
 
 The `rest.automation.yaml` tells the system the location of the rest.yaml configuration file.
 
@@ -40,7 +43,7 @@ rest.automation.yaml=file:/tmp/config/rest.yaml, classpath:/rest.yaml
 
 ## Defining a REST endpoint
 
-The "rest" section of the rest.yaml configuration file may contain one or more REST endpoint as an array of maps.
+The "rest" section of the rest.yaml configuration file may contain one or more REST endpoints.
 
 A REST endpoint may look like this:
 
@@ -56,30 +59,28 @@ A REST endpoint may look like this:
 ```
 
 In this example, the URL for the REST endpoint is "/api/hello/world" and it accepts a list of HTTP methods.
-When a HTTP request is sent to the URL, the HTTP event will be sent to the function declared with service route name 
-"hello.world". The input event will be an "AsyncHttpRequest" object. Since the "hello.world" function is written
-as an inline LambdaFunction in the MainApp, the AsyncHttpRequest is converted to a HashMap. 
+When an HTTP request is sent to the URL, the HTTP event will be sent to the function declared with service route name 
+"hello.world". The input event will be the "AsyncHttpRequest" object. Since the "hello.world" function is written
+as an inline LambdaFunction in the `lambda-example` application, the AsyncHttpRequest is converted to a HashMap. 
 
-To process the input as an AsyncHttpRequest object, the function must be written as a regular class. See the other
-function classes in the "services" folder of the lambda-example for reference.
+To process the input as an AsyncHttpRequest object, the function must be written as a regular class. See the
+"services" folder of the lambda-example for additional examples.
 
 The "timeout" value is the maximum time that REST endpoint will wait for a response from your function.
-If there is no response within the specified time interval, the user will receive a HTTP-408 timeout exception.
+If there is no response within the specified time interval, the user will receive an HTTP-408 timeout exception.
 
 The "authentication" tag is optional. If configured, the route name given in the authentication tag will be used.
 The input event will be delivered to a function with the authentication route name. In this example, it is
 "v1.api.auth".
 
-Your authentication function may look like this:
+Your custom authentication function may look like this:
 ```java
 @PreLoad(route = "v1.api.auth", instances = 10)
 public class SimpleAuthentication implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance)
-            throws Exception {
-        // your authentication logic here
-        // the return value can be true or false
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
+        // Your authentication logic here. The return value should be true or false.
         return result;
     }
 }
@@ -88,19 +89,18 @@ public class SimpleAuthentication implements TypedLambdaFunction<AsyncHttpReques
 Your authentication function can return a boolean value to indicate if the request should be accepted or rejected.
 
 If true, the system will send the HTTP request to the service. In this example, it is the "hello.world" function.
-If false, the user will receive a "HTTP-401 Unauthorized" exception.
+If false, the user will receive an "HTTP-401 Unauthorized" exception.
 
 Optionally, you can use the authentication function to return some session information after authentication.
 For example, your authentication can forward the "Authorization" header of the incoming HTTP request to your
-organization's OAuth 2.0 Identity Provider for authentication. Upon successful authentication, it can check
-if the user has session information in a distributed cache store. 
+organization's OAuth 2.0 Identity Provider for authentication.
 
 To return session information to the next function, the authentication function can return an EventEnvelope.
 It can set the session information as key-values in the response event headers.
 
-In the lambda-example application, there is a demo authentication function in the AuthDemo class with the "v1.api.auth"
-route name. To demonstrate passing session information, the AuthDemo class set the header "user=demo" in the 
-result EventEnvelope.
+In the lambda-example application, there is a demo authentication function in the AuthDemo class with the 
+"v1.api.auth" route name. To demonstrate passing session information, the AuthDemo class set the header
+"user=demo" in the result EventEnvelope.
 
 You can test this by visiting http://127.0.0.1:8085/api/hello/generic/1 to invoke the "hello.generic" function.
 
@@ -125,7 +125,7 @@ is wired to the "/api/hello/generic/{id}" endpoint as follows:
   - service: "hello.generic"
     methods: ['GET']
     url: "/api/hello/generic/{id}"
-    # Turn on authentication. The "v1.api.auth" function is the AuthDemo class.
+    # Turn on authentication pointing to the "v1.api.auth" function
     authentication: "v1.api.auth"
     timeout: 20s
     cors: cors_1
@@ -134,20 +134,19 @@ is wired to the "/api/hello/generic/{id}" endpoint as follows:
 ```
 
 The `tracing` tag tells the system to turn on "distributed tracing". In the console log shown above, you see
-3 lines of log from "distributed trace" showing that the HTTP request is processed by "v1.api.auth" and 
+three lines of log from "distributed trace" showing that the HTTP request is processed by "v1.api.auth" and 
 "hello.generic" before returning result to the browser using the "async.http.response" function.
 
-> Note: the "async.http.response" is a built-in function to send the HTTP response event
-        to the browser.
+> Note: the "async.http.response" is a built-in function to send the HTTP response to the browser.
 
-The optional `cors` and `headers` tags point to ID linking to the CORS and HEADERS sections respectively.
+The optional `cors` and `headers` tags point to the specific CORS and HEADERS sections respectively.
 
 ## CORS section
 
 For ease of development, you can define CORS headers using the CORS section like this.
 
-This is a convenient feature for development. For cloud native production system, it is most likely that CORS processing
-is done at the API gateway level.
+This is a convenient feature for development. For cloud native production system, it is most likely that 
+CORS processing is done at the API gateway level.
 
 You can define different sets of CORS headers using different IDs.
 

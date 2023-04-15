@@ -27,10 +27,10 @@ Platform platform = Platform.getInstance();
 platform.registerPrivate("my.function", new MyFunction(), 10);
 ```
 
-In the above example, You obtain a singleton instance of the Platform API class and use the "register" method
-to register a private function `MyFunction` with a route name "my.function".
+In the above example, You obtain a singleton instance of the Platform API class and use it to register a private
+function `MyFunction` with a route name "my.function".
 
-In declarative approach, you use the `PreLoad` annotation to declare a class to hold the event handler.
+In declarative approach, you use the `PreLoad` annotation to register a class with an event handler.
 
 Your function should implement the LambdaFunction, TypedLambdaFunction or KotlinLambdaFunction. 
 While LambdaFunction is untyped, the event system can transport PoJo and your function should
@@ -50,8 +50,7 @@ To change a function to a coroutine, you can add the `CoroutineRunner` annotatio
 @PreLoad(route = "hello.simple", instances = 10)
 public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance)
-            throws Exception {
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         // business logic here
     }
 }
@@ -63,7 +62,7 @@ programmatic registration method in a unit test.
 ## Private vs public functions
 
 When you use the programmatic registration approach, you can use the "register" or the "registerPrivate" method to
-register the function as "public" or "private" respectively. For declarative approach, the `PreLoad` annotation
+set the function as "public" or "private" respectively. For declarative approach, the `PreLoad` annotation
 contains a parameter to define the visibility of the function.
 
 ```java
@@ -76,8 +75,9 @@ platform.registerPrivate("my.function", new MyFunction(), 10);
 
 A private function is visible by other functions in the same application memory space.
 
-A public function is accessible by other function from another application instance using service mesh or HTTP method.
-We will discuss inter-container communication in [Chapter-7](CHAPTER-7.md) and [Chapter-8](CHAPTER-8.md).
+A public function is accessible by other function from another application instance using service mesh or
+"Event over HTTP" method. We will discuss inter-container communication in [Chapter-7](CHAPTER-7.md) and 
+[Chapter-8](CHAPTER-8.md).
 
 ## Post Office API
 
@@ -87,15 +87,14 @@ In your function, you can obtain an instance of the PostOffice like this:
 
 ```java
 @Override
-public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance)
-        throws Exception {
+public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
     PostOffice po = new PostOffice(headers, instance);
     // e.g. po.send and po.asyncRequest for sending asynchronous event and making RPC call
 }
 ```
 
-The PostOffice API detects if tracing is enabled in the incoming requeset. If yes, it will propagate tracing
-information to the "downstream" functions.
+The PostOffice API detects if tracing is enabled in the incoming request. If yes, it will propagate tracing
+information to "downstream" functions.
 
 ## Event patterns
 
@@ -185,8 +184,7 @@ time to process the request. This works when the caller can be reached by a call
 
 For the second approach, your function is annotated with the keyword `EventInterceptor`. 
 It can immediately return a "null" response that will be ignored by the event system. Your function can inspect
-the "replyTo" address, correlation ID, trace ID and trace path in the incoming event and use it to return a future 
-response to the caller.
+the "replyTo" address and correlation ID in the incoming event and include them in a future response to the caller.
 
 #### Sequential non-blocking RPC and fork-n-join
 
@@ -230,8 +228,8 @@ void send(final EventEnvelope event) throws IOException;
 ```
 Kv is a key-value pair for holding one parameter.
 
-Asynchronous event calls are handled in the background without blocking so that your function can continue processing
-additional business logic. For example, sending a notification message to a user.
+Asynchronous event calls are handled in the background so that your function can continue processing.
+For example, sending a notification message to a user.
 
 ### Callback
 
@@ -252,8 +250,8 @@ function will get the response as input.
 ### Pipeline
 
 Pipeline is a linked list of event calls. There are many ways to do pipeline. One way is to keep the pipeline plan
-in an event's header and pass the event across multiple functions where you can set the "replyTo" address from the next
-task in a pipeline. You should handle exception cases when a pipeline breaks in the middle of a transaction.
+in an event's header and pass the event across multiple functions where you can set the "replyTo" address from the
+pipeline plan. You should handle exception cases when a pipeline breaks in the middle of a transaction.
 
 An example of the pipeline header key-value may look like this:
 
@@ -294,11 +292,12 @@ String streamId = stream.getInputStreamId();
 ```
 
 In the code segment above, your function creates an object event stream and writes 2 messages into the stream
-It then obtains the streamId of the event stream. When another function receives the stream ID, it can read
-the data blocks orderly.
+It obtains the streamId of the event stream and sends it to another function. The other function can read the
+data blocks orderly.
 
-Note that when you can declare "end of stream" by closing the output stream. If you do not close the stream,
-it remains open and idle. If a function is trying to read an input stream using the stream ID, it will time out.
+You must declare "end of stream" by closing the output stream. If you do not close an output stream,
+it remains open and idle. If a function is trying to read an input stream using the stream ID and the
+next data block is not available, it will time out.
 
 A stream will be automatically closed when the idle inactivity timer is reached. In the above example, 
 ObjectStreamIO(60) means an idle inactivity timer of 60 seconds.
@@ -329,11 +328,11 @@ block.onSuccess(b -> {
 
 The above illustrates reading the first block of data. The function would need to iteratively read the stream
 until end of stream (i.e. when the stream returns null). As a result, asynchronous application code for stream
-processing is more challenging to write and maintain.
+processing is more challenging to write.
 
 #### Sequential non-blocking method
 
-The industry trend is to use sequential non-blocking method instead of "asynchronous programming" because your code
+The industry trend is to use sequential non-blocking method instead of "asynchronous callback" because your code
 will be much easier to read.
 
 You can use the `awaitRequest` method to read the next block of data from an event stream.
@@ -355,11 +354,11 @@ while (true) {
         // handle input stream timeout
         break
     }
-    if (EOF == event.headers[TYPE]) {
-        po.send(streamId, Kv(TYPE, CLOSE))
+    if ("eof" == event.headers["type"]) {
+        po.send(streamId, Kv("type", "close"))
         break
     }
-    if (DATA == event.headers[TYPE]) {
+    if ("data" == event.headers["type"]) {
         val block = event.body
         if (block is ByteArray) {
             // handle the data block from the input stream
@@ -369,7 +368,7 @@ while (true) {
 ```
 
 Since the code style is "sequential non-blocking", using a "while" loop does not block the "event loop" provided
-that you are using "await" API inside the while-loop.
+that you are using an "await" API inside the while-loop.
 
 In this fashion, the intent of the code is clear. Sequential non-blocking method offers high throughput because
 it does not consume CPU resources while the function is waiting for a response from another function.
@@ -378,7 +377,7 @@ We recommend sequential non-blocking style for more sophisticated event streamin
 
 > Note: "await" methods are only supported in KotlinLambdaFunction which is a suspend function.
         When Java 19 virtual thread feature becomes officially available, we will enhance
-        the function execution strategies.
+        the function execution strategies accordingly.
 
 ## Orchestration layer
 
@@ -394,9 +393,9 @@ your application works. It makes your code more readable.
 
 ## Event Script
 
-To simplify and automate event orchestration, there is an enterprise add-on module called "Event Script".
+To automate event orchestration, there is an enterprise add-on module called "Event Script".
 This is the idea of "config over code" or "declarative programming". The primary purpose of "Event Script"
-is to reduce coding effort so that the team can focus their energy in improving application design and code quality. 
+is to reduce coding effort so that the team can focus in improving application design and code quality. 
 Please contact your Accenture representative if you would like to evaluate the additional tool.
 
 In the next chapter, we will discuss the build, test and deploy process.

@@ -4,7 +4,7 @@ Let's discuss some migration tips from Mercury version 2 to 3.
 
 # Breaking changes
 
-Mercury version 3 is a fully non-blocking event-driven system.
+Mercury version 3 is a fully non-blocking event system.
 
 If you are using Mercury version 2 for production, please note that version 2 codebase has been archived
 to the "release/v2-8-0" branch.
@@ -16,24 +16,24 @@ The following are the breaking changes that require some code refactoring:
 
 1. Retired blocking APIs - the "po.request" methods for RPC have been replaced by the new "FastRPC" APIs.
 2. Distributed tracing - a new "PostOffice" class is available for compatibility with coroutine.
-3. Support three function execution strategies - kernel threads, coroutine and suspend function.
+3. Support three function execution strategies - kernel thread pool, coroutine and suspend function.
 
-We understand the inconvenience of a major release upgrade in production environments. We believe that the benefits
-would out-weight the refactoring effort. Your new code will be composable and easier to read.
+We understand the inconvenience of a major release upgrade in production environment. We believe that the benefits
+would out-weight the refactoring effort. Your new code will be composable, easier to read and faster.
 
-The new coding style in Mercury version 3 is easier. For example, you can make a Java function into
-a "coroutine" with just one annotation `CoroutineRunner`.
+Writing code with Mercury version 3 platform-core is straight forward. For example, you can make a Java function into
+a "coroutine" with the annotation `CoroutineRunner`.
 
 To write a suspend function, you can use IDE (JetBrains Intellij) automated code conversion to copy-n-paste 
 Java statements into a KotlinLambdaFunction. This is the easiest way to port code. The conversion accuracy is high. 
-With some minor touch up, you would get your new function up and running quickly.
+With some minor touch up, you would get your new functions up and running quickly.
 
 # Step-by-step upgrade
 
 ## Global replace of "PostOffice" to "EventEmitter"
 
-The old PostOffice has been renamed as "EventEmitter" in version 3. You can do a "global search and replace" to
-change the old PostOffice in your application to EventEmitter.
+The old PostOffice has been renamed as "EventEmitter". You can do a "global search and replace" to change
+the class name.
 
 ## Fix broken code for RPC calls
 
@@ -48,8 +48,8 @@ You must implement the "onSuccess" and optionally the "onFailure" logic blocks.
 
 Since your new code is asynchronous, the function will immediately return before a future response arrives.
 
-If your function may be called by another function, this would break your code. You can annotate your function as
-an "EventInterceptor" and return a dummy "null" value.
+If your function may be called by another function, this would break your code. For this use case, you can annotate
+your function as an "EventInterceptor" and return a dummy "null" value.
 
 As an EventInterceptor, you can inspect metadata of the incoming event to retrieve the "replyTo" and "correlationId".
 
@@ -82,10 +82,10 @@ public class MyFunction implements TypedLambdaFunction<EventEnvelope, Void> {
 In the above example, "my.function" will immediately return a dummy "null" value which will be ignored by the
 event system.
 
-When it receives a response from a downstream service, it can return result to the upstream by asynchronously sending
-a response.
+When it receives a response from a downstream service, it can return result to the upstream service by
+asynchronously sending a response.
 
-## Convert code to a suspend function
+## Convert RPC code to a suspend function
 
 You can convert your function containing RPC calls to a suspend function using the KotlinLambdaFunction interface.
 
@@ -148,15 +148,13 @@ val fastRPC = FastRPC(headers)
 ## Distributed tracing
 
 The new PostOffice and FastRPC will propagate distributed tracing information along multiple functions in
-a transaction path.
+a transaction path. It will automatically detect if "tracing" is enabled for a transaction.
 
-It will automatically detect if "tracing" is enabled for a transaction.
-
-## HTTP client
+## Non-blocking HTTP client
 
 In Mercury version 3, the "async.http.request" function can be used as a non-blocking HTTP client.
 
-To make a HTTP request to an external REST endpoint, you can create a HTTP request object using the `AsyncHttpRequest`
+To make an HTTP request to an external REST endpoint, you can create an HTTP request object using the `AsyncHttpRequest`
 class and make an async RPC call to the "async.http.request" function like this:
 
 ```java
@@ -196,8 +194,6 @@ val response = fastRPC.awaitRequest(request, 5000)
 // do something with the result
 ```
 
-While "awaitRequest" APIs are non-blocking, your code is expressed in a sequential manner.
-
 There is virtually no performance difference between the asynchronous approach and sequential non-blocking style.
 However, the latter demands less CPU resources and yields higher throughput.
 
@@ -234,8 +230,8 @@ interface. This yields higher throughput to support more concurrent users and se
 
 ## Things to avoid
 
-You should avoid blocking methods in your functions. For example, the "synchronous" keyword, object wait and lock,
-the "Thread" sleep method, the BlockingQueue API, etc.
+You should avoid blocking methods in your functions. For example, the "Synchronous" keyword, Object wait and lock,
+"Thread" sleep method, BlockingQueue, etc.
 
 The non-blocking "delay" API is a direct replacement of the "Thread.sleep" method. You can also use the PostOffice's
 "sendLater" API to schedule an event.
@@ -243,7 +239,7 @@ The non-blocking "delay" API is a direct replacement of the "Thread.sleep" metho
 ## Conclusion
 
 While Mercury has been enhanced from the ground up, the core APIs are intact. The main breaking change is the
-removal of blocking RPC APIs. With automated code conversion in IDE, this would reduce migration risks.
+removal of blocking RPC APIs. You should leverage IDE automated code conversion to reduce migration risks.
 
 The three function execution strategies would provide low-level control of how your application runs, making
 performance tuning more scientific.

@@ -20,7 +20,7 @@ Mercury version 3 is a toolkit for writing composable applications.
 
 [Chapter 9 - API overview](CHAPTER-9.md)
 
-[Chapter 10 - Migration guide (v2 to v3)](CHAPTER-10.md)
+[Chapter 10 - Migration guide](CHAPTER-10.md)
 
 [Appendix I - application.properties](APPENDIX-I.md)
 

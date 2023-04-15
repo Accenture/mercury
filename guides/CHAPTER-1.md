@@ -14,7 +14,7 @@ You can retire outdated functions without adverse side effect to a production sy
 can exist, and you can decide how to route user requests to different versions of a function. Applications would be
 easier to design, develop, maintain, deploy, and scale.
 
-## Building the platform libraries
+## Build the platform libraries
 
 The first step is to build Mercury libraries from source.
 To simplify the process, you may publish the libraries to your enterprise artifactory.
@@ -27,15 +27,15 @@ cd mercury
 mvn clean install
 ```
 
-The above sample script clones the Mercury open sources project from github and build the libraries from source.
+The above sample script clones the Mercury open sources project and builds the libraries from source.
 
 The pre-requisite is maven 3.8.6 and openjdk 1.8 or higher. We have tested mercury with Java version 1.8 to 19.
 
-This will build the mercury libraries and some example applications.
+This will build the mercury libraries and the sample applications.
 
 The `platform-core` project is the foundation library for writing composable application.
 
-## Running the lambda-example application
+## Run the lambda-example application
 
 Assuming you follow the suggested project directory above, you can run a sample composable application
 called "lambda-example" like this:
@@ -84,7 +84,7 @@ To create a REST endpoint, you can add an entry in the "rest" section of the "re
 ```
 
 The above example creates the "/api/hello/download" endpoint to route requests to the "hello.download" function.
-We will discuss more about REST automation in [Chapter-3](CHAPTER-3.md).
+We will elaborate more about REST automation in [Chapter-3](CHAPTER-3.md).
 
 ## Function is an event handler
 
@@ -95,9 +95,9 @@ It is created by a class implementing one of the following interfaces:
 2. `LambdaFunction` is untyped, but it will transport PoJo from the caller to the input of your function
 3. `KotlinLambdaFunction` is a typed lambda function using Kotlin suspend function
 
-## Trying the "hello.world" function
+## Execute the "hello.world" function
 
-With the application started in a command terminal, please use a browser to visit
+With the application started in a command terminal, please use a browser to point to:
 http://127.0.0.1:8085/api/hello/world
 
 It will echo the HTTP headers from the browser like this:
@@ -110,7 +110,6 @@ It will echo the HTTP headers from the browser like this:
   "body": {
     "headers": {
       "sec-fetch-mode": "navigate",
-      "sec-ch-ua": "\"Google Chrome\";v=\"111\", \"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"111\"",
       "sec-fetch-site": "none",
       "sec-ch-ua-mobile": "?0",
       "accept-language": "en-US,en;q=0.9",
@@ -119,7 +118,7 @@ It will echo the HTTP headers from the browser like this:
       "sec-fetch-user": "?1",
       "accept": "text/html,application/xhtml+xml,application/xml,*/*",
       "sec-fetch-dest": "document",
-      "user-agent": "Mozilla/5.0 Chrome/111.0.0.0 Safari/537.36"
+      "user-agent": "Mozilla/5.0 Chrome/111.0.0.0"
     },
     "method": "GET",
     "ip": "127.0.0.1",
@@ -148,10 +147,11 @@ LambdaFunction echo = (headers, input, instance) -> {
 platform.register("hello.world", echo, 10);
 ```
 
-The Hello World function is written as an inline "lambda function". It is registered programmatically using
+The Hello World function is written as an "inline lambda function". It is registered programmatically using
 the `platform.register` API.
 
-The rest of the functions are written using LambdaFunction, TypedLambdaFunction and KotlinLambdaFunction interfaces.
+The rest of the functions are written using regular classes implementing the LambdaFunction, TypedLambdaFunction
+and KotlinLambdaFunction interfaces.
 
 ## TypedLambdaFunction
 
@@ -162,8 +162,7 @@ Let's examine the `SimpleDemoEndpoint` example under the "services" folder. It m
 @PreLoad(route = "hello.simple", instances = 10)
 public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) 
-            throws Exception {
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         // business logic here
     }
 }
@@ -173,15 +172,15 @@ The `PreLoad` annotation assigns a route name to the Java class and registers it
 The `instances` parameter tells the system to create a number of workers to serve concurrent requests.
 
 > Note that you don't need a lot of workers to handle a larger number of users
-  and requests provided that the function can finish execution very quickly.
+  and requests provided that your function can finish execution very quickly.
 
-The `CoroutineRunner` annotation advises the system to run this function as a "coroutine".
-There are 3 function execution strategies (Kernel thread pool, coroutine and suspend function).
+The `CoroutineRunner` annotation advises the system to run the function as a "coroutine".
+There are three function execution strategies (Kernel thread pool, coroutine and suspend function).
 We will explain the concept in [Chapter-2](CHAPTER-2.md)
 
-In a composable application, an event-driven function is designed using the first principle of "input-process-output".
+In a composable application, a function is designed using the first principle of "input-process-output".
 
-In the "hello.simple" function, the input is a HTTP request expressed as a class of `AsyncHttpRequest`.
+In the "hello.simple" function, the input is an HTTP request expressed as a class of `AsyncHttpRequest`.
 You can ignore `headers` input argument for the moment. We will cover it later.
 
 The output is declared as "Object" so that the function can return any data structure using a HashMap or PoJo.
@@ -189,14 +188,13 @@ The output is declared as "Object" so that the function can return any data stru
 You may want to review the REST endpoint `/api/simple/{task}/*` in the rest.yaml config file to see how it is
 connected to the "hello.simple" function.
 
-We take a minimalist approach for the rest.yaml syntax. The parser will print out errors if it detects any syntax issue.
+We take a minimalist approach for the rest.yaml syntax. The parser will detect any syntax errors. Please check
+application log to ensure all REST endpoint entries in rest.yaml file are valid.
 
-## Writing your first function
+## Write your first function
 
-Using the lambda-example as a template, you can create your first application.
-
-Let's create your first function by adding a function in the "services" package folder.
-You will give the route name "my.first.function" in the "PreLoad" annotation.
+Using the lambda-example as a template, let's create your first function by adding a function in the 
+"services" package folder. You will give it the route name "my.first.function" in the "PreLoad" annotation.
 
 > Note that route name must use lower case letters and numbers separated by the period character.
 
@@ -206,8 +204,7 @@ You will give the route name "my.first.function" in the "PreLoad" annotation.
 public class MyFirstFunction implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) 
-            throws Exception {
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         // your business logic here
         return input;
     }
@@ -243,7 +240,7 @@ To test your new function, visit http://127.0.0.1:8085/api/hello/my/function
 ## Event driven design
 
 Your function automatically uses an in-memory event bus. The HTTP request from the browser is converted to
-an event by the system and the event is delivered to your function as the "input" argument.
+an event by the system for delivery to your function as the "input" argument.
 
 The underlying HTTP server is asynchronous and non-blocking.
 i.e. it does not consume CPU resources while waiting for a response.
@@ -251,7 +248,7 @@ i.e. it does not consume CPU resources while waiting for a response.
 This composable architecture allows you to design and implement applications so that you have precise control of
 performance and throughput. Performance tuning is much easier.
 
-## Deploying your new application
+## Deploy your new application
 
 You can assemble related functions in a single composable application, and it can be compiled and built into
 a single "executable" for deployment using `mvn clean package`.

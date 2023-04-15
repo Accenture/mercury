@@ -9,15 +9,15 @@ The Event API service (`event.api.service`) is a built-in function in the system
 
 ## The Event API endpoint
 
-To enable "Event over HTTP", you must first turn on the REST automation engine and a lightweight non-blocking 
-HTTP server with the following parameters in the application.properties file:
+To enable "Event over HTTP", you must first turn on the REST automation engine with the following parameters
+in the application.properties file:
 
 ```properties
 rest.server.port=8085
 rest.automation=true
 ```
 
-and then check if the following entry is available in the "rest.yaml" endpoint definition file. 
+and then check if the following entry is configured in the "rest.yaml" endpoint definition file. 
 If not, update "rest.yaml" accordingly. The "timeout" value is set to 60 seconds to fit common use cases.
 
 ```yaml
@@ -83,8 +83,7 @@ public class HelloPoJoEventOverHttp {
     @GET
     @Path("/http/{id}")
     @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON})
-    public void getPoJo(@PathParam("id") Integer id, @Suspended AsyncResponse response) 
-            throws IOException {
+    public void getPoJo(@PathParam("id") Integer id, @Suspended AsyncResponse response) {
         AppConfigReader config = AppConfigReader.getInstance();
         String remotePort = config.getProperty("lambda.example.port", "8085");
         String remoteEndpoint = "http://127.0.0.1:"+remotePort+"/api/event";
@@ -125,7 +124,7 @@ The eventEndpoint is a fully qualified URL. e.g. `http://peer/api/event`
 
 The "rpc" boolean value is set to true so that the response from the service of the peer application instance 
 will be delivered. For drop-n-forget use case, you can set the "rpc" value to false. It will immediately return
-a HTTP-202 response.
+an HTTP-202 response.
 
 ## Advantages
 
@@ -151,7 +150,7 @@ This enforces every incoming request to the Event API endpoint to be authenticat
 before passing to the Event API service. You can plug in your own authentication service such as OAuth 2.0 
 "bearer token" validation.
 
-Please refer to [Chapter-3](CHAPTER-3.md) for details.
+Please refer to [Chapter-3 - REST automation](CHAPTER-3.md) for details.
 <br/>
 
 |          Chapter-6          |                   Home                    |          Chapter-8           |

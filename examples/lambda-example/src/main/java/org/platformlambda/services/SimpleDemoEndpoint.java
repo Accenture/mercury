@@ -38,7 +38,7 @@ public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest,
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) throws Exception {
         if (input.getUrl() == null) {
-            throw new IllegalArgumentException("The input does not appear to be a HTTP request. " +
+            throw new IllegalArgumentException("The input does not appear to be an HTTP request. " +
                     "Please route the request through REST automation");
         }
         // demonstrate simple input validation

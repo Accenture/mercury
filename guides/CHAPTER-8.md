@@ -17,10 +17,10 @@ We will discuss using Kafka as a minimalist service mesh.
 Typically, a service mesh system uses a "side-car" to sit next to the application container in the same POD to provide
 service discovery and network proxy services.
 
-Kafka is a network event stream system. We have implemented libraries for a few "event system connectors" to support
+Kafka is a network event stream system. We have implemented libraries for a few "cloud connectors" to support
 Kafka, Hazelcast and enterprise service bus (ESB) such as TIBCO and ActiveMQ.
 
-Instead of using a side-car proxy, the system will maintain a distributed routing table in each application instance.
+Instead of using a side-car proxy, the system maintains a distributed routing table in each application instance.
 When a function requests the service of another function which is not in the same memory space, the "cloud.connector"
 module will bridge the event to the peer application through a network event system like Kafka.
 
@@ -107,13 +107,12 @@ Presence monitor is resilient. You can run more than one instance to back up eac
 If you are not using Docker or Kubernetes, you need to change the "server.port" parameter of the second instance
 to 8081 so that the two application instances can run in the same laptop.
 
-
 ## Launch the rest-spring-example and lambda-example with kafka
 
 Let's run the rest-spring-example and lambda-example applications with Kafka connector turned on.
 
-For demo purpose, the rest-spring-example and lambda-example are pre-configured with "kafka-connector" and 
-"hazelcast-connector". If you do not need these libraries, please remove them from the pom.xml built script.
+For demo purpose, the rest-spring-example and lambda-example are pre-configured with "kafka-connector". 
+If you do not need these libraries, please remove them from the pom.xml built script.
 
 Since kafka-connector is pre-configured, we can start the two demo applications like this:
 
@@ -172,7 +171,7 @@ ServiceRegistry:383 - hello.pojo (lambda-example,
                                    APP.2023032808d82ebe2c0d4e5aa9ca96b3813bdd25) registered
 ```
 
-This is real-time service discovery coordinated by the kafka-presence monitor application through Kafka.
+This is real-time service discovery coordinated by the "kafka-presence" monitor application.
 
 Now you have created a minimalist event-driven service mesh.
 
@@ -324,7 +323,7 @@ Similarly, you can check the health status of the rest-spring-example applicatio
 It looks similar to the health status of the presence monitor. However, only the presence monitor shows the total
 number of topics because it handles topic issuance to each user application instance.
 
-## Other actuator endpoints
+## Actuator endpoints
 
 Additional actuator endpoints includes:
 
@@ -358,8 +357,7 @@ TopicController:250 - multiplex.0001-001 released by 2023032808d82ebe2c0d4e5aa9c
 When an application instance stops, the presence monitor will detect the event, remove it from the registry and
 release the topic associated with the disconnected application instance.
 
-The presence monitor is using the "presence" feature in websocket for this purpose and that is why we call
-it "presence" monitor.
+The presence monitor is using the "presence" feature in websocket, thus we call it "presence" monitor.
 
 ## Process manager
 
@@ -372,14 +370,14 @@ Sample scripts are available under the "pm2-examples/kafka" folder.
 
 Here are some commands to start and stop applications:
 
-| Usage                         | Command                         | 
-|:------------------------------|:--------------------------------|
-| Start standalone kafka server | pm2 start kafka.json            | 
-| Start kafka presence monitor  | pm2 start presence-monitor.json | 
-| Start REST example            | pm2 start rest-spring-example.json     | 
-| Start lambda example          | pm2 start lambda-example.json   | 
-| Monitor application logs      | pm2 logs                        | 
-| Stop all applications         | pm2 stop all                    | 
+| Usage                         | Command                            | 
+|:------------------------------|:-----------------------------------|
+| Start standalone kafka server | pm2 start kafka.json               | 
+| Start kafka presence monitor  | pm2 start presence-monitor.json    | 
+| Start REST example            | pm2 start rest-spring-example.json | 
+| Start lambda example          | pm2 start lambda-example.json      | 
+| Monitor application logs      | pm2 logs                           | 
+| Stop all applications         | pm2 stop all                       | 
 
 <br/>
 

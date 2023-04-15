@@ -18,7 +18,7 @@ public class MainApp implements EntryPoint {
 }
 ```
 
-In your main application, you will implement the `EntryPoint` interface that creates the "start" method.
+In your main application, you will implement the `EntryPoint` interface to override the "start" method.
 Typically, a main application is used to initiate some application start up procedure.
 
 In some case when your application does not need any start up logic, you can just print a message to indicate
@@ -51,12 +51,12 @@ public class EnvSetup implements EntryPoint {
 ```
 
 The `BeforeApplication` logic will run before your `MainApplication` module. This is useful when you want to do
-special handling of environment variables. For example, decrypt an environment variable secret, construct a X.509
+special handling of environment variables. For example, decrypt an environment variable secret, construct an X.509
 certificate, and save it in the "/tmp" folder before your main application starts.
 
 ## Event envelope
 
-Mercury version 3 is an event-driven engine that encapsulates Eclipse Vertx and Kotlin coroutine and suspend function.
+Mercury version 3 is an event engine that encapsulates Eclipse Vertx and Kotlin coroutine and suspend function.
 
 A composable application is a collection of functions that communicate with each other in events.
 Each event is transported by an event envelope. Let's examine the envelope.
@@ -85,9 +85,9 @@ throw new AppException(400, "My custom error message");
 throw new AppException(400, "My custom error message", ex);
 ```
 
-Example-1 - a simple exception with status code (400) and an error message.
+Example-1 - a simple exception with status code (400) and an error message
 
-Example-2 - includes a nested exception (ex)
+Example-2 - includes a nested exception
 
 As a best practice, we recommend using error codes that are compatible with HTTP status codes.
 
@@ -188,8 +188,8 @@ platform.registerKoltinPrivate("another.suspend.function", new AnotherSuspendFun
 
 ### What is a public function?
 
-A public function is visible by any application instances in the same network. When a function is declared as "public",
-the function is reachable through the EventAPI REST endpoint or a service mesh.
+A public function is visible by any application instances in the same network. When a function is declared as
+"public", the function is reachable through the EventAPI REST endpoint or a service mesh.
 
 A private function is invisible outside the memory space of the application instance that it resides.
 This allows application to encapsulate business logic according to domain boundary. You can assemble closely
@@ -308,7 +308,7 @@ po.sendLater(event, new Date(System.currentTimeMillis() + 5000));
 The first 3 APIs are convenient methods and the system will automatically create an EventEnvelope to hold the
 target route name, key-values and/or event payload.
 
-### Make an asynchronous RPC call to a function
+### Make an asynchronous RPC call
 
 You can make RPC call like this:
 
@@ -332,7 +332,7 @@ response.onSuccess(result -> {
 });
 
 // example-3 with the "rpc" boolean parameter set to true
-Future<EventEnvelope> response = po.asyncRequest(request, 5000, "http://mypeer/api/event", true);
+Future<EventEnvelope> response = po.asyncRequest(request, 5000, "http://peer/api/event", true);
 response.onSuccess(result -> {
     // result is the response event
 });
@@ -341,11 +341,11 @@ response.onFailure(e -> {
 });
 ```
 
-1. Example-1 makes a RPC call with a 5-second timer to "another.function".
+1. Example-1 makes a RPC call with a 5-second timeout to "another.function".
 2. Example-2 sets the "timeoutException" to false, telling system to return timeout exception as a regular event.
-3. Example-3 makes an "event over HTTP" RPC call to "another.function" in another application instance called "mypeer".
+3. Example-3 makes an "event over HTTP" RPC call to "another.function" in another application instance called "peer".
 
-"Event over HTTP" is an important topic. Please refer to [Chapter 7](CHAPTER-7.md)for more details.
+"Event over HTTP" is an important topic. Please refer to [Chapter 7](CHAPTER-7.md) for more details.
 
 ### Perform a fork-n-join RPC call to multiple functions
 
@@ -376,7 +376,7 @@ response.onSuccess(results -> {
 });
 ```
 
-### Make a sequential non-blocking RPC call to a function
+### Make a sequential non-blocking RPC call
 
 You can make a sequential non-blocking RPC call from one function to another. The FastRPC is similar to the PostOffice.
 It is the event manager for KotlinLambdaFunction. You can create an instance of the FastRPC using the "headers"
@@ -387,11 +387,11 @@ val fastRPC = new FastRPC(headers)
 val request = EventEnvelope().setTo("another.function")
                             .setHeader("some_key", "some_value").setBody(somePoJo)
 // example-1
-val response = fastRPC.asyncRequest(request, 5000)
+val response = fastRPC.awaitRequest(request, 5000)
 // handle the response event
 
 // example-2 with the "rpc" boolean parameter set to true
-val response = fastRPC.asyncRequest(request, 5000, "http://peer/api/event", true)
+val response = fastRPC.awaitRequest(request, 5000, "http://peer/api/event", true)
 // handle the response event
 ```
 
@@ -405,7 +405,7 @@ without consuming a lot of CPU resources because it is "suspended" while waiting
 
 ### Perform a sequential non-blocking fork-n-join call to multiple functions
 
-You can make a sequential non-blocking fork-n-join call from one function to another using the FastRPC API like this:
+You can make a sequential non-blocking fork-n-join call using the FastRPC API like this:
 
 ```kotlin
 val fastRPC = FastRPC(headers)
@@ -471,22 +471,21 @@ This is useful when you want to attach transaction specific information in the p
 For example, the traces may be used in production transaction analytics.
 
 > IMPORTANT: do not annotate sensitive or secret information such as PII, PHI, PCI data because 
-             the distributed trace log containing performance metrics and annotations would be 
-             logged by the system. The trace would also be forwarded to a centralized telemetry
-             dashboard. 
+             the trace is visible in application log. It may also be forwarded to a centralized
+             telemetry dashboard. 
 
 ## Minimalist API design for event orchestration
 
 As a best practice, we advocate a minimalist approach in API integration.
-To build powerful composable applications, this small set of APIs shown above is sufficient to perform
+To build powerful composable applications, the above set of APIs is sufficient to perform
 "event orchestration" where you write code to coordinate how the various functions work together as a
 single "executable". Please refer to [Chapter-4](CHAPTER-4.md) for more details about event orchestration. 
 
-Since Mercury is used in production installations, we will exercise the best effort to keep the above API stable.
+Since Mercury is used in production installations, we will exercise the best effort to keep the core API stable.
 
 Other APIs in the toolkits are used internally to build the engine itself, and they may change from time to time.
 They are mostly convenient methods and utilities. The engine is fully encapsulated and any internal API changes
-should not impact your applications.
+are not likely to impact your applications.
 
 ## Optional Event Scripting
 
@@ -499,7 +498,7 @@ Mercury libraries are designed to co-exist with your favorite frameworks and too
 the `LambdaFunction`, `TypedLambdaFunction` or `KotlinLambdaFunction`, you can use any coding style and frameworks
 as you like, including sequential, object-oriented and reactive programming styles.
 
-Mercury has a built-in lightweight non-blocking HTTP server, but you can also use Spring Boot and other
+Mercury version 3 has a built-in lightweight non-blocking HTTP server, but you can also use Spring Boot and other
 application server framework with it.
 
 A sample Spring Boot integration is provided in the "rest-spring" project. It is an optional feature, and you can
@@ -519,8 +518,8 @@ it passes regression tests and meets stability and performance benchmarks in our
 Mercury is developed as an engine for you to build the latest cloud native and composable applications.
 While we are updating the technology frequently, the essential internals and the core APIs are stable.
 
-We are monitoring the progress of the upcoming Java 19 Virtual Thread feature. We are committed to embrace it.
-We will include the feature in our minimalist API set when Java 19 Virtual Thread becomes officially available.
+We are monitoring the progress of the upcoming Java 19 Virtual Thread feature and will include it in our API
+when it becomes officially available.
 
 ## Technical support
 

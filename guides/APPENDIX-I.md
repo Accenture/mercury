@@ -63,21 +63,23 @@ If you add Spring Boot dependency, Spring Boot will use `server.port` to start T
 The built-in lightweight non-blocking HTTP server and Spring Boot can co-exist when you configure
 `rest.server.port` and `server.port` to use different ports.
 
+Note that the `websocket.server.port` parameter is an alias of `rest.server.port`.
+
 # Transient data store
 
 The system handles back-pressure automatically by overflowing events from memory to a transient data store. 
 As a cloud native best practice, the folder must be under "/tmp". The default is "/tmp/reactive". 
-The "running.in.cloud" must be set to false when your apps are running in IDE or in your laptop. 
+The "running.in.cloud" parameter must be set to false when your apps are running in IDE or in your laptop. 
 When running in kubernetes, it can be set to true.
 
-# safe.data.models
+# The safe.data.models parameter
 
 PoJo may contain Java code. As a result, it is possible to inject malicious code that does harm when 
 deserializing a PoJo. This security risk applies to any JSON serialization engine.
 
 For added security and peace of mind, you may want to protect your PoJo package paths.
-When the "safe.data.models" property is configured, the underlying serializers for JAX-RS, Spring RestController and 
-Servlets will respect this setting and enforce PoJo filtering.
+When the `safe.data.models` parameter is configured, the underlying serializers for JAX-RS, Spring RestController
+and Servlets will respect this setting and enforce PoJo filtering.
 
 If there is a genuine need to programmatically perform serialization, you may use the pre-configured serializer 
 so that the serialization behavior is consistent.
@@ -93,13 +95,13 @@ SimpleObjectMapper snakeCaseMapper = SimpleMapper.getInstance().getSnakeCaseMapp
 SimpleObjectMapper camelCaseMapper = SimpleMapper.getInstance().getCamelCaseMapper();
 ```
 
-# trace.http.header
+# The trace.http.header parameter
 
-The `trace.http.header` sets the HTTP header for trace ID. When configured with more than one label, the system will
-retrieve trace ID from the corresponding HTTP header and propagate it through the transaction that may be served by 
-multiple services.
+The `trace.http.header` parameter sets the HTTP header for trace ID. When configured with more than one label,
+the system will retrieve trace ID from the corresponding HTTP header and propagate it through the transaction
+that may be served by multiple services.
 
-If trace ID is presented in a HTTP request, the system will use the same label to set HTTP response traceId header.
+If trace ID is presented in an HTTP request, the system will use the same label to set HTTP response traceId header.
 
 ```text
 X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
@@ -125,7 +127,7 @@ You want also use the embedded config file as a backup like this:
 cloud.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
 ```
 
-# Distributed trace logging
+# Distributed trace
 
 To enable distributed trace logging, please set this in log4j2.xml:
 
