@@ -9,8 +9,8 @@
     <version>3.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Customized Spring Boot container (rest-spring)</name>
-    <description>Preconfigured spring boot with proper serializers, exception handlers and loaders</description>
+    <name>Pre-configured Spring Boot</name>
+    <description>Preconfigured spring boot with JSON/XML serializers and exception handlers</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
