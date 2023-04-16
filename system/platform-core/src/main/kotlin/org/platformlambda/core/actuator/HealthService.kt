@@ -25,7 +25,7 @@ import org.platformlambda.core.system.FastRPC
 import org.platformlambda.core.system.Platform
 import org.platformlambda.core.system.EventEmitter
 import org.platformlambda.core.util.AppConfigReader
-import org.platformlambda.core.util.ManagedCache
+import org.platformlambda.core.util.SimpleCache
 import org.platformlambda.core.util.Utility
 import org.slf4j.LoggerFactory
 import java.io.IOException
@@ -135,7 +135,7 @@ class HealthService : KotlinLambdaFunction<EventEnvelope, Any> {
 
     companion object {
         private val log = LoggerFactory.getLogger(HealthService::class.java)
-        private val cache = ManagedCache.createCache("health.info", 5000)
+        private val cache = SimpleCache.createCache("health.info", 5000)
         private const val TYPE = "type"
         private const val ACCEPT = "accept"
         private const val INFO = "info"

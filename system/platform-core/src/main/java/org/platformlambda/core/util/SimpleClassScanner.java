@@ -30,7 +30,7 @@ import java.util.Set;
 
 public class SimpleClassScanner {
 
-    private static final String[] COMPONENT_SCAN = {"web.component.scan", "cloud.component.scan"};
+    private static final String[] COMPONENT_SCAN = {"web.component.scan"};
     private static final String PLATFORM_LAMBDA = "org.platformlambda";
     private static final String EX_START = "Invalid package path (";
     private static final String EX_END = "). A proper package should have at least one dot character.";

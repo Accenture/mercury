@@ -40,8 +40,8 @@ import java.util.List;
 import java.util.Set;
 
 @Component
-public class WebAppLoader implements ServletContextInitializer {
-    private static final Logger log = LoggerFactory.getLogger(WebAppLoader.class);
+public class WebLoader implements ServletContextInitializer {
+    private static final Logger log = LoggerFactory.getLogger(WebLoader.class);
 
     @Override
     public void onStartup(ServletContext context) {

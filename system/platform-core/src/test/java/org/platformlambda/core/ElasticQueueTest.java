@@ -26,6 +26,7 @@ import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.util.ElasticQueue;
 import org.platformlambda.core.util.ManagedCache;
+import org.platformlambda.core.util.SimpleCache;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -130,7 +131,7 @@ public class ElasticQueueTest {
         // closing again has no effect
         spooler.close();
         // finally, verify if the PoJo class name is cached
-        ManagedCache cache = ManagedCache.getInstance(PayloadMapper.JAVA_CLASS_CACHE);
+        SimpleCache cache = SimpleCache.getInstance(PayloadMapper.JAVA_CLASS_CACHE);
         Assert.assertNotNull(cache);
         Assert.assertTrue(cache.exists(PoJo.class.getName()));
     }

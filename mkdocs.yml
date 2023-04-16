@@ -17,7 +17,7 @@ nav:
     - Appendix-II: guides/APPENDIX-II.md
     - Appendix-III: guides/APPENDIX-III.md
     - Release notes: CHANGELOG.md
-    - Design notes: arch-decisions/DESIGN-NOTES.md      
+    - Design notes: arch-decisions/DESIGN-NOTES.md
     - Inclusivity: INCLUSIVITY.md
     - Code of Conduct: CODE_OF_CONDUCT.md
     - Contribution: CONTRIBUTING.md

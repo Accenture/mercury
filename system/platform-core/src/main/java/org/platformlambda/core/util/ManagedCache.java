@@ -35,9 +35,9 @@ public class ManagedCache {
 
     private static final long DEFAULT_MAX_ITEMS = 2000L;
     private static final long MIN_EXPIRY = 1000L;
-    private static final ConcurrentMap<String, ManagedCache> cacheCollection = new ConcurrentHashMap<>();
-    private static final AtomicInteger initCounter = new AtomicInteger(0);
-    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final ConcurrentMap<String, ManagedCache> COLLECTION = new ConcurrentHashMap<>();
+    private static final AtomicInteger INIT_COUNTER = new AtomicInteger(0);
+    private static final AtomicBoolean NOT_RUNNING = new AtomicBoolean(true);
     private static final long HOUSEKEEPING_INTERVAL = 10 * 60 * 1000L; // 10 minutes
     private final String name;
     private final long expiry;
@@ -52,12 +52,12 @@ public class ManagedCache {
         this.name = name;
         this.expiry = expiryMs;
         this.maxItems = maxItems;
-        if (initCounter.incrementAndGet() == 1) {
+        if (INIT_COUNTER.incrementAndGet() == 1) {
             Platform.getInstance().getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredCache());
             log.info("Housekeeper started");
         }
-        if (initCounter.get() > 10000) {
-            initCounter.set(10);
+        if (INIT_COUNTER.get() > 10000) {
+            INIT_COUNTER.set(10);
         }
     }
 
@@ -89,17 +89,17 @@ public class ManagedCache {
         Cache<String, Object> cache = CacheBuilder.newBuilder().maximumSize(maxItems).expireAfterWrite(expiryTimer, TimeUnit.MILLISECONDS).build();
         // create cache
         managedCache = new ManagedCache(cache, name, expiryTimer, maxItems);
-        cacheCollection.put(name, managedCache);
+        COLLECTION.put(name, managedCache);
         log.info("Created cache ({}), expiry {} ms, maxItems={}", name, expiryTimer, maxItems);
         return managedCache;
     }
 
     public static ManagedCache getInstance(String name) {
-        return cacheCollection.get(name);
+        return COLLECTION.get(name);
     }
 
     public static ConcurrentMap<String, ManagedCache> getCacheCollection() {
-        return cacheCollection;
+        return COLLECTION;
     }
 
     public String getName() {
@@ -173,15 +173,15 @@ public class ManagedCache {
     }
 
     private void removeExpiredCache() {
-        if (housekeeperNotRunning.compareAndSet(true, false)) {
+        if (NOT_RUNNING.compareAndSet(true, false)) {
             Platform.getInstance().getEventExecutor().submit(() -> {
                 try {
-                    for (String key : cacheCollection.keySet()) {
-                        ManagedCache c = cacheCollection.get(key);
+                    COLLECTION.keySet().forEach(k -> {
+                        ManagedCache c = COLLECTION.get(k);
                         c.cleanUp();
-                    }
+                    });
                 } finally {
-                    housekeeperNotRunning.set(true);
+                    NOT_RUNNING.set(true);
                 }
             });
         }

@@ -31,18 +31,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * IMPORTANT: Reserved for internal uses.
+ * e.g. MultipartPayload class for segmentation of large event payload
+ * <p>
  * SimpleCache is a simple ConcurrentHashMap with automatic removal of inactive entries
  * <b>
- * WARNING - You should NOT use this as a regular cache class because its memory consumption would expand without limit.
- * <p>
- * This class is exclusively used by the MultipartPayload class for segmentation of large event payload.
+ * You should NOT use this as a regular cache class because its memory consumption would expand without limit.
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
     private static final long MIN_EXPIRY = 1000;
-    private static final ConcurrentMap<String, SimpleCache> cacheCollection = new ConcurrentHashMap<>();
-    private static final AtomicInteger initCounter = new AtomicInteger(0);
-    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
+    private static final ConcurrentMap<String, SimpleCache> COLLECTION = new ConcurrentHashMap<>();
+    private static final AtomicInteger INIT_COUNTER = new AtomicInteger(0);
+    private static final AtomicBoolean NOT_RUNNING = new AtomicBoolean(true);
     private static final long HOUSEKEEPING_INTERVAL = 30 * 1000L;    // 30 seconds
     private final String name;
     private final long expiry;
@@ -51,12 +52,12 @@ public class SimpleCache {
     private SimpleCache(String name, long expiryMs) {
         this.name = name;
         this.expiry = expiryMs;
-        if (initCounter.incrementAndGet() == 1) {
+        if (INIT_COUNTER.incrementAndGet() == 1) {
             Platform.getInstance().getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredCache());
             log.info("Housekeeper started");
         }
-        if (initCounter.get() > 10000) {
-            initCounter.set(10);
+        if (INIT_COUNTER.get() > 10000) {
+            INIT_COUNTER.set(10);
         }
     }
 
@@ -74,13 +75,13 @@ public class SimpleCache {
         }
         long expiryTimer = Math.max(expiryMs, MIN_EXPIRY);
         simpleCache = new SimpleCache(name, expiryTimer);
-        cacheCollection.put(name, simpleCache);
+        COLLECTION.put(name, simpleCache);
         log.info("Created cache ({}), expiry {} ms", name, expiryTimer);
         return simpleCache;
     }
 
     public static SimpleCache getInstance(String name) {
-        return cacheCollection.get(name);
+        return COLLECTION.get(name);
     }
 
     public void put(String key, Object o) {
@@ -132,12 +133,12 @@ public class SimpleCache {
         log.debug("Cleaning up {}", this.getName());
         // clean up cache
         List<String> expired = new ArrayList<>();
-        for (String k: cache.keySet()) {
+        cache.keySet().forEach(k -> {
             TimedItem item = cache.get(k);
             if (now - item.time > expiry) {
                 expired.add(k);
             }
-        }
+        });
         if (!expired.isEmpty()) {
             for (String k : expired) {
                 remove(k);
@@ -152,15 +153,15 @@ public class SimpleCache {
     }
 
     private void removeExpiredCache() {
-        if (housekeeperNotRunning.compareAndSet(true, false)) {
+        if (NOT_RUNNING.compareAndSet(true, false)) {
             Platform.getInstance().getEventExecutor().submit(() -> {
                 try {
-                    for (String key : cacheCollection.keySet()) {
-                        SimpleCache c = cacheCollection.get(key);
+                    COLLECTION.keySet().forEach(k -> {
+                        SimpleCache c = COLLECTION.get(k);
                         c.cleanUp();
-                    }
+                    });
                 } finally {
-                    housekeeperNotRunning.set(true);
+                    NOT_RUNNING.set(true);
                 }
             });
         }

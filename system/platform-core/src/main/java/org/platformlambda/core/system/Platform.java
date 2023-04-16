@@ -57,7 +57,7 @@ public class Platform {
     private static Vertx vertx;
     private static EventBus system;
     private static ExecutorService executor;
-    private static ManagedCache cache;
+    private static SimpleCache cache;
     private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final Platform INSTANCE = new Platform();
 
@@ -76,7 +76,7 @@ public class Platform {
             int poolSize = Math.max(32, Utility.getInstance().str2int(config.getProperty("event.worker.pool", "100")));
             system = Vertx.vertx().eventBus();
             vertx = Vertx.vertx();
-            cache = ManagedCache.createCache("system.log.cache", 30000);
+            cache = SimpleCache.createCache("system.log.cache", 30000);
             executor = Executors.newWorkStealingPool(poolSize);
             log.info("Event system is configured with a ceiling of {} kernel threads", poolSize);
         }

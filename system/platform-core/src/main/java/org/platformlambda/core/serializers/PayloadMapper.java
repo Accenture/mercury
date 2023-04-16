@@ -20,7 +20,7 @@ package org.platformlambda.core.serializers;
 
 import org.platformlambda.core.models.PoJoList;
 import org.platformlambda.core.models.TypedPayload;
-import org.platformlambda.core.util.ManagedCache;
+import org.platformlambda.core.util.SimpleCache;
 import org.platformlambda.core.util.Utility;
 
 import java.util.*;
@@ -31,9 +31,9 @@ public class PayloadMapper {
     public static final String PRIMITIVE = "P";
     public static final String NOTHING = "N";
     public static final String JAVA_CLASS_CACHE = "java.class.cache";
-    private static final long FIVE_MINUTE = 5 * 60 * 1000L;
+    private static final long FIVE_MINUTES = 5 * 60 * 1000L;
 
-    private static final ManagedCache cache = ManagedCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTE);
+    private static final SimpleCache cache = SimpleCache.createCache(JAVA_CLASS_CACHE, FIVE_MINUTES);
     private static final PayloadMapper PAYLOAD_MAPPER_INSTANCE = new PayloadMapper();
 
     public static PayloadMapper getInstance() {

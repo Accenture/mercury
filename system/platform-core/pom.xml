@@ -23,8 +23,10 @@
         <hazelcast.version>5.1.2</hazelcast.version>
         <kafka.version>3.4.0</kafka.version>
         <gson.version>2.10.1</gson.version>
-        <java.version>1.8</java.version>
+        <slf4j.version>2.0.7</slf4j.version>
+        <log4j2.version>2.20.0</log4j2.version>
         <kotlin.version>1.8.10</kotlin.version>
+        <java.version>1.8</java.version>
     </properties>
 
     <repositories>
@@ -120,9 +122,10 @@
             <artifactId>log4j-web</artifactId>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
         </dependency>
 
         <dependency>
