@@ -7,7 +7,7 @@
     <artifactId>rest-spring-example</artifactId>
     <version>3.0.0</version>
     <packaging>jar</packaging>
-    <name>Composable application example with Spring Boot</name>
+    <name>Spring Boot 2 integration example</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -72,13 +72,6 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.novocode</groupId>
-            <artifactId>junit-interface</artifactId>
-            <version>0.11</version>
             <scope>test</scope>
         </dependency>
 

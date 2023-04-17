@@ -15,7 +15,7 @@
     limitations under the License.
 
  */
-package org.platformlambda.rest.filter;
+package org.platformlambda.rest.filters;
 
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -67,7 +67,8 @@ public class HstsFilter implements Filter {
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest req = (HttpServletRequest) request;
             HttpServletResponse res = (HttpServletResponse) response;
@@ -106,6 +107,5 @@ public class HstsFilter implements Filter {
     public void destroy() {
         // no-op
     }
-
 
 }

@@ -22,7 +22,6 @@ import io.github.classgraph.ClassInfo;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Feature;
 import org.platformlambda.core.util.SimpleClassScanner;
@@ -53,7 +52,6 @@ public class RestLoader implements ServletContextInitializer {
         if (!loaded) {
             // guarantee to do once
             loaded = true;
-            AppStarter.main(new String[0]);
             // initialize mapper to improve start-up time
             log.info("{} initialized", SimpleMapper.getInstance().getClass().getSimpleName());
             // get JAX-RS base URL
@@ -71,7 +69,6 @@ public class RestLoader implements ServletContextInitializer {
             for (String p : packages) {
                 List<ClassInfo> endpoints = scanner.getAnnotatedClasses(p, Path.class);
                 for (ClassInfo info : endpoints) {
-                    log.debug("Scanning {}", info.getName());
                     final Class<?> cls;
                     try {
                         cls = Class.forName(info.getName());
@@ -99,7 +96,6 @@ public class RestLoader implements ServletContextInitializer {
             for (String p : packages) {
                 List<ClassInfo> endpoints = scanner.getAnnotatedClasses(p, Provider.class);
                 for (ClassInfo info  : endpoints) {
-                    log.debug("Scanning {}", info.getName());
                     final Class<?> cls;
                     try {
                         cls = Class.forName(info.getName());

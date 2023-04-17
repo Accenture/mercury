@@ -18,6 +18,7 @@
 
 package org.platformlambda.spring.serializers;
 
+import org.jetbrains.annotations.NotNull;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
@@ -43,28 +44,29 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
     private static final Utility util = Utility.getInstance();
     private static final SimpleXmlWriter map2xml = new SimpleXmlWriter();
     private static final SimpleXmlParser xml = new SimpleXmlParser();
-    private static final MediaType XML = new MediaType("application", "xml", StandardCharsets.UTF_8);
-    private static final List<MediaType> types = Collections.singletonList(XML);
+    private static final MediaType XML_TYPE = new MediaType("application", "xml", StandardCharsets.UTF_8);
+    private static final List<MediaType> types = Collections.singletonList(XML_TYPE);
 
     @Override
-    public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
-        return mediaType != null && XML.getType().equals(mediaType.getType())
-                && XML.getSubtype().equals(mediaType.getSubtype());
+    public boolean canRead(@NotNull Class<?> clazz, @Nullable MediaType mediaType) {
+        return mediaType != null && XML_TYPE.getType().equals(mediaType.getType())
+                && XML_TYPE.getSubtype().equals(mediaType.getSubtype());
     }
 
     @Override
-    public boolean canWrite(Class<?> clazz, MediaType mediaType) {
-        return mediaType != null && XML.getType().equals(mediaType.getType())
-                && XML.getSubtype().equals(mediaType.getSubtype());
+    public boolean canWrite(@NotNull Class<?> clazz, MediaType mediaType) {
+        return mediaType != null && XML_TYPE.getType().equals(mediaType.getType())
+                && XML_TYPE.getSubtype().equals(mediaType.getSubtype());
     }
 
+    @NotNull
     @Override
     public List<MediaType> getSupportedMediaTypes() {
         return types;
     }
 
     @Override
-    public Object read(Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
+    public Object read(@NotNull Class<?> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
         // validate class with white list before loading the input stream
         SimpleMapper.getInstance().getSafeMapper(clazz);
         try {
@@ -76,8 +78,9 @@ public class HttpConverterXml implements HttpMessageConverter<Object> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage) throws HttpMessageNotWritableException, IOException {
-        outputMessage.getHeaders().setContentType(XML);
+    public void write(Object o, MediaType contentType, HttpOutputMessage outputMessage)
+            throws HttpMessageNotWritableException, IOException {
+        outputMessage.getHeaders().setContentType(XML_TYPE);
         // this may be too late to validate because Spring RestController has already got the object
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getSafeMapper(o.getClass().getTypeName());
         OutputStream out = outputMessage.getBody();

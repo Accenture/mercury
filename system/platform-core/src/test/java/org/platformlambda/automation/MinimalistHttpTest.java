@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.platformlambda.automation.util.SimpleHttpRequests;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.mock.MockCloud;
-import org.platformlambda.core.mock.TestBase;
+import org.platformlambda.common.TestBase;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.MultiLevelMap;

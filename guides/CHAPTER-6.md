@@ -219,6 +219,16 @@ by removing the `websocket.server.port` configuration and any websocket service 
 annotation.
 
 To try out the demo websocket server, visit http://127.0.0.1:8083 and select "Websocket demo".
+
+# Spring Boot version 3
+
+The `rest-spring-3` subproject is the pre-configured Spring Boot library. 
+
+There are 2 differences from the `rest-spring` library:
+
+1. Spring WebFlux is added - you can use Flux and Mono with the platform-core 
+2. JAX-RS is removed
+
 <br/>
 
 |               Chapter-5                |                   Home                    |            Chapter-7            |

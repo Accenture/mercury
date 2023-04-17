@@ -23,7 +23,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.core.mock.TestBase;
+import org.platformlambda.common.TestBase;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.EventEmitter;

@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.core.mock;
+package org.platformlambda.common;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;

@@ -48,11 +48,12 @@ public class WebLoader implements ServletContextInitializer {
 
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();
         Set<String> packages = scanner.getPackages(false);
-        int totalServlets = 0, totalFilters = 0, totalListeners = 0;
+        int totalServlets = 0;
+        int totalFilters = 0;
+        int totalListeners = 0;
         for (String p : packages) {
             List<ClassInfo> servletEndpoints = scanner.getAnnotatedClasses(p, WebServlet.class);
             for (ClassInfo info : servletEndpoints) {
-                log.debug("Scanning {}", info.getName());
                 final Class<?> cls;
                 try {
                     cls = Class.forName(info.getName());
@@ -86,7 +87,6 @@ public class WebLoader implements ServletContextInitializer {
             }
             List<ClassInfo> webFilterEndpoints = scanner.getAnnotatedClasses(p, WebFilter.class);
             for (ClassInfo info : webFilterEndpoints) {
-                log.debug("Scanning {}", info.getName());
                 final Class<?> cls;
                 try {
                     cls = Class.forName(info.getName());
@@ -111,7 +111,6 @@ public class WebLoader implements ServletContextInitializer {
             }
             List<ClassInfo> webListenerEndpoints = scanner.getAnnotatedClasses(p, WebListener.class);
             for (ClassInfo info : webListenerEndpoints) {
-                log.debug("Scanning {}", info.getName());
                 final Class<?> cls;
                 try {
                     cls = Class.forName(info.getName());

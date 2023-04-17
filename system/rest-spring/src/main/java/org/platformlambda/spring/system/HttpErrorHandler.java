@@ -60,7 +60,7 @@ public class HttpErrorHandler implements ErrorController {
     private static final String SET_PATH = "${path}";
     private static final String SET_STATUS = "${status}";
     private static final String SET_WARNING = "${warning}";
-    private static String template;
+    private static String templateFile;
 
     @RequestMapping(ERROR_PATH)
     public void handlerError(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -96,8 +96,8 @@ public class HttpErrorHandler implements ErrorController {
 
     public static void sendResponse(HttpServletResponse response, int status, String message, String uri, String accept)
             throws IOException {
-        if (template == null) {
-            template = util.stream2str(HttpErrorHandler.class.getResourceAsStream(TEMPLATE));
+        if (templateFile == null) {
+            templateFile = util.stream2str(HttpErrorHandler.class.getResourceAsStream(TEMPLATE));
         }
         String path = util.getSafeDisplayUri(util.getUrlDecodedPath(uri));
         HashMap<String, Object> error = new HashMap<>();
@@ -121,7 +121,7 @@ public class HttpErrorHandler implements ErrorController {
         response.setCharacterEncoding(UTF8);
         response.setContentType(contentType);
         if (contentType.equals(MediaType.TEXT_HTML)) {
-            String errorPage = template.replace(SET_STATUS, String.valueOf(status))
+            String errorPage = templateFile.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, path)
                     .replace(SET_MESSAGE, message);
             if (status >= 500) {

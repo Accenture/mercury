@@ -67,7 +67,7 @@ public class SimpleClassScanner {
         if (includeBasePackage) {
             result.add(PLATFORM_LAMBDA);
         }
-        // consolidate list from web.component.scan and cloud.component.scan
+        // consolidate list from web.component.scan
         for (String pc: COMPONENT_SCAN) {
             result.addAll(getScanComponents(pc));
         }

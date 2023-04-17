@@ -7,7 +7,7 @@
     <artifactId>platform-core</artifactId>
     <packaging>jar</packaging>
     <version>3.0.0</version>
-    <name>Mercury platform-core library</name>
+    <name>Mercury platform-core module</name>
 
     <!-- Use Spring Boot as a parent to fetch the correct Spring Framework modules -->
     <parent>
@@ -183,13 +183,6 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.novocode</groupId>
-            <artifactId>junit-interface</artifactId>
-            <version>0.11</version>
             <scope>test</scope>
         </dependency>
 

@@ -23,7 +23,7 @@ import io.vertx.core.Promise;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.platformlambda.core.mock.TestBase;
+import org.platformlambda.common.TestBase;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -140,7 +140,7 @@ public class RestEndpointTest extends TestBase {
         req.setMethod("GET");
         req.setHeader("accept", "application/json");
         req.setUrl(uri);
-        req.setQueryParameter("x1", "y");
+        req.setQueryParameter("x1", "y%20");
         List<String> list = new ArrayList<>();
         list.add("a");
         list.add("b");
@@ -151,6 +151,8 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
+        System.out.println(response.getBody());
+
         Assert.assertEquals(404, response.getStatus());
         Assert.assertTrue(response.getBody() instanceof Map);
         Map<String, Object> map = (Map<String, Object>) response.getBody();

@@ -92,12 +92,12 @@ public class RoutingEntry {
     }
 
     public AssignedRoute getRouteInfo(String method, String url) {
-        Utility util = Utility.getInstance();
+       Utility util = Utility.getInstance();
         StringBuilder sb = new StringBuilder();
         List<String> input = util.split(url, "/");
         for (String p: input) {
             sb.append('/');
-            sb.append(p.trim());
+            sb.append(p);
         }
         // do case-insensitive matching for exact URL
         String normalizedUrl = sb.toString().toLowerCase();

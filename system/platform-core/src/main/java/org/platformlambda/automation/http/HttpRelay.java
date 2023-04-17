@@ -255,14 +255,16 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         // normalize URI and query string
         final String uri;
         if (request.getUrl().contains("?")) {
-            int sep = request.getUrl().indexOf('?');
-            uri = request.getUrl().substring(0, sep);
-            String q = request.getUrl().substring(sep+1).trim();
+            // when there are more than one query separator, drop the middle portion.
+            int sep1 = request.getUrl().indexOf('?');
+            int sep2 = request.getUrl().lastIndexOf('?');
+            uri = encodeUri(util.getSafeDisplayUri(request.getUrl().substring(0, sep1)));
+            String q = request.getUrl().substring(sep2+1).trim();
             if (!q.isEmpty()) {
                 request.setQueryString(q);
             }
         } else {
-            uri = request.getUrl();
+            uri = encodeUri(util.getSafeDisplayUri(request.getUrl()));
         }
         // construct target URL
         String qs = request.getQueryString();
@@ -273,10 +275,8 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         String uriWithQuery = uri + (qs == null? "" : "?" + qs);
         po.annotateTrace(DESTINATION, url.getProtocol() + "://" + url.getHost() + ":" + port + uriWithQuery);
         po.annotateTrace(FORWARDER, HTTP_RELAY);
-        // vertx WebClient requires the URI to be URL encoded
-        String encodedUri = URLEncoder.encode(uri, StandardCharsets.UTF_8.name());
         WebClient client = getWebClient(instance, request.isTrustAllCert());
-        HttpRequest<Buffer> http = client.request(httpMethod, port, host, encodedUri).ssl(secure);
+        HttpRequest<Buffer> http = client.request(httpMethod, port, host, uri).ssl(secure);
         if (qs != null) {
             Set<String> keys = new HashSet<>();
             List<String> parts = util.split(qs, "&");
@@ -375,6 +375,17 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
             httpResponse.onSuccess(new HttpResponseHandler(input, queue, request.getTimeoutSeconds()));
             httpResponse.onFailure(new HttpExceptionHandler(input, queue));
         }
+    }
+
+    private String encodeUri(String uri) throws UnsupportedEncodingException {
+        Utility util = Utility.getInstance();
+        List<String> parts = util.split(uri, "/");
+        StringBuilder sb = new StringBuilder();
+        for (String p: parts) {
+            sb.append('/');
+            sb.append(URLEncoder.encode(p, "UTF-8").replace("+", "%20"));
+        }
+        return sb.length() > 0? sb.toString() : "/";
     }
 
     private void handleUpload(EventEnvelope input, OutputStreamQueue queue,

@@ -66,15 +66,15 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
     private static final String NOT_AUTHORIZED_EXCEPTION = "NotAuthorizedException";
     private static final String NOT_AVAILABLE_EXCEPTION = "ServiceUnavailableException";
 
-    private static String template;
+    private static String templateFile;
 
     @Context
     private HttpServletRequest request;
 
     @Override
     public Response toResponse(Throwable exception) {
-        if (template == null) {
-            template = util.stream2str(RestExceptionHandler.class.getResourceAsStream(TEMPLATE));
+        if (templateFile == null) {
+            templateFile = util.stream2str(RestExceptionHandler.class.getResourceAsStream(TEMPLATE));
         }
         String path = util.getSafeDisplayUri(util.getUrlDecodedPath(request.getRequestURI()));
         Throwable ex = util.getRootCause(exception);
@@ -164,7 +164,7 @@ public class RestExceptionHandler implements ExceptionMapper<Throwable> {
         if (contentType.equals(MediaType.TEXT_HTML)) {
             Response.ResponseBuilder htmlError = Response.status(status);
             htmlError.header(CONTENT_TYPE, MediaType.TEXT_HTML + CHARSET_UTF);
-            String errorPage = template.replace(SET_STATUS, String.valueOf(status))
+            String errorPage = templateFile.replace(SET_STATUS, String.valueOf(status))
                     .replace(SET_PATH, path)
                     .replace(SET_MESSAGE, errorMessage);
             if (status >= 500) {

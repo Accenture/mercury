@@ -18,6 +18,7 @@
 
 package org.platformlambda.spring.serializers;
 
+import org.jetbrains.annotations.NotNull;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleObjectMapper;
 import org.platformlambda.core.util.Utility;
@@ -42,24 +43,26 @@ public class HttpConverterHtml implements HttpMessageConverter<Object> {
     private static final List<MediaType> types = Collections.singletonList(HTML_CONTENT);
 
     @Override
-    public boolean canRead(Class<?> clazz, @Nullable MediaType mediaType) {
+    public boolean canRead(@NotNull Class<?> clazz, @Nullable MediaType mediaType) {
         return mediaType != null && HTML_CONTENT.getType().equals(mediaType.getType())
                 && (HTML_CONTENT.getSubtype().equals(mediaType.getSubtype()));
     }
 
     @Override
-    public boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType) {
+    public boolean canWrite(@NotNull Class<?> clazz, @Nullable MediaType mediaType) {
         return mediaType != null && HTML_CONTENT.getType().equals(mediaType.getType())
                 && (HTML_CONTENT.getSubtype().equals(mediaType.getSubtype()));
     }
 
+    @NotNull
     @Override
     public List<MediaType> getSupportedMediaTypes() {
         return types;
     }
 
+    @NotNull
     @Override
-    public Object read(Class<?> clazz, HttpInputMessage inputMessage)
+    public Object read(@NotNull Class<?> clazz, HttpInputMessage inputMessage)
             throws HttpMessageNotReadableException, IOException {
         return util.getUTF(util.stream2bytes(inputMessage.getBody(), false));
     }

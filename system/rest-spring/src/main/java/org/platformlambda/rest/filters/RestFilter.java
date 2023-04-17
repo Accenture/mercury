@@ -16,7 +16,7 @@
 
  */
 
-package org.platformlambda.rest.services;
+package org.platformlambda.rest.filters;
 
 import org.platformlambda.core.util.AppConfigReader;
 
@@ -38,7 +38,7 @@ public class RestFilter implements ContainerResponseFilter {
     private static final String TRANSPORT_SECURITY_KEY = "Strict-Transport-Security";
     private static final String TRANSPORT_SECURITY_VALUE = "max-age=31536000; includeSubDomains";
     private static boolean loaded = false;
-    private static Boolean hstsRequired;
+    private static boolean hstsRequired = true;
 
     public RestFilter() {
         if (!loaded) {

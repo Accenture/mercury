@@ -14,8 +14,9 @@ Java 19 virtual thread feature becomes officially available.
 
 ### Added
 
-1. Updated function execution engine supporting kernel thread pool, Kotlin coroutine and suspend function
+1. Function execution engine supporting kernel thread pool, Kotlin coroutine and suspend function
 2. "Event over HTTP" service for inter-container communication
+3. Support for Spring Boot version 3 and WebFlux
 
 ### Removed
 
