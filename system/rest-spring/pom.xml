@@ -99,17 +99,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>com.fasterxml</groupId>
-            <artifactId>classmate</artifactId>
-            <version>1.5.1</version>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxrs -->
         <!-- DO NOT import resteasy-servlet-initializer because RestLoader will do the initialization -->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jaxrs</artifactId>
-            <version>3.15.3.Final</version>
+            <version>3.15.6.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jboss.spec.javax.servlet</groupId>
