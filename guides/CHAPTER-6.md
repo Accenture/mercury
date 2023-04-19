@@ -30,7 +30,7 @@ foundation code to load the event-listener functions into memory before Spring B
 
 ## Use the rest-spring library in your application
 
-You can the `rest-spring-2` or `rest-spring-3` library to your application and turn it into a pre-configured
+You can add the `rest-spring-2` or `rest-spring-3` library in your application and turn it into a pre-configured
 Spring Boot 2 or 3 application.
 
 The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
