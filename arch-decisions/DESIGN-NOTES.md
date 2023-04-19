@@ -81,8 +81,11 @@ You may also use the platform-core with Spring Boot or other frameworks.
 
 ### Customized Spring Boot
 
-The `rest-spring-example` project demonstrates the use of the `rest-spring` library to build a Spring Boot
-executable. The `rest-spring` is a convenient library with customized Spring Boot serializers and exception handlers.
+The `rest-spring-2-example` project demonstrates the use of the `rest-spring-2` library to build a Spring Boot 2
+executable. The `rest-spring-2` is a convenient library with customized Spring Boot serializers and exception handlers.
+
+A corresponding library and example application for Spring Boot version 3 is `rest-spring-3` and
+`rest-spring-3-example`.
 
 ### Regular Spring Boot
 

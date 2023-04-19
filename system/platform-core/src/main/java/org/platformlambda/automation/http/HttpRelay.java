@@ -118,6 +118,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
             log.info("Temporary work directory {} created", tempDir);
         }
         if (initCounter.incrementAndGet() == 1) {
+            ServiceGateway.initialize();
             Platform.getInstance().getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> removeExpiredFiles());
             log.info("Housekeeper started");
         }

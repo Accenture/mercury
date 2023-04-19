@@ -47,7 +47,7 @@ java -Dapi.playground.apps=another_location -jar api-playground-3.0.0.jar
 
 ## How this application is created?
 
-1. This application is created using "mercury/examples/rest-spring-example" as a template
+1. This application is created using "mercury/examples/rest-spring-2-example" as a template
 2. Clone https://github.com/swagger-api/swagger-ui
 3. Copy content from its "dist" folder to the "resources/swagger-ui" folder
 4. Remove all *.js.map files from the "swagger-ui" folder

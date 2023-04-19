@@ -50,6 +50,7 @@ public class ServiceGateway {
 
     private static final CryptoApi crypto = new CryptoApi();
     private static final SimpleXmlParser xmlReader = new SimpleXmlParser();
+    private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final String HTTP_REQUEST = "http.request";
     private static final String AUTH_HANDLER = "http.auth.handler";
     private static final String CONTENT_TYPE = "Content-Type";
@@ -83,8 +84,12 @@ public class ServiceGateway {
     private static String resourceFolder;
 
     public ServiceGateway() {
-        Platform platform = Platform.getInstance();
-        if (!platform.hasRoute(AUTH_HANDLER)) {
+        initialize();
+    }
+
+    public static void initialize() {
+        if (initCounter.incrementAndGet() == 1) {
+            Platform platform = Platform.getInstance();
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             List<String> labels = util.split(config.getProperty("trace.http.header"), ", ");
@@ -93,7 +98,7 @@ public class ServiceGateway {
             }
             defaultTraceIdLabel = labels.get(0);
             traceIdLabels = labels;
-            log.info("HTTP trace headers {}", traceIdLabels);
+            log.info("Initialized with HTTP trace headers {}", traceIdLabels);
             String folder = config.getProperty("spring.web.resources.static-locations",
                     config.getProperty("static.html.folder", "classpath:/public"));
             if (folder.startsWith(CLASSPATH)) {

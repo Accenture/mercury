@@ -17,6 +17,7 @@
  */
 package com.accenture.rest;
 
+import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.util.Utility;
@@ -63,13 +64,13 @@ public class GreetingController {
 			EventEnvelope req = new EventEnvelope().setTo("hello.world").setBody(value);
 			try {
 				po.asyncRequest(req, 5000)
-						.onSuccess(event -> {
-							if (event.getBody() instanceof Map map) {
-								Greeting data = new Greeting(counter.incrementAndGet(), map);
-								callback.success(ResponseEntity.status(event.getStatus()).body(data));
-							}
-						})
-						.onFailure(callback::error);
+					.onSuccess(event -> {
+						if (event.getBody() instanceof Map map) {
+							Greeting data = new Greeting(counter.incrementAndGet(), map);
+							callback.success(ResponseEntity.status(event.getStatus()).body(data));
+						}
+					})
+					.onFailure(ex -> callback.error(new AppException(408, ex.getMessage())));
 			} catch (IOException e) {
 				callback.error(e);
 			}

@@ -91,8 +91,6 @@ as a single application.
 The individual functions become the building block for a composable application. We can mix-n-match different
 sets of functions to address different business use cases.
 
-"Event" is the key for composable application.
-
 # Event is the communication conduit
 
 Cloud native applications are deployed as containers or serverless functions. Ideally, they communicate using events.

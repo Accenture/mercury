@@ -5,8 +5,8 @@ application into an executable Spring Boot application.
 
 There are two ways to do that:
 
-1. Add dependency for Spring Boot version 2.7.10 and implement your Spring Boot main application
-2. Add the `rest-spring` add-on library for a pre-configured Spring Boot experience
+1. Add dependency for Spring Boot version 2.7.10 (or version 3.0.5) and implement your Spring Boot main application
+2. Add the `rest-spring-2` or `rest-spring-3` add-on library for a pre-configured Spring Boot experience
 
 ## Add platform-core to an existing Spring Boot application
 
@@ -30,7 +30,8 @@ foundation code to load the event-listener functions into memory before Spring B
 
 ## Use the rest-spring library in your application
 
-You can the `rest-spring` library to your application and turn it into a pre-configured Spring Boot application.
+You can the `rest-spring-2` or `rest-spring-3` library to your application and turn it into a pre-configured
+Spring Boot 2 or 3 application.
 
 The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
 built-in lightweight non-blocking HTTP server.
@@ -87,11 +88,11 @@ rest.automation=true
 
 The platform-core and Spring Boot will use `rest.server.port` and `server.port` respectively.
 
-## The rest-spring-example demo application
+## The rest-spring-2-example demo application
 
-Let's review the `rest-spring-example` demo application in the "examples/rest-spring-example" project.
+Let's review the `rest-spring-2-example` demo application in the "examples/rest-spring-2-example" project.
 
-You can use the rest-spring-example as a template to create a Spring Boot application.
+You can use the rest-spring-2-example as a template to create a Spring Boot application.
 
 In addition to the REST automation engine that let you create REST endpoints by configuration, you can also
 programmatically create REST endpoints with the following approaches:
@@ -212,7 +213,7 @@ public class WsEchoDemo implements LambdaFunction {
 
 The above creates a websocket service at the URL "/ws/hello" server endpoint.
 
-Please review the example code in the WsEchoDemo class in the rest-spring-example project for details.
+Please review the example code in the WsEchoDemo class in the rest-spring-2-example project for details.
 
 If you want to use Spring Boot's Tomcat websocket server, you can disable the non-blocking websocket server feature
 by removing the `websocket.server.port` configuration and any websocket service classes with the `WebSocketService`
@@ -222,12 +223,9 @@ To try out the demo websocket server, visit http://127.0.0.1:8083 and select "We
 
 # Spring Boot version 3
 
-The `rest-spring-3` subproject is the pre-configured Spring Boot library. 
+The `rest-spring-3` subproject is a pre-configured Spring Boot 3 library. 
 
-There are 2 differences from the `rest-spring` library:
-
-1. Spring WebFlux is added - you can use Flux and Mono with the platform-core 
-2. JAX-RS is removed
+In "rest-spring-3", Spring WebFlux replaces JAX-RS as the asynchronous HTTP servlet engine.
 
 <br/>
 

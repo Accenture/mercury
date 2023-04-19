@@ -47,11 +47,11 @@ java -jar target/lambda-example-3.0.0.jar
 Second, build and run the rest-spring-example application.
 
 ```shell
-cd examples/rest-spring-example
-java -jar target/rest-spring-example-3.0.0.jar
+cd examples/rest-spring-example-2
+java -jar target/rest-spring-2-example-3.0.0.jar
 ```
 
-The rest-spring-example application will run as a Spring Boot application in port 8083 and 8086.
+The rest-spring-2-example application will run as a Spring Boot application in port 8083 and 8086.
 
 These two applications will start independently.
 

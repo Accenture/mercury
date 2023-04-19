@@ -11,7 +11,7 @@ It is automatically built when you run `mvn clean install` at project root.
 # Enabling Hazelcast connector for your microservices application
 
 Include this dependency in the pom.xml of your application:
-```
+```xml
 <dependency>
     <groupId>org.platformlambda</groupId>
     <artifactId>hazelcast-connector</artifactId>
@@ -20,7 +20,7 @@ Include this dependency in the pom.xml of your application:
 ```
 
 In the application.properties config file in the application's resources folder:
-```java
+```text
 cloud.connector=hazelcast
 ```
 
@@ -31,7 +31,7 @@ The config file is called "presence.properties". To override this default, you c
 presence.properties in the resources folder of your project or put the config file under "/tmp/config"
 in the machine that runs the application.
 
-```
+```properties
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
 ```
 
@@ -42,7 +42,7 @@ The config file is called "hazelcast.properties". To override this default, you 
 new hazelcast.properties in the resources folder of your project or put the config file under "/tmp/config"
 in the machine that runs the application.
 
-```
+```properties
 bootstrap.servers=127.0.0.1:5701
 ```
 

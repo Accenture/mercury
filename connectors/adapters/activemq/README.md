@@ -12,11 +12,11 @@ It is automatically built when you run `mvn clean install` at project root.
 
 # Enabling activemq connector for your microservices application
 
-The cloud-connector for activemq is provided as a reference. It is not included in pom.xml files of the 
-rest-spring-example and lambda-example. To use the rest-spring-example and lambda-example as templates to write apps that
+The cloud-connector for activemq is provided as a reference. It is not included in pom.xml files of the lambda-example,
+rest-spring-2-example and rest-spring-3-example. To use the sample applications as templates to write apps that
 use the activemq cloud connector, please update your pom.xml with this dependency.
 
-```
+```xml
 <dependency>
     <groupId>org.platformlambda</groupId>
     <artifactId>activemq-connector</artifactId>
@@ -25,7 +25,7 @@ use the activemq cloud connector, please update your pom.xml with this dependenc
 ```
 
 In the application.properties config file in the application's resources folder:
-```java
+```text
 cloud.connector=activemq
 ```
 
@@ -36,7 +36,7 @@ The config file is called "presence.properties". To override this default, you c
 presence.properties in the resources folder of your project or put the config file under "/tmp/config" in 
 the machine that runs the application.
 
-```
+```properties
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
 ```
 
@@ -47,7 +47,7 @@ The config file is called "activemq.properties". To override this default, you c
 new activemq.properties in the resources folder of your project or put the config file under "/tmp/config" 
 in the machine that runs the application.
 
-```
+```properties
 bootstrap.servers=tcp://127.0.0.1:61616
 user.id=user
 user.password=
@@ -76,7 +76,7 @@ instances to clear routing tables for the failed application instance.
 
 You can build the presence monitor like this:
 
-```
+```text
 cd activemq-presence
 mvn clean package
 ```
@@ -89,7 +89,7 @@ ActiveMQ artemis server is available from https://activemq.apache.org/components
 
 You can create a new instance like this:
 
-```
+```text
 $ cd apache-artemis-2.17.0/bin
 $ ./artemis create mercury
 Creating ActiveMQ Artemis instance at: C:\sandbox\apache-artemis-2.17.0\bin\mercury
@@ -98,4 +98,4 @@ Creating ActiveMQ Artemis instance at: C:\sandbox\apache-artemis-2.17.0\bin\merc
 For development and testing, please select anonymous access.
 
 If you do not select anonymous access, please update the application.properties of the activemq-presence,
-lambda-example and rest-spring-example projects to update the user and admin ID and passwords.
+lambda-example, rest-spring-2-example and rest-spring-3 projects to update the user and admin ID and passwords.

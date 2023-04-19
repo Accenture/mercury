@@ -8,10 +8,10 @@
             "-Dcloud.connector=kafka",
             "-Dmandatory.health.dependencies=cloud.connector.health",
             "-jar",
-            "examples/rest-spring-example/target/rest-spring-example-3.0.0.jar"
+            "examples/rest-spring-2-example/target/rest-spring-2-example-3.0.0.jar"
         ],
         "watch":[
-            "examples/rest-spring-example/target/rest-spring-example-3.0.0.jar"
+            "examples/rest-spring-2-example/target/rest-spring-2-example-3.0.0.jar"
         ],
         "node_args":[], 
         "exec_interpreter":"",

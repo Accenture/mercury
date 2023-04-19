@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 3.0.0, 4/10/2023
+## Version 3.0.0, 4/18/2023
 
 This is a major release with some breaking changes. Please refer to Chapter-10 (Migration guide) for details.
 This version brings the best of preemptive and cooperating multitasking to Java (version 1.8 to 19) before
@@ -17,6 +17,7 @@ Java 19 virtual thread feature becomes officially available.
 1. Function execution engine supporting kernel thread pool, Kotlin coroutine and suspend function
 2. "Event over HTTP" service for inter-container communication
 3. Support for Spring Boot version 3 and WebFlux
+4. Sample code for a pre-configured Spring Boot 3 application
 
 ### Removed
 

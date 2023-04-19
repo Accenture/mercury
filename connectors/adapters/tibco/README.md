@@ -10,7 +10,7 @@ Since this library requires external TIBCO library dependencies, it is not autom
 
 You may build the library for the tibco-connector manually.
 
-```
+```text
 cd tibco-connector
 mvn clean install
 ```
@@ -20,11 +20,13 @@ using `mvn clean install`
 
 # Enabling tibco connector for your microservices application
 
-The cloud-connector for Tibco is provided as a reference. It is not included in pom.xml files of the rest-spring-example
-and lambda-example. To use the rest-spring-example and lambda-example as templates to write apps that use the Tibco cloud
-connector, please update your pom.xml with this dependency.
 
-```
+
+The cloud-connector for Tibco is provided as a reference. It is not included in pom.xml files of the lambda-example,
+rest-spring-2-example and rest-spring-3-example. To use the sample applications as templates to write apps that use
+the Tibco cloud connector, please update your pom.xml with this dependency.
+
+```xml
 <dependency>
     <groupId>org.platformlambda</groupId>
     <artifactId>tibco-connector</artifactId>
@@ -33,7 +35,7 @@ connector, please update your pom.xml with this dependency.
 ```
 
 In the application.properties config file in the application's resources folder:
-```java
+```text
 cloud.connector=tibco
 ```
 
@@ -44,7 +46,7 @@ The config file is called "presence.properties". To override this default, you c
 presence.properties in the resources folder of your project or put the config file under "/tmp/config"
 in the machine that runs the application.
 
-```
+```properties
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
 ```
 
@@ -55,7 +57,7 @@ The config file is called "tibco.properties". To override this default, you can 
 new tibco.properties in the resources folder of your project or put the config file under "/tmp/config"
 in the machine that runs the application.
 
-```
+```properties
 #
 # bootstrap.servers contains a comma separated domain or IP address with port
 # tcp:// or ssl://
@@ -98,7 +100,7 @@ instances to clear routing tables for the failed application instance.
 
 You can build the presence monitor like this:
 
-```
+```text
 cd tibco-presence
 mvn clean package
 ```
@@ -115,7 +117,7 @@ tibco library files into your local ".m2" repository. Do not mix-n-match with ot
 This setup procedure assumes TIBCO EMS 8.6.0 with JMS 2.0. Please modify the version numbers if you download
 a different TIBCO release.
 
-```
+```text
 jms-2.0.jar
 tibjms.jar
 tibjmsadmin.jar
@@ -131,7 +133,6 @@ mvn install:install-file -Dfile=tibjms.jar -DgroupId=com.tibco.ems -DartifactId=
 mvn install:install-file -Dfile=tibjmsadmin.jar -DgroupId=com.tibco.ems 
     -DartifactId=tibjms-admin -Dversion=8.6.0 -Dpackaging=jar
 ```
-
 
 # Tibco server license
 

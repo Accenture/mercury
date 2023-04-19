@@ -11,7 +11,7 @@ It is automatically built when you run `mvn clean install` at project root.
 # Enabling Kafka connector for your microservices application
 
 Include this dependency in the pom.xml of your application:
-```
+```xml
 <dependency>
     <groupId>org.platformlambda</groupId>
     <artifactId>kafka-connector</artifactId>
@@ -20,7 +20,7 @@ Include this dependency in the pom.xml of your application:
 ```
 
 In the application.properties config file in the application's resources folder:
-```java
+```text
 cloud.connector=kafka
 ```
 
@@ -31,7 +31,7 @@ The config file is called "presence.properties". To override this default, you c
 presence.properties in the resources folder of your project or put the config file under "/tmp/config"
 in the machine that runs the application.
 
-```
+```properties
 url=ws://127.0.0.1:8080/ws/presence,ws://127.0.0.1:8081/ws/presence
 ```
 
@@ -41,7 +41,7 @@ The default configuration for kafka is available in the kafka-connector's resour
 is called "kafka.properties". To override this default, you can either create a new kafka.properties in the
 resources folder of your project or put the config file under "/tmp/config" in the machine that runs the application.
 
-```
+```properties
 #security.protocol=SASL_SSL
 #sasl.mechanism=PLAIN
 #sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username={CHANGE_THIS} password={CHANGE_THIS};

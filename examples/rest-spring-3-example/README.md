@@ -1,0 +1,9 @@
+# Customized Spring Boot application with platform-core
+
+This example project folder contains an example application that use the rest-spring-3 library and platform-core
+together to generate a Spring Boot application.
+
+The rest-spring-3 library is a customized Spring Boot 3 application server. It is provided as a convenient and unified
+way to build Spring Boot application that is composable. 
+
+This is optional. You can add the platform-core library to a regular Spring Boot application if you prefer.
