@@ -35,7 +35,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 
 @Path("/pojo")
 public class HelloPoJoEventOverHttp {
