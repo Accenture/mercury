@@ -52,7 +52,7 @@ public class TopicManager implements LambdaFunction {
     private final Map<String, String> preAllocatedTopics;
     private AdminClient admin;
     private long lastAccess = 0;
-    private int count = 0;
+    private int processed = 0;
     private int seq = 0;
 
     public TopicManager(Properties baseProperties, String cloudManager) throws IOException {
@@ -82,11 +82,11 @@ public class TopicManager implements LambdaFunction {
         if (admin != null) {
             try {
                 admin.close();
-                log.info("AdminClient-{} closed, processed: {}", seq, count);
+                log.info("AdminClient-{} closed, processed: {}", seq, processed);
             } catch (Exception e) {
                 // ok to ignore
             }
-            count = 0;
+            processed = 0;
             admin = null;
         }
     }
@@ -144,11 +144,11 @@ public class TopicManager implements LambdaFunction {
         lastAccess = System.currentTimeMillis();
         DescribeTopicsResult topicMetadata = admin.describeTopics(Collections.singletonList(topic));
         try {
-            Map<String, TopicDescription> result = topicMetadata.all().get();
-            count++;
+            Map<String, TopicDescription> result = topicMetadata.allTopicNames().get();
+            processed++;
             if (!result.isEmpty()) {
-                for (String k: result.keySet()) {
-                    TopicDescription desc = result.get(k);
+                Collection<TopicDescription> topics = result.values();
+                for (TopicDescription desc: topics) {
                     if (desc.name().equals(topic)) {
                         return desc.partitions().size();
                     }
@@ -207,7 +207,7 @@ public class TopicManager implements LambdaFunction {
                 CreateTopicsResult createTask = admin.createTopics(
                         Collections.singletonList(new NewTopic(topic, partitionCount, (short) replication)));
                 createTask.all().get();
-                count++;
+                processed++;
                 // check if creation is successful
                 boolean found = false;
                 // try a few times due to eventual consistency
@@ -250,7 +250,7 @@ public class TopicManager implements LambdaFunction {
             DeleteTopicsResult deleteTask = admin.deleteTopics(Collections.singletonList(topic));
             try {
                 deleteTask.all().get();
-                count++;
+                processed++;
                 // check if removal is successful
                 // try a few times due to eventual consistency
                 boolean found = false;
@@ -283,7 +283,7 @@ public class TopicManager implements LambdaFunction {
         List<String> result = new ArrayList<>();
         ListTopicsResult list = admin.listTopics();
         try {
-            count++;
+            processed++;
             return new ArrayList<>(list.names().get());
         } catch (InterruptedException | ExecutionException e) {
             log.error("Unable to list topics - {}", e.getMessage());

@@ -21,7 +21,8 @@ Java 19 virtual thread feature becomes officially available.
 
 ### Removed
 
-Remove blocking APIs
+1. Remove blocking APIs from platform-core
+2. Retire PM2 process manager sample script due to compatibility issue
 
 ### Changed
 

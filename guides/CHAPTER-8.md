@@ -117,13 +117,13 @@ If you do not need these libraries, please remove them from the pom.xml built sc
 
 Since kafka-connector is pre-configured, we can start the two demo applications like this:
 
-```shell
+```text
 cd examples/rest-spring-2-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
      -jar target/rest-spring-2-example-3.0.0.jar
 ```
 
-```shell
+```text
 cd examples/lambda-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
      -jar target/lambda-example-3.0.0.jar
@@ -359,26 +359,6 @@ When an application instance stops, the presence monitor will detect the event, 
 release the topic associated with the disconnected application instance.
 
 The presence monitor is using the "presence" feature in websocket, thus we call it "presence" monitor.
-
-## Process manager
-
-For development and testing, it would be convenient to manage applications from a process manager.
-
-If you have Docker and Kubernetes in your laptop, you can deploy them in containers.
-
-If not, you may consider using Node.js "PM2" process manager. PM2 can manage Java applications.
-Sample scripts are available under the "pm2-examples/kafka" folder.
-
-Here are some commands to start and stop applications:
-
-| Usage                         | Command                            | 
-|:------------------------------|:-----------------------------------|
-| Start standalone kafka server | pm2 start kafka.json               | 
-| Start kafka presence monitor  | pm2 start presence-monitor.json    | 
-| Start REST example            | pm2 start rest-spring-example.json | 
-| Start lambda example          | pm2 start lambda-example.json      | 
-| Monitor application logs      | pm2 logs                           | 
-| Stop all applications         | pm2 stop all                       | 
 
 <br/>
 

@@ -6,25 +6,27 @@ This server application must be run before executing the benchmark client tests
 
 The benchmark client and server communicate over the Kafka event stream system.
 
-You may start a standalone kafka server and a presence monitor using the "pm2-examples/kafka" folder.
+You may start a standalone kafka server and a presence monitor like this:
 
-Start them as follows:
+From one command terminal
 
-```agsl
-pm2 start kafka.json
-pm2 start presence-monitor.json
+```text
+cd sandbox/connector/adapters/kafka/kafka-standalone
+java -jar target/kafka-standalone-3.0.0.jar
 ```
 
-Note that "pm2" requires node.js. Please refer to https://www.npmjs.com/package/pm2 for instruction to install pm2.
+From another command terminal
 
-If you prefer to start kafka and presence monitor manually. You may go to their respective sub-project folders
-and start the application using a command line terminal.
+```text
+cd sandbox/connector/adapters/kafka/kafka-presence
+java -jar target/kafka-presence-3.0.0.jar
+```
 
 # Running the benchmark server
 
 do this
 
-```agsl
+```text
 mvn clean package
 java -jar target/benchmark-server-3.0.0.jar
 ```
