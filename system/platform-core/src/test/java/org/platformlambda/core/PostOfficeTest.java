@@ -1003,10 +1003,12 @@ public class PostOfficeTest extends TestBase {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         long TIMEOUT = 3000;
         int NUMBER_THREE = 3;
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
         PostOffice po = new PostOffice("unit.test", "123", "TEST /remote/event");
         EventEnvelope event = new EventEnvelope().setTo("hello.world")
                 .setBody(NUMBER_THREE).setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT,
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
@@ -1055,7 +1057,7 @@ public class PostOfficeTest extends TestBase {
         PostOffice po = new PostOffice("unit.test", "1230", "TEST /remote/event/large");
         EventEnvelope event = new EventEnvelope();
         event.setTo("hello.world").setBody(PAYLOAD).setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT,
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
         // add 500 ms to the bench to capture HTTP-408 response if any
@@ -1106,7 +1108,7 @@ public class PostOfficeTest extends TestBase {
         PostOffice po = new PostOffice("unit.test", "12002", "TEST /remote/event/oneway");
         EventEnvelope event = new EventEnvelope();
         event.setTo("hello.world").setBody(NUMBER_THREE).setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT,
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
                 "http://127.0.0.1:"+port+"/api/event", false);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);

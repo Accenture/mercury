@@ -240,6 +240,7 @@ public class PostOffice {
      *
      * @param event to be sent to a peer application instance
      * @param timeout to abort the request
+     * @param headers optional security headers such as "Authorization"
      * @param eventEndpoint fully qualified URL such as http://domain:port/api/event
      * @param rpc if true, the target service will return a response.
      *            Otherwise, a response with status=202 will be returned to indicate that the event will be delivered.
@@ -247,8 +248,9 @@ public class PostOffice {
      * @throws IOException in case of routing error
      */
     public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout,
+                                              Map<String, String> headers,
                                               String eventEndpoint, boolean rpc) throws IOException {
-        return po.asyncRequest(touch(event), timeout, eventEndpoint, rpc);
+        return po.asyncRequest(touch(event), timeout, headers, eventEndpoint, rpc);
     }
 
     /**

@@ -34,6 +34,8 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 
 @Path("/pojo")
 public class HelloPoJoEventOverHttp {
@@ -48,7 +50,8 @@ public class HelloPoJoEventOverHttp {
         String traceId = Utility.getInstance().getUuid();
         PostOffice po = new PostOffice("hello.pojo.endpoint", traceId, "GET /api/pojo/http");
         EventEnvelope req = new EventEnvelope().setTo("hello.pojo").setHeader("id", id);
-        Future<EventEnvelope> res = po.asyncRequest(req, 5000, remoteEndpoint, true);
+        // to add security header(s) such as "Authorization", replace the empty map with some key-values
+        Future<EventEnvelope> res = po.asyncRequest(req, 5000, Collections.emptyMap(), remoteEndpoint, true);
         res.onSuccess(event -> {
             // confirm that the PoJo object is transported correctly over the event stream system
             if (event.getBody() instanceof SamplePoJo) {

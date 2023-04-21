@@ -649,6 +649,7 @@ public class EventEmitter {
      *
      * @param event to be sent to a peer application instance
      * @param timeout to abort the request
+     * @param headers optional security headers such as "Authorization"
      * @param eventEndpoint fully qualified URL such as http://domain:port/api/event
      * @param rpc if true, the target service will return a response.
      *            Otherwise, the response has a status of 202 to indicate that the event is delivered.
@@ -656,6 +657,7 @@ public class EventEmitter {
      * @throws IOException in case of routing error
      */
     public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout,
+                                              Map<String, String> headers,
                                               String eventEndpoint, boolean rpc) throws IOException {
         if (event == null) {
             throw new IllegalArgumentException(MISSING_EVENT);
@@ -672,6 +674,10 @@ public class EventEmitter {
         req.setHeader(X_TIMEOUT, String.valueOf(Math.max(100L, timeout)));
         if (!rpc) {
             req.setHeader(X_ASYNC, "true");
+        }
+        // optional HTTP request headers
+        for (Map.Entry<String, String> kv: headers.entrySet()) {
+            req.setHeader(kv.getKey(), kv.getValue());
         }
         // make a drop-n-forget call to the remote target service
         // propagate trace-ID if any

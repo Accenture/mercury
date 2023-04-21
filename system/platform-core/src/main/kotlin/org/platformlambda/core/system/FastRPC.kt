@@ -116,6 +116,7 @@ class FastRPC(headers: Map<String, String>) {
      *
      * @param request to be sent to a peer application instance
      * @param timeout to abort the request
+     * @param headers optional security headers such as "Authorization"
      * @param eventEndpoint fully qualified URL such as http://domain:port/api/event
      * @param rpc if true, the target service will return a response.
      *            Otherwise, a response with status=202 will be returned to indicate that the event will be delivered.
@@ -123,7 +124,9 @@ class FastRPC(headers: Map<String, String>) {
      * @throws IOException in case of routing error
      */
     @Throws(IOException::class)
-    suspend fun awaitRequest(request: EventEnvelope, timeout: Long, eventEndpoint: String, rpc: Boolean): EventEnvelope {
+    suspend fun awaitRequest(request: EventEnvelope, timeout: Long,
+                             headers: Map<String, String>,
+                             eventEndpoint: String, rpc: Boolean): EventEnvelope {
         requireNotNull(request.to) { EventEmitter.MISSING_ROUTING_PATH }
         val url = URL(eventEndpoint)
         val req = AsyncHttpRequest()
@@ -138,6 +141,11 @@ class FastRPC(headers: Map<String, String>) {
         // propagate trace-ID if any
         if (request.traceId != null) {
             req.setHeader(X_TRACE_ID, request.traceId)
+        }
+        // optional HTTP request headers
+        // optional HTTP request headers
+        for ((key, value) in headers) {
+            req.setHeader(key, value)
         }
         req.setUrl(url.path)
         req.setTargetHost(getTargetFromUrl(url))

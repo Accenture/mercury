@@ -79,7 +79,7 @@ public class RestEndpointTest extends TestBase {
         EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope();
         event.setTo(DEMO_FUNCTION).setBody("ok").setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT,
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);

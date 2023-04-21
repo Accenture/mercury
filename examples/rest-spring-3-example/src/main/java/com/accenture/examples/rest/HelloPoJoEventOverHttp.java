@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @RestController
 public class HelloPoJoEventOverHttp {
@@ -44,7 +45,8 @@ public class HelloPoJoEventOverHttp {
         EventEnvelope req = new EventEnvelope().setTo("hello.pojo").setHeader("id", id);
         return Mono.create(callback -> {
             try {
-                po.asyncRequest(req, 5000, remoteEndpoint, true)
+                // to add security header(s) such as "Authorization", replace the empty map with some key-values
+                po.asyncRequest(req, 5000, Collections.emptyMap(), remoteEndpoint, true)
                     .onSuccess(event -> {
                         // confirm that the PoJo object is transported correctly over the event stream system
                         if (event.getBody() instanceof SamplePoJo result) {

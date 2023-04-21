@@ -90,7 +90,7 @@ public class HelloPoJoEventOverHttp {
         String traceId = Utility.getInstance().getUuid();
         PostOffice po = new PostOffice("hello.pojo.endpoint", traceId, "GET /api/pojo/http");
         EventEnvelope req = new EventEnvelope().setTo("hello.pojo").setHeader("id", id);
-        Future<EventEnvelope> res = po.asyncRequest(req, 5000, remoteEndpoint, true);
+        Future<EventEnvelope> res = po.asyncRequest(req, 5000, Collections.emptyMap(), remoteEndpoint, true);
         res.onSuccess(event -> {
             // confirm that the PoJo object is transported correctly over the event stream system
             if (event.getBody() instanceof SamplePoJo) {
@@ -110,6 +110,7 @@ The method signatures of the Event API is shown as follows:
 
 ```java
 public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout,
+                                          Map<String, String> headers,
                                           String eventEndpoint, boolean rpc) throws IOException;
 ```
 
@@ -117,8 +118,11 @@ public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeou
 
 ```kotlin
 suspend fun awaitRequest(request: EventEnvelope?, timeout: Long, 
-                         eventEndpoint: String, rpc: Boolean): EventEnvelope
+                          headers: Map<String, String>,
+                          eventEndpoint: String, rpc: Boolean): EventEnvelope
 ```
+
+Optionally, you may add security headers in the "headers" argument. e.g. the "Authorization" header.
 
 The eventEndpoint is a fully qualified URL. e.g. `http://peer/api/event`
 

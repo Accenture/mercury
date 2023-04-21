@@ -23,6 +23,7 @@ import org.platformlambda.core.models.EventEnvelope
 import org.platformlambda.core.models.KotlinLambdaFunction
 import org.platformlambda.core.system.FastRPC
 import org.platformlambda.core.util.Utility
+import java.util.HashMap
 
 @PreLoad(route="event.api.forwarder", instances=10)
 class EventApiForwarder: KotlinLambdaFunction<EventEnvelope, Any> {
@@ -33,7 +34,9 @@ class EventApiForwarder: KotlinLambdaFunction<EventEnvelope, Any> {
         val rpc = "true" == headers["rpc"]
         val endpoint = headers["endpoint"]
         if (endpoint != null && input.body is ByteArray) {
-            return fastRPC.awaitRequest(EventEnvelope(input.body as ByteArray), timeout, endpoint, rpc)
+            val securityHeaders: MutableMap<String, String> = HashMap()
+            securityHeaders["Authorization"] = "demo"
+            return fastRPC.awaitRequest(EventEnvelope(input.body as ByteArray), timeout, securityHeaders, endpoint, rpc)
         } else {
             throw IllegalArgumentException("Invalid request")
         }
