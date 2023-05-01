@@ -29,7 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 
 public class ServiceQueue {
     private static final Logger log = LoggerFactory.getLogger(ServiceQueue.class);
@@ -45,7 +47,8 @@ public class ServiceQueue {
     private final String readyPrefix;
     private final String streamRoute;
     private final EventBus system;
-    private final ConcurrentLinkedQueue<String> pool = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<String> fifo = new ConcurrentLinkedQueue<>();
+    private final ConcurrentMap<String, Boolean> idx = new ConcurrentHashMap<>();
     private final List<WorkerQueues> workers = new ArrayList<>();
     private MessageConsumer<Object> consumer;
     private boolean buffering = true;
@@ -97,7 +100,7 @@ public class ServiceQueue {
     }
 
     public int getFreeWorkers() {
-        return pool.size();
+        return idx.size();
     }
 
     public long getReadCounter() {
@@ -133,9 +136,10 @@ public class ServiceQueue {
                 String worker = getWorker((String) body);
                 if (worker != null && !stopped) {
                     // Just for the safe side, this guarantees that a unique worker is inserted
-                    if (!pool.contains(worker)) {
-                        pool.offer(worker);
-                    }
+                    idx.computeIfAbsent(worker, d -> {
+                        fifo.offer(worker);
+                        return true;
+                    });
                     if (buffering) {
                         byte[] event = elasticQueue.read();
                         if (event == null) {
@@ -144,8 +148,9 @@ public class ServiceQueue {
                             elasticQueue.close();
                         } else {
                             // Guarantees that there is an available worker
-                            String nextWorker = pool.poll();
+                            String nextWorker = fifo.poll();
                             if (nextWorker != null) {
+                                idx.remove(nextWorker);
                                 system.send(nextWorker, event);
                             }
                         }
@@ -160,15 +165,16 @@ public class ServiceQueue {
                         elasticQueue.write(event);
                     } else {
                         // Check if a next worker is available
-                        String nextWorker = pool.peek();
+                        String nextWorker = fifo.peek();
                         if (nextWorker == null) {
                             // Start persistent queue when no workers are available
                             buffering = true;
                             elasticQueue.write(event);
                         } else {
                             // Deliver event to the next worker
-                            nextWorker = pool.poll();
+                            nextWorker = fifo.poll();
                             if (nextWorker != null) {
+                                idx.remove(nextWorker);
                                 system.send(nextWorker, event);
                             }
                         }
