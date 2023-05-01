@@ -56,7 +56,7 @@ public class WorkerHandler {
     private static final String EXCEPTION = "exception";
     private static final String ASYNC = "async";
     private static final String ANNOTATIONS = "annotations";
-    private static final String UNDELIVERED = "undelivered";
+    private static final String REMARK = "remark";
     private static final String JOURNAL = "journal";
     private static final String RPC = "rpc";
     private static final String DELIVERED = "delivered";
@@ -94,9 +94,6 @@ public class WorkerHandler {
         TraceInfo trace = po.stopTracing(ref);
         if (tracing && trace != null && trace.id != null && trace.path != null) {
             try {
-                if (!ps.isDelivered()) {
-                    trace.annotate(UNDELIVERED, ps.getDeliveryError());
-                }
                 boolean journaled = po.isJournaled(def.getRoute());
                 if (journaled || rpc == null || !ps.isDelivered()) {
                     // Send tracing information to distributed trace logger
@@ -119,6 +116,9 @@ public class WorkerHandler {
                     if (!ps.isSuccess()) {
                         metrics.put(STATUS, ps.getStatus());
                         metrics.put(EXCEPTION, ps.getException());
+                    }
+                    if (!ps.isDelivered()) {
+                        metrics.put(REMARK, "Response not delivered - "+ps.getDeliveryError());
                     }
                     payload.put(TRACE, metrics);
                     dt.setHeader(DELIVERED, ps.isDelivered());

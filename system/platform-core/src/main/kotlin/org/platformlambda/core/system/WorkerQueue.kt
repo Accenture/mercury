@@ -93,9 +93,6 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
             val trace = po.stopTracing(ref)
             if (tracing && trace != null && trace.id != null && trace.path != null) {
                 try {
-                    if (!ps.isDelivered) {
-                        trace.annotate(UNDELIVERED, ps.deliveryError)
-                    }
                     val journaled = po.isJournaled(def.route)
                     if (journaled || rpc == null || !ps.isDelivered) {
                         // Send tracing information to distributed trace logger
@@ -118,6 +115,9 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                         if (!ps.isSuccess) {
                             metrics[STATUS] = ps.status
                             metrics[EXCEPTION] = ps.exception
+                        }
+                        if (!ps.isDelivered) {
+                            metrics[REMARK] = "Response not delivered - " + ps.deliveryError
                         }
                         payload[TRACE] = metrics
                         dt.setHeader(DELIVERED, ps.isDelivered)
@@ -421,7 +421,7 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
         private const val EXCEPTION = "exception"
         private const val ASYNC = "async"
         private const val ANNOTATIONS = "annotations"
-        private const val UNDELIVERED = "undelivered"
+        private const val REMARK = "remark"
         private const val JOURNAL = "journal"
         private const val RPC = "rpc"
         private const val DELIVERED = "delivered"
