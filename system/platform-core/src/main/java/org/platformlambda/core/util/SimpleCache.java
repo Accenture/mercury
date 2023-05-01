@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * SimpleCache is a simple ConcurrentHashMap with automatic removal of inactive entries
  * <b>
- * You should NOT use this as a regular cache class because its memory consumption would expand without limit.
+ * Please use the ManagedCache for regular caching use cases
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
@@ -129,8 +129,8 @@ public class SimpleCache {
     }
 
     public void cleanUp() {
-        long now = System.currentTimeMillis();
         log.debug("Cleaning up {}", this.getName());
+        long now = System.currentTimeMillis();
         // clean up cache
         List<String> expired = new ArrayList<>();
         cache.keySet().forEach(k -> {
@@ -139,12 +139,8 @@ public class SimpleCache {
                 expired.add(k);
             }
         });
-        if (!expired.isEmpty()) {
-            for (String k : expired) {
-                remove(k);
-            }
-            log.info("Total {} item{} expired, remaining: {}",
-                    expired.size(), expired.size() == 1? "" : "s", cache.size());
+        for (String k : expired) {
+            remove(k);
         }
     }
 
