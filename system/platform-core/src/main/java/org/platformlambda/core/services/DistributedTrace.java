@@ -44,6 +44,8 @@ public class DistributedTrace implements TypedLambdaFunction<EventEnvelope, Void
     private static final String TRACE = "trace";
     private static final String ANNOTATIONS = "annotations";
     private static final String JOURNAL = "journal";
+    private static final String RPC = "rpc";
+    private static final String DELIVERED = "delivered";
     private static final String FROM = "from";
     private static final String SERVICE = "service";
     private static final String ORIGIN_SUFFIX = "@" + Platform.getInstance().getOrigin();
@@ -52,23 +54,31 @@ public class DistributedTrace implements TypedLambdaFunction<EventEnvelope, Void
     @Override
     public Void handleEvent(Map<String, String> headers, EventEnvelope input, int instance) {
         if (input.getRawBody() instanceof Map) {
+            boolean delivered = "true".equals(headers.getOrDefault(DELIVERED, "true"));
+            boolean rpc = "true".equals(headers.getOrDefault(RPC, "false"));
+            boolean journaled = "true".equals(headers.getOrDefault(JOURNAL, "false"));
             Platform platform = Platform.getInstance();
             EventEmitter po = EventEmitter.getInstance();
-            Map<String, Object> body = (Map<String, Object>) input.getRawBody();
-            Map<String, String> metrics = input.getHeaders();
-            String service = metrics.get(SERVICE);
-            String from = metrics.get(FROM);
+            Map<String, Object> payload = (Map<String, Object>) input.getRawBody();
+            Map<String, Object> metrics = (Map<String, Object>) payload.getOrDefault(TRACE, Collections.emptyMap());
+            if (metrics.isEmpty()) {
+                return null;
+            }
+            Map<String, String> annotations = (Map<String, String>) payload.getOrDefault(ANNOTATIONS, Collections.emptyMap());
+            String service = (String) metrics.get(SERVICE);
+            String from = (String) metrics.get(FROM);
             if (service != null && service.contains("@")) {
                 metrics.put(SERVICE, trimOrigin(service));
             }
             if (from != null && from.contains("@")) {
                 metrics.put(FROM, trimOrigin(from));
             }
-            Map<String, Object> kv = (Map<String, Object>) body.getOrDefault(ANNOTATIONS, Collections.emptyMap());
-            if (kv.isEmpty()) {
-                log.info("trace={}", metrics);
-            } else {
-                log.info("trace={}, annotations={}", metrics, kv);
+            if (!delivered || !rpc) {
+                if (annotations.isEmpty()) {
+                    log.info("trace={}", metrics);
+                } else {
+                    log.info("trace={}, annotations={}", metrics, annotations);
+                }
             }
             /*
              *
@@ -88,29 +98,26 @@ public class DistributedTrace implements TypedLambdaFunction<EventEnvelope, Void
              * 2. distributed.trace.forwarder and/or transaction.journal.recorder must be bundled
              *    in the same application executable.
              */
-            if (body.containsKey(JOURNAL) && platform.hasRoute(TRANSACTION_JOURNAL_RECORDER)) {
+            if (journaled && payload.containsKey(JOURNAL) && platform.hasRoute(TRANSACTION_JOURNAL_RECORDER)) {
                 EventEnvelope event = new EventEnvelope().setTo(TRANSACTION_JOURNAL_RECORDER);
-                Map<String, Object> data = new HashMap<>();
-                data.put(JOURNAL, body.get(JOURNAL));
-                data.put(TRACE, metrics);
-                if (!kv.isEmpty()) {
-                    data.put(ANNOTATIONS, kv);
-                }
+                Map<String, Object> forward = new HashMap<>();
+                forward.put(TRACE, metrics);
+                forward.put(JOURNAL, payload.get(JOURNAL));
+                forward.put(ANNOTATIONS, annotations);
                 try {
-                    po.send(event.setBody(data));
+                    po.send(event.setBody(forward));
                 } catch (IOException e) {
                     log.warn("Unable to relay journal to {} - {}", TRANSACTION_JOURNAL_RECORDER, e.getMessage());
                 }
             }
-            if (platform.hasRoute(DISTRIBUTED_TRACE_FORWARDER)) {
+            // filter out duplicated metrics if RPC
+            if (platform.hasRoute(DISTRIBUTED_TRACE_FORWARDER) && (!delivered || !rpc)) {
                 EventEnvelope event = new EventEnvelope().setTo(DISTRIBUTED_TRACE_FORWARDER);
-                Map<String, Object> data = new HashMap<>();
-                data.put(TRACE, metrics);
-                if (!kv.isEmpty()) {
-                    data.put(ANNOTATIONS, kv);
-                }
+                Map<String, Object> forward = new HashMap<>();
+                forward.put(TRACE, metrics);
+                forward.put(ANNOTATIONS, annotations);
                 try {
-                    po.send(event.setBody(data));
+                    po.send(event.setBody(forward));
                 } catch (IOException e) {
                     log.warn("Unable to relay trace metrics to {} - {}", DISTRIBUTED_TRACE_FORWARDER, e.getMessage());
                 }

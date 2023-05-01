@@ -96,27 +96,34 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                     if (!ps.isDelivered) {
                         trace.annotate(UNDELIVERED, ps.deliveryError)
                     }
-                    if (rpc == null || !ps.isDelivered) {
+                    val journaled = po.isJournaled(def.route)
+                    if (journaled || rpc == null || !ps.isDelivered) {
                         // Send tracing information to distributed trace logger
-                        val dt = EventEnvelope()
+                        val dt = EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING)
                         val payload: MutableMap<String, Any> = HashMap()
                         payload[ANNOTATIONS] = trace.annotations
                         // send input/output dataset to journal if configured in journal.yaml
-                        if (po.isJournaled(def.route)) {
+                        if (journaled) {
                             payload[JOURNAL] = ps.inputOutput
                         }
-                        dt.setTo(EventEmitter.DISTRIBUTED_TRACING).body = payload
-                        dt.setHeader(ORIGIN, myOrigin)
-                        dt.setHeader(ID, trace.id).setHeader("path", trace.path)
-                        dt.setHeader(SERVICE, def.route).setHeader("start", trace.startTime)
-                        dt.setHeader(SUCCESS, ps.isSuccess)
-                        dt.setHeader(STATUS, event.status)
-                        dt.setHeader(FROM, if (event.from == null) "unknown" else event.from)
-                        dt.setHeader(EXEC_TIME, ps.executionTime)
+                        val metrics: MutableMap<String, Any> = HashMap()
+                        metrics[ORIGIN] = myOrigin
+                        metrics[ID] = trace.id
+                        metrics[PATH] = trace.path
+                        metrics[SERVICE] = def.route
+                        metrics[START] = trace.startTime
+                        metrics[SUCCESS] = ps.isSuccess
+                        metrics[FROM] = if (event.from == null) UNKNOWN else event.from
+                        metrics[EXEC_TIME] = ps.executionTime
                         if (!ps.isSuccess) {
-                            dt.setHeader(STATUS, ps.status).setHeader(EXCEPTION, ps.exception)
+                            metrics[STATUS] = ps.status
+                            metrics[EXCEPTION] = ps.exception
                         }
-                        po.send(dt)
+                        payload[TRACE] = metrics
+                        dt.setHeader(DELIVERED, ps.isDelivered)
+                        dt.setHeader(RPC, rpc != null)
+                        dt.setHeader(JOURNAL, journaled)
+                        po.send(dt.setBody(payload))
                     }
                 } catch (e: Exception) {
                     log.error("Unable to send to " + EventEmitter.DISTRIBUTED_TRACING, e)
@@ -392,6 +399,10 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
         private val log = LoggerFactory.getLogger(WorkerQueue::class.java)
         private const val TYPE = "type"
         private const val ID = "id"
+        private const val PATH = "path"
+        private const val START = "start"
+        private const val UNKNOWN = "unknown"
+        private const val TRACE = "trace"
         private const val SUCCESS = "success"
         private const val FROM = "from"
         private const val EXEC_TIME = "exec_time"
@@ -412,6 +423,8 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
         private const val ANNOTATIONS = "annotations"
         private const val UNDELIVERED = "undelivered"
         private const val JOURNAL = "journal"
+        private const val RPC = "rpc"
+        private const val DELIVERED = "delivered"
         private const val MY_ROUTE = "my_route"
         private const val MY_TRACE_ID = "my_trace_id"
         private const val MY_TRACE_PATH = "my_trace_path"

@@ -34,8 +34,10 @@ public class WorkerHandler {
     private static final Utility util = Utility.getInstance();
     private static final String TYPE = "type";
     private static final String ID = "id";
+    private static final String PATH = "path";
     private static final String SUCCESS = "success";
     private static final String FROM = "from";
+    private static final String UNKNOWN = "unknown";
     private static final String EXEC_TIME = "exec_time";
     private static final String TIME = "time";
     private static final String APP = "app";
@@ -44,6 +46,8 @@ public class WorkerHandler {
     private static final String MESSAGE = "message";
     private static final String ORIGIN = "origin";
     private static final String SERVICE = "service";
+    private static final String START = "start";
+    private static final String TRACE = "trace";
     private static final String INPUT = "input";
     private static final String OUTPUT = "output";
     private static final String HEADERS = "headers";
@@ -54,6 +58,8 @@ public class WorkerHandler {
     private static final String ANNOTATIONS = "annotations";
     private static final String UNDELIVERED = "undelivered";
     private static final String JOURNAL = "journal";
+    private static final String RPC = "rpc";
+    private static final String DELIVERED = "delivered";
     private static final String MY_ROUTE = "my_route";
     private static final String MY_TRACE_ID = "my_trace_id";
     private static final String MY_TRACE_PATH = "my_trace_path";
@@ -91,26 +97,34 @@ public class WorkerHandler {
                 if (!ps.isDelivered()) {
                     trace.annotate(UNDELIVERED, ps.getDeliveryError());
                 }
-                if (rpc == null || !ps.isDelivered()) {
+                boolean journaled = po.isJournaled(def.getRoute());
+                if (journaled || rpc == null || !ps.isDelivered()) {
                     // Send tracing information to distributed trace logger
-                    EventEnvelope dt = new EventEnvelope();
+                    EventEnvelope dt = new EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING);
                     Map<String, Object> payload = new HashMap<>();
                     payload.put(ANNOTATIONS, trace.annotations);
                     // send input/output dataset to journal if configured in journal.yaml
-                    if (po.isJournaled(def.getRoute())) {
+                    if (journaled) {
                         payload.put(JOURNAL, ps.getInputOutput());
                     }
-                    dt.setTo(EventEmitter.DISTRIBUTED_TRACING).setBody(payload);
-                    dt.setHeader(ORIGIN, myOrigin);
-                    dt.setHeader(ID, trace.id).setHeader("path", trace.path);
-                    dt.setHeader(SERVICE, def.getRoute()).setHeader("start", trace.startTime);
-                    dt.setHeader(SUCCESS, ps.isSuccess());
-                    dt.setHeader(FROM, event.getFrom() == null ? "unknown" : event.getFrom());
-                    dt.setHeader(EXEC_TIME, ps.getExecutionTime());
+                    Map<String, Object> metrics = new HashMap<>();
+                    metrics.put(ORIGIN, myOrigin);
+                    metrics.put(ID, trace.id);
+                    metrics.put(PATH, trace.path);
+                    metrics.put(SERVICE, def.getRoute());
+                    metrics.put(START, trace.startTime);
+                    metrics.put(SUCCESS, ps.isSuccess());
+                    metrics.put(FROM, event.getFrom() == null ? UNKNOWN : event.getFrom());
+                    metrics.put(EXEC_TIME, ps.getExecutionTime());
                     if (!ps.isSuccess()) {
-                        dt.setHeader(STATUS, ps.getStatus()).setHeader(EXCEPTION, ps.getException());
+                        metrics.put(STATUS, ps.getStatus());
+                        metrics.put(EXCEPTION, ps.getException());
                     }
-                    po.send(dt);
+                    payload.put(TRACE, metrics);
+                    dt.setHeader(DELIVERED, ps.isDelivered());
+                    dt.setHeader(RPC, rpc != null);
+                    dt.setHeader(JOURNAL, journaled);
+                    po.send(dt.setBody(payload));
                 }
             } catch (Exception e) {
                 log.error("Unable to send to " + EventEmitter.DISTRIBUTED_TRACING, e);
@@ -119,7 +133,7 @@ public class WorkerHandler {
             if (!ps.isDelivered()) {
                 log.error("Delivery error - {}, from={}, to={}, type={}, exec_time={}",
                         ps.getDeliveryError(),
-                        event.getFrom() == null? "unknown" : event.getFrom(), event.getTo(),
+                        event.getFrom() == null? UNKNOWN : event.getFrom(), event.getTo(),
                         ps.isSuccess()? "response" : "exception("+ps.getStatus()+", "+ps.getException()+")",
                         ps.getExecutionTime());
             }

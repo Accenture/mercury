@@ -22,10 +22,7 @@ import io.vertx.core.Vertx
 import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.Message
 import io.vertx.kotlin.coroutines.receiveChannelHandler
-import org.platformlambda.core.models.AsyncHttpRequest
-import org.platformlambda.core.models.EventEnvelope
-import org.platformlambda.core.models.NonBlockingInbox
-import org.platformlambda.core.models.TargetRoute
+import org.platformlambda.core.models.*
 import org.platformlambda.core.util.Utility
 import org.platformlambda.core.websocket.common.MultipartPayload
 import org.slf4j.LoggerFactory
@@ -273,9 +270,7 @@ class FastRPC(headers: Map<String, String>) {
 
     private fun sendTrace(result: EventEnvelope,
                           start: String, from: String, to: String, traceId: String, tracePath: String) {
-        val traceExtra: MutableMap<String, Any> = HashMap()
         val annotations: MutableMap<String, Any> = HashMap()
-        traceExtra[ANNOTATIONS] = annotations
         // decode trace annotations from reply event
         val headers: MutableMap<String, String> = result.headers
         if (headers.containsKey(UNDERSCORE)) {
@@ -295,19 +290,24 @@ class FastRPC(headers: Map<String, String>) {
             }
         }
         try {
+            val payload: MutableMap<String, Any> = HashMap()
+            val metrics: MutableMap<String, Any> = HashMap()
+            metrics["origin"] = Platform.getInstance().origin
+            metrics["id"] = traceId
+            metrics["service"] = to
+            metrics["from"] = from
+            metrics["exec_time"] = result.executionTime
+            metrics["round_trip"] = result.roundTrip
+            metrics["success"] = true
+            metrics["status"] = result.status
+            metrics["start"] = start
+            metrics["path"] = tracePath
+            payload["trace"] = metrics
+            if (annotations.isNotEmpty()) {
+                payload[ANNOTATIONS] = annotations
+            }
             val dt = EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING)
-                .setBody(traceExtra)
-                .setHeader("origin", Platform.getInstance().origin)
-                .setHeader("id", traceId)
-                .setHeader("service", to)
-                .setHeader("from", from)
-                .setHeader("exec_time", result.executionTime)
-                .setHeader("round_trip", result.roundTrip)
-                .setHeader("success", true)
-                .setHeader("status", result.status)
-                .setHeader("start", start)
-                .setHeader("path", tracePath)
-            EventEmitter.getInstance().send(dt)
+            EventEmitter.getInstance().send(dt.setBody(payload))
         } catch (e: Exception) {
             log.error(FAIL_TO_SEND + EventEmitter.DISTRIBUTED_TRACING, e)
         }

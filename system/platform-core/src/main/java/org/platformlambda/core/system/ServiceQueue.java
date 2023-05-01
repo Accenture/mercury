@@ -130,9 +130,12 @@ public class ServiceQueue {
         public void handle(Message<Object> message) {
             Object body = message.body();
             if (body instanceof String) {
-                String sender = getWorker((String) body);
-                if (sender != null && !stopped) {
-                    pool.offer(sender);
+                String worker = getWorker((String) body);
+                if (worker != null && !stopped) {
+                    // Just for the safe side, this guarantees that a unique worker is inserted
+                    if (!pool.contains(worker)) {
+                        pool.offer(worker);
+                    }
                     if (buffering) {
                         byte[] event = elasticQueue.read();
                         if (event == null) {
@@ -141,9 +144,9 @@ public class ServiceQueue {
                             elasticQueue.close();
                         } else {
                             // Guarantees that there is an available worker
-                            String next = pool.poll();
-                            if (next != null) {
-                                system.send(next, event);
+                            String nextWorker = pool.poll();
+                            if (nextWorker != null) {
+                                system.send(nextWorker, event);
                             }
                         }
                     }
@@ -156,16 +159,17 @@ public class ServiceQueue {
                         // Once elastic queue is started, we will continue buffering.
                         elasticQueue.write(event);
                     } else {
-                        String next = pool.peek();
-                        if (next == null) {
+                        // Check if a next worker is available
+                        String nextWorker = pool.peek();
+                        if (nextWorker == null) {
                             // Start persistent queue when no workers are available
                             buffering = true;
                             elasticQueue.write(event);
                         } else {
-                            // Guarantees that there is an available worker
-                            next = pool.poll();
-                            if (next != null) {
-                                system.send(next, event);
+                            // Deliver event to the next worker
+                            nextWorker = pool.poll();
+                            if (nextWorker != null) {
+                                system.send(nextWorker, event);
                             }
                         }
                     }

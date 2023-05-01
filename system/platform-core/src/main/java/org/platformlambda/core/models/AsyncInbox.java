@@ -122,9 +122,7 @@ public class AsyncInbox extends InboxBase {
                 // adjust precision to 3 decimal points
                 float roundTrip = Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff)));
                 reply.setRoundTrip(roundTrip);
-                Map<String, Object> traceExtra = new HashMap<>();
                 Map<String, Object> annotations = new HashMap<>();
-                traceExtra.put(ANNOTATIONS, annotations);
                 // decode trace annotations from reply event
                 Map<String, String> headers = reply.getHeaders();
                 if (headers.containsKey(UNDERSCORE)) {
@@ -148,19 +146,24 @@ public class AsyncInbox extends InboxBase {
                 });
                 if (to != null && holder.traceId != null && holder.tracePath != null) {
                     try {
-                        EventEnvelope dt = new EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING)
-                                .setBody(traceExtra)
-                                .setHeader("origin", Platform.getInstance().getOrigin())
-                                .setHeader("id", holder.traceId)
-                                .setHeader("service", to)
-                                .setHeader("from", holder.from)
-                                .setHeader("exec_time", reply.getExecutionTime())
-                                .setHeader("round_trip", roundTrip)
-                                .setHeader("success", true)
-                                .setHeader("status", reply.getStatus())
-                                .setHeader("start", start)
-                                .setHeader("path", holder.tracePath);
-                        EventEmitter.getInstance().send(dt);
+                        Map<String, Object> payload = new HashMap<>();
+                        Map<String, Object> metrics = new HashMap<>();
+                        metrics.put("origin", Platform.getInstance().getOrigin());
+                        metrics.put("id", holder.traceId);
+                        metrics.put("service", to);
+                        metrics.put("from", holder.from);
+                        metrics.put("exec_time", reply.getExecutionTime());
+                        metrics.put("round_trip", roundTrip);
+                        metrics.put("success", true);
+                        metrics.put("status", reply.getStatus());
+                        metrics.put("start", start);
+                        metrics.put("path", holder.tracePath);
+                        payload.put("trace", metrics);
+                        if (!annotations.isEmpty()) {
+                            payload.put(ANNOTATIONS, annotations);
+                        }
+                        EventEnvelope dt = new EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING);
+                        EventEmitter.getInstance().send(dt.setBody(payload));
                     } catch (Exception e) {
                         log.error("Unable to send to " + EventEmitter.DISTRIBUTED_TRACING, e);
                     }

@@ -21,12 +21,12 @@ package org.platformlambda.core;
 import io.vertx.core.Future;
 import org.junit.Assert;
 import org.junit.Test;
+import org.platformlambda.common.TestBase;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.exception.AppException;
-import org.platformlambda.common.TestBase;
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.EventEmitter;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServiceDef;
 import org.platformlambda.core.util.AppConfigReader;
@@ -515,17 +515,17 @@ public class PostOfficeTest extends TestBase {
         String TRANSACTION_JOURNAL_RECORDER = "transaction.journal.recorder";
         BlockingQueue<Map<String, Object>> bench = new ArrayBlockingQueue<>(1);
         Platform platform = Platform.getInstance();
-        String TRACE_ID = Utility.getInstance().getUuid();
         String FROM = "unit.test";
         String HELLO = "hello";
         String WORLD = "world";
         String RETURN_VALUE = "some_value";
         String MY_FUNCTION = "my.test.function";
+        String traceId = Utility.getInstance().getUuid();
         LambdaFunction f = (headers, input, instance) -> {
             // guarantee that this function has received the correct trace and journal
             Map<String, Object> trace = (Map<String, Object>) input;
             MultiLevelMap map = new MultiLevelMap(trace);
-            if (TRACE_ID.equals(map.getElement("trace.id"))) {
+            if (traceId.equals(map.getElement("trace.id"))) {
                 bench.offer(trace);
             }
             return null;
@@ -537,7 +537,7 @@ public class PostOfficeTest extends TestBase {
         };
         platform.registerPrivate(TRANSACTION_JOURNAL_RECORDER, f, 1);
         platform.registerPrivate(MY_FUNCTION, myFunction, 1);
-        PostOffice po = new PostOffice(FROM, TRACE_ID, "GET /api/hello/journal");
+        PostOffice po = new PostOffice(FROM, traceId, "GET /api/hello/journal");
         EventEnvelope event = new EventEnvelope().setTo(MY_FUNCTION).setBody(HELLO);
         po.send(event);
         // wait for function completion
@@ -546,11 +546,61 @@ public class PostOfficeTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals(MY_FUNCTION, multi.getElement("trace.service"));
         Assert.assertEquals(FROM, multi.getElement("trace.from"));
-        Assert.assertEquals(TRACE_ID, multi.getElement("trace.id"));
-        Assert.assertEquals("true", multi.getElement("trace.success"));
+        Assert.assertEquals(traceId, multi.getElement("trace.id"));
+        Assert.assertEquals(true, multi.getElement("trace.success"));
         Assert.assertEquals(HELLO, multi.getElement("journal.input.body"));
         Assert.assertEquals(RETURN_VALUE, multi.getElement("journal.output.body"));
         Assert.assertEquals(WORLD, multi.getElement("annotations.hello"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void rpcJournalTest() throws IOException, InterruptedException {
+        String TRANSACTION_JOURNAL_RECORDER = "transaction.journal.recorder";
+        BlockingQueue<Map<String, Object>> bench = new ArrayBlockingQueue<>(1);
+        Platform platform = Platform.getInstance();
+        String FROM = "unit.test";
+        String HELLO = "hello";
+        String WORLD = "world";
+        String RETURN_VALUE = "some_value";
+        String MY_FUNCTION = "my.test.function";
+        String traceId = Utility.getInstance().getUuid();
+        LambdaFunction f = (headers, input, instance) -> {
+            // guarantee that this function has received the correct trace and journal
+            Map<String, Object> trace = (Map<String, Object>) input;
+            MultiLevelMap map = new MultiLevelMap(trace);
+            if (traceId.equals(map.getElement("trace.id"))) {
+                bench.offer(trace);
+            }
+            return null;
+        };
+        LambdaFunction myFunction = (headers, input, instance) -> {
+            PostOffice po = new PostOffice(headers, instance);
+            po.annotateTrace(HELLO, WORLD);
+            return RETURN_VALUE;
+        };
+        platform.registerPrivate(TRANSACTION_JOURNAL_RECORDER, f, 1);
+        platform.registerPrivate(MY_FUNCTION, myFunction, 1);
+        PostOffice po = new PostOffice(FROM, traceId, "GET /api/hello/journal");
+        EventEnvelope event = new EventEnvelope().setTo(MY_FUNCTION).setBody(HELLO);
+        po.asyncRequest(event, 8000)
+            .onSuccess(response -> {
+                Assert.assertEquals(response.getBody(), RETURN_VALUE);
+                log.info("RPC response verified");
+            });
+        // wait for function completion
+        Map<String, Object> result = bench.poll(10, TimeUnit.SECONDS);
+        platform.release(TRANSACTION_JOURNAL_RECORDER);
+        MultiLevelMap multi = new MultiLevelMap(result);
+        Assert.assertEquals(MY_FUNCTION, multi.getElement("trace.service"));
+        Assert.assertEquals(FROM, multi.getElement("trace.from"));
+        Assert.assertEquals(traceId, multi.getElement("trace.id"));
+        Assert.assertEquals(true, multi.getElement("trace.success"));
+        Assert.assertEquals(HELLO, multi.getElement("journal.input.body"));
+        Assert.assertEquals(RETURN_VALUE, multi.getElement("journal.output.body"));
+        Assert.assertEquals(WORLD, multi.getElement("annotations.hello"));
+        // round trip latency is NOT available in journal. It is only delivered to "distributed.trace.forwarder"
+        Assert.assertFalse(multi.exists("trace.round_trip"));
     }
 
     @SuppressWarnings("unchecked")
@@ -559,17 +609,17 @@ public class PostOfficeTest extends TestBase {
         String DISTRIBUTED_TRACE_FORWARDER = "distributed.trace.forwarder";
         BlockingQueue<Map<String, Object>> bench = new ArrayBlockingQueue<>(1);
         Platform platform = Platform.getInstance();
-        String TRACE_ID = Utility.getInstance().getUuid();
         String FROM = "unit.test";
         String HELLO = "hello";
         String WORLD = "world";
         String RETURN_VALUE = "some_value";
         String SIMPLE_FUNCTION = "another.simple.function";
+        String traceId = Utility.getInstance().getUuid();
         LambdaFunction f = (headers, input, instance) -> {
             // guarantee that this function has received the correct trace
             Map<String, Object> trace = (Map<String, Object>) input;
             MultiLevelMap map = new MultiLevelMap(trace);
-            if (TRACE_ID.equals(map.getElement("trace.id"))) {
+            if (traceId.equals(map.getElement("trace.id"))) {
                 bench.offer(trace);
             }
             return null;
@@ -581,7 +631,7 @@ public class PostOfficeTest extends TestBase {
         };
         platform.registerPrivate(DISTRIBUTED_TRACE_FORWARDER, f, 1);
         platform.registerPrivate(SIMPLE_FUNCTION, myFunction, 1);
-        PostOffice po = new PostOffice(FROM, TRACE_ID, "GET /api/hello/telemetry");
+        PostOffice po = new PostOffice(FROM, traceId, "GET /api/hello/telemetry");
         po.send(SIMPLE_FUNCTION, HELLO);
         // wait for function completion
         Map<String, Object> result = bench.poll(10, TimeUnit.SECONDS);
@@ -590,9 +640,57 @@ public class PostOfficeTest extends TestBase {
         MultiLevelMap multi = new MultiLevelMap(result);
         Assert.assertEquals(SIMPLE_FUNCTION, multi.getElement("trace.service"));
         Assert.assertEquals(FROM, multi.getElement("trace.from"));
-        Assert.assertEquals(TRACE_ID, multi.getElement("trace.id"));
-        Assert.assertEquals("true", multi.getElement("trace.success"));
+        Assert.assertEquals(traceId, multi.getElement("trace.id"));
+        Assert.assertEquals(true, multi.getElement("trace.success"));
         Assert.assertEquals(WORLD, multi.getElement("annotations.hello"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void rpcTelemetryTest() throws IOException, InterruptedException {
+        String DISTRIBUTED_TRACE_FORWARDER = "distributed.trace.forwarder";
+        BlockingQueue<Map<String, Object>> bench = new ArrayBlockingQueue<>(1);
+        Platform platform = Platform.getInstance();
+        String FROM = "unit.test";
+        String HELLO = "hello";
+        String WORLD = "world";
+        String RETURN_VALUE = "some_value";
+        String SIMPLE_FUNCTION = "another.simple.function";
+        String traceId = Utility.getInstance().getUuid();
+        LambdaFunction f = (headers, input, instance) -> {
+            // guarantee that this function has received the correct trace
+            Map<String, Object> trace = (Map<String, Object>) input;
+            MultiLevelMap map = new MultiLevelMap(trace);
+            if (traceId.equals(map.getElement("trace.id"))) {
+                bench.offer(trace);
+            }
+            return null;
+        };
+        LambdaFunction myFunction = (headers, input, instance) -> {
+            PostOffice po = new PostOffice(headers, instance);
+            po.annotateTrace(HELLO, WORLD);
+            return RETURN_VALUE;
+        };
+        platform.registerPrivate(DISTRIBUTED_TRACE_FORWARDER, f, 1);
+        platform.registerPrivate(SIMPLE_FUNCTION, myFunction, 1);
+        PostOffice po = new PostOffice(FROM, traceId, "GET /api/hello/telemetry");
+        po.asyncRequest(new EventEnvelope().setTo(SIMPLE_FUNCTION).setBody(HELLO), 8000)
+            .onSuccess(response -> {
+               Assert.assertEquals(response.getBody(), RETURN_VALUE);
+               log.info("RPC response verified");
+            });
+        // wait for function completion
+        Map<String, Object> result = bench.poll(10, TimeUnit.SECONDS);
+        platform.release(DISTRIBUTED_TRACE_FORWARDER);
+        platform.release(SIMPLE_FUNCTION);
+        MultiLevelMap multi = new MultiLevelMap(result);
+        Assert.assertEquals(SIMPLE_FUNCTION, multi.getElement("trace.service"));
+        Assert.assertEquals(FROM, multi.getElement("trace.from"));
+        Assert.assertEquals(traceId, multi.getElement("trace.id"));
+        Assert.assertEquals(true, multi.getElement("trace.success"));
+        Assert.assertEquals(WORLD, multi.getElement("annotations.hello"));
+        // round trip latency is available because RPC metrics are delivered to the caller
+        Assert.assertTrue(multi.exists("trace.round_trip"));
     }
 
     @Test
@@ -602,7 +700,7 @@ public class PostOfficeTest extends TestBase {
         String TRACE_PATH = "GET /api/trace";
         BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         Platform platform = Platform.getInstance();
-        EventEmitter po = EventEmitter.getInstance();
+        PostOffice po = new PostOffice("unit.test", TRACE_ID, TRACE_PATH);
         LambdaFunction f = (headers, input, instance) -> {
             if (headers.containsKey("my_route") &&
                     headers.containsKey("my_trace_id") && headers.containsKey("my_trace_path")) {
@@ -613,8 +711,7 @@ public class PostOfficeTest extends TestBase {
             }
         };
         platform.registerPrivate(TRACE_DETECTOR, f, 1);
-        EventEnvelope request = new EventEnvelope().setTo(TRACE_DETECTOR)
-                                        .setFrom("unit.test").setTrace(TRACE_ID, TRACE_PATH).setBody("ok");
+        EventEnvelope request = new EventEnvelope().setTo(TRACE_DETECTOR).setBody("ok");
         Future<EventEnvelope> response = po.asyncRequest(request, 5000);
         response.onSuccess(result -> bench.offer(result));
         platform.release(TRACE_DETECTOR);
@@ -626,12 +723,11 @@ public class PostOfficeTest extends TestBase {
     @Test
     public void coroutineTraceHeaderTest() throws IOException, InterruptedException {
         String COROUTINE_TRACE_DETECTOR = "coroutine.trace.detector";
-        String TRACE_ID = "101";
+        String TRACE_ID = "102";
         String TRACE_PATH = "GET /api/trace";
         BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
-        EventEmitter po = EventEmitter.getInstance();
-        EventEnvelope request = new EventEnvelope().setTo(COROUTINE_TRACE_DETECTOR)
-                                        .setFrom("unit.test").setTrace(TRACE_ID, TRACE_PATH).setBody("ok");
+        PostOffice po = new PostOffice("unit.test", TRACE_ID, TRACE_PATH);
+        EventEnvelope request = new EventEnvelope().setTo(COROUTINE_TRACE_DETECTOR).setBody("ok");
         Future<EventEnvelope> response = po.asyncRequest(request, 5000);
         response.onSuccess(result -> bench.offer(result));
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
