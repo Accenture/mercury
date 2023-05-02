@@ -34,11 +34,11 @@ public class ExtraEventEnvelopeTest {
     public void fluentTest() throws IOException {
         EventEnvelope event = new EventEnvelope().setRoundTrip(1.1236f).setEndOfRoute().setBinary(true)
                 // the second one will replace the value set by the first one
-                .setParametricType("com.accenture.PoJo").setParametricType(PoJo.class);
+                .setParametricType("com.accenture.SomePoJo").setParametricType(PoJo.class);
         byte[] b = event.toBytes();
         EventEnvelope restored = new EventEnvelope();
         restored.load(b);
-        Assert.assertEquals("org.platformlambda.core.models.PoJo", restored.getParametricType());
+        Assert.assertEquals(PoJo.class.getName(), restored.getParametricType());
         // verify that the system will save up to 3 decimal points
         Assert.assertEquals(1.124f, restored.getRoundTrip(), 0);
     }
