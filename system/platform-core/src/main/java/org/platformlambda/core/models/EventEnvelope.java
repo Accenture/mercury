@@ -414,15 +414,14 @@ public class EventEnvelope {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        for (String k: map.keySet()) {
+        map.forEach( (k, v) -> {
             sb.append(k);
-            String v = map.get(k);
             if (v != null && v.length() > 0) {
                 sb.append('=');
                 sb.append(v);
             }
             sb.append('|');
-        }
+        });
         return sb.substring(0, sb.length()-1);
     }
 
@@ -446,7 +445,7 @@ public class EventEnvelope {
     public EventEnvelope addTag(String key, Object value) {
         if (key != null && key.length() > 0) {
             Map<String, String> map = extraToKeyValues();
-            map.put(key, value == null? "" : value.toString());
+            map.put(key, value == null? "*" : value.toString());
             this.extra = mapToString(map);
         }
         return this;
@@ -526,9 +525,7 @@ public class EventEnvelope {
     public EventEnvelope setHeaders(Map<String, String> headers) {
         // make a shallow copy
         if (headers != null) {
-            for (String h : headers.keySet()) {
-                this.setHeader(h, headers.get(h));
-            }
+            headers.forEach(this::setHeader);
         }
         return this;
     }
@@ -634,7 +631,7 @@ public class EventEnvelope {
      * By default, payload will be encoded as binary.
      * In some rare case where the built-in MsgPack binary serialization
      * does not work, you may turn off binary mode by setting it to false.
-     *
+     * <p>
      * When it is set to false, the Java object in the payload will be encoded
      * using JSON (jackson serialization). This option should be used as the
      * last resort because it would reduce performance and increase encoded payload size.

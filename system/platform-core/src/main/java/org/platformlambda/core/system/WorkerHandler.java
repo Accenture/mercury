@@ -323,9 +323,7 @@ public class WorkerHandler {
             if (replyTo != null) {
                 EventEnvelope response = new EventEnvelope();
                 response.setTo(replyTo).setStatus(status).setBody(ex.getMessage());
-                response.setException(e);
-                response.setExecutionTime(diff);
-                response.setFrom(def.getRoute());
+                response.setException(e).setExecutionTime(diff).setFrom(def.getRoute());
                 if (event.getCorrelationId() != null) {
                     response.setCorrelationId(event.getCorrelationId());
                 }
