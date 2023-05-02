@@ -36,8 +36,7 @@ public class ExtraEventEnvelopeTest {
                 // the second one will replace the value set by the first one
                 .setParametricType("com.accenture.SomePoJo").setParametricType(PoJo.class);
         byte[] b = event.toBytes();
-        EventEnvelope restored = new EventEnvelope();
-        restored.load(b);
+        EventEnvelope restored = new EventEnvelope(b);
         Assert.assertEquals(PoJo.class.getName(), restored.getParametricType());
         // verify that the system will save up to 3 decimal points
         Assert.assertEquals(1.124f, restored.getRoundTrip(), 0);
