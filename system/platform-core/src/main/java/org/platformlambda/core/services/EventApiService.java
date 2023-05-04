@@ -52,7 +52,6 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
     private static final String TIMEOUT = "timeout";
     private static final String CONTENT_TYPE = "content-type";
     private static final String OCTET_STREAM = "application/octet-stream";
-    private static final String PLAIN_TEXT = "text/plain";
     private static final String X_TIMEOUT = "X-Timeout";
     private static final String X_ASYNC = "X-Async";
     private static final String MISSING_ROUTING_PATH = "Missing routing path";
@@ -148,13 +147,14 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
 
     private void sendError(EventEnvelope input, int status, String error) {
         try {
+            EventEnvelope result = new EventEnvelope().setStatus(status).setBody(error);
             EventEnvelope response = new EventEnvelope().setTo(input.getReplyTo())
                     .setFrom(EVENT_API_SERVICE)
                     .setTrace(input.getTraceId(), input.getTracePath())
                     .setCorrelationId(input.getCorrelationId())
-                    .setHeader(CONTENT_TYPE, PLAIN_TEXT)
+                    .setHeader(CONTENT_TYPE, OCTET_STREAM)
                     .setStatus(status)
-                    .setBody(error);
+                    .setBody(result.toBytes());
             EventEmitter.getInstance().send(response);
         } catch (IOException e) {
             log.error("Unable to send error {} -> {} - {}", EVENT_API_SERVICE, input.getReplyTo(), e.getMessage());

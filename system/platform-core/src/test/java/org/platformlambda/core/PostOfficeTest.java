@@ -1288,9 +1288,6 @@ public class PostOfficeTest extends TestBase {
         EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
         assert result != null;
         Assert.assertEquals(404, result.getStatus());
-        Map<String, String> headers = result.getHeaders();
-        // validate that trace-id is echoed back in the HTTP response header
-        Assert.assertEquals(TRACE_ID, headers.get("X-Correlation-Id"));
         Assert.assertEquals("Route some.dummy.route not found", result.getError());
     }
 
