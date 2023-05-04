@@ -122,7 +122,9 @@ public class AsyncInbox extends InboxBase {
                 float diff = (float) (System.nanoTime() - holder.begin) / EventEmitter.ONE_MILLISECOND;
                 // adjust precision to 3 decimal points
                 float roundTrip = Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff)));
-                reply.setRoundTrip(roundTrip).removeTag(RPC).setTo(null).setReplyTo(null);
+                reply.setRoundTrip(roundTrip);
+                // remove some metadata that are not relevant for a RPC response
+                reply.removeTag(RPC).setTo(null).setReplyTo(null).setTrace(null, null);
                 Map<String, Object> annotations = new HashMap<>();
                 // decode trace annotations from reply event
                 Map<String, String> headers = reply.getHeaders();

@@ -96,7 +96,9 @@ class FastRPC(headers: Map<String, String>) {
         }
         vertx.cancelTimer(timer)
         inbox.close()
-        val result = EventEnvelope(message.body()).removeTag(RPC).setTo(null).setReplyTo(null)
+        val result = EventEnvelope(message.body());
+        // remove some metadata that are not relevant for a RPC response
+        result.removeTag(RPC).setTo(null).setReplyTo(null).setTrace(null, null)
         if (platform.isTrackable(to) && traceId != null && tracePath != null && signature != result.headers[SYSTEM]) {
             result.roundTrip = (System.nanoTime() - begin).toFloat() / EventEmitter.ONE_MILLISECOND
             sendTrace(result, start, from, to, traceId, tracePath)
@@ -234,7 +236,8 @@ class FastRPC(headers: Map<String, String>) {
         for (i in requests.indices) {
             val message = adapter.receive()
             val result = EventEnvelope(message.body())
-            result.removeTag(RPC).setTo(null).setReplyTo(null)
+            // remove some metadata that are not relevant for a RPC response
+            result.removeTag(RPC).setTo(null).setReplyTo(null).setTrace(null, null)
             if (traceId != null && tracePath != null && signature != result.headers[SYSTEM]) {
                 val to = correlations[result.correlationId]
                 if (to != null && platform.isTrackable(to)) {
