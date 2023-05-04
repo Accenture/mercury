@@ -1103,7 +1103,7 @@ public class PostOfficeTest extends TestBase {
         securityHeaders.put("Authorization", "demo");
         PostOffice po = new PostOffice("unit.test", "123", "TEST /remote/event");
         EventEnvelope event = new EventEnvelope().setTo("hello.world")
-                .setBody(NUMBER_THREE).setHeader("hello", "world");
+                                    .setBody(NUMBER_THREE).setHeader("hello", "world");
         Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
@@ -1186,7 +1186,6 @@ public class PostOfficeTest extends TestBase {
         response.onSuccess(bench::offer);
         // add 500 ms to the bench to capture HTTP-408 response if any
         EventEnvelope result = bench.poll(TIMEOUT + 500, TimeUnit.MILLISECONDS);
-
         Assert.assertNotNull(result);
         Assert.assertEquals(200, result.getStatus());
         Assert.assertTrue(result.getBody() instanceof Map);
@@ -1241,6 +1240,78 @@ public class PostOfficeTest extends TestBase {
         Assert.assertTrue(map.containsKey("time"));
         Assert.assertEquals("async", map.get("type"));
         Assert.assertEquals(true, map.get("delivered"));
+    }
+
+    @Test
+    public void remoteEventApiMissingRouteTest() {
+        String TRACE_ID = "123";
+        long TIMEOUT = 3000;
+        int NUMBER_THREE = 3;
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        PostOffice po = new PostOffice("unit.test", TRACE_ID, "TEST /remote/event");
+        EventEnvelope event = new EventEnvelope().setBody(NUMBER_THREE).setHeader("hello", "world");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () ->
+                po.asyncRequest(event, TIMEOUT, securityHeaders,
+                        "http://127.0.0.1:"+port+"/api/event", true));
+        Assert.assertEquals("Missing routing path", ex.getMessage());
+    }
+
+    @Test
+    public void remoteEventApiNullEventTest() {
+        String TRACE_ID = "123";
+        long TIMEOUT = 3000;
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        PostOffice po = new PostOffice("unit.test", TRACE_ID, "TEST /remote/event");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () ->
+                po.asyncRequest(null, TIMEOUT, securityHeaders,
+                        "http://127.0.0.1:"+port+"/api/event", true));
+        Assert.assertEquals("Missing outgoing event", ex.getMessage());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteEventApiRouteNotFoundTest() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        String TRACE_ID = "123";
+        long TIMEOUT = 3000;
+        int NUMBER_THREE = 3;
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        PostOffice po = new PostOffice("unit.test", TRACE_ID, "TEST /remote/event");
+        EventEnvelope event = new EventEnvelope().setTo("some.dummy.route")
+                .setBody(NUMBER_THREE).setHeader("hello", "world");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
+                "http://127.0.0.1:"+port+"/api/event", true);
+        response.onSuccess(bench::offer);
+        EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+        assert result != null;
+        Assert.assertEquals(404, result.getStatus());
+        Map<String, String> headers = result.getHeaders();
+        // validate that trace-id is echoed back in the HTTP response header
+        Assert.assertEquals(TRACE_ID, headers.get("X-Correlation-Id"));
+        Assert.assertEquals("Route some.dummy.route not found", result.getError());
+    }
+
+    @Test
+    public void remoteEventApiAccessControlTest() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        long TIMEOUT = 3000;
+        String DEMO_FUNCTION = "demo.private.function";
+        LambdaFunction f = (headers, input, instance) -> true;
+        Platform platform = Platform.getInstance();
+        platform.registerPrivate(DEMO_FUNCTION, f, 1);
+        EventEmitter po = EventEmitter.getInstance();
+        EventEnvelope event = new EventEnvelope();
+        event.setTo(DEMO_FUNCTION).setBody("ok").setHeader("hello", "world");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
+                "http://127.0.0.1:"+port+"/api/event", true);
+        response.onSuccess(bench::offer);
+        EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
+        assert result != null;
+        Assert.assertEquals(403, result.getStatus());
+        Assert.assertEquals(DEMO_FUNCTION+" is private", result.getError());
     }
 
     @Test

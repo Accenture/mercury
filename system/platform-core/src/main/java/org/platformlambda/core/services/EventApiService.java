@@ -136,11 +136,10 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
         try {
             EventEnvelope response = new EventEnvelope().setTo(input.getReplyTo())
                     .setFrom(EVENT_API_SERVICE)
+                    .setTrace(input.getTraceId(), input.getTracePath())
                     .setCorrelationId(input.getCorrelationId())
-                    // binary payload
                     .setHeader(CONTENT_TYPE, OCTET_STREAM)
-                    .setBody(result.toBytes())
-                    .setTrace(input.getTraceId(), input.getTracePath());
+                    .setBody(result.toBytes());
             EventEmitter.getInstance().send(response);
         } catch (IOException e) {
             log.error("Unable to send response {} -> {} - {}", EVENT_API_SERVICE, input.getReplyTo(), e.getMessage());
@@ -151,12 +150,11 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
         try {
             EventEnvelope response = new EventEnvelope().setTo(input.getReplyTo())
                     .setFrom(EVENT_API_SERVICE)
+                    .setTrace(input.getTraceId(), input.getTracePath())
                     .setCorrelationId(input.getCorrelationId())
-                    // text payload
                     .setHeader(CONTENT_TYPE, PLAIN_TEXT)
                     .setStatus(status)
-                    .setBody(error)
-                    .setTrace(input.getTraceId(), input.getTracePath());
+                    .setBody(error);
             EventEmitter.getInstance().send(response);
         } catch (IOException e) {
             log.error("Unable to send error {} -> {} - {}", EVENT_API_SERVICE, input.getReplyTo(), e.getMessage());

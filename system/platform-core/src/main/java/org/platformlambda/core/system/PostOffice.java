@@ -15,6 +15,7 @@ public class PostOffice {
     private static final String MY_ROUTE = "my_route";
     private static final String MY_TRACE_ID = "my_trace_id";
     private static final String MY_TRACE_PATH = "my_trace_path";
+    public static final String MISSING_EVENT = "Missing outgoing event";
 
     private final String myRoute;
     private final String myTraceId;
@@ -321,6 +322,9 @@ public class PostOffice {
     }
 
     private EventEnvelope touch(final EventEnvelope event) {
+        if (event == null) {
+            throw new IllegalArgumentException(MISSING_EVENT);
+        }
         if (event.getFrom() == null) {
             event.setFrom(myRoute);
         }

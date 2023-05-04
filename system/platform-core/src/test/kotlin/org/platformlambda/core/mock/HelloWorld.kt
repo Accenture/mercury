@@ -33,8 +33,8 @@ class HelloWorld : KotlinLambdaFunction<Any?, Map<String, Any>> {
     @Throws(Exception::class)
     override suspend fun handleEvent(headers: Map<String, String>, input: Any?, instance: Int): Map<String, Any> {
         val body = input?.toString() ?: EMPTY;
-        val c = Utility.getInstance().str2int(body)
-        if (c % 2 == 0) {
+        val counter = Utility.getInstance().str2int(body)
+        if (counter % 2 == 0) {
             log.info("{} for {} ms", SIMULATE_DELAY, TIMEOUT)
             // Simulate slow response. Unlike Thread.sleep in Java, Kotlin's delay API is non-blocking
             delay(TIMEOUT)
@@ -48,14 +48,24 @@ class HelloWorld : KotlinLambdaFunction<Any?, Map<String, Any>> {
             throw AppException(400, JUST_A_TEST, SQLException(SQL_ERROR))
         }
         val result: MutableMap<String, Any> = HashMap()
-        result["headers"] = headers
+        result["headers"] = filterMetadata(headers)
         if (input != null) {
             result["body"] = input
         }
         result["instance"] = instance
-        result["counter"] = c
+        result["counter"] = counter
         result["origin"] = Platform.getInstance().origin
         return result
+    }
+
+    private fun filterMetadata(headers: Map<String, String>): MutableMap<String, String> {
+        val result: MutableMap<String, String> = HashMap()
+        headers.forEach { (k: String, v: String) ->
+            if (!k.startsWith("my_")) {
+                result[k] = v;
+            }
+        }
+        return result;
     }
 
     companion object {

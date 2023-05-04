@@ -670,16 +670,17 @@ public class EventEmitter {
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod(POST);
         req.setHeader(CONTENT_TYPE, "application/octet-stream");
-        req.setHeader(ACCEPT, "application/octet-stream");
+        req.setHeader(ACCEPT, "*/*");
         req.setHeader(X_TIMEOUT, String.valueOf(Math.max(100L, timeout)));
         if (!rpc) {
             req.setHeader(X_ASYNC, "true");
         }
         // optional HTTP request headers
-        for (Map.Entry<String, String> kv: headers.entrySet()) {
-            req.setHeader(kv.getKey(), kv.getValue());
+        if (headers != null) {
+            for (Map.Entry<String, String> kv : headers.entrySet()) {
+                req.setHeader(kv.getKey(), kv.getValue());
+            }
         }
-        // make a drop-n-forget call to the remote target service
         // propagate trace-ID if any
         if (event.getTraceId() != null) {
             req.setHeader(X_TRACE_ID, event.getTraceId());

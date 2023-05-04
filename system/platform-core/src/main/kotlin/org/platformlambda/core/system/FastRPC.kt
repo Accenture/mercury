@@ -129,7 +129,7 @@ class FastRPC(headers: Map<String, String>) {
         val req = AsyncHttpRequest()
         req.setMethod(POST)
         req.setHeader(CONTENT_TYPE, "application/octet-stream")
-        req.setHeader(ACCEPT, "application/octet-stream")
+        req.setHeader(ACCEPT, "*/*")
         req.setHeader(X_TIMEOUT, 100L.coerceAtLeast(timeout).toString())
         if (!rpc) {
             req.setHeader(X_ASYNC, "true")

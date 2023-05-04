@@ -68,26 +68,6 @@ public class RestEndpointTest extends TestBase {
         }
     }
 
-    @Test
-    public void remoteEventApiAccessControlTest() throws IOException, InterruptedException {
-        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
-        long TIMEOUT = 3000;
-        String DEMO_FUNCTION = "demo.private.function";
-        LambdaFunction f = (headers, input, instance) -> true;
-        Platform platform = Platform.getInstance();
-        platform.registerPrivate(DEMO_FUNCTION, f, 1);
-        EventEmitter po = EventEmitter.getInstance();
-        EventEnvelope event = new EventEnvelope();
-        event.setTo(DEMO_FUNCTION).setBody("ok").setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
-                "http://127.0.0.1:"+port+"/api/event", true);
-        response.onSuccess(bench::offer);
-        EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(result);
-        Assert.assertEquals(403, result.getStatus());
-        Assert.assertEquals(DEMO_FUNCTION+" is private", result.getError());
-    }
-
     @SuppressWarnings("unchecked")
     @Test
     public void serviceTest() throws IOException, InterruptedException {
