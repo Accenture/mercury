@@ -96,7 +96,7 @@ class FastRPC(headers: Map<String, String>) {
         }
         vertx.cancelTimer(timer)
         inbox.close()
-        val result = EventEnvelope(message.body());
+        val result = EventEnvelope(message.body())
         // remove some metadata that are not relevant for a RPC response
         result.removeTag(RPC).setTo(null).setReplyTo(null).setTrace(null, null)
         if (platform.isTrackable(to) && traceId != null && tracePath != null && signature != result.headers[SYSTEM]) {
