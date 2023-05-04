@@ -11,10 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class EventEnvelopeTest {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
@@ -183,7 +180,11 @@ public class EventEnvelopeTest {
         EventEnvelope source = new EventEnvelope();
         source.setBody(pojo);
         source.setFrom("unit.test");
+        source.setTo("hello.world");
+        source.setReplyTo("my.callback");
         source.setTrace("101", "PUT /api/unit/test");
+        // use JSON instead of binary serialization
+        source.setBinary(false);
         source.setException(new IllegalArgumentException("hello"));
         source.setBroadcastLevel(1);
         source.setCorrelationId("121");
@@ -205,9 +206,12 @@ public class EventEnvelopeTest {
         Assert.assertEquals(400, target.getStatus());
         Assert.assertEquals(1, target.getBroadcastLevel());
         Assert.assertEquals(source.getId(), target.getId());
+        Assert.assertEquals(source.getFrom(), target.getFrom());
+        Assert.assertEquals(source.getReplyTo(), target.getReplyTo());
         Assert.assertEquals("101", target.getTraceId());
         Assert.assertEquals("PUT /api/unit/test", target.getTracePath());
         Assert.assertEquals("b", map.getElement("headers.a"));
+        Assert.assertEquals(true, map.getElement("json"));
         Assert.assertTrue(target.getBody() instanceof PoJo);
         PoJo output = (PoJo) target.getBody();
         Assert.assertEquals(HELLO, output.getName());
@@ -216,6 +220,14 @@ public class EventEnvelopeTest {
         Assert.assertTrue(map.getElement("exception") instanceof byte[]);
         byte[] b = (byte[]) map.getElement("exception");
         log.info("Stacktrace binary payload size for {} = {}", IllegalArgumentException.class.getName(), b.length);
+    }
+
+    @Test
+    public void optionalTransportTest() {
+        EventEnvelope source = new EventEnvelope();
+        source.setBody(Optional.of("hello"));
+        EventEnvelope target = new EventEnvelope(source.toMap());
+        Assert.assertEquals(Optional.of("hello"), target.getBody());
     }
 
 }

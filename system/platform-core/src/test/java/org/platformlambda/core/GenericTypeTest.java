@@ -171,9 +171,7 @@ public class GenericTypeTest {
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
         event.setParametricType(PoJo.class);
-        byte[] b = event.toBytes();
-        EventEnvelope result = new EventEnvelope();
-        result.load(b);
+        EventEnvelope result = new EventEnvelope(event.toBytes());
         Object o = result.getBody();
         Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
@@ -195,26 +193,29 @@ public class GenericTypeTest {
         genericObject.setId(100);
         EventEnvelope event = new EventEnvelope();
         event.setBody(genericObject);
-        byte[] b = event.toBytes();
-        EventEnvelope result = new EventEnvelope();
-        result.load(b);
+        // "event.setParametricType(PoJo.class)" is intentionally omitted to simulate the exception
+        EventEnvelope result = new EventEnvelope(event.toBytes());
         Object o = result.getBody();
         Assert.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
         // all fields except the ones with generic types can be deserialized correctly
         Assert.assertEquals(id, gs.getId());
         /*
-         * without parametricType defined, this will throw ClassCastException because the value is a HashMap.
+         * Without parametricType defined, the content inside the generic class is undefined
+         * and hashmap with key-values is used instead.
          *
-         * Note that Java class with generic types is not type-safe.
-         * You therefore can retrieve a copy of the HashMap by this:
-         * Object content = gs.getContent();
+         * Therefore, this will throw ClassCastException when you try to map the embedded content as PoJo.
          */
         ClassCastException ex = Assert.assertThrows(ClassCastException.class, () -> {
             PoJo content = gs.getContent();
             Assert.assertNotNull(content);
         });
         Assert.assertTrue(ex.getMessage().contains("cannot be cast to"));
+        // If you know the data structure, you can retrieve key-values using the raw format like this:
+        Assert.assertTrue(event.getRawBody() instanceof Map);
+        Map<String, Object> raw = (Map<String, Object>) event.getRawBody();
+        MultiLevelMap map = new MultiLevelMap(raw);
+        Assert.assertEquals(name, map.getElement("content.name"));
     }
 
     @Test
