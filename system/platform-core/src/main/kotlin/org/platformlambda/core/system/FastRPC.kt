@@ -96,7 +96,7 @@ class FastRPC(headers: Map<String, String>) {
         }
         vertx.cancelTimer(timer)
         inbox.close()
-        val result = EventEnvelope(message.body())
+        val result = EventEnvelope(message.body()).removeTag(RPC).setTo(null).setReplyTo(null)
         if (platform.isTrackable(to) && traceId != null && tracePath != null && signature != result.headers[SYSTEM]) {
             result.roundTrip = (System.nanoTime() - begin).toFloat() / EventEmitter.ONE_MILLISECOND
             sendTrace(result, start, from, to, traceId, tracePath)
@@ -134,12 +134,10 @@ class FastRPC(headers: Map<String, String>) {
         if (!rpc) {
             req.setHeader(X_ASYNC, "true")
         }
-        // make a drop-n-forget call to the remote target service
         // propagate trace-ID if any
         if (request.traceId != null) {
             req.setHeader(X_TRACE_ID, request.traceId)
         }
-        // optional HTTP request headers
         // optional HTTP request headers
         for ((key, value) in headers) {
             req.setHeader(key, value)
@@ -233,10 +231,10 @@ class FastRPC(headers: Map<String, String>) {
                 platform.eventSystem.send(target.manager.route, event.toBytes())
             }
         }
-
         for (i in requests.indices) {
             val message = adapter.receive()
             val result = EventEnvelope(message.body())
+            result.removeTag(RPC).setTo(null).setReplyTo(null)
             if (traceId != null && tracePath != null && signature != result.headers[SYSTEM]) {
                 val to = correlations[result.correlationId]
                 if (to != null && platform.isTrackable(to)) {
@@ -334,6 +332,7 @@ class FastRPC(headers: Map<String, String>) {
     companion object {
         private val log = LoggerFactory.getLogger(FastRPC::class.java)
         private const val SYSTEM = "_sys_"
+        private const val RPC = "rpc"
         private const val UNDERSCORE = "_"
         private const val ANNOTATIONS = "annotations"
         private const val FAIL_TO_SEND = "Unable to send to "

@@ -97,6 +97,7 @@ public class AsyncInbox extends InboxBase {
 
     private class InboxHandler implements Handler<Message<byte[]>> {
 
+        private static final String RPC = "rpc";
         private static final String UNDERSCORE = "_";
         private static final String ANNOTATIONS = "annotations";
 
@@ -121,7 +122,7 @@ public class AsyncInbox extends InboxBase {
                 float diff = (float) (System.nanoTime() - holder.begin) / EventEmitter.ONE_MILLISECOND;
                 // adjust precision to 3 decimal points
                 float roundTrip = Float.parseFloat(String.format("%.3f", Math.max(0.0f, diff)));
-                reply.setRoundTrip(roundTrip);
+                reply.setRoundTrip(roundTrip).removeTag(RPC).setTo(null).setReplyTo(null);
                 Map<String, Object> annotations = new HashMap<>();
                 // decode trace annotations from reply event
                 Map<String, String> headers = reply.getHeaders();

@@ -29,6 +29,26 @@ public class EventEnvelope {
     private static final MsgPack msgPack = new MsgPack();
     private static final PayloadMapper converter = PayloadMapper.getInstance();
 
+    private static final String ID_FIELD = "id";
+    private static final String TO_FIELD = "to";
+    private static final String FROM_FIELD = "from";
+    private static final String REPLY_TO_FIELD = "reply_to";
+    private static final String TRACE_ID_FIELD = "trace_id";
+    private static final String TRACE_PATH_FIELD = "trace_path";
+    private static final String CID_FIELD = "cid";
+    private static final String EXTRA_FIELD = "extra";
+    private static final String STATUS_FIELD = "status";
+    private static final String HEADERS_FIELD = "headers";
+    private static final String END_ROUTE_FIELD = "end";
+    private static final String BROADCAST_FIELD = "broadcast";
+    private static final String OPTIONAL_FIELD = "optional";
+    private static final String BODY_FIELD = "body";
+    private static final String EXCEPTION_FIELD = "exception";
+    private static final String OBJ_TYPE_FIELD = "obj_type";
+    private static final String PARA_TYPE_FIELD = "para_type";
+    private static final String EXECUTION_FIELD = "exec_time";
+    private static final String ROUND_TRIP_FIELD = "round_trip";
+    private static final String JSON_FIELD = "json";
     // message-ID
     private static final String ID_FLAG = "0";
     // metrics
@@ -74,7 +94,9 @@ public class EventEnvelope {
     private String tracePath;
     private String cid;
     private String extra;
+    // type: Map = "M", List = "L", Primitive = "P", Nothing = "N"
     private String type;
+    // parametricType contains a list of one or more parameter types if the PoJo is a generic class
     private String parametricType;
     private Integer status;
     private Object body;
@@ -96,6 +118,10 @@ public class EventEnvelope {
 
     public EventEnvelope(byte[] event) throws IOException {
         load(event);
+    }
+
+    public EventEnvelope(Map<String, Object> map) {
+        fromMap(map);
     }
 
     public String getId() {
@@ -576,7 +602,7 @@ public class EventEnvelope {
                 stream.writeObject(cause);
                 exceptionBytes = out.toByteArray();
                 // for compatibility with language pack (Python and Node.js)
-                this.addTag("exception");
+                this.addTag(EXCEPTION_FIELD);
             } catch (IOException e) {
                 // this won't happen
             }
@@ -721,6 +747,7 @@ public class EventEnvelope {
     public void load(byte[] bytes) throws IOException {
         Object o = msgPack.unpack(bytes);
         if (o instanceof Map) {
+            Utility util = Utility.getInstance();
             Map<String, Object> message = (Map<String, Object>) o;
             if (message.containsKey(ID_FLAG)) {
                 id = (String) message.get(ID_FLAG);
@@ -751,9 +778,9 @@ public class EventEnvelope {
             }
             if (message.containsKey(STATUS_FLAG)) {
                 if (message.get(STATUS_FLAG) instanceof Integer) {
-                    status = (Integer) message.get(STATUS_FLAG);
+                    status = Math.max(0, (Integer) message.get(STATUS_FLAG));
                 } else {
-                    status = Utility.getInstance().str2int(message.get(STATUS_FLAG).toString());
+                    status = Math.max(0, util.str2int(message.get(STATUS_FLAG).toString()));
                 }
             }
             if (message.containsKey(HEADERS_FLAG)) {
@@ -762,7 +789,7 @@ public class EventEnvelope {
             if (message.containsKey(END_ROUTE_FLAG)) {
                 endOfRoute = (Boolean) message.get(END_ROUTE_FLAG);
             }
-            if (message.containsKey(BROADCAST_FLAG) && message.get(BROADCAST_FLAG) instanceof Integer) {
+            if (message.get(BROADCAST_FLAG) instanceof Integer) {
                 broadcastLevel = (Integer) message.get(BROADCAST_FLAG);
             }
             if (message.containsKey(BODY_FLAG)) {
@@ -779,16 +806,16 @@ public class EventEnvelope {
             }
             if (message.containsKey(EXECUTION_FLAG)) {
                 if (message.get(EXECUTION_FLAG) instanceof Float) {
-                    executionTime = (Float) message.get(EXECUTION_FLAG);
+                    executionTime = Math.max(0, (Float) message.get(EXECUTION_FLAG));
                 } else {
-                    executionTime = Utility.getInstance().str2float((message.get(EXECUTION_FLAG).toString()));
+                    executionTime = Math.max(0, util.str2float((message.get(EXECUTION_FLAG).toString())));
                 }
             }
             if (message.containsKey(ROUND_TRIP_FLAG)) {
                 if (message.get(ROUND_TRIP_FLAG) instanceof Float) {
-                    roundTrip = (Float) message.get(ROUND_TRIP_FLAG);
+                    roundTrip = Math.max(0, (Float) message.get(ROUND_TRIP_FLAG));
                 } else {
-                    roundTrip = Utility.getInstance().str2float((message.get(ROUND_TRIP_FLAG).toString()));
+                    roundTrip = Math.max(0, util.str2float((message.get(ROUND_TRIP_FLAG).toString())));
                 }
             }
             if (message.containsKey(JSON_FLAG)) {
@@ -879,6 +906,148 @@ public class EventEnvelope {
             message.put(JSON_FLAG, true);
         }
         return msgPack.pack(message);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void fromMap(Map<String, Object> message) {
+        Utility util = Utility.getInstance();
+        if (message.containsKey(ID_FIELD)) {
+            id = (String) message.get(ID_FIELD);
+        }
+        if (message.containsKey(TO_FIELD)) {
+            to = (String) message.get(TO_FIELD);
+        }
+        if (message.containsKey(FROM_FIELD)) {
+            from = (String) message.get(FROM_FIELD);
+        }
+        if (message.containsKey(REPLY_TO_FIELD)) {
+            replyTo = (String) message.get(REPLY_TO_FIELD);
+        }
+        if (message.containsKey(TRACE_ID_FIELD)) {
+            traceId = (String) message.get(TRACE_ID_FIELD);
+        }
+        if (message.containsKey(TRACE_PATH_FIELD)) {
+            tracePath = (String) message.get(TRACE_PATH_FIELD);
+        }
+        if (message.containsKey(CID_FIELD)) {
+            cid = (String) message.get(CID_FIELD);
+        }
+        if (message.containsKey(EXTRA_FIELD)) {
+            extra = (String) message.get(EXTRA_FIELD);
+        }
+        if (message.containsKey(OPTIONAL_FIELD)) {
+            optional = true;
+        }
+        if (message.containsKey(STATUS_FIELD)) {
+            if (message.get(STATUS_FIELD) instanceof Integer) {
+                status = Math.max(0, (Integer) message.get(STATUS_FIELD));
+            } else {
+                status = Math.max(0, util.str2int(message.get(STATUS_FIELD).toString()));
+            }
+        }
+        if (message.containsKey(HEADERS_FIELD)) {
+            setHeaders((Map<String, String>) message.get(HEADERS_FIELD));
+        }
+        if (message.containsKey(END_ROUTE_FIELD)) {
+            endOfRoute = (Boolean) message.get(END_ROUTE_FIELD);
+        }
+        if (message.get(BROADCAST_FIELD) instanceof Integer) {
+            broadcastLevel = (Integer) message.get(BROADCAST_FIELD);
+        }
+        if (message.containsKey(BODY_FIELD)) {
+            body = message.get(BODY_FIELD);
+        }
+        if (message.containsKey(EXCEPTION_FIELD)) {
+            exceptionBytes = (byte[]) message.get(EXCEPTION_FIELD);
+        }
+        if (message.containsKey(OBJ_TYPE_FIELD)) {
+            type = (String) message.get(OBJ_TYPE_FIELD);
+        }
+        if (message.containsKey(PARA_TYPE_FIELD)) {
+            parametricType = (String) message.get(PARA_TYPE_FIELD);
+        }
+        if (message.containsKey(EXECUTION_FIELD)) {
+            if (message.get(EXECUTION_FIELD) instanceof Float) {
+                executionTime = Math.max(0f, (Float) message.get(EXECUTION_FIELD));
+            } else {
+                executionTime = Math.max(0f, util.str2float((message.get(EXECUTION_FIELD).toString())));
+            }
+        }
+        if (message.containsKey(ROUND_TRIP_FIELD)) {
+            if (message.get(ROUND_TRIP_FIELD) instanceof Float) {
+                roundTrip = Math.max(0, (Float) message.get(ROUND_TRIP_FIELD));
+            } else {
+                roundTrip = Math.max(0, util.str2float((message.get(ROUND_TRIP_FIELD).toString())));
+            }
+        }
+        if (message.containsKey(JSON_FIELD)) {
+            binary = false;
+        }
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> message = new HashMap<>();
+        if (id != null) {
+            message.put(ID_FIELD, id);
+        }
+        if (to != null) {
+            message.put(TO_FIELD, to);
+        }
+        if (from != null) {
+            message.put(FROM_FIELD, from);
+        }
+        if (replyTo != null) {
+            message.put(REPLY_TO_FIELD, replyTo);
+        }
+        if (traceId != null) {
+            message.put(TRACE_ID_FIELD, traceId);
+        }
+        if (tracePath != null) {
+            message.put(TRACE_PATH_FIELD, tracePath);
+        }
+        if (cid != null) {
+            message.put(CID_FIELD, cid);
+        }
+        if (extra != null) {
+            message.put(EXTRA_FIELD, extra);
+        }
+        if (status != null) {
+            message.put(STATUS_FIELD, status);
+        }
+        if (!headers.isEmpty()) {
+            message.put(HEADERS_FIELD, headers);
+        }
+        if (endOfRoute) {
+            message.put(END_ROUTE_FIELD, true);
+        }
+        if (broadcastLevel > 0) {
+            message.put(BROADCAST_FIELD, broadcastLevel);
+        }
+        if (optional) {
+            message.put(OPTIONAL_FIELD, true);
+        }
+        if (body != null) {
+            message.put(BODY_FIELD, body);
+        }
+        if (exceptionBytes != null) {
+            message.put(EXCEPTION_FIELD, exceptionBytes);
+        }
+        if (type != null) {
+            message.put(OBJ_TYPE_FIELD, type);
+        }
+        if (parametricType != null) {
+            message.put(PARA_TYPE_FIELD, parametricType);
+        }
+        if (executionTime != null) {
+            message.put(EXECUTION_FIELD, executionTime);
+        }
+        if (roundTrip != null) {
+            message.put(ROUND_TRIP_FIELD, roundTrip);
+        }
+        if (!binary) {
+            message.put(JSON_FIELD, true);
+        }
+        return message;
     }
 
 }
