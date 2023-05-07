@@ -227,17 +227,18 @@ public class ConfigReaderTest {
     }
 
     @Test
-    public void loopingTest() {
-        AppConfigReader config = AppConfigReader.getInstance();
-        Object value = config.get("looping.test");
+    public void singleLevelLoopErrorTest() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.properties");
+        String value = reader.getProperty("recursive.key");
+        // In case of config loop, the system will not resolve a parameter value.
         Assert.assertEquals(CONFIG_LOOP, value);
     }
 
     @Test
-    public void loopedKeyIsNull() throws IOException {
-        ConfigReader reader = new ConfigReader();
-        reader.load("classpath:/test.properties");
-        String value = reader.getProperty("recursive.key");
+    public void multiLevelLoopErrorTest() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        Object value = config.get("looping.test");
         Assert.assertEquals(CONFIG_LOOP, value);
     }
 

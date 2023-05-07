@@ -37,6 +37,12 @@ public class AppConfigReader implements ConfigBase {
         return INSTANCE;
     }
 
+    /**
+     * This is the singleton object to hold the base configuration files
+     * application.yml and application.properties.
+     * <p>
+     * Note that you can provide one or both files in the "resources" folder.
+     */
     private AppConfigReader() {
         ConfigReader.setBaseConfig(this);
         /*
@@ -64,17 +70,37 @@ public class AppConfigReader implements ConfigBase {
         }
     }
 
+    /**
+     * Retrieve a parameter value by key
+     *
+     * @param key of a configuration parameter
+     * @return parameter value
+     */
     @Override
     public Object get(String key) {
         return propReader.exists(key) ? propReader.get(key) : yamlReader.get(key);
     }
 
+    /**
+     * Retrieve a parameter value by key, given a default value
+     *
+     * @param key of a configuration parameter
+     * @param defaultValue if key does not exist
+     * @param loop reserved for internal use to detect configuration loops
+     * @return parameter value
+     */
     @Override
     public Object get(String key, Object defaultValue, String... loop) {
         return propReader.exists(key) ?
                 propReader.get(key, defaultValue, loop) : yamlReader.get(key, defaultValue, loop);
     }
 
+    /**
+     * Retrieve a parameter value by key with return value enforced as a string
+     *
+     * @param key of a configuration parameter
+     * @return parameter value as a string
+     */
     @Override
     public String getProperty(String key) {
         Object value = get(key);
@@ -85,25 +111,55 @@ public class AppConfigReader implements ConfigBase {
         }
     }
 
+    /**
+     * Retrieve a parameter value by key with return value enforced as a string, given a default value
+     *
+     * @param key of a configuration parameter
+     * @param defaultValue if key does not exist
+     * @return parameter value as a string
+     */
     @Override
     public String getProperty(String key, String defaultValue) {
         String value = getProperty(key);
         return value == null? defaultValue : value;
     }
 
+    /**
+     * Retrieve the underlying property map
+     * (Note that this returns a raw map without value substitution)
+     *
+     * @return map of key-values
+     */
     public Map<String, Object> getPropertyMap() {
         return propReader.getMap();
     }
 
+    /**
+     * Retrieve the underlying YAML map
+     * (Note that this returns a raw map without value substitution)
+     *
+     * @return map of key-values
+     */
     public Map<String, Object> getYamlMap() {
         return yamlReader.getMap();
     }
 
+    /**
+     * Check if a key exists
+     *
+     * @param key of a configuration parameter
+     * @return true if key exists
+     */
     @Override
     public boolean exists(String key) {
         return propReader.exists(key) || yamlReader.exists(key);
     }
 
+    /**
+     * Check if the configuration file is empty
+     *
+     * @return true if empty
+     */
     @Override
     public boolean isEmpty() {
         return propReader.isEmpty() && yamlReader.isEmpty();

@@ -26,27 +26,59 @@ import java.util.Map;
 public class MultiLevelMap {
     private final Map<String, Object> multiLevels;
 
+    /**
+     * Create an empty multi-level map
+     */
     public MultiLevelMap() {
         this.multiLevels = new HashMap<>();
     }
 
+    /**
+     * Create a multi-level map from a hashmap
+     *
+     * @param map of key-values
+     */
     public MultiLevelMap(Map<String, Object> map) {
         this.multiLevels = map == null? new HashMap<>() : map;
     }
 
+    /**
+     * Retrieve the underlying map of key-values
+     *
+     * @return map
+     */
     public Map<String, Object> getMap() {
         return multiLevels;
     }
 
+    /**
+     * Check if map is empty
+     *
+     * @return true if empty
+     */
     public boolean isEmpty() {
         return multiLevels.isEmpty();
     }
 
+    /**
+     * Check if a key-value exists
+     *
+     * @param compositePath in dot-bracket format
+     *
+     * @return true if exists
+     */
     public boolean exists(String compositePath) {
         Object element = getElement(compositePath, multiLevels);
         return element != null && !(element instanceof NotFound);
     }
 
+    /**
+     * Check if a key exists where the value can be empty
+     *
+     * @param compositePath in dot-bracket format
+     *
+     * @return true if exists
+     */
     public boolean keyExists(String compositePath) {
         Object element = getElement(compositePath, multiLevels);
         return !(element instanceof NotFound);
@@ -65,6 +97,16 @@ public class MultiLevelMap {
         return element instanceof NotFound? null : element;
     }
 
+    /**
+     * Retrieve an element from a map using a composite path, given a default value
+     * <p>
+     * (Nested array is supported)
+     * e.g. "some.key", "some.array[3]", "hello.world[2][10][1]"
+     *
+     * @param compositePath using dot-bracket convention
+     * @param defaultValue if key does not exist
+     * @return element
+     */
     public Object getElement(String compositePath, Object defaultValue) {
         Object element = getElement(compositePath);
         return element == null? defaultValue : element;
@@ -147,12 +189,25 @@ public class MultiLevelMap {
         return new NotFound();
     }
 
+    /**
+     * Set a key-value
+     *
+     * @param compositePath using dot-bracket format
+     * @param value to be inserted
+     * @return this
+     */
     public MultiLevelMap setElement(String compositePath, Object value) {
         validateCompositePathSyntax(compositePath);
         setElement(compositePath, value, multiLevels, false);
         return this;
     }
 
+    /**
+     * Remove a key-value
+     *
+     * @param compositePath using dot-bracket format
+     * @return this
+     */
     public MultiLevelMap removeElement(String compositePath) {
         validateCompositePathSyntax(compositePath);
         setElement(compositePath, null, multiLevels, true);
@@ -291,6 +346,12 @@ public class MultiLevelMap {
         return result;
     }
 
+    /**
+     * Check if the composite path is in proper dot-bracket syntax
+     *
+     * @param path of the key
+     * @throws IllegalArgumentException if invalid format
+     */
     public void validateCompositePathSyntax(String path) {
         Utility util = Utility.getInstance();
         List<String> segments = util.split(path, "./");
@@ -339,6 +400,8 @@ public class MultiLevelMap {
         }
     }
 
-    private static class NotFound { }
+    private static class NotFound {
+        // this class is intentionally an empty shell
+    }
 
 }

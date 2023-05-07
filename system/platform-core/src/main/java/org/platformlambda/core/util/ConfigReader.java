@@ -52,21 +52,40 @@ public class ConfigReader implements ConfigBase {
     private Map<String, Object> properties = new HashMap<>();
     private MultiLevelMap config = new MultiLevelMap(new HashMap<>());
 
+    /**
+     * Set the base configuration reader (AppConfigReader)
+     * Note that this is done automatically when your application starts.
+     * You only need to set this when you are running unit tests for the
+     * config reader without starting the platform module.
+     *
+     * @param config is the singleton AppConfigReader class
+     */
     public static void setBaseConfig(AppConfigReader config) {
         if (ConfigReader.baseConfig == null) {
             ConfigReader.baseConfig = config;
         }
     }
 
+    /**
+     * Keys in YAML configuration files are normalized for easy
+     * retrieval using the underlying MultiLevelMap module.
+     * <p>
+     * Property configuration file is kept in original structure.
+     *
+     * @return true if the configuration file is normalized.
+     */
     public boolean isNormalizedMap() {
         return isNormalized;
     }
 
     /**
-     * Environment variable overrides application properties
+     * Retrieve a parameter value by key
+     * (Note that a parameter may be substituted by a system property,
+     * an environment variable or another configuration parameter key-value
+     * using the standard dot-bracket syntax)
      *
-     * @param key parameter
-     * @return value
+     * @param key of a configuration parameter
+     * @return parameter value
      */
     @Override
     public Object get(String key) {
@@ -80,6 +99,17 @@ public class ConfigReader implements ConfigBase {
         return System.getProperty(key);
     }
 
+    /**
+     * Retrieve a parameter value by key, given a default value
+     * (Note that a parameter may be substituted by a system property,
+     * an environment variable or another configuration parameter key-value
+     * using the standard dot-bracket syntax)
+     *
+     * @param key of a configuration parameter
+     * @param defaultValue if key does not exist
+     * @param loop reserved for internal use to detect configuration loops
+     * @return parameter value
+     */
     @Override
     public Object get(String key, Object defaultValue, String... loop) {
         if (key == null || key.length() == 0) {
@@ -135,22 +165,47 @@ public class ConfigReader implements ConfigBase {
         return value;
     }
 
+    /**
+     * Retrieve a parameter value by key with return value enforced as a string
+     *
+     * @param key of a configuration parameter
+     * @return parameter value as a string
+     */
     @Override
     public String getProperty(String key) {
         Object o = get(key);
         return o != null? String.valueOf(o) : null;
     }
 
+    /**
+     * Retrieve a parameter value by key with return value enforced as a string, given a default value
+     *
+     * @param key of a configuration parameter
+     * @param defaultValue if key does not exist
+     * @return parameter value as a string
+     */
     @Override
     public String getProperty(String key, String defaultValue) {
         String s = getProperty(key);
         return s != null? s : defaultValue;
     }
 
+    /**
+     * Retrieve the underlying map
+     * (Note that this returns a raw map without value substitution)
+     *
+     * @return map of key-values
+     */
     public Map<String, Object> getMap() {
         return isNormalized? config.getMap() : properties;
     }
 
+    /**
+     * Check if a key exists
+     *
+     * @param key of a configuration parameter
+     * @return true if key exists
+     */
     @Override
     public boolean exists(String key) {
         if (key == null || key.length() == 0) {
@@ -159,11 +214,22 @@ public class ConfigReader implements ConfigBase {
         return isNormalized? config.exists(key) : properties.containsKey(key);
     }
 
+    /**
+     * Check if the configuration file is empty
+     *
+     * @return true if empty
+     */
     @Override
     public boolean isEmpty() {
         return isNormalized? config.isEmpty() : properties.isEmpty();
     }
 
+    /**
+     * Load a configuration file into a config reader
+     *
+     * @param path of the configuration file prefix with "classpath:/" or "file:/"
+     * @throws IOException if file not found
+     */
     @SuppressWarnings("unchecked")
     public void load(String path) throws IOException {
         InputStream in = null;
@@ -210,6 +276,11 @@ public class ConfigReader implements ConfigBase {
         }
     }
 
+    /**
+     * Load a configuration file into a config reader
+     *
+     * @param map of key-values
+     */
     public void load(Map<String, Object> map) {
         enforceKeysAsText(map);
         config = new MultiLevelMap(normalizeMap(map));

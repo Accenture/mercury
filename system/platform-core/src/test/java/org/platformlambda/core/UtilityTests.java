@@ -276,6 +276,14 @@ public class UtilityTests {
     }
 
     @Test
+    public void defaultValueTest() {
+        String HELLO = "hello";
+        MultiLevelMap mm = new MultiLevelMap();
+        Object value = mm.getElement("no.such.key", HELLO);
+        Assert.assertEquals(HELLO, value);
+    }
+
+    @Test
     public void flatMapTest() {
         Utility util = Utility.getInstance();
         Map<String, Object> map = new HashMap<>();
