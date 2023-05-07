@@ -131,8 +131,6 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        System.out.println(response.getBody());
-
         Assert.assertEquals(404, response.getStatus());
         Assert.assertTrue(response.getBody() instanceof Map);
         Map<String, Object> map = (Map<String, Object>) response.getBody();

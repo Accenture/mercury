@@ -1423,7 +1423,6 @@ public class PostOfficeTest extends TestBase {
         Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertTrue(result.containsKey("app"));
         Assert.assertTrue(result.containsKey("library"));
-        System.out.println(result);
     }
 
     @SuppressWarnings("unchecked")

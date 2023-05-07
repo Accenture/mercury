@@ -38,6 +38,7 @@ public class AppConfigReader implements ConfigBase {
     }
 
     private AppConfigReader() {
+        ConfigReader.setBaseConfig(this);
         /*
          * Load application.properties
          * property substitution not required because this is the top level config file
@@ -65,19 +66,13 @@ public class AppConfigReader implements ConfigBase {
 
     @Override
     public Object get(String key) {
-        // get property value from system, then application.properties and finally application.yml
-        Object value = System.getProperty(key);
-        if (value != null) {
-            return value;
-        } else {
-            return propReader.exists(key) ? propReader.getRaw(key) : yamlReader.getRaw(key);
-        }
+        return propReader.exists(key) ? propReader.get(key) : yamlReader.get(key);
     }
 
     @Override
-    public Object get(String key, Object defaultValue) {
-        Object value = get(key);
-        return value == null? defaultValue : value;
+    public Object get(String key, Object defaultValue, String... loop) {
+        return propReader.exists(key) ?
+                propReader.get(key, defaultValue, loop) : yamlReader.get(key, defaultValue, loop);
     }
 
     @Override
@@ -86,7 +81,7 @@ public class AppConfigReader implements ConfigBase {
         if (value instanceof String) {
             return (String) value;
         } else {
-            return value == null? null : value.toString();
+            return value == null? null : String.valueOf(value);
         }
     }
 

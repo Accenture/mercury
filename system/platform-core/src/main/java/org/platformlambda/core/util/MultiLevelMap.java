@@ -65,6 +65,11 @@ public class MultiLevelMap {
         return element instanceof NotFound? null : element;
     }
 
+    public Object getElement(String compositePath, Object defaultValue) {
+        Object element = getElement(compositePath);
+        return element == null? defaultValue : element;
+    }
+
     @SuppressWarnings("unchecked")
     private Object getListElement(List<Integer> indexes, List<Object> data) {
         List<Object> current = data;

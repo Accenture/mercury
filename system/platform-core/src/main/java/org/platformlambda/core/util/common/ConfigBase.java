@@ -22,7 +22,7 @@ public interface ConfigBase {
 
     Object get(String key);
 
-    Object get(String key, Object defaultValue);
+    Object get(String key, Object defaultValue, String... loop);
 
     String getProperty(String key);
 

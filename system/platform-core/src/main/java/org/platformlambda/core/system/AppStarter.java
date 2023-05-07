@@ -242,14 +242,9 @@ public class AppStarter {
         if (envInstances == null || envInstances.isEmpty()) {
             return Math.max(1, instances);
         } else {
-            final Utility util = Utility.getInstance();
-            final String env;
-            if (envInstances.contains("${") && envInstances.contains("}")) {
-                env = util.getEnvVariable(envInstances);
-            } else {
-                AppConfigReader config = AppConfigReader.getInstance();
-                env = config.getProperty(envInstances);
-            }
+            Utility util = Utility.getInstance();
+            AppConfigReader config = AppConfigReader.getInstance();
+            String env = config.getProperty(envInstances);
             return Math.max(1, env != null? util.str2int(env) : instances);
         }
     }

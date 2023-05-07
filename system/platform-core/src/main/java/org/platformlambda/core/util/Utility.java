@@ -26,8 +26,6 @@ import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.websocket.server.WsEnvelope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -41,16 +39,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 public class Utility {
-    private static final Logger log = LoggerFactory.getLogger(Utility.class);
-
-    private static final ConcurrentMap<String, List<String>> loopDetector = new ConcurrentHashMap<>();
     public static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
     public static final String ISO_MS_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
-
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ofPattern(ISO_DATE_FORMAT);
     private static final DateTimeFormatter ISO_DATE_MS = DateTimeFormatter.ofPattern(ISO_MS_FORMAT);
     private static final DateTimeFormatter DATE_ONLY = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -68,8 +60,6 @@ public class Utility {
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
     private static final String STATUS = "status";
     private static final String MESSAGE = "message";
-    private static final String ENV_START = "${";
-    private static final String ENV_END = "}";
     private static final String[] JAR_PATHS = { "BOOT-INF/lib", "WEB-INF/lib",
                                                 "WEB-INF/lib-provided", "lib" };
     private static final String JAR = "jar";
@@ -1053,76 +1043,6 @@ public class Utility {
 
     private String dropDangerousSegment(String uri, String pattern) {
         return uri != null && uri.contains(pattern)? uri.substring(0, uri.indexOf(pattern)) : uri;
-    }
-
-    public String getEnvVariable(String ref) {
-        String id = Thread.currentThread().getId() + "/" + Thread.currentThread().getName();
-        String result = getEnvVariable(id, ref);
-        loopDetector.remove(id);
-        return result;
-    }
-
-    /**
-     * Get value from an environment variable or property from the main application.yml or application.properties
-     * <p>
-     * Support one variable inside the "ref" string.
-     * e.g. 'http://127.0.0.1:${server.port}/info'
-     *
-     * @param ref containing an environment variable, system property or application property
-     * @return merged value
-     */
-    private String getEnvVariable(String id, String ref) {
-        List<String> observed = loopDetector.getOrDefault(id, new ArrayList<>());
-        if (ref != null && ref.contains(ENV_START) && ref.contains(ENV_END)) {
-            int begin = ref.indexOf(ENV_START)+2;
-            int end = ref.indexOf(ENV_END);
-            if (begin < end) {
-                String key = ref.substring(begin, end);
-                String defaultValue = null;
-                if (key.contains(":")) {
-                    int colon = key.indexOf(':');
-                    String k = key.substring(0, colon);
-                    defaultValue = key.substring(colon + 1);
-                    key = k;
-                }
-                if (observed.contains(key)) {
-                    log.warn("Config loop for '{}' detected", key);
-                    return mergeWithEnvVariable(ref, defaultValue);
-                }
-                observed.add(key);
-                loopDetector.put(id, observed);
-                String property = System.getenv(key);
-                if (property != null) {
-                    return mergeWithEnvVariable(ref, property);
-                } else {
-                    AppConfigReader config = AppConfigReader.getInstance();
-                    String value = config.getProperty(key, defaultValue);
-                    if (value != null && value.contains(ENV_START) && value.contains(ENV_END)) {
-                        // check nested env variable
-                        return mergeWithEnvVariable(ref, getEnvVariable(id, value));
-                    } else {
-                        return mergeWithEnvVariable(ref, value);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private String mergeWithEnvVariable(String ref, String value) {
-        if (ref.startsWith(ENV_START) && ref.endsWith(ENV_END)) {
-            return value;
-        } else if (ref.startsWith(ENV_START)) {
-            int end = ref.indexOf(ENV_END);
-            return value + ref.substring(end + 1);
-        } else if (ref.endsWith(ENV_END)) {
-            int begin = ref.indexOf(ENV_START);
-            return ref.substring(0, begin) + value ;
-        } else {
-            int begin = ref.indexOf(ENV_START);
-            int end = ref.indexOf(ENV_END);
-            return ref.substring(0, begin) + value + ref.substring(end+1);
-        }
     }
 
 }

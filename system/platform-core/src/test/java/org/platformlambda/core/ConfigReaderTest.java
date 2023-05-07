@@ -19,6 +19,7 @@
 package org.platformlambda.core;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
@@ -32,6 +33,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public class ConfigReaderTest {
+
+    private static final String CONFIG_LOOP = "* config loop *";
+
+    @BeforeClass
+    public static void setup() {
+        ConfigReader.setBaseConfig(AppConfigReader.getInstance());
+    }
 
     @Test
     public void environmentVarSubstitution() throws IOException {
@@ -221,8 +229,8 @@ public class ConfigReaderTest {
     @Test
     public void loopingTest() {
         AppConfigReader config = AppConfigReader.getInstance();
-        Object o = config.get("looping.test");
-        Assert.assertEquals("1000", o);
+        Object value = config.get("looping.test");
+        Assert.assertEquals(CONFIG_LOOP, value);
     }
 
     @Test
@@ -230,7 +238,22 @@ public class ConfigReaderTest {
         ConfigReader reader = new ConfigReader();
         reader.load("classpath:/test.properties");
         String value = reader.getProperty("recursive.key");
-        Assert.assertNull(value);
+        Assert.assertEquals(CONFIG_LOOP, value);
+    }
+
+    @Test
+    public void defaultValueTest() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.yaml");
+        String value = reader.getProperty("test.no.value", "hello world");
+        Assert.assertEquals("hello world", value);
+    }
+    @Test
+    public void defaultValueInRefTest() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.yaml");
+        String value = reader.getProperty("test.default");
+        Assert.assertEquals("hello 1000", value);
     }
 
 }

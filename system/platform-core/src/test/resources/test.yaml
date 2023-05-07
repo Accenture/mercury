@@ -17,3 +17,6 @@ hello:
   - '${server.port} is server port'
   - 'Server port is ${server.port}'
   path: ${system.path}
+
+test:
+  default: "hello ${no.such.key:1000}"
