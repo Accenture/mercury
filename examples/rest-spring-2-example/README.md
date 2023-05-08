@@ -7,3 +7,7 @@ The rest-spring-2 library is a customized Spring Boot 2 application server. It i
 way to build Spring Boot application that is composable. 
 
 This is optional. You can add the platform-core library to a regular Spring Boot application if you prefer.
+
+## Spring Boot
+
+This sample application requires Spring Boot version 2 as its application server.
