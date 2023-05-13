@@ -50,8 +50,8 @@ public class HouseKeeper implements LambdaFunction {
         Map<String, String> result = new HashMap<>();
         for (String m: monitors.keySet()) {
             MonitorInstance monitor = monitors.get(m);
-            result.put(m, m.equals(monitor.instance) ? util.date2str(new Date(monitor.updated), true) :
-                        monitor.instance+", "+util.date2str(new Date(monitor.updated), true));
+            result.put(m, m.equals(monitor.instance) ? util.getLocalTimestamp(monitor.updated) :
+                        monitor.instance+", "+util.getLocalTimestamp(monitor.updated));
         }
         return result;
     }
@@ -135,8 +135,8 @@ public class HouseKeeper implements LambdaFunction {
     }
 
     private static class MonitorInstance {
-        public String instance;
-        public long updated;
+        public final String instance;
+        public final long updated;
 
         public MonitorInstance(String instance, long updated) {
             this.instance = instance;

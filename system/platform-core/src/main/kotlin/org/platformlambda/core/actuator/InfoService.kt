@@ -122,8 +122,8 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
             result[PERSONALITY] = ServerPersonality.getInstance().type.name
             val time: MutableMap<String, Any> = HashMap()
             val now = Date()
-            time[START] = Date(platform.startTime)
-            time[CURRENT] = now
+            time[START] = util.getLocalTimestamp(platform.startTime)
+            time[CURRENT] = util.getLocalTimestamp(now.time)
             result[TIME] = time
             result[UP_TIME] = util.elapsedTime(now.time - platform.startTime)
         }

@@ -690,6 +690,15 @@ public class Utility {
         return str2date(str, false);
     }
 
+    public String getLocalTimestamp() {
+        return getLocalTimestamp(new Date().getTime());
+    }
+
+    public String getLocalTimestamp(long ms) {
+        LocalDateTime local = new Date(ms).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return local.toString().replace('T', ' ');
+    }
+
     public LocalDateTime str2localtime(String str) {
         return str2localtime(str, false);
     }

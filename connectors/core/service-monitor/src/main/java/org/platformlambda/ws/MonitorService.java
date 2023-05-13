@@ -196,7 +196,7 @@ public class MonitorService implements LambdaFunction {
         if (ready && platform.hasRoute(CLOUD_CONNECTOR) &&
                 platform.hasRoute(CLOUD_MANAGER) && platform.hasRoute(MainApp.PRESENCE_HANDLER)) {
             Map<String, Object> info = new HashMap<>();
-            String time = util.date2str(new Date(), true);
+            String time = util.getLocalTimestamp(new Date().getTime());
             info.put(CREATED, time);
             info.put(UPDATED, time);
             info.put(MONITOR, platform.getOrigin());
@@ -314,7 +314,7 @@ public class MonitorService implements LambdaFunction {
             }
         }
         // save timestamp without milliseconds
-        info.put(UPDATED, util.date2str(new Date(), true));
+        info.put(UPDATED, util.getLocalTimestamp(new Date().getTime()));
     }
 
     @SuppressWarnings("unchecked")
