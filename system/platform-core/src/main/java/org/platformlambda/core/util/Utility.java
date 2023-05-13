@@ -1005,10 +1005,12 @@ public class Utility {
             sb.append(minutes == 1? " minute " : " minutes ");
             time -= minutes * ONE_MINUTE;
         }
-        long seconds = time / ONE_SECOND;
-        sb.append(seconds);
-        sb.append(seconds == 1? " second" : " seconds");
-        return sb.toString();
+        if (time > ONE_SECOND) {
+            long seconds = time / ONE_SECOND;
+            sb.append(seconds);
+            sb.append(seconds == 1 ? " second" : " seconds");
+        }
+        return sb.length() == 0? time + " ms" : sb.toString().trim();
     }
 
     //////////////////////////////////////////////////////////////////

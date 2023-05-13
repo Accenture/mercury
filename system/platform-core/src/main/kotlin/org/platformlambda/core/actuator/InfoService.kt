@@ -108,8 +108,9 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
             val memory: MutableMap<String, Any> = HashMap()
             result[MEMORY] = memory
             memory[MAX] = number.format(maxMemory)
-            memory[ALLOCATED] = number.format(allocatedMemory)
             memory[FREE] = number.format(freeMemory)
+            memory[ALLOCATED] = number.format(allocatedMemory)
+            memory[USED] = number.format(allocatedMemory - freeMemory)
             /*
              * check streams resources if any
              */result[STREAMS] = ObjectStreamIO.getStreamInfo()
@@ -120,9 +121,11 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
             result[ORIGIN] = platform.origin
             result[PERSONALITY] = ServerPersonality.getInstance().type.name
             val time: MutableMap<String, Any> = HashMap()
-            time[START] = START_TIME
-            time[CURRENT] = Date()
+            val now = Date()
+            time[START] = Date(platform.startTime)
+            time[CURRENT] = now
             result[TIME] = time
+            result[UP_TIME] = util.elapsedTime(now.time - platform.startTime)
         }
         return EventEnvelope().setHeader(CONTENT_TYPE, accept).setBody(result)
     }
@@ -264,6 +267,7 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
         private const val MEMORY = "memory"
         private const val MAX = "max"
         private const val ALLOCATED = "allocated"
+        private const val USED = "used"
         private const val FREE = "free"
         private const val ORIGIN = "origin"
         private const val INSTANCE = "instance"
@@ -280,6 +284,7 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
         private const val TIME = "time"
         private const val START = "start"
         private const val CURRENT = "current"
+        private const val UP_TIME = "uptime"
         private const val SHOW_ENV = "show.env.variables"
         private const val SHOW_PROPERTIES = "show.application.properties"
         private const val SYSTEM_ENV = "environment"
@@ -289,7 +294,6 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
         private const val CONTENT_TYPE = "content-type"
         private const val APPLICATION_JSON = "application/json"
         private const val APPLICATION_XML = "application/xml"
-        private val START_TIME = Date()
     }
 
 }

@@ -64,6 +64,7 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
         if (input.getRawBody() instanceof Map && input.getReplyTo() != null) {
             Utility util = Utility.getInstance();
             AsyncHttpRequest httpRequest = new AsyncHttpRequest(input.getRawBody());
+            Map<String, String> sessionInfo = httpRequest.getSessionInfo();
             long timeout = Math.max(100, util.str2long(httpRequest.getHeader(X_TIMEOUT)));
             boolean async = "true".equals(httpRequest.getHeader(X_ASYNC));
             String streamId = httpRequest.getStreamRoute();
@@ -76,7 +77,8 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
                     .onSuccess(result -> {
                         if (result.getRawBody() instanceof byte[]) {
                             try {
-                                handleRequest(headers, instance, (byte[]) result.getRawBody(), input, timeout, async);
+                                handleRequest(sessionInfo, headers, instance,
+                                        (byte[]) result.getRawBody(), input, timeout, async);
                             } catch (Exception e) {
                                 sendError(input, 400, e.getMessage());
                             }
@@ -88,7 +90,8 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
 
             } else if (httpRequest.getBody() instanceof byte[]) {
                 try {
-                    handleRequest(headers, instance, (byte[]) httpRequest.getBody(), input, timeout, async);
+                    handleRequest(sessionInfo, headers, instance,
+                            (byte[]) httpRequest.getBody(), input, timeout, async);
                 } catch (Exception e) {
                     sendError(input, 400, e.getMessage());
                 }
@@ -97,10 +100,12 @@ public class EventApiService implements TypedLambdaFunction<EventEnvelope, Void>
         return null;
     }
 
-    private void handleRequest(Map<String, String> headers, int instance,
+    private void handleRequest(Map<String, String> sessionInfo, Map<String, String> headers, int instance,
                                byte[] requestBody, EventEnvelope input,
                                long timeout, boolean async) throws IOException {
         EventEnvelope request = new EventEnvelope(requestBody);
+        // propagate session info if any
+        sessionInfo.forEach(request::setHeader);
         PostOffice po = new PostOffice(headers, instance);
         if (request.getTo() != null) {
             if (po.exists(request.getTo())) {

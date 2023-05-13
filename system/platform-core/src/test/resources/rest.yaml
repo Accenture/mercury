@@ -11,6 +11,7 @@ rest:
     methods: ['POST']
     url: "/api/event"
     timeout: 60s
+    authentication: 'event.api.auth'
     tracing: true
 
   # service should be a target service name or a list of service names

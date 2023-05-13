@@ -58,6 +58,7 @@ public class Platform {
     private static EventBus system;
     private static ExecutorService executor;
     private static SimpleCache cache;
+    private final long startTime = System.currentTimeMillis();
     private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final Platform INSTANCE = new Platform();
 
@@ -187,6 +188,10 @@ public class Platform {
             originId = util.getDateOnly(new Date()) + id;
         }
         return originId;
+    }
+
+    public long getStartTime() {
+        return startTime;
     }
 
     /**

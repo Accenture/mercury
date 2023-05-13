@@ -1113,6 +1113,8 @@ public class PostOfficeTest extends TestBase {
         Assert.assertTrue(result.getBody() instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) result.getBody());
         Assert.assertEquals("world", map.getElement("headers.hello"));
+        // validate that session information is passed by the demo authentication service "event.api.auth"
+        Assert.assertEquals("demo", map.getElement("headers.user"));
         Assert.assertEquals(NUMBER_THREE, map.getElement("body"));
     }
 
