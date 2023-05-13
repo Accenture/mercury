@@ -69,7 +69,6 @@ public class PresenceConnector implements LambdaFunction {
     private static final String VERSION = "version";
     private static final String GROUP = "group";
     private static final String TOPIC = "topic";
-    private static final long START_TIME = System.currentTimeMillis();
     private static final PresenceConnector CONNECTOR_INSTANCE = new PresenceConnector();
     private final String begin;
     private final String monitorTopic;
@@ -88,7 +87,7 @@ public class PresenceConnector implements LambdaFunction {
         Utility util = Utility.getInstance();
         AppConfigReader config = AppConfigReader.getInstance();
         monitorTopic = config.getProperty("monitor.topic", "service.monitor");
-        begin = Utility.getInstance().date2str(new Date(START_TIME), true);
+        begin = Utility.getInstance().getLocalTimestamp();
         // range: 3 to 30
         int maxGroups = Math.min(30,
                 Math.max(3, util.str2int(config.getProperty("max.closed.user.groups", "10"))));
@@ -231,7 +230,8 @@ public class PresenceConnector implements LambdaFunction {
                     .setHeader(GROUP, closedUserGroup)
                     .setHeader(TYPE, ServerPersonality.getInstance().getType());
                 if (alive) {
-                    info.setHeader(ELAPSED, util.elapsedTime(System.currentTimeMillis() - START_TIME));
+                    info.setHeader(ELAPSED,
+                            util.elapsedTime(System.currentTimeMillis() - platform.getStartTime()));
                 }
                 if (topicPartition != null) {
                     info.setHeader(TOPIC, topicPartition);

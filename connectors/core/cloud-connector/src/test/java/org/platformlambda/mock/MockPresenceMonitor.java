@@ -178,7 +178,7 @@ public class MockPresenceMonitor implements LambdaFunction {
                     // check if dependencies are ready
                     if (platform.hasRoute(CLOUD_CONNECTOR)) {
                         Map<String, Object> info = new HashMap<>();
-                        String time = util.date2str(new Date(), true);
+                        String time = util.getLocalTimestamp();
                         info.put(CREATED, time);
                         info.put(UPDATED, time);
                         info.put(MONITOR, platform.getOrigin());
@@ -322,7 +322,7 @@ public class MockPresenceMonitor implements LambdaFunction {
             }
         }
         // save timestamp without milliseconds
-        info.put(UPDATED, util.date2str(new Date(), true));
+        info.put(UPDATED, util.getLocalTimestamp());
     }
 
     private void leaveGroup(String closedApp, int groupId) {

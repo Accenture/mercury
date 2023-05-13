@@ -184,7 +184,7 @@ public class ServiceRegistry implements LambdaFunction {
         if (JOIN.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
             String topic = headers.get(TOPIC);
-            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
             originTopic.put(origin, topic);
             if (!presenceMonitor) {
                 if (origin.equals(myOrigin)) {
@@ -246,7 +246,7 @@ public class ServiceRegistry implements LambdaFunction {
                     }
                 }
             }
-            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
             originTopic.put(origin, topic);
             if (!originAppVersion.containsKey(origin) && !myOrigin.equals(origin)) {
                 log.info("Peer {} active ({} {})", origin, name, version);
@@ -380,7 +380,7 @@ public class ServiceRegistry implements LambdaFunction {
             return false;
         } else {
             originMap.put(origin, personality);
-            cloudOrigins.put(origin, Utility.getInstance().date2str(new Date(), true));
+            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
             log.info("{} ({}.{}) registered", route, personality, origin);
             return true;
         }
