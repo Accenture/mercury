@@ -155,10 +155,14 @@ public class ConfigReader implements ConfigBase {
                     loopDetection.remove(loopId);
                     String first = result.substring(0, bracketStart);
                     String last = result.substring(bracketEnd+1);
-                    if (middleDefault == null) {
-                        middleDefault = "";
+                    if (first.isEmpty() && last.isEmpty()) {
+                        return middle != null? middle : middleDefault;
+                    } else {
+                        if (middleDefault == null) {
+                            middleDefault = "";
+                        }
+                        return first + (middle != null ? middle : middleDefault) + last;
                     }
-                    return first + (middle != null? middle : middleDefault) + last;
                 }
             }
         }

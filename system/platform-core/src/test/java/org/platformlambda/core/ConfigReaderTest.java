@@ -257,4 +257,13 @@ public class ConfigReaderTest {
         Assert.assertEquals("hello 1000", value);
     }
 
+    @Test
+    public void noDefaultValueInRefTest() throws IOException {
+        ConfigReader reader = new ConfigReader();
+        reader.load("classpath:/test.yaml");
+        String value = reader.getProperty("test.no_default");
+        // when there is no default value in the reference, it will return empty string as the default value.
+        Assert.assertEquals("hello world", value);
+    }
+
 }

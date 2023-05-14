@@ -20,3 +20,4 @@ hello:
 
 test:
   default: "hello ${no.such.key:1000}"
+  no_default: "hello ${no.such.key}world"
