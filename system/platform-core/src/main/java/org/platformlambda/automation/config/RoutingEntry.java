@@ -50,7 +50,6 @@ public class RoutingEntry {
     private static final String URL_LABEL = "url";
     private static final String ID = "id";
     private static final String OPTIONS_METHOD = "OPTIONS";
-    private static final String ORIGIN = "origin";
     private static final String OPTIONS = "options";
     private static final String HEADERS = "headers";
     private static final String DEFAULT_VALUE = "default";
@@ -69,10 +68,7 @@ public class RoutingEntry {
     private static final List<String> METHOD_LIST = Arrays.asList(VALID_METHODS);
     private static final int MIN_THRESHOLD = 5000;
     private static final int MAX_THRESHOLD = 500000;
-    private static final int ONE_MINUTE = 60;
-    private static final int FIVE_MINUTES = 5 * ONE_MINUTE;
-    private static final int ONE_HOUR = 60 * ONE_MINUTE;
-    private static final int ONE_DAY = 24 * ONE_HOUR;
+    private static final int FIVE_MINUTES = 5 * 60;
     private static final Map<String, RouteInfo> routes = new HashMap<>();
     private static final Map<String, Boolean> exactRoutes = new HashMap<>();
     // id -> maps for options and headers
@@ -381,8 +377,7 @@ public class RoutingEntry {
         if (url.contains("?")) {
             url = url.substring(0, url.indexOf('?'));
         }
-        String timeout = config.getProperty(REST+"["+idx+"]."+TIMEOUT);
-        info.timeoutSeconds = timeout != null? getDurationInSeconds(timeout) : 30;
+        info.timeoutSeconds = getDurationInSeconds(config.getProperty(REST+"["+idx+"]."+TIMEOUT));
         String corsId = config.getProperty(REST+"["+idx+"]."+CORS);
         if (corsId != null) {
             if (corsConfig.containsKey(corsId)) {
@@ -732,25 +727,14 @@ public class RoutingEntry {
     }
 
     public int getDurationInSeconds(String duration) {
-        Utility util = Utility.getInstance();
-        int multiplier = 1;
-        final int n;
-        if (duration.endsWith("s") || duration.endsWith("m") || duration.endsWith("h") || duration.endsWith("d")) {
-            n = util.str2int(duration.substring(0, duration.length()-1));
-            if (duration.endsWith("m")) {
-                multiplier = ONE_MINUTE;
-            }
-            if (duration.endsWith("h")) {
-                multiplier = ONE_HOUR;
-            }
-            if (duration.endsWith("d")) {
-                multiplier = ONE_DAY;
-            }
+        if (duration == null) {
+            // default 30 seconds
+            return 30;
         } else {
-            n = util.str2int(duration);
+            int result = Utility.getInstance().getDurationInSeconds(duration);
+            // set maximum to 5 minutes and minimum to 5 seconds
+            return Math.min(FIVE_MINUTES, Math.max(result, 5));
         }
-        // set maximum to 5 minutes and minimum to 5 seconds
-        return Math.min(FIVE_MINUTES, Math.max(n * multiplier, 5));
     }
 
 }
