@@ -29,7 +29,7 @@ Java 19 virtual thread feature becomes officially available.
 1. Refactor "async.http.request" to use vertx web client for non-blocking operation
 2. Update log4j2 version 2.20.0 and slf4j version 2.0.7 in platform-core
 3. Update JBoss RestEasy JAX_RS to version 3.15.6.Final in rest-spring
-4. Update vertx to 4.4.1
+4. Update vertx to 4.4.2
 5. Update Spring Boot parent pom to 2.7.11 and 3.0.6 for spring boot 2 and 3 respectively
 6. Remove com.fasterxml.classmate dependency from rest-spring
 

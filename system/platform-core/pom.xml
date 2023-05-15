@@ -22,6 +22,7 @@
         <snakeyaml.version>2.0</snakeyaml.version>
         <hazelcast.version>5.1.2</hazelcast.version>
         <kafka.version>3.4.0</kafka.version>
+        <netty.version>4.1.92.Final</netty.version>
         <gson.version>2.10.1</gson.version>
         <slf4j.version>2.0.7</slf4j.version>
         <log4j2.version>2.20.0</log4j2.version>
@@ -34,10 +35,7 @@
             <id>central</id>
             <url>https://repo1.maven.org/maven2/</url>
         </repository>
-        <!--        <repository>-->
-        <!--            <id>your-repo</id>-->
-        <!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
-        <!--        </repository>-->
+        <!-- add your corporate artifactory here -->
     </repositories>
 
     <dependencies>
@@ -58,19 +56,19 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-lang-kotlin-coroutines</artifactId>
-            <version>4.4.1</version>
+            <version>4.4.2</version>
         </dependency>
 
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web-client</artifactId>
-            <version>4.4.1</version>
+            <version>4.4.2</version>
         </dependency>
 
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>4.4.1</version>
+            <version>4.4.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -100,7 +98,6 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>2.0</version>
         </dependency>
 
         <dependency>

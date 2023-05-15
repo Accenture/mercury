@@ -23,12 +23,21 @@
         <snakeyaml.version>2.0</snakeyaml.version>
         <hazelcast.version>5.1.2</hazelcast.version>
         <kafka.version>3.4.0</kafka.version>
+        <netty.version>4.1.92.Final</netty.version>        
         <gson.version>2.10.1</gson.version>
         <slf4j.version>2.0.7</slf4j.version>
         <log4j2.version>2.20.0</log4j2.version>
         <kotlin.version>1.8.21</kotlin.version>
         <java.version>17</java.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <!-- add your corporate artifactory here -->
+    </repositories>    
 
     <dependencies>
         <dependency>
