@@ -231,7 +231,7 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                     }
                     if (result is EventEnvelope) {
                         val headers = result.headers
-                        if (headers.isEmpty() && result.status == 408 && result.body == null) {
+                        if (headers.isEmpty() && result.status == 408 && result.rawBody == null) {
                             /*
                              * An empty event envelope with timeout status
                              * is used by the ObjectStreamService to simulate a READ timeout.
@@ -244,16 +244,17 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                              * 2. key-values (as headers)
                              * 3. optional parametric types for Java class that uses generic types
                              */
-                            response.body = result.body
+                            response.body = result.rawBody
+                            response.type = result.type;
+                            if (result.parametricType != null) {
+                                response.parametricType = result.parametricType
+                            }
                             for ((key, value) in headers) {
                                 if (key != MY_ROUTE && key != MY_TRACE_ID && key != MY_TRACE_PATH) {
                                     response.setHeader(key, value)
                                 }
                             }
                             response.status = result.status
-                            if (result.parametricType != null) {
-                                response.parametricType = result.parametricType
-                            }
                         }
                         if (response.headers.isNotEmpty()) {
                             output[HEADERS] = response.headers

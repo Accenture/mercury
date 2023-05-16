@@ -224,7 +224,7 @@ public class WorkerHandler {
                 if (result instanceof EventEnvelope) {
                     EventEnvelope resultEvent = (EventEnvelope) result;
                     Map<String, String> headers = resultEvent.getHeaders();
-                    if (headers.isEmpty() && resultEvent.getStatus() == 408 && resultEvent.getBody() == null) {
+                    if (headers.isEmpty() && resultEvent.getStatus() == 408 && resultEvent.getRawBody() == null) {
                         /*
                          * An empty event envelope with timeout status
                          * is used by the ObjectStreamService to simulate a READ timeout.
@@ -237,7 +237,11 @@ public class WorkerHandler {
                          * 2. key-values (as headers)
                          * 3. optional parametric types for Java class that uses generic types
                          */
-                        response.setBody(resultEvent.getBody());
+                        response.setBody(resultEvent.getRawBody());
+                        response.setType(resultEvent.getType());
+                        if (resultEvent.getParametricType() != null) {
+                            response.setParametricType(resultEvent.getParametricType());
+                        }
                         for (Map.Entry<String, String> kv: headers.entrySet()) {
                             String k = kv.getKey();
                             if (!k.equals(MY_ROUTE) && !k.equals(MY_TRACE_ID) && !k.equals(MY_TRACE_PATH)) {
@@ -245,9 +249,6 @@ public class WorkerHandler {
                             }
                         }
                         response.setStatus(resultEvent.getStatus());
-                        if (resultEvent.getParametricType() != null) {
-                            response.setParametricType(resultEvent.getParametricType());
-                        }
                     }
                     if (!response.getHeaders().isEmpty()) {
                         output.put(HEADERS, response.getHeaders());
