@@ -31,11 +31,14 @@ import java.util.Map;
 @PreLoad(route="hello.input.mapping", instances = 10)
 public class HelloInputMapping implements TypedLambdaFunction<PoJo, EventEnvelope> {
 
-    private static final String ROUTE = "hello.input.mapping";
+    private static final String SERVICE_NAME = "hello.input.mapping";
 
     private static final String MY_ROUTE = "my_route";
     private static final String MY_TRACE_ID = "my_trace_id";
     private static final String MY_TRACE_PATH = "my_trace_path";
+    private static final String ROUTE = "route";
+    private static final String TRACE_ID = "trace_id";
+    private static final String TRACE_PATH = "trace_path";
     private static final String COROUTINE = "coroutine";
     private static final String SUSPEND = "suspend";
     private static final String INTERCEPTOR = "interceptor";
@@ -44,17 +47,23 @@ public class HelloInputMapping implements TypedLambdaFunction<PoJo, EventEnvelop
     @Override
     public EventEnvelope handleEvent(Map<String, String> headers, PoJo input, int instance) {
         Platform platform = Platform.getInstance();
-        boolean isCoroutine = platform.isCoroutine(ROUTE);
-        boolean isKotlin = platform.isSuspendFunction(ROUTE);
-        boolean isInterceptor = platform.isInterceptor(ROUTE);
-        boolean isTrackable = platform.isTrackable(ROUTE);
+        boolean isCoroutine = platform.isCoroutine(SERVICE_NAME);
+        boolean isKotlin = platform.isSuspendFunction(SERVICE_NAME);
+        boolean isInterceptor = platform.isInterceptor(SERVICE_NAME);
+        boolean isTrackable = platform.isTrackable(SERVICE_NAME);
         /*
          * trace_id and trace_path are READ only metadata
          */
         return new EventEnvelope().setBody(input)
+                // the system will filter out reserved metadata
                 .setHeader(MY_ROUTE, headers.get(MY_ROUTE))
                 .setHeader(MY_TRACE_ID, headers.get(MY_TRACE_ID))
                 .setHeader(MY_TRACE_PATH, headers.get(MY_TRACE_PATH))
+                // therefore, we keep them in different key-values
+                .setHeader(ROUTE, headers.get(MY_ROUTE))
+                .setHeader(TRACE_ID, headers.get(MY_TRACE_ID))
+                .setHeader(TRACE_PATH, headers.get(MY_TRACE_PATH))
+                // return the service attributes for unit test to validate
                 .setHeader(COROUTINE, isCoroutine)
                 .setHeader(SUSPEND, isKotlin)
                 .setHeader(INTERCEPTOR, isInterceptor)

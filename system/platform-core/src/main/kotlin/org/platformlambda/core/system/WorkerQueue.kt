@@ -246,7 +246,9 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                              */
                             response.body = result.body
                             for ((key, value) in headers) {
-                                response.setHeader(key, value)
+                                if (key != MY_ROUTE && key != MY_TRACE_ID && key != MY_TRACE_PATH) {
+                                    response.setHeader(key, value)
+                                }
                             }
                             response.status = result.status
                             if (result.parametricType != null) {

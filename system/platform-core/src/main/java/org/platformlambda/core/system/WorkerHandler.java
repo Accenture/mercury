@@ -239,7 +239,10 @@ public class WorkerHandler {
                          */
                         response.setBody(resultEvent.getBody());
                         for (Map.Entry<String, String> kv: headers.entrySet()) {
-                            response.setHeader(kv.getKey(), kv.getValue());
+                            String k = kv.getKey();
+                            if (!k.equals(MY_ROUTE) && !k.equals(MY_TRACE_ID) && !k.equals(MY_TRACE_PATH)) {
+                                response.setHeader(k, kv.getValue());
+                            }
                         }
                         response.setStatus(resultEvent.getStatus());
                         if (resultEvent.getParametricType() != null) {
