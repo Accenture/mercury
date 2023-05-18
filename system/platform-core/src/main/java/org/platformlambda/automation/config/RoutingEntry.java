@@ -458,7 +458,7 @@ public class RoutingEntry {
         } else {
             String trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
             if (trustAll != null) {
-                log.warn("{}=true for {} is not relevant", TRUST_ALL_CERT, info.primary);
+                log.warn("{} parameter for {} is not relevant for regular service", TRUST_ALL_CERT, info.primary);
             }
         }
         // remove OPTIONS method
