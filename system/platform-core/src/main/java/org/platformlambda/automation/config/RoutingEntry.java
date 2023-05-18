@@ -40,7 +40,7 @@ public class RoutingEntry {
     private static final String HTTPS = "https://";
     private static final String REST = "rest";
     private static final String CORS = "cors";
-    private static final String AUTH = "authentication";
+    private static final String AUTHENTICATION = "authentication";
     private static final String UPLOAD = "upload";
     private static final String THRESHOLD = "threshold";
     private static final String TRACING = "tracing";
@@ -196,44 +196,44 @@ public class RoutingEntry {
     public void load(ConfigReader config) {
         if (config.exists(HEADERS)) {
             Object headerList = config.get(HEADERS);
+            boolean valid = false;
             if (headerList instanceof List) {
                 List<Object> list = (List<Object>) headerList;
                 if (isListOfMap(list)) {
                     loadHeaderTransform(config, list.size());
-                } else {
-                    log.error("'headers' section must be a list of configuration with request and response entries");
+                    valid = true;
                 }
-
-            } else {
-                log.error("'headers' section must contain a list of configuration. Actual: {}", headerList.getClass().getSimpleName());
+            }
+            if (!valid) {
+                log.error("'headers' section must be a list of request and response entries");
             }
         }
         if (config.exists(CORS)) {
             Object corsList = config.get(CORS);
+            boolean valid = false;
             if (corsList instanceof List) {
                 List<Object> list = (List<Object>) corsList;
                 if (isListOfMap((List<Object>) corsList)) {
                     loadCors(config, list.size());
-                } else {
-                    log.error("'cors' section must be a list of Access-Control configuration where each entry is a map of id, options and headers");
+                    valid = true;
                 }
-
-            } else {
-                log.error("'cors' section must contain a list of Access-Control configuration. Actual: {}", corsList.getClass().getSimpleName());
+            }
+            if (!valid) {
+                log.error("'cors' section must be a list of Access-Control entries (id, options and headers)");
             }
         }
         if (config.exists(REST)) {
             Object rest = config.get(REST);
+            boolean valid = false;
             if (rest instanceof List) {
-                List restList = (List<Object>) rest;
+                List<Object> restList = (List<Object>) rest;
                 if (isListOfMap(restList)) {
                     loadRest(config, restList.size());
-                } else {
-                    log.error("'rest' section must be a list of configuration where each endpoint is a map of url, service, methods, timeout, etc.");
+                    valid = true;
                 }
-
-            } else {
-                log.error("'rest' section must contain a list of configuration. Actual: {}", rest.getClass().getSimpleName());
+            }
+            if (!valid) {
+                log.error("'rest' section must be a list of endpoint entries (url, service, methods, timeout...)");
             }
             List<String> exact = new ArrayList<>();
             for (String r: exactRoutes.keySet()) {
@@ -281,11 +281,10 @@ public class RoutingEntry {
         for (int i=0; i < total; i++) {
             Object services = config.get(REST+"["+i+"]."+SERVICE);
             Object methods = config.get(REST+"["+i+"]."+METHODS);
-            Object url = config.get(REST+"["+i+"]."+URL_LABEL);
-            if (url instanceof String && methods instanceof List &&
+            String url = config.getProperty(REST+"["+i+"]."+URL_LABEL);
+            if (url != null && methods instanceof List &&
                     (services instanceof List || services instanceof String)) {
-                String text = (String) url;
-                loadRestEntry(config, i, !text.contains("{") && !text.contains("}") && !text.contains("*"));
+                loadRestEntry(config, i, !url.contains("{") && !url.contains("}") && !url.contains("*"));
             } else {
                 log.error(SKIP_INVALID_ENTRY, config.get(REST+"["+i+"]"));
             }
@@ -314,7 +313,8 @@ public class RoutingEntry {
         if (upload != null) {
             info.upload = "true".equalsIgnoreCase(upload);
         }
-        Object authConfig = config.get(REST+"["+idx+"]."+AUTH);
+        Object authConfig = config.get(REST+"["+idx+"]."+ AUTHENTICATION);
+        // authentication: "v1.api.auth"
         if (authConfig instanceof String) {
             String auth = authConfig.toString().trim();
             if (util.validServiceName(auth)) {
@@ -324,6 +324,12 @@ public class RoutingEntry {
                 return;
             }
         }
+        /*
+            authentication:
+            - "x-app-name: demo : v1.demo.auth"
+            - "authorization: v1.basic.auth"
+            - "default: v1.api.auth"
+         */
         if (authConfig instanceof List) {
             List<Object> authList = (List<Object>) authConfig;
             for (Object o : authList) {
@@ -365,12 +371,12 @@ public class RoutingEntry {
                 return;
             }
         }
-        Object threshold = config.get(REST+"["+idx+"]."+THRESHOLD);
+        String threshold = config.getProperty(REST+"["+idx+"]."+THRESHOLD);
         if (threshold != null) {
-            info.threshold = Math.min(MAX_THRESHOLD, Math.max(MIN_THRESHOLD, util.str2int(threshold.toString())));
+            info.threshold = Math.min(MAX_THRESHOLD, Math.max(MIN_THRESHOLD, util.str2int(threshold)));
         }
-        Object tracing = config.get(REST+"["+idx+"]."+TRACING);
-        if (tracing != null && "true".equalsIgnoreCase(tracing.toString())) {
+        String tracing = config.getProperty(REST+"["+idx+"]."+TRACING);
+        if ("true".equalsIgnoreCase(tracing)) {
             info.tracing = true;
         }
         // drop query string when parsing URL
@@ -432,9 +438,8 @@ public class RoutingEntry {
                     log.error("Skipping entry with invalid service URL {} - Must not contain query", info.primary);
                     return;
                 }
-                Object trustAll = config.get(REST+"["+idx+"]."+TRUST_ALL_CERT);
-                if (info.primary.startsWith(HTTPS) && trustAll != null &&
-                        "true".equalsIgnoreCase(trustAll.toString())) {
+                String trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
+                if (info.primary.startsWith(HTTPS) && "true".equalsIgnoreCase(trustAll)) {
                     info.trustAllCert = true;
                     log.warn("Be careful - {}=true for {}", TRUST_ALL_CERT, info.primary);
                 }
@@ -451,13 +456,17 @@ public class RoutingEntry {
             }
 
         } else {
-            Object trustAll = config.get(REST+"["+idx+"]."+TRUST_ALL_CERT);
+            String trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
             if (trustAll != null) {
                 log.warn("{}=true for {} is not relevant", TRUST_ALL_CERT, info.primary);
             }
         }
+        // remove OPTIONS method
+        methods.remove(OPTIONS_METHOD);
         if (validMethods(methods)) {
-            info.methods = methods;
+            List<String> allMethods = new ArrayList<>(new HashSet<>(methods));
+            Collections.sort(allMethods);
+            info.methods = allMethods;
             if (exact) {
                 exactRoutes.put(url, true);
             }
@@ -466,28 +475,19 @@ public class RoutingEntry {
                 log.error("Skipping invalid entry {}", config.get(REST+"["+idx+"]"));
             } else {
                 info.url = nUrl;
-                List<String> allMethods = new ArrayList<>(methods);
-                if (!allMethods.contains(OPTIONS_METHOD)) {
-                    allMethods.add(OPTIONS_METHOD);
-                }
+                allMethods.add(OPTIONS_METHOD);
                 for (String m: allMethods) {
                     String key = m+":"+nUrl;
-                    if (routes.containsKey(key)) {
-                        if (!m.equals(OPTIONS_METHOD)) {
-                            log.error("Skipping duplicated method and URL {}", key);
-                        }
+                    routes.put(key, info);
+                    // OPTIONS method is not traced
+                    if (m.equals(OPTIONS_METHOD)) {
+                        log.info("{} {} -> {}, timeout={}s", m, nUrl, info.services, info.timeoutSeconds);
+                    } else if (info.defaultAuthService != null) {
+                        log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
+                                m, nUrl, info.defaultAuthService, info.services, info.timeoutSeconds, info.tracing);
                     } else {
-                        routes.put(key, info);
-                        // OPTIONS method is not traced
-                        if (m.equals(OPTIONS_METHOD)) {
-                            log.info("{} {} -> {}, timeout={}s", m, nUrl, info.services, info.timeoutSeconds);
-                        } else if (info.defaultAuthService != null) {
-                            log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
-                                    m, nUrl, info.defaultAuthService, info.services, info.timeoutSeconds, info.tracing);
-                        } else {
-                            log.info("{} {} -> {}, timeout={}s, tracing={}",
-                                    m, nUrl, info.services, info.timeoutSeconds, info.tracing);
-                        }
+                        log.info("{} {} -> {}, timeout={}s, tracing={}",
+                                m, nUrl, info.services, info.timeoutSeconds, info.tracing);
                     }
                 }
             }
@@ -547,27 +547,23 @@ public class RoutingEntry {
         for (String p: parts) {
             String s = p.trim();
             sb.append('/');
-            if (exact) {
-                sb.append(s);
-            } else {
+            if (!exact) {
                 if (s.contains("{") || s.contains("}")) {
                     if (s.contains("*")) {
                         log.error("wildcard url segment must not mix arguments with *, actual: {}", s);
                         return null;
                     }
                     if (!validArgument(s)) {
-                        log.error("Argument url segment must be enclosed curly brackets, actual: {}", s);
+                        log.error("argument url segment must be enclosed by curly brackets, actual: {}", s);
                         return null;
                     }
                 }
-                if (s.contains("*")) {
-                    if (!validWildcard(s)) {
-                        log.error("wildcard url segment must ends with *, actual: {}", url);
-                        return null;
-                    }
+                if (s.contains("*") && !validWildcard(s)) {
+                    log.error("wildcard url segment must ends with *, actual: {}", s);
+                    return null;
                 }
-                sb.append(s);
             }
+            sb.append(s);
         }
         return sb.toString();
     }
@@ -577,7 +573,9 @@ public class RoutingEntry {
             String v = arg.substring(1, arg.length()-1);
             if (v.length() == 0) {
                 return false;
-            } else return !v.contains("{") && !v.contains("}");
+            } else {
+                return !v.contains("{") && !v.contains("}");
+            }
         } else {
             return false;
         }
@@ -612,13 +610,12 @@ public class RoutingEntry {
                         info.addHeader(config.getProperty(CORS + "[" + i + "]." + HEADERS + "[" + j + "]"));
                     }
                     corsConfig.put(id, info);
-                    log.info("Loaded {} CORS headers ({})", id, info.getOrigin(false));
+                    log.info("Loaded {} cors headers ({})", id, info.getOrigin(false));
                 } else {
-                    log.error("Skipping invalid CORS entry id={}, options={}, headers={}",
-                            id, options, headers);
+                    log.error("Skipping invalid cors entry id={}, options={}, headers={}", id, options, headers);
                 }
             } else {
-                log.error("Skipping invalid CORS definition {}", config.get(CORS+"["+i+"]"));
+                log.error("Skipping invalid cors definition {}", config.get(CORS+"["+i+"]"));
             }
         }
     }
@@ -630,7 +627,7 @@ public class RoutingEntry {
                     return false;
                 }
             } else {
-                log.error("Cors header must be a list of strings, actual: {}", list);
+                log.error("cors header must be a list of strings, actual: {}", list);
                 return false;
             }
         }
@@ -639,17 +636,17 @@ public class RoutingEntry {
 
     private boolean validCorsElement(String element) {
         if (!element.startsWith(ACCESS_CONTROL_PREFIX)) {
-            log.error("Cors header must start with {}, actual: {}", ACCESS_CONTROL_PREFIX, element);
+            log.error("cors header must start with {}, actual: {}", ACCESS_CONTROL_PREFIX, element);
             return false;
         }
         int colon = element.indexOf(':');
         if (colon == -1) {
-            log.error("Cors header must contain key-value separated by a colon, actual: {}", element);
+            log.error("cors header must contain key-value separated by a colon, actual: {}", element);
             return false;
         }
         String value = element.substring(colon+1).trim();
         if (value.length() == 0) {
-            log.error("Missing value in Cors header {}, actual: {}", element.substring(0, colon), element);
+            log.error("Missing value in cors header {}", element.substring(0, colon));
             return false;
         }
         return true;
@@ -662,53 +659,58 @@ public class RoutingEntry {
                 loadHeaderEntry(config, i, true);
                 loadHeaderEntry(config, i, false);
             } else {
-                log.error("Skipping invalid HEADERS definition - Missing id, request, response entries {}",
-                            config.getProperty(HEADERS+"["+i+"]"));
+                log.error("Skipping invalid header definition - Missing {}[{}]", HEADERS, i);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void loadHeaderEntry(ConfigReader config, int i, boolean isRequest) {
-        String id = config.getProperty(HEADERS+"["+i+"]."+ID);
+    private void loadHeaderEntry(ConfigReader config, int idx, boolean isRequest) {
+        String id = config.getProperty(HEADERS+"["+idx+"]."+ID);
         String type = isRequest? REQUEST : RESPONSE;
-        Object go = config.get(HEADERS+"["+i+"]."+type);
+        Object go = config.get(HEADERS+"["+idx+"]."+type);
         if (go instanceof Map) {
             int addCount = 0;
             int dropCount = 0;
             int keepCount = 0;
             HeaderInfo info = new HeaderInfo();
-            Object addList = config.get(HEADERS+"["+i+"]."+type+"."+ADD);
+            Object addList = config.get(HEADERS+"["+idx+"]."+type+"."+ADD);
             if (addList instanceof List) {
                 List<Object> items = (List<Object>) addList;
                 for (int j=0; j < items.size(); j++) {
-                    String kv = config.getProperty(HEADERS+"["+i+"]."+type+"."+ADD+"["+j+"]", "null");
+                    boolean valid = false;
+                    String kv = config.getProperty(HEADERS+"["+idx+"]."+type+"."+ADD+"["+j+"]", "null");
                     int colon = kv.indexOf(':');
                     if (colon > 0) {
-                        info.addHeader( kv.substring(0, colon).trim().toLowerCase(),
-                                        kv.substring(colon + 1).trim() );
-                        addCount++;
-                    } else {
-                        log.warn("Skipping invalid ADD entry {} for HEADERS definition {}", kv, id);
+                        String k = kv.substring(0, colon).trim().toLowerCase();
+                        String v = kv.substring(colon+1).trim();
+                        if (!k.isEmpty() && !v.isEmpty()) {
+                            info.addHeader(k, v);
+                            addCount++;
+                            valid = true;
+                        }
+                    }
+                    if (!valid) {
+                        log.warn("Skipping invalid header {} {}[{}].{}.{}", id, HEADERS, idx, type, ADD);
                     }
                 }
             }
-            Object dropList = config.get(HEADERS+"["+i+"]."+type+"."+DROP);
+            Object dropList = config.get(HEADERS+"["+idx+"]."+type+"."+DROP);
             if (dropList instanceof List) {
                 List<Object> items = (List<Object>) dropList;
                 for (int j=0; j < items.size(); j++) {
-                    String key = config.getProperty(HEADERS+"["+i+"]."+type+"."+DROP+"["+j+"]");
+                    String key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+DROP+"["+j+"]");
                     if (key != null) {
                         info.drop(key);
                         dropCount++;
                     }
                 }
             }
-            Object keepList = config.get(HEADERS+"["+i+"]."+type+"."+KEEP);
+            Object keepList = config.get(HEADERS+"["+idx+"]."+type+"."+KEEP);
             if (keepList instanceof List) {
                 List<Object> items = (List<Object>) keepList;
                 for (int j=0; j < items.size(); j++) {
-                    String key = config.getProperty(HEADERS+"["+i+"]."+type+"."+KEEP+"["+j+"]");
+                    String key = config.getProperty(HEADERS+"["+idx+"]."+type+"."+KEEP+"["+j+"]");
                     if (key != null) {
                         info.keep(key);
                         keepCount++;
@@ -720,9 +722,7 @@ public class RoutingEntry {
             } else {
                 responseHeaderInfo.put(id, info);
             }
-            log.info("Loaded {}, {} headers, add={}, drop={}, keep={}",
-                    id, isRequest ? REQUEST : RESPONSE,
-                    addCount, dropCount, keepCount);
+            log.info("Loaded {}, {} headers, add={}, drop={}, keep={}", id, type, addCount, dropCount, keepCount);
         }
     }
 

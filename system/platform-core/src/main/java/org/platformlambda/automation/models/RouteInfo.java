@@ -50,13 +50,12 @@ public class RouteInfo {
     }
 
     public void setAuthService(String headerKey, String headerValue, String service) {
-        if (headerKey != null && headerValue != null) {
-            String lowerHeader = headerKey.toLowerCase();
-            if (!authHeaders.contains(lowerHeader)) {
-                authHeaders.add(lowerHeader);
+        if (headerKey != null && headerValue != null && !headerKey.isEmpty() && !headerValue.isEmpty()) {
+            String lh = headerKey.toLowerCase();
+            if (!authHeaders.contains(lh)) {
+                authHeaders.add(lh);
             }
-            String kv = lowerHeader + ":" + headerValue.toLowerCase();
-            authServices.put(kv, service);
+            authServices.put(lh + ":" + headerValue.toLowerCase(), service);
         }
     }
 
