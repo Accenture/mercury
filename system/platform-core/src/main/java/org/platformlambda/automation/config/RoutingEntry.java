@@ -88,10 +88,10 @@ public class RoutingEntry {
     }
 
     public AssignedRoute getRouteInfo(String method, String url) {
-       Utility util = Utility.getInstance();
+        Utility util = Utility.getInstance();
         StringBuilder sb = new StringBuilder();
-        List<String> input = util.split(url, "/");
-        for (String p: input) {
+        List<String> urlParts = util.split(url, "/");
+        for (String p: urlParts) {
             sb.append('/');
             sb.append(p);
         }
@@ -104,7 +104,7 @@ public class RoutingEntry {
             // then compare each segment in the URL, also with case insensitivity
             AssignedRoute similar = null;
             for (String u: urlPaths) {
-                AssignedRoute info = getMatchedRoute(input, method, u);
+                AssignedRoute info = getMatchedRoute(urlParts, method, u);
                 if (info != null) {
                     if (similar == null) {
                         similar = info;
@@ -135,36 +135,36 @@ public class RoutingEntry {
         return corsConfig.get(id);
     }
 
-    private AssignedRoute getMatchedRoute(List<String> input, String method, String configured) {
+    private AssignedRoute getMatchedRoute(List<String> urlParts, String method, String configured) {
         // "configured" is a lower case URL in the routing entry
         String key = method+":"+configured;
         AssignedRoute result = new AssignedRoute(routes.get(key));
         Utility util = Utility.getInstance();
         List<String> segments = util.split(configured, "/");
-        if (matchRoute(input, segments, configured.endsWith("*"))) {
-            addArguments(result, input, segments);
+        if (matchRoute(urlParts, segments, configured.endsWith("*"))) {
+            addArguments(result, urlParts, segments);
             return result;
         }
         return null;
     }
 
-    private void addArguments(AssignedRoute info, List<String> input, List<String> configured) {
+    private void addArguments(AssignedRoute info, List<String> urlParts, List<String> configured) {
         for (int i=0; i < configured.size(); i++) {
             String configuredItem = configured.get(i);
             if (configuredItem.startsWith("{") && configuredItem.endsWith("}")) {
-                info.setArgument(configuredItem.substring(1, configuredItem.length()-1), input.get(i));
+                info.setArgument(configuredItem.substring(1, configuredItem.length()-1), urlParts.get(i));
             }
         }
     }
 
-    private boolean matchRoute(List<String> input, List<String> segments, boolean wildcard) {
+    private boolean matchRoute(List<String> urlParts, List<String> segments, boolean wildcard) {
         // segment is lowercase parts of the configured URL
         if (wildcard) {
-            if (segments.size() > input.size()) {
+            if (segments.size() > urlParts.size()) {
                 return false;
             }
         } else {
-            if (segments.size() != input.size()) {
+            if (segments.size() != urlParts.size()) {
                 return false;
             }
         }
@@ -177,7 +177,7 @@ public class RoutingEntry {
                 continue;
             }
             // case-insensitive comparison using lowercase
-            String inputItem = input.get(i).toLowerCase();
+            String inputItem = urlParts.get(i).toLowerCase();
             if (configuredItem.endsWith("*")) {
                 String prefix = configuredItem.substring(0, configuredItem.length()-1);
                 if (inputItem.startsWith(prefix)) {
@@ -299,7 +299,7 @@ public class RoutingEntry {
         List<String> methods = (List<String>) config.get(REST+"["+idx+"]."+METHODS);
         String url = config.getProperty(REST+"["+idx+"]."+URL_LABEL).toLowerCase();
         String flowId = config.getProperty(REST+"["+idx+"]."+FLOW);
-        if (flowId != null) {
+        if (flowId != null && !flowId.isEmpty()) {
             info.flowId = flowId;
         }
         try {

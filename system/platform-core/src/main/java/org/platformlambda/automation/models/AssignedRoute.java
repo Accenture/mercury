@@ -23,9 +23,9 @@ import java.util.Map;
 
 public class AssignedRoute {
 
-    public Map<String, String> arguments = new HashMap<>();
+    public final Map<String, String> arguments = new HashMap<>();
 
-    public RouteInfo info;
+    public final RouteInfo info;
 
     public AssignedRoute(RouteInfo info) {
         this.info = info;
