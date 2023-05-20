@@ -371,7 +371,7 @@ public class ServiceGateway {
             if (contentType == null) {
                 contentType = "?";
             }
-            if (contentType.startsWith(MULTIPART_FORM_DATA) && POST.equals(method)) {
+            if (contentType.startsWith(MULTIPART_FORM_DATA) && POST.equals(method) && route.info.upload) {
                 final StreamHolder stream = new StreamHolder(route.info.timeoutSeconds);
                 request.uploadHandler(upload -> {
                     req.setFileName(upload.filename());
@@ -586,7 +586,7 @@ public class ServiceGateway {
         for (String p: parts) {
             sb.append(p.substring(0, 1).toUpperCase());
             if (p.length() > 1) {
-                sb.append(p.substring(1));
+                sb.append(p.substring(1).toLowerCase());
             }
             sb.append('-');
         }
