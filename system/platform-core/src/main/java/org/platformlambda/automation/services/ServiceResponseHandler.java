@@ -95,10 +95,10 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                 if (event.getStatus() != 200) {
                     response.setStatusCode(event.getStatus());
                 }
-                String accept = holder.accept;
+                boolean httpHead = HEAD.equals(holder.method);
                 String timeoutOverride = null;
                 String streamId = null;
-                String contentType = null;
+                String contentType = httpHead? "?" : null;
                 Map<String, String> resHeaders = new HashMap<>();
                 if (!event.getHeaders().isEmpty()) {
                     Map<String, String> evtHeaders = event.getHeaders();
@@ -111,12 +111,14 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                          * 2. "trace_id" and "trace_path" should be dropped from HTTP response headers
                          */
                         if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
-                            streamId = evtHeaders.get(h);
+                            streamId = value;
                         } else if (key.equalsIgnoreCase(TIMEOUT)) {
-                            timeoutOverride = evtHeaders.get(h);
+                            timeoutOverride = value;
                         } else if (key.equalsIgnoreCase(CONTENT_TYPE)) {
-                            contentType = value.toLowerCase();
-                            response.putHeader(CONTENT_TYPE, contentType);
+                            if (!httpHead) {
+                                contentType = value.toLowerCase();
+                                response.putHeader(CONTENT_TYPE, contentType);
+                            }
                         } else if (key.equalsIgnoreCase(SET_COOKIE)) {
                             httpUtil.setCookies(response, value);
                         } else {
@@ -135,6 +137,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                     }
                 }
                 if (contentType == null) {
+                    String accept = holder.accept;
                     if (accept == null) {
                         contentType = "?";
                         // content-type header will not be provided
@@ -169,7 +172,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                     }
                 }
                 // Except HEAD method, HTTP response may have a body
-                if (!HEAD.equals(holder.method)) {
+                if (!httpHead) {
                     Object responseBody = event.getRawBody();
                     if (responseBody == null && streamId != null) {
                         // output is a stream?

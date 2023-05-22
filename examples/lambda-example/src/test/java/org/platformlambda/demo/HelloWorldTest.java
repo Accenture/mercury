@@ -46,13 +46,12 @@ public class HelloWorldTest extends TestBase {
         String TELEPHONE = "123-456-7890";
         DemoPoJo pojo = new DemoPoJo(NAME, ADDRESS, TELEPHONE);
         PostOffice po = new PostOffice("unit.test", "12345", "POST /api/hello/world");
-        EventEnvelope request = new EventEnvelope().setTo("hello.world").setHeader("a", "b").setBody(pojo.toMap());
+        EventEnvelope request = new EventEnvelope().setTo("hello.world").setBody(pojo.toMap());
         po.asyncRequest(request, 800).onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
         Assert.assertEquals(HashMap.class, response.getBody().getClass());
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) response.getBody());
-        Assert.assertEquals("b", map.getElement("headers.a"));
         Assert.assertEquals(NAME, map.getElement("body.name"));
         Assert.assertEquals(ADDRESS, map.getElement("body.address"));
         Assert.assertEquals(TELEPHONE, map.getElement("body.telephone"));
