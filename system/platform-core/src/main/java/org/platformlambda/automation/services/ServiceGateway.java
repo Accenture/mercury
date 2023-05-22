@@ -78,7 +78,6 @@ public class ServiceGateway {
     private static final int BUFFER_SIZE = 4 * 1024;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
-    private static String defaultTraceIdLabel;
     private static List<String> traceIdLabels;
     private static String staticFolder;
     private static String resourceFolder;
@@ -96,7 +95,6 @@ public class ServiceGateway {
             if (labels.isEmpty()) {
                 labels.add("X-Trace-Id");
             }
-            defaultTraceIdLabel = labels.get(0);
             traceIdLabels = labels;
             log.info("Initialized with HTTP trace headers {}", traceIdLabels);
             String folder = config.getProperty("spring.web.resources.static-locations",
@@ -121,7 +119,7 @@ public class ServiceGateway {
     }
 
     public static String getDefaultTraceIdLabel() {
-        return defaultTraceIdLabel;
+        return traceIdLabels.get(0);
     }
 
     public ConcurrentMap<String, AsyncContextHolder> getContexts() {
@@ -575,8 +573,10 @@ public class ServiceGateway {
                 result.add(id);
             }
         }
-        result.add(getDefaultTraceIdLabel());
-        result.add(Utility.getInstance().getUuid());
+        if (result.isEmpty()) {
+            result.add(getDefaultTraceIdLabel());
+            result.add(Utility.getInstance().getUuid());
+        }
         return result;
     }
 

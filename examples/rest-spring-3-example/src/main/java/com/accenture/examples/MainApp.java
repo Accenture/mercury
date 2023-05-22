@@ -49,7 +49,6 @@ public class MainApp implements EntryPoint {
         LambdaFunction echo = (headers, input, instance) -> {
             // your response object can be a Java primitive, hashmap or PoJo. No need to use JSON internally.
             Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
             result.put("body", input);
             result.put("instance", instance);
             result.put("origin", platform.getOrigin());

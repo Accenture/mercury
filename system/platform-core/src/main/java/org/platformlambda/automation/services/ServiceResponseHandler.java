@@ -102,7 +102,8 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                 Map<String, String> resHeaders = new HashMap<>();
                 if (!event.getHeaders().isEmpty()) {
                     Map<String, String> evtHeaders = event.getHeaders();
-                    for (String h : evtHeaders.keySet()) {
+                    for (Map.Entry<String, String> kv : evtHeaders.entrySet()) {
+                        String h = kv.getKey();
                         String key = h.toLowerCase();
                         String value = evtHeaders.get(h);
                         /*
@@ -127,10 +128,10 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                     HeaderInfo hi = RoutingEntry.getInstance().getResponseHeaderInfo(holder.resHeaderId);
                     resHeaders = httpUtil.filterHeaders(hi, resHeaders);
                 }
-                for (String h : resHeaders.keySet()) {
-                    String prettyHeader = httpUtil.getHeaderCase(h);
+                for (Map.Entry<String, String> kv : resHeaders.entrySet()) {
+                    String prettyHeader = httpUtil.getHeaderCase(kv.getKey());
                     if (prettyHeader != null) {
-                        response.putHeader(prettyHeader, resHeaders.get(h));
+                        response.putHeader(prettyHeader, resHeaders.get(kv.getKey()));
                     }
                 }
                 if (contentType == null) {

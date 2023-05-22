@@ -20,6 +20,7 @@ package org.platformlambda.example;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
@@ -45,7 +46,6 @@ public class MainApp implements EntryPoint {
         LambdaFunction echo = (headers, input, instance) -> {
             log.info("echo #{} got a request", instance);
             Map<String, Object> result = new HashMap<>();
-            result.put("headers", headers);
             result.put("body", input);
             result.put("instance", instance);
             result.put("origin", platform.getOrigin());

@@ -144,9 +144,7 @@ public class AsyncInbox extends InboxBase {
                         headers.remove(UNDERSCORE+i);
                     }
                 }
-                executor.submit(() -> {
-                    holder.promise.complete(reply);
-                });
+                executor.submit(() -> holder.promise.complete(reply));
                 if (to != null && holder.traceId != null && holder.tracePath != null) {
                     try {
                         Map<String, Object> payload = new HashMap<>();
