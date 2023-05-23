@@ -59,8 +59,8 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
     private static final String SET_COOKIE = "Set-Cookie";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LEN = "Content-Length";
-    private static final String HTML_START = "<!DOCTYPE html>\n<html>\n<body>\n<pre>\n";
-    private static final String HTML_END = "\n</pre>\n<body>\n</html>";
+    private static final String HTML_START = "<html><body><pre>\n";
+    private static final String HTML_END = "\n</pre></body></html>";
     private static final String RESULT = "result";
     private static final String ACCEPT_ANY = "*/*";
 
@@ -96,7 +96,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                     response.setStatusCode(event.getStatus());
                 }
                 boolean httpHead = HEAD.equals(holder.method);
-                String timeoutOverride = null;
+                String streamTimeout = null;
                 String streamId = null;
                 String contentType = httpHead? "?" : null;
                 Map<String, String> resHeaders = new HashMap<>();
@@ -113,7 +113,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                         if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
                             streamId = value;
                         } else if (key.equalsIgnoreCase(TIMEOUT)) {
-                            timeoutOverride = value;
+                            streamTimeout = value;
                         } else if (key.equalsIgnoreCase(CONTENT_TYPE)) {
                             if (!httpHead) {
                                 contentType = value.toLowerCase();
@@ -178,7 +178,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                         // output is a stream?
                         response.setChunked(true);
                         AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId,
-                                                         getReadTimeout(timeoutOverride, holder.timeout));
+                                                         getReadTimeout(streamTimeout, holder.timeout));
                         fetchNextBlock(requestId, in, response);
                         return null;
 
