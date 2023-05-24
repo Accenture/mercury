@@ -90,7 +90,8 @@ public class ManagedCache {
         // create cache
         managedCache = new ManagedCache(cache, name, expiryTimer, maxItems);
         COLLECTION.put(name, managedCache);
-        log.info("Created cache ({}), expiry {} ms, maxItems={}", name, expiryTimer, maxItems);
+        String timer = Utility.getInstance().elapsedTime(expiryTimer);
+        log.info("Created cache ({}), expiry {}, maxItems={}", name, timer, maxItems);
         return managedCache;
     }
 

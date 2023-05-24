@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class SimpleCache {
     private static final Logger log = LoggerFactory.getLogger(SimpleCache.class);
-    private static final long MIN_EXPIRY = 1000;
+    private static final long MIN_EXPIRY = 1000L;
     private static final ConcurrentMap<String, SimpleCache> COLLECTION = new ConcurrentHashMap<>();
     private static final AtomicInteger INIT_COUNTER = new AtomicInteger(0);
     private static final AtomicBoolean NOT_RUNNING = new AtomicBoolean(true);
@@ -76,7 +76,8 @@ public class SimpleCache {
         long expiryTimer = Math.max(expiryMs, MIN_EXPIRY);
         simpleCache = new SimpleCache(name, expiryTimer);
         COLLECTION.put(name, simpleCache);
-        log.info("Created cache ({}), expiry {} ms", name, expiryTimer);
+        String timer = Utility.getInstance().elapsedTime(expiryTimer);
+        log.info("Created cache ({}), expiry {}", name, timer);
         return simpleCache;
     }
 

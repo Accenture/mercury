@@ -172,15 +172,16 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
     }
 
     private static class IdleCheck {
-        private final long timeout;
+        private final int timeout;
         private final long expiry;
 
         private IdleCheck() {
             final AppConfigReader config = AppConfigReader.getInstance();
             final Utility util = Utility.getInstance();
-            timeout = util.str2long(config.getProperty("websocket.idle.timeout", "60"));
-            expiry = Math.min(30000, timeout * 1000);
-            log.info("Websocket server idle expiry {} seconds", timeout);
+            timeout = Math.min(30, util.str2int(config.getProperty("websocket.idle.timeout", "60")));
+            expiry = timeout * 1000L;
+            String timer = util.elapsedTime(expiry);
+            log.info("Websocket server idle expiry {}", timer);
         }
 
         private void removeExpiredConnections() {
@@ -198,10 +199,10 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         private void checkExpiredConnections() {
             long now = System.currentTimeMillis();
             List<String> sessions = new ArrayList<>();
-            for (String conn : connections.keySet()) {
-                WsEnvelope md = connections.get(conn);
+            for (Map.Entry<String, WsEnvelope> kv : connections.entrySet()) {
+                WsEnvelope md = kv.getValue();
                 if (now - md.getLastAccess() > expiry) {
-                    sessions.add(conn);
+                    sessions.add(kv.getKey());
                 }
             }
             for (String conn : sessions) {
@@ -223,7 +224,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
     private static class WsHousekeeper implements LambdaFunction {
 
         @Override
-        public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+        public Object handleEvent(Map<String, String> headers, Object input, int instance) {
             if (input instanceof EventEnvelope) {
                 EventEnvelope event = (EventEnvelope) input;
                 String session = event.getCorrelationId();

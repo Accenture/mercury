@@ -1017,7 +1017,7 @@ public class Utility {
             sb.append(minutes == 1? " minute " : " minutes ");
             time -= minutes * ONE_MINUTE_MS;
         }
-        if (time > ONE_SECOND_MS) {
+        if (time >= ONE_SECOND_MS) {
             long seconds = time / ONE_SECOND_MS;
             sb.append(seconds);
             sb.append(seconds == 1 ? " second" : " seconds");

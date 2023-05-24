@@ -113,7 +113,8 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
             memory[USED] = number.format(allocatedMemory - freeMemory)
             /*
              * check streams resources if any
-             */result[STREAMS] = ObjectStreamIO.getStreamInfo()
+             */
+            result[STREAMS] = ObjectStreamIO.getStreamCount()
             val more = getAdditionalInfo(fastRPC)
             if (more != null) {
                 result["additional_info"] = more

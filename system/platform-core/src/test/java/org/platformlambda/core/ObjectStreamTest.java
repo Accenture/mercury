@@ -42,8 +42,12 @@ public class ObjectStreamTest {
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
         Utility util = Utility.getInstance();
         String TEXT = "hello world";
-        // The minimum timeout is 5 seconds if you set it to a smaller value
-        ObjectStreamIO stream = new ObjectStreamIO(1);
+        // The minimum timeout is one second if you set it to a smaller value
+        ObjectStreamIO unused = new ObjectStreamIO(0);
+        Assert.assertEquals(1, unused.getExpirySeconds());
+        String unusedStream = unused.getInputStreamId().substring(0, unused.getInputStreamId().indexOf('@'));
+        // create a stream with 5 second expiry
+        ObjectStreamIO stream = new ObjectStreamIO(5);
         ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
         out.write(TEXT);
         Map<String, Object> info = ObjectStreamIO.getStreamInfo();
@@ -66,8 +70,12 @@ public class ObjectStreamTest {
          */
         ObjectStreamIO.checkExpiredStreams();
         Map<String, Object> allStreams = ObjectStreamIO.getStreamInfo();
+        // the unused stream has already expired
+        Assert.assertFalse(allStreams.containsKey(unusedStream));
+        log.info("{} has expired", unusedStream);
         // The stream has not yet expired
         Assert.assertTrue(allStreams.containsKey(id));
+        log.info("{} is still active", id);
         // Sleep past the 5-second mark
         Thread.sleep(4000);
         ObjectStreamIO.checkExpiredStreams();

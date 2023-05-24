@@ -63,7 +63,7 @@ public class ObjectStreamIO {
     }
 
     public ObjectStreamIO(int expirySeconds) throws IOException {
-        this.expirySeconds = Math.max(5, expirySeconds);
+        this.expirySeconds = Math.max(1, expirySeconds);
         this.createStream();
     }
 
@@ -91,7 +91,8 @@ public class ObjectStreamIO {
         platform.registerPrivateStream(out, publisher);
         platform.registerPrivate(in, consumer, 1);
         streams.put(in, new StreamInfo(expirySeconds));
-        log.info("Stream {} created, idle expiry {} seconds", id, expirySeconds);
+        String timer = util.elapsedTime(expirySeconds * 1000L);
+        log.info("Stream {} created, idle expiry {}", id, timer);
     }
 
     public String getInputStreamId() {
@@ -102,16 +103,20 @@ public class ObjectStreamIO {
         return outputStreamId;
     }
 
+    public static int getStreamCount() {
+        return streams.size();
+    }
+
     public static Map<String, Object> getStreamInfo() {
         Utility util = Utility.getInstance();
         Map<String, Object> result = new HashMap<>();
-        for (String id: streams.keySet()) {
-            StreamInfo info = streams.get(id);
+        for (Map.Entry<String, StreamInfo> kv: streams.entrySet()) {
+            StreamInfo info = kv.getValue();
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("created", util.date2str(new Date(info.created)));
             metadata.put("last_read", util.date2str(new Date(info.updated)));
             metadata.put("expiry_seconds", info.expiryMills / 1000);
-            result.put(id, metadata);
+            result.put(kv.getKey(), metadata);
         }
         result.put("count", streams.size());
         return result;
@@ -141,7 +146,8 @@ public class ObjectStreamIO {
                 try {
                     String createdTime = util.date2str(new Date(info.created));
                     String updatedTime = util.date2str(new Date(info.updated));
-                    log.warn("{} expired. Inactivity for {} seconds ({} - {})", id, info.expiryMills / 1000,
+                    String idle = util.elapsedTime(info.expiryMills);
+                    log.warn("{} expired. Inactivity for {} ({} - {})", id, idle,
                             createdTime, updatedTime);
                     po.send(id, new Kv(TYPE, CLOSE));
                 } catch (Exception e) {
