@@ -147,8 +147,7 @@ public class ObjectStreamIO {
                     String createdTime = util.date2str(new Date(info.created));
                     String updatedTime = util.date2str(new Date(info.updated));
                     String idle = util.elapsedTime(info.expiryMills);
-                    log.warn("{} expired. Inactivity for {} ({} - {})", id, idle,
-                            createdTime, updatedTime);
+                    log.warn("{} expired. Inactivity for {} ({} - {})", id, idle, createdTime, updatedTime);
                     po.send(id, new Kv(TYPE, CLOSE));
                 } catch (Exception e) {
                     log.error("Unable to remove expired {} - {}", id, e.getMessage());
