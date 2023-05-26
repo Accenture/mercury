@@ -498,12 +498,11 @@ public class ServiceGateway {
             }
         } else {
             EventEnvelope event = new EventEnvelope();
-            event.setTo(requestEvent.primary).setBody(requestEvent.httpRequest)
-                    .setCorrelationId(requestEvent.requestId)
+            event.setTo(requestEvent.primary).setFrom(HTTP_REQUEST)
+                    .setCorrelationId(requestEvent.requestId).setBody(requestEvent.httpRequest)
                     .setReplyTo(ASYNC_HTTP_RESPONSE + "@" + Platform.getInstance().getOrigin());
             // enable distributed tracing if needed
             if (requestEvent.tracing) {
-                event.setFrom(HTTP_REQUEST);
                 event.setTrace(requestEvent.traceId, requestEvent.tracePath);
             }
             try {
@@ -512,9 +511,9 @@ public class ServiceGateway {
                 if (requestEvent.services.size() > 1) {
                     for (String secondary : requestEvent.services) {
                         if (!secondary.equals(requestEvent.primary)) {
-                            EventEnvelope copy = new EventEnvelope().setTo(secondary).setBody(requestEvent.httpRequest);
+                            EventEnvelope copy = new EventEnvelope().setTo(secondary).setFrom(HTTP_REQUEST)
+                                                        .setBody(requestEvent.httpRequest);
                             if (requestEvent.tracing) {
-                                copy.setFrom(HTTP_REQUEST);
                                 copy.setTrace(requestEvent.traceId, requestEvent.tracePath);
                             }
                             sendToSecondaryTarget(copy);
