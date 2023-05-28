@@ -124,8 +124,8 @@ public class ServiceQuery implements LambdaFunction {
     private List<String> getOriginList() {
         List<String> result = new ArrayList<>();
         Map<String, String> origins = ServiceRegistry.getAllOrigins();
-        for (String p: origins.keySet()) {
-            result.add(origins.get(p)+", "+p);
+        for (Map.Entry<String, String> kv: origins.entrySet()) {
+            result.add(kv.getValue()+", "+kv.getKey());
         }
         if (result.size() > 1) {
             Collections.sort(result);

@@ -68,7 +68,7 @@ public class ServiceRegistry implements LambdaFunction {
     private static final String WHEN = "when";
     private static final String NOW = "now";
     private static final String MONITOR = "monitor-";
-    private static final long EXPIRY = 60 * 1000L;
+    private static final long EXPIRY = 90 * 1000L;
 
     // static because this is a shared lambda function
     private final boolean presenceMonitor;
@@ -80,7 +80,7 @@ public class ServiceRegistry implements LambdaFunction {
      */
     private static final EventEmitter po = EventEmitter.getInstance();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
-    private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
+    private static final ConcurrentMap<String, Long> cloudOrigins = po.getCloudOrigins();
     private static final ConcurrentMap<String, String> originTopic = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> originAppVersion = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> lifeCycleSubscribers = new ConcurrentHashMap<>();
@@ -118,12 +118,13 @@ public class ServiceRegistry implements LambdaFunction {
     }
 
     public static Map<String, String> getAllOrigins() {
-        Map<String, String> allOrigins = new HashMap<>(cloudOrigins);
-        for (String origin: allOrigins.keySet()) {
-            String lastSeen = allOrigins.get(origin);
-            String topic = originTopic.get(origin);
+        Utility util = Utility.getInstance();
+        Map<String, String> allOrigins = new HashMap<>();
+        for (Map.Entry<String, Long> kv: cloudOrigins.entrySet()) {
+            String lastSeen = util.getLocalTimestamp(kv.getValue());
+            String topic = originTopic.get(kv.getKey());
             if (topic != null) {
-                allOrigins.put(origin, topic + ", "+lastSeen);
+                allOrigins.put(kv.getKey(), topic + ", "+lastSeen);
             }
         }
         return allOrigins;
@@ -184,7 +185,7 @@ public class ServiceRegistry implements LambdaFunction {
         if (JOIN.equals(type) && headers.containsKey(ORIGIN) && headers.containsKey(TOPIC)) {
             String origin = headers.get(ORIGIN);
             String topic = headers.get(TOPIC);
-            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
+            cloudOrigins.put(origin, System.currentTimeMillis());
             originTopic.put(origin, topic);
             if (!presenceMonitor) {
                 if (origin.equals(myOrigin)) {
@@ -246,7 +247,7 @@ public class ServiceRegistry implements LambdaFunction {
                     }
                 }
             }
-            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
+            cloudOrigins.put(origin, System.currentTimeMillis());
             originTopic.put(origin, topic);
             if (!originAppVersion.containsKey(origin) && !myOrigin.equals(origin)) {
                 log.info("Peer {} active ({} {})", origin, name, version);
@@ -306,9 +307,9 @@ public class ServiceRegistry implements LambdaFunction {
                     Map<String, String> routeMap = (Map<String, String>) input;
                     int count = routeMap.size();
                     int n = 0;
-                    for (String route : routeMap.keySet()) {
-                        String personality = routeMap.get(route);
-                        if (addRoute(origin, route, personality)) n++;
+                    for (Map.Entry<String, String> kv : routeMap.entrySet()) {
+                        String personality = kv.getValue();
+                        if (addRoute(origin, kv.getKey(), personality)) n++;
                     }
                     if (n > 0) {
                         log.info("Loaded {} route{} from {}", count, count == 1 ? "" : "s", origin);
@@ -354,10 +355,10 @@ public class ServiceRegistry implements LambdaFunction {
         Platform platform = Platform.getInstance();
         String myOrigin = platform.getOrigin();
         Map<String, String> routeMap = new HashMap<>();
-        for (String r : cloudRoutes.keySet()) {
-            ConcurrentMap<String, String> originMap = cloudRoutes.get(r);
+        for (Map.Entry<String, ConcurrentMap<String, String>> kv : cloudRoutes.entrySet()) {
+            ConcurrentMap<String, String> originMap = kv.getValue();
             if (originMap.containsKey(myOrigin)) {
-                routeMap.put(r, originMap.get(myOrigin));
+                routeMap.put(kv.getKey(), originMap.get(myOrigin));
             }
         }
         EventEnvelope request = new EventEnvelope()
@@ -380,7 +381,7 @@ public class ServiceRegistry implements LambdaFunction {
             return false;
         } else {
             originMap.put(origin, personality);
-            cloudOrigins.put(origin, Utility.getInstance().getLocalTimestamp());
+            cloudOrigins.put(origin, System.currentTimeMillis());
             log.info("{} ({}.{}) registered", route, personality, origin);
             return true;
         }
@@ -429,13 +430,12 @@ public class ServiceRegistry implements LambdaFunction {
 
     private void removeStalledPeers() throws IOException {
         long now = System.currentTimeMillis();
-        Utility util = Utility.getInstance();
         String myOrigin = Platform.getInstance().getOrigin();
         List<String> peers = new ArrayList<>(cloudOrigins.keySet());
         for (String p: peers) {
             if (!p.equals(myOrigin)) {
-                Date lastActive = util.str2date(cloudOrigins.get(p));
-                if (now - lastActive.getTime() > EXPIRY) {
+                long lastActive = cloudOrigins.get(p);
+                if (now - lastActive > EXPIRY) {
                     String appVersion = originAppVersion.get(p);
                     log.error("Peer {} stalled ({})", p, appVersion);
                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, LEAVE), new Kv(ORIGIN, p));

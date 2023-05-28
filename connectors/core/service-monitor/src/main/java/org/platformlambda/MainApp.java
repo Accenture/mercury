@@ -114,7 +114,7 @@ public class MainApp implements EntryPoint {
                 if (actualPartitions < requiredPartitions) {
                     log.error("Insufficient partitions in {}, Expected: {}, Actual: {}",
                             monitorTopic, requiredPartitions, actualPartitions);
-                    log.error("SYSTEM NOT OPERATIONAL. Please setup topic {} and restart", monitorTopic);
+                    log.error("SYSTEM NOT OPERATIONAL. Please check kafka cluster health.");
                     return;
                 }
 

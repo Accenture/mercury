@@ -167,7 +167,7 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
             for (route in map.keys) {
                 val service = map[route]
                 if (!service!!.isPrivate) {
-                    result[route] = service.created
+                    result[route] = service.concurrency;
                 }
             }
             return result

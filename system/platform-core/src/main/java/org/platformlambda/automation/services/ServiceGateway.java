@@ -99,9 +99,11 @@ public class ServiceGateway {
             log.info("Initialized with HTTP trace headers {}", traceIdLabels);
             String folder = config.getProperty("spring.web.resources.static-locations",
                     config.getProperty("static.html.folder", "classpath:/public"));
+            if (folder.endsWith("/")) {
+                folder = folder.substring(0, folder.length()-1);
+            }
             if (folder.startsWith(CLASSPATH)) {
-                String resource = folder.substring(CLASSPATH.length());
-                resourceFolder = resource.endsWith("/") ? resource.substring(0, resource.length() - 1) : resource;
+                resourceFolder = folder.substring(CLASSPATH.length());
             } else if (folder.startsWith(FILEPATH)) {
                 staticFolder = folder.substring(FILEPATH.length());
             } else if (folder.startsWith("/")) {
@@ -180,6 +182,14 @@ public class ServiceGateway {
     }
 
     private EtagFile getStaticFile(String path) {
+        Utility util = Utility.getInstance();
+        List<String> parts = util.split(path, "/");
+        // For security, reject path that tries to read parent folder or hidden file.
+        for (String p: parts) {
+            if (p.trim().startsWith(".")) {
+                return null;
+            }
+        }
         if (path.endsWith("/")) {
             path += INDEX_HTML;
         }

@@ -68,7 +68,7 @@ public class EventEmitter {
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, TraceInfo> traces = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Long> cloudOrigins = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
     private static final EventEmitter INSTANCE = new EventEmitter();
 
@@ -108,7 +108,7 @@ public class EventEmitter {
         return cloudRoutes;
     }
 
-    public ConcurrentMap<String, String> getCloudOrigins() {
+    public ConcurrentMap<String, Long> getCloudOrigins() {
         return cloudOrigins;
     }
 

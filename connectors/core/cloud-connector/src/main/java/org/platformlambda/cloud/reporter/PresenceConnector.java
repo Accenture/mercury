@@ -191,6 +191,7 @@ public class PresenceConnector implements LambdaFunction {
                     }
                     break;
                 case MAP:
+                    // periodic keep-alive signal from the PersistentWsClient
                     if (input instanceof Map) {
                         Map<String, Object> data = (Map<String, Object>) input;
                         if (ALIVE.equals(data.get(TYPE))) {

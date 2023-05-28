@@ -51,7 +51,7 @@ public class MockCloud implements CloudSetup {
     private static boolean simulateException = false;
     private static final EventEmitter po = EventEmitter.getInstance();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = po.getCloudRoutes();
-    private static final ConcurrentMap<String, String> cloudOrigins = po.getCloudOrigins();
+    private static final ConcurrentMap<String, Long> cloudOrigins = po.getCloudOrigins();
 
     public static void setSimulateException(boolean simulateException) {
         MockCloud.simulateException = simulateException;

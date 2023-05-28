@@ -45,16 +45,18 @@ public class ElasticQueue implements AutoCloseable {
     private static final ReentrantLock lock = new ReentrantLock();
     private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
-    private static final long KEEP_ALIVE_INTERVAL = 20 * 1000L;             // 20 seconds
-    private static final long HOUSEKEEPING_INTERVAL = 10 * 60 * 1000L;      // 10 minutes
+    private static final AtomicBoolean keepAliveNotRunning = new AtomicBoolean(true);
+    private static final long ONE_SECOND = 1000L;
+    private static final long ONE_MINUTE = 60 * ONE_SECOND;
+    private static final long ONE_HOUR = 60 * ONE_MINUTE;
+    private static final long ONE_DAY = 24 * ONE_HOUR;
+    private static final long KEEP_ALIVE_INTERVAL = 20 * ONE_SECOND;
+    private static final long HOUSEKEEPING_INTERVAL = 10 * ONE_MINUTE;
     public static final int MEMORY_BUFFER = 20;
     private static final String RUNNING = "RUNNING";
     private static final String CLEAN_UP_TASK = "elastic.queue.cleanup";
     private static final String SLASH = "/";
     private static final int MAX_EVENTS = 100000000;
-    private static final int ONE_MINUTE = 60 * 1000;
-    private static final int ONE_HOUR = 60 * ONE_MINUTE;
-    private static final int ONE_DAY = 24 * ONE_HOUR;
     private static Database db;
     private static Environment dbEnv;
     private static File dbFolder;
@@ -93,7 +95,11 @@ public class ElasticQueue implements AutoCloseable {
                 String instanceId = platform.getName() + "-" + platform.getOrigin();
                 dbFolder = new File(tmpRoot, instanceId);
             }
-            scanExpiredStores(tmpRoot);
+            if (!dbFolder.exists() && dbFolder.mkdirs()) {
+                log.info("{} created", dbFolder);
+            }
+            // save a signature file first
+            util.str2file(new File(dbFolder, RUNNING), util.getTimestamp());
             /*
              * Normally the system should initialize commit log before using the elastic queue.
              */
@@ -102,6 +108,7 @@ public class ElasticQueue implements AutoCloseable {
                 getDatabase();
                 log.info("Commit log started");
             }
+            scanExpiredStores(tmpRoot);
             platform.getVertx().setPeriodic(KEEP_ALIVE_INTERVAL, t -> keepAlive());
             platform.getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> housekeeping());
             log.info("Housekeeper started");
@@ -112,20 +119,22 @@ public class ElasticQueue implements AutoCloseable {
     }
 
     private void keepAlive() {
-        Platform.getInstance().getEventExecutor().submit(() -> {
-            try {
-                util.str2file(new File(dbFolder, RUNNING), util.getTimestamp());
-            } finally {
-                housekeeperNotRunning.set(true);
-            }
-        });
+        if (keepAliveNotRunning.compareAndSet(true, false)) {
+            Platform.getInstance().getEventExecutor().submit(() -> {
+                try {
+                    util.str2file(new File(dbFolder, RUNNING), util.getTimestamp());
+                } finally {
+                    keepAliveNotRunning.set(true);
+                }
+            });
+        }
     }
 
     private void housekeeping() {
         if (housekeeperNotRunning.compareAndSet(true, false)) {
             Platform.getInstance().getEventExecutor().submit(() -> {
                 try {
-                    removeExpiredFiles();
+                    removeExpiredDbStatistics();
                 } finally {
                     housekeeperNotRunning.set(true);
                 }
@@ -133,7 +142,7 @@ public class ElasticQueue implements AutoCloseable {
         }
     }
 
-    private void removeExpiredFiles() {
+    private void removeExpiredDbStatistics() {
         long now = System.currentTimeMillis();
         List<File> outdated = new ArrayList<>();
         File[] files = dbFolder.listFiles();
@@ -236,9 +245,6 @@ public class ElasticQueue implements AutoCloseable {
 
     private static void setupCommitLog(File dir) {
         try {
-            if (!dir.exists() && dir.mkdirs()) {
-                log.debug("{} created", dir);
-            }
             long t1 = System.currentTimeMillis();
             dbEnv = new Environment(dir,
                     new EnvironmentConfig()
@@ -356,7 +362,7 @@ public class ElasticQueue implements AutoCloseable {
     private void removeExpiredStore(File folder) {
         File f = new File(folder, RUNNING);
         if (f.exists()) {
-            if (System.currentTimeMillis() - f.lastModified() > 60000) {
+            if (System.currentTimeMillis() - f.lastModified() > ONE_HOUR) {
                 util.cleanupDir(folder, runningInCloud);
                 log.info("Holding area {} expired", folder);
             }
