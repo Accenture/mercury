@@ -32,7 +32,7 @@ public class EtagFile {
         this.content = content;
     }
 
-    public boolean equals(String eTag) {
+    public boolean sameTag(String eTag) {
         if (eTag == null) {
             return false;
         }

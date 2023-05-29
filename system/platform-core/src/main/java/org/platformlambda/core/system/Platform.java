@@ -63,7 +63,7 @@ public class Platform {
     private static final Platform INSTANCE = new Platform();
 
     private Platform() {
-        log.info("Loading event system");
+        // singleton
     }
 
     public static Platform getInstance() {
@@ -79,7 +79,7 @@ public class Platform {
             vertx = Vertx.vertx();
             cache = SimpleCache.createCache("system.log.cache", 30000);
             executor = Executors.newWorkStealingPool(poolSize);
-            log.info("Event system is configured with a ceiling of {} kernel threads", poolSize);
+            log.info("Event system started with up to {} kernel threads", poolSize);
         }
         if (initCounter.get() > 10000) {
             initCounter.set(10);

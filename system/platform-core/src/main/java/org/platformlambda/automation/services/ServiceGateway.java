@@ -145,9 +145,9 @@ public class ServiceGateway {
                         HttpServerResponse response = request.response();
                         response.putHeader(CONTENT_TYPE, getFileContentType(path));
                         String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
-                        if (file.equals(ifNoneMatch)) {
+                        if (file.sameTag(ifNoneMatch)) {
                             response.setStatusCode(304);
-                            response.putHeader(CONTENT_LEN, String.valueOf(0));
+                            response.putHeader(CONTENT_LEN, "0");
                         } else {
                             response.putHeader(ETAG, file.eTag);
                             response.putHeader(CONTENT_LEN, String.valueOf(file.content.length));
@@ -182,22 +182,23 @@ public class ServiceGateway {
     }
 
     private EtagFile getStaticFile(String path) {
-        Utility util = Utility.getInstance();
-        List<String> parts = util.split(path, "/");
+        // For security, convert backslash into forward slash
+        String normalizedPath = path.replace("\\", "/");
+        List<String> parts = Utility.getInstance().split(normalizedPath, "/");
         // For security, reject path that tries to read parent folder or hidden file.
         for (String p: parts) {
             if (p.trim().startsWith(".")) {
                 return null;
             }
         }
-        if (path.endsWith("/")) {
-            path += INDEX_HTML;
+        if (normalizedPath.endsWith("/")) {
+            normalizedPath += INDEX_HTML;
         }
         if (resourceFolder != null) {
-            return getResourceFile(path);
+            return getResourceFile(normalizedPath);
         }
         if (staticFolder != null) {
-            return getLocalFile(path);
+            return getLocalFile(normalizedPath);
         }
         return null;
     }

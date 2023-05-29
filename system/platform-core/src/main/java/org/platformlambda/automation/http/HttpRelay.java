@@ -307,12 +307,10 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         Map<String, String> reqHeaders = request.getHeaders();
         // convert authentication session info into HTTP request headers
         Map<String, String> sessionInfo = request.getSessionInfo();
-        for (String h: sessionInfo.keySet()) {
-            reqHeaders.put(h, sessionInfo.get(h));
-        }
-        for (String h: reqHeaders.keySet()) {
-            if (allowedHeader(h)) {
-                http.putHeader(h, reqHeaders.get(h));
+        reqHeaders.putAll(sessionInfo);
+        for (Map.Entry<String, String> kv: reqHeaders.entrySet()) {
+            if (allowedHeader(kv.getKey())) {
+                http.putHeader(kv.getKey(), kv.getValue());
             }
         }
         // propagate X-Trace-Id when forwarding the HTTP request
