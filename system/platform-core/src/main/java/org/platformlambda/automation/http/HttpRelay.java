@@ -97,6 +97,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final String HEAD = "HEAD";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
+    private static final String INPUT_STREAM_SUFFIX = ".in";
     private static final String CONTENT_TYPE = "content-type";
     private static final String CONTENT_LENGTH = "content-length";
     /*
@@ -252,6 +253,10 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         if (port < 0) {
             port = secure? 443 : 80;
         }
+        String path = url.getPath();
+        if (path.length() > 0) {
+            throw new IllegalArgumentException("Target host must not contain URI path");
+        }
         // normalize URI and query string
         final String uri;
         if (request.getUrl().contains("?")) {
@@ -321,14 +326,14 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         // set cookies if any
         Map<String, String> cookies  = request.getCookies();
         StringBuilder sb = new StringBuilder();
-        for (String k: cookies.keySet()) {
-            String v = cookies.get(k);
-            sb.append(k);
+        for (Map.Entry<String, String> kv: cookies.entrySet()) {
+            sb.append(kv.getKey());
             sb.append('=');
-            sb.append(URLEncoder.encode(v, "UTF-8"));
+            sb.append(URLEncoder.encode(kv.getValue(), "UTF-8"));
             sb.append("; ");
         }
         if (sb.length() > 0) {
+            // remove the ending separator
             http.putHeader(COOKIE, sb.substring(0, sb.length()-2));
         }
         OutputStreamQueue queue = new OutputStreamQueue();
@@ -361,10 +366,10 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
                 httpResponse = httpRequest.sendBuffer(Buffer.buffer(b));
             }
             final String streamId = request.getStreamRoute();
-            if (reqBody == null && streamId != null && streamId.startsWith(STREAM_PREFIX) && streamId.contains("@")) {
-                Platform.getInstance().getEventExecutor().submit(() -> {
-                    handleUpload(input, queue, request, httpRequest);
-                });
+            if (reqBody == null && streamId != null && streamId.startsWith(STREAM_PREFIX)
+                    && streamId.contains(INPUT_STREAM_SUFFIX)) {
+                Platform.getInstance().getEventExecutor().submit(() ->
+                        handleUpload(input, queue, request, httpRequest));
             }
         } else {
             httpResponse = httpRequest.send();

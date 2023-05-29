@@ -55,6 +55,7 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
     private static final String HEAD = "HEAD";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
+    private static final String INPUT_STREAM_SUFFIX = ".in";
     private static final String TIMEOUT = "timeout";
     private static final String SET_COOKIE = "Set-Cookie";
     private static final String CONTENT_TYPE = "Content-Type";
@@ -110,7 +111,8 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                          * 1. "stream" and "timeout" are reserved as stream ID and read timeout in seconds
                          * 2. "trace_id" and "trace_path" should be dropped from HTTP response headers
                          */
-                        if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) && value.contains("@")) {
+                        if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) &&
+                                value.contains(INPUT_STREAM_SUFFIX)) {
                             streamId = value;
                         } else if (key.equalsIgnoreCase(TIMEOUT)) {
                             streamTimeout = value;

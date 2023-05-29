@@ -90,7 +90,7 @@ public class AsyncHttpRequest {
     }
 
     public String getUrl() {
-        return url;
+        return url == null? "/" : url;
     }
 
     public AsyncHttpRequest setUrl(String url) {
