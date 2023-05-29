@@ -31,7 +31,10 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
-import org.platformlambda.core.system.*;
+import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.EventEmitter;
+import org.platformlambda.core.system.ObjectStreamWriter;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
@@ -169,9 +172,20 @@ public class ServiceGateway {
         }
     }
 
+    /**
+     * This is a very primitive way to resolve content-type for proper loading of
+     * HTML, CSS and Javascript contents by a browser.
+     * <p>
+     * It is not intended to be a comprehensive MIME type resolver.
+     *
+     * @param path URI path
+     * @return content type
+     */
     private String getFileContentType(String path) {
         if (path.endsWith("/") || path.endsWith(".html") || path.endsWith(".htm")) {
             return TEXT_HTML;
+        } else if (path.endsWith(".txt")) {
+            return TEXT_PLAIN;
         } else if (path.endsWith(".css")) {
             return "text/css";
         } else if (path.endsWith(".js")) {
