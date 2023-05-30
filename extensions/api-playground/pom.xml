@@ -41,7 +41,7 @@
     <dependencies>
         <dependency>
             <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
+            <artifactId>rest-spring-2</artifactId>
             <version>3.0.0</version>
         </dependency>
 
