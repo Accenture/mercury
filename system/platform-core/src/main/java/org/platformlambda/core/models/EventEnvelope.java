@@ -514,13 +514,22 @@ public class EventEnvelope {
     }
 
     /**
-     * Retrieve a header value
+     * Retrieve a header value using case-insensitive key
      *
      * @param key of the header
      * @return header value
      */
     public String getHeader(String key) {
-        return this.headers.get(key);
+        if (key != null && !this.headers.isEmpty()) {
+            // since the number of headers is very small, it is fine to scan the list
+            String lc = key.toLowerCase();
+            for (Map.Entry<String, String> kv : this.headers.entrySet()) {
+                if (lc.equals(kv.getKey().toLowerCase())) {
+                    return kv.getValue();
+                }
+            }
+        }
+        return null;
     }
 
     /**

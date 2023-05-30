@@ -89,8 +89,8 @@ public class RestEndpointTest extends TestBase {
         assert response != null;
         // response is an empty string
         Assert.assertEquals("", response.getBody());
-        // CORS headers are inserted
-        Assert.assertEquals("*", response.getHeader("Access-Control-Allow-Origin"));
+        // CORS headers are inserted - retrieve it with a case-insensitive key
+        Assert.assertEquals("*", response.getHeader("access-control-Allow-Origin"));
     }
 
     @SuppressWarnings("unchecked")
@@ -240,7 +240,7 @@ public class RestEndpointTest extends TestBase {
         assert response != null;
         Assert.assertNull(response.getBody());
         // async.http.request returns a stream
-        String streamId = response.getHeaders().get("stream");
+        String streamId = response.getHeader("stream");
         Assert.assertNotNull(streamId);
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId, RPC_TIMEOUT);
@@ -349,7 +349,7 @@ public class RestEndpointTest extends TestBase {
         assert response != null;
         Assert.assertNull(response.getBody());
         // async.http.request returns a stream
-        String streamId = response.getHeaders().get("stream");
+        String streamId = response.getHeader("stream");
         Assert.assertNotNull(streamId);
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId, RPC_TIMEOUT);
@@ -389,8 +389,8 @@ public class RestEndpointTest extends TestBase {
         Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
         res.onSuccess(bench1::offer);
         EventEnvelope response = bench1.poll(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(response.getHeaders().get("stream"));
-        String streamId = response.getHeaders().get("stream");
+        Assert.assertNotNull(response.getHeader("stream"));
+        String streamId = response.getHeader("stream");
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId, RPC_TIMEOUT);
         stream2bytes(in, result).onSuccess(bench2::offer);
@@ -431,8 +431,8 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench1::offer);
         EventEnvelope response = bench1.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        Assert.assertNotNull(response.getHeaders().get("stream"));
-        String streamId = response.getHeaders().get("stream");
+        Assert.assertNotNull(response.getHeader("stream"));
+        String streamId = response.getHeader("stream");
         ByteArrayOutputStream result = new ByteArrayOutputStream();
         AsyncObjectStreamReader in = new AsyncObjectStreamReader(streamId, RPC_TIMEOUT);
         stream2bytes(in, result).onSuccess(bench2::offer);
@@ -779,7 +779,7 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        Assert.assertEquals("text/html", response.getHeaders().get("Content-Type"));
+        Assert.assertEquals("text/html", response.getHeader("Content-Type"));
         Assert.assertTrue(response.getBody() instanceof String);
         String html = (String) response.getBody();
         InputStream in = this.getClass().getResourceAsStream("/public/index.html");
@@ -801,7 +801,7 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        Assert.assertEquals("text/css", response.getHeaders().get("Content-Type"));
+        Assert.assertEquals("text/css", response.getHeader("Content-Type"));
         Assert.assertTrue(response.getBody() instanceof String);
         String html = (String) response.getBody();
         InputStream in = this.getClass().getResourceAsStream("/public/sample.css");
@@ -823,7 +823,7 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        Assert.assertEquals("text/javascript", response.getHeaders().get("Content-Type"));
+        Assert.assertEquals("text/javascript", response.getHeader("Content-Type"));
         Assert.assertTrue(response.getBody() instanceof String);
         String html = (String) response.getBody();
         InputStream in = this.getClass().getResourceAsStream("/public/sample.js");

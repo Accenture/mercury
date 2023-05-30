@@ -1618,18 +1618,18 @@ public class PostOfficeTest extends TestBase {
         Assert.assertEquals(0, pojo.getNumber());
         Assert.assertEquals(0L, pojo.getLongNumber());
         // the demo function is designed to return its function execution types
-        Assert.assertEquals("true", response.getHeaders().get("coroutine"));
-        Assert.assertEquals("false", response.getHeaders().get("suspend"));
-        Assert.assertEquals("false", response.getHeaders().get("interceptor"));
-        Assert.assertEquals("true", response.getHeaders().get("tracing"));
+        Assert.assertEquals("true", response.getHeader("coroutine"));
+        Assert.assertEquals("false", response.getHeader("suspend"));
+        Assert.assertEquals("false", response.getHeader("interceptor"));
+        Assert.assertEquals("true", response.getHeader("tracing"));
         // the demo function will also echo the READ only route, trace ID and path
-        Assert.assertEquals(AUTO_MAPPING, response.getHeaders().get("route"));
-        Assert.assertEquals(TRACE_ID, response.getHeaders().get("trace_id"));
-        Assert.assertEquals(TRACE_PATH, response.getHeaders().get("trace_path"));
+        Assert.assertEquals(AUTO_MAPPING, response.getHeader("route"));
+        Assert.assertEquals(TRACE_ID, response.getHeader("trace_id"));
+        Assert.assertEquals(TRACE_PATH, response.getHeader("trace_path"));
         // the system will filter out reserved metadata - my_route, my_trace_id, my_trace_path
-        Assert.assertNull(response.getHeaders().get("my_route"));
-        Assert.assertNull(response.getHeaders().get("my_trace_id"));
-        Assert.assertNull(response.getHeaders().get("my_trace_path"));
+        Assert.assertNull(response.getHeader("my_route"));
+        Assert.assertNull(response.getHeader("my_trace_id"));
+        Assert.assertNull(response.getHeader("my_trace_path"));
     }
 
     @SuppressWarnings("unchecked")

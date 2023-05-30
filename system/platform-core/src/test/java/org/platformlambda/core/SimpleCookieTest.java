@@ -60,13 +60,13 @@ public class SimpleCookieTest {
         String HELLO = "hello";
         String WORLD = "world";
         event.setHeader(HELLO, WORLD);
-        String cookies = event.getHeaders().get(SET_COOKIE);
+        String cookies = event.getHeader(SET_COOKIE);
         Assert.assertTrue(cookies.contains("|"));
         List<String> cookieList = Utility.getInstance().split(cookies, "|");
         Assert.assertEquals(2, cookieList.size());
         Assert.assertTrue(cookieList.get(0).startsWith("key1=value1;"));
         Assert.assertTrue(cookieList.get(1).startsWith("key2=value2;"));
-        Assert.assertEquals(WORLD, event.getHeaders().get(HELLO));
+        Assert.assertEquals(WORLD, event.getHeader(HELLO));
     }
 
 }
