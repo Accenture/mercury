@@ -24,8 +24,8 @@ import org.platformlambda.core.models.AsyncHttpRequest
 import org.platformlambda.core.models.EventEnvelope
 import org.platformlambda.core.models.KotlinLambdaFunction
 import org.platformlambda.core.models.Kv
-import org.platformlambda.core.system.FastRPC
 import org.platformlambda.core.system.EventEmitter
+import org.platformlambda.core.system.FastRPC
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -73,6 +73,7 @@ class FileUploadDemo: KotlinLambdaFunction<AsyncHttpRequest, Any> {
                  *            the main event loop, causing the whole application to slow down.
                  *            i.e. never use Thread.sleep(ms), BlockingQueue, the "synchronous" keyword, etc.
                  */
+                var n = 0;
                 while (true) {
                     val event = fastRPC.awaitRequest(req, 5000)
                     if (event.status == 408) {
@@ -83,7 +84,7 @@ class FileUploadDemo: KotlinLambdaFunction<AsyncHttpRequest, Any> {
                         break
                     }
                     if (EOF == event.headers[TYPE]) {
-                        log.info("{} saved", file)
+                        log.info("Saved {}, total {} bytes", file, total)
                         awaitBlocking {
                             out.close()
                         }
@@ -94,8 +95,9 @@ class FileUploadDemo: KotlinLambdaFunction<AsyncHttpRequest, Any> {
                     if (DATA == event.headers[TYPE]) {
                         val block = event.body
                         if (block is ByteArray) {
+                            n++;
                             total += block.size
-                            log.info("Saving {} - {} bytes", filename, block.size)
+                            log.info("Saving {} - block#{} - {} bytes", filename, n, block.size)
                             awaitBlocking {
                                 out.write(block)
                             }
