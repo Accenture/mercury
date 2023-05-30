@@ -68,6 +68,31 @@ public class RestEndpointTest extends TestBase {
         }
     }
 
+    @Test
+    public void optionsMethodTest() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("OPTIONS");
+        req.setHeader("accept", "application/json");
+        req.setUrl("/api/hello/world?hello world=abc");
+        req.setQueryParameter("x1", "y");
+        List<String> list = new ArrayList<>();
+        list.add("a");
+        list.add("b");
+        req.setQueryParameter("x2", list);
+        req.setTargetHost("http://127.0.0.1:"+port);
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        // response is an empty string
+        Assert.assertEquals("", response.getBody());
+        // CORS headers are inserted
+        Assert.assertEquals("*", response.getHeader("Access-Control-Allow-Origin"));
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     public void serviceTest() throws IOException, InterruptedException {

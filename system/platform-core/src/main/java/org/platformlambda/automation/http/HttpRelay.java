@@ -94,6 +94,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
     private static final String DELETE = "DELETE";
+    private static final String OPTIONS = "OPTIONS";
     private static final String HEAD = "HEAD";
     private static final String STREAM = "stream";
     private static final String STREAM_PREFIX = "stream.";
@@ -217,6 +218,9 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         }
         if (DELETE.equals(method)) {
             return HttpMethod.DELETE;
+        }
+        if (OPTIONS.equals(method)) {
+            return HttpMethod.OPTIONS;
         }
         return null;
     }

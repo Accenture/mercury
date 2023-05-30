@@ -514,6 +514,16 @@ public class EventEnvelope {
     }
 
     /**
+     * Retrieve a header value
+     *
+     * @param key of the header
+     * @return header value
+     */
+    public String getHeader(String key) {
+        return this.headers.get(key);
+    }
+
+    /**
      * Optionally set a parameter
      *
      * @param key of a parameter
