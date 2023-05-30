@@ -78,11 +78,8 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final String MULTIPART_FORM_DATA = "multipart/form-data";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
-    private static final String TEXT_HTML = "text/html";
-    private static final String TEXT_PLAIN = "text/plain";
-    private static final String TEXT_CSS = "text/css";
-    private static final String TEXT_JAVASCRIPT = "text/javascript";
     private static final String APPLICATION_JAVASCRIPT = "application/javascript";
+    private static final String TEXT_PREFIX = "text/";
     private static final String REGULAR_FACTORY = "regular.";
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
@@ -101,6 +98,8 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final String INPUT_STREAM_SUFFIX = ".in";
     private static final String CONTENT_TYPE = "content-type";
     private static final String CONTENT_LENGTH = "content-length";
+    private static final String X_CONTENT_LENGTH = "x-content-length";
+    private static final String TIMEOUT = "timeout";
     /*
      * Some headers must be dropped because they are not relevant for HTTP relay
      * e.g. "content-encoding" and "transfer-encoding" will break HTTP response rendering.
@@ -600,11 +599,8 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
                             } catch (Exception e) {
                                 sendResponse(input, response.setBody(text));
                             }
-                        } else if (resContentType.startsWith(TEXT_HTML) ||
-                                resContentType.startsWith(TEXT_PLAIN) ||
-                                resContentType.startsWith(TEXT_CSS) ||
-                                resContentType.startsWith(APPLICATION_JAVASCRIPT) ||
-                                resContentType.startsWith(TEXT_JAVASCRIPT)) {
+                        } else if (resContentType.startsWith(TEXT_PREFIX) ||
+                                resContentType.startsWith(APPLICATION_JAVASCRIPT)) {
                             /*
                              * For API targetHost, the content-types are usually JSON or XML.
                              * HTML, CSS and JS are the best effort static file contents.
@@ -618,6 +614,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
                     }
                 } else {
                     Platform.getInstance().getEventExecutor().submit(() -> {
+                        int len = 0;
                         ObjectStreamIO stream = null;
                         ObjectStreamWriter out = null;
                         try {
@@ -630,12 +627,15 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
                                         stream = new ObjectStreamIO(timeoutSeconds);
                                         out = new ObjectStreamWriter(stream.getOutputStreamId());
                                     }
+                                    len += b.length;
                                     out.write(b);
                                 }
                             }
                             if (out != null) {
+                                response.setHeader(STREAM, stream.getInputStreamId())
+                                        .setHeader(TIMEOUT, timeoutSeconds * 1000)
+                                        .setHeader(X_CONTENT_LENGTH, len);
                                 out.close();
-                                response.setHeader(STREAM, stream.getInputStreamId());
                             } else {
                                 response.setBody("");
                             }
@@ -653,9 +653,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         private boolean isTextResponse(String contentType) {
             return  contentType != null && (
                     contentType.startsWith(APPLICATION_JSON) || contentType.startsWith(APPLICATION_XML) ||
-                            contentType.startsWith(TEXT_JAVASCRIPT) || contentType.startsWith(APPLICATION_JAVASCRIPT) ||
-                            contentType.startsWith(TEXT_CSS) || contentType.startsWith(TEXT_HTML) ||
-                            contentType.startsWith(TEXT_PLAIN));
+                    contentType.startsWith(TEXT_PREFIX) || contentType.startsWith(APPLICATION_JAVASCRIPT));
         }
     }
 
