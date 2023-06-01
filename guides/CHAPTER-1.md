@@ -76,12 +76,12 @@ It should be stateless and self-contained. i.e. it has no direct dependencies wi
 composable application. Each function is addressable by a unique "route name" and you can use PoJo for input and output.
 
 In the above example, the function is called "hello.simple". The input is an AsyncHttpRequest object, meaning that
-this function is likely a "Backend for Frontend (BFF)" module that is invoked by a REST endpoint.
+this function is a "Backend for Frontend (BFF)" module that is invoked by a REST endpoint.
 
 When a function finishes processing, its output will be delivered to the next function.
 
 > Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
-  interface contact is likely to be clearly defined. Self-containment means code is more readable too.
+  interface contact is clearly defined. Self-containment means code is more readable too.
 
 ### Event orchestration
 
@@ -175,7 +175,7 @@ Wildcard API paths [/api/hello/download/{filename}, /api/hello/generic/{id}]
 Application parameters are defined in the resources/application.properties file (or application.yml if you prefer).
 When `rest.automation=true` is defined, the system will parse the "rest.yaml" configuration for REST endpoints.
 
-## REST automation
+## Light-weight non-blocking HTTP server
 
 When REST automation is turned on, the system will start a lightweight non-blocking HTTP server.
 By default, it will search for the "rest.yaml" file from "/tmp/config/rest.yaml" and then from "classpath:/rest.yaml".
