@@ -101,6 +101,7 @@ public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest,
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         // business logic here
+        return result;
     }
 }
 ```
@@ -123,7 +124,7 @@ The `instance` argument informs your function which worker is serving the curren
 
 Similarly, you can also write a "suspend function" in Kotlin like this:
 
-```kotlin
+```java
 @PreLoad(route = "hello.world", instances = 10, isPrivate = false, 
          envInstances = "instances.hello.world")
 class HelloWorld : KotlinLambdaFunction<Any?, Map<String, Any>> {
@@ -132,6 +133,7 @@ class HelloWorld : KotlinLambdaFunction<Any?, Map<String, Any>> {
     override suspend fun handleEvent(headers: Map<String, String>, input: Any?, 
                                      instance: Int): Map<String, Any> {
         // business logic here
+        return result;
     }
 }
 ```

@@ -22,7 +22,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.services.MulticastRelay;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.MultiLevelMap;
@@ -73,30 +72,38 @@ public class EventEmitter {
     private static final EventEmitter INSTANCE = new EventEmitter();
 
     private EventEmitter() {
-        log.info("Starting application instance {}", Platform.getInstance().getOrigin());
+        Platform platform = Platform.getInstance();
+        log.info("Starting application instance {}", platform.getOrigin());
         AppConfigReader config = AppConfigReader.getInstance();
-        try {
-            // load route substitution table if any
-            if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
-                loadRouteSubstitution();
-            }
-            String multicast = config.getProperty(MULTICAST_YAML);
-            if (multicast != null) {
+        String multicast = config.getProperty(MULTICAST_YAML);
+        if (multicast != null) {
+            platform.getEventExecutor().submit(() -> {
                 log.info("Loading multicast config from {}", multicast);
                 ConfigReader reader = new ConfigReader();
-                reader.load(multicast);
-                loadMulticast(multicast, reader.getMap());
-            }
-            String journal = config.getProperty(JOURNAL_YAML);
-            if (journal != null) {
+                try {
+                    reader.load(multicast);
+                    loadMulticast(multicast, reader.getMap());
+                } catch (IOException e) {
+                    log.error("Unable to load multicast config - {}", e.getMessage());
+                }
+            });
+        }
+        String journal = config.getProperty(JOURNAL_YAML);
+        if (journal != null) {
+            platform.getEventExecutor().submit(() -> {
                 log.info("Loading journal config from {}", journal);
                 ConfigReader reader = new ConfigReader();
-                reader.load(journal);
+                try {
+                    reader.load(journal);
+                } catch (IOException e) {
+                    log.error("Unable to load journal config - {}", e.getMessage());
+                }
                 loadJournalRoutes(reader.getMap());
-            }
-        } catch (IOException e) {
-            log.error("Unable to start - {}", e.getMessage());
-            System.exit(-1);
+            });
+        }
+        // load route substitution table if any
+        if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
+            platform.getEventExecutor().submit(this::loadRouteSubstitution);
         }
     }
 
@@ -140,8 +147,6 @@ public class EventEmitter {
 
     @SuppressWarnings("unchecked")
     private void loadMulticast(String file, Map<String, Object> map) {
-        Set<String> list = new HashSet<>();
-        Platform platform = Platform.getInstance();
         MultiLevelMap multi = new MultiLevelMap(map);
         Object o = multi.getElement("multicast");
         if (o instanceof List) {
@@ -149,18 +154,22 @@ public class EventEmitter {
             for (int i=0; i < multicastList.size(); i++) {
                 String source = (String) multi.getElement("multicast["+i+"].source");
                 List<String> targets = (List<String>) multi.getElement("multicast["+i+"].targets");
-                if (source != null || targets != null) {
-                    if (targets.contains(source)) {
-                        log.error("Cyclic multicast ignored ({} exists in {})", source, targets);
-                    } else if (list.contains(source)) {
-                        log.error("Duplicated multicast ignored ({} already defined)", source);
-                    } else {
-                        list.add(source);
-                        try {
-                            platform.registerPrivate(source, new MulticastRelay(source, targets), 1);
-                        } catch (IOException e) {
-                            log.error("Unable to register multicast {} - {}", source, e.getMessage());
+                if (source != null && targets != null && !targets.isEmpty()) {
+                    List<String> targetList = new ArrayList<>(targets);
+                    targetList.remove(source);
+                    Set<String> members = new HashSet<>(targetList);
+                    if (members.size() < targets.size()) {
+                        log.warn("Multicast config error - {} -> {} becomes {} -> {}",
+                                source, targets, source, members);
+                    }
+                    LocalPubSub ps = LocalPubSub.getInstance();
+                    try {
+                        ps.createTopic(source);
+                        for (String member: members) {
+                            ps.subscribe(source, member);
                         }
+                    } catch (IOException e) {
+                        log.error("Unable to register multicast {} -> {}, - {}", source, members, e.getMessage());
                     }
                 }
             }
