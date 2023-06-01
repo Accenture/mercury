@@ -229,7 +229,11 @@ public class RestEndpointTest extends TestBase {
         byte[] b = bytes.toByteArray();
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("PUT");
-        req.setUrl("/api/hello/world");
+        /*
+         * The "/api/v1/hello/world" prefix tests the REST automation system HTTP relay feature.
+         * It will rewrite the URI to "/api/hello/world" based on the rest.yaml configuration.
+         */
+        req.setUrl("/api/v1/hello/world");
         req.setTargetHost("http://127.0.0.1:"+port);
         req.setStreamRoute(stream.getInputStreamId());
         req.setContentLength(len);

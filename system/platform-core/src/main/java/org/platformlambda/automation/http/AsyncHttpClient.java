@@ -64,8 +64,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @CoroutineRunner
 @EventInterceptor
 @PreLoad(route="async.http.request", instances=200)
-public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
-    private static final Logger log = LoggerFactory.getLogger(HttpRelay.class);
+public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void> {
+    private static final Logger log = LoggerFactory.getLogger(AsyncHttpClient.class);
     private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
     private static final long HOUSEKEEPING_INTERVAL = 30 * 1000L;    // 30 seconds
@@ -84,8 +84,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final String TRUST_ALL_FACTORY = "trust_all.";
     private static final String COOKIE = "cookie";
     private static final String DESTINATION = "destination";
-    private static final String HTTP_RELAY = "http.relay";
-    private static final String FORWARDER = "forwarder";
+    private static final String HTTP_RELAY = "async.http.request";
     private static final String GET = "GET";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
@@ -109,7 +108,7 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
                                                         "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user" };
     private final File tempDir;
 
-    public HttpRelay() {
+    public AsyncHttpClient() {
         // create temp upload directory
         AppConfigReader reader = AppConfigReader.getInstance();
         String temp = reader.getProperty("app.temp.dir", "/tmp/temp_files_to_delete");
@@ -282,7 +281,6 @@ public class HttpRelay implements TypedLambdaFunction<EventEnvelope, Void> {
         }
         String uriWithQuery = uri + (qs == null? "" : "?" + qs);
         po.annotateTrace(DESTINATION, url.getProtocol() + "://" + url.getHost() + ":" + port + uriWithQuery);
-        po.annotateTrace(FORWARDER, HTTP_RELAY);
         WebClient client = getWebClient(instance, request.isTrustAllCert());
         HttpRequest<Buffer> http = client.request(httpMethod, port, host, uri).ssl(secure);
         if (qs != null) {
