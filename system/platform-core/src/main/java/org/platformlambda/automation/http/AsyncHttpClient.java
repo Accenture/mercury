@@ -131,7 +131,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
         if (webClients.containsKey(key)) {
             return webClients.get(key);
         }
-        WebClientOptions options = new WebClientOptions().setUserAgent("vertx").setKeepAlive(true);
+        WebClientOptions options = new WebClientOptions().setUserAgent("async-http-client").setKeepAlive(true);
         options.setMaxHeaderSize(12 * 1024).setConnectTimeout(10000);
         if (trustAll) {
             options.setTrustAll(true);
