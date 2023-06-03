@@ -52,7 +52,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.util.*;
@@ -224,7 +225,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     }
 
     private void processRequest(Map<String, String> headers, EventEnvelope input, int instance)
-            throws AppException, IOException {
+            throws AppException, IOException, URISyntaxException {
         PostOffice po = new PostOffice(headers, instance);
         Utility util = Utility.getInstance();
         AsyncHttpRequest request = new AsyncHttpRequest(input.getBody());
@@ -238,8 +239,8 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
             throw new IllegalArgumentException("Missing target host. e.g. https://hostname");
         }
         final boolean secure;
-        URL url = new URL(targetHost);
-        String protocol = url.getProtocol();
+        URI url = new URI(targetHost);
+        String protocol = url.getScheme();
         if ("http".equals(protocol)) {
             secure = false;
         } else if ("https".equals(protocol)) {
@@ -280,7 +281,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
             qs = qs == null? queryParams : qs + "&" + queryParams;
         }
         String uriWithQuery = uri + (qs == null? "" : "?" + qs);
-        po.annotateTrace(DESTINATION, url.getProtocol() + "://" + url.getHost() + ":" + port + uriWithQuery);
+        po.annotateTrace(DESTINATION, url.getScheme() + "://" + url.getHost() + ":" + port + uriWithQuery);
         WebClient client = getWebClient(instance, request.isTrustAllCert());
         HttpRequest<Buffer> http = client.request(httpMethod, port, host, uri).ssl(secure);
         if (qs != null) {

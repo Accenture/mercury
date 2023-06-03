@@ -33,8 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -138,18 +138,17 @@ public class PersistentWsClient extends Thread {
         final Platform platform = Platform.getInstance();
         final EventEmitter po = EventEmitter.getInstance();
         final WebSocketConnectOptions options;
-        final URL target;
+        final URI target;
         try {
             int defaultPort = secure? 443 : 80;
-            target = new URL(url);
+            target = new URI(url);
             options = new WebSocketConnectOptions();
             options.setHost(target.getHost());
             options.setPort(target.getPort() > 0? target.getPort() : defaultPort);
             options.setURI(target.getPath() + "/" + platform.getOrigin());
             options.setSsl(secure);
             options.setTimeout(idleSeconds * 1000L);
-
-        } catch (MalformedURLException e) {
+        } catch (URISyntaxException e) {
             log.error("Invalid target URL {} - {}", u, e.getMessage());
             urls.remove(0);
             vertx.setTimer(RETRY_TIMER, n -> makeConnection(idleSeconds));

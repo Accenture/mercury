@@ -22,8 +22,8 @@ import org.platformlambda.core.serializers.PayloadMapper;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.util.Utility;
 
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 
 public class AsyncHttpRequest {
@@ -375,14 +375,14 @@ public class AsyncHttpRequest {
     public AsyncHttpRequest setTargetHost(String host) {
         if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             try {
-                URL u = new URL(host);
+                URI u = new URI(host);
                 if (!u.getPath().isEmpty()) {
                     throw new IllegalArgumentException("Invalid host - Must not contain path");
                 }
                 if (u.getQuery() != null) {
                     throw new IllegalArgumentException("Invalid host - Must not contain query");
                 }
-            } catch (MalformedURLException e) {
+            } catch (URISyntaxException e) {
                 throw new IllegalArgumentException("Invalid host - "+e.getMessage());
             }
             this.targetHost = host;

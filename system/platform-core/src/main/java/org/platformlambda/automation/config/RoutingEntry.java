@@ -28,8 +28,8 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 
 public class RoutingEntry {
@@ -429,7 +429,7 @@ public class RoutingEntry {
                 return;
             }
             try {
-                URL u = new URL(info.primary);
+                URI u = new URI(info.primary);
                 if (!u.getPath().isEmpty()) {
                     log.error("Skipping entry with invalid service URL {} - Must not contain path", info.primary);
                     return;
@@ -449,12 +449,10 @@ public class RoutingEntry {
                 // set primary to ASYNC_HTTP_REQUEST
                 info.host = info.primary;
                 info.primary = ASYNC_HTTP_REQUEST;
-
-            } catch (MalformedURLException e) {
+            } catch (URISyntaxException e) {
                 log.error("Skipping entry with invalid service URL {} - {}", info.primary, e.getMessage());
                 return;
             }
-
         } else {
             String trustAll = config.getProperty(REST+"["+idx+"]."+TRUST_ALL_CERT);
             if (trustAll != null) {

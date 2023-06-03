@@ -27,7 +27,7 @@ import org.platformlambda.core.util.Utility
 import org.platformlambda.core.websocket.common.MultipartPayload
 import org.slf4j.LoggerFactory
 import java.io.IOException
-import java.net.URL
+import java.net.URI
 import java.util.*
 
 class FastRPC(headers: Map<String, String>) {
@@ -127,7 +127,7 @@ class FastRPC(headers: Map<String, String>) {
                              headers: Map<String, String>,
                              eventEndpoint: String, rpc: Boolean): EventEnvelope {
         requireNotNull(request.to) { EventEmitter.MISSING_ROUTING_PATH }
-        val url = URL(eventEndpoint)
+        val url = URI(eventEndpoint)
         val req = AsyncHttpRequest()
         req.setMethod(POST)
         req.setHeader(CONTENT_TYPE, "application/octet-stream")
@@ -314,9 +314,9 @@ class FastRPC(headers: Map<String, String>) {
         }
     }
 
-    private fun getTargetFromUrl(url: URL): String {
+    private fun getTargetFromUrl(url: URI): String {
         val secure: Boolean
-        val protocol = url.protocol
+        val protocol = url.scheme
         secure = if (HTTP == protocol) {
             false
         } else if (HTTPS == protocol) {

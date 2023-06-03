@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -675,7 +677,12 @@ public class EventEmitter {
         if (dest == null) {
             throw new IllegalArgumentException(MISSING_ROUTING_PATH);
         }
-        URL url = new URL(eventEndpoint);
+        final URI url;
+        try {
+            url = new URI(eventEndpoint);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e.getMessage());
+        }
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod(POST);
         req.setHeader(CONTENT_TYPE, "application/octet-stream");
@@ -739,9 +746,9 @@ public class EventEmitter {
         });
     }
 
-    private String getTargetFromUrl(URL url) {
+    private String getTargetFromUrl(URI url) {
         final boolean secure;
-        String protocol = url.getProtocol();
+        String protocol = url.getScheme();
         if (HTTP.equals(protocol)) {
             secure = false;
         } else if (HTTPS.equals(protocol)) {
