@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.8.1, 6/5/2023
+
+This is a maintenance release for version 2.8.x
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Upgrade to Vertx 4.4.2
+2. Upgrade to Spring Boot 2.7.12
+
+---
 ## Version 2.8.0, 3/20/2023
 
 
