@@ -7,7 +7,7 @@
     <artifactId>lambda-example</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
     <name>Composable application example</name>
 
     <parent>
@@ -22,7 +22,6 @@
         <snakeyaml.version>2.0</snakeyaml.version>
         <hazelcast.version>5.1.2</hazelcast.version>
         <kafka.version>3.4.0</kafka.version>
-        <netty.version>4.1.92.Final</netty.version>
         <gson.version>2.10.1</gson.version>
         <slf4j.version>2.0.7</slf4j.version>
         <log4j2.version>2.20.0</log4j2.version>
@@ -42,7 +41,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.0</version>
+            <version>3.0.1</version>
         </dependency>
 
         <!-- Select your optional cloud connector if any.
@@ -52,7 +51,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.0</version>
+            <version>3.0.1</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
@@ -144,8 +143,23 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+            </plugin>  
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.1</version>
+            </plugin>                      
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.1.0</version>
                 <configuration>
                     <skipTests>false</skipTests>
                 </configuration>
@@ -170,7 +184,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.9</version>
+                <version>0.8.10</version>
                 <executions>
                     <execution>
                         <goals>

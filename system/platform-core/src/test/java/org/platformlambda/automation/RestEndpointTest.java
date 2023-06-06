@@ -28,6 +28,7 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.MultiLevelMap;
@@ -46,6 +47,8 @@ public class RestEndpointTest extends TestBase {
     private static final String MULTIPART_FORM_DATA = "multipart/form-data";
     private static final String HTTP_REQUEST = "async.http.request";
     private static final long RPC_TIMEOUT = 10000;
+
+    private static final SimpleXmlParser xml = new SimpleXmlParser();
 
     @Before
     public void setupAuthenticator() throws IOException {
@@ -482,7 +485,7 @@ public class RestEndpointTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void postXml() throws IOException, InterruptedException {
+    public void postXmlAsMap() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         EventEmitter po = EventEmitter.getInstance();
         SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
@@ -506,7 +509,6 @@ public class RestEndpointTest extends TestBase {
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) response.getBody());
         Assert.assertEquals("application/xml", map.getElement("headers.content-type"));
         Assert.assertEquals("application/xml", map.getElement("headers.accept"));
-        // xml key-values are parsed as text
         Assert.assertEquals("false", map.getElement("https"));
         Assert.assertEquals("/api/hello/world", map.getElement("url"));
         Assert.assertEquals("POST", map.getElement("method"));
@@ -515,6 +517,40 @@ public class RestEndpointTest extends TestBase {
         Assert.assertTrue(map.getElement("body") instanceof Map);
         Map<String, Object> received = (Map<String, Object>) map.getElement("body");
         Assert.assertEquals(data, received);
+    }
+
+    @Test
+    public void postXmlAsText() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEmitter po = EventEmitter.getInstance();
+        SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("POST");
+        req.setUrl("/api/hello/world");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        req.setBody("hello world");
+        req.setHeader("accept", "application/xml");
+        req.setHeader("content-type", "application/xml");
+        req.setHeader("x-raw-xml", "true");
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        // when x-raw-xml header is true, the response is rendered as a string
+        Assert.assertTrue(response.getBody() instanceof String);
+        Map<String, Object> payload = xml.parse((String) response.getBody());
+        MultiLevelMap map = new MultiLevelMap(payload);
+        Assert.assertEquals("application/xml", map.getElement("headers.content-type"));
+        Assert.assertEquals("application/xml", map.getElement("headers.accept"));
+        Assert.assertEquals("true", map.getElement("headers.x-raw-xml"));
+        Assert.assertEquals("false", map.getElement("https"));
+        Assert.assertEquals("/api/hello/world", map.getElement("url"));
+        Assert.assertEquals("POST", map.getElement("method"));
+        Assert.assertEquals("127.0.0.1", map.getElement("ip"));
+        Assert.assertEquals("10", map.getElement("timeout"));
+        Assert.assertTrue(map.getElement("body") instanceof String);
+        Assert.assertEquals("hello world", map.getElement("body"));
     }
 
     @SuppressWarnings("unchecked")

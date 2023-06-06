@@ -23,17 +23,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.MainApp;
 import org.platformlambda.cloud.reporter.PresenceConnector;
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.EventEmitter;
+import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PubSub;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.mock.TestBase;
 import org.platformlambda.models.WsMetadata;
-import org.platformlambda.util.SimpleHttpRequests;
 import org.platformlambda.ws.MonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +101,7 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void connectivityTest() throws AppException, IOException, InterruptedException {
+    public void connectivityTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         EventEmitter po = EventEmitter.getInstance();
         int n = 0;
@@ -120,14 +117,14 @@ public class ConnectorTest extends TestBase {
         if (connections.isEmpty()) {
             throw new IllegalArgumentException("Should have at least one member connection");
         }
+        Map<String, String> headers = new HashMap<>();
+        headers.put("accept", "application/json");
+        headers.put("x-app-instance", Platform.getInstance().getOrigin());
         n = 0;
         while (n++ < 30) {
-            Map<String, String> headers = new HashMap<>();
-            headers.put("x-app-instance", Platform.getInstance().getOrigin());
-            Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info",
-                    "application/json", headers);
-            Assert.assertTrue(response instanceof String);
-            Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+            EventEnvelope response = httpGet("http://127.0.0.1:"+port, "/info", headers);
+            Assert.assertTrue(response.getBody() instanceof Map);
+            Map<String, Object> map = (Map<String, Object>) response.getBody();
             Object info = map.get("additional_info");
             Assert.assertTrue(info instanceof Map);
             Map<String, Object> infoMap = (Map<String, Object>) info;
@@ -168,14 +165,13 @@ public class ConnectorTest extends TestBase {
                 .setHeader(TYPE, MainApp.MONITOR_ALIVE).setHeader(ORIGIN, origin);
         po.asyncRequest(req, 5000).onSuccess(bench::offer);
         bench.poll(10, TimeUnit.SECONDS);
-
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
-        Assert.assertTrue(response instanceof String);
-        Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        EventEnvelope response = httpGet("http://127.0.0.1:"+port, "/health", headers);
+        Assert.assertTrue(response.getBody() instanceof Map);
+        Map<String, Object> map = (Map<String, Object>) response.getBody();
         Assert.assertEquals("UP", map.get("status"));
-        response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info");
-        Assert.assertTrue(response instanceof String);
-        map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        response = httpGet("http://127.0.0.1:"+port, "/info", headers);
+        Assert.assertTrue(response.getBody() instanceof Map);
+        map = (Map<String, Object>) response.getBody();
         Object info = map.get("additional_info");
         Assert.assertTrue(info instanceof Map);
         Map<String, Object> infoMap = (Map<String, Object>) info;

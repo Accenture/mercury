@@ -79,6 +79,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     private static final String MULTIPART_FORM_DATA = "multipart/form-data";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
+    private static final String X_RAW_XML = "x-raw-xml";
     private static final String APPLICATION_JAVASCRIPT = "application/javascript";
     private static final String TEXT_PREFIX = "text/";
     private static final String REGULAR_FACTORY = "regular.";
@@ -138,7 +139,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
             options.setTrustAll(true);
         }
         WebClient client = WebClient.create(Platform.getInstance().getVertx(), options);
-        log.info("Loaded HTTP web client {}", key);
+        log.debug("Loaded HTTP web client {}", key);
         webClients.put(key, client);
         return client;
     }
@@ -377,7 +378,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
             httpResponse = httpRequest.send();
         }
         if (httpResponse != null) {
-            httpResponse.onSuccess(new HttpResponseHandler(input, queue, request.getTimeoutSeconds()));
+            httpResponse.onSuccess(new HttpResponseHandler(input, request, queue));
             httpResponse.onFailure(new HttpExceptionHandler(input, queue));
         }
     }
@@ -418,7 +419,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
                 } else {
                     future = httpRequest.send();
                 }
-                future.onSuccess(new HttpResponseHandler(input, queue, request.getTimeoutSeconds()))
+                future.onSuccess(new HttpResponseHandler(input, request, queue))
                         .onFailure(new HttpExceptionHandler(input, queue));
             })
             .onFailure(new HttpExceptionHandler(input, queue));
@@ -533,13 +534,15 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     private class HttpResponseHandler implements Handler<HttpResponse<Void>> {
 
         private final EventEnvelope input;
+        private final AsyncHttpRequest request;
         private final OutputStreamQueue queue;
         private final int timeoutSeconds;
 
-        public HttpResponseHandler(EventEnvelope input, OutputStreamQueue queue, int timeoutSeconds) {
+        public HttpResponseHandler(EventEnvelope input, AsyncHttpRequest request, OutputStreamQueue queue) {
             this.input = input;
+            this.request = request;
             this.queue = queue;
-            this.timeoutSeconds = Math.max(8, timeoutSeconds);
+            this.timeoutSeconds = Math.max(8, request.getTimeoutSeconds());
         }
 
         @Override
@@ -588,15 +591,20 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
                                     sendResponse(input, response.setBody(text));
                                 }
                             }
-
                         } else if (resContentType.startsWith(APPLICATION_XML)) {
                             // response body is assumed to be XML
-                            String text = util.getUTF(b).trim();
-                            try {
-                                sendResponse(input, response.setBody(
-                                        text.isEmpty() ? new HashMap<>() : xmlReader.parse(text)));
-                            } catch (Exception e) {
+                            String text = util.getUTF(b);
+                            String trimmed = text.trim();
+                            boolean rawXml = "true".equals(request.getHeader(X_RAW_XML));
+                            if (rawXml) {
                                 sendResponse(input, response.setBody(text));
+                            } else {
+                                try {
+                                    sendResponse(input, response.setBody(
+                                            trimmed.isEmpty() ? new HashMap<>() : xmlReader.parse(text)));
+                                } catch (Exception e) {
+                                    sendResponse(input, response.setBody(text));
+                                }
                             }
                         } else if (resContentType.startsWith(TEXT_PREFIX) ||
                                 resContentType.startsWith(APPLICATION_JAVASCRIPT)) {
@@ -604,7 +612,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
                              * For API targetHost, the content-types are usually JSON or XML.
                              * HTML, CSS and JS are the best effort static file contents.
                              */
-                            sendResponse(input, response.setBody(util.getUTF(b).trim()));
+                            sendResponse(input, response.setBody(util.getUTF(b)));
                         } else {
                             sendResponse(input, response.setBody(b));
                         }

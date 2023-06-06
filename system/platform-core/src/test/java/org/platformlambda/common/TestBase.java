@@ -24,8 +24,11 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import org.junit.BeforeClass;
 import org.platformlambda.automation.service.MockHelloWorld;
+import org.platformlambda.core.models.AsyncHttpRequest;
+import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.services.LongRunningRpcSimulator;
 import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.util.AppConfigReader;
@@ -36,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TestBase {
     private static final Logger log = LoggerFactory.getLogger(TestBase.class);
 
+    protected static final String HTTP_CLIENT = "async.http.request";
     protected static final String HELLO_WORLD = "hello.world";
     protected static final String HELLO_MOCK = "hello.mock";
     protected static final String LONG_RUNNING_RPC = "long.running.rpc";
@@ -54,6 +59,7 @@ public class TestBase {
     protected static final String APP_ID = Utility.getInstance().getDateUuid()+"-"+System.getProperty("user.name");
     private static final String SERVICE_LOADED = "http.service.loaded";
     protected static int port;
+    protected static String localHost;
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
@@ -64,6 +70,7 @@ public class TestBase {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             port = util.str2int(config.getProperty("server.port", "8100"));
+            localHost = "http://127.0.0.1:"+port;
             AppStarter.runAsSpringBootApp();
             AppStarter.main(new String[0]);
             AppStarter.runMainApp();
@@ -110,5 +117,41 @@ public class TestBase {
         Future<Boolean> status = Platform.getInstance().waitForProvider(provider, seconds);
         status.onSuccess(found -> bench.offer(found));
         return Boolean.TRUE.equals(bench.poll(12, TimeUnit.SECONDS));
+    }
+
+    protected EventEnvelope httpGet(String host, String path, Map<String, String> headers)
+            throws IOException, InterruptedException {
+        // BlockingQueue should only be used in unit test
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest().setMethod("GET").setTargetHost(host).setUrl(path);
+        if (headers != null) {
+            for (Map.Entry<String, String> kv: headers.entrySet()) {
+                req.setHeader(kv.getKey(), kv.getValue());
+            }
+        }
+        EventEnvelope event = new EventEnvelope().setTo(HTTP_CLIENT).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(event, 10000);
+        res.onSuccess(bench::offer);
+        return bench.poll(10, TimeUnit.SECONDS);
+    }
+
+    protected EventEnvelope httpPost(String host, String path,
+                                     Map<String, String> headers, Map<String, Object> body)
+            throws IOException, InterruptedException {
+        // BlockingQueue should only be used in unit test
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest().setMethod("POST")
+                                    .setTargetHost(host).setUrl(path).setBody(body);
+        if (headers != null) {
+            for (Map.Entry<String, String> kv: headers.entrySet()) {
+                req.setHeader(kv.getKey(), kv.getValue());
+            }
+        }
+        EventEnvelope event = new EventEnvelope().setTo(HTTP_CLIENT).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(event, 10000);
+        res.onSuccess(bench::offer);
+        return bench.poll(10, TimeUnit.SECONDS);
     }
 }

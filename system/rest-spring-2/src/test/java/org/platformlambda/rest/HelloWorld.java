@@ -96,7 +96,7 @@ public class HelloWorld {
     @Path("/world")
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML, MediaType.TEXT_HTML})
-    public Object hello(Map<String, Object> data) {
+    public Object hello(Map<String, Object> data, @HeaderParam("x-raw-xml") String xmlTag) {
         PoJo result = new PoJo();
         result.name = "Hello World";
         result.address = "100 World Blvd, Earth";
@@ -104,7 +104,12 @@ public class HelloWorld {
         result.message = "Congratulations! Hello world example endpoint is working fine";
         result.timestamp = new Date();
         result.data = data;
-        return result;
+        if ("true".equals(xmlTag)) {
+            // return raw XML as a string
+            return xml.write(SimpleMapper.getInstance().getMapper().readValue(result, Map.class));
+        } else {
+            return result;
+        }
     }
 
     private class PoJo {

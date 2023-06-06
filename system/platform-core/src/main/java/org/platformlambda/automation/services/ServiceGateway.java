@@ -62,6 +62,7 @@ public class ServiceGateway {
     private static final String MULTIPART_FORM_DATA = "multipart/form-data";
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
+    private static final String X_RAW_XML = "x-raw-xml";
     private static final String TEXT_HTML = "text/html";
     private static final String TEXT_PLAIN = "text/plain";
     private static final String PROTOCOL = "x-forwarded-proto";
@@ -422,31 +423,39 @@ public class ServiceGateway {
                     byte[] b = block.getBytes(0, block.length());
                     requestBody.write(b, 0, b.length);
                     if (inputComplete.get()) {
-                        String text = util.getUTF(requestBody.toByteArray()).trim();
-                        if (text.length() == 0) {
-                            req.setBody(new HashMap<>());
-                        } else {
-                            if (text.startsWith("{") && text.endsWith("}")) {
+                        String text = util.getUTF(requestBody.toByteArray());
+                        String trimmed = text.trim();
+                        try {
+                            if (trimmed.length() == 0) {
+                                req.setBody(new HashMap<>());
+                            } else if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                                 req.setBody(SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
-                            } else if (text.startsWith("[") && text.endsWith("]")) {
+                            } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                                 req.setBody(SimpleMapper.getInstance().getMapper().readValue(text, List.class));
                             } else {
                                 req.setBody(text);
                             }
+                        } catch(Exception e) {
+                            req.setBody(text);
                         }
                         sendRequestToService(request, requestEvent.setHttpRequest(req));
                     }
                 }).endHandler(done -> inputComplete.set(true));
             } else if (contentType.startsWith(APPLICATION_XML)) {
+                boolean rawXml = "true".equals(request.getHeader(X_RAW_XML));
                 request.bodyHandler(block -> {
                     byte[] b = block.getBytes(0, block.length());
                     requestBody.write(b, 0, b.length);
                     if (inputComplete.get()) {
-                        String text = util.getUTF(requestBody.toByteArray()).trim();
-                        try {
-                            req.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
-                        } catch (Exception e) {
+                        String text = util.getUTF(requestBody.toByteArray());
+                        if (rawXml) {
                             req.setBody(text);
+                        } else {
+                            try {
+                                req.setBody(text.isEmpty()? new HashMap<>() : xmlReader.parse(text));
+                            } catch (Exception e) {
+                                req.setBody(text);
+                            }
                         }
                         sendRequestToService(request, requestEvent.setHttpRequest(req));
                     }

@@ -29,6 +29,7 @@ public class MockHelloServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setHeader("content-type", "text/plain");
         response.getWriter().write("hello world from servlet");
     }
 

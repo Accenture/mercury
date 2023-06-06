@@ -22,16 +22,13 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.platformlambda.cloud.reporter.PresenceConnector;
-import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServiceDiscovery;
 import org.platformlambda.core.util.MultiLevelMap;
 import org.platformlambda.mock.TestBase;
-import org.platformlambda.util.SimpleHttpRequests;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +88,7 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void connectivityTest() throws AppException, IOException, InterruptedException {
+    public void connectivityTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         String origin = "unit-test";
         Platform platform = Platform.getInstance();
@@ -151,9 +148,10 @@ public class ConnectorTest extends TestBase {
         List<String> instances = (List<String>) queryResult.getBody();
         Assert.assertTrue(instances.contains("unit-test"));
         Assert.assertTrue(instances.contains(platform.getOrigin()));
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes");
-        Assert.assertTrue(response instanceof String);
-        Map<String, Object> info = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("accept", "application/json");
+        EventEnvelope response = httpGet("http://127.0.0.1:"+port, "/info/routes", headers);
+        Map<String, Object> info = (Map<String, Object>) response.getBody();
         MultiLevelMap multi = new MultiLevelMap(info);
         Object nodes = multi.getElement("routing.nodes");
         Assert.assertTrue(nodes instanceof List);
@@ -167,17 +165,16 @@ public class ConnectorTest extends TestBase {
         queryResult = bench.poll(10, TimeUnit.SECONDS);
         assert queryResult != null;
         Assert.assertEquals(true, queryResult.getBody());
-        Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", Platform.getInstance().getOrigin());
-        response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend/now", headers, new HashMap<>());
-        Assert.assertTrue(response instanceof String);
-        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        response = httpPost("http://127.0.0.1:"+port, "/suspend/now", headers, new HashMap<>());
+        Assert.assertTrue(response.getBody() instanceof Map);
+        Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("suspend", result.get("type"));
         Assert.assertEquals("/suspend/now", result.get("path"));
-        response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume/now", headers, new HashMap<>());
-        Assert.assertTrue(response instanceof String);
-        result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+        response = httpPost("http://127.0.0.1:"+port, "/resume/now", headers, new HashMap<>());
+        Assert.assertTrue(response.getBody() instanceof Map);
+        result = (Map<String, Object>) response.getBody();
         Assert.assertEquals(200, result.get("status"));
         Assert.assertEquals("resume", result.get("type"));
         Assert.assertEquals("/resume/now", result.get("path"));
@@ -219,11 +216,12 @@ public class ConnectorTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void healthTest() throws AppException, IOException {
-        Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
-        log.info("{}", response);
-        Assert.assertTrue(response instanceof String);
-        Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
+    public void healthTest() throws IOException, InterruptedException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("accept", "application/json");
+        EventEnvelope response = httpGet("http://127.0.0.1:"+port, "/health", headers);
+        Assert.assertTrue(response.getBody() instanceof Map);
+        Map<String, Object> result = (Map<String, Object>) response.getBody();
         Assert.assertEquals("UP", result.get("status"));
         Assert.assertEquals("cloud-connector", result.get("name"));
         MultiLevelMap multi = new MultiLevelMap(result);

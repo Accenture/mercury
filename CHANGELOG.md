@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.1, 6/5/2023
+
+In this release, we have replace Google HTTP Client with vertx non-blocking WebClient.
+We also tested compatibility up to OpenJDK version 20 and maven 3.9.2.
+
+### Added
+
+When "x-raw-xml" HTTP request header is set to "true", the AsyncHttpClient will skip the built-in 
+XML serialization so that your application can retrieve the original XML text.
+
+### Removed
+
+Retire Google HTTP client
+
+### Changed
+
+Upgrade maven plugin versions.
+
+
+---
 ## Version 3.0.0, 4/18/2023
 
 This is a major release with some breaking changes. Please refer to Chapter-10 (Migration guide) for details.
