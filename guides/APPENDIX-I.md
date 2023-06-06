@@ -140,7 +140,7 @@ To enable distributed trace logging, please set this in log4j2.xml:
 The platform-core includes built-in serializers for JSON and XML in the AsyncHttpClient, JAX-RS and
 Spring RestController. The XML serializer is designed for simple use cases. If you need to handle more
 complex XML data structure, you can disable the XML serializer by adding the following HTTP request
-header when making a HTTP request using the AsyncHttpClient (service route name "async.http.request"):
+header.
 
 ```
 X-Raw-Xml=true
