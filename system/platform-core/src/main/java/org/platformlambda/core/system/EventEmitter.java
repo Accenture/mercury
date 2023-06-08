@@ -723,11 +723,13 @@ public class EventEmitter {
                     Object o = evt.getBody();
                     if (o instanceof byte[]) {
                         try {
-                            promise.complete(new EventEnvelope((byte[]) evt.getBody()));
+                            EventEnvelope response = new EventEnvelope((byte[]) evt.getBody());
+                            promise.complete(response);
                         } catch (IOException e) {
+                            // response is not a packed EventEnvelope
                             promise.complete(new EventEnvelope()
                                     .setStatus(400).setBody("Did you configure rest.yaml correctly? " +
-                                    "Invalid result set - "+e.getMessage()));
+                                                            "Invalid result set - "+e.getMessage()));
                         }
                     } else {
                         promise.complete(evt);
