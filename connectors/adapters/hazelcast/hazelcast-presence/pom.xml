@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>hazelcast-presence</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.1</version>
+    <version>3.0.2</version>
     <name>Presence monitor for Hazelcast</name>
 
     <parent>
@@ -39,13 +39,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>service-monitor</artifactId>
-            <version>3.0.1</version>
+            <version>3.0.2</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>hazelcast-connector</artifactId>
-            <version>3.0.1</version>
+            <version>3.0.2</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

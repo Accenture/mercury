@@ -154,9 +154,23 @@ class FastRPC(headers: Map<String, String>) {
         // add 100 ms to make sure it does not time out earlier than the target service
         val response = awaitRequest(remoteRequest, 100L.coerceAtLeast(timeout) + 100L)
         return if (response.body is ByteArray) {
-            EventEnvelope(response.body as ByteArray)
+            try {
+                EventEnvelope(response.body as ByteArray)
+            } catch (e: IOException) {
+                EventEnvelope().setStatus(400).setBody("Did you configure rest.yaml correctly? " +
+                        "Invalid result set - " + e.message)
+            }
         } else {
-            response
+            if (response.status >= 400 && response.body is Map<*, *>) {
+                val data = response.body as Map<*, *>
+                if (ERROR == data[TYPE] && data.containsKey(MESSAGE) && data[MESSAGE] is String) {
+                    EventEnvelope().setStatus(response.status).setBody(data[MESSAGE])
+                } else {
+                    response
+                }
+            } else {
+                response
+            }
         }
     }
 
@@ -352,5 +366,8 @@ class FastRPC(headers: Map<String, String>) {
         private const val HTTPS = "https"
         private const val HTTP_OR_HTTPS = "Protocol must be http or https"
         private const val HTTP_REQUEST = "async.http.request"
+        private const val TYPE = "type"
+        private const val ERROR = "error"
+        private const val MESSAGE = "message"
     }
 }

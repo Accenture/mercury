@@ -34,7 +34,8 @@ public class EventApiAuth implements TypedLambdaFunction<AsyncHttpRequest, Objec
     private static final Logger log = LoggerFactory.getLogger(EventApiAuth.class);
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) throws Exception {
-        log.info("Perform Event API authentication for {} {}", input.getMethod(), input.getUrl());
-        return new EventEnvelope().setBody(true).setHeader("user", "demo");
+        boolean authorized = "demo".equals(input.getHeader("authorization"));
+        log.info("Event API authorization {} {} = {}", input.getMethod(), input.getUrl(), authorized? "PASS" : "FAIL");
+        return new EventEnvelope().setBody(authorized).setHeader("user", "demo");
     }
 }

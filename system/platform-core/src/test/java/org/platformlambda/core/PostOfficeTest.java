@@ -1120,6 +1120,27 @@ public class PostOfficeTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
+    public void remoteEventApiAuthTest() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        long TIMEOUT = 3000;
+        int NUMBER_THREE = 3;
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "anyone");
+        PostOffice po = new PostOffice("unit.test", "123", "TEST /remote/event");
+        EventEnvelope event = new EventEnvelope().setTo("hello.world")
+                .setBody(NUMBER_THREE).setHeader("hello", "world");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
+                "http://127.0.0.1:"+port+"/api/event", true);
+        response.onSuccess(bench::offer);
+        EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(401, result.getStatus());
+        Assert.assertTrue(result.getBody() instanceof String);
+        Assert.assertEquals("Unauthorized", result.getBody());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     public void remoteEventApiKotlinTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         long TIMEOUT = 3000;
@@ -1129,7 +1150,8 @@ public class PostOfficeTest extends TestBase {
                 .setBody(NUMBER_THREE).setHeader("hello", "world");
         EventEnvelope forward = new EventEnvelope().setTo("event.api.forwarder")
                 .setBody(event.toBytes()).setHeader("timeout", TIMEOUT).setHeader("rpc", true)
-                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event");
+                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event")
+                .setHeader("authorization", "demo");
         Future<EventEnvelope> response = po.asyncRequest(forward, TIMEOUT);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
@@ -1139,6 +1161,28 @@ public class PostOfficeTest extends TestBase {
         MultiLevelMap map = new MultiLevelMap((Map<String, Object>) result.getBody());
         Assert.assertEquals("world", map.getElement("headers.hello"));
         Assert.assertEquals(NUMBER_THREE, map.getElement("body"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void remoteEventApiKotlinAuthTest() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        long TIMEOUT = 3000;
+        int NUMBER_THREE = 3;
+        PostOffice po = new PostOffice("unit.test", "123", "TEST /remote/event");
+        EventEnvelope event = new EventEnvelope().setTo("hello.world")
+                .setBody(NUMBER_THREE).setHeader("hello", "world");
+        EventEnvelope forward = new EventEnvelope().setTo("event.api.forwarder")
+                .setBody(event.toBytes()).setHeader("timeout", TIMEOUT).setHeader("rpc", true)
+                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event")
+                .setHeader("authorization", "anyone");
+        Future<EventEnvelope> response = po.asyncRequest(forward, TIMEOUT);
+        response.onSuccess(bench::offer);
+        EventEnvelope result = bench.poll(TIMEOUT, TimeUnit.MILLISECONDS);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(401, result.getStatus());
+        Assert.assertTrue(result.getBody() instanceof String);
+        Assert.assertEquals("Unauthorized", result.getBody());
     }
 
     @SuppressWarnings("unchecked")
@@ -1155,7 +1199,9 @@ public class PostOfficeTest extends TestBase {
         PostOffice po = new PostOffice("unit.test", "1230", "TEST /remote/event/large");
         EventEnvelope event = new EventEnvelope();
         event.setTo("hello.world").setBody(PAYLOAD).setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
         // add 500 ms to the bench to capture HTTP-408 response if any
@@ -1183,7 +1229,8 @@ public class PostOfficeTest extends TestBase {
         EventEnvelope event = new EventEnvelope().setTo("hello.world").setBody(PAYLOAD).setHeader("hello", "world");
         EventEnvelope forward = new EventEnvelope().setTo("event.api.forwarder")
                 .setBody(event.toBytes()).setHeader("timeout", TIMEOUT).setHeader("rpc", true)
-                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event");
+                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event")
+                .setHeader("authorization", "demo");
         Future<EventEnvelope> response = po.asyncRequest(forward, TIMEOUT);
         response.onSuccess(bench::offer);
         // add 500 ms to the bench to capture HTTP-408 response if any
@@ -1205,7 +1252,9 @@ public class PostOfficeTest extends TestBase {
         PostOffice po = new PostOffice("unit.test", "12002", "TEST /remote/event/oneway");
         EventEnvelope event = new EventEnvelope();
         event.setTo("hello.world").setBody(NUMBER_THREE).setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
                 "http://127.0.0.1:"+port+"/api/event", false);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
@@ -1230,7 +1279,8 @@ public class PostOfficeTest extends TestBase {
         event.setTo("hello.world").setBody(NUMBER_THREE).setHeader("hello", "world");
         EventEnvelope forward = new EventEnvelope().setTo("event.api.forwarder")
                 .setBody(event.toBytes()).setHeader("timeout", TIMEOUT).setHeader("rpc", false)
-                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event");
+                .setHeader("endpoint", "http://127.0.0.1:"+port+"/api/event")
+                .setHeader("authorization", "demo");
         Future<EventEnvelope> response = po.asyncRequest(forward, TIMEOUT);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
@@ -1304,7 +1354,9 @@ public class PostOfficeTest extends TestBase {
         EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope();
         event.setTo(DEMO_FUNCTION).setBody("ok").setHeader("hello", "world");
-        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, Collections.emptyMap(),
+        Map<String, String> securityHeaders = new HashMap<>();
+        securityHeaders.put("Authorization", "demo");
+        Future<EventEnvelope> response = po.asyncRequest(event, TIMEOUT, securityHeaders,
                 "http://127.0.0.1:"+port+"/api/event", true);
         response.onSuccess(bench::offer);
         EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);

@@ -7,7 +7,7 @@
     <artifactId>tibco-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.1</version>
+    <version>3.0.2</version>
     <name>Cloud connector for Tibco EMS cluster</name>
 
     <parent>
@@ -41,7 +41,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>cloud-connector</artifactId>
-            <version>3.0.1</version>
+            <version>3.0.2</version>
         </dependency>
 
         <!-- TIBCO dependency JARs (jms-2.0.jar, tibjms.jar and tibjmsadmin.jar 

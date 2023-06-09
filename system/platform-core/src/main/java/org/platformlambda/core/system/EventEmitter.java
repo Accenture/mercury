@@ -48,6 +48,9 @@ public class EventEmitter {
     public static final String MISSING_ROUTING_PATH = "Missing routing path";
     public static final String MISSING_EVENT = "Missing outgoing event";
     public static final String RPC = "rpc";
+    private static final String TYPE = "type";
+    private static final String ERROR = "error";
+    private static final String MESSAGE = "message";
     private static final String HTTP_REQUEST = "async.http.request";
     private static final String HTTP = "http";
     private static final String HTTPS = "https";
@@ -666,6 +669,7 @@ public class EventEmitter {
      * @return response event
      * @throws IOException in case of routing error
      */
+    @SuppressWarnings("unchecked")
     public Future<EventEnvelope> asyncRequest(final EventEnvelope event, long timeout,
                                               Map<String, String> headers,
                                               String eventEndpoint, boolean rpc) throws IOException {
@@ -732,7 +736,19 @@ public class EventEmitter {
                                                             "Invalid result set - "+e.getMessage()));
                         }
                     } else {
-                        promise.complete(evt);
+                        if (evt.getStatus() >= 400 && evt.getBody() instanceof Map) {
+                            Map<String, Object> data = (Map<String, Object>) evt.getBody();
+                            if (ERROR.equals(data.get(TYPE)) && data.containsKey(MESSAGE) &&
+                                    data.get(MESSAGE) instanceof String) {
+                                EventEnvelope error = new EventEnvelope()
+                                        .setStatus(evt.getStatus()).setBody(data.get(MESSAGE));
+                                promise.complete(error);
+                            } else {
+                                promise.complete(evt);
+                            }
+                        } else {
+                            promise.complete(evt);
+                        }
                     }
                 });
                 res.onFailure(e -> promise.complete(new EventEnvelope().setStatus(408).setBody(e.getMessage())));
