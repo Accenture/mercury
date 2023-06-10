@@ -25,7 +25,7 @@ April, 2023
 
 # Write your first composable application
 
-To get started with your first application, please refer to the [Developer Guide](guides/TABLE-OF-CONTENTS.md).
+To get started with your first application, please refer to the [Developer Guide](guides/CHAPTER-1.md).
 
 # Introduction to composable architecture
 

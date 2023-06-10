@@ -150,7 +150,7 @@ val fastRPC = FastRPC(headers)
 The new PostOffice and FastRPC will propagate distributed tracing information along multiple functions in
 a transaction path. It will automatically detect if "tracing" is enabled for a transaction.
 
-## Non-blocking HTTP client
+## AsyncHttpClient service
 
 In Mercury version 3, the "async.http.request" function can be used as a non-blocking HTTP client.
 

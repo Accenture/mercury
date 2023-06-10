@@ -81,7 +81,7 @@ public class DemoHealth implements LambdaFunction {
 
 ```
 
-## Non-blocking HTTP client
+## AsyncHttpClient service
 
 The "async.http.request" function can be used as a non-blocking HTTP client.
 
