@@ -41,6 +41,7 @@
         <!-- Executables for application examples -->
         <module>examples/lambda-example</module>
         <module>examples/rest-spring-2-example</module>
+        <module>examples/lambda-example-mdb</module>
         <!-- <module>examples/rest-spring-3-example</module> -->
 
     </modules>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HTTP Error</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<div>
+    <h3>HTTP-${status}</h3>
+    <div>${warning}</div><br/>
+    <table>
+        <tbody>
+        <tr><td style="font-style: italic; width: 100px">Type</td><td>error</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Status</td><td>${status}</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Message</td><td>${message}</td></tr>
+        <tr><td style="font-style: italic; width: 100px">Path</td><td>${path}</td></tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

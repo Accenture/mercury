@@ -1,0 +1,8 @@
+This is a sample file to demonstrate file download
+--------------------------------------------------
+
+Hello World
+
+--------------------------------------------------
+If you see this in your download folder, you have
+successfully downloaded a test file from the app
