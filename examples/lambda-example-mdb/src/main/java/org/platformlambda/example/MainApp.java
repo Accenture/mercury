@@ -46,7 +46,9 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static final MongoDatabase getDBConnection(String DB_CONNECTION) {
-        Dotenv dotenv = Dotenv.load();
+        Dotenv dotenv = Dotenv.configure()
+                .directory("./")
+                .load();
 
         // Create the reusable MongoDB connection
         String connectionString =

@@ -60,7 +60,9 @@ import org.json.simple.*;
 public class WriteMDBRecord implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) throws Exception {
-        Dotenv dotenv = Dotenv.load();
+        Dotenv dotenv = Dotenv.configure()
+                .directory("./")
+                .load();
         MongoDatabase db = MainApp.getDBConnection(dotenv.get("DATA_DB"));
 
         String collection = "users";
