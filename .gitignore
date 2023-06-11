@@ -1,5 +1,6 @@
 *.class
 .DS_STORE
+.env
 # ignore sbt because we are using maven
 build.sbt
 maven-publish.xml

@@ -18,6 +18,7 @@
 
 package org.platformlambda.example;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.models.EventEnvelope;
@@ -44,6 +45,8 @@ import org.bson.Document;
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
     public static final MongoDatabase getDBConnection() {
+        Dotenv dotenv = Dotenv.load();
+
         /* Create the reusable MongoDB connection
          * NOTE for demo and deployment - hide the actual user / password or use certificate method
          * 
@@ -54,7 +57,12 @@ public class MainApp implements EntryPoint {
          * String uri = "mongodb+srv://cluster0.u7pqlrj.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority";
          * 
          */
-        String connectionString = "mongodb+srv://stephenmeyer:sqtAMwfNUnE5UKr8@cluster0.u7pqlrj.mongodb.net/?retryWrites=true&w=majority";
+        String connectionString =
+                "mongodb+srv://"
+                + dotenv.get("MONGO_USER")
+                + ":" + dotenv.get("MONGO_PASSWORD")
+                + "@" + dotenv.get("MONGO_CLUSTER_ID");
+
         String dbName = "microfunctiondemo";
         ServerApi serverApi = ServerApi.builder()
                 .version(ServerApiVersion.V1)
@@ -69,7 +77,7 @@ public class MainApp implements EntryPoint {
         Document d = new Document("ping", 1);
         db.runCommand(d);
         return db;
-        }
+    }
     public static void main(String[] args) {
         AppStarter.main(args);
     }
