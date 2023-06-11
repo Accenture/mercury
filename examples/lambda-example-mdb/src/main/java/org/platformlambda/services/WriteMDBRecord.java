@@ -18,6 +18,11 @@
 
 package org.platformlambda.services;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.result.InsertOneResult;
+import org.bson.types.ObjectId;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
@@ -32,7 +37,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Iterator;
 import org.platformlambda.example.MainApp;
 
 import com.mongodb.ConnectionString;
@@ -45,19 +52,28 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+
+import org.json.simple.*;
+
 @PreLoad(route = "write.mdb.record", instances = 10)
 public class WriteMDBRecord implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     private static final MongoDatabase db = MainApp.getDBConnection();
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         String collection = "users";
-        Object data = input.body;
+        Map<String, String> data = input.getBody(Map.class);
 
-        MongoCollection<Document> collection = db.getCollection(collection);
+        JSONObject object = new JSONObject(data);
+        System.out.println("RECEIVED: \n" + object);
+
+
+        InsertOneResult result = null;
+
+        MongoCollection<Document> mongoCollection = db.getCollection(collection);
         try{
             JSONParser parser = new JSONParser();
             try{
-                JSONObject json = (JSONObject) parser.parse(data);
+                JSONObject json = (JSONObject) parser.parse(object.toString());
                 Set<String> keyset = json.keySet();
                 Iterator<String> keys = keyset.iterator();
     
@@ -68,12 +84,15 @@ public class WriteMDBRecord implements TypedLambdaFunction<AsyncHttpRequest, Obj
                         Object value = json.get(key);
                         insertDoc.append( key, value);
                 }
-                InsertOneResult result = collection.insertOne(insertDoc);
+                result = mongoCollection.insertOne(insertDoc);
 
             } catch (ParseException e) { e.printStackTrace();}
                 
-            log.info("Inserted document:" + data, instance);
-        } catch (MongoException me) {log.info("Unable to insert due to error: " + me, instance);}
+//            log.info("Inserted document:" + data, instance);
+        } catch (MongoException me) {
+//            log.info("Unable to insert due to error: " + me, instance);
+        }
+        System.out.println(result);
         return result;
     }
 }
