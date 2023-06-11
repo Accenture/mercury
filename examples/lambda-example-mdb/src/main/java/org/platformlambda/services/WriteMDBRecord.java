@@ -20,6 +20,7 @@ package org.platformlambda.services;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.result.InsertOneResult;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.bson.types.ObjectId;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -35,6 +36,7 @@ import org.platformlambda.models.SamplePoJo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
@@ -52,20 +54,20 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
-
 import org.json.simple.*;
 
 @PreLoad(route = "write.mdb.record", instances = 10)
 public class WriteMDBRecord implements TypedLambdaFunction<AsyncHttpRequest, Object> {
-    private static final MongoDatabase db = MainApp.getDBConnection();
     @Override
-    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
+    public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) throws Exception {
+        Dotenv dotenv = Dotenv.load();
+        MongoDatabase db = MainApp.getDBConnection(dotenv.get("DATA_DB"));
+
         String collection = "users";
         Map<String, String> data = input.getBody(Map.class);
 
         JSONObject object = new JSONObject(data);
         System.out.println("RECEIVED: \n" + object);
-
 
         InsertOneResult result = null;
 
@@ -79,10 +81,11 @@ public class WriteMDBRecord implements TypedLambdaFunction<AsyncHttpRequest, Obj
     
                 Document insertDoc = new Document();
                 insertDoc.append( "_id", new ObjectId());
+                insertDoc.append("current_timestamp", LocalDateTime.now());
                 while (keys.hasNext()){
-                        String key = keys.next();
-                        Object value = json.get(key);
-                        insertDoc.append( key, value);
+                    String key = keys.next();
+                    Object value = json.get(key);
+                    insertDoc.append(key, value);
                 }
                 result = mongoCollection.insertOne(insertDoc);
 

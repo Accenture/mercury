@@ -44,26 +44,17 @@ import org.bson.Document;
 @MainApplication
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
-    public static final MongoDatabase getDBConnection() {
+
+    public static final MongoDatabase getDBConnection(String DB_CONNECTION) {
         Dotenv dotenv = Dotenv.load();
 
-        /* Create the reusable MongoDB connection
-         * NOTE for demo and deployment - hide the actual user / password or use certificate method
-         * 
-         * Alternate syntax for using PEM certificate (in /resources folder)
-         * 
-         * System.setProperty("javax.net.ssl.keyStore", "<path_to_keystore>");
-         * System.setProperty("javax.net.ssl.keyStorePassword", "<keystore_password>");
-         * String uri = "mongodb+srv://cluster0.u7pqlrj.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority";
-         * 
-         */
+        // Create the reusable MongoDB connection
         String connectionString =
                 "mongodb+srv://"
                 + dotenv.get("MONGO_USER")
                 + ":" + dotenv.get("MONGO_PASSWORD")
                 + "@" + dotenv.get("MONGO_CLUSTER_ID");
 
-        String dbName = "microfunctiondemo";
         ServerApi serverApi = ServerApi.builder()
                 .version(ServerApiVersion.V1)
                 .build();
@@ -71,9 +62,10 @@ public class MainApp implements EntryPoint {
                 .applyConnectionString(new ConnectionString(connectionString))
                 .serverApi(serverApi)
                 .build();
+
         /* Create a new client and connect to the server */
         MongoClient mongoClient = MongoClients.create(settings);
-        MongoDatabase db =  mongoClient.getDatabase(dbName);
+        MongoDatabase db =  mongoClient.getDatabase(DB_CONNECTION);
         Document d = new Document("ping", 1);
         db.runCommand(d);
         return db;
