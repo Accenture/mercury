@@ -109,9 +109,10 @@ REST automation creates REST endpoints by configuration rather than code. You ca
     timeout: 10s
 ```
 
-In this example, when a HTTP request is received at the URI "/api/hello/world", the REST automation system will convert
-the HTTP request into an event for onward delivery to the user defined function "hello.world". Your function will
-receive the HTTP request as input and return a result set that will be sent as a HTTP response to the user.
+In this example, when a HTTP request is received at the URL path "/api/hello/world", the REST automation system
+will convert the HTTP request into an event for onward delivery to the user defined function "hello.world". 
+Your function will receive the HTTP request as input and return a result set that will be sent as a HTTP response
+to the user.
 
 For more sophisticated business logic, you can write a function to receive the HTTP request and do 
 "event orchestration". i.e. you can do data transformation and send "events" to other user functions to
