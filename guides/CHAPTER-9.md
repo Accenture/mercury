@@ -491,10 +491,11 @@ String text = config.getProperty('my.parameter');
 
 The system uses the standard dot-bracket format for a parameter name.
 
-> e.g. `hello.world`, `some.key[2]`
+> e.g. "hello.world", "some.key[2]"
 
-You can override the main application configuration at run-time using the Java argument `-D`.
-e.g. "java -Dserver.port=8080 -jar myApp.jar
+You can override the main application configuration at run-time using the Java argument "-D".
+
+> e.g. "java -Dserver.port=8080 -jar myApp.jar"
 
 Additional configuration files can be added with the `ConfigReader` API like this:
 
@@ -505,10 +506,9 @@ reader.load(filePath);
 ```
 
 The configuration system supports environment variable or reference to the main application configuration
-using the dollar-bracket syntax.
+using the dollar-bracket syntax `${reference:default_value}`.
 
-> e.g. `some.key=${MY_ENV_VARIABLE}` `some.key=${my.main.config}`
-  Syntax: `${reference:default_value}`
+> e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"
 
 ## Minimalist API design for event orchestration
 
