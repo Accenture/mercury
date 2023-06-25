@@ -1,5 +1,7 @@
 # Changelog
 
+## Release notes
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -18,7 +20,8 @@ N/A
 
 ### Changed
 
-Consistent exception handling for Event API endpoint
+1. Consistent exception handling for Event API endpoint
+2. Open sources lib update - Vertx 4.4.4, Spring Boot 2.7.13, Spring Boot 3.1.1, classgraph 4.8.160, guava 32.0.1-jre
 
 ---
 ## Version 3.0.1, 6/5/2023
