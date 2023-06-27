@@ -172,6 +172,6 @@ X-Raw-Xml=true
 ```
 <br/>
 
-|          Chapter-8           |                   Home                    |              Appendix-II               |
-|:----------------------------:|:-----------------------------------------:|:--------------------------------------:|
-| [Service mesh](CHAPTER-8.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Reserved route names](APPENDIX-II.md) |
+|            Chapter-10            |                   Home                    |              Appendix-II               |
+|:--------------------------------:|:-----------------------------------------:|:--------------------------------------:|
+| [Migration guide](CHAPTER-10.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Reserved route names](APPENDIX-II.md) |
