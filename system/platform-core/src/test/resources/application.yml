@@ -16,3 +16,7 @@ oh:
 system.path: '${PATH}'
 
 instances.hello.world: 15
+
+mime.types:
+  ico: 'image/vnd.microsoft.icon'
+  json: 'application/json'

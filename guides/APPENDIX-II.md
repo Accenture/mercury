@@ -68,6 +68,6 @@ val fastRPC = FastRPC(headers);
 ```
 <br/>
 
-|               Appendix-I                |                   Home                    |                Appendix-III                 |
-|:---------------------------------------:|:-----------------------------------------:|:-------------------------------------------:|
-| [application.properties](APPENDIX-I.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Actuator and HTTP client](APPENDIX-III.md) |
+|                 Appendix-I                 |                   Home                    |                Appendix-III                 |
+|:------------------------------------------:|:-----------------------------------------:|:-------------------------------------------:|
+| [Application Configuration](APPENDIX-I.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Actuator and HTTP client](APPENDIX-III.md) |

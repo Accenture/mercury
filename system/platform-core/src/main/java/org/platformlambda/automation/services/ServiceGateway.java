@@ -36,6 +36,7 @@ import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.ObjectStreamWriter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.AppConfigReader;
+import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -82,6 +83,7 @@ public class ServiceGateway {
     private static final int BUFFER_SIZE = 4 * 1024;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
+    private static final Map<String, String> mimeTypes = new HashMap<>();
     private static List<String> traceIdLabels;
     private static String staticFolder;
     private static String resourceFolder;
@@ -90,6 +92,7 @@ public class ServiceGateway {
         initialize();
     }
 
+    @SuppressWarnings("unchecked")
     public static void initialize() {
         if (initCounter.incrementAndGet() == 1) {
             Platform platform = Platform.getInstance();
@@ -114,6 +117,29 @@ public class ServiceGateway {
                 staticFolder = folder;
             } else {
                 log.warn("Static content folder must start with {} or {}", CLASSPATH, FILEPATH);
+            }
+            ConfigReader mimeReader = new ConfigReader();
+            try {
+                mimeReader.load("classpath:/mime-types.yml");
+                Object mimeDefault = mimeReader.get("mime.types");
+                if (mimeDefault instanceof Map) {
+                    Map<String, Object> map = (Map<String, Object>) mimeDefault;
+                    for (Map.Entry<String, Object> kv: map.entrySet()) {
+                        mimeTypes.put(kv.getKey(), kv.getValue().toString());
+                    }
+                }
+            } catch (IOException e) {
+                log.error("Unable to load mime-types.yml - {}", e.getMessage());
+            }
+            Object mime = config.get("mime.types");
+            if (mime instanceof Map) {
+                Map<String, Object> map = (Map<String, Object>) mime;
+                for (Map.Entry<String, Object> kv: map.entrySet()) {
+                    mimeTypes.put(kv.getKey().toLowerCase(), kv.getValue().toString().toLowerCase());
+                }
+            }
+            if (mimeTypes.size() > 0) {
+                log.info("Loaded {} mime types", mimeTypes.size());
             }
             // register authentication handler
             try {
@@ -192,6 +218,13 @@ public class ServiceGateway {
         } else if (path.endsWith(".js")) {
             return "text/javascript";
         } else {
+            if (path.contains(".") && !path.endsWith(".")) {
+                String ext = path.substring(path.lastIndexOf('.')+1).toLowerCase();
+                String contentType = mimeTypes.get(ext);
+                if (contentType != null) {
+                    return contentType;
+                }
+            }
             return "application/octet-stream";
         }
     }

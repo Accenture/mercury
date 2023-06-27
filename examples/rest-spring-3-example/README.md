@@ -11,3 +11,15 @@ This is optional. You can add the platform-core library to a regular Spring Boot
 ## Spring Boot
 
 This sample application requires Spring Boot version 3 as its application server.
+
+## Application configuration
+
+You can define application configuration parameters in either application.properties or application.yml.
+
+If you have both application.properties and application.yml, the system will evaluate both configuration files.
+
+When the same parameter is defined in both application.properties and application.yml, the parameter in
+application.properties will be used.
+
+While application.properties can also store text based key-values, application.yml supports text, numbers, boolean,
+list and map values.

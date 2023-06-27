@@ -1,0 +1,36 @@
+#
+# Extension to MIME type mapping for static content
+#
+# By default, the system supports the following:
+# js: application/json
+# html: text/html
+# htm: text/html
+# txt: text/plain
+# css: text/css
+#
+# Any other extensions are served as application/octet-stream
+#
+# This is a minimalist list of MIME types.
+#
+# You can add a mime.types section in your application.yml to override or add
+# MIME types that are required in your application.
+#
+mime.types:
+  ico: 'image/vnd.microsoft.icon'
+  json: 'application/json'
+  xml: 'application/xml'
+  svg: 'image/svg+xml'
+  svgz: 'image/svg+xml'
+  sgi: 'image/sgi'
+  tiff: 'image/tiff'
+  tif: 'image/tiff'
+  jpeg: 'image/jpeg'
+  jpg: 'image/jpeg'
+  jpe: 'image/jpeg'
+  png: 'image/png'
+  ttc: 'font/collection'
+  otf: 'font/otf'
+  woff: 'font/woff'
+  woff2: 'font/woff2'
+  pdf: 'application/pdf'
+  doc: 'application/msword'

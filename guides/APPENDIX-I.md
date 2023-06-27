@@ -1,53 +1,78 @@
-# application.properties
+# Application Configuration
 
-| Key                                        | Value (example)                                               | Required  |
-|:-------------------------------------------|:--------------------------------------------------------------|:----------|
-| application.name                           | Application name                                              | Yes       |
-| spring.application.name                    | Alias for application name                                    | Yes*1     |
-| info.app.version                           | major.minor.build (e.g. 1.0.0)                                | Yes       |
-| info.app.description                       | Something about your application                              | Yes       |
-| web.component.scan                         | your own package path or parent path                          | Yes       |
-| server.port                                | e.g. 8083                                                     | Yes*1     |
-| rest.automation                            | true if you want to enable automation                         | Optional  |
-| rest.server.port                           | e.g. 8085                                                     | Optional  |
-| websocket.server.port                      | Alias for rest.server.port                                    | Optional  |
-| static.html.folder                         | classpath:/public/                                            | Yes*      |
-| spring.web.resources.static-locations      | (alias for static.html.folder)                                | Yes*1     |
-| spring.mvc.static-path-pattern             | /**                                                           | Yes*1     |
-| jax.rs.application.path                    | /api                                                          | Optional* |
-| show.env.variables                         | comma separated list of variable names                        | Optional  |
-| show.application.properties                | comma separated list of property names                        | Optional  |
-| cloud.connector                            | kafka, hazelcast, none, etc.                                  | Optional  |
-| cloud.services                             | e.g. some.interesting.service                                 | Optional  |
-| snake.case.serialization                   | true (recommended)                                            | Optional  |
-| safe.data.models                           | packages pointing to your PoJo classes                        | Optional  |
-| protect.info.endpoints                     | true to disable actuators. Default: true                      | Optional  |
-| trace.http.header                          | comma separated list. Default "X-Trace-Id"                    | Optional  |
-| index.redirection                          | comma separated list of URI paths                             | Optional* |
-| index.page                                 | default is index.html                                         | Optional* |
-| hsts.feature                               | default is true                                               | Optional* |
-| application.feature.route.substitution     | default is false                                              | Optional  |
-| route.substitution.file                    | points to a config file                                       | Optional  |
-| application.feature.topic.substitution     | default is false                                              | Optional  |
-| topic.substitution.file                    | points to a config file                                       | Optional  |
-| kafka.replication.factor                   | 3                                                             | Kafka     |
-| cloud.client.properties                    | e.g. classpath:/kafka.properties                              | Connector |
-| user.cloud.client.properties               | e.g. classpath:/second-kafka.properties                       | Connector |
-| default.app.group.id                       | groupId for the app instance.<br/>Default: appGroup           | Connector |
-| default.monitor.group.id                   | groupId for the presence-monitor.<br/>Default: monitorGroup   | Connector |
-| monitor.topic                              | topic for the presence-monitor.<br/>Default: service.monitor  | Connector |
-| app.topic.prefix                           | Default: multiplex (DO NOT change)                            | Connector |
-| app.partitions.per.topic                   | Max Kafka partitions per topic.<br/>Default: 32               | Connector |
-| max.virtual.topics                         | Max virtual topics = partitions * topics.<br/> Default: 288   | Connector |
-| max.closed.user.groups                     | Number of closed user groups. <br/>Default: 10, range: 3 - 30 | Connector |
-| closed.user.group                          | Closed user group. Default: 1                                 | Connector |
-| transient.data.store                       | Default is "/tmp/reactive"                                    | Optional  |
-| running.in.cloud                           | Default is false (set to true if containerized)               | Optional  |
-| multicast.yaml                             | points to the multicast.yaml config file                      | Optional  |
-| journal.yaml                               | points to the journal.yaml config file                        | Optional  |
-| deferred.commit.log                        | Default is false (may be set to true in unit tests)           | Optional  |
+The following parameters are used by the system. You can define them in either the application.properties or
+application.yml file.
+
+When you use both application.properties and application.yml, the parameters in application.properties will take
+precedence.
+
+| Key                                    | Value (example)                                                 | Required  |
+|:---------------------------------------|:----------------------------------------------------------------|:----------|
+| application.name                       | Application name                                                | Yes       |
+| spring.application.name                | Alias for application name                                      | Yes*1     |
+| info.app.version                       | major.minor.build (e.g. 1.0.0)                                  | Yes       |
+| info.app.description                   | Something about your application                                | Yes       |
+| web.component.scan                     | your own package path or parent path                            | Yes       |
+| server.port                            | e.g. 8083                                                       | Yes*1     |
+| rest.automation                        | true if you want to enable automation                           | Optional  |
+| rest.server.port                       | e.g. 8085                                                       | Optional  |
+| websocket.server.port                  | Alias for rest.server.port                                      | Optional  |
+| static.html.folder                     | classpath:/public/                                              | Yes       |
+| mime.types                             | Map of file extensions to MIME types<br/>(application.yml only) | Optional  |
+| spring.web.resources.static-locations  | (alias for static.html.folder)                                  | Yes*1     |
+| spring.mvc.static-path-pattern         | /**                                                             | Yes*1     |
+| jax.rs.application.path                | /api                                                            | Optional* |
+| show.env.variables                     | comma separated list of variable names                          | Optional  |
+| show.application.properties            | comma separated list of property names                          | Optional  |
+| cloud.connector                        | kafka, hazelcast, none, etc.                                    | Optional  |
+| cloud.services                         | e.g. some.interesting.service                                   | Optional  |
+| snake.case.serialization               | true (recommended)                                              | Optional  |
+| safe.data.models                       | packages pointing to your PoJo classes                          | Optional  |
+| protect.info.endpoints                 | true to disable actuators. Default: true                        | Optional  |
+| trace.http.header                      | comma separated list. Default "X-Trace-Id"                      | Optional  |
+| index.redirection                      | comma separated list of URI paths                               | Optional* |
+| index.page                             | default is index.html                                           | Optional* |
+| hsts.feature                           | default is true                                                 | Optional* |
+| application.feature.route.substitution | default is false                                                | Optional  |
+| route.substitution.file                | points to a config file                                         | Optional  |
+| application.feature.topic.substitution | default is false                                                | Optional  |
+| topic.substitution.file                | points to a config file                                         | Optional  |
+| kafka.replication.factor               | 3                                                               | Kafka     |
+| cloud.client.properties                | e.g. classpath:/kafka.properties                                | Connector |
+| user.cloud.client.properties           | e.g. classpath:/second-kafka.properties                         | Connector |
+| default.app.group.id                   | groupId for the app instance.<br/>Default: appGroup             | Connector |
+| default.monitor.group.id               | groupId for the presence-monitor.<br/>Default: monitorGroup     | Connector |
+| monitor.topic                          | topic for the presence-monitor.<br/>Default: service.monitor    | Connector |
+| app.topic.prefix                       | Default: multiplex (DO NOT change)                              | Connector |
+| app.partitions.per.topic               | Max Kafka partitions per topic.<br/>Default: 32                 | Connector |
+| max.virtual.topics                     | Max virtual topics = partitions * topics.<br/> Default: 288     | Connector |
+| max.closed.user.groups                 | Number of closed user groups. <br/>Default: 10, range: 3 - 30   | Connector |
+| closed.user.group                      | Closed user group. Default: 1                                   | Connector |
+| transient.data.store                   | Default is "/tmp/reactive"                                      | Optional  |
+| running.in.cloud                       | Default is false (set to true if containerized)                 | Optional  |
+| multicast.yaml                         | points to the multicast.yaml config file                        | Optional  |
+| journal.yaml                           | points to the journal.yaml config file                          | Optional  |
+| deferred.commit.log                    | Default is false (may be set to true in unit tests)             | Optional  |
 
 `*` - when using the "rest-spring" library
+
+# Static HTML contents
+
+You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
+in the local file system using the "static.html.folder" parameter.
+
+The system supports a bare minimal list of file extensions to MIME types. If your use case requires additional
+MIME type mapping, you may define them in the `application.yml` configuration file under the `mime.types` 
+section like this:
+
+```yaml
+mime.types:
+  pdf: 'application/pdf'
+  doc: 'application/msword'
+```
+
+Note that application.properties file cannot be used for the "mime.types" section because it only supports text
+key-values.
 
 # HTTP and websocket port assignment
 
@@ -90,7 +115,7 @@ The serializer may perform snake case or camel serialization depending on the pa
 
 If you want to ensure snake case or camel, you can select the serializer like this:
 
-```java
+```text
 SimpleObjectMapper snakeCaseMapper = SimpleMapper.getInstance().getSnakeCaseMapper();
 SimpleObjectMapper camelCaseMapper = SimpleMapper.getInstance().getCamelCaseMapper();
 ```

@@ -245,6 +245,6 @@ The three function execution strategies would provide low-level control of how y
 performance tuning more scientific.
 <br/>
 
-|          Chapter-9           |                   Home                    |               Appendix-I                |
-|:----------------------------:|:-----------------------------------------:|:---------------------------------------:|
-| [API overview](CHAPTER-9.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [application.properties](APPENDIX-I.md) |
+|          Chapter-9           |                   Home                    |                 Appendix-I                 |
+|:----------------------------:|:-----------------------------------------:|:------------------------------------------:|
+| [API overview](CHAPTER-9.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Application Configuration](APPENDIX-I.md) |

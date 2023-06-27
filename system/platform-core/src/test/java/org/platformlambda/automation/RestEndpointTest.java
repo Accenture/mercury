@@ -871,4 +871,26 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(content, html);
     }
 
+    @Test
+    public void getXmlPage() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        Utility util = Utility.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("GET");
+        req.setUrl("/sample.xml").setHeader("x-raw-xml", "true");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        Assert.assertEquals("application/xml", response.getHeader("Content-Type"));
+        Assert.assertTrue(response.getBody() instanceof String);
+        String html = (String) response.getBody();
+        InputStream in = this.getClass().getResourceAsStream("/public/sample.xml");
+        String content = util.stream2str(in);
+        Assert.assertEquals(content, html);
+    }
+
 }
