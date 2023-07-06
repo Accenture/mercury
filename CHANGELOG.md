@@ -20,7 +20,7 @@ N/A
 
 ### Changed
 
-N/A
+1. Open sources library update - Kotlin version 1.9.0
 
 ---
 ## Version 3.0.2, 6/9/2023
