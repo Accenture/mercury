@@ -806,13 +806,57 @@ public class RestEndpointTest extends TestBase {
     }
 
     @Test
-    public void getIndexPage() throws IOException, InterruptedException {
+    public void getIndexHtml() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        Utility util = Utility.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("GET");
+        req.setUrl("/index.html");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        Assert.assertEquals("text/html", response.getHeader("Content-Type"));
+        Assert.assertTrue(response.getBody() instanceof String);
+        String html = (String) response.getBody();
+        InputStream in = this.getClass().getResourceAsStream("/public/index.html");
+        String content = util.stream2str(in);
+        Assert.assertEquals(content, html);
+    }
+
+    @Test
+    public void getIndexWithoutFilename() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
         Utility util = Utility.getInstance();
         EventEmitter po = EventEmitter.getInstance();
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
         req.setUrl("/");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        Assert.assertEquals("text/html", response.getHeader("Content-Type"));
+        Assert.assertTrue(response.getBody() instanceof String);
+        String html = (String) response.getBody();
+        InputStream in = this.getClass().getResourceAsStream("/public/index.html");
+        String content = util.stream2str(in);
+        Assert.assertEquals(content, html);
+    }
+
+    @Test
+    public void getIndexWithoutExtension() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        Utility util = Utility.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("GET");
+        req.setUrl("/index");
         req.setTargetHost("http://127.0.0.1:"+port);
         EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
         Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);

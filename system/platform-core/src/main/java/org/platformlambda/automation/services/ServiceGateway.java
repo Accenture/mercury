@@ -76,6 +76,7 @@ public class ServiceGateway {
     private static final String POST = "POST";
     private static final String PATCH = "PATCH";
     private static final String INDEX_HTML = "index.html";
+    private static final String HTML_EXT = ".html";
     private static final String CLASSPATH = "classpath:";
     private static final String FILEPATH = "file:";
     private static final String ETAG = "ETag";
@@ -173,7 +174,7 @@ public class ServiceGateway {
                     EtagFile file = getStaticFile(path);
                     if (file != null) {
                         HttpServerResponse response = request.response();
-                        response.putHeader(CONTENT_TYPE, getFileContentType(path));
+                        response.putHeader(CONTENT_TYPE, getFileContentType(file.name));
                         String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
                         if (file.sameTag(ifNoneMatch)) {
                             response.setStatusCode(304);
@@ -205,21 +206,21 @@ public class ServiceGateway {
      * <p>
      * It is not intended to be a comprehensive MIME type resolver.
      *
-     * @param path URI path
+     * @param filename from the URI path
      * @return content type
      */
-    private String getFileContentType(String path) {
-        if (path.endsWith("/") || path.endsWith(".html") || path.endsWith(".htm")) {
+    private String getFileContentType(String filename) {
+        if (filename.endsWith(HTML_EXT) || filename.endsWith(".htm")) {
             return TEXT_HTML;
-        } else if (path.endsWith(".txt")) {
+        } else if (filename.endsWith(".txt")) {
             return TEXT_PLAIN;
-        } else if (path.endsWith(".css")) {
+        } else if (filename.endsWith(".css")) {
             return "text/css";
-        } else if (path.endsWith(".js")) {
+        } else if (filename.endsWith(".js")) {
             return "text/javascript";
         } else {
-            if (path.contains(".") && !path.endsWith(".")) {
-                String ext = path.substring(path.lastIndexOf('.')+1).toLowerCase();
+            if (filename.contains(".") && !filename.endsWith(".")) {
+                String ext = filename.substring(filename.lastIndexOf('.')+1).toLowerCase();
                 String contentType = mimeTypes.get(ext);
                 if (contentType != null) {
                     return contentType;
@@ -239,16 +240,27 @@ public class ServiceGateway {
                 return null;
             }
         }
+        String filename = parts.isEmpty()? INDEX_HTML : parts.get(parts.size() - 1);
+        // assume ".html" if filename does not have a file extension
+        if (!filename.contains(".")) {
+            normalizedPath += HTML_EXT;
+            filename += HTML_EXT;
+        }
         if (normalizedPath.endsWith("/")) {
             normalizedPath += INDEX_HTML;
+            filename = INDEX_HTML;
         }
+        EtagFile result = null;
         if (resourceFolder != null) {
-            return getResourceFile(normalizedPath);
+            result = getResourceFile(normalizedPath);
         }
         if (staticFolder != null) {
-            return getLocalFile(normalizedPath);
+            result = getLocalFile(normalizedPath);
         }
-        return null;
+        if (result != null) {
+            result.name = filename;
+        }
+        return result;
     }
 
     private EtagFile getResourceFile(String path) {
