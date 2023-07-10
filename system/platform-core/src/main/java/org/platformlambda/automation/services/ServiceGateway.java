@@ -240,15 +240,14 @@ public class ServiceGateway {
                 return null;
             }
         }
-        String filename = parts.isEmpty()? INDEX_HTML : parts.get(parts.size() - 1);
         // assume ".html" if filename does not have a file extension
-        if (!filename.contains(".")) {
-            normalizedPath += HTML_EXT;
-            filename += HTML_EXT;
-        }
+        String filename = parts.isEmpty()? INDEX_HTML : parts.get(parts.size() - 1);
         if (normalizedPath.endsWith("/")) {
             normalizedPath += INDEX_HTML;
             filename = INDEX_HTML;
+        } else if (!filename.contains(".")) {
+            normalizedPath += HTML_EXT;
+            filename += HTML_EXT;
         }
         EtagFile result = null;
         if (resourceFolder != null) {
