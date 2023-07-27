@@ -61,7 +61,7 @@ public class MulticastTest {
         };
         Platform platform = Platform.getInstance();
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
-        while(!EventEmitter.getExecutedStatus()) {
+        while (!EventEmitter.getExecutedStatus()) {
             Thread.yield();
         }
         platform.waitForProvider("v1.hello.world", 5).onSuccess(bench::offer);
