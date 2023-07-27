@@ -44,6 +44,7 @@ public class MulticastTest {
 
     @Test
     public void routingTest() throws IOException, InterruptedException {
+        EventEmitter.reset();
         final EventEmitter po = EventEmitter.getInstance();
         final String[] targets = {"v1.hello.service.1", "v1.hello.service.2"};
         final String TEXT = "ok";
@@ -60,6 +61,9 @@ public class MulticastTest {
         };
         Platform platform = Platform.getInstance();
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
+        while(!EventEmitter.getExecutedStatus()) {
+            Thread.yield();
+        }
         platform.waitForProvider("v1.hello.world", 5).onSuccess(bench::offer);
         boolean available = Boolean.TRUE.equals(bench.poll(5, TimeUnit.SECONDS));
         Assert.assertTrue(available);
