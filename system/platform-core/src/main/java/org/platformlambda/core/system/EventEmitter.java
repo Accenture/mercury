@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentMap;
 public class EventEmitter {
     private static final Logger log = LoggerFactory.getLogger(EventEmitter.class);
 
+    private static volatile boolean hasExecuted;
     public static final int ONE_MILLISECOND = 1000000;
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
@@ -83,6 +84,7 @@ public class EventEmitter {
         if (multicast != null) {
             platform.getEventExecutor().submit(() -> {
                 log.info("Loading multicast config from {}", multicast);
+                hasExecuted=true;
                 ConfigReader reader = new ConfigReader();
                 try {
                     reader.load(multicast);
@@ -109,6 +111,14 @@ public class EventEmitter {
         if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
             platform.getEventExecutor().submit(this::loadRouteSubstitution);
         }
+    }
+
+    public static void reset() { // This method is only for testing (test-method: routingTest)
+        hasExecuted = false;
+    }
+
+    public static boolean getExecutedStatus() { // This method is only for testing (test-method: routingTest)
+        return hasExecuted;
     }
 
     public static EventEmitter getInstance() {
