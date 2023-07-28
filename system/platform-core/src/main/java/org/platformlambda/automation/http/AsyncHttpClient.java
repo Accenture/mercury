@@ -101,6 +101,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     private static final String CONTENT_LENGTH = "content-length";
     private static final String X_CONTENT_LENGTH = "x-content-length";
     private static final String TIMEOUT = "timeout";
+    private static final String USER_AGENT_NAME = "async-http-client";
     /*
      * Some headers must be dropped because they are not relevant for HTTP relay
      * e.g. "content-encoding" and "transfer-encoding" will break HTTP response rendering.
@@ -108,6 +109,8 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     private static final String[] MUST_DROP_HEADERS = { "content-encoding", "transfer-encoding", "host", "connection",
                                                         "upgrade-insecure-requests", "accept-encoding", "user-agent",
                                                         "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user" };
+    private static WebClientOptions optionsTrustAll;
+    private static WebClientOptions optionsVerifySSL;
     private final File tempDir;
 
     public AsyncHttpClient() {
@@ -126,6 +129,22 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
         if (initCounter.get() > 10000) {
             initCounter.set(10);
         }
+        // this is a brief blocking call because WebClient will read version information from the library JAR
+        if (optionsTrustAll == null) {
+            optionsTrustAll = getClientOptions(true);
+        }
+        if (optionsVerifySSL == null) {
+            optionsVerifySSL = getClientOptions(false);
+        }
+    }
+
+    private WebClientOptions getClientOptions(boolean trustAll) {
+        WebClientOptions options = new WebClientOptions().setUserAgent(USER_AGENT_NAME).setKeepAlive(true);
+        options.setMaxHeaderSize(12 * 1024).setConnectTimeout(10000);
+        if (trustAll) {
+            options.setTrustAll(true);
+        }
+        return options;
     }
 
     private WebClient getWebClient(int instance, boolean trustAll) {
@@ -133,11 +152,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
         if (webClients.containsKey(key)) {
             return webClients.get(key);
         }
-        WebClientOptions options = new WebClientOptions().setUserAgent("async-http-client").setKeepAlive(true);
-        options.setMaxHeaderSize(12 * 1024).setConnectTimeout(10000);
-        if (trustAll) {
-            options.setTrustAll(true);
-        }
+        WebClientOptions options = trustAll? optionsTrustAll : optionsVerifySSL;
         WebClient client = WebClient.create(Platform.getInstance().getVertx(), options);
         log.debug("Loaded HTTP web client {}", key);
         webClients.put(key, client);
