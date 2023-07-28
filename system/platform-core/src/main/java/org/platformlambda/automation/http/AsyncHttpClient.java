@@ -59,6 +59,8 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -101,6 +103,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
     private static final String CONTENT_LENGTH = "content-length";
     private static final String X_CONTENT_LENGTH = "x-content-length";
     private static final String TIMEOUT = "timeout";
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     /*
      * Some headers must be dropped because they are not relevant for HTTP relay
      * e.g. "content-encoding" and "transfer-encoding" will break HTTP response rendering.
@@ -178,25 +181,28 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
 
     @Override
     public Void handleEvent(Map<String, String> headers, EventEnvelope input, int instance) {
-        try {
-            processRequest(headers, input, instance);
-        } catch (Exception ex) {
-            EventEnvelope response = new EventEnvelope();
-            response.setException(ex).setBody(ex.getMessage());
-            if (input.getReplyTo() != null) {
-                if (ex instanceof AppException) {
-                    AppException e = (AppException) ex;
-                    response.setStatus(e.getStatus());
-                } else if (ex instanceof IllegalArgumentException) {
-                    response.setStatus(400);
+        executor.execute(() -> {
+            try {
+                processRequest(headers, input, instance);
+            } catch (Exception ex) {
+                EventEnvelope response = new EventEnvelope();
+                response.setException(ex).setBody(ex.getMessage());
+                if (input.getReplyTo() != null) {
+                    if (ex instanceof AppException) {
+                        AppException e = (AppException) ex;
+                        response.setStatus(e.getStatus());
+                    } else if (ex instanceof IllegalArgumentException) {
+                        response.setStatus(400);
+                    } else {
+                        response.setStatus(500);
+                    }
+                    sendResponse(input, response);
                 } else {
-                    response.setStatus(500);
+                    log.error("Unhandled exception", ex);
                 }
-                sendResponse(input, response);
-            } else {
-                log.error("Unhandled exception", ex);
             }
-        }
+        });
+
         return null;
     }
 
