@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentMap;
 public class EventEmitter {
     private static final Logger log = LoggerFactory.getLogger(EventEmitter.class);
 
-    private static volatile boolean hasExecuted;
     public static final int ONE_MILLISECOND = 1000000;
     public static final String CLOUD_CONNECTOR = "cloud.connector";
     public static final String CLOUD_SERVICES = "cloud.services";
@@ -74,6 +73,8 @@ public class EventEmitter {
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Long> cloudOrigins = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
+    private boolean multicastEnabled = false;
+    private boolean journalEnabled = false;
     private static final EventEmitter INSTANCE = new EventEmitter();
 
     private EventEmitter() {
@@ -84,11 +85,11 @@ public class EventEmitter {
         if (multicast != null) {
             platform.getEventExecutor().submit(() -> {
                 log.info("Loading multicast config from {}", multicast);
-                hasExecuted=true;
                 ConfigReader reader = new ConfigReader();
                 try {
                     reader.load(multicast);
                     loadMulticast(multicast, reader.getMap());
+                    multicastEnabled = true;
                 } catch (IOException e) {
                     log.error("Unable to load multicast config - {}", e.getMessage());
                 }
@@ -101,6 +102,7 @@ public class EventEmitter {
                 ConfigReader reader = new ConfigReader();
                 try {
                     reader.load(journal);
+                    journalEnabled = true;
                 } catch (IOException e) {
                     log.error("Unable to load journal config - {}", e.getMessage());
                 }
@@ -113,16 +115,16 @@ public class EventEmitter {
         }
     }
 
-    public static void reset() { // This method is only for testing (test-method: routingTest)
-        hasExecuted = false;
-    }
-
-    public static boolean getExecutedStatus() { // This method is only for testing (test-method: routingTest)
-        return hasExecuted;
-    }
-
     public static EventEmitter getInstance() {
         return INSTANCE;
+    }
+
+    public boolean isMulticastEnabled() {
+        return multicastEnabled;
+    }
+
+    public boolean isJournalEnabled() {
+        return journalEnabled;
     }
 
     public ConcurrentMap<String, ConcurrentMap<String, String>> getCloudRoutes() {

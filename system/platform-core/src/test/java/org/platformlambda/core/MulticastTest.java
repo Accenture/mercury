@@ -35,16 +35,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MulticastTest {
     private static final Logger log = LoggerFactory.getLogger(MulticastTest.class);
     private static final String MY_ROUTE = "my_route";
+    private static final int WAIT_INTERVAL = 300;
     @BeforeClass
-    public static void setup() {
+    public static void setup() throws InterruptedException {
         // The multicast.yaml configuration will be loaded when the EventEmitter singleton initializes
         EventEmitter po = EventEmitter.getInstance();
-        log.info("Unit test loaded with {}", po);
+        log.info("Unit test loaded with {}. Multicast ready? {}", po, po.isMulticastEnabled());
+        int n = 0;
+        while (!po.isMulticastEnabled()) {
+            Thread.sleep(WAIT_INTERVAL);
+            n++;
+            log.info("Waiting for multicast engine to get ready. Elapsed {} ms", n * WAIT_INTERVAL);
+        }
     }
 
     @Test
     public void routingTest() throws IOException, InterruptedException {
-        EventEmitter.reset();
         final EventEmitter po = EventEmitter.getInstance();
         final String[] targets = {"v1.hello.service.1", "v1.hello.service.2"};
         final String TEXT = "ok";
@@ -61,9 +67,6 @@ public class MulticastTest {
         };
         Platform platform = Platform.getInstance();
         final BlockingQueue<Boolean> bench = new ArrayBlockingQueue<>(1);
-        while (!EventEmitter.getExecutedStatus()) {
-            Thread.yield();
-        }
         platform.waitForProvider("v1.hello.world", 5).onSuccess(bench::offer);
         boolean available = Boolean.TRUE.equals(bench.poll(5, TimeUnit.SECONDS));
         Assert.assertTrue(available);

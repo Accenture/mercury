@@ -58,6 +58,7 @@ public class TestBase {
     protected static final int MINIMALIST_HTTP_PORT = 8020;
     protected static final String APP_ID = Utility.getInstance().getDateUuid()+"-"+System.getProperty("user.name");
     private static final String SERVICE_LOADED = "http.service.loaded";
+    private static final int WAIT_INTERVAL = 300;
     protected static int port;
     protected static String localHost;
 
@@ -109,6 +110,14 @@ public class TestBase {
                     });
 
             blockingWait(SERVICE_LOADED, 20);
+        }
+        EventEmitter po = EventEmitter.getInstance();
+        log.info("Unit test loaded with {}. Journal ready? {}", po, po.isJournalEnabled());
+        int n = 0;
+        while (!po.isJournalEnabled()) {
+            Thread.sleep(WAIT_INTERVAL);
+            n++;
+            log.info("Waiting for journal engine to get ready. Elapsed {} ms", n * WAIT_INTERVAL);
         }
     }
 
