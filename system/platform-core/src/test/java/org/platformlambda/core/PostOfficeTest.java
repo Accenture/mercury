@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1109,13 +1112,19 @@ public class PostOfficeTest extends TestBase {
     public void testAutoInputMapping() throws AppException, IOException, TimeoutException {
         String AUTO_MAPPING = "hello.auto.input.mapping";
         String HELLO_WORLD = "hello world";
-        String NAME = "name";
+        Date now = new Date();
+        LocalDateTime time = Instant.ofEpochMilli(now.getTime()).atZone(ZoneId.systemDefault()).toLocalDateTime();
         PostOffice po = PostOffice.getInstance();
-        Map<String, Object> map = new HashMap<>();
-        map.put(NAME, HELLO_WORLD);
-        EventEnvelope response = po.request(AUTO_MAPPING, 5000, map);
+        // prove that two PoJo are compatible when sending data fields that intersect
+        PoJoSubset minimalData = new PoJoSubset();
+        minimalData.setName(HELLO_WORLD);
+        minimalData.setDate(now);
+        minimalData.setTime(time);
+        EventEnvelope response = po.request(AUTO_MAPPING, 5000, minimalData);
         Assert.assertEquals(PoJo.class, response.getBody().getClass());
         PoJo pojo = (PoJo) response.getBody();
+        Assert.assertEquals(now, pojo.getDate());
+        Assert.assertEquals(time, pojo.getTime());
         Assert.assertEquals(HELLO_WORLD, pojo.getName());
     }
 
