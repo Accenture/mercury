@@ -37,7 +37,7 @@ Please perform a test run with the following setup to validate that it is compat
 
 If all 4 apps start up normally, your JVM is compatible with this standalone kafka server.
 
-# kafka connector compatibility
+## kafka connector compatibility
 
 The kafka-connector client library for Mercury powered applications has been tested for compatibility with Java 1.8
 to Java 19.

@@ -1646,17 +1646,15 @@ public class PostOfficeTest extends TestBase {
         String TRACE_PATH = "TEST /api/hello/input/mapping";
         String AUTO_MAPPING = "hello.input.mapping";
         String HELLO_WORLD = "hello world";
-        String NAME = "name";
-        String DATE = "date";
-        String TIME = "time";
         Date now = new Date();
         LocalDateTime time = Instant.ofEpochMilli(now.getTime()).atZone(ZoneId.systemDefault()).toLocalDateTime();
         EventEmitter po = EventEmitter.getInstance();
-        Map<String, Object> map = new HashMap<>();
-        map.put(NAME, HELLO_WORLD);
-        map.put(DATE, now);
-        map.put(TIME, time);
-        EventEnvelope request = new EventEnvelope().setTo(AUTO_MAPPING).setBody(map)
+        // prove that two PoJo are compatible when sending data fields that intersect
+        PoJoSubset minimalData = new PoJoSubset();
+        minimalData.setName(HELLO_WORLD);
+        minimalData.setDate(now);
+        minimalData.setTime(time);
+        EventEnvelope request = new EventEnvelope().setTo(AUTO_MAPPING).setBody(minimalData)
                                 .setTrace(TRACE_ID,TRACE_PATH).setFrom("unit.test");
         po.asyncRequest(request, 5000).onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
