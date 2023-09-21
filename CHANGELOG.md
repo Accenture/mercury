@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.5, 9/21/2023
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated open sources libraries
+
+1. Spring-Boot 2.7.15 / 3.1.3
+2. classgraph 4.8.162
+3. Tomcat 9.0.80
+
+---
 ## Version 3.0.4, 8/6/2023
 
 ### Added

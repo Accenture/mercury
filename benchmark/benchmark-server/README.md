@@ -12,14 +12,14 @@ From one command terminal
 
 ```text
 cd sandbox/connector/adapters/kafka/kafka-standalone
-java -jar target/kafka-standalone-3.0.0.jar
+java -jar target/kafka-standalone-3.0.5.jar
 ```
 
 From another command terminal
 
 ```text
 cd sandbox/connector/adapters/kafka/kafka-presence
-java -jar target/kafka-presence-3.0.0.jar
+java -jar target/kafka-presence-3.0.5.jar
 ```
 
 # Running the benchmark server
@@ -28,7 +28,7 @@ do this
 
 ```text
 mvn clean package
-java -jar target/benchmark-server-3.0.0.jar
+java -jar target/benchmark-server-3.0.5.jar
 ```
 
 Once the server is up and running, you will see it connects to Kafka and reports to the presence monitor.

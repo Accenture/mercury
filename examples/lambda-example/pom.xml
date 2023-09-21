@@ -7,13 +7,13 @@
     <artifactId>lambda-example</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.4</version>
+    <version>3.0.5</version>
     <name>Composable application example</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.14</version>
+        <version>2.7.15</version>
         <relativePath/>
     </parent>
 
@@ -41,7 +41,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.4</version>
+            <version>3.0.5</version>
         </dependency>
 
         <!-- Select your optional cloud connector if any.
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.4</version>
+            <version>3.0.5</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
