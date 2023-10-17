@@ -84,7 +84,7 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(RECEIVE_ONLY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 1000;
+        Integer CYCLE = 10;
         String TYPE = "Small payload one-way";
         float min = Float.MAX_VALUE;
         float max = 0;
@@ -116,7 +116,7 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(RECEIVE_ONLY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 500;
+        Integer CYCLE = 10;
         String TYPE = "Medium payload one-way";
         float min = Float.MAX_VALUE;
         float max = 0;
@@ -148,40 +148,8 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(RECEIVE_ONLY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 500;
+        Integer CYCLE = 10;
         String TYPE = "Large payload one-way";
-        float min = Float.MAX_VALUE;
-        float max = 0;
-        for (int i=0; i < 10; i++) {
-            float timeSpent = oneCycle(RECEIVE_ONLY, CYCLE, TYPE, i, payload);
-            if (timeSpent > -1.0f) {
-                if (timeSpent < min) {
-                    min = timeSpent;
-                }
-                if (timeSpent > max) {
-                    max = timeSpent;
-                }
-            }
-        }
-        NumberFormat number = NumberFormat.getInstance();
-        log.info("{} of {} bytes - min {}, max {} events/second", TYPE, number.format(data.length),
-                number.format(min), number.format(max));
-    }
-
-    @Test
-    public void extraLargePayloadOneWayTest() throws IOException, InterruptedException {
-        String RECEIVE_ONLY = "network.one.way";
-        StringBuilder sb = new StringBuilder();
-        for (int i=0; i < 50000; i++) {
-            sb.append("123456789.");
-        }
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("key", sb.toString());
-        EventEnvelope event = new EventEnvelope().setTo(RECEIVE_ONLY).setBody(payload);
-        byte[] data = event.toBytes();
-
-        Integer CYCLE = 500;
-        String TYPE = "Extra large payload one-way";
         float min = Float.MAX_VALUE;
         float max = 0;
         for (int i=0; i < 10; i++) {
@@ -208,7 +176,7 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(TWO_WAY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 1000;
+        Integer CYCLE = 10;
         String TYPE = "Small payload 2-way";
         float min = Float.MAX_VALUE;
         float max = 0;
@@ -240,7 +208,7 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(TWO_WAY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 500;
+        Integer CYCLE = 10;
         String TYPE = "Medium payload 2-way";
         float min = Float.MAX_VALUE;
         float max = 0;
@@ -272,40 +240,8 @@ public class BenchmarkTests {
         EventEnvelope event = new EventEnvelope().setTo(TWO_WAY).setBody(payload);
         byte[] data = event.toBytes();
 
-        Integer CYCLE = 500;
+        Integer CYCLE = 10;
         String TYPE = "Large payload 2-way";
-        float min = Float.MAX_VALUE;
-        float max = 0;
-        for (int i=0; i < 10; i++) {
-            float timeSpent = oneCycle(TWO_WAY, CYCLE, TYPE, i, payload);
-            if (timeSpent > -1.0f) {
-                if (timeSpent < min) {
-                    min = timeSpent;
-                }
-                if (timeSpent > max) {
-                    max = timeSpent;
-                }
-            }
-        }
-        NumberFormat number = NumberFormat.getInstance();
-        log.info("{} of {} bytes - min {}, max {} events/second", TYPE, number.format(data.length),
-                number.format(min), number.format(max));
-    }
-
-    @Test
-    public void extraLargePayloadTwoWayTest() throws IOException, InterruptedException {
-        String TWO_WAY = "network.echo";
-        StringBuilder sb = new StringBuilder();
-        for (int i=0; i < 50000; i++) {
-            sb.append("123456789.");
-        }
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("key", sb.toString());
-        EventEnvelope event = new EventEnvelope().setTo(TWO_WAY).setBody(payload);
-        byte[] data = event.toBytes();
-
-        Integer CYCLE = 500;
-        String TYPE = "Extra large payload 2-way";
         float min = Float.MAX_VALUE;
         float max = 0;
         for (int i=0; i < 10; i++) {
