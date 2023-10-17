@@ -24,7 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.system.AppStarter;
-import org.platformlambda.core.system.PostOffice;
+import org.platformlambda.core.system.EventEmitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -299,7 +299,7 @@ public class InMemoryEventTests {
         long start = System.currentTimeMillis();
         long TIMEOUT = 30000;
         BlockingQueue<Integer> bench = new ArrayBlockingQueue<>(1);
-        PostOffice po = PostOffice.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
         EventEnvelope event = new EventEnvelope().setTo(target).setBody(payload);
         List<EventEnvelope> requests = new ArrayList<>();
         for (int i=0; i < cycle; i++) {
