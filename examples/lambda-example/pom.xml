@@ -75,6 +75,33 @@
 
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>Windows</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                </os>
+            </activation>
+            <properties>
+                <shell.command>powershell.exe</shell.command>
+                <remove.original>${project.basedir}\cleanup.bat</remove.original>
+            </properties>
+        </profile>
+        <profile>
+            <id>unix</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <shell.command>bash</shell.command>
+                <remove.original>${project.basedir}/cleanup.sh</remove.original>
+            </properties>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>
@@ -165,21 +192,45 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <!-- DO NOT CHANGE THIS
-                         AppStarter will find your Main Application(s) -->
-                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
                 <executions>
                     <execution>
-                        <id>build-info</id>
+                        <id>mercury</id>
+                        <phase>package</phase>
                         <goals>
-                            <goal>build-info</goal>
+                            <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                            <finalName>${project.artifactId}-${project.version}</finalName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>org.platformlambda.core.system.AppStarter</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>clean-up</id>
+                        <phase>verify</phase>
+                    <goals>
+                        <goal>exec</goal>
+                    </goals>
+                </execution>
+                </executions>
+                <configuration>
+                    <executable>${shell.command}</executable>
+                    <commandlineArgs>${remove.original}</commandlineArgs>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

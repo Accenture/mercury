@@ -44,6 +44,9 @@ public class Platform {
     private static final CryptoApi crypto = new CryptoApi();
     private static final ConcurrentMap<String, ServiceDef> registry = new ConcurrentHashMap<>();
     private static final String PERSONALITY = "personality";
+    private static final String SPRING_APPNAME = "spring.application.name";
+    private static final String APPNAME = "application.name";
+    private static final String DEFAULT_APPNAME = "application";
     private static final String CONNECTOR = "connector";
     private static final String SERVICE = "service";
     private static final String ROUTE = "Route ";
@@ -61,6 +64,7 @@ public class Platform {
     private final long startTime = System.currentTimeMillis();
     private static final AtomicInteger initCounter = new AtomicInteger(0);
     private static final Platform INSTANCE = new Platform();
+    private String applicationName = null;
 
     private Platform() {
         // singleton
@@ -165,7 +169,11 @@ public class Platform {
      * @return app name
      */
     public String getName() {
-        return Utility.getInstance().getPackageName();
+        if (applicationName == null) {
+            AppConfigReader config = AppConfigReader.getInstance();
+            applicationName = config.getProperty(APPNAME, config.getProperty(SPRING_APPNAME, DEFAULT_APPNAME));
+        }
+        return applicationName;
     }
 
     /**

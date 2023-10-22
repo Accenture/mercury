@@ -223,11 +223,10 @@ public class PresenceConnector implements LambdaFunction {
                 Utility util = Utility.getInstance();
                 Platform platform = Platform.getInstance();
                 EventEmitter po = EventEmitter.getInstance();
-                VersionInfo app = util.getVersionInfo();
                 EventEnvelope info = new EventEnvelope();
                 info.setTo(alive? ALIVE : INFO).setHeader(CREATED, begin).setHeader(SEQ, n)
                     .setHeader(NAME, Platform.getInstance().getName())
-                    .setHeader(VERSION, app.getVersion())
+                    .setHeader(VERSION, util.getVersion())
                     .setHeader(GROUP, closedUserGroup)
                     .setHeader(TYPE, ServerPersonality.getInstance().getType());
                 if (alive) {
@@ -247,7 +246,7 @@ public class PresenceConnector implements LambdaFunction {
                     po.send(ServiceDiscovery.SERVICE_REGISTRY + APP_GROUP + closedUserGroup,
                             new Kv(TYPE, ALIVE), new Kv(TOPIC, topicPartition),
                             new Kv(NAME, platform.getName()),
-                            new Kv(VERSION, util.getVersionInfo().getVersion()),
+                            new Kv(VERSION, util.getVersion()),
                             new Kv(ORIGIN, platform.getOrigin()));
                 }
 

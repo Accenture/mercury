@@ -3,6 +3,8 @@
 # ignore sbt because we are using maven
 build.sbt
 maven-publish.xml
+# maven shade left over
+dependency-reduced-pom.xml
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp

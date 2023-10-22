@@ -18,15 +18,24 @@
 
 package com.accenture.services;
 
+import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.TypedLambdaFunction;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
+@CoroutineRunner
 @PreLoad(route="network.echo", instances=200, isPrivate = false)
 public class Echo implements TypedLambdaFunction<Map<String, Object>, Map<String, Object>> {
+
     @Override
-    public Map<String, Object> handleEvent(Map<String, String> headers, Map<String, Object> body, int instance) {
-        return body;
+    public Map<String, Object> handleEvent(Map<String, String> headers, Map<String, Object> input, int instance) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", "echo");
+        result.put("data", input);
+        result.put("time", new Date());
+        return result;
     }
 }

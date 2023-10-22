@@ -341,7 +341,7 @@ public class TopicController implements LambdaFunction {
                                 new Kv(TOPIC, topicPartition), new Kv(ORIGIN, appOrigin));
                         po.send(txPath, new EventEnvelope().setTo(READY)
                                 .setHeader(TOPIC, topicPartition)
-                                .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
+                                .setHeader(VERSION, util.getVersion()).toBytes());
                         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                 new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
                     } catch (IOException e) {

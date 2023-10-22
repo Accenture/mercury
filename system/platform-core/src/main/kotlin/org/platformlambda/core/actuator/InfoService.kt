@@ -53,80 +53,84 @@ class InfoService : KotlinLambdaFunction<EventEnvelope, Any> {
         val result: MutableMap<String, Any> = HashMap()
         val app: MutableMap<String, Any> = HashMap()
         val util = Utility.getInstance()
-        val info = util.versionInfo
         result[APP] = app
         /*
          * When running inside IDE, there are no information about libraries.
          * It is therefore better to take the application name from the application.properties.
          */
-        app[NAME] = info.artifactId
-        app[VERSION] = info.version
+        app[NAME] = platform.name
+        app[VERSION] = util.version
         app[DESCRIPTION] = appDesc
         val appId = platform.appId
         if (appId != null) {
             app[INSTANCE] = appId
         }
-        if (ROUTES == type) {
-            if (isServiceMonitor) {
-                result[ROUTING] = HashMap<String, String>()
-                result[MESSAGE] = "Routing table is not visible from a presence monitor"
-            } else {
-                val po = EventEmitter.getInstance()
-                val journaledRoutes = po.journaledRoutes
-                if (journaledRoutes.size > 1) {
-                    journaledRoutes.sort()
+        when (type) {
+            ROUTES -> {
+                if (isServiceMonitor) {
+                    result[ROUTING] = HashMap<String, String>()
+                    result[MESSAGE] = "Routing table is not visible from a presence monitor"
+                } else {
+                    val po = EventEmitter.getInstance()
+                    val journaledRoutes = po.journaledRoutes
+                    if (journaledRoutes.size > 1) {
+                        journaledRoutes.sort()
+                    }
+                    val more = getRoutingTable(fastRPC)
+                    if (more != null) {
+                        result[ROUTING] = more
+                    }
+                    result[JOURNAL] = journaledRoutes
+                    // add route substitution list if any
+                    val substitutions = po.routeSubstitutionList
+                    if (substitutions.isNotEmpty()) {
+                        result[ROUTE_SUBSTITUTION] = substitutions
+                    }
                 }
-                val more = getRoutingTable(fastRPC)
+            }
+            LIB -> {
+                result[LIBRARY] = util.libraryList
+            }
+            ENV -> {
+                result[ENV] = env
+                result[ROUTING] = registeredServices
+            }
+            else -> {
+                // java VM information
+                val jvm: MutableMap<String, Any> = HashMap()
+                result[JVM] = jvm
+                jvm["java_version"] = System.getProperty(JAVA_VERSION)
+                jvm["java_vm_version"] = System.getProperty(JAVA_VM_VERSION)
+                jvm["java_runtime_version"] = System.getProperty(JAVA_RUNTIME_VERSION)
+                // memory usage
+                val runtime = Runtime.getRuntime()
+                val number = NumberFormat.getInstance()
+                val maxMemory = runtime.maxMemory()
+                val allocatedMemory = runtime.totalMemory()
+                val freeMemory = runtime.freeMemory()
+                val memory: MutableMap<String, Any> = HashMap()
+                result[MEMORY] = memory
+                memory[MAX] = number.format(maxMemory)
+                memory[FREE] = number.format(freeMemory)
+                memory[ALLOCATED] = number.format(allocatedMemory)
+                memory[USED] = number.format(allocatedMemory - freeMemory)
+                /*
+                     * check streams resources if any
+                     */
+                result[STREAMS] = ObjectStreamIO.getStreamCount()
+                val more = getAdditionalInfo(fastRPC)
                 if (more != null) {
-                    result[ROUTING] = more
+                    result["additional_info"] = more
                 }
-                result[JOURNAL] = journaledRoutes
-                // add route substitution list if any
-                val substitutions = po.routeSubstitutionList
-                if (substitutions.isNotEmpty()) {
-                    result[ROUTE_SUBSTITUTION] = substitutions
-                }
+                result[ORIGIN] = platform.origin
+                result[PERSONALITY] = ServerPersonality.getInstance().type.name
+                val time: MutableMap<String, Any> = HashMap()
+                val now = Date()
+                time[START] = util.getLocalTimestamp(platform.startTime)
+                time[CURRENT] = util.getLocalTimestamp(now.time)
+                result[TIME] = time
+                result[UP_TIME] = util.elapsedTime(now.time - platform.startTime)
             }
-        } else if (LIB == type) {
-            result[LIBRARY] = util.libraryList
-        } else if (ENV == type) {
-            result[ENV] = env
-            result[ROUTING] = registeredServices
-        } else {
-            // java VM information
-            val jvm: MutableMap<String, Any> = HashMap()
-            result[JVM] = jvm
-            jvm["java_version"] = System.getProperty(JAVA_VERSION)
-            jvm["java_vm_version"] = System.getProperty(JAVA_VM_VERSION)
-            jvm["java_runtime_version"] = System.getProperty(JAVA_RUNTIME_VERSION)
-            // memory usage
-            val runtime = Runtime.getRuntime()
-            val number = NumberFormat.getInstance()
-            val maxMemory = runtime.maxMemory()
-            val allocatedMemory = runtime.totalMemory()
-            val freeMemory = runtime.freeMemory()
-            val memory: MutableMap<String, Any> = HashMap()
-            result[MEMORY] = memory
-            memory[MAX] = number.format(maxMemory)
-            memory[FREE] = number.format(freeMemory)
-            memory[ALLOCATED] = number.format(allocatedMemory)
-            memory[USED] = number.format(allocatedMemory - freeMemory)
-            /*
-             * check streams resources if any
-             */
-            result[STREAMS] = ObjectStreamIO.getStreamCount()
-            val more = getAdditionalInfo(fastRPC)
-            if (more != null) {
-                result["additional_info"] = more
-            }
-            result[ORIGIN] = platform.origin
-            result[PERSONALITY] = ServerPersonality.getInstance().type.name
-            val time: MutableMap<String, Any> = HashMap()
-            val now = Date()
-            time[START] = util.getLocalTimestamp(platform.startTime)
-            time[CURRENT] = util.getLocalTimestamp(now.time)
-            result[TIME] = time
-            result[UP_TIME] = util.elapsedTime(now.time - platform.startTime)
         }
         return EventEnvelope().setHeader(CONTENT_TYPE, accept).setBody(result)
     }

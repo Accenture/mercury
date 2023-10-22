@@ -18,16 +18,26 @@
 
 package com.accenture.benchmark;
 
+import com.accenture.services.BenchmarkService;
+import com.accenture.services.Echo;
+import com.accenture.services.ReceiveOnly;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.LocalPubSub;
 import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.util.AppConfigReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 @MainApplication(sequence=1)
 public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
+
+    private static final String BENCHMARK_USERS = "benchmark.users";
+    private static final String BENCHMARK_SERVICE = "benchmark.service";
 
     /**
      * This main class is only used when testing the app from the IDE.
@@ -39,16 +49,20 @@ public class MainApp implements EntryPoint {
     }
 
     @Override
-    public void start(String[] args) {
-        /*
-         * Since the startup sequence is 1, this module will start before
-         * the underlying rest-automation (which is configured as sequence=2) begins.
-         *
-         * If you want to execute your preparation code after the rest-automation initialization,
-         * you can set sequence to a larger value.
-         */
+    public void start(String[] args) throws IOException {
+        Platform platform = Platform.getInstance();
+        AppConfigReader config = AppConfigReader.getInstance();
+        // if there is no network connector, the benchmark will be conducted during the in-memory event system
+        if ("none".equals(config.getProperty("cloud.connector", "none"))) {
+            platform.registerPrivate("network.echo", new Echo(), 200);
+            platform.registerPrivate("network.one.way", new ReceiveOnly(), 200);
+        }
+        platform.connectToCloud();
+        platform.registerPrivate(BENCHMARK_SERVICE, new BenchmarkService(), 10);
+        // use local pub/sub to broadcast benchmark result to all users
+        LocalPubSub ps = LocalPubSub.getInstance();
+        ps.createTopic(BENCHMARK_USERS);
         log.info("Started");
-        Platform.getInstance().connectToCloud();
     }
 
 }

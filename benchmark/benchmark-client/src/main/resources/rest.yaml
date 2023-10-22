@@ -11,9 +11,9 @@ rest:
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
   - service: ["hello.world"]
-    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
+    methods: ['GET']
     url: "/api/hello/world"
-    timeout: 10s
+    timeout: 20s
     #
     # Optional authentication service which should return a true or false result
     # The authentication service can also add session info in headers using EventEnvelope as a response
