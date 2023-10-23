@@ -25,7 +25,6 @@ import io.vertx.core.eventbus.EventBus;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.*;
-import org.platformlambda.core.services.Multicaster;
 import org.platformlambda.core.util.*;
 import org.platformlambda.core.websocket.common.MultipartPayload;
 import org.slf4j.Logger;
@@ -60,6 +59,8 @@ public class PostOffice {
     private static final ConcurrentMap<String, String> cloudOrigins = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
     private final String traceLogHeader;
+    private boolean multicastEnabled = false;
+    private boolean journalEnabled = false;
     private static final PostOffice INSTANCE = new PostOffice();
 
     private static boolean loaded = false;
@@ -78,13 +79,15 @@ public class PostOffice {
                 log.info("Loading multicast config from {}", multicast);
                 ConfigReader reader = new ConfigReader();
                 reader.load(multicast);
-                loadMulticast(reader.getMap());
+                loadMulticast(multicast, reader.getMap());
+                multicastEnabled = true;
             }
             String journal = config.getProperty(JOURNAL_YAML);
             if (journal != null) {
                 log.info("Loading journal config from {}", journal);
                 ConfigReader reader = new ConfigReader();
                 reader.load(journal);
+                journalEnabled = true;
                 loadJournalRoutes(reader.getMap());
             }
 
@@ -108,6 +111,14 @@ public class PostOffice {
                 // ok to ignore
             }
         }
+    }
+
+    public boolean isMulticastEnabled() {
+        return multicastEnabled;
+    }
+
+    public boolean isJournalEnabled() {
+        return journalEnabled;
     }
 
     public String getAppInstanceId() {
@@ -220,32 +231,35 @@ public class PostOffice {
     }
 
     @SuppressWarnings("unchecked")
-    private void loadMulticast(Map<String, Object> map) {
-        Set<String> list = new HashSet<>();
-        Platform platform = Platform.getInstance();
+    private void loadMulticast(String file, Map<String, Object> map) {
         MultiLevelMap multi = new MultiLevelMap(map);
-        int n = 0;
-        while (true) {
-            String source = (String) multi.getElement("multicast["+n+"].source");
-            List<String> targets = (List<String>) multi.getElement("multicast["+n+"].targets");
-            if (source == null || targets == null) {
-                break;
+        Object o = multi.getElement("multicast");
+        if (o instanceof List) {
+            List<Object> multicastList = (List<Object>) o;
+            for (int i=0; i < multicastList.size(); i++) {
+                String source = (String) multi.getElement("multicast["+i+"].source");
+                List<String> targets = (List<String>) multi.getElement("multicast["+i+"].targets");
+                if (source != null && targets != null && !targets.isEmpty()) {
+                    List<String> targetList = new ArrayList<>(targets);
+                    targetList.remove(source);
+                    Set<String> members = new HashSet<>(targetList);
+                    if (members.size() < targets.size()) {
+                        log.warn("Multicast config error - {} -> {} becomes {} -> {}",
+                                source, targets, source, members);
+                    }
+                    LocalPubSub ps = LocalPubSub.getInstance();
+                    try {
+                        ps.createTopic(source);
+                        for (String member: members) {
+                            ps.subscribe(source, member);
+                        }
+                    } catch (IOException e) {
+                        log.error("Unable to register multicast {} -> {}, - {}", source, members, e.getMessage());
+                    }
+                }
             }
-            n++;
-            if (targets.contains(source)) {
-                log.error("Cyclic multicast ignored ({} exists in {})", source, targets);
-                continue;
-            }
-            if (list.contains(source)) {
-                log.error("Duplicated multicast ignored ({} already defined)", source);
-                continue;
-            }
-            list.add(source);
-            try {
-                platform.registerPrivate(source, new Multicaster(source, targets), 1);
-            } catch (IOException e) {
-                log.error("Unable to register multicast {} - {}", source, e.getMessage());
-            }
+        } else {
+            log.error("Invalid config {} - the multicast section should be a list of source and targets", file);
         }
     }
 

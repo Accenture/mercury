@@ -20,7 +20,6 @@ package org.platformlambda.cloud.services;
 
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
 import org.platformlambda.core.system.ServiceDiscovery;
@@ -58,23 +57,20 @@ public class ServiceQuery implements LambdaFunction {
     @Override
     @SuppressWarnings("unchecked")
     public Object handleEvent(Map<String, String> headers, Object body, int instance) {
+        Utility util = Utility.getInstance();
         String type = headers.get(TYPE);
         if (INFO.equals(type)) {
             Platform platform = Platform.getInstance();
             Map<String, Object> result = new HashMap<>();
             result.put("personality", ServerPersonality.getInstance().getType());
-            VersionInfo info = Utility.getInstance().getVersionInfo();
-            result.put("version", info.getVersion());
+            result.put("version", util.getVersion());
             result.put("name", platform.getName());
             result.put("origin", platform.getOrigin());
-            result.put("group_id", info.getGroupId());
-            result.put("artifact_id", info.getArtifactId());
             return result;
 
         } else if (DOWNLOAD.equals(type)) {
-            Utility util = Utility.getInstance();
             Platform platform = Platform.getInstance();
-            String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
+            String me = platform.getName()+", v"+util.getVersion();
             Map<String, Object> result = new HashMap<>();
             result.put("routes", getRouteList());
             result.put("nodes", getOriginList());

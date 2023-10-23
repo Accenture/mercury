@@ -23,7 +23,6 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.system.ServerPersonality;
@@ -60,6 +59,7 @@ public class MockCloud implements CloudSetup {
     @SuppressWarnings("unchecked")
     @Override
     public void initialize() {
+        Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         // usually a cloud connector will automatically start cloud services
         platform.startCloudServices();
@@ -69,15 +69,13 @@ public class MockCloud implements CloudSetup {
             if (INFO.equals(type)) {
                 Map<String, Object> result = new HashMap<>();
                 result.put("personality", ServerPersonality.getInstance().getType());
-                VersionInfo info = Utility.getInstance().getVersionInfo();
-                result.put("version", info.getVersion());
+                result.put("version", util.getVersion());
                 result.put("name", platform.getName());
                 result.put("origin", platform.getOrigin());
                 return result;
 
             } else if (DOWNLOAD.equals(type)) {
-                Utility util = Utility.getInstance();
-                String me = platform.getName()+", v"+util.getVersionInfo().getVersion();
+                String me = platform.getName()+", v"+util.getVersion();
                 Map<String, Object> result = new HashMap<>();
                 result.put("routes", cloudRoutes);
                 result.put("nodes", cloudOrigins);

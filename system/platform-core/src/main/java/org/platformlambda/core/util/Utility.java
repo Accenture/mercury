@@ -23,7 +23,6 @@ import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 import org.platformlambda.core.models.Kv;
-import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.core.websocket.server.WsEnvelope;
 import org.slf4j.Logger;
@@ -68,16 +67,11 @@ public class Utility {
     private static final String NESTED_EXCEPTION_END = "STACKTRACE:";
     private static final String STATUS = "status";
     private static final String MESSAGE = "message";
-    private static final String[] JAR_PATHS = { "BOOT-INF/lib", "WEB-INF/lib",
-                                                "WEB-INF/lib-provided", "lib" };
+    private static final String BOOT_INF_LIB = "BOOT-INF/lib";
+    private static final String META_INF_MAVEN = "META-INF/maven";
+    private static final String META_INF = "META-INF";
     private static final String JAR = "jar";
-    private static final String POM_PROPERTIES = "META-INF/maven";
-    private static final String GROUP_ID = "groupId";
-    private static final String ARTIFACT_ID = "artifactId";
-    private static final String VERSION = "version";
-    private static final String SPRING_APPNAME = "spring.application.name";
-    private static final String APPNAME = "application.name";
-    private static final String DEFAULT_APPNAME = "application";
+    private static final String PROPERTIES = "properties";
     private static final String APP_VERSION = "info.app.version";
     private static final String DEFAULT_APP_VERSION = "1.0.0";
     private static final String[] RESERVED_FILENAMES = {"thumbs.db"};
@@ -88,6 +82,7 @@ public class Utility {
     private static final String INVALID_HEX = "Invalid hex string";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static final String ZEROS = "0000000000000000";
+    private static final String ZERO_OFFSET = "+0000";
     private static final String[] intranetPrefixes = {
             "10.", "192.168.",
             "172.16.", "172.17.", "172.18.", "172.19.",
@@ -98,10 +93,10 @@ public class Utility {
     private static final long ONE_MINUTE = 60 * ONE_SECOND;
     private static final long ONE_HOUR = 60 * ONE_MINUTE;
     private static final long ONE_DAY = 24 * ONE_HOUR;
-    private static final Object ORDERLY_SCAN = new Object[0];
-    private static final VersionInfo versionInfo = new VersionInfo();
-    private static List<String> libs = new ArrayList<>();
-    private static boolean loaded = false;
+    private static final Object SINGLETON = new Object[0];
+    private static String appVersion = "unknown";
+    private final List<String> libs = new ArrayList<>();
+    private boolean loaded = false;
     private static final Utility instance = new Utility();
 
     private Utility() {
@@ -112,9 +107,9 @@ public class Utility {
         return instance;
     }
 
-    private List<String> getJarList(String path) {
+    private List<String> getJarsFromSpringBootPackage() {
         List<String> list = new ArrayList<>();
-        try (ScanResult scan = new ClassGraph().acceptPathsNonRecursive(path).scan()) {
+        try (ScanResult scan = new ClassGraph().acceptPathsNonRecursive(BOOT_INF_LIB).scan()) {
             ResourceList resources = scan.getResourcesWithExtension(JAR);
             for (Resource r: resources) {
                 String name = r.getPath();
@@ -125,63 +120,84 @@ public class Utility {
         return list;
     }
 
+    private List<String> getMavenProperties() {
+        List<String> list = new ArrayList<>();
+        try (ScanResult scan = new ClassGraph().acceptPaths(META_INF_MAVEN).scan()) {
+            ResourceList resources = scan.getResourcesWithExtension(PROPERTIES);
+            for (Resource r: resources) {
+                String name = r.getPath();
+                if (name.endsWith("/pom.properties")) {
+                    Properties p = new Properties();
+                    p.load(new ByteArrayInputStream(stream2bytes(r.open())));
+                    String groupId = p.getProperty("groupId");
+                    String artifactId = p.getProperty("artifactId");
+                    String version = p.getProperty("version");
+                    if (groupId != null && artifactId != null && version != null) {
+                        list.add(groupId+" / "+artifactId+"-"+version);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // ok to ignore
+        }
+        return list;
+    }
+
     private void scanLibInfo() {
         if (!loaded) {
-            synchronized (ORDERLY_SCAN) {
+            synchronized (SINGLETON) {
+                AppConfigReader reader = AppConfigReader.getInstance();
+                appVersion = reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION);
                 List<String> list = new ArrayList<>();
-                for (String r : JAR_PATHS) {
-                    list.addAll(getJarList(r));
+                List<String> jars = getJarsFromSpringBootPackage();
+                if (jars.isEmpty()) {
+                    List<String> pom = getMavenProperties();
+                    if (!pom.isEmpty()) {
+                        libs.add("--- "+META_INF_MAVEN+" ---");
+                        list.addAll(pom);
+                    }
+                } else {
+                    libs.add("--- "+BOOT_INF_LIB+" ---");
+                    list.addAll(jars);
                 }
                 if (list.size() > 1) {
                     Collections.sort(list);
                 }
-                libs = list;
-                // Get default version info from application.properties
-                AppConfigReader reader = AppConfigReader.getInstance();
-                String name = filteredServiceName(reader.getProperty(SPRING_APPNAME,
-                        reader.getProperty(APPNAME, DEFAULT_APPNAME)));
-                versionInfo.setGroupId("");
-                versionInfo.setArtifactId(name);
-                versionInfo.setVersion(reader.getProperty(APP_VERSION, DEFAULT_APP_VERSION));
-                // get version information from JAR if not running in IDE
                 if (!list.isEmpty()) {
-                    // find /META-INF/maven/*/{ApplicationName}/pom.properties
-                    String pomFileName = "/" + name + "/pom.properties";
-                    try (ScanResult scan = new ClassGraph().acceptPaths(POM_PROPERTIES).scan()) {
-                        ResourceList resources = scan.getResourcesWithExtension("properties");
+                    try (ScanResult scan = new ClassGraph().acceptPathsNonRecursive(META_INF).scan()) {
+                        ResourceList resources = scan.getResourcesWithExtension(".MF");
                         for (Resource r: resources) {
-                            if (r.getPath().endsWith(pomFileName)) {
+                            if (r.getPath().equals("META-INF/MANIFEST.MF")) {
                                 Properties p = new Properties();
                                 p.load(new ByteArrayInputStream(stream2bytes(r.open())));
-                                if (p.containsKey(GROUP_ID) && p.containsKey(ARTIFACT_ID) &&
-                                        p.containsKey(VERSION) && name.equals(p.getProperty(ARTIFACT_ID))) {
-                                        versionInfo.setGroupId(p.getProperty(GROUP_ID))
-                                                    .setVersion(p.getProperty(VERSION));
+                                String v = p.getProperty("Implementation-Version");
+                                if (v != null) {
+                                    appVersion = v;
                                 }
                                 break;
                             }
                         }
-                    } catch (IOException ignore) {
+                    } catch (IOException e) {
                         // ok to ignore
                     }
+                }
+                libs.addAll(list);
+                if (libs.isEmpty()) {
+                    libs.add("Are you running the app from classpath?");
                 }
             }
             loaded = true;
         }
     }
 
-    public VersionInfo getVersionInfo() {
+    public String getVersion() {
         scanLibInfo();
-        return versionInfo;
+        return appVersion;
     }
 
     public List<String> getLibraryList() {
         scanLibInfo();
         return libs;
-    }
-
-    public String getPackageName() {
-        return getVersionInfo().getArtifactId();
     }
 
     public String zeroFill(int seq, int max) {
@@ -698,6 +714,15 @@ public class Utility {
         return str2date(str, false);
     }
 
+    public String getLocalTimestamp() {
+        return getLocalTimestamp(new Date().getTime());
+    }
+
+    public String getLocalTimestamp(long ms) {
+        LocalDateTime local = new Date(ms).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return local.toString().replace('T', ' ');
+    }
+
     public LocalDateTime str2localtime(String str) {
         return str2localtime(str, false);
     }
@@ -778,11 +803,11 @@ public class Utility {
         }
         // use UTC timezone if not specified
         if (str.length() == 19) {
-            str += "+0000";
+            str += ZERO_OFFSET;
         }
         // normalize UTC "Z" indicator to +0000
         if (str.endsWith("Z")) {
-            str = str.substring(0, str.length()-1)+"+0000";
+            str = str.substring(0, str.length()-1)+ZERO_OFFSET;
         }
         // precision up to milliseconds only and drop microseconds if any
         int dot = str.indexOf('.');
@@ -793,7 +818,7 @@ public class Utility {
             }
             String ms = normalizeMs(sep > 0? str.substring(dot, sep) : str.substring(dot));
             // remove colon from timezone
-            String timezone = sep == -1? "+0000" : str.substring(sep).replace(":", "");
+            String timezone = sep == -1? ZERO_OFFSET : str.substring(sep).replace(":", "");
             str = str.substring(0, dot) + ms + timezone;
         }
         // parse the normalized time string
@@ -938,8 +963,7 @@ public class Utility {
     //////////////////////////////////
 
     public boolean portReady(String host, int port, int timeoutMs) {
-        // try twice
-        return testPort(host, port, timeoutMs) || testPort(host, port, timeoutMs);
+        return testPort(host, port, timeoutMs);
     }
 
     private boolean testPort(String host, int port, int timeoutMs) {

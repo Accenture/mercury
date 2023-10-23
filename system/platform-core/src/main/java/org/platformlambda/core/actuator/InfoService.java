@@ -22,7 +22,6 @@ import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
-import org.platformlambda.core.models.VersionInfo;
 import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -92,14 +91,13 @@ public class InfoService implements LambdaFunction {
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> app = new HashMap<>();
         Utility util = Utility.getInstance();
-        VersionInfo info = util.getVersionInfo();
         result.put(APP, app);
         /*
          * When running inside IDE, there are no information about libraries
          * so it is better to take the application name from the application.properties
          */
-        app.put(NAME, info.getArtifactId());
-        app.put(VERSION, info.getVersion());
+        app.put(NAME, platform.getName());
+        app.put(VERSION, util.getVersion());
         app.put(DESCRIPTION, appDesc);
         String appId = platform.getAppId();
         if (appId != null) {

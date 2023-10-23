@@ -4,6 +4,15 @@
 # for the original URL and path parameters
 #
 rest:
+  # "event.api.service" accepts an external application making event call to a function in this app instance.
+  # It handles both RPC and drop-n-forget async requests
+  # Optionally, you can add "authentication" service to validate incoming request from the external application.
+  - service: [ "event.api.service" ]
+    methods: [ 'POST' ]
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
+
   # service should be a target service name or a list of service names
   # If more than one service name is provided, the first one is the primary target
   # and the rest are secondary target(s). The system will copy the HTTP request event to the secondary targets.
@@ -11,9 +20,9 @@ rest:
   # This feature is used for seamless legacy system migration where we can send
   # the same request to the old and the new services at the same time for A/B comparison.
   - service: ["hello.world"]
-    methods: ['GET']
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
     url: "/api/hello/world"
-    timeout: 20s
+    timeout: 10s
     #
     # Optional authentication service which should return a true or false result
     # The authentication service can also add session info in headers using EventEnvelope as a response
@@ -26,7 +35,6 @@ rest:
     # For routing using header only, use "key: service" format
     # For default authentication service, use "default: service" format
     #
-    #    authentication: "v1.api.auth"
     #    authentication:
     #    - "x-app-name: demo : v1.app.auth"
     #    - "authorization: v1.app.auth"
@@ -40,40 +48,22 @@ rest:
     # optionally, you can turn on Distributed Tracing
     tracing: true
 
-  - service: "hello.world"
-    methods: ['POST']
-    url: "/api/upload/demo"
-    # to support multi-part file upload, set upload to true
-    upload: true
-    timeout: 15s
+  # Demo service for wild card url and query.
+  # Query parameters are place-holders for documentation purpose only.
+  - service: "hello.simple"
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/simple/{task}/*?a=_&b=_"
+    timeout: 12s
     cors: cors_1
     headers: header_1
+    tracing: true
 
-  # demonstrate path parameter and wild card
-  - service: "hello.world"
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/nice/{task}/*"
-    timeout: 12
-    cors: cors_1
-    headers: header_1
-
-  #
-  # When service is a URL, it will relay HTTP or HTTPS requests.
-  # "trust_all_cert" and "url_rewrite" are optional.
-  #
-  # For target host with self-signed certificate, you may set "trust_all_cert" to true.
-  # trust_all_cert: true
-  #
-  # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
-  # e.g. url_rewrite: ['/api/v1', '/v1/api']
-  # In this example, "/api/v1" will be replaced with "/v1/api"
-  #
-  - service: "http://127.0.0.1:8100"
-    trust_all_cert: true
-    methods: ['GET', 'PUT', 'POST']
-    url: "/api/v1/*"
-    url_rewrite: ['/api/v1', '/api']
-    timeout: 20
+  - service: "hello.generic"
+    methods: ['GET']
+    url: "/api/hello/generic/{id}"
+    # Turn on authentication. The "v1.api.auth" function is the AuthDemo class.
+    authentication: "v1.api.auth"
+    timeout: 20s
     cors: cors_1
     headers: header_1
     tracing: true
@@ -84,6 +74,49 @@ rest:
     timeout: 20
     cors: cors_1
     headers: header_1
+    tracing: true
+
+  - service: "hello.download"
+    methods: ['GET']
+    url: "/api/hello/download/{filename}"
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: "hello.upload"
+    methods: ['POST']
+    url: "/api/hello/upload"
+    # to support multipart file upload, set upload to true
+    upload: true
+    timeout: 15s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  #
+  # When service is a URL, it will relay the HTTP or HTTPS requests.
+  # "trust_all_cert" and "url_rewrite" are optional.
+  #
+  # For target host with self-signed certificate, you may set "trust_all_cert" to true.
+  # trust_all_cert: true
+  #
+  # "url_rewrite", when present as a list of 2 strings, is used to rewrite the url.
+  # e.g. url_rewrite: ['/api/v1', '/v1/api']
+  # In this example, "/api/v1" will be replaced with "/v1/api"
+  #
+  # In this example, the rest.yaml parser will print a warning about the "trust_all_cert" parameter
+  # because it is not relevant for non-secure an HTTP endpoint.
+  #
+  - service: "http://127.0.0.1:${rest.server.port}"
+    trust_all_cert: true
+    methods: ['GET', 'PUT', 'POST']
+    url: "/api/v1/*"
+    url_rewrite: ['/api/v1', '/api']
+    timeout: 20
+    cors: cors_1
+    headers: header_1
+    tracing: true
 
 #
 # CORS HEADERS for pre-flight (HTTP OPTIONS) and normal responses
@@ -91,21 +124,17 @@ rest:
 # Access-Control-Allow-Origin must be "*" or domain name starting with "http://" or "https://"
 # The use of wildcard "*" should only be allowed for non-prod environments.
 #
-# For production, please add the "api.origin" key in the application.properties.
-# In this example, the api.origin value will be used to override the value
-# in "Access-Control-Allow-Origin".
+# For production, please add the "api.origin" key in application.properties.
 #
 cors:
   - id: cors_1
-    # origin is optional. If present, it will replace Access-Control-Allow-Origin value in options and headers
-    origin: ${api.origin}
     options:
-      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Origin: ${api.origin:*}"
       - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Max-Age: 86400"
     headers:
-      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Origin: ${api.origin:*}"
       - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
       - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
       - "Access-Control-Allow-Credentials: true"
@@ -131,7 +160,7 @@ headers:
 
     response:
       #
-      # the system can filter the response headers set by a target service
+      # the system can filter the response headers set by a target service,
       # but it cannot remove any response headers set by the underlying servlet container.
       # However, you may override non-essential headers using the "add" directive. e.g. the "server" header.
       # i.e. don't touch essential headers such as content-length.

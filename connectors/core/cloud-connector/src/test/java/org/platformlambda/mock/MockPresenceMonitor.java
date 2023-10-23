@@ -260,7 +260,7 @@ public class MockPresenceMonitor implements LambdaFunction {
                                     }
                                     po.send(txPath, new EventEnvelope().setTo(READY)
                                             .setHeader(TOPIC, topicPartition)
-                                            .setHeader(VERSION, util.getVersionInfo().getVersion()).toBytes());
+                                            .setHeader(VERSION, util.getVersion()).toBytes());
                                     po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv(TYPE, JOIN),
                                             new Kv(ORIGIN, appOrigin), new Kv(TOPIC, topicPartition));
                                 } else {

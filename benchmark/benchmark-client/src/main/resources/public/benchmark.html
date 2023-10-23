@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Event System Benchmark</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" >
+</head>
+<body>
+
+<div class="container">
+    <div style="height: 10px"></div>
+    <h4 style="color: #3cb371">Event System Benchmark Test</h4>
+    <div class="input-group">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text">#</span>
+            </div>
+            <input id="query" type="text" class="form-control" placeholder="Enter your query here">
+        </div>
+    </div>
+    <button id="connect" type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start Service</button>
+    <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+    <div style="height: 10px"></div>
+    <pre id="message" class="border border-success rounded" style="background-color: #F8F9F9;"></pre>
+</div>
+
+<script type="text/javascript">
+/*
+ * This is a simple javascript code to connect to the DB browser service using websocket.
+ * Please note that your browser application must implement the following:
+ * 1. Connection URL is /ws/db
+ * 2. Keep-alive protocol.
+ */
+
+const MAX_ITEMS = 20;
+var inputs = []
+var msg = [];
+var connected = false;
+var ws = null;
+var ping = null;
+
+var query = document.getElementById('query');
+query.addEventListener("keyup", ({key}) => {
+    if (connected) {
+        if (key == 'ArrowUp') {
+            query.value = rotateInput(true);
+        }
+        if (key == 'ArrowDown') {
+            query.value = rotateInput(false);
+        }
+        if (key === "Enter") {
+            var text = query.value.trim();
+            if (text.length > 0) {
+                var s = {}
+                s['type'] = 'query';
+                s['query'] = text;
+                saveInput(text);
+                ws.send(JSON.stringify(s));
+            }
+            query.value = "";
+        }
+    }
+})
+
+function saveInput(input) {
+    // push input as the first item in the array
+    inputs.unshift(input);
+    while (inputs.length > MAX_ITEMS) {
+        inputs.pop();
+    }
+}
+
+function rotateInput(up) {
+    if (up) {
+        const first = inputs.shift();
+        inputs.push(first);
+        return first;
+    } else {
+        const last = inputs.pop();
+        inputs.unshift(last);
+        return last;
+    }
+}
+
+/*
+ * KEEP-ALIVE PROTOCOL
+ *
+ * WebSocket connection is persistent and it is important to tell the backend that your browser application
+ * is not stalled. Keep-alive protocol also allows your browser app to detect if notification backend service
+ * is offline. When backend is offline, the browser app can inform the user and retry the connection later.
+ *
+ * The standard websocket timeout is 60 seconds. We recommend setting the keep-alive interval
+ * between 20-30 seconds.
+ */
+var pingInterval = 20000;
+
+function show(input) {
+    // push input as the first item in the array
+    msg.unshift(input);
+    while (msg.length > MAX_ITEMS) {
+        msg.pop();
+    }
+    var s = ''
+    for (i in msg) {
+        s += msg[i];
+        s += '\n';
+    }
+    document.getElementById('message').innerHTML = s;
+}
+show(eventWithTimestamp('info', 'READY'));
+
+function disconnectFromEdge() {
+    if (connected) {
+        ws.close();
+    } else {
+        show(eventWithTimestamp("error", "already disconnected"));
+    }
+}
+
+function keepAlive() {
+    if (connected) {
+        ws.send(eventWithTimestamp("hello", "keep alive"));
+        ping = setTimeout(keepAlive, pingInterval);
+    }
+}
+
+function eventWithTimestamp(msg_type, message) {
+    return getTimestamp()+' '+msg_type.toUpperCase()+': '+message;
+}
+
+function getTimestamp() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60 * 1000;
+    const ms = now.getTime();
+    return new Date(ms - offset).toISOString().replace('T', ' ').replace('Z', '');
+}
+
+function connectToEdge() {
+
+    if ("WebSocket" in window) {
+        if (connected) {
+            show(eventWithTimestamp("error", "already connected"));
+            document.getElementById('connect').style.display = "inline"
+            return;
+        }
+        // open a web socket
+        var protocol = window.location.protocol == "http:"? "ws" : "wss";
+        ws = new WebSocket(protocol+"://"+window.location.hostname+":"+window.location.port+"/ws/test/benchmark");
+
+        ws.onopen = function() {
+            show(eventWithTimestamp("info", "connected"));
+            connected = true;
+            document.getElementById('connect').style.display = "none"
+            document.getElementById('disconnect').style.display = "inline"
+            ping = setTimeout(keepAlive, pingInterval);
+        };
+
+        ws.onmessage = function(evt) {
+            show(evt.data);
+            var text = evt.data;
+            if (text == 'CLEAR') {
+                msg = [];
+                show(eventWithTimestamp('info', 'READY'));
+            }
+        };
+
+        ws.onclose = function(evt) {
+            connected = false;
+            clearTimeout(ping);
+            show(eventWithTimestamp("info", "disconnected - ("+evt.code+") "+evt.reason));
+            document.getElementById('connect').style.display = "inline"
+            document.getElementById('disconnect').style.display = "none";
+        };
+
+    }  else {
+        show("WebSocket NOT supported by your Browser");
+    }
+}
+</script>
+
+</body>
+</html>
