@@ -33,7 +33,7 @@ will run in network mode connecting a benchmark client with a benchmark server.
 
 ## Event system abstraction
 
-You may notice that Figure 9 and Figure 10 have similar setup with the exception that the client-server mode
+You may notice that Figures 1 and 2 have similar setup with the exception that the client-server mode
 uses a Kafka event system.
 
 Under the hood, the event system is encapsulated so that the user functions do not need to deal with
