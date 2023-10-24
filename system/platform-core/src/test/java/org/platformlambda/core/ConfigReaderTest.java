@@ -114,7 +114,7 @@ public class ConfigReaderTest {
     @Test
     public void flattenMapTest() throws IOException {
         ConfigReader reader = new ConfigReader();
-        reader.load("classpath:/test.yaml");
+        reader.load("classpath:/test.yml");
         Map<String, Object> map = Utility.getInstance().getFlatMap(reader.getMap());
         Assert.assertEquals("some value", map.get("hello.world"));
         Assert.assertEquals("hi", map.get("hello.array[0]"));
