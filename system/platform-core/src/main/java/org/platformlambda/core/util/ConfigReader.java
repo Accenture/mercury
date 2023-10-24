@@ -269,11 +269,7 @@ public class ConfigReader implements ConfigBase {
             in = ConfigReader.class.getResourceAsStream(path);
         }
         if (in == null) {
-            if (alternativePath != null) {
-                throw new IOException(path+" and "+alternativePath+" not found");
-            } else {
-                throw new IOException(path + " not found");
-            }
+            throw new IOException(path + " not found");
         }
         try {
             if (isYaml) {
