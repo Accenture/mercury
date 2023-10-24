@@ -89,7 +89,7 @@ public class ConfigReaderTest {
     @Test
     public void dotFormatterTest() throws IOException {
         ConfigReader reader = new ConfigReader();
-        reader.load("classpath:/test.yaml");
+        reader.load("classpath:/test.yml");
         Object o = reader.get("hello.world");
         Assert.assertEquals("some value", o);
         o = reader.get("hello.multiline");

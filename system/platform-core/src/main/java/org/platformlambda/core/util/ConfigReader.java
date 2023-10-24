@@ -128,14 +128,40 @@ public class ConfigReader implements ConfigBase {
         return isNormalized? config.isEmpty() : properties.isEmpty();
     }
 
+    /**
+     * Load a configuration file into a config reader
+     *
+     * @param path of the configuration file prefix with "classpath:/" or "file:/"
+     * @throws IOException if file not found
+     */
     @SuppressWarnings("unchecked")
     public void load(String path) throws IOException {
+        boolean isYaml = path.endsWith(YML) || path.endsWith(YAML);
+        // ".yaml" and ".yml" can be used interchangeably
+        final String alternativePath;
+        if (isYaml) {
+            String pathWithoutExt = path.substring(0, path.lastIndexOf('.'));
+            alternativePath = path.endsWith(YML)? pathWithoutExt + YAML : pathWithoutExt + YML;
+        } else {
+            alternativePath = null;
+        }
         InputStream in = null;
         if (path.startsWith(CLASSPATH)) {
             in = ConfigReader.class.getResourceAsStream(path.substring(CLASSPATH.length()));
+            if (in == null && alternativePath != null) {
+                in = ConfigReader.class.getResourceAsStream(alternativePath.substring(CLASSPATH.length()));
+            }
         } else if (path.startsWith(FILEPATH)) {
+            String filePath = path.substring(FILEPATH.length());
+            File f = new File(filePath);
             try {
-                in = Files.newInputStream(Paths.get(path.substring(FILEPATH.length())));
+                if (f.exists()) {
+                    in = Files.newInputStream(Paths.get(filePath));
+                } else {
+                    if (alternativePath != null) {
+                        in = Files.newInputStream(Paths.get(alternativePath.substring(FILEPATH.length())));
+                    }
+                }
             } catch (IOException e) {
                 // ok to ignore
             }
@@ -143,10 +169,10 @@ public class ConfigReader implements ConfigBase {
             in = ConfigReader.class.getResourceAsStream(path);
         }
         if (in == null) {
-            throw new IOException(path+" not found");
+            throw new IOException(path + " not found");
         }
         try {
-            if (path.endsWith(YML) || path.endsWith(YAML)) {
+            if (isYaml) {
                 Yaml yaml = new Yaml();
                 String data = Utility.getInstance().stream2str(in);
                 Map<String, Object> m = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
@@ -162,9 +188,7 @@ public class ConfigReader implements ConfigBase {
                 properties = new HashMap<>();
                 Properties p = new Properties();
                 p.load(in);
-                for (Object k : p.keySet()) {
-                    properties.put(k.toString(), p.get(k));
-                }
+                p.forEach((k, v) -> properties.put(String.valueOf(k), v));
                 isNormalized = false;
             }
         } finally {
