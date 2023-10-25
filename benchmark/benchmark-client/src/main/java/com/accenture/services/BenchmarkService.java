@@ -32,6 +32,7 @@ public class BenchmarkService implements LambdaFunction {
     private static final String TIME = "time";
     private static final String EVENTS_PER_SECOND = " events per second";
     private static final String MS = " ms";
+    private static final String BPS = " bps";
     private static boolean testRunning = false;
     private static BenchmarkRequest benchmarkRequest;
     private static final ConcurrentMap<Integer, BenchmarkResponse> responses = new ConcurrentHashMap<>();
@@ -75,6 +76,16 @@ public class BenchmarkService implements LambdaFunction {
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Command = "+command);
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Sent = "+number.format(count));
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Received = "+number.format(responses.size()));
+        po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
+                " INFO: Total time spent in publishing = "+number.format(benchmarkRequest.timeSpendPublishing)+MS);
+
+        if (benchmarkRequest.timeSpendPublishing > 0) {
+            float publishRate = ((float) count * 1000) / benchmarkRequest.timeSpendPublishing;
+            float publishBps = publishRate * size * 8;
+            po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
+                    " INFO: Publish rate = "+number.format(publishRate)+EVENTS_PER_SECOND+", "+
+                    number.format(publishBps)+BPS);
+        }
 
         long minOneTrip = Long.MAX_VALUE;
         long maxOneTrip = 0;
@@ -83,7 +94,7 @@ public class BenchmarkService implements LambdaFunction {
         Date now = new Date();
         long totalTime = now.getTime() - start.getTime();
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                " INFO: Total time spent = "+number.format(totalTime)+" ms");
+                " INFO: Total time spent end-to-end = "+number.format(totalTime)+" ms");
 
         for (Map.Entry<Integer, BenchmarkResponse> entry: responses.entrySet()) {
             BenchmarkResponse res = entry.getValue();
@@ -114,13 +125,17 @@ public class BenchmarkService implements LambdaFunction {
 
         if (maxOneTrip > 0) {
             float avgOneTrip = ((float) count * 1000) / maxOneTrip;
+            float oneTripBps = avgOneTrip * size * 8;
             po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                    " INFO: oneTrip = "+number.format(avgOneTrip)+EVENTS_PER_SECOND);
+                    " INFO: oneTrip = "+number.format(avgOneTrip)+EVENTS_PER_SECOND+", "+
+                    number.format(oneTripBps)+BPS);
         }
         if (maxRoundTrip > 0) {
             float avgRoundTrip = ((float) count * 1000) / maxRoundTrip;
+            float roundTripBps = avgRoundTrip * size * 8 * 2;
             po.send(BENCHMARK_USERS, util.getLocalTimestamp() +
-                    " INFO: roundTrip = " + number.format(avgRoundTrip) + EVENTS_PER_SECOND);
+                    " INFO: roundTrip = " + number.format(avgRoundTrip) + EVENTS_PER_SECOND+", "+
+                    number.format(roundTripBps)+BPS);
         }
     }
     @Override
@@ -171,12 +186,15 @@ public class BenchmarkService implements LambdaFunction {
                 responses.clear();
                 testRunning = true;
 
+                long start = System.currentTimeMillis();
+
                 for (int i=0; i < benchmarkRequest.count; i++) {
                     EventEnvelope request = new EventEnvelope().setTo(target).setBody(data)
                             .setCorrelationId(benchmarkRequest.cid)
                             .setReplyTo(BENCHMARK_CALLBACK+"@"+me);
                     po.send(request);
                 }
+                benchmarkRequest.timeSpendPublishing = System.currentTimeMillis() - start;
 
             } catch(IllegalArgumentException e) {
                 po.send(sender, util.getLocalTimestamp()+" WARN: "+e.getMessage());

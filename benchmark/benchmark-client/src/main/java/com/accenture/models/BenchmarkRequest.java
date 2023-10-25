@@ -11,7 +11,7 @@ public class BenchmarkRequest {
     public int size;
     public Date start;
     public String cid;
-
+    public long timeSpendPublishing = 0;
     public int received = 0;
 
     public BenchmarkRequest(boolean isEcho, int count, int size) {
