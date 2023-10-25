@@ -132,7 +132,11 @@ public class BenchmarkService implements LambdaFunction {
         }
         if (maxRoundTrip > 0) {
             float avgRoundTrip = ((float) count * 1000) / maxRoundTrip;
-            float roundTripBps = avgRoundTrip * size * 8 * 2;
+            float roundTripBps = avgRoundTrip * size * 8;
+            // if payload is echoed, traffic volume should be doubled.
+            if (benchmarkRequest.isEcho) {
+                roundTripBps *= 2;
+            }
             po.send(BENCHMARK_USERS, util.getLocalTimestamp() +
                     " INFO: roundTrip = " + number.format(avgRoundTrip) + EVENTS_PER_SECOND+", "+
                     number.format(roundTripBps)+BPS);
