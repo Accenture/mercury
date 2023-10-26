@@ -20,6 +20,7 @@ package com.accenture.benchmark;
 
 import com.accenture.services.BenchmarkService;
 import com.accenture.services.Echo;
+import com.accenture.services.InMemoryEventHealthCheck;
 import com.accenture.services.ReceiveOnly;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
@@ -27,6 +28,7 @@ import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.LocalPubSub;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.AppConfigReader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +58,7 @@ public class MainApp implements EntryPoint {
         if ("none".equals(config.getProperty("cloud.connector", "none"))) {
             platform.registerPrivate("network.echo", new Echo(), 200);
             platform.registerPrivate("network.one.way", new ReceiveOnly(), 200);
+            platform.registerKotlinPrivate("cloud.connector.health", new InMemoryEventHealthCheck(), 5);
         }
         platform.connectToCloud();
         platform.registerPrivate(BENCHMARK_SERVICE, new BenchmarkService(), 10);
