@@ -27,6 +27,8 @@ import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.Utility;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.NumberFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -47,12 +49,16 @@ public class BenchmarkService implements LambdaFunction {
     private static final String START = "start";
     private static final String ASYNC = "async";
     private static final String ECHO = "echo";
+    private static final String HTTP = "http";
+    private static final String HTTPS = "https";
     private static final String TIME = "time";
     private static final String EVENTS_PER_SECOND = " events per second";
     private static final String MS = " ms";
     private static final String BPS = " bps";
+    private static final String WARNING = " WARN: ";
     private static boolean testRunning = false;
     private static BenchmarkRequest benchmarkRequest;
+    private static String httpTarget;
     private static final ConcurrentMap<Integer, BenchmarkResponse> responses = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
@@ -89,8 +95,7 @@ public class BenchmarkService implements LambdaFunction {
         Date start = benchmarkRequest.start;
         Utility util = Utility.getInstance();
         EventEmitter po = EventEmitter.getInstance();
-        String command = (benchmarkRequest.isEcho? ECHO : ASYNC)+" "+
-                            number.format(count)+" "+ PAYLOAD+" "+number.format(size);
+        String command = benchmarkRequest.type+" "+number.format(count)+" "+ PAYLOAD+" "+number.format(size);
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Command = "+command);
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Sent = "+number.format(count));
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+" INFO: Received = "+number.format(responses.size()));
@@ -152,7 +157,7 @@ public class BenchmarkService implements LambdaFunction {
             float avgRoundTrip = ((float) count * 1000) / maxRoundTrip;
             float roundTripBps = avgRoundTrip * size * 8;
             // if payload is echoed, traffic volume should be doubled.
-            if (benchmarkRequest.isEcho) {
+            if (!ASYNC.equals(benchmarkRequest.type)) {
                 roundTripBps *= 2;
             }
             po.send(BENCHMARK_USERS, util.getLocalTimestamp() +
@@ -171,10 +176,12 @@ public class BenchmarkService implements LambdaFunction {
             String command = headers.get(COMMAND);
             if ("help".equals(command)) {
                 po.send(sender, util.getLocalTimestamp()+" INFO: Available commands");
+                po.send(sender, "Note: 'async' is one-way event and 'echo' is two-way. 'http' is event over HTTP.");
                 po.send(sender, "help <-- this command");
                 po.send(sender, "reset <-- restart benchmark in case of failure");
                 po.send(sender, "clear <-- clear browser display area");
-                po.send(sender, "async | echo {count} payload {size in bytes}");
+                po.send(sender, "set target {EventOverHttpTarget} <-- e.g. set target http://127.0.0.1:8083");
+                po.send(sender, "async | echo | http {count} payload {size in bytes}");
                 return true;
             }
             if ("reset".equals(command)) {
@@ -182,19 +189,53 @@ public class BenchmarkService implements LambdaFunction {
                 po.send(sender, util.getLocalTimestamp()+" INFO: Benchmark reset.");
                 return true;
             }
+            List<String> parts = util.split(command.replace(",", ""), " ");
+            if ("get".equals(parts.get(0)) && "target".equals(parts.get(1))) {
+                po.send(sender, util.getLocalTimestamp()+" INFO: EventOverHTTP = "+
+                        (httpTarget == null? " not set" : httpTarget));
+                return true;
+            }
+            if (parts.size() == 3 && "set".equals(parts.get(0)) && "target".equals(parts.get(1))) {
+                final URI url;
+                try {
+                    url = new URI(parts.get(2));
+                } catch (URISyntaxException e) {
+                    po.send(sender, util.getLocalTimestamp()+ WARNING+e.getMessage());
+                    return false;
+                }
+                if (!(url.getPath().isEmpty() || url.getPath().equals("/api/event"))) {
+                    po.send(sender, util.getLocalTimestamp()+
+                            " WARN: Invalid target. It should be http or https with host and port");
+                    return false;
+                }
+                String scheme = url.getScheme();
+                if (!(HTTP.equals(scheme) || HTTPS.equals(scheme))) {
+                    po.send(sender, util.getLocalTimestamp()+
+                            " WARN: Invalid target. Protocol should be http or https");
+                    return false;
+                }
+                int port = url.getPort();
+                if (port == -1) {
+                    port = HTTP.equals(scheme)? 80 : 443;
+                }
+                httpTarget = url.getScheme()+"://"+url.getHost()+":"+port+"/api/event";
+                po.send(sender, util.getLocalTimestamp()+" INFO: EventOverHttp endpoint set to "+httpTarget);
+                return true;
+            }
             if (testRunning) {
-                po.send(sender, util.getLocalTimestamp()+" WARN: Benchmark in progress. Please try later.");
+                po.send(sender, util.getLocalTimestamp()+
+                        " WARN: Benchmark in progress. Please try later or enter 'reset' to continue.");
                 return false;
             }
             try {
-                benchmarkRequest = parseCommand(command);
+                benchmarkRequest = parseCommand(parts);
                 if (benchmarkRequest.count > 5000) {
-                    throw new IllegalArgumentException("Max event count should be less than 5,000");
+                    throw new IllegalArgumentException("Max event count is 5,000");
                 }
                 if (benchmarkRequest.size > 2000 * 1000) {
-                    throw new IllegalArgumentException("Max payload size should be less than 2,000,000");
+                    throw new IllegalArgumentException("Max payload size is 2,000,000");
                 }
-                String target = benchmarkRequest.isEcho? NETWORK_ECHO : NETWORK_ONE_WAY;
+                String target = ASYNC.equals(benchmarkRequest.type)? NETWORK_ONE_WAY : NETWORK_ECHO;
                 StringBuilder sb = new StringBuilder();
                 int cycles = benchmarkRequest.size / 10;
                 for (int i=0; i < cycles; i++) {
@@ -210,31 +251,54 @@ public class BenchmarkService implements LambdaFunction {
 
                 long start = System.currentTimeMillis();
 
-                for (int i=0; i < benchmarkRequest.count; i++) {
-                    EventEnvelope request = new EventEnvelope().setTo(target).setBody(data)
-                            .setCorrelationId(benchmarkRequest.cid)
-                            .setReplyTo(BENCHMARK_CALLBACK+"@"+me);
-                    po.send(request);
+                if (HTTP.equals(benchmarkRequest.type)) {
+                    if (httpTarget == null) {
+                        throw new IllegalArgumentException("Please set target for EventOverHttp first");
+                    }
+                    for (int i=0; i < benchmarkRequest.count; i++) {
+                        EventEnvelope request = new EventEnvelope().setTo(target).setBody(data)
+                                .setCorrelationId(benchmarkRequest.cid)
+                                .setReplyTo(BENCHMARK_CALLBACK+"@"+me);
+                        po.asyncRequest(request, 30000, new HashMap<>(), httpTarget, true)
+                            .onSuccess(res -> {
+                                try {
+                                    po.send(new EventEnvelope().setTo(BENCHMARK_CALLBACK)
+                                            .setBody(res.getBody()).setCorrelationId(benchmarkRequest.cid));
+                                } catch (IOException e) {
+                                    try {
+                                        po.send(sender, util.getLocalTimestamp()+WARNING+e.getMessage());
+                                    } catch (IOException ex) {
+                                        // ok to ignore
+                                    }
+                                }
+                            });
+                    }
+                } else {
+                    for (int i=0; i < benchmarkRequest.count; i++) {
+                        EventEnvelope request = new EventEnvelope().setTo(target).setBody(data)
+                                .setCorrelationId(benchmarkRequest.cid)
+                                .setReplyTo(BENCHMARK_CALLBACK+"@"+me);
+                        po.send(request);
+                    }
                 }
                 benchmarkRequest.timeSpendPublishing = System.currentTimeMillis() - start;
 
             } catch(IllegalArgumentException e) {
-                po.send(sender, util.getLocalTimestamp()+" WARN: "+e.getMessage());
+                po.send(sender, util.getLocalTimestamp()+WARNING+e.getMessage());
             }
         }
         return true;
     }
 
-    private BenchmarkRequest parseCommand(String command) {
+    private BenchmarkRequest parseCommand(List<String> parts) {
         Utility util = Utility.getInstance();
-        // normalized formatted numbers
-        List<String> parts = util.split(command.replace(",", ""), " ");
-        if (parts.size() == 4 && ((parts.get(0).equals(ASYNC) || parts.get(0).equals(ECHO)) &&
+        if (parts.size() == 4 &&
+                ((parts.get(0).equals(ASYNC) || parts.get(0).equals(ECHO) || parts.get(0).equals(HTTP)) &&
                     parts.get(2).equals(PAYLOAD) &&
                     util.isDigits(parts.get(1)) && util.isDigits(parts.get(3)))) {
                 int count = util.str2int(parts.get(1));
                 int size = util.str2int(parts.get(3));
-                return new BenchmarkRequest(parts.get(0).equals(ECHO), count, size);
+                return new BenchmarkRequest(parts.get(0), count, size);
 
         }
         throw new IllegalArgumentException("Syntax: async | echo {count} payload {size in bytes}");

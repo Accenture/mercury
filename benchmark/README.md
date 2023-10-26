@@ -106,18 +106,18 @@ The benchmark client is pre-configured to run in standalone mode. You can start 
 
 ```shell
 cd sandbox/mercury/benchmark-client
-java -jar target/benchmark-client-3.0.5.jar
+java -jar target/benchmark-client-3.0.6.jar
 ```
 
 To run the benchmark in client-server mode, please start the server and client apps like this:
 
 ```shell
 cd sandbox/mercury/benchmark-server
-java -jar target/benchmark-server-3.0.5.jar
+java -jar target/benchmark-server-3.0.6.jar
 cd sandbox/mercury/connectors/adapter/kafka/kafka-presence
-java -jar target/kafka-presence-3.0.5.jar
+java -jar target/kafka-presence-3.0.6.jar
 cd sandbox/mercury/benchmark-client
-java -Dcloud.connector=kafka -jar target/benchmark-client-3.0.5.jar
+java -Dcloud.connector=kafka -jar target/benchmark-client-3.0.6.jar
 ```
 
 Note that you can either update the application.properties in the client application or
@@ -132,7 +132,7 @@ Click "start service" and then enter "help". It will show the options.
 The syntax for running a benchmark test is:
 
 ```shell
-async | echo {count} payload {size}
+async | echo | http {count} payload {size}
 ```
 
 "async" means it will send events from the producer to the consumer in a single direction.
@@ -141,10 +141,22 @@ The consumer will save a timestamp so that the latency can be calculated.
 "echo" means it will send events from the producer to the consumer where the consumer will echo
 back the input to complete a round trip measurement.
 
-Note that the send and receive paths are served by two separate topic/partition when running in network mode.
-
 Size of the event payload is measured in bytes. The payload does not count the event metadata. 
 However, the metadata overheads are minimal and they do not impact the accuracy of the benchmark.
+
+> Note that the send and receive paths are served by two separate topic/partition
+  when running in network mode.
+
+"http" is a special case for "Event Over HTTP". You would need to provide the target server URL
+using the "set target {eventOverHttpTarget}" command first.
+
+e.g. http://127.0.0.1:8083 would tell the system to make "event over HTTP" calls to itself through
+the network. http://127.0.0.1:8085 would tell the system to make "event over HTTP" calls to the
+benchmark server in localhost. If you deploy the benchmark client and server in your environment,
+please replace the localhost address with your target server address.
+
+This would evaluate the inter-container communication efficiency between application containers
+using HTTP.
 
 # Behind the curtain
 

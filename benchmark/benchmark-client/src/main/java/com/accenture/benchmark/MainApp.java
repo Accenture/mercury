@@ -56,8 +56,8 @@ public class MainApp implements EntryPoint {
         AppConfigReader config = AppConfigReader.getInstance();
         // if there is no network connector, the benchmark will be conducted during the in-memory event system
         if ("none".equals(config.getProperty("cloud.connector", "none"))) {
-            platform.registerPrivate("network.echo", new Echo(), 200);
-            platform.registerPrivate("network.one.way", new ReceiveOnly(), 200);
+            platform.register("network.echo", new Echo(), 200);
+            platform.register("network.one.way", new ReceiveOnly(), 200);
             platform.registerKotlinPrivate("cloud.connector.health", new InMemoryEventHealthCheck(), 5);
         }
         platform.connectToCloud();

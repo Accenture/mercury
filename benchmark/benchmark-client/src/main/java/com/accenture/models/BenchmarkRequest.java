@@ -24,7 +24,7 @@ import java.util.Date;
 
 public class BenchmarkRequest {
 
-    public boolean isEcho;
+    public String type;
     public int count;
     public int size;
     public Date start;
@@ -32,8 +32,8 @@ public class BenchmarkRequest {
     public long timeSpendPublishing = 0;
     public int received = 0;
 
-    public BenchmarkRequest(boolean isEcho, int count, int size) {
-        this.isEcho = isEcho;
+    public BenchmarkRequest(String type, int count, int size) {
+        this.type = type;
         this.count = Math.max(1, count);
         this.size = Math.max(10, (size / 10) * 10); // to be nearest 10
         this.start = new Date();

@@ -43,8 +43,9 @@ class InMemoryEventHealthCheck: KotlinLambdaFunction<EventEnvelope, Any> {
             val req = EventEnvelope().setTo("network.one.way").setBody(payload)
             val response = fastRPC.awaitRequest(req, 5000)
             if (response.body is Map<*, *>) {
-                val oneTrip = Utility.getInstance().str2date(""+(response.body as Map<*, *>)["time"])
-                return "test event delivered in ${oneTrip.time - start} ms"
+                val timestamp = ""+(response.body as Map<*, *>)["time"]
+                val oneTrip = Utility.getInstance().str2date(timestamp)
+                return "test event delivered in ${oneTrip.time - start} ms - "+timestamp
             }
         }
         throw IllegalArgumentException("type must be info or health")

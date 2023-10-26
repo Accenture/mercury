@@ -7,7 +7,7 @@
     <artifactId>benchmark-client</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.5</version>
+    <version>3.0.6</version>
     <name>Benchmark client</name>
 
     <parent>
@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.5</version>
+            <version>3.0.6</version>
         </dependency>
 
         <!-- select your cloud connector (hazelcast-connector or kafka-connector).
@@ -56,7 +56,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.5</version>
+            <version>3.0.6</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->
