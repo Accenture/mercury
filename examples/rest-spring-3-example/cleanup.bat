@@ -1,2 +1,0 @@
-del target\original*
-

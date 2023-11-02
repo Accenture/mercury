@@ -21,7 +21,10 @@ N/A
 
 ### Changed
 
-N/A
+Updated open sources libraries
+
+1. Spring Boot 2/3 to version 2.7.17 and 3.1.5 respectively
+2. Kafka-client 3.6.0
 
 ---
 ## Version 3.0.5, 10/21/2023

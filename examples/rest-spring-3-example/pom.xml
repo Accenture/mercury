@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.1.4</version>
+        <version>3.1.5</version>
         <relativePath/>
     </parent>
 
@@ -20,7 +20,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.1.2</hazelcast.version>
-        <kafka.version>3.5.1</kafka.version>     
+        <kafka.version>3.6.0</kafka.version>     
         <gson.version>2.10.1</gson.version>
         <slf4j.version>2.0.9</slf4j.version>
         <log4j2.version>2.20.0</log4j2.version>
@@ -73,33 +73,6 @@
         </dependency>
 
     </dependencies>
-
-    <profiles>
-        <profile>
-            <id>Windows</id>
-            <activation>
-                <os>
-                    <family>Windows</family>
-                </os>
-            </activation>
-            <properties>
-                <shell.command>powershell.exe</shell.command>
-                <remove.original>${project.basedir}\cleanup.bat</remove.original>
-            </properties>
-        </profile>
-        <profile>
-            <id>unix</id>
-            <activation>
-                <os>
-                    <family>unix</family>
-                </os>
-            </activation>
-            <properties>
-                <shell.command>bash</shell.command>
-                <remove.original>${project.basedir}/cleanup.sh</remove.original>
-            </properties>
-        </profile>
-    </profiles>    
 
     <build>
         <plugins>
@@ -176,45 +149,21 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <executions>
-                    <execution>
-                        <id>mercury</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.outputDirectory}</outputDirectory>
-                            <finalName>${project.artifactId}-${project.version}</finalName>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>clean-up</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- DO NOT CHANGE THIS
+                     AppStarter will find your Main Application(s) -->
                 <configuration>
-                    <executable>${shell.command}</executable>
-                    <commandlineArgs>${remove.original}</commandlineArgs>
+                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

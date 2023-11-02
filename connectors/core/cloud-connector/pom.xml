@@ -21,7 +21,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.1.2</hazelcast.version>
-        <kafka.version>3.5.1</kafka.version>
+        <kafka.version>3.6.0</kafka.version>
         <gson.version>2.10.1</gson.version>
         <slf4j.version>2.0.9</slf4j.version>
         <log4j2.version>2.20.0</log4j2.version>
