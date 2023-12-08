@@ -156,7 +156,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
             }
         }
         if (!processed) {
-            if (uri.equals("/")) {
+            if ("/".equals(uri)) {
                 Map<String, Object> instruction = new HashMap<>();
                 List<String> endpoints = new ArrayList<>();
                 instruction.put(MESSAGE, "Minimalist HTTP server supports these admin endpoints");
@@ -192,7 +192,7 @@ public class MinimalistHttpHandler implements Handler<HttpServerRequest> {
         EventEnvelope event = new EventEnvelope().setHeader(TYPE, type);
         event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         event.setHeader(USER, System.getProperty("user.name"));
-        String when = parts.get(1).equals(NOW) ? NOW : LATER;
+        String when = NOW.equals(parts.get(1)) ? NOW : LATER;
         event.setHeader(WHEN, when);
         po.sendLater(event, new Date(System.currentTimeMillis() + GRACE_PERIOD));
         String message = type+" request sent to " + origin;

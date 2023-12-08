@@ -111,17 +111,17 @@ public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope
                          * 1. "stream" and "timeout" are reserved as stream ID and read timeout in seconds
                          * 2. "trace_id" and "trace_path" should be dropped from HTTP response headers
                          */
-                        if (key.equals(STREAM) && value.startsWith(STREAM_PREFIX) &&
+                        if (STREAM.equals(key) && value.startsWith(STREAM_PREFIX) &&
                                 value.contains(INPUT_STREAM_SUFFIX)) {
                             streamId = value;
-                        } else if (key.equalsIgnoreCase(TIMEOUT)) {
+                        } else if (TIMEOUT.equalsIgnoreCase(key)) {
                             streamTimeout = value;
-                        } else if (key.equalsIgnoreCase(CONTENT_TYPE)) {
+                        } else if (CONTENT_TYPE.equalsIgnoreCase(key)) {
                             if (!httpHead) {
                                 contentType = value.toLowerCase();
                                 response.putHeader(CONTENT_TYPE, contentType);
                             }
-                        } else if (key.equalsIgnoreCase(SET_COOKIE)) {
+                        } else if (SET_COOKIE.equalsIgnoreCase(key)) {
                             httpUtil.setCookies(response, value);
                         } else {
                             resHeaders.put(key, value);

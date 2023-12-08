@@ -237,7 +237,7 @@ public class HttpRequestHandler implements Handler<HttpServerRequest> {
             }
             event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
-        String when = parts.get(1).equals(NOW) ? NOW : LATER;
+        String when = NOW.equals(parts.get(1)) ? NOW : LATER;
         event.setHeader(WHEN, when);
         try {
             po.send(event);

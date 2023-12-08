@@ -110,7 +110,7 @@ public class EventEmitter {
             });
         }
         // load route substitution table if any
-        if (config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false").equals("true")) {
+        if ("true".equals(config.getProperty(ROUTE_SUBSTITUTION_FEATURE, "false"))) {
             platform.getEventExecutor().submit(this::loadRouteSubstitution);
         }
     }
@@ -330,7 +330,7 @@ public class EventEmitter {
      * @throws IOException in case route is not found
      */
     public TargetRoute discover(String to, boolean endOfRoute) throws IOException {
-        boolean checkCloud = !endOfRoute && !to.equals(CLOUD_CONNECTOR);
+        boolean checkCloud = !endOfRoute && !CLOUD_CONNECTOR.equals(to);
         Platform platform = Platform.getInstance();
         if (to.contains("@")) {
             int at = to.indexOf('@');
@@ -626,7 +626,7 @@ public class EventEmitter {
             /*
              * The target is the same memory space. We will route it to the cloud connector if broadcast.
              */
-            if (Platform.isCloudSelected() && event.getBroadcastLevel() == 1 && !to.equals(CLOUD_CONNECTOR)) {
+            if (Platform.isCloudSelected() && event.getBroadcastLevel() == 1 && !CLOUD_CONNECTOR.equals(to)) {
                 TargetRoute cloud = getCloudRoute();
                 if (cloud != null) {
                     if (cloud.isCloud()) {

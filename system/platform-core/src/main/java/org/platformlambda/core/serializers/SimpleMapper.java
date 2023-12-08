@@ -44,7 +44,7 @@ public class SimpleMapper {
     private SimpleMapper() {
         // Camel or snake case
         AppConfigReader config = AppConfigReader.getInstance();
-        boolean snake = config.getProperty(SNAKE_CASE_SERIALIZATION, "true").equals("true");
+        boolean snake = "true".equals(config.getProperty(SNAKE_CASE_SERIALIZATION, "true"));
         if (snake) {
             log.info("{} enabled", SNAKE_CASE_SERIALIZATION);
         }

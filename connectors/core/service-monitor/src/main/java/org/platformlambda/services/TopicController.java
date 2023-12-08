@@ -258,7 +258,7 @@ public class TopicController implements LambdaFunction {
     private String nextTopic(String appOrigin) throws IOException {
         for (String t: allTopics) {
             String value = topicStore.get(t);
-            if (value.equals(AVAILABLE)) {
+            if (AVAILABLE.equals(value)) {
                 topicStore.put(t, appOrigin);
                 return t;
             }

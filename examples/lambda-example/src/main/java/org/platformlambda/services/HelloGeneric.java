@@ -56,7 +56,7 @@ public class HelloGeneric implements TypedLambdaFunction<AsyncHttpRequest, Objec
         log.info("Got session information {}", input.getSessionInfo());
         // simple validation
         String id = input.getPathParameter("id");
-        if (id.equals("1")) {
+        if ("1".equals(id)) {
             // To set status, key-values or parametric types, we can use EventEnvelope as a result wrapper
             EventEnvelope result = new EventEnvelope();
             ObjectWithGenericType<SamplePoJo> genericObject = new ObjectWithGenericType<>();

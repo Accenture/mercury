@@ -37,7 +37,7 @@ public class SimpleXmlWriter {
     public String write(Object map) {
         String className = map.getClass().getSimpleName();
         // className hierarchy filtering: dot for subclass and dollar-sign for nested class
-        String root = className.equals("HashMap") ? "root" : className;
+        String root = "HashMap".equals(className) ? "root" : className;
         return write(root.toLowerCase(), map);
     }
 

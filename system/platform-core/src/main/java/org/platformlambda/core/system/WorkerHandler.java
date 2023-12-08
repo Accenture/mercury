@@ -244,7 +244,7 @@ public class WorkerHandler {
                         }
                         for (Map.Entry<String, String> kv: headers.entrySet()) {
                             String k = kv.getKey();
-                            if (!k.equals(MY_ROUTE) && !k.equals(MY_TRACE_ID) && !k.equals(MY_TRACE_PATH)) {
+                            if (!MY_ROUTE.equals(k) && !MY_TRACE_ID.equals(k) && !MY_TRACE_PATH.equals(k)) {
                                 response.setHeader(k, kv.getValue());
                             }
                         }

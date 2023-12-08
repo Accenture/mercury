@@ -48,7 +48,7 @@ public class HelloPoJo implements LambdaFunction {
         if (id == null) {
             throw new IllegalArgumentException("Missing parameter 'id'");
         }
-        if (id.equals("1")) {
+        if ("1".equals(id)) {
             // return some place-holder values to demonstrate the PoJo can be transported over the network
             SamplePoJo mock = new SamplePoJo(1, "Simple PoJo class", "100 World Blvd, Planet Earth");
             // set current timestamp to indicate that the object is a new one

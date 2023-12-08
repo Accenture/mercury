@@ -82,7 +82,7 @@ public class ServiceQuery implements LambdaFunction {
 
         } else if (FIND.equals(type) && headers.containsKey(ROUTE)) {
             String route = headers.get(ROUTE);
-            if (route.equals("*")) {
+            if ("*".equals(route)) {
                 if (input instanceof List) {
                     return exists((List<String>) input);
                 } else {

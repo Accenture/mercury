@@ -203,7 +203,7 @@ public class BenchmarkService implements LambdaFunction {
                     po.send(sender, util.getLocalTimestamp()+ WARNING+e.getMessage());
                     return false;
                 }
-                if (!(url.getPath().isEmpty() || url.getPath().equals("/api/event"))) {
+                if (!(url.getPath().isEmpty() || "/api/event".equals(url.getPath()))) {
                     po.send(sender, util.getLocalTimestamp()+
                             " WARN: Invalid target. It should be http or https with host and port");
                     return false;
@@ -293,8 +293,8 @@ public class BenchmarkService implements LambdaFunction {
     private BenchmarkRequest parseCommand(List<String> parts) {
         Utility util = Utility.getInstance();
         if (parts.size() == 4 &&
-                ((parts.get(0).equals(ASYNC) || parts.get(0).equals(ECHO) || parts.get(0).equals(HTTP)) &&
-                    parts.get(2).equals(PAYLOAD) &&
+                ((ASYNC.equals(parts.get(0)) || ECHO.equals(parts.get(0)) || HTTP.equals(parts.get(0))) &&
+                    PAYLOAD.equals(parts.get(2)) &&
                     util.isDigits(parts.get(1)) && util.isDigits(parts.get(3)))) {
                 int count = util.str2int(parts.get(1));
                 int size = util.str2int(parts.get(3));

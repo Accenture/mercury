@@ -302,7 +302,7 @@ public class MonitorService implements LambdaFunction {
     private void updateInfo(Map<String, Object> info, Map<String, String> headers) {
         Utility util = Utility.getInstance();
         for (String key : headers.keySet()) {
-            if (!key.equals(ID) && !key.equals(MONITOR)) {
+            if (!ID.equals(key) && !MONITOR.equals(key)) {
                 // normalize numbers
                 String value = headers.get(key);
                 if (util.isNumeric(value)) {
