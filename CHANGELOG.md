@@ -8,6 +8,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.7, 12/23/2023
+
+### Added
+
+N/A
+
+### Removed
+
+Removed Maven Shade packager
+
+### Changed
+
+Updated open sources libraries to address security vulnerabilities
+
+1. Spring Boot 2/3 to version 2.7.18 and 3.2.1 respectively
+2. Tomcat 9.0.84
+3. Vertx 4.5.1
+4. Classgraph 4.8.165
+5. Netty 4.1.104.Final
+6. slf4j API 2.0.9
+7. log4j2 2.22.0
+8. Kotlin 1.9.22
+9. Artemis 2.31.2
+10. Hazelcast 5.3.6
+11. Guava 33.0.0-jre
+
+---
 ## Version 3.0.6, 10/26/2023
 
 ### Added
