@@ -19,6 +19,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
         <artemis.version>2.31.2</artemis.version>
         <kafka.version>3.6.0</kafka.version>
