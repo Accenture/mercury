@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.8.4, 12/25/2023
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated open sources libraries
+
+1. Spring-Boot 2.7.18
+2. classgraph 4.8.165
+3. guava 33.0.0-jre
+4. tomcat 9.0.84
+5. vertx 4.5.1
+6. netty 4.1.104.Final
+7. artemis 2.31.2
+8. hazelcast 5.3.6
+---
+
 ## Version 2.8.3, 10/22/2023
 
 ### Added
@@ -21,11 +45,12 @@ N/A
 Updated open sources libraries
 
 1. Spring-Boot 2.7.16
-3. classgraph 4.8.163
-4. guava 32.1.3-jre
-5. msgpack 0.9.6
-6. vertx 4.4.6
+2. classgraph 4.8.163
+3. guava 32.1.3-jre
+4. msgpack 0.9.6
+5. vertx 4.4.6
 ---
+
 ## Version 2.8.2, 8/6/2023
 
 ### Added
