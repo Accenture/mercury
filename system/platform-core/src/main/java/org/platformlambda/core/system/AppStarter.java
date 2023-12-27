@@ -58,6 +58,9 @@ public class AppStarter {
     public static final String ASYNC_HTTP_RESPONSE = "async.http.response";
     private static final String SKIP_OPTIONAL = "Skipping optional {}";
     private static final String CLASS_NOT_FOUND = "Class {} not found";
+    private static final String JAVA_VERSION = "java.version";
+    private static final String JAVA_VM_VERSION = "java.vm.version";
+    private static final String JAVA_RUNTIME_VERSION = "java.runtime.version";
 
     private static final int MAX_SEQ = 999;
     private static boolean loaded = false;
@@ -72,6 +75,24 @@ public class AppStarter {
     public static void main(String[] args) {
         if (!loaded) {
             loaded = true;
+            /*
+             * Print out basic JVM and memory information before starting app.
+             * This helps to check if JVM is configured correctly.
+             */
+            Runtime runtime = Runtime.getRuntime();
+            NumberFormat number = NumberFormat.getInstance();
+            String javaVersion = System.getProperty(JAVA_VERSION);
+            String javaVM = System.getProperty(JAVA_VM_VERSION);
+            String javaRuntime = System.getProperty(JAVA_RUNTIME_VERSION);
+            log.info("Java version = {}", javaVersion);
+            log.info("Java VM = {}", javaVM);
+            log.info("Java Runtime = {}", javaRuntime);
+            String maxMemory = number.format(runtime.maxMemory());
+            String allocatedMemory = number.format(runtime.totalMemory());
+            String freeMemory = number.format(runtime.freeMemory());
+            log.info("Max memory = {}", maxMemory);
+            log.info("Allocated memory = {}", allocatedMemory);
+            log.info("Free memory = {}", freeMemory);
             AppStarter.args = args;
             instance = new AppStarter();
             // Run "BeforeApplication" modules

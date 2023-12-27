@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-N/A
+Print out basic JVM information before startup for verification of base container image.
 
 ### Removed
 
