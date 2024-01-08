@@ -2,6 +2,20 @@
 
 Reference engine for building "Composable architecture and applications".
 
+# Java 21 Virtual Thread
+
+Mercury 3.0 supports compatibility down to Java 1.8.
+
+If you have Java 21, you may want to jump directly to Mercury 3.1:
+
+https://github.com/Accenture/mercury-composable
+ 
+Documentation
+
+https://accenture.github.io/mercury-composable/
+ 
+https://accenture.github.io/mercury-composable/guides/CHAPTER-2/#solving-the-puzzle-of-multithreading-performance
+
 # Welcome to the Mercury project
 
 The Mercury project is created with one primary objective -
