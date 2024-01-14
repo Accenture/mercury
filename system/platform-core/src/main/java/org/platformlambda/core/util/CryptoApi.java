@@ -33,7 +33,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class CryptoApi {
 
@@ -515,16 +514,16 @@ public class CryptoApi {
      */
     public byte[] getRandomBytes(int len) {
         byte[] key = new byte[len];
-        ThreadLocalRandom.current().nextBytes(key);
+        random.nextBytes(key);
         return key;
     }
 
     public int nextInt(int bound) {
-        return ThreadLocalRandom.current().nextInt(bound);
+        return random.nextInt(bound);
     }
 
     public int nextInt(int start, int bound) {
-        return ThreadLocalRandom.current().nextInt(start, bound);
+        return random.nextInt(start, bound);
     }
 
 }
