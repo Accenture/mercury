@@ -5,7 +5,7 @@
 
     <groupId>com.accenture</groupId>
     <artifactId>rest-spring-2-example</artifactId>
-    <version>3.0.7</version>
+    <version>3.0.8</version>
     <packaging>jar</packaging>
     <name>Spring Boot 2 example</name>
 
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>rest-spring-2</artifactId>
-            <version>3.0.7</version>
+            <version>3.0.8</version>
         </dependency>
 
         <!-- Select your optional cloud connector if any.
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.7</version>
+            <version>3.0.8</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

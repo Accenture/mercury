@@ -2,7 +2,7 @@
 
 The core modules include the foundation cloud connector and service monitor.
 
-The "adapters" folder contains the specific implementations for Kafka, Hazelcast, ActiveMQ and Tibco.
+The "adapters" folder contains the specific implementations for Kafka and Hazelcast.
 
 The cloud connectors and adapters are optional modules to build a minimalist service mesh.
 

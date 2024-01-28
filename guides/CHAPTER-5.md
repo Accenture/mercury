@@ -35,7 +35,7 @@ You can also build and run the application from command line like this:
 ```shell
 cd sandbox/mercury/examples/lambda-example
 mvn clean package
-java -jar target/lambda-example-3.0.7.jar
+java -jar target/lambda-example-3.0.8.jar
 ```
 
 The lambda-example is a sample application that you can use as a template to write your own code. Please review

@@ -116,13 +116,16 @@ public class AsyncHttpRequest {
     }
 
     public String getHeader(String key) {
-        return key != null? headers.get(key.toLowerCase()) : null;
+        return caseInsensitiveGet(headers, key);
+    }
+
+    public AsyncHttpRequest removeHeader(String key) {
+        caseInsensitiveDelete(headers, key);
+        return this;
     }
 
     public AsyncHttpRequest setHeader(String key, String value) {
-        if (key != null) {
-            this.headers.put(key.toLowerCase(), value != null? value : "");
-        }
+        setNonNullValue(headers, key, value);
         return this;
     }
 
@@ -135,7 +138,7 @@ public class AsyncHttpRequest {
         if (type == null) {
             return body;
         } else {
-            Class<?> cls = PayloadMapper.getInstance().getClassByName(type);
+            final Class<?> cls = PayloadMapper.getInstance().getClassByName(type);
             return cls == null? body : SimpleMapper.getInstance().getMapper().readValue(body, cls);
         }
     }
@@ -179,13 +182,13 @@ public class AsyncHttpRequest {
         if (parameterClass.length == 0) {
             throw new IllegalArgumentException("Missing parameter class");
         }
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (Class<?> cls: parameterClass) {
             sb.append(cls.getName());
             sb.append(',');
         }
-        String parametricType = sb.substring(0, sb.length()-1);
-        TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(parametricType);
+        final String parametricType = sb.substring(0, sb.length()-1);
+        final TypedPayload typed = new TypedPayload(toValueType.getName(), body).setParametricType(parametricType);
         try {
             return (T) converter.decode(typed);
         } catch (ClassNotFoundException e) {
@@ -266,20 +269,16 @@ public class AsyncHttpRequest {
     }
 
     public String getSessionInfo(String key) {
-        return key != null? session.get(key.toLowerCase()) : null;
+        return caseInsensitiveGet(session, key);
     }
 
     public AsyncHttpRequest setSessionInfo(String key, String value) {
-        if (key != null) {
-            this.session.put(key.toLowerCase(), value != null? value : "");
-        }
+        setNonNullValue(session, key, value);
         return this;
     }
 
     public AsyncHttpRequest removeSessionInfo(String key) {
-        if (key != null) {
-            this.session.remove(key.toLowerCase());
-        }
+        caseInsensitiveDelete(session, key);
         return this;
     }
 
@@ -288,20 +287,16 @@ public class AsyncHttpRequest {
     }
 
     public String getCookie(String key) {
-        return key != null? cookies.get(key.toLowerCase()) : null;
+        return caseInsensitiveGet(cookies, key);
     }
 
     public AsyncHttpRequest setCookie(String key, String value) {
-        if (key != null) {
-            this.cookies.put(key.toLowerCase(), value != null? value : "");
-        }
+        setNonNullValue(cookies, key, value);
         return this;
     }
 
     public AsyncHttpRequest removeCookie(String key) {
-        if (key != null) {
-            this.cookies.remove(key.toLowerCase());
-        }
+        caseInsensitiveDelete(cookies, key);
         return this;
     }
 
@@ -310,20 +305,16 @@ public class AsyncHttpRequest {
     }
 
     public String getPathParameter(String key) {
-        return key != null? pathParams.get(key.toLowerCase()) : null;
+        return caseInsensitiveGet(pathParams, key);
     }
 
     public AsyncHttpRequest setPathParameter(String key, String value) {
-        if (key != null) {
-            this.pathParams.put(key.toLowerCase(), value != null? value : "");
-        }
+        setNonNullValue(pathParams, key, value);
         return this;
     }
 
     public AsyncHttpRequest removePathParameter(String key) {
-        if (key != null) {
-            this.pathParams.remove(key.toLowerCase());
-        }
+        caseInsensitiveDelete(pathParams, key);
         return this;
     }
 
@@ -333,7 +324,7 @@ public class AsyncHttpRequest {
 
     public AsyncHttpRequest setQueryString(String queryString) {
         if (queryString != null) {
-            String value = queryString.trim();
+            final String value = queryString.trim();
             this.queryString = value.isEmpty()? null : value;
         } else {
             this.queryString = null;
@@ -356,7 +347,7 @@ public class AsyncHttpRequest {
 
     public AsyncHttpRequest setUploadTag(String tag) {
         if (tag != null) {
-            String value = tag.trim();
+            final String value = tag.trim();
             this.upload = value.isEmpty()? null : value;
         } else {
             this.upload = null;
@@ -375,7 +366,7 @@ public class AsyncHttpRequest {
     public AsyncHttpRequest setTargetHost(String host) {
         if (host != null && (host.startsWith(HTTP_PROTOCOL) || host.startsWith(HTTPS_PROTOCOL))) {
             try {
-                URI u = new URI(host);
+                final URI u = new URI(host);
                 if (!u.getPath().isEmpty()) {
                     throw new IllegalArgumentException("Invalid host - Must not contain path");
                 }
@@ -408,12 +399,13 @@ public class AsyncHttpRequest {
      */
     @SuppressWarnings("unchecked")
     public String getQueryParameter(String key) {
-        if (key != null) {
-            Object value = queryParams.get(key.toLowerCase());
+        final String k = findActualQueryKey(key);
+        if (k != null) {
+            final Object value = queryParams.get(k);
             if (value instanceof String) {
                 return (String) value;
             } else if (value instanceof List) {
-                List<String> params = (List<String>) value;
+                final List<String> params = (List<String>) value;
                 if (!params.isEmpty()) {
                     return params.get(0);
                 }
@@ -429,8 +421,9 @@ public class AsyncHttpRequest {
      */
     @SuppressWarnings("unchecked")
     public List<String> getQueryParameters(String key) {
-        if (key != null) {
-            Object values = queryParams.get(key.toLowerCase());
+        final String k = findActualQueryKey(key);
+        if (k != null) {
+            final Object values = queryParams.get(k);
             if (values instanceof String) {
                 return Collections.singletonList((String) values);
             } else if (values instanceof List) {
@@ -440,11 +433,11 @@ public class AsyncHttpRequest {
         return Collections.emptyList();
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked"})
     public AsyncHttpRequest setQueryParameter(String key, Object value) {
         if (key != null) {
             if (value instanceof String) {
-                this.queryParams.put(key.toLowerCase(), value);
+                this.queryParams.put(key, value);
             } else if (value instanceof List) {
                 List<String> params = new ArrayList<>();
                 List<Object> list = (List<Object>) value;
@@ -453,19 +446,20 @@ public class AsyncHttpRequest {
                         params.add(o instanceof String ? (String) o : o.toString());
                     }
                 }
-                this.queryParams.put(key.toLowerCase(), params);
+                this.queryParams.put(key, params);
             } else if (value == null) {
-                this.queryParams.put(key.toLowerCase(), "");
+                this.queryParams.put(key, "");
             } else {
-                this.queryParams.put(key.toLowerCase(), value.toString());
+                this.queryParams.put(key, value.toString());
             }
         }
         return this;
     }
 
     public AsyncHttpRequest removeQueryParameter(String key) {
-        if (key != null) {
-            this.queryParams.remove(key.toLowerCase());
+        final String k = findActualQueryKey(key);
+        if (k != null) {
+            this.queryParams.remove(k);
         }
         return this;
     }
@@ -481,13 +475,13 @@ public class AsyncHttpRequest {
     public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
         if (!headers.isEmpty()) {
-            result.put(HTTP_HEADERS, setLowerCase(headers));
+            result.put(HTTP_HEADERS, headers);
         }
         if (!cookies.isEmpty()) {
-            result.put(HTTP_COOKIES, setLowerCase(cookies));
+            result.put(HTTP_COOKIES, cookies);
         }
         if (!session.isEmpty()) {
-            result.put(HTTP_SESSION, setLowerCase(session));
+            result.put(HTTP_SESSION, session);
         }
         if (method != null) {
             result.put(HTTP_METHOD, method);
@@ -526,10 +520,10 @@ public class AsyncHttpRequest {
             Map<String, Object> parameters = new HashMap<>();
             result.put(PARAMETERS, parameters);
             if (!pathParams.isEmpty()) {
-                parameters.put(PATH, setLowerCase(pathParams));
+                parameters.put(PATH, pathParams);
             }
             if (!queryParams.isEmpty()) {
-                parameters.put(QUERY, setLowerCaseQuery(queryParams));
+                parameters.put(QUERY, queryParams);
             }
         }
         result.put(HTTP_SECURE, https);
@@ -542,22 +536,6 @@ public class AsyncHttpRequest {
         if (targetHost != null) {
             result.put(TARGET_HOST, targetHost);
             result.put(TRUST_ALL_CERT, trustAllCert);
-        }
-        return result;
-    }
-
-    private Map<String, String> setLowerCase(Map<String, String> source) {
-        Map<String, String> result = new HashMap<>();
-        for (String key: source.keySet()) {
-            result.put(key.toLowerCase(), source.get(key));
-        }
-        return result;
-    }
-
-    private Map<String, Object> setLowerCaseQuery(Map<String, Object> source) {
-        Map<String, Object> result = new HashMap<>();
-        for (String key: source.keySet()) {
-            result.put(key.toLowerCase(), source.get(key));
         }
         return result;
     }
@@ -589,13 +567,13 @@ public class AsyncHttpRequest {
         if (input instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) input;
             if (map.containsKey(HTTP_HEADERS)) {
-                headers = setLowerCase((Map<String, String>) map.get(HTTP_HEADERS));
+                headers = (Map<String, String>) map.get(HTTP_HEADERS);
             }
             if (map.containsKey(HTTP_COOKIES)) {
-                cookies = setLowerCase((Map<String, String>) map.get(HTTP_COOKIES));
+                cookies = (Map<String, String>) map.get(HTTP_COOKIES);
             }
             if (map.containsKey(HTTP_SESSION)) {
-                session = setLowerCase((Map<String, String>) map.get(HTTP_SESSION));
+                session = (Map<String, String>) map.get(HTTP_SESSION);
             }
             if (map.containsKey(HTTP_METHOD)) {
                 method = (String) map.get(HTTP_METHOD);
@@ -642,12 +620,55 @@ public class AsyncHttpRequest {
             if (map.containsKey(PARAMETERS)) {
                 Map<String, Object> parameters = (Map<String, Object>) map.get(PARAMETERS);
                 if (parameters.containsKey(PATH)) {
-                    pathParams = setLowerCase((Map<String, String>) parameters.get(PATH));
+                    pathParams = (Map<String, String>) parameters.get(PATH);
                 }
                 if (parameters.containsKey(QUERY)) {
-                    queryParams = setLowerCaseQuery((Map<String, Object>) parameters.get(QUERY));
+                    queryParams = (Map<String, Object>) parameters.get(QUERY);
                 }
             }
+        }
+    }
+
+    private String findActualQueryKey(String key) {
+        if (key != null) {
+            for (String k : queryParams.keySet()) {
+                if (k.equalsIgnoreCase(key)) {
+                    return k;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String caseInsensitiveGet(Map<String, String> map, String key) {
+        if (key != null) {
+            for (String k : map.keySet()) {
+                if (k.equalsIgnoreCase(key)) {
+                    return map.get(k);
+                }
+            }
+        }
+        return null;
+    }
+
+    private void caseInsensitiveDelete(Map<String, String> map, String key) {
+        if (key != null) {
+            String actualKey = null;
+            for (String k : map.keySet()) {
+                if (k.equalsIgnoreCase(key)) {
+                    actualKey = k;
+                    break;
+                }
+            }
+            if (actualKey != null) {
+                map.remove(actualKey);
+            }
+        }
+    }
+
+    private void setNonNullValue(Map<String, String> map, String key, String value) {
+        if (key != null) {
+            map.put(key, value != null? value : "");
         }
     }
 

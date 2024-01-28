@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.8, 1/27/2024
+
+### Added
+
+N/A
+
+### Removed
+
+ActiveMQ and Tibco cloud connectors
+
+### Changed
+
+Updated AsyncHttpRequest and CryptoApi
+
+---
 ## Version 3.0.7, 12/23/2023
 
 ### Added

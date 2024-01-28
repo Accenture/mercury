@@ -18,7 +18,7 @@ Typically, a service mesh system uses a "side-car" to sit next to the applicatio
 service discovery and network proxy services.
 
 Kafka is a network event stream system. We have implemented libraries for a few "cloud connectors" to support
-Kafka, Hazelcast and enterprise service bus (ESB) such as TIBCO and ActiveMQ.
+Kafka and Hazelcast as examples.
 
 Instead of using a side-car proxy, the system maintains a distributed routing table in each application instance.
 When a function requests the service of another function which is not in the same memory space, the "cloud.connector"
@@ -34,14 +34,14 @@ communicate via the "cloud.connector" service.
 |:--------------------------:|:-----------------------------------------------:|
 | "service.1" -> "service.2" | "service.1" -> "cloud.connector" -> "service.2" |
 
-The system supports Kafka, Hazelcast, ActiveMQ (Artemis) and TIBCO out of the box. For example, to select kafka,
+The system supports Kafka, Hazelcast out of the box. For example, to select kafka,
 you can configure application.properties like this:
 
 ```properties
 cloud.connector=kafka
 ```
 
-The "cloud.connector" parameter can be set to "none", "kafka", "hazelcast", "activemq" or "tibco".
+The "cloud.connector" parameter can be set to "none", "kafka" or "hazelcast".
 The default parameter of "cloud.connector" is "none". This means the application is not using
 any network event system "connector", thus running independently.
 
@@ -56,7 +56,7 @@ the executable JAR should be available after the `mvn clean install` command in 
 ```shell
 cd connectors/adapters/kafka/kafka-standalone
 mvn clean package
-java -jar target/kafka-standalone-3.0.7.jar
+java -jar target/kafka-standalone-3.0.8.jar
 ```
 
 The standalone Kafka server will start at port 9092. You may adjust the "server.properties" in the standalone-kafka
@@ -88,7 +88,7 @@ You will start the presence monitor like this:
 
 ```shell
 cd connectors/adapters/kafka/kafka-presence
-java -jar target/kafka-presence-3.0.7.jar
+java -jar target/kafka-presence-3.0.8.jar
 ```
 
 By default, the kafka-connector will run at port 8080. Partial start-up log is shown below:
@@ -120,13 +120,13 @@ Since kafka-connector is pre-configured, we can start the two demo applications 
 ```text
 cd examples/rest-spring-2-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
-     -jar target/rest-spring-2-example-3.0.7.jar
+     -jar target/rest-spring-2-example-3.0.8.jar
 ```
 
 ```text
 cd examples/lambda-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
-     -jar target/lambda-example-3.0.7.jar
+     -jar target/lambda-example-3.0.8.jar
 ```
 
 The above command uses the "-D" parameters to configure the "cloud.connector" and "mandatory.health.dependencies".
