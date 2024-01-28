@@ -523,7 +523,10 @@ public class CryptoApi {
     }
 
     public int nextInt(int start, int bound) {
-        return random.nextInt(start, bound);
+        if (start >= bound) {
+            throw new IllegalArgumentException("start must be smaller than bound");
+        }
+        return random.nextInt(bound - start) + start;
     }
 
 }
