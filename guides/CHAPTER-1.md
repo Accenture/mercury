@@ -163,7 +163,7 @@ called "lambda-example" like this:
 
 ```shell
 cd sandbox/mercury/examples/lambda-example
-java -jar target/lambda-example-3.0.8.jar
+java -jar target/lambda-example-3.0.9.jar
 ```
 
 You will find the following console output when the app starts

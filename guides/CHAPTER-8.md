@@ -56,7 +56,7 @@ the executable JAR should be available after the `mvn clean install` command in 
 ```shell
 cd connectors/adapters/kafka/kafka-standalone
 mvn clean package
-java -jar target/kafka-standalone-3.0.8.jar
+java -jar target/kafka-standalone-3.0.9.jar
 ```
 
 The standalone Kafka server will start at port 9092. You may adjust the "server.properties" in the standalone-kafka
@@ -88,7 +88,7 @@ You will start the presence monitor like this:
 
 ```shell
 cd connectors/adapters/kafka/kafka-presence
-java -jar target/kafka-presence-3.0.8.jar
+java -jar target/kafka-presence-3.0.9.jar
 ```
 
 By default, the kafka-connector will run at port 8080. Partial start-up log is shown below:
@@ -120,13 +120,13 @@ Since kafka-connector is pre-configured, we can start the two demo applications 
 ```text
 cd examples/rest-spring-2-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
-     -jar target/rest-spring-2-example-3.0.8.jar
+     -jar target/rest-spring-2-example-3.0.9.jar
 ```
 
 ```text
 cd examples/lambda-example
 java -Dcloud.connector=kafka -Dmandatory.health.dependencies=cloud.connector.health 
-     -jar target/lambda-example-3.0.8.jar
+     -jar target/lambda-example-3.0.9.jar
 ```
 
 The above command uses the "-D" parameters to configure the "cloud.connector" and "mandatory.health.dependencies".

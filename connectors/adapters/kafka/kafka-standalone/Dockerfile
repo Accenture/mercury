@@ -1,5 +1,5 @@
-FROM openjdk:11-jre-slim
+FROM mcr.microsoft.com/openjdk/jdk:11-ubuntu
 EXPOSE 9092
 WORKDIR /app
-COPY target/kafka-standalone-3.0.8.jar .
-ENTRYPOINT ["java","-jar","kafka-standalone-3.0.8.jar"]
+COPY target/kafka-standalone-3.0.9.jar .
+ENTRYPOINT ["java","-jar","kafka-standalone-3.0.9.jar"]

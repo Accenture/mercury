@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.9, 2/9/2024
+
+### Added
+
+1. AutoStart to run application as Spring Boot if the rest-spring-3 library is packaged in app
+
+### Removed
+
+1. Bugfix: removed websocket client connection timeout that causes the first connection to drop after one minute
+
+### Changed
+
+1. Open sources library update (Spring Boot 3.2.2, Vertx 4.5.3 and MsgPack 0.9.8)
+
+---
 ## Version 3.0.8, 1/27/2024
 
 ### Added

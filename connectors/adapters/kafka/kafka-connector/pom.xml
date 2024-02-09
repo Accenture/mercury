@@ -7,7 +7,7 @@
     <artifactId>kafka-connector</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.8</version>
+    <version>3.0.9</version>
     <name>Cloud connector for Kafka cluster</name>
 
     <parent>
@@ -21,11 +21,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
-        <artemis.version>2.31.2</artemis.version>
-        <kafka.version>3.6.0</kafka.version>
+        <kafka.version>3.6.1</kafka.version>
         <gson.version>2.10.1</gson.version>
-        <netty.version>4.1.104.Final</netty.version>
-        <slf4j.version>2.0.9</slf4j.version>
+        <netty.version>4.1.105.Final</netty.version>
+        <slf4j.version>2.0.11</slf4j.version>
         <log4j2.version>2.22.0</log4j2.version>
         <kotlin.version>1.9.22</kotlin.version>
         <java.version>1.8</java.version>
@@ -43,7 +42,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>cloud-connector</artifactId>
-            <version>3.0.8</version>
+            <version>3.0.9</version>
         </dependency>
 
         <dependency>
