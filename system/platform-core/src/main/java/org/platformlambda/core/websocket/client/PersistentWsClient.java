@@ -147,7 +147,6 @@ public class PersistentWsClient extends Thread {
             options.setPort(target.getPort() > 0? target.getPort() : defaultPort);
             options.setURI(target.getPath() + "/" + platform.getOrigin());
             options.setSsl(secure);
-            options.setTimeout(idleSeconds * 1000L);
         } catch (URISyntaxException e) {
             log.error("Invalid target URL {} - {}", u, e.getMessage());
             urls.remove(0);
