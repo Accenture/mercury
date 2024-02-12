@@ -48,6 +48,7 @@ public class EventEmitter {
     public static final String MISSING_ROUTING_PATH = "Missing routing path";
     public static final String MISSING_EVENT = "Missing outgoing event";
     public static final String RPC = "rpc";
+    private static final long ASYNC_EVENT_HTTP_TIMEOUT = 30 * 1000L; // assume 30 seconds
     private static final String TYPE = "type";
     private static final String ERROR = "error";
     private static final String MESSAGE = "message";
@@ -64,17 +65,21 @@ public class EventEmitter {
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
+    private static final String EVENT_OVER_HTTP = "event.over.http";
     private static final String MULTICAST_YAML = "multicast.yaml";
     private static final String JOURNAL_YAML = "journal.yaml";
     private static final String APP_GROUP_PREFIX = "monitor-";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, String> eventHttpTargets = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Map<String, String>> eventHttpHeaders = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, TraceInfo> traces = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, ConcurrentMap<String, String>> cloudRoutes = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Long> cloudOrigins = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> journaledRoutes = new ConcurrentHashMap<>();
     private boolean multicastEnabled = false;
     private boolean journalEnabled = false;
+    private boolean eventHttpEnabled = false;
     private static final EventEmitter INSTANCE = new EventEmitter();
 
     private EventEmitter() {
@@ -88,7 +93,7 @@ public class EventEmitter {
                 ConfigReader reader = new ConfigReader();
                 try {
                     reader.load(multicast);
-                    loadMulticast(multicast, reader.getMap());
+                    loadMulticast(multicast, reader);
                     multicastEnabled = true;
                 } catch (IOException e) {
                     log.error("Unable to load multicast config - {}", e.getMessage());
@@ -106,7 +111,21 @@ public class EventEmitter {
                 } catch (IOException e) {
                     log.error("Unable to load journal config - {}", e.getMessage());
                 }
-                loadJournalRoutes(reader.getMap());
+                loadJournalRoutes(reader);
+            });
+        }
+        String eventHttpConfig = config.getProperty(EVENT_OVER_HTTP);
+        if (eventHttpConfig != null) {
+            platform.getEventExecutor().submit(() -> {
+                log.info("Loading event-over-http config from {}", eventHttpConfig);
+                ConfigReader reader = new ConfigReader();
+                try {
+                    reader.load(eventHttpConfig);
+                    eventHttpEnabled = true;
+                } catch (IOException e) {
+                    log.error("Unable to load journal config - {}", e.getMessage());
+                }
+                loadHttpRoutes(eventHttpConfig, reader);
             });
         }
         // load route substitution table if any
@@ -127,6 +146,10 @@ public class EventEmitter {
         return journalEnabled;
     }
 
+    public boolean isEventHttpConfigEnabled() {
+        return eventHttpEnabled;
+    }
+
     public ConcurrentMap<String, ConcurrentMap<String, String>> getCloudRoutes() {
         return cloudRoutes;
     }
@@ -144,14 +167,14 @@ public class EventEmitter {
     }
 
     @SuppressWarnings("unchecked")
-    private void loadJournalRoutes(Map<String, Object> map) {
-        Object o = map.get("journal");
+    private void loadJournalRoutes(ConfigReader reader) {
+        Object o = reader.get("journal");
         if (o == null) {
             log.warn("Missing 'journal' section");
         } else if (o instanceof List) {
             List<Object> entries = (List<Object>) o;
-            for (Object item: entries) {
-                String route = item.toString();
+            for (int i=0; i < entries.size(); i++) {
+                String route = reader.getProperty("journal["+i+"]");
                 journaledRoutes.put(route, true);
             }
             log.info("Total {} route{} will be recorded in journal", journaledRoutes.size(),
@@ -162,14 +185,13 @@ public class EventEmitter {
     }
 
     @SuppressWarnings("unchecked")
-    private void loadMulticast(String file, Map<String, Object> map) {
-        MultiLevelMap multi = new MultiLevelMap(map);
-        Object o = multi.getElement("multicast");
+    private void loadMulticast(String file, ConfigReader reader) {
+        Object o = reader.get("multicast");
         if (o instanceof List) {
             List<Object> multicastList = (List<Object>) o;
             for (int i=0; i < multicastList.size(); i++) {
-                String source = (String) multi.getElement("multicast["+i+"].source");
-                List<String> targets = (List<String>) multi.getElement("multicast["+i+"].targets");
+                String source = reader.getProperty("multicast["+i+"].source");
+                List<String> targets = (List<String>) reader.get("multicast["+i+"].targets");
                 if (source != null && targets != null && !targets.isEmpty()) {
                     List<String> targetList = new ArrayList<>(targets);
                     targetList.remove(source);
@@ -191,6 +213,46 @@ public class EventEmitter {
             }
         } else {
             log.error("Invalid config {} - the multicast section should be a list of source and targets", file);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void loadHttpRoutes(String file, ConfigReader reader) {
+        Utility util = Utility.getInstance();
+        Object o = reader.get("event.http");
+        if (o instanceof List) {
+            List<Object> eventHttpEntries = (List<Object>) o;
+            for (int i=0; i < eventHttpEntries.size(); i++) {
+                String route = reader.getProperty("event.http["+i+"].route");
+                String target = reader.getProperty("event.http["+i+"].target");
+                if (route != null && target != null && !route.isEmpty() && !target.isEmpty()) {
+                    if (util.validServiceName(route)) {
+                        try {
+                            new URI(target);
+                            eventHttpTargets.put(route, target);
+                            Object h = reader.get("event.http["+i+"].headers");
+                            if (h instanceof Map) {
+                                Map<String, String> headers = new HashMap<>();
+                                Map m = (Map) h;
+                                for (Object k: m.keySet()) {
+                                    String value = reader.getProperty("event.http["+i+"].headers."+k);
+                                    headers.put(k.toString(), value);
+                                }
+                                eventHttpHeaders.put(route, headers);
+                            }
+
+                        } catch (URISyntaxException e) {
+                            log.error("Invalid Event over HTTP config entry - check target {}", target);
+                        }
+                    } else {
+                        log.error("Invalid Event over HTTP config entry - check route {}", route);
+                    }
+                }
+            }
+            log.info("Total {} event-over-http target{} configured", eventHttpTargets.size(),
+                    eventHttpTargets.size() == 1? "" : "s");
+        } else {
+            log.error("Invalid config {} - the event.http section should be a list of route and target", file);
         }
     }
 
@@ -585,6 +647,14 @@ public class EventEmitter {
         }
     }
 
+    public String getEventHttpTarget(String route) {
+        return eventHttpTargets.get(route);
+    }
+
+    public Map<String, String> getEventHttpHeaders(String route) {
+        return eventHttpHeaders.get(route);
+    }
+
     /**
      * Send an event to a target service
      *
@@ -598,6 +668,19 @@ public class EventEmitter {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        String targetHttp = event.getHeader("_") == null? getEventHttpTarget(to) : null;
+        if (targetHttp != null) {
+            EventEnvelope forwardEvent = new EventEnvelope(event.toMap()).setHeader("_", "async");
+            Future<EventEnvelope> response = asyncRequest(forwardEvent, ASYNC_EVENT_HTTP_TIMEOUT,
+                                                getEventHttpHeaders(to), targetHttp, false);
+            response.onSuccess(evt -> {
+                if (evt.getStatus() != 202) {
+                    log.error("Error in sending async event {} to {} - status={}, error={}",
+                            to, targetHttp, evt.getStatus(), evt.getError());
+                }
+            });
+            return;
+        }
         // is this a reply message?
         int slash = to.indexOf('@');
         if (slash > 0) {
@@ -848,6 +931,11 @@ public class EventEmitter {
         }
         String to = substituteRouteIfAny(dest);
         event.setTo(to);
+        String targetHttp = event.getHeader("_") == null? getEventHttpTarget(to) : null;
+        if (targetHttp != null) {
+            EventEnvelope forwardEvent = new EventEnvelope(event.toMap()).setHeader("_", "async_request");
+            return asyncRequest(forwardEvent, timeout, getEventHttpHeaders(to), targetHttp, true);
+        }
         Platform platform = Platform.getInstance();
         TargetRoute target = discover(to, event.isEndOfRoute());
         AsyncInbox inbox = new AsyncInbox(event.getFrom(), to, event.getTraceId(), event.getTracePath(),

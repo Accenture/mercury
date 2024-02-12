@@ -130,6 +130,48 @@ The "rpc" boolean value is set to true so that the response from the service of 
 will be delivered. For drop-n-forget use case, you can set the "rpc" value to false. It will immediately return
 an HTTP-202 response.
 
+## Event-over-HTTP using configuration
+
+While you can call the "Event-over-HTTP" APIs programmatically, it would be more convenient to automate it with a
+configuration. This service abstraction means that user applications do not need to know where the target services are.
+
+You can enable Event-over-HTTP configuration by adding this parameter in application.properties:
+
+```yaml
+#
+# Optional event-over-http target maps
+#
+event.over.http=classpath:/event-over-http.yaml
+```
+
+and then create the configuration file "event-over-http.yaml" like this:
+
+```yaml
+event:
+  http:
+  - route: 'event.http.test'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    # optional security headers
+    headers:
+      authorization: 'demo'
+  - route: 'event.save.get'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    headers:
+      authorization: 'demo'
+```
+
+In the above example, there are two routes (event.http.test and event.save.get) with target URLs. If additional
+authentication is required for the peer's "/api/event" endpoint, you may add a set of security headers in each
+route.
+
+When you send asynchronous event or make a RPC call to "event.save.get" service, it will be forwarded to the
+peer's "event-over-HTTP" endpoint (`/api/event`) accordingly.
+
+You may also add variable references to the application.properties (or application.yaml) file, such as
+"server.port" in this example.
+
+> Note: The configuration based "event-over-HTTP" feature does not support fork-n-join request API.
+
 ## Advantages
 
 The Event API exposes all public functions of an application instance to the network using a single REST endpoint.

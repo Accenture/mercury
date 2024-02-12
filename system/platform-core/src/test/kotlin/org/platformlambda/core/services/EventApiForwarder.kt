@@ -31,15 +31,18 @@ class EventApiForwarder: KotlinLambdaFunction<EventEnvelope, Any> {
         val fastRPC = FastRPC(headers)
         val util = Utility.getInstance()
         val timeout = util.str2long(headers["timeout"])
-        val rpc = "true" == headers["rpc"]
         val endpoint = headers["endpoint"]
         val authorization = headers["authorization"]
-        if (endpoint != null && input.body is ByteArray && authorization != null) {
-            val securityHeaders: MutableMap<String, String> = HashMap()
-            securityHeaders["Authorization"] = authorization
-            return fastRPC.awaitRequest(EventEnvelope(input.body as ByteArray), timeout, securityHeaders, endpoint, rpc)
-        } else {
-            throw IllegalArgumentException("Invalid request")
+        if (input.body is ByteArray) {
+            if (endpoint != null && authorization != null) {
+                val rpc = "true" == headers["rpc"]
+                val securityHeaders: MutableMap<String, String> = HashMap()
+                securityHeaders["Authorization"] = authorization
+                return fastRPC.awaitRequest(EventEnvelope(input.body as ByteArray), timeout, securityHeaders, endpoint, rpc)
+            } else {
+                return fastRPC.awaitRequest(EventEnvelope(input.body as ByteArray), timeout)
+            }
         }
+        throw IllegalArgumentException("Invalid request")
     }
 }
