@@ -171,13 +171,18 @@ public class AsyncMultiInbox extends InboxBase {
                         metrics.put("from", holder.from);
                         metrics.put("exec_time", reply.getExecutionTime());
                         metrics.put("round_trip", roundTrip);
-                        metrics.put("success", true);
-                        metrics.put("status", reply.getStatus());
                         metrics.put("start", start);
                         metrics.put("path", holder.tracePath);
                         payload.put("trace", metrics);
                         if (!annotations.isEmpty()) {
                             payload.put(ANNOTATIONS, annotations);
+                        }
+                        metrics.put("status", reply.getStatus());
+                        if (reply.getStatus() >= 400) {
+                            metrics.put("success", false);
+                            metrics.put("exception", reply.getError());
+                        } else {
+                            metrics.put("success", true);
                         }
                         EventEnvelope dt = new EventEnvelope().setTo(EventEmitter.DISTRIBUTED_TRACING);
                         EventEmitter.getInstance().send(dt.setBody(payload));

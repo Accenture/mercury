@@ -693,7 +693,7 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
         public void handle(Throwable ex) {
             try {
                 EventEnvelope response = new EventEnvelope();
-                response.setException(ex).setBody(ex.getMessage());
+                response.setException(ex).setBody(simplifyConnectionError(ex.getMessage()));
                 if (input.getReplyTo() != null) {
                     if (ex instanceof AppException) {
                         AppException e = (AppException) ex;
@@ -710,6 +710,17 @@ public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void>
             } finally {
                 queue.close();
             }
+        }
+
+        private String simplifyConnectionError(String error) {
+            if (error.startsWith("Connection refused:")) {
+                int colon = error.indexOf(':');
+                int slash = error.indexOf('/');
+                if (slash != -1) {
+                    return error.substring(0, colon) + ": " + error.substring(slash+1);
+                }
+            }
+            return error;
         }
     }
 
