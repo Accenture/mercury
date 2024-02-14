@@ -107,7 +107,7 @@ When you write a function using LambdaFunction and TypedLambdaFunction, the func
 While preemptive multitasking fully utilizes the CPU, its context switching overheads may increase as the number of
 kernel threads grow. As a rule of thumb, you should control the maximum number of kernel threads to less than 200.
 
-The parameter `event.worker.pool` is defined with a default value of 100. You can change this value to adjust to
+The parameter `kernel.thread.pool` is defined with a default value of 100. You can change this value to adjust to
 the actual CPU power in your environment. Keep the default value for best performance unless you have tested the
 limit in your environment.
 
@@ -115,7 +115,7 @@ limit in your environment.
   are blocked when the number of concurrent kernel threads is reached.
 
 You should reduce the number of "instances" (i.e. worker pool) for a function to a small number so that your
-application does not exceed the maximum limit of the `event.worker.pool` parameter.
+application does not exceed the maximum limit of the `kernel.thread.pool` parameter.
 
 Kernel threads are precious and finite resources. When your function is computational intensive or making 
 external HTTP or database calls in a synchronous blocking manner, you may use it with a small number

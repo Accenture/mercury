@@ -18,7 +18,7 @@ You can precisely control how your functions execute, using kernel thread pool, 
 to address various use cases to yield the highest performance and throughput.
 
 Kernel threads provide the highest performance in terms of operations per second when the number of threads is smaller.
-As a rule of thumb, do not set "event.worker.pool" higher than 200.
+As a rule of thumb, do not set "kernel.thread.pool" higher than 200.
 
 Coroutine is ideal for functions that execute very quickly to yield control to other coroutines.
 

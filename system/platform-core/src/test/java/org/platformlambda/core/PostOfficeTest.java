@@ -59,7 +59,7 @@ public class PostOfficeTest extends TestBase {
         final BlockingQueue<Boolean> wait = new ArrayBlockingQueue<>(1);
         final AppConfigReader config = AppConfigReader.getInstance();
         final Utility util = Utility.getInstance();
-        int poolSize = Math.max(32, util.str2int(config.getProperty("event.worker.pool", "100")));
+        int poolSize = Math.max(32, util.str2int(config.getProperty("kernel.thread.pool", "100")));
         final ExecutorService executor = Platform.getInstance().getEventExecutor();
         final String RPC_FORWARDER = "rpc.forwarder";
         final String SLOW_SERVICE = "artificial.delay";

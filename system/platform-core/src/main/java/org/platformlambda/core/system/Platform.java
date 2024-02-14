@@ -78,7 +78,7 @@ public class Platform {
     private static void initialize() {
         if (initCounter.incrementAndGet() == 1) {
             AppConfigReader config = AppConfigReader.getInstance();
-            int poolSize = Math.max(32, Utility.getInstance().str2int(config.getProperty("event.worker.pool", "100")));
+            int poolSize = Math.max(32, Utility.getInstance().str2int(config.getProperty("kernel.thread.pool", "100")));
             system = Vertx.vertx().eventBus();
             vertx = Vertx.vertx();
             cache = SimpleCache.createCache("system.log.cache", 30000);
