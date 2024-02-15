@@ -53,8 +53,8 @@ precedence.
 | multicast.yaml                         | points to the multicast.yaml config file                        | Optional  |
 | journal.yaml                           | points to the journal.yaml config file                          | Optional  |
 | deferred.commit.log                    | Default is false (may be set to true in unit tests)             | Optional  |
-| event.over.http                        | classpath or filepath to your event-over-http.yaml file         | Optional  |
-| kernel.thread.pool                     | Default 100. Normally it should not be more than 200.           | Optional  |
+| event.over.http                        | e.g. classpath:/event-over-http.yaml                            | Optional  |
+| kernel.thread.pool                     | Default 100. Please restrict it to less than 200.               | Optional  |
 
 `*` - when using the "rest-spring" library
 
