@@ -20,7 +20,7 @@ package org.platformlambda.example;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.AutoStart;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.system.EmbeddedKafka;
 import org.platformlambda.system.EmbeddedZk;
@@ -32,7 +32,7 @@ public class MainApp implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static void main(String[] args) {
-        AppStarter.main(args);
+        AutoStart.main(args);
     }
 
     @Override

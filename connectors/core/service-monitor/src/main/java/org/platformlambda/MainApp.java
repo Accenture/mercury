@@ -59,7 +59,7 @@ public class MainApp implements EntryPoint {
     private static final String ORIGIN = "origin";
 
     public static void main(String[] args) {
-        AppStarter.main(args);
+        AutoStart.main(args);
     }
 
     @Override

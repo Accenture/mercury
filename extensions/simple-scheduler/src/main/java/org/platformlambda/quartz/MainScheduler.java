@@ -24,12 +24,12 @@ import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.EventEmitter;
+import org.platformlambda.core.system.AutoStart;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.quartz.models.ScheduledJob;
 import org.platformlambda.quartz.services.JobExecutor;
-import org.platformlambda.rest.RestServer;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
@@ -60,7 +60,7 @@ public class MainScheduler implements EntryPoint {
     private static Scheduler schedulerService;
 
     public static void main(String[] args) {
-        RestServer.main(args);
+        AutoStart.main(args);
     }
 
     public static ScheduledJob getJob(String id) {

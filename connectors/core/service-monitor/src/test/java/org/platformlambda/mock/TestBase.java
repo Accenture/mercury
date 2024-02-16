@@ -22,7 +22,7 @@ import io.vertx.core.Future;
 import org.junit.BeforeClass;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.AutoStart;
 import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -46,7 +46,7 @@ public class TestBase {
             Utility util = Utility.getInstance();
             AppConfigReader config = AppConfigReader.getInstance();
             port = util.str2int(config.getProperty("server.port", "8080"));
-            AppStarter.main(new String[0]);
+            AutoStart.main(new String[0]);
         }
     }
 

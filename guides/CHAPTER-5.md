@@ -10,7 +10,7 @@ A minimalist main application template is shown as follows:
 @MainApplication
 public class MainApp implements EntryPoint {
    public static void main(String[] args) {
-      AppStarter.main(args);
+      AutoStart.main(args);
    }
    @Override
    public void start(String[] args) {
@@ -27,7 +27,7 @@ Note that MainApplication is mandatory. You must have at least one "main applica
 
 If your application does not require additional startup logic, you may just print a greeting message.
 
-The `AppStarter.main()` statement in the "main" method is used when you want to start your application within the IDE.
+The `AutoStart.main()` statement in the "main" method is used when you want to start your application within the IDE.
 You can "right-click" the main method and select "run".
 
 You can also build and run the application from command line like this:
@@ -124,7 +124,7 @@ public class TestBase {
     @BeforeClass
     public static void setup() {
         if (seq.incrementAndGet() == 1) {
-            AppStarter.main(new String[0]);
+            AutoStart.main(new String[0]);
         }
     }
 }

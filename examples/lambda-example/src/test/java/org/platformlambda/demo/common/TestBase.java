@@ -19,7 +19,7 @@
 package org.platformlambda.demo.common;
 
 import org.junit.BeforeClass;
-import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.AutoStart;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,7 +30,7 @@ public class TestBase {
     @BeforeClass
     public static void setup() {
         if (seq.incrementAndGet() == 1) {
-            AppStarter.main(new String[0]);
+            AutoStart.main(new String[0]);
         }
     }
 }

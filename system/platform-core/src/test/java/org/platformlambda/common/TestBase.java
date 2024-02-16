@@ -28,6 +28,7 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.services.LongRunningRpcSimulator;
 import org.platformlambda.core.system.AppStarter;
+import org.platformlambda.core.system.AutoStart;
 import org.platformlambda.core.system.EventEmitter;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.ServerPersonality;
@@ -73,7 +74,7 @@ public class TestBase {
             port = util.str2int(config.getProperty("server.port", "8100"));
             localHost = "http://127.0.0.1:"+port;
             AppStarter.runAsSpringBootApp();
-            AppStarter.main(new String[0]);
+            AutoStart.main(new String[0]);
             AppStarter.runMainApp();
             ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
             blockingWait(AppStarter.ASYNC_HTTP_RESPONSE, 20);

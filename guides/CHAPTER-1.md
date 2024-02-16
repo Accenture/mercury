@@ -40,7 +40,7 @@ Each application has an entry point. You may implement an entry point in a main 
 @MainApplication
 public class MainApp implements EntryPoint {
    public static void main(String[] args) {
-      AppStarter.main(args);
+      AutoStart.main(args);
    }
    @Override
    public void start(String[] args) {

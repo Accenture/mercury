@@ -19,13 +19,13 @@ main application like this:
 public class MyMainApp extends SpringBootServletInitializer {
 
     public static void main(String[] args) {
-        AppStarter.main(args);
+        AutoStart.main(args);
         SpringApplication.run(MyMainApp.class, args);
     }
 
 }
 ```
-We suggest running `AppStarter.main` before the `SpringApplication.run` statement. This would allow the platform-core
+We suggest running `AutoStart.main` before the `SpringApplication.run` statement. This would allow the platform-core
 foundation code to load the event-listener functions into memory before Spring Boot starts.
 
 ## Use the rest-spring library in your application
