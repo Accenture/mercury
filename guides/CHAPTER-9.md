@@ -510,6 +510,45 @@ using the dollar-bracket syntax `${reference:default_value}`.
 
 > e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"
 
+## Custom serializer
+
+We are using GSON as the underlying serializer to handle common use cases. However, there may be
+situation that you want to use your own custom serialization library.
+
+To do that, you may write a serializer that implements the CustomSerializer interface:
+
+```java
+public interface CustomSerializer {
+
+    public Map<String, Object> toMap(Object obj);
+
+    public <T> T toPoJo(Object obj, Class<T> toValueType);
+
+}
+```
+
+You may configure a user function to use a custom serializer by adding the "customSerializer" parameter
+in the `PreLoad` annotation. For example,
+
+```java
+@PreLoad(route="my.user.function", customSerializer = "com.accenture.JacksonSerializer")
+public class MyUserFunction implements TypedLambdaFunction<SimplePoJo, SimplePoJo> {
+    @Override
+    public SimplePoJo handleEvent(Map<String, String> headers, SimplePoJo input, int instance) {
+        return input;
+    }
+}
+```
+
+If you register your function dynamically in code, you can use the following `platform API` to assign
+a custom serializer.
+
+```java
+public void setCustomSerializer(String route, CustomSerializer mapper);
+// e.g.
+// platform.setCustomSerializer("my.function", new JacksonSerializer());
+```
+
 ## Minimalist API design for event orchestration
 
 As a best practice, we advocate a minimalist approach in API integration.

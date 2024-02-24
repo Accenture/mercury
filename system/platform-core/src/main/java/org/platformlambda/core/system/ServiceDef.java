@@ -21,10 +21,7 @@ package org.platformlambda.core.system;
 import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
-import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.KotlinLambdaFunction;
-import org.platformlambda.core.models.StreamFunction;
-import org.platformlambda.core.models.TypedLambdaFunction;
+import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.Utility;
 
 import java.lang.reflect.Method;
@@ -49,6 +46,7 @@ public class ServiceDef {
     private final boolean runAsKotlin;
     private ServiceQueue manager;
     private Class<?> inputClass;
+    private CustomSerializer serializer = null;
     private int instances = 1;
 
     @SuppressWarnings("rawtypes")
@@ -177,6 +175,15 @@ public class ServiceDef {
 
     public void setManager(ServiceQueue manager) {
         this.manager = manager;
+    }
+
+    public ServiceDef setCustomSerializer(CustomSerializer serializer) {
+        this.serializer = serializer;
+        return this;
+    }
+
+    public CustomSerializer getCustomSerializer() {
+        return this.serializer;
     }
 
     public boolean isStream() {

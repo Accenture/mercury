@@ -156,6 +156,7 @@ public class WorkerHandler {
         input.put(BODY, event.getRawBody());
         inputOutput.put(INPUT, input);
         TypedLambdaFunction f = def.getFunction();
+        CustomSerializer customSerializer = def.getCustomSerializer();
         long begin = System.nanoTime();
         try {
             /*
@@ -178,8 +179,13 @@ public class WorkerHandler {
                         inputBody = new AsyncHttpRequest(event.getRawBody());
                     } else {
                         // automatically convert Map to PoJo
-                        event.setType(def.getInputClass().getName());
-                        inputBody = event.getBody();
+                        if (customSerializer != null) {
+                            event.setType(null);
+                            inputBody = customSerializer.toPoJo(event.getRawBody(), def.getInputClass());
+                        } else {
+                            event.setType(def.getInputClass().getName());
+                            inputBody = event.getBody();
+                        }
                     }
                 } else {
                     inputBody = event.getBody();
@@ -238,9 +244,11 @@ public class WorkerHandler {
                          * 3. optional parametric types for Java class that uses generic types
                          */
                         response.setBody(resultEvent.getRawBody());
-                        response.setType(resultEvent.getType());
-                        if (resultEvent.getParametricType() != null) {
-                            response.setParametricType(resultEvent.getParametricType());
+                        if (customSerializer == null) {
+                            response.setType(resultEvent.getType());
+                            if (resultEvent.getParametricType() != null) {
+                                response.setParametricType(resultEvent.getParametricType());
+                            }
                         }
                         for (Map.Entry<String, String> kv: headers.entrySet()) {
                             String k = kv.getKey();
@@ -254,7 +262,12 @@ public class WorkerHandler {
                         output.put(HEADERS, response.getHeaders());
                     }
                 } else {
-                    response.setBody(result);
+                    // when using custom serializer, the result will be converted to a Map
+                    if (customSerializer != null && isPoJo(result)) {
+                        response.setBody(customSerializer.toMap(result));
+                    } else {
+                        response.setBody(result);
+                    }
                 }
                 output.put(BODY, response.getRawBody() == null? "null" : response.getRawBody());
                 output.put(STATUS, response.getStatus());
@@ -357,6 +370,14 @@ public class WorkerHandler {
             inputOutput.put(OUTPUT, output);
             return ps.setException(status, ex.getMessage()).setInputOutput(inputOutput);
         }
+    }
+
+    private boolean isPoJo(Object o) {
+        if (o == null || o instanceof Map || o instanceof String || o instanceof Number || o instanceof Boolean) {
+            return false;
+        }
+        String clsName = o.getClass().getName();
+        return !clsName.startsWith("java.");
     }
 
     private String simplifyCastError(String error) {

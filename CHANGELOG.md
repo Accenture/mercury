@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 1. Open sources library update (Spring Boot 3.2.2, Vertx 4.5.3 and MsgPack 0.9.8)
 2. Rename application parameter "event.worker.pool" to "kernel.thread.pool"
+3. Support user defined serializer with PreLoad annotation and platform API
 
 ---
 ## Version 3.0.8, 1/27/2024

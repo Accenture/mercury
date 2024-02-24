@@ -158,6 +158,7 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                 input[BODY] = event.rawBody
             }
             inputOutput[INPUT] = input
+            val customSerializer = def.customSerializer
             val begin = System.nanoTime()
             return try {
                 /*
@@ -180,8 +181,13 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                             inputBody = AsyncHttpRequest(event.rawBody)
                         } else {
                             // automatically convert Map to PoJo
-                            event.type = def.inputClass.name
-                            inputBody = event.body
+                            if (customSerializer != null) {
+                                event.type = null
+                                inputBody = customSerializer.toPoJo(event.rawBody, def.inputClass)
+                            } else {
+                                event.type = def.inputClass.name
+                                inputBody = event.body
+                            }
                         }
                     } else {
                         inputBody = event.body
@@ -245,9 +251,11 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                              * 3. optional parametric types for Java class that uses generic types
                              */
                             response.body = result.rawBody
-                            response.type = result.type;
-                            if (result.parametricType != null) {
-                                response.parametricType = result.parametricType
+                            if (customSerializer == null) {
+                                response.type = result.type;
+                                if (result.parametricType != null) {
+                                    response.parametricType = result.parametricType
+                                }
                             }
                             for ((key, value) in headers) {
                                 if (key != MY_ROUTE && key != MY_TRACE_ID && key != MY_TRACE_PATH) {
@@ -260,7 +268,12 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                             output[HEADERS] = response.headers
                         }
                     } else {
-                        response.body = result
+                        // when using custom serializer, the result will be converted to a Map
+                        if (customSerializer != null && isPoJo(result)) {
+                            response.body = customSerializer.toMap(result)
+                        } else {
+                            response.body = result
+                        }
                     }
                     output[BODY] = if (response.rawBody == null) "null" else response.rawBody
                     output[STATUS] = response.status
@@ -369,6 +382,14 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                 inputOutput[OUTPUT] = output
                 ps.setException(status, ex.message).setInputOutput(inputOutput)
             }
+        }
+
+        private fun isPoJo(o: Any?): Boolean {
+            if (o == null || o is Map<*, *> || o is String || o is Number || o is Boolean) {
+                return false
+            }
+            val clsName = o.javaClass.name
+            return !clsName.startsWith("java.")
         }
 
         private fun simplifyCastError(error: String?): String {
