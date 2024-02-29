@@ -610,6 +610,14 @@ public class Utility {
         }
     }
 
+    public boolean isPoJo(Object o) {
+        if (o == null || o instanceof Map || o instanceof String || o instanceof Number || o instanceof Boolean) {
+            return false;
+        }
+        String clsName = o.getClass().getName();
+        return !clsName.startsWith("java.");
+    }
+
     ///////////////////////////////////////
     // Conversion between string and bytes
     ///////////////////////////////////////

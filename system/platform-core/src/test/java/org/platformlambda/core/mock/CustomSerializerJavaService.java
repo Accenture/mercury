@@ -18,13 +18,14 @@
 
 package org.platformlambda.core.mock;
 
+import org.platformlambda.common.JacksonSerializer;
 import org.platformlambda.common.SimplePoJo;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.TypedLambdaFunction;
 
 import java.util.Map;
 
-@PreLoad(route="custom.serializer.service.java", customSerializer = "org.platformlambda.common.JacksonSerializer")
+@PreLoad(route="custom.serializer.service.java", customSerializer = JacksonSerializer.class)
 public class CustomSerializerJavaService implements TypedLambdaFunction<SimplePoJo, SimplePoJo> {
     @Override
     public SimplePoJo handleEvent(Map<String, String> headers, SimplePoJo input, int instance) throws Exception {

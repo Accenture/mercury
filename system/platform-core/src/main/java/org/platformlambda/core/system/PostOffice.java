@@ -1,6 +1,7 @@
 package org.platformlambda.core.system;
 
 import io.vertx.core.Future;
+import org.platformlambda.core.models.CustomSerializer;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.TraceInfo;
@@ -11,16 +12,15 @@ import java.util.List;
 import java.util.Map;
 
 public class PostOffice {
-
     private static final String MY_ROUTE = "my_route";
     private static final String MY_TRACE_ID = "my_trace_id";
     private static final String MY_TRACE_PATH = "my_trace_path";
     public static final String MISSING_EVENT = "Missing outgoing event";
-
     private final String myRoute;
     private final String myTraceId;
     private final String myTracePath;
     private final int instance;
+    private final CustomSerializer serializer;
 
     private static final EventEmitter po = EventEmitter.getInstance();
 
@@ -35,13 +35,55 @@ public class PostOffice {
         myTraceId = headers.get(MY_TRACE_ID);
         myTracePath = headers.get(MY_TRACE_PATH);
         this.instance = instance;
+        this.serializer = null;
     }
 
+    /**
+     * Create a PostOffice instance
+     *
+     * @param headers in the input arguments to a user function
+     * @param instance for the worker serving the current transaction
+     * @param serializer to do custom serialization for the target functions
+     */
+    public PostOffice(Map<String, String> headers, int instance, CustomSerializer serializer) {
+        myRoute = headers.get(MY_ROUTE);
+        myTraceId = headers.get(MY_TRACE_ID);
+        myTracePath = headers.get(MY_TRACE_PATH);
+        this.instance = instance;
+        this.serializer = serializer;
+    }
+
+    /**
+     * Create a PostOffice instance with hard coded route, traceId and tracePath.
+     * This is normally used for unit test purpose.
+     *
+     * @param myRoute to emulate the sender's route name
+     * @param myTraceId to emulate a traceId
+     * @param myTracePath to emulate a tracePath
+     */
     public PostOffice(String myRoute, String myTraceId, String myTracePath) {
         this.myRoute = myRoute;
         this.myTraceId = myTraceId;
         this.myTracePath = myTracePath;
         this.instance = 0;
+        this.serializer = null;
+    }
+
+    /**
+     * Create a PostOffice instance with hard coded route, traceId and tracePath.
+     * This is normally used for unit test purpose.
+     *
+     * @param myRoute to emulate the sender's route name
+     * @param myTraceId to emulate a traceId
+     * @param myTracePath to emulate a tracePath
+     * @param serializer to do custom serialization for the target functions
+     */
+    public PostOffice(String myRoute, String myTraceId, String myTracePath, CustomSerializer serializer) {
+        this.myRoute = myRoute;
+        this.myTraceId = myTraceId;
+        this.myTracePath = myTracePath;
+        this.instance = 0;
+        this.serializer = serializer;
     }
 
     /**
@@ -80,6 +122,26 @@ public class PostOffice {
      */
     public TraceInfo getTrace() {
         return po.getTrace(myRoute, instance);
+    }
+
+    /**
+     * Convert the event response body into a PoJo
+     *
+     * @param response event
+     * @param toValueType class
+     * @return pojo
+     * @param <T> pojo class
+     */
+    public <T> T getResponseBodyAsPoJo(EventEnvelope response, Class<T> toValueType) {
+        if (response.getRawBody() instanceof Map) {
+            if (serializer == null) {
+                return response.getBody(toValueType);
+            } else {
+                return serializer.toPoJo(response.getRawBody(), toValueType);
+            }
+        } else {
+            throw new IllegalArgumentException("Event body is not a PoJo");
+        }
     }
 
     /**

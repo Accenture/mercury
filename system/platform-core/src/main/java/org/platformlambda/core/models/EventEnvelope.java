@@ -100,7 +100,7 @@ public class EventEnvelope {
     private String parametricType;
     private Integer status;
     private Object body;
-    private Object encodedBody;
+    private Object originalObject;
     private byte[] exceptionBytes;
     private Throwable exception;
     private Float executionTime;
@@ -246,18 +246,27 @@ public class EventEnvelope {
                 Object obj = converter.decode(typed);
                 if (obj instanceof PoJoList) {
                     PoJoList<Object> list = (PoJoList<Object>) obj;
-                    encodedBody = list.getList();
+                    originalObject = list.getList();
                 } else {
-                    encodedBody = obj;
+                    originalObject = obj;
                 }
 
             } catch (Exception e) {
                 log.warn("Fall back to Map - {}", simpleError(e.getMessage()));
-                encodedBody = body;
+                originalObject = body;
             }
             encoded = true;
         }
-        return optional? Optional.ofNullable(encodedBody) : encodedBody;
+        return optional? Optional.ofNullable(originalObject) : originalObject;
+    }
+
+    /**
+     * Get the original body object
+     *
+     * @return original body
+     */
+    public Object getOriginalObject() {
+        return originalObject;
     }
 
     /**
@@ -484,7 +493,7 @@ public class EventEnvelope {
      * @return event envelope
      */
     public EventEnvelope removeTag(String key) {
-        if (key != null && key.length() > 0) {
+        if (key != null && !key.isEmpty()) {
             Map<String, String> map = extraToKeyValues();
             map.remove(key);
             this.extra = map.isEmpty()? null : mapToString(map);
@@ -600,7 +609,7 @@ public class EventEnvelope {
         }
         // encode body and save object type
         this.encoded = true;
-        this.encodedBody = payload instanceof Date? Utility.getInstance().date2str((Date) payload) : payload;
+        this.originalObject = payload instanceof Date? Utility.getInstance().date2str((Date) payload) : payload;
         TypedPayload typed = converter.encode(payload, binary);
         this.body = typed.getPayload();
         this.type = typed.getType();
@@ -735,7 +744,7 @@ public class EventEnvelope {
 
     public EventEnvelope copy() {
         EventEnvelope event = new EventEnvelope();
-        event.encodedBody = this.encodedBody;
+        event.originalObject = this.originalObject;
         event.body = this.body;
         event.setTo(this.getTo());
         event.setHeaders(this.getHeaders());

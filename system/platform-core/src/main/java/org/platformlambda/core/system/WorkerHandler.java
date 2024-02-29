@@ -263,7 +263,7 @@ public class WorkerHandler {
                     }
                 } else {
                     // when using custom serializer, the result will be converted to a Map
-                    if (customSerializer != null && isPoJo(result)) {
+                    if (customSerializer != null && util.isPoJo(result)) {
                         response.setBody(customSerializer.toMap(result));
                     } else {
                         response.setBody(result);
@@ -370,14 +370,6 @@ public class WorkerHandler {
             inputOutput.put(OUTPUT, output);
             return ps.setException(status, ex.getMessage()).setInputOutput(inputOutput);
         }
-    }
-
-    private boolean isPoJo(Object o) {
-        if (o == null || o instanceof Map || o instanceof String || o instanceof Number || o instanceof Boolean) {
-            return false;
-        }
-        String clsName = o.getClass().getName();
-        return !clsName.startsWith("java.");
     }
 
     private String simplifyCastError(String error) {

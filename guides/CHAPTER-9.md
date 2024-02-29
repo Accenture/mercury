@@ -531,7 +531,7 @@ You may configure a user function to use a custom serializer by adding the "cust
 in the `PreLoad` annotation. For example,
 
 ```java
-@PreLoad(route="my.user.function", customSerializer = "com.accenture.JacksonSerializer")
+@PreLoad(route="my.user.function", customSerializer = JacksonSerializer.class)
 public class MyUserFunction implements TypedLambdaFunction<SimplePoJo, SimplePoJo> {
     @Override
     public SimplePoJo handleEvent(Map<String, String> headers, SimplePoJo input, int instance) {
@@ -547,6 +547,18 @@ a custom serializer.
 public void setCustomSerializer(String route, CustomSerializer mapper);
 // e.g.
 // platform.setCustomSerializer("my.function", new JacksonSerializer());
+```
+
+If you use the PostOffice to programmatically send event or make event RPC call and you need
+custom serializer, you can create a PostOffice instance like this:
+```java
+// this should be the first statement in the "handleEvent" method.
+PostOffice po = new PostOffice(headers, instance, new MyCustomSerializer());
+```
+The outgoing event using the PostOffice will use the custom serializer automatically.
+To interpret an event response from a RPC call, you can use the following PostOffice API:
+```java
+MyPoJo result = po.getResponseBodyAsPoJo(responseEvent, MyPoJo.class);
 ```
 
 ## Minimalist API design for event orchestration

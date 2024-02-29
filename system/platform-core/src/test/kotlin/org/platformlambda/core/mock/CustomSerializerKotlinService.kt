@@ -18,11 +18,12 @@
 
 package org.platformlambda.core.mock
 
+import org.platformlambda.common.JacksonSerializer
 import org.platformlambda.common.SimplePoJo
 import org.platformlambda.core.annotations.PreLoad
 import org.platformlambda.core.models.KotlinLambdaFunction
 
-@PreLoad(route = "custom.serializer.service.kotlin", customSerializer = "org.platformlambda.common.JacksonSerializer")
+@PreLoad(route = "custom.serializer.service.kotlin", customSerializer = JacksonSerializer::class)
 class CustomSerializerKotlinService : KotlinLambdaFunction<SimplePoJo, SimplePoJo> {
     override suspend fun handleEvent(headers: Map<String, String>, input: SimplePoJo, instance: Int): SimplePoJo {
         return input
