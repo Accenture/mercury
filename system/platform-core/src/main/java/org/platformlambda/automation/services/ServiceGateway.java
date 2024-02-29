@@ -390,7 +390,7 @@ public class ServiceGateway {
              * Single-value HTTP header is assumed.
              */
             String value = headerMap.get(key);
-            if (key.equalsIgnoreCase(COOKIE)) {
+            if (COOKIE.equalsIgnoreCase(key)) {
                 hasCookies = true;
             } else {
                 headers.put(key.toLowerCase(), value);
@@ -504,9 +504,9 @@ public class ServiceGateway {
                         sendRequestToService(request, requestEvent.setHttpRequest(req));
                     }
                 }).endHandler(done -> inputComplete.set(true));
-            } else if (contentType.equals(APPLICATION_FORM_URLENCODED) ||
+            } else if (APPLICATION_FORM_URLENCODED.equals(contentType) ||
                     contentType.startsWith(TEXT_HTML) || contentType.startsWith(TEXT_PLAIN)) {
-                final boolean urlEncodeParameters = contentType.equals(APPLICATION_FORM_URLENCODED);
+                final boolean urlEncodeParameters = APPLICATION_FORM_URLENCODED.equals(contentType);
                 request.bodyHandler(block -> {
                     byte[] b = block.getBytes(0, block.length());
                     requestBody.write(b, 0, b.length);

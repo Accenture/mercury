@@ -744,10 +744,10 @@ public class Platform {
         String hash = util.getUTF(crypto.getMd5(util.getUTF(message)));
         if (!cache.exists(hash)) {
             cache.put(hash, true);
-            if (level.equals("error")) {
+            if ("error".equals(level)) {
                 log.warn(message);
             }
-            if (level.equals("info")) {
+            if ("info".equals(level)) {
                 log.info(message);
             }
         }

@@ -59,7 +59,7 @@ public class SuspendResume {
             event.setTo(EventEmitter.ACTUATOR_SERVICES+"@"+origin);
         }
         List<String> path = Utility.getInstance().split(request.getPathInfo(), "/");
-        String when = !path.isEmpty() && path.get(0).equals(NOW) ? NOW : LATER;
+        String when = !path.isEmpty() && NOW.equals(path.get(0)) ? NOW : LATER;
         event.setHeader(WHEN, when);
         po.send(event);
         String message = type+" request sent to " + origin;

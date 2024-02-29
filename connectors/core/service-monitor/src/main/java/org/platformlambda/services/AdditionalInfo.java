@@ -187,7 +187,7 @@ public class AdditionalInfo implements LambdaFunction {
     private Map<String, Object> filterInfo(Map<String, Object> info) {
         Map<String, Object> result = new HashMap<>();
         for (String key : info.keySet()) {
-            if (!key.equals(ID)) {
+            if (!ID.equals(key)) {
                 result.put(key, info.get(key));
             }
         }

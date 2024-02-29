@@ -173,7 +173,7 @@ public class RoutingEntry {
             if (configuredItem.startsWith("{") && configuredItem.endsWith("}")) {
                 continue;
             }
-            if (configuredItem.equals("*")) {
+            if ("*".equals(configuredItem)) {
                 continue;
             }
             // case-insensitive comparison using lowercase
@@ -478,7 +478,7 @@ public class RoutingEntry {
                     String key = m+":"+nUrl;
                     routes.put(key, info);
                     // OPTIONS method is not traced
-                    if (m.equals(OPTIONS_METHOD)) {
+                    if (OPTIONS_METHOD.equals(m)) {
                         log.info("{} {} -> {}, timeout={}s", m, nUrl, info.services, info.timeoutSeconds);
                     } else if (info.defaultAuthService != null) {
                         log.info("{} {} -> {} -> {}, timeout={}s, tracing={}",
@@ -580,7 +580,7 @@ public class RoutingEntry {
     }
 
     private boolean validWildcard(String wildcard) {
-        if (wildcard.equals("*")) {
+        if ("*".equals(wildcard)) {
             return true;
         }
         if (!wildcard.endsWith("*")) {
