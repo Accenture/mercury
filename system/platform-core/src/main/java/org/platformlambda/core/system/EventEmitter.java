@@ -649,11 +649,13 @@ public class EventEmitter {
     }
 
     public String getEventHttpTarget(String route) {
-        return eventHttpTargets.get(route);
+        int slash = route.indexOf('@');
+        return eventHttpTargets.get(slash == -1? route : route.substring(0, slash));
     }
 
     public Map<String, String> getEventHttpHeaders(String route) {
-        return eventHttpHeaders.get(route);
+        int slash = route.indexOf('@');
+        return eventHttpHeaders.get(slash == -1? route : route.substring(0, slash));
     }
 
     /**
@@ -671,13 +673,28 @@ public class EventEmitter {
         event.setTo(to);
         String targetHttp = event.getHeader("_") == null? getEventHttpTarget(to) : null;
         if (targetHttp != null) {
+            String callback = event.getReplyTo();
+            event.setReplyTo(null);
             EventEnvelope forwardEvent = new EventEnvelope(event.toMap()).setHeader("_", "async");
             Future<EventEnvelope> response = asyncRequest(forwardEvent, ASYNC_EVENT_HTTP_TIMEOUT,
-                                                getEventHttpHeaders(to), targetHttp, false);
+                                                getEventHttpHeaders(to), targetHttp, callback != null);
             response.onSuccess(evt -> {
-                if (evt.getStatus() != 202) {
-                    log.error("Error in sending async event {} to {} - status={}, error={}",
-                            to, targetHttp, evt.getStatus(), evt.getError());
+                if (callback != null) {
+                    // Send the RPC response from the remote target service to the callback
+                    evt.setTo(callback).setReplyTo(null).setFrom(to)
+                            .setTrace(event.getTraceId(), event.getTracePath())
+                            .setCorrelationId(event.getCorrelationId());
+                    try {
+                        send(evt);
+                    } catch (IOException e) {
+                        log.error("Error in sending callback event {} from {} to {} - {}",
+                                to, targetHttp, callback, e.getMessage());
+                    }
+                } else {
+                    if (evt.getStatus() != 202) {
+                        log.error("Error in sending async event {} to {} - status={}, error={}",
+                                to, targetHttp, evt.getStatus(), evt.getError());
+                    }
                 }
             });
             return;

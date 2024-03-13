@@ -189,6 +189,8 @@ public class EventEnvelope {
             // body is used to store error message if status is not 200
             if (body == null) {
                 return "null";
+            } else if (body instanceof byte[]) {
+                return "***";
             } else {
                 return body instanceof String? (String) body : body.toString();
             }
