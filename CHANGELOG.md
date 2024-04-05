@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## Version 2.8.6, 4/5/2024
+
 Library Updates
 netty 4.1.108
 tomacat 9.0.86
