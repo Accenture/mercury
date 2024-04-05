@@ -18,7 +18,6 @@
         <!-- connnector implementations -->
         <module>connectors/adapters/kafka/kafka-connector</module>
         <module>connectors/adapters/hazelcast/hazelcast-connector</module>
-        <module>connectors/adapters/activemq/activemq-connector</module>
         <!-- Convenient kafka standalone server for develoopment and testing -->
         <module>connectors/adapters/kafka/kafka-standalone</module>
         <!-- Executables for cloud specific presence monitors -->
