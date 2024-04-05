@@ -23,7 +23,6 @@
         <!-- Executables for cloud specific presence monitors -->
         <module>connectors/adapters/kafka/kafka-presence</module>
         <module>connectors/adapters/hazelcast/hazelcast-presence</module>
-        <module>connectors/adapters/activemq/activemq-presence</module>
         <!-- Executables for tools -->
         <module>extensions/simple-scheduler</module>
         <module>extensions/distributed-trace-aggregator</module>
