@@ -6,12 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.8.6,  4/15/2024
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+kafka-client- 3.7.0
+
 ## Version 2.8.6,  4/5/2024
 
-Library Updates
-netty 4.1.108
-tomacat 9.0.86
-vertx-core 4.5.4
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+OSS library updates:
+1. netty 4.1.108
+2. tomcat 9.0.86
+3. vertx-core 4.5.4
 
 ## Version 2.8.5, 2/9/2024
 
