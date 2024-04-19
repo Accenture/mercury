@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 2.8.6,  4/15/2024
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+kafka-client- 3.7.0
+
 ## Version 2.8.6,  4/5/2024
 
 ### Added
