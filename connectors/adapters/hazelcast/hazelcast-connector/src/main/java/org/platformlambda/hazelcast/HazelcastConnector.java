@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -68,17 +69,18 @@ public class HazelcastConnector implements CloudSetup {
         // default location is cloud.client.properties
         Properties properties = allProperties.get(location);
         if (properties == null) {
-            ConfigReader clusterConfig = null;
+            ConfigReader config = null;
             try {
-                clusterConfig = ConnectorConfig.getConfig(location,
+                config = ConnectorConfig.getConfig(location,
                         "file:/tmp/config/hazelcast.properties,classpath:/hazelcast.properties");
             } catch (IOException e) {
                 log.error("Unable to find hazelcast properties - {}", e.getMessage());
                 System.exit(-1);
             }
             properties = new Properties();
-            for (String k : clusterConfig.getMap().keySet()) {
-                properties.setProperty(k, clusterConfig.getProperty(k));
+            Map<String, Object> kv = config.getCompositeKeyValues();
+            for (String k : kv.keySet()) {
+                properties.setProperty(k, String.valueOf(kv.get(k)));
             }
             String url = properties.getProperty(BROKER_URL);
             Utility util = Utility.getInstance();

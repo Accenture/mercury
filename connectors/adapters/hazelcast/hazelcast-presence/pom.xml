@@ -134,7 +134,7 @@
                 <!-- DO NOT CHANGE THIS
                      AutoStart will find your Main Application(s) -->
                 <configuration>
-                    <mainClass>org.platformlambda.rest.AutoStart</mainClass>
+                    <mainClass>org.platformlambda.core.system.AutoStart</mainClass>
                 </configuration>
                 <executions>
                     <execution>
