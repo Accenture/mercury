@@ -1,0 +1,15 @@
+#
+# This file lists the base application configuration file(s)
+# for the AppConfigReader class.
+#
+# If you want to override the base configuration file(s),
+# you can follow the syntax here and create a "app-config-reader.yml"
+# file in your user application, and it will replace these default values.
+#
+# When you have more than one base configuration file,
+# they will be parsed and merged sequentially.
+#
+
+resources:
+  - application.properties
+  - application.yml

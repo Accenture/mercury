@@ -102,7 +102,7 @@ public class ConnectorConfig {
             if ("true".equalsIgnoreCase(useStaticTopics)) {
                 ConfigReader topicConfig = getConfig("topic.substitution.file",
                         "file:/tmp/config/topic-substitution.yaml,classpath:/topic-substitution.yaml");
-                Map<String, Object> map = util.getFlatMap(topicConfig.getMap());
+                Map<String, Object> map = topicConfig.getCompositeKeyValues();
                 if (map.isEmpty()) {
                     log.error("Application cannot start because topic-substitution.yaml is empty");
                     System.exit(-1);

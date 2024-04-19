@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -73,8 +74,9 @@ public class KafkaConnector implements CloudSetup {
                 log.error("Unable to find kafka properties - {}", e.getMessage());
                 System.exit(-1);
             }
-            for (String k : config.getMap().keySet()) {
-                properties.setProperty(k, config.getProperty(k));
+            Map<String, Object> kv = config.getCompositeKeyValues();
+            for (String k : kv.keySet()) {
+                properties.setProperty(k, String.valueOf(kv.get(k)));
             }
             String brokerUrls = properties.getProperty(BROKER_URL);
             List<String> brokers = Utility.getInstance().split(brokerUrls, ",");

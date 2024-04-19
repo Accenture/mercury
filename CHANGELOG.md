@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.10, 3/19/2024
+
+### Added
+
+Added "app-config-reader.yml" file in the resources folder so that you can override
+the default application configuration files.
+
+### Removed
+
+N/A
+
+### Changed
+
+1. Open sources library update (Spring Boot 3.2.4, Vertx 4.5.5)
+2. Improve AppConfigReader and ConfigReader to use the app-config-reader.yml file.
+
+---
 ## Version 3.0.9, 2/9/2024
 
 ### Added
@@ -606,7 +623,7 @@ N/A
 1. "kafka.pubsub" is added as a cloud service
 2. File download example in the lambda-example project
 3. "trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the 
-   transaction in the log context. For more details, please refer to the [Developer Guide](/guides/CHAPTER-5.md)
+   transaction in the log context. For more details, please refer to the [Developer Guide](guides/CHAPTER-5.md)
 4. Add API to pub/sub engine to support creation of topic with partitions
 5. TypedLambdaFunction is added so that developer can predefine input and output classes in a service without casting
 

@@ -23,7 +23,7 @@ application.properties file (or application.yml if you like).
 ```properties
 rest.server.port=8085
 rest.automation=true
-rest.automation.yaml=classpath:/rest.yaml
+yaml.rest.automation=classpath:/rest.yaml
 ```
 
 When `rest.automation=true`, you can configure the server port using `rest.server.port` or `server.port`.
@@ -31,14 +31,14 @@ When `rest.automation=true`, you can configure the server port using `rest.serve
 REST automation can co-exist with Spring Boot. Please use `rest.server.port` for REST automation and
 `server.port` for Spring Boot.
 
-The `rest.automation.yaml` tells the system the location of the rest.yaml configuration file.
+The `yaml.rest.automation` tells the system the location of the rest.yaml configuration file.
 
 You can configure more than one location and the system will search them sequentially. The following example
 tells the system to load rest.yaml from "/tmp/config/rest.yaml". If the file is not available, it will use
 the rest.yaml in the project's resources folder.
 
 ```properties
-rest.automation.yaml=file:/tmp/config/rest.yaml, classpath:/rest.yaml
+yaml.rest.automation=file:/tmp/config/rest.yaml, classpath:/rest.yaml
 ```
 
 ## Defining a REST endpoint

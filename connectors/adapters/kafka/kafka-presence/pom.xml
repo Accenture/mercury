@@ -5,7 +5,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>kafka-presence</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.9</version>
+    <version>3.0.10</version>
     <name>Presence monitor for Kafka</name>
 
     <parent>
@@ -19,7 +19,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
-        <kafka.version>3.6.1</kafka.version>
+        <kafka.version>3.7.0</kafka.version>
         <gson.version>2.10.1</gson.version>
         <netty.version>4.1.105.Final</netty.version>
         <slf4j.version>2.0.11</slf4j.version>
@@ -40,13 +40,13 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>service-monitor</artifactId>
-            <version>3.0.9</version>
+            <version>3.0.10</version>
         </dependency>
 
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.9</version>
+            <version>3.0.10</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

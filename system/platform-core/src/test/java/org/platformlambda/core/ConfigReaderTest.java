@@ -34,8 +34,6 @@ import java.util.UUID;
 
 public class ConfigReaderTest {
 
-    private static final String CONFIG_LOOP = "* config loop *";
-
     @BeforeClass
     public static void setup() {
         ConfigReader.setBaseConfig(AppConfigReader.getInstance());
@@ -232,14 +230,14 @@ public class ConfigReaderTest {
         reader.load("classpath:/test.properties");
         String value = reader.getProperty("recursive.key");
         // In case of config loop, the system will not resolve a parameter value.
-        Assert.assertEquals(CONFIG_LOOP, value);
+        Assert.assertNull(value);
     }
 
     @Test
     public void multiLevelLoopErrorTest() {
         AppConfigReader config = AppConfigReader.getInstance();
-        Object value = config.get("looping.test");
-        Assert.assertEquals(CONFIG_LOOP, value);
+        Object value = config.get("looping.test.1");
+        Assert.assertEquals("1000", value);
     }
 
     @Test

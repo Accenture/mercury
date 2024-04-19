@@ -182,14 +182,14 @@ When REST automation is turned on, the system will start a lightweight non-block
 By default, it will search for the "rest.yaml" file from "/tmp/config/rest.yaml" and then from "classpath:/rest.yaml".
 Classpath refers to configuration files under the "resources" folder in your source code project.
 
-To instruct the system to load from a specific path. You can add the `rest.automation.yaml` parameter.
+To instruct the system to load from a specific path. You can add the `yaml.rest.automation` parameter.
 
 To select another server port, change the `rest.server.port` parameter.
 
 ```properties
 rest.server.port=8085
 rest.automation=true
-rest.automation.yaml=classpath:/rest.yaml
+yaml.rest.automation=classpath:/rest.yaml
 ```
 
 To create a REST endpoint, you can add an entry in the "rest" section of the "rest.yaml" config file like this:

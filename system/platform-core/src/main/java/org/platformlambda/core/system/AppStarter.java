@@ -410,7 +410,7 @@ public class AppStarter {
 
     private ConfigReader getRestConfig() throws IOException {
         AppConfigReader reader = AppConfigReader.getInstance();
-        List<String> paths = Utility.getInstance().split(reader.getProperty("rest.automation.yaml",
+        List<String> paths = Utility.getInstance().split(reader.getProperty("yaml.rest.automation",
                 "file:/tmp/config/rest.yaml, classpath:/rest.yaml"), ", ");
         for (String p: paths) {
             ConfigReader config = new ConfigReader();

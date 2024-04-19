@@ -36,14 +36,13 @@ public class MockPubSub implements PubSubProvider {
     private static final Map<String, LambdaFunction> subscriptions = new HashMap<>();
 
     public MockPubSub() {
-        Utility util = Utility.getInstance();
         ConfigReader reader = new ConfigReader();
         try {
             reader.load("classpath:/topic-substitution.yaml");
         } catch (IOException e) {
             // this should not happen
         }
-        Map<String, Object> map = util.getFlatMap(reader.getMap());
+        Map<String, Object> map = reader.getCompositeKeyValues();
         for (String item: map.keySet()) {
             topicStore.put(item, 1);
         }

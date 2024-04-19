@@ -15,6 +15,7 @@ precedence.
 | web.component.scan                     | your own package path or parent path                            | Yes       |
 | server.port                            | e.g. 8083                                                       | Yes*1     |
 | rest.automation                        | true if you want to enable automation                           | Optional  |
+| yaml.rest.automation                   | Points to config file. e.g. classpath:/rest.yaml                | Optional  |
 | rest.server.port                       | e.g. 8085                                                       | Optional  |
 | websocket.server.port                  | Alias for rest.server.port                                      | Optional  |
 | static.html.folder                     | classpath:/public/                                              | Yes       |
@@ -57,6 +58,39 @@ precedence.
 | kernel.thread.pool                     | Default 100. Please restrict it to less than 200.               | Optional  |
 
 `*` - when using the "rest-spring" library
+
+## Base configuration files
+
+By default, the system assumes the following application configuration files:
+
+1. application.properties
+2. application.yml
+
+You can change this behavior by adding the `app-config-reader.yml` in your project's `resources` folder.
+
+```yaml
+resources:
+  - application.properties
+  - application.yml
+```
+
+You can tell the system to load application configuration from different set of files.
+You can use either PROPERTIES or YAML files. YAML files can use "yml" or "yaml" extension.
+
+For example, you may use only "application.yml" file without scanning application.properties.
+
+## Special handling for PROPERTIES file
+
+Since application.properties and application.yml can be used together, 
+the system must enforce keyspace uniqueness because YAML keyspaces are hierarchical.
+
+For example, if you have x.y and x.y.z, x.y is the parent of x.y.z.
+
+Therefore, you cannot set a value for the parent key since the parent is a key-value container.
+
+This hierarchical rule is enforced for PROPERTIES files.
+If you have x.y=3 and x.y.z=2 in the same PROPERTIES file, x.y will become a parent of x.y.z and its intended
+value of 3 will be lost.
 
 # Static HTML contents
 

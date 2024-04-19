@@ -41,16 +41,10 @@ public class ConfigReader implements ConfigBase {
     private static final String YML = ".yml";
     private static final String YAML = ".yaml";
     private static final String DOT_PROPERTIES = ".properties";
-    private static final String CONFIG_LOOP = "* config loop *";
-    /*
-     * A normalized map has composite keys expanded into simple key.
-     * e.g. "hello.world: 1" becomes "hello: world: 1"
-     */
-    private boolean isNormalized = true;
 
     private static AppConfigReader baseConfig;
-    private Map<String, Object> properties = new HashMap<>();
-    private MultiLevelMap config = new MultiLevelMap(new HashMap<>());
+    private MultiLevelMap config = new MultiLevelMap();
+    private final Map<String, Object> cachedFlatMap = new HashMap<>();
 
     /**
      * Set the base configuration reader (AppConfigReader)
@@ -64,18 +58,6 @@ public class ConfigReader implements ConfigBase {
         if (ConfigReader.baseConfig == null) {
             ConfigReader.baseConfig = config;
         }
-    }
-
-    /**
-     * Keys in YAML configuration files are normalized for easy
-     * retrieval using the underlying MultiLevelMap module.
-     * <p>
-     * Property configuration file is kept in original structure.
-     *
-     * @return true if the configuration file is normalized.
-     */
-    public boolean isNormalizedMap() {
-        return isNormalized;
     }
 
     /**
@@ -112,14 +94,14 @@ public class ConfigReader implements ConfigBase {
      */
     @Override
     public Object get(String key, Object defaultValue, String... loop) {
-        if (key == null || key.length() == 0) {
+        if (key == null || key.isEmpty()) {
             return null;
         }
         String systemProperty = getSystemProperty(key);
         if (systemProperty != null) {
             return systemProperty;
         }
-        Object value = isNormalized? config.getElement(key) : properties.get(key);
+        Object value = config.getElement(key);
         if (value == null) {
             value = defaultValue;
         }
@@ -131,7 +113,7 @@ public class ConfigReader implements ConfigBase {
                 String middle = result.substring(bracketStart + 2, bracketEnd).trim();
                 String middleDefault = null;
                 if (!middle.isEmpty()) {
-                    String loopId = loop.length == 1 && loop[0].length() > 0? loop[0] : Utility.getInstance().getUuid();
+                    String loopId = loop.length == 1 && !loop[0].isEmpty() ? loop[0] : Utility.getInstance().getUuid();
                     int colon = middle.lastIndexOf(':');
                     if (colon > 0) {
                         middleDefault = middle.substring(colon+1);
@@ -144,7 +126,7 @@ public class ConfigReader implements ConfigBase {
                         List<String> refs = loopDetection.getOrDefault(loopId, new ArrayList<>());
                         if (refs.contains(middle)) {
                             log.warn("Config loop for '{}' detected", key);
-                            middle = CONFIG_LOOP;
+                            middle = null;
                         } else {
                             refs.add(middle);
                             loopDetection.put(loopId, refs);
@@ -200,8 +182,26 @@ public class ConfigReader implements ConfigBase {
      *
      * @return map of key-values
      */
+    @Override
     public Map<String, Object> getMap() {
-        return isNormalized? config.getMap() : properties;
+        return config.getMap();
+    }
+
+    /**
+     * Retrieve a flat map of composite key-values
+     * (Value substitution is automatically applied)
+     *
+     * @return flat map
+     */
+    @Override
+    public Map<String, Object> getCompositeKeyValues() {
+        if (cachedFlatMap.isEmpty()) {
+            Map<String, Object> map = Utility.getInstance().getFlatMap(config.getMap());
+            for (String key : map.keySet()) {
+                cachedFlatMap.put(key, this.get(key));
+            }
+        }
+        return cachedFlatMap;
     }
 
     /**
@@ -212,10 +212,10 @@ public class ConfigReader implements ConfigBase {
      */
     @Override
     public boolean exists(String key) {
-        if (key == null || key.length() == 0) {
+        if (key == null || key.isEmpty()) {
             return false;
         }
-        return isNormalized? config.exists(key) : properties.containsKey(key);
+        return config.exists(key);
     }
 
     /**
@@ -225,7 +225,7 @@ public class ConfigReader implements ConfigBase {
      */
     @Override
     public boolean isEmpty() {
-        return isNormalized? config.isEmpty() : properties.isEmpty();
+        return config.isEmpty();
     }
 
     /**
@@ -238,20 +238,13 @@ public class ConfigReader implements ConfigBase {
     public void load(String path) throws IOException {
         boolean isYaml = path.endsWith(YML) || path.endsWith(YAML);
         // ".yaml" and ".yml" can be used interchangeably
-        final String alternativePath;
+        String alternativePath = null;
         if (isYaml) {
             String pathWithoutExt = path.substring(0, path.lastIndexOf('.'));
             alternativePath = path.endsWith(YML)? pathWithoutExt + YAML : pathWithoutExt + YML;
-        } else {
-            alternativePath = null;
         }
         InputStream in = null;
-        if (path.startsWith(CLASSPATH)) {
-            in = ConfigReader.class.getResourceAsStream(path.substring(CLASSPATH.length()));
-            if (in == null && alternativePath != null) {
-                in = ConfigReader.class.getResourceAsStream(alternativePath.substring(CLASSPATH.length()));
-            }
-        } else if (path.startsWith(FILEPATH)) {
+        if (path.startsWith(FILEPATH)) {
             String filePath = path.substring(FILEPATH.length());
             File f = new File(filePath);
             try {
@@ -266,30 +259,39 @@ public class ConfigReader implements ConfigBase {
                 // ok to ignore
             }
         } else {
-            in = ConfigReader.class.getResourceAsStream(path);
+            String resourcePath = path.startsWith(CLASSPATH)? path.substring(CLASSPATH.length()) : path;
+            if (alternativePath != null && alternativePath.startsWith(CLASSPATH)) {
+                alternativePath = alternativePath.substring(CLASSPATH.length());
+            }
+            in = ConfigReader.class.getResourceAsStream(resourcePath);
+            if (in == null && alternativePath != null) {
+                in = ConfigReader.class.getResourceAsStream(alternativePath);
+            }
         }
         if (in == null) {
             throw new IOException(path + " not found");
         }
         try {
             if (isYaml) {
+                Utility util = Utility.getInstance();
                 Yaml yaml = new Yaml();
-                String data = Utility.getInstance().stream2str(in);
+                String data = util.getUTF(util.stream2bytes(in, false));
                 Map<String, Object> m = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
                 enforceKeysAsText(m);
                 config = new MultiLevelMap(normalizeMap(m));
-                isNormalized = true;
             } else if (path.endsWith(JSON)) {
                 Map<String, Object> m = SimpleMapper.getInstance().getMapper().readValue(in, Map.class);
                 enforceKeysAsText(m);
                 config = new MultiLevelMap(normalizeMap(m));
-                isNormalized = true;
             } else if (path.endsWith(DOT_PROPERTIES)) {
-                properties = new HashMap<>();
+                config = new MultiLevelMap();
                 Properties p = new Properties();
                 p.load(in);
-                p.forEach((k, v) -> properties.put(String.valueOf(k), v));
-                isNormalized = false;
+                Map<String, Object> map = new HashMap<>();
+                p.forEach((k,v) -> map.put(String.valueOf(k), v));
+                List<String> keys = new ArrayList<>(map.keySet());
+                Collections.sort(keys);
+                keys.forEach(k -> config.setElement(k, map.get(k)));
             }
         } finally {
             try {
@@ -308,13 +310,14 @@ public class ConfigReader implements ConfigBase {
     public void load(Map<String, Object> map) {
         enforceKeysAsText(map);
         config = new MultiLevelMap(normalizeMap(map));
-        isNormalized = true;
     }
 
     private Map<String, Object> normalizeMap(Map<String, Object> map) {
         Map<String, Object> flat = Utility.getInstance().getFlatMap(map);
-        MultiLevelMap multiMap = new MultiLevelMap(new HashMap<>());
-        flat.forEach(multiMap::setElement);
+        List<String> keys = new ArrayList<>(flat.keySet());
+        Collections.sort(keys);
+        MultiLevelMap multiMap = new MultiLevelMap();
+        keys.forEach(k -> multiMap.setElement(k, flat.get(k)));
         return multiMap.getMap();
     }
 

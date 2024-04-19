@@ -21,16 +21,17 @@ package org.platformlambda.core.util;
 import org.platformlambda.core.util.common.ConfigBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
-import java.util.Map;
+import java.io.InputStream;
+import java.util.*;
 
 public class AppConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
-    private static final String APP_PROPS = "classpath:/application.properties";
-    private static final String APP_YML = "classpath:/application.yml";
-    private final ConfigReader propReader;
-    private final ConfigReader yamlReader;
+    private static final String APP_CONFIG_READER_YML = "app-config-reader.yml";
+    private static final String RESOURCES = "resources";
+    private static final ConfigReader config = new ConfigReader();
     private static final AppConfigReader INSTANCE = new AppConfigReader();
 
     public static AppConfigReader getInstance() {
@@ -43,30 +44,48 @@ public class AppConfigReader implements ConfigBase {
      * <p>
      * Note that you can provide one or both files in the "resources" folder.
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private AppConfigReader() {
         ConfigReader.setBaseConfig(this);
-        /*
-         * Load application.properties
-         * property substitution not required because this is the top level config file
-         */
-        propReader = new ConfigReader();
-        try {
-            propReader.load(APP_PROPS);
+        try (InputStream in = AppConfigReader.class.getResourceAsStream("/"+APP_CONFIG_READER_YML)) {
+            if (in == null) {
+                throw new IOException("missing "+APP_CONFIG_READER_YML);
+            }
+            Utility util = Utility.getInstance();
+            Yaml yaml = new Yaml();
+            String data = util.getUTF(util.stream2bytes(in, false));
+            Map<String, Object> m = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
+            Object fileList = m.get(RESOURCES);
+            if (fileList instanceof List) {
+                final Map<String, Object> consolidated = new HashMap<>();
+                List list = (List) fileList;
+                list.forEach(filename -> {
+                    ConfigReader reader = new ConfigReader();
+                    try {
+                        reader.load("/"+filename);
+                        Map<String, Object> flat = Utility.getInstance().getFlatMap(reader.getMap());
+                        if (!flat.isEmpty()) {
+                            consolidated.putAll(flat);
+                            log.info("Loaded {}", filename);
+                        }
+                    } catch (IOException e) {
+                        // ok to ignore
+                    }
+                });
+                MultiLevelMap multiMap = new MultiLevelMap();
+                List<String> keys = new ArrayList<>(consolidated.keySet());
+                Collections.sort(keys);
+                keys.forEach(k -> multiMap.setElement(k, consolidated.get(k)));
+                config.load(multiMap.getMap());
+            } else {
+                throw new IOException("missing 'resources' section in "+APP_CONFIG_READER_YML);
+            }
+
         } catch (IOException e) {
-            // ok to ignore
+            log.error("Unable to parse base application configuration - {}", e.getMessage());
         }
-        /*
-         * Load application.yml
-         * property substitution not required because this is the top level config file
-         */
-        yamlReader = new ConfigReader();
-        try {
-            yamlReader.load(APP_YML);
-        } catch (IOException e) {
-            // ok to ignore
-        }
-        if (propReader.isEmpty() && yamlReader.isEmpty()) {
-            log.error("Application config not loaded. Please check {} or {}", APP_PROPS, APP_YML);
+        if (config.isEmpty()) {
+            log.error("Application config is empty. Please check.");
         }
     }
 
@@ -78,7 +97,7 @@ public class AppConfigReader implements ConfigBase {
      */
     @Override
     public Object get(String key) {
-        return propReader.exists(key) ? propReader.get(key) : yamlReader.get(key);
+        return config.get(key);
     }
 
     /**
@@ -91,8 +110,7 @@ public class AppConfigReader implements ConfigBase {
      */
     @Override
     public Object get(String key, Object defaultValue, String... loop) {
-        return propReader.exists(key) ?
-                propReader.get(key, defaultValue, loop) : yamlReader.get(key, defaultValue, loop);
+        return config.get(key, defaultValue, loop);
     }
 
     /**
@@ -125,26 +143,6 @@ public class AppConfigReader implements ConfigBase {
     }
 
     /**
-     * Retrieve the underlying property map
-     * (Note that this returns a raw map without value substitution)
-     *
-     * @return map of key-values
-     */
-    public Map<String, Object> getPropertyMap() {
-        return propReader.getMap();
-    }
-
-    /**
-     * Retrieve the underlying YAML map
-     * (Note that this returns a raw map without value substitution)
-     *
-     * @return map of key-values
-     */
-    public Map<String, Object> getYamlMap() {
-        return yamlReader.getMap();
-    }
-
-    /**
      * Check if a key exists
      *
      * @param key of a configuration parameter
@@ -152,7 +150,7 @@ public class AppConfigReader implements ConfigBase {
      */
     @Override
     public boolean exists(String key) {
-        return propReader.exists(key) || yamlReader.exists(key);
+        return config.exists(key);
     }
 
     /**
@@ -162,7 +160,29 @@ public class AppConfigReader implements ConfigBase {
      */
     @Override
     public boolean isEmpty() {
-        return propReader.isEmpty() && yamlReader.isEmpty();
+        return config.isEmpty();
+    }
+
+    /**
+     * Retrieve the underlying map
+     * (Note that this returns a raw map without value substitution)
+     *
+     * @return map of key-values
+     */
+    @Override
+    public Map<String, Object> getMap() {
+        return config.getMap();
+    }
+
+    /**
+     * Retrieve a flat map of composite key-values
+     * (Value substitution is automatically applied)
+     *
+     * @return flat map
+     */
+    @Override
+    public Map<String, Object> getCompositeKeyValues() {
+        return config.getCompositeKeyValues();
     }
 
 }

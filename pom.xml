@@ -6,7 +6,7 @@
     <groupId>com.accenture.mercury</groupId>
     <artifactId>parent-mercury</artifactId>
     <packaging>pom</packaging>
-    <version>3.0.9</version>
+    <version>3.0.10</version>
     <name>Parent Mercury</name>
 
     <!-- IMPORTANT: if you are using Java 17 or higher, please uncomment rest-spring-3 and rest-spring-3-example below -->

@@ -6,7 +6,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>platform-core</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.9</version>
+    <version>3.0.10</version>
     <name>Mercury platform-core module</name>
 
     <!-- Use Spring Boot as a parent to fetch OSS modules -->
@@ -21,7 +21,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
-        <kafka.version>3.6.1</kafka.version>
+        <kafka.version>3.7.0</kafka.version>
         <gson.version>2.10.1</gson.version>
         <netty.version>4.1.105.Final</netty.version>
         <slf4j.version>2.0.11</slf4j.version>
@@ -55,19 +55,19 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-lang-kotlin-coroutines</artifactId>
-            <version>4.5.3</version>
+            <version>4.5.5</version>
         </dependency>
 
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web-client</artifactId>
-            <version>4.5.3</version>
+            <version>4.5.5</version>
         </dependency>
 
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>4.5.3</version>
+            <version>4.5.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>

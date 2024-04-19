@@ -18,18 +18,15 @@
 
 package org.platformlambda.core.util.common;
 
+import java.util.Map;
+
 public interface ConfigBase {
-
     Object get(String key);
-
     Object get(String key, Object defaultValue, String... loop);
-
     String getProperty(String key);
-
     String getProperty(String key, String defaultValue);
-
     boolean exists(String key);
-
     boolean isEmpty();
-
+    Map<String, Object> getMap();
+    Map<String, Object> getCompositeKeyValues();
 }
