@@ -21,7 +21,7 @@ N/A
 
 ### Changed
 
-1. Open sources library update (Spring Boot 3.2.4, Vertx 4.5.5)
+1. Open sources library update (Spring Boot 3.2.4, Vertx 4.5.5, Netty 4.1.105.Final)
 2. Improve AppConfigReader and ConfigReader to use the app-config-reader.yml file.
 
 ---

@@ -22,7 +22,7 @@
         <hazelcast.version>5.3.6</hazelcast.version>
         <kafka.version>3.7.0</kafka.version>
         <gson.version>2.10.1</gson.version>
-        <netty.version>4.1.105.Final</netty.version>
+        <netty.version>4.1.108.Final</netty.version>
         <tomcat.version>9.0.84</tomcat.version>
         <slf4j.version>2.0.11</slf4j.version>
         <log4j2.version>2.22.0</log4j2.version>
