@@ -17,24 +17,12 @@ N/A
 N/A
 
 ### Changed
-kafka-client- 3.7.0
-
-## Version 2.8.6,  4/5/2024
-
-### Added
-
-N/A
-
-### Removed
-
-N/A
-
-### Changed
 
 OSS library updates:
 1. netty 4.1.108
 2. tomcat 9.0.86
 3. vertx-core 4.5.4
+4. kafka-client- 3.7.0
 
 ## Version 2.8.5, 2/9/2024
 

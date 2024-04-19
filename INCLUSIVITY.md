@@ -1,7 +1,3 @@
-<img align="right" height="40" src="https://www.accenture.com/t20180820T081710Z__w__/us-en/_acnmedia/Accenture/Dev/Redesign/Acc_Logo_Black_Purple_RGB.png">  
-<br />
-<br />
-
 # <font size="12">**TECHNOLOGY INCLUSIVE <br />LANGUAGE GUIDEBOOK**</font>
 
 As an organization, Accenture believes in building an inclusive workplace and contributing to a world where equality thrives. Certain terms or expressions can unintentionally harm, perpetuate damaging stereotypes, and insult people. Inclusive language avoids bias, slang terms, and word choices which express derision of groups of people based on race, gender, sexuality, or socioeconomic status.  The Accenture North America Technology team created this guidebook to provide Accenture employees with a view into inclusive language and guidance for working to avoid its use—helping to ensure that we communicate with respect, dignity and fairness.
