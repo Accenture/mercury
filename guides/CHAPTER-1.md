@@ -279,7 +279,6 @@ and KotlinLambdaFunction interfaces.
 Let's examine the `SimpleDemoEndpoint` example under the "services" folder. It may look like this:
 
 ```java
-@CoroutineRunner
 @PreLoad(route = "hello.simple", instances = 10)
 public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override
@@ -295,7 +294,9 @@ The `instances` parameter tells the system to create a number of workers to serv
 > Note that you don't need a lot of workers to handle a larger number of users
   and requests provided that your function can finish execution very quickly.
 
-The `CoroutineRunner` annotation advises the system to run the function as a "coroutine".
+By default, functions are executed as "coroutine" unless you specify the `KernelThreadRunner` annotation to tell
+the system to run the function using kernel thread pool.
+
 There are three function execution strategies (Kernel thread pool, coroutine and suspend function).
 We will explain the concept in [Chapter-2](CHAPTER-2.md)
 

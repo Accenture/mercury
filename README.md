@@ -33,7 +33,20 @@ using three function execution strategies:
 Mercury achieves virtual threading using coroutine and suspend function. It will fully embrace
 Java 19 virtual thread feature when it becomes officially available later in 2023.
 
-April, 2023
+April, 2024
+
+# Breaking changes
+
+By default, the system will run all functions as "coroutines" where previous versions run them using
+a kernel thread pool.
+
+For consistency, this unifies the behavior with Mercury Composable version 3.1.
+
+The `CoroutineRunner` annotation has been removed and a new `KernelThreadRunner` annotation is available
+to tell the system to run a function in the kernel thread pool.
+
+The "rest.automation.yaml" key is renamed as "yaml.rest.automation" after we unify the parsing behavior
+of application.properties with application.yml.
 
 # Write your first composable application
 
@@ -279,11 +292,11 @@ applications. It supports the two pillars of composable application – In-memor
 function execution strategies.
 
 It integrates with Eclipse Vertx to hide the complexity of event-driven programming and embraces the three function 
-execution strategies using kernel thread pool, coroutine and suspend function. For example, you can turn a regular 
-Java class into a coroutine by adding the annotation “CoroutineRunner.” To simplify writing “suspend function,” 
-you can implement the “KotlinLambdaFunction” class and copy-n-paste your existing Java code into the new Kotlin class, 
-the IDE will automatically convert code for you. With 90% conversion efficiency, you may need minor touch up to 
-finish the rest.
+execution strategies using kernel thread pool, coroutine and suspend function. The default execution strategy is
+"coroutine" unless you specify the function using the "KernelThreadRunner" annotation. To simplify writing
+“suspend function,” you can implement the “KotlinLambdaFunction” class and copy-n-paste your existing Java code
+into the new Kotlin class, the IDE will automatically convert code for you. With 90% conversion efficiency, 
+you may need minor touch up to finish the rest.
 
 We can construct a composable application with self-contained functions that execute when events arrive. 
 There is a simple event API that we call the “Post Office” to support sequential non-blocking RPC, async, 

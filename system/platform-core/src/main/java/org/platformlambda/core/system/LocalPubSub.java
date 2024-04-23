@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
@@ -120,7 +119,6 @@ public class LocalPubSub {
         }
     }
 
-    @CoroutineRunner
     @EventInterceptor
     public static class LocalPublisher implements TypedLambdaFunction<EventEnvelope, Void> {
 

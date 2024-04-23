@@ -18,7 +18,6 @@
 
 package org.platformlambda.automation.service;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
@@ -27,7 +26,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@CoroutineRunner
 public class MockHelloWorld implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
     private static final AtomicInteger count = new AtomicInteger(0);

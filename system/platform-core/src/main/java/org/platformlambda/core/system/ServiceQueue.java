@@ -22,7 +22,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
-import org.platformlambda.core.annotations.CoroutineRunner;
+import org.platformlambda.core.annotations.KernelThreadRunner;
 import org.platformlambda.core.util.ElasticQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +38,7 @@ public class ServiceQueue {
     private static final String READY = "ready";
     private static final String HASH = "#";
     private static final String AS_COROUTINE = "as coroutine";
-    private static final String WORKER_POOL = "in worker pool";
-    private static final String STREAM = "STREAM";
+    private static final String KERNEL_THREAD_POOL = "using kernel thread pool";
     private static final String PUBLIC = "PUBLIC";
     private static final String PRIVATE = "PRIVATE";
     private final ElasticQueue elasticQueue;
@@ -65,8 +64,8 @@ public class ServiceQueue {
             streamRoute = route + HASH + 1;
             StreamQueue worker = new StreamQueue(service, streamRoute);
             workers.add(worker);
-            boolean coroutine = service.getStreamFunction().getClass().getAnnotation(CoroutineRunner.class) != null;
-            log.info("{} {} started {}", STREAM, route, coroutine ? AS_COROUTINE : "");
+            boolean coroutine = service.getStreamFunction().getClass().getAnnotation(KernelThreadRunner.class) == null;
+            log.info("STREAM {} started {}", route, coroutine ? AS_COROUTINE : KERNEL_THREAD_POOL);
         } else {
             streamRoute = null;
             int instances = service.getConcurrency();
@@ -83,13 +82,13 @@ public class ServiceQueue {
                             service.isPrivate() ? PRIVATE : PUBLIC, route, instances);
                 }
             } else {
-                boolean coroutine = service.getFunction().getClass().getAnnotation(CoroutineRunner.class) != null;
+                boolean coroutine = service.getFunction().getClass().getAnnotation(KernelThreadRunner.class) == null;
                 if (instances == 1) {
                     log.info("{} {} started {}", service.isPrivate() ? PRIVATE : PUBLIC,
-                            route, coroutine? AS_COROUTINE : WORKER_POOL);
+                            route, coroutine? AS_COROUTINE : KERNEL_THREAD_POOL);
                 } else {
                     log.info("{} {} with {} instances started {}", service.isPrivate() ? PRIVATE : PUBLIC,
-                            route, instances, coroutine? AS_COROUTINE : WORKER_POOL);
+                            route, instances, coroutine? AS_COROUTINE : KERNEL_THREAD_POOL);
                 }
             }
         }

@@ -18,7 +18,6 @@
 
 package org.platformlambda.services;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
@@ -37,14 +36,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This demo function assumes the request comes from REST automation as an HTTP request event.
  * <p>
- * Since this function executes very fast, we set the function execution strategy
- * as "coroutine" using the CoroutineRunner annotation.
+ * Since this function executes very fast, we set the default function execution strategy
+ * "coroutine".
  * <p>
  * IMPORTANT: LambdaFunction should be self-contained without shared objects.
  *            If you must use shared objects, use "static final" atomic or concurrent version of the
  *            Java class.
  */
-@CoroutineRunner
 @PreLoad(route="hello.generic", instances=10)
 public class HelloGeneric implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     private static final Logger log = LoggerFactory.getLogger(HelloGeneric.class);

@@ -19,7 +19,6 @@
 package org.platformlambda.automation.services;
 
 import org.platformlambda.automation.models.HttpRequestEvent;
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.AsyncHttpRequest;
@@ -36,7 +35,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-@CoroutineRunner
 @ZeroTracing
 @EventInterceptor
 public class AuthInterceptor implements LambdaFunction {

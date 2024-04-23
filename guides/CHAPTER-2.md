@@ -101,8 +101,9 @@ A function is executed when an event arrives. There are three function execution
 
 ### Kernel thread pool
 
-When you write a function using LambdaFunction and TypedLambdaFunction, the function will be executed using
-"kernel thread pool" and Java will run your function in native "preemptive multitasking" mode.
+When you write a function using LambdaFunction and TypedLambdaFunction with the `KernelThreadRunner` annotation,
+the function will be executed using "kernel thread pool" and Java will run your function in native
+"preemptive multitasking" mode.
 
 While preemptive multitasking fully utilizes the CPU, its context switching overheads may increase as the number of
 kernel threads grow. As a rule of thumb, you should control the maximum number of kernel threads to less than 200.
@@ -135,7 +136,8 @@ For ease of programming, we recommend using suspend function to handle RPC calls
 
 ### Coroutine
 
-When you add the `CoroutineRunner` annotation in your function, the system will run your function as a coroutine.
+By default, the system will run your function as a coroutine unless you specify `KernelThreadRunner` annotation in
+your function or declared it as a suspend function using KotlinLambdaFunction interface.
 
 Normally, coroutines are executed in an event loop using a single kernel thread. Note that the underlying Eclipse
 vertx is a multithreaded event system that executes coroutines in a small number of event loops concurrently for

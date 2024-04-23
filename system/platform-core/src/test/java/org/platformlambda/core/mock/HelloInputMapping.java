@@ -18,7 +18,7 @@
 
 package org.platformlambda.core.mock;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
+import org.platformlambda.core.annotations.KernelThreadRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.PoJo;
@@ -27,7 +27,12 @@ import org.platformlambda.core.system.Platform;
 
 import java.util.Map;
 
-@CoroutineRunner
+/**
+ * Kernel Thread should be reserved for legacy functions that are blocking.
+ * <p>
+ * It is used here for unit test only.
+ */
+@KernelThreadRunner
 @PreLoad(route="hello.input.mapping", instances = 10)
 public class HelloInputMapping implements TypedLambdaFunction<PoJo, EventEnvelope> {
 

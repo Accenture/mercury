@@ -1398,7 +1398,7 @@ public class PostOfficeTest extends TestBase {
         Assert.assertEquals(0, pojo.getNumber());
         Assert.assertEquals(0L, pojo.getLongNumber());
         // the demo function is designed to return its function execution types
-        Assert.assertEquals("true", response.getHeader("coroutine"));
+        Assert.assertEquals("false", response.getHeader("coroutine"));
         Assert.assertEquals("false", response.getHeader("suspend"));
         Assert.assertEquals("false", response.getHeader("interceptor"));
         Assert.assertEquals("true", response.getHeader("tracing"));

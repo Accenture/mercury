@@ -25,7 +25,6 @@ import org.platformlambda.automation.config.RoutingEntry;
 import org.platformlambda.automation.models.AsyncContextHolder;
 import org.platformlambda.automation.models.HeaderInfo;
 import org.platformlambda.automation.util.SimpleHttpUtility;
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
@@ -42,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
-@CoroutineRunner
 @EventInterceptor
 public class ServiceResponseHandler implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final Logger log = LoggerFactory.getLogger(ServiceResponseHandler.class);

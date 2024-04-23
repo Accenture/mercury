@@ -42,11 +42,11 @@ according to the input/output API contract of your function.
 For example, the SimpleDemoEndpoint has the "PreLoad" annotation to declare the route name and number of worker
 instances.
 
-By default, LambdaFunction and TypedLambdaFunction are executed using "kernel thread pool" for the worker instances.
-To change a function to a coroutine, you can add the `CoroutineRunner` annotation.
+By default, LambdaFunction and TypedLambdaFunction are executed as "coroutine" for the worker instances.
+To tell the system to run it using kernel threads, you can add the `KernelThreadRunner` annotation.
 
 ```java
-@CoroutineRunner
+@KernelThreadRunner
 @PreLoad(route = "hello.simple", instances = 10)
 public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     @Override

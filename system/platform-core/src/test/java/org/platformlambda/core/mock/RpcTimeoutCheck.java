@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.mock;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.TypedLambdaFunction;
@@ -28,7 +27,6 @@ import org.platformlambda.core.system.PostOffice;
 import java.util.HashMap;
 import java.util.Map;
 
-@CoroutineRunner
 @PreLoad(route="rpc.timeout.check", instances = 50)
 public class RpcTimeoutCheck implements TypedLambdaFunction<EventEnvelope, Map<String, Object>> {
 

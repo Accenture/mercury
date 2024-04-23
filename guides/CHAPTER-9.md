@@ -106,8 +106,8 @@ public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest,
 }
 ```
 
-By default, a Java function will run using a kernel thread. To tell the system that you want to run the function as
-a coroutine, you can add the `CoroutineRunner` annotation.
+By default, a Java function will run as a coroutine. To tell the system that you want to run the function using
+kernel thread pool, you can add the `KernelThreadRunner` annotation.
 
 The `PreLoad` annotation tells the system to preload the function into memory and register it into the event loop.
 You must provide a "route name" and configure the number of concurrent workers ("instances").

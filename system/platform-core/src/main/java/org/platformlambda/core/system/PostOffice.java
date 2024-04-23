@@ -322,12 +322,6 @@ public class PostOffice {
      * You can retrieve result from the future's
      * onSuccess(EventEnvelope event)
      * onFailure(Throwable timeoutException)
-     * <p>
-     * IMPORTANT: This is an asynchronous RPC using Future.
-     * You should NOT use this API in your function that will be run as a coroutine.
-     * <p>
-     * If you annotate your LambdaFunction using "CoroutineRunner", please use "CoroutineBridge" to bridge your Java
-     * code to a kotlin suspend function that calls "awaitRequest" in "FastRPC.kt".
      *
      * @param event to the target
      * @param timeout in milliseconds
@@ -344,12 +338,6 @@ public class PostOffice {
      * You can retrieve result from the future's
      * onSuccess(EventEnvelope event)
      * onFailure(Throwable timeoutException)
-     * <p>
-     * IMPORTANT: This is an asynchronous RPC using Future.
-     * You should NOT use this API in your function that will be run as a coroutine.
-     * <p>
-     * If you annotate your LambdaFunction using "CoroutineRunner", please use "CoroutineBridge" to bridge your Java
-     * code to a kotlin suspend function that calls "awaitRequest" in "FastRPC.kt".
      *
      * @param event to the target
      * @param timeout in milliseconds

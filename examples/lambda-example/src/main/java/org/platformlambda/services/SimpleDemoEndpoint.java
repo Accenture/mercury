@@ -18,7 +18,6 @@
 
 package org.platformlambda.services;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.TypedLambdaFunction;
@@ -31,7 +30,6 @@ import java.util.Map;
  * <p>
  * Please refer to the "hello.simple" demo endpoint in rest.yaml config file for details.
  */
-@CoroutineRunner
 @PreLoad(route="hello.simple", instances=10)
 public class SimpleDemoEndpoint implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     private static final String TASK = "task";

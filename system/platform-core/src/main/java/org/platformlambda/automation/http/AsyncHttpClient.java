@@ -35,7 +35,6 @@ import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.ext.web.multipart.MultipartForm;
 import org.platformlambda.automation.models.OutputStreamQueue;
 import org.platformlambda.automation.services.ServiceGateway;
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
@@ -62,7 +61,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@CoroutineRunner
 @EventInterceptor
 @PreLoad(route="async.http.request", instances=200)
 public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void> {

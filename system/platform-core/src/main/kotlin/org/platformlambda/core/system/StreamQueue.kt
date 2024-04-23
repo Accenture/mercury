@@ -23,7 +23,7 @@ import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import org.platformlambda.core.annotations.CoroutineRunner
+import org.platformlambda.core.annotations.KernelThreadRunner
 import org.platformlambda.core.models.EventEnvelope
 import org.slf4j.LoggerFactory
 import java.io.IOException
@@ -32,7 +32,7 @@ class StreamQueue(def: ServiceDef, route: String?) : WorkerQueues(def, route) {
     private val coroutine: Boolean
 
     init {
-        coroutine = def.streamFunction.javaClass.getAnnotation(CoroutineRunner::class.java) != null
+        coroutine = def.streamFunction.javaClass.getAnnotation(KernelThreadRunner::class.java) == null
         val system = Platform.getInstance().eventSystem
         consumer = system.localConsumer(route, StreamHandler())
         def.streamFunction.init(def.route)

@@ -18,8 +18,8 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
+import org.platformlambda.core.annotations.KernelThreadRunner;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.Utility;
@@ -53,7 +53,7 @@ public class ServiceDef {
     public ServiceDef(String route, TypedLambdaFunction lambda) {
         this.trackable = lambda.getClass().getAnnotation(ZeroTracing.class) == null;
         this.interceptor = lambda.getClass().getAnnotation(EventInterceptor.class) != null;
-        this.coroutine = lambda.getClass().getAnnotation(CoroutineRunner.class) != null;
+        this.coroutine = lambda.getClass().getAnnotation(KernelThreadRunner.class) == null;
         this.id = Utility.getInstance().getUuid();
         this.route = route;
         this.lambda = lambda;
@@ -77,7 +77,7 @@ public class ServiceDef {
     public ServiceDef(String route, StreamFunction lambda) {
         this.trackable = lambda.getClass().getAnnotation(ZeroTracing.class) == null;
         this.interceptor = lambda.getClass().getAnnotation(EventInterceptor.class) != null;
-        this.coroutine = lambda.getClass().getAnnotation(CoroutineRunner.class) != null;
+        this.coroutine = lambda.getClass().getAnnotation(KernelThreadRunner.class) == null;
         this.id = Utility.getInstance().getUuid();
         this.route = route;
         this.stream = lambda;

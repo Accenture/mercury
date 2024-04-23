@@ -21,8 +21,8 @@ The following are the breaking changes that require some code refactoring:
 We understand the inconvenience of a major release upgrade in production environment. We believe that the benefits
 would out-weight the refactoring effort. Your new code will be composable, easier to read and faster.
 
-Writing code with Mercury version 3 platform-core is straight forward. For example, you can make a Java function into
-a "coroutine" with the annotation `CoroutineRunner`.
+Writing code with Mercury version 3 platform-core is straight forward. By default, all functions run as coroutines.
+To tell the system to execute the function in a kernel thread pool, you may use the `KernelThreadRunner` annotation.
 
 To write a suspend function, you can use IDE (JetBrains Intellij) automated code conversion to copy-n-paste 
 Java statements into a KotlinLambdaFunction. This is the easiest way to port code. The conversion accuracy is high. 
@@ -199,8 +199,9 @@ However, the latter demands less CPU resources and yields higher throughput.
 
 # Kernel thread pool
 
-A Java function implementing the LambdaFunction or TypedLambdaFunction will be executed using a kernel thread pool.
+A Java function implementing the LambdaFunction or TypedLambdaFunction will be executed as a coroutine.
 
+To tell the system to run a function using kernel thread pool, you can add the `KernelThreadRunner` annotation.
 When using a kernel thread pool, please reduce the number of concurrent worker instances when you register 
 your function.
 
@@ -218,10 +219,7 @@ of concurrent kernel threads to around 100.
 
 ## Coroutine
 
-For some functions that are not computational intensive and do not make RPC calls, you can declare the function 
-as a coroutine using the `CoroutineRunner` annotation.
-
-This tells the system to execute the function in the event loop, thus reducing CPU load.
+By default, the system will execute functions in the event loop, thus reducing CPU load.
 
 ## Suspend function
 

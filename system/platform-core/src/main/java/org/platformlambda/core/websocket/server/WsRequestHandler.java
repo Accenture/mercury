@@ -20,7 +20,6 @@ package org.platformlambda.core.websocket.server;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.ServerWebSocket;
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -219,7 +218,6 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         }
     }
 
-    @CoroutineRunner
     @EventInterceptor
     private static class WsHousekeeper implements LambdaFunction {
 

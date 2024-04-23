@@ -18,14 +18,11 @@
 
 package com.accenture.services;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.models.TypedLambdaFunction;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-@CoroutineRunner
 public class ReceiveOnly implements TypedLambdaFunction<Map<String, Object>, Map<String, Object>> {
 
     @Override

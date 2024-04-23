@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.mock;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-@CoroutineRunner
 @PreLoad(route="event.api.auth")
 public class EventApiAuth implements TypedLambdaFunction<AsyncHttpRequest, Object> {
     private static final Logger log = LoggerFactory.getLogger(EventApiAuth.class);

@@ -18,7 +18,6 @@
 
 package org.platformlambda.core.system;
 
-import org.platformlambda.core.annotations.CoroutineRunner;
 import org.platformlambda.core.annotations.EventInterceptor;
 import org.platformlambda.core.annotations.ZeroTracing;
 import org.platformlambda.core.models.*;
@@ -159,7 +158,6 @@ public class ObjectStreamIO {
     }
 
     @ZeroTracing
-    @CoroutineRunner
     private class StreamPublisher implements StreamFunction {
 
         @Override
@@ -205,7 +203,6 @@ public class ObjectStreamIO {
         }
     }
 
-    @CoroutineRunner
     @EventInterceptor
     @ZeroTracing
     private class StreamConsumer implements LambdaFunction {
