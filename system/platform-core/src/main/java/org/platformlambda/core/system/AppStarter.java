@@ -300,7 +300,7 @@ public class AppStarter {
                     Class<?> cls = Class.forName(info.getName());
                     if (Feature.isRequired(cls)) {
                         WebSocketService annotation = cls.getAnnotation(WebSocketService.class);
-                        if (annotation.value().length() > 0) {
+                        if (!annotation.value().isEmpty()) {
                             if (!Utility.getInstance().validServiceName(annotation.value())) {
                                 log.error("Unable to load {} ({}) because the path is not a valid service name",
                                         cls.getName(), annotation.value());
@@ -356,7 +356,7 @@ public class AppStarter {
                             platform.registerPrivate(ASYNC_HTTP_RESPONSE,
                                                         new ServiceResponseHandler(contexts), 200);
                         } catch (IOException e) {
-                            log.error("Unable to register HTTP request/response handlers  - {}", e.getMessage());
+                            log.error("Unable to register HTTP request/response handlers - {}", e.getMessage());
                         }
                         // start timeout handler
                         Housekeeper housekeeper = new Housekeeper(contexts);

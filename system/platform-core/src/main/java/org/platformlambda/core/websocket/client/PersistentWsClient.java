@@ -20,8 +20,8 @@ package org.platformlambda.core.websocket.client;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.WebSocket;
+import io.vertx.core.http.WebSocketClient;
 import io.vertx.core.http.WebSocketConnectOptions;
 import org.platformlambda.core.models.Kv;
 import org.platformlambda.core.models.LambdaFunction;
@@ -74,7 +74,7 @@ public class PersistentWsClient extends Thread {
     private boolean running = true;
 
     private Vertx vertx = null;
-    private HttpClient client = null;
+    private WebSocketClient client = null;
 
     public PersistentWsClient(LambdaFunction connector, List<String> urls) {
         if (urls.isEmpty()) {
@@ -94,7 +94,7 @@ public class PersistentWsClient extends Thread {
     @Override
     public void run() {
         vertx = Vertx.vertx();
-        client = vertx.createHttpClient();
+        client = vertx.createWebSocketClient();
         Runtime.getRuntime().addShutdownHook(new Thread(this::close));
         Utility util = Utility.getInstance();
         AppConfigReader reader = AppConfigReader.getInstance();
@@ -154,7 +154,7 @@ public class PersistentWsClient extends Thread {
             return;
         }
         String txPath = PC+sessionId+"."+seq.get()+OUT;
-        Future<WebSocket> connection = client.webSocket(options);
+        Future<WebSocket> connection = client.connect(options);
         connection.onSuccess(ws -> {
             seq.incrementAndGet();
             connected.set(true);

@@ -25,6 +25,10 @@ CoroutineRunner annotation
 Set default execution strategy to "coroutine". To tell the system to run a function
 using kernel thread pool, add the `KernelThreadRunner` annotation.
 
+Update PersistentWsClient to use vertx WebSocketClient.
+
+Upgrade netty to version 4.1.109.Final.
+
 ---
 ## Version 3.0.10, 3/19/2024
 
