@@ -92,6 +92,32 @@ This hierarchical rule is enforced for PROPERTIES files.
 If you have x.y=3 and x.y.z=2 in the same PROPERTIES file, x.y will become a parent of x.y.z and its intended
 value of 3 will be lost.
 
+## Optional Service
+
+The `OptionalService` annotation may be used with the following class annotations:
+
+1. BeforeApplication
+2. MainApplication
+3. PreLoad
+4. WebSocketService
+
+When the OptionalService annotation is available, the system will evaluate the annotation value as a
+conditional statement where it supports one of more simple condition using a key-value in the application
+configuration.
+
+For examples:
+
+OptionalService("rest.automation") - the class will be loaded when rest.automation=true
+
+OptionalService("!rest.automation") - the class will be loaded when rest.automation is false or non-exist
+
+OptionalService("interesting.key=100") - the system will load the class when "interesting.key" is set to 100
+in application configuration.
+
+To specify more than one condition, use a comma separated list as the value like this:
+OptionalService("web.socket.enabled, rest.automation") - this tells the system to load the class when 
+either web.socket.enabled or rest.automation is true.
+
 # Static HTML contents
 
 You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or

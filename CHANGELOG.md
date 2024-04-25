@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## Version 3.0.12, 4/24/2023
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+
+Enhanced OptionalService annotation
+
+---
 ## Version 3.0.11, 4/23/2024
 
 Backport KernelThreadRunner from Mercury Composable 3.1
@@ -22,12 +37,12 @@ CoroutineRunner annotation
 
 ### Changed
 
-Set default execution strategy to "coroutine". To tell the system to run a function
-using kernel thread pool, add the `KernelThreadRunner` annotation.
+1. Set default execution strategy to "coroutine". To tell the system to run a function
+   using kernel thread pool, add the `KernelThreadRunner` annotation.
 
-Update PersistentWsClient to use vertx WebSocketClient.
+2. Update PersistentWsClient to use vertx WebSocketClient.
 
-Upgrade netty to version 4.1.109.Final.
+3. Upgrade netty to version 4.1.109.Final.
 
 ---
 ## Version 3.0.10, 3/19/2024

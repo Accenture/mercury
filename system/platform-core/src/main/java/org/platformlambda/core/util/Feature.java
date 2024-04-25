@@ -20,7 +20,11 @@ package org.platformlambda.core.util;
 
 import org.platformlambda.core.annotations.OptionalService;
 
+import java.util.List;
+
 public class Feature {
+
+    private Feature() {}
 
     private static final String TRUE = String.valueOf(Boolean.TRUE);
 
@@ -28,33 +32,40 @@ public class Feature {
         OptionalService condition = cls.getAnnotation(OptionalService.class);
         if (condition != null) {
             String value = condition.value();
-            if (value.startsWith("!")) {
-                return !matched(value.substring(1));
-            } else {
-                return matched(value);
+            List<String> conditions = Utility.getInstance().split(value, ",");
+            for (String c: conditions) {
+                String statement = c.trim();
+                final boolean matched;
+                if (statement.startsWith("!")) {
+                    matched = !evaluate(statement.substring(1));
+                } else {
+                    matched = evaluate(statement);
+                }
+                if (matched) {
+                    return true;
+                }
             }
-
+            return false;
         } else {
             return true;
         }
     }
 
-    private static boolean matched(String condition) {
+    private static boolean evaluate(String statement) {
+        String condition = statement.trim();
         AppConfigReader reader = AppConfigReader.getInstance();
         if (condition.contains("=")) {
             int eq = condition.indexOf('=');
-            String k = condition.substring(0, eq);
-            String v = condition.substring(eq+1);
-            if (k.length() > 0) {
-                if (v.length() > 0) {
-                    return v.equalsIgnoreCase(reader.getProperty(k));
-                } else {
-                    return TRUE.equalsIgnoreCase(reader.getProperty(k));
-                }
-            } else {
+            String k = condition.substring(0, eq).trim();
+            String v = condition.substring(eq+1).trim();
+            if (k.isEmpty()) {
                 return false;
             }
-
+            if (v.isEmpty()) {
+                return TRUE.equalsIgnoreCase(reader.getProperty(k));
+            } else {
+                return v.equalsIgnoreCase(reader.getProperty(k));
+            }
         } else {
             return TRUE.equalsIgnoreCase(reader.getProperty(condition));
         }
