@@ -102,7 +102,7 @@ The `OptionalService` annotation may be used with the following class annotation
 4. WebSocketService
 
 When the OptionalService annotation is available, the system will evaluate the annotation value as a
-conditional statement where it supports one of more simple condition using a key-value in the application
+conditional statement where it supports one or more simple condition using a key-value in the application
 configuration.
 
 For examples:
