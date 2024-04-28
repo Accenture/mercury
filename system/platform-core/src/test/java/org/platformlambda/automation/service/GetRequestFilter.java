@@ -19,16 +19,17 @@
 package org.platformlambda.automation.service;
 
 import org.platformlambda.core.annotations.PreLoad;
+import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
-import org.platformlambda.core.models.LambdaFunction;
+import org.platformlambda.core.models.TypedLambdaFunction;
 
 import java.util.Map;
 
 @PreLoad(route="http.request.filter", instances=100)
-public class GetRequestFilter implements LambdaFunction {
+public class GetRequestFilter implements TypedLambdaFunction<AsyncHttpRequest, EventEnvelope> {
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+    public EventEnvelope handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         return new EventEnvelope().setHeader("x-filter", "demo");
     }
 }

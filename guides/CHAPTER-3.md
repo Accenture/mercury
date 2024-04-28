@@ -251,10 +251,10 @@ The sample request filter function is available in the platform-core project lik
 
 ```java
 @PreLoad(route="http.request.filter", instances=100)
-public class GetRequestFilter implements LambdaFunction {
+public class GetRequestFilter implements TypedLambdaFunction<AsyncHttpRequest, EventEnvelope> {
 
     @Override
-    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+    public EventEnvelope handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
         return new EventEnvelope().setHeader("x-filter", "demo");
     }
 }
