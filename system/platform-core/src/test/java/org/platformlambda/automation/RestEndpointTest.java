@@ -96,7 +96,7 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals("*", response.getHeader("access-control-Allow-Origin"));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(value = "unchecked")
     @Test
     public void serviceTest() throws IOException, InterruptedException {
         final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
@@ -126,6 +126,8 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(10, map.getElement("timeout"));
         Assert.assertEquals("y", map.getElement("parameters.query.x1"));
         Assert.assertEquals(list, map.getElement("parameters.query.x2"));
+        // the HTTP request filter will not execute because /api path is excluded
+        Assert.assertNull(response.getHeader("x-filter"));
     }
 
     @Test
@@ -856,7 +858,7 @@ public class RestEndpointTest extends TestBase {
         EventEmitter po = EventEmitter.getInstance();
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
-        req.setUrl("/index");
+        req.setUrl("/");
         req.setTargetHost("http://127.0.0.1:"+port);
         EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
         Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
@@ -869,6 +871,8 @@ public class RestEndpointTest extends TestBase {
         InputStream in = this.getClass().getResourceAsStream("/public/index.html");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
+        // the HTTP request filter will add a test header
+        Assert.assertEquals("demo", response.getHeader("x-filter"));
     }
 
     @Test
@@ -891,6 +895,8 @@ public class RestEndpointTest extends TestBase {
         InputStream in = this.getClass().getResourceAsStream("/public/sample.css");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
+        // the HTTP request filter is not executed because ".css" extension is excluded in rest.yaml
+        Assert.assertNull(response.getHeader("x-filter"));
     }
 
     @Test
@@ -913,6 +919,8 @@ public class RestEndpointTest extends TestBase {
         InputStream in = this.getClass().getResourceAsStream("/public/sample.js");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
+        // the HTTP request filter will add a test header
+        Assert.assertEquals("demo", response.getHeader("x-filter"));
     }
 
     @Test

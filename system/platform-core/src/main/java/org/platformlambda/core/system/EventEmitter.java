@@ -595,7 +595,7 @@ public class EventEmitter {
      * @return event ID list
      */
     public List<String> getFutureEvents(String to) {
-        if (to == null || to.length() == 0) {
+        if (to == null || to.isEmpty()) {
             throw new IllegalArgumentException("Missing 'to'");
         }
         List<String> result = new ArrayList<>();
@@ -887,7 +887,7 @@ public class EventEmitter {
             throw new IllegalArgumentException(HTTP_OR_HTTPS);
         }
         String host = url.getHost().trim();
-        if (host.length() == 0) {
+        if (host.isEmpty()) {
             throw new IllegalArgumentException("Unable to resolve target host as domain or IP address");
         }
         int port = url.getPort();

@@ -212,6 +212,64 @@ headers:
         - "Pragma: no-cache"
         - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"
 ```
+
+## Static content
+
+Static content (HTML/CSS/JS bundle), if any, can be placed in the "resources/public" folder in your
+application project root. It is because the default value for the "static.html.folder" parameter
+in the application configuration is "classpath:/resources/public". If you want to place your
+static content elsewhere, you may adjust this parameter. You may point it to the local file system
+such as "file:/tmp/html".
+
+For security reason, you may add the following configuration in the rest.yaml.
+The following example is shown in the unit test section of the platform-core library module.
+
+```yaml
+#
+# Optional HTTP GET request filter for static HTML/CSS/JS files
+# -------------------------------------------------------------
+#
+# This provides a programmatic way to protect certain static content.
+#
+# The filter can be used to inspect HTTP path, headers and parameters.
+# The typical use case is to check cookies and perform browser redirection
+# for SSO login. Another use case is to selectively add security HTTP
+# response headers such as cache control and X-Frame-Options.
+#
+# In the following example, the filter applies to all static content
+# HTTP-GET requests except those with the file extension ".css".
+# You can implement a function with the service route "http.request.filter".
+# The input to the function will be an AsyncHttpRequest object.
+#
+static-content-filter:
+    path: ["/"]
+    excludes: [".css"]
+    service: "http.request.filter"
+```
+
+The sample request filter function is available in the platform-core project like this:
+
+```java
+@PreLoad(route="http.request.filter", instances=100)
+public class GetRequestFilter implements LambdaFunction {
+
+    @Override
+    public Object handleEvent(Map<String, String> headers, Object input, int instance) throws Exception {
+        return new EventEnvelope().setHeader("x-filter", "demo");
+    }
+}
+```
+
+In the above http.request.filter, it adds a HTTP response header "X-Filter" for the unit test
+to validate.
+
+If you set status code in the return EventEnvelope to 302 and add a header "Location", the system
+will redirect the browser to the given URL in the location header. Please be careful to avoid
+HTTP redirection loop.
+
+Similarly, you can throw exception and the HTTP request will be rejected with the given status
+code and error message accordingly.
+
 <br/>
 
 |                   Chapter-2                   |                   Home                    |              Chapter-4              |

@@ -6,7 +6,7 @@
     <groupId>org.platformlambda</groupId>
     <artifactId>platform-core</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.12</version>
+    <version>3.0.13</version>
     <name>Mercury platform-core module</name>
 
     <!-- Use Spring Boot as a parent to fetch OSS modules -->
@@ -85,7 +85,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.0.0-jre</version>
+            <version>33.1.0-jre</version>
         </dependency>
 
         <dependency>

@@ -31,10 +31,7 @@ import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleXmlParser;
-import org.platformlambda.core.system.AppStarter;
-import org.platformlambda.core.system.EventEmitter;
-import org.platformlambda.core.system.ObjectStreamWriter;
-import org.platformlambda.core.system.Platform;
+import org.platformlambda.core.system.*;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.ConfigReader;
 import org.platformlambda.core.util.CryptoApi;
@@ -82,6 +79,7 @@ public class ServiceGateway {
     private static final String ETAG = "ETag";
     private static final String IF_NONE_MATCH = "If-None-Match";
     private static final int BUFFER_SIZE = 4 * 1024;
+    private static final long FILTER_TIMEOUT = 10000;
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
     private static final Map<String, String> mimeTypes = new HashMap<>();
@@ -139,7 +137,7 @@ public class ServiceGateway {
                     mimeTypes.put(kv.getKey().toLowerCase(), kv.getValue().toString().toLowerCase());
                 }
             }
-            if (mimeTypes.size() > 0) {
+            if (!mimeTypes.isEmpty()) {
                 log.info("Loaded {} mime types", mimeTypes.size());
             }
             // register authentication handler
@@ -167,25 +165,62 @@ public class ServiceGateway {
         AsyncContextHolder holder = contexts.get(requestId);
         if (holder != null) {
             HttpServerRequest request = holder.request;
+            String path = Utility.getInstance().getUrlDecodedPath(request.path());
             SimpleHttpUtility httpUtil = SimpleHttpUtility.getInstance();
+            HttpServerResponse response = request.response();
             if (error != null) {
                 if (GET.equals(request.method().name()) && status == 404) {
-                    String path = Utility.getInstance().getUrlDecodedPath(request.path());
                     EtagFile file = getStaticFile(path);
                     if (file != null) {
-                        HttpServerResponse response = request.response();
-                        response.putHeader(CONTENT_TYPE, getFileContentType(file.name));
-                        String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
-                        if (file.sameTag(ifNoneMatch)) {
-                            response.setStatusCode(304);
-                            response.putHeader(CONTENT_LEN, "0");
-                        } else {
-                            response.putHeader(ETAG, file.eTag);
-                            response.putHeader(CONTENT_LEN, String.valueOf(file.content.length));
-                            response.write(Buffer.buffer(file.content));
+                        SimpleHttpFilter filter = RoutingEntry.getInstance().getRequestFilter();
+                        if (filter != null && GET.equals(request.method().name()) && needFilter(filter, path)) {
+                            EventEmitter po = EventEmitter.getInstance();
+                            if (po.exists(filter.service)) {
+                                try {
+                                    EventEnvelope event = new EventEnvelope().setTo(filter.service)
+                                            .setBody(getHttpRequestHeaders(request, path));
+                                    po.asyncRequest(event, FILTER_TIMEOUT, false)
+                                        .onSuccess(filtered -> {
+                                            Utility util = Utility.getInstance();
+                                            // this allows the filter to set HTTP response headers
+                                            Map<String, String> headers = filtered.getHeaders();
+                                            headers.forEach(response::putHeader);
+                                            // this allows the filter to send redirect-url or throw exception
+                                            if (filtered.getStatus() == 200) {
+                                                sendStaticFile(requestId, file, request, response);
+                                            } else {
+                                                response.setStatusCode(filtered.getStatus());
+                                                final byte[] content;
+                                                Object body = filtered.getRawBody();
+                                                if (body == null) {
+                                                    content = null;
+                                                } else if (body instanceof String) {
+                                                    content = util.getUTF((String) body);
+                                                } else if (body instanceof byte[]) {
+                                                    content = (byte[]) body;
+                                                } else if (body instanceof Map) {
+                                                    content = SimpleMapper.getInstance().getMapper().writeValueAsBytes(body);
+                                                } else {
+                                                    content = util.getUTF(body.toString());
+                                                }
+                                                if (content != null) {
+                                                    response.write(Buffer.buffer(content));
+                                                }
+                                                closeContext(requestId);
+                                                response.end();
+                                            }
+                                        });
+                                    return;
+                                } catch (IOException e) {
+                                    log.error("Unable to filter static content HTTP-GET {} - {}",
+                                            filter.service, e.getMessage());
+                                }
+                            } else {
+                                log.warn("Static content HTTP-GET filter {} ignored because it does not exist",
+                                        filter.service);
+                            }
                         }
-                        closeContext(requestId);
-                        response.end();
+                        sendStaticFile(requestId, file, request, response);
                         return;
                     }
                 }
@@ -198,6 +233,79 @@ public class ServiceGateway {
                 }
             }
         }
+    }
+
+    private boolean needFilter(SimpleHttpFilter filter, String path) {
+        boolean pathFound = false;
+        for (String p: filter.pathList) {
+            if (path.startsWith(p)) {
+                pathFound = true;
+                break;
+            }
+        }
+        boolean exclusionFound = false;
+        for (String e: filter.excludeExtensions) {
+            if (path.endsWith(e)) {
+                exclusionFound = true;
+                break;
+            }
+        }
+        return pathFound && !exclusionFound;
+    }
+
+    private AsyncHttpRequest getHttpRequestHeaders(HttpServerRequest request, String path) {
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        String queryString = request.query();
+        if (queryString != null) {
+            req.setQueryString(queryString);
+        }
+        req.setUrl(path);
+        req.setMethod(request.method().name());
+        req.setSecure(HTTPS.equals(request.getHeader(PROTOCOL)));
+        MultiMap params = request.params();
+        for (String key: params.names()) {
+            List<String> values = params.getAll(key);
+            if (values.size() == 1) {
+                req.setQueryParameter(key, values.get(0));
+            }
+            if (values.size() > 1) {
+                req.setQueryParameter(key, values);
+            }
+        }
+        boolean hasCookies = false;
+        MultiMap headerMap = request.headers();
+        for (String key: headerMap.names()) {
+            String value = headerMap.get(key);
+            if (COOKIE.equalsIgnoreCase(key)) {
+                hasCookies = true;
+            } else {
+                req.setHeader(key, value);
+            }
+        }
+        // load cookies
+        if (hasCookies) {
+            Set<Cookie> cookies = request.cookies();
+            for (Cookie c : cookies) {
+                req.setCookie(c.getName(), c.getValue());
+            }
+        }
+        return req.setRemoteIp(request.remoteAddress().hostAddress());
+    }
+
+    private void sendStaticFile(String requestId, EtagFile file,
+                                HttpServerRequest request, HttpServerResponse response) {
+        response.putHeader(CONTENT_TYPE, getFileContentType(file.name));
+        String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
+        if (file.sameTag(ifNoneMatch)) {
+            response.setStatusCode(304);
+            response.putHeader(CONTENT_LEN, "0");
+        } else {
+            response.putHeader(ETAG, file.eTag);
+            response.putHeader(CONTENT_LEN, String.valueOf(file.content.length));
+            response.write(Buffer.buffer(file.content));
+        }
+        closeContext(requestId);
+        response.end();
     }
 
     /**
@@ -386,9 +494,7 @@ public class ServiceGateway {
         Map<String, String> headers = new HashMap<>();
         MultiMap headerMap = request.headers();
         for (String key: headerMap.names()) {
-            /*
-             * Single-value HTTP header is assumed.
-             */
+            // Single-value HTTP header is assumed
             String value = headerMap.get(key);
             if (COOKIE.equalsIgnoreCase(key)) {
                 hasCookies = true;
@@ -470,7 +576,7 @@ public class ServiceGateway {
                         String text = util.getUTF(requestBody.toByteArray());
                         String trimmed = text.trim();
                         try {
-                            if (trimmed.length() == 0) {
+                            if (trimmed.isEmpty()) {
                                 req.setBody(new HashMap<>());
                             } else if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                                 req.setBody(SimpleMapper.getInstance().getMapper().readValue(text, Map.class));
