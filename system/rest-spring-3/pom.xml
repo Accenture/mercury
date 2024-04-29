@@ -5,7 +5,7 @@
 
     <groupId>org.platformlambda</groupId>
     <artifactId>rest-spring-3</artifactId>
-    <version>3.0.13</version>
+    <version>3.0.14</version>
     <packaging>jar</packaging>
 
     <name>Pre-configured Spring Boot 3 module</name>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.13</version>
+            <version>3.0.14</version>
         </dependency>
 
         <dependency>

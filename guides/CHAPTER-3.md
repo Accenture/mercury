@@ -236,14 +236,18 @@ The following example is shown in the unit test section of the platform-core lib
 # for SSO login. Another use case is to selectively add security HTTP
 # response headers such as cache control and X-Frame-Options.
 #
-# In the following example, the filter applies to all static content
-# HTTP-GET requests except those with the file extension ".css".
-# You can implement a function with the service route "http.request.filter".
-# The input to the function will be an AsyncHttpRequest object.
+# Syntax for both the "path" and "exclusion" parameters are:
+# 1. Exact match - complete path
+# 2. Match "startsWith" - use a single "*" as the suffix
+# 3. Match "endsWith" - use a single "*" as the prefix
+#
+# In the following example, it will intercept the home page, all contents
+# under "/assets/" and any files with extensions ".html" and ".js".
+# It will ignore all CSS files.
 #
 static-content-filter:
-    path: ["/"]
-    excludes: [".css"]
+    path: ["/", "/assets/*", "*.html", "*.js"]
+    exclusion: ["*.css"]
     service: "http.request.filter"
 ```
 

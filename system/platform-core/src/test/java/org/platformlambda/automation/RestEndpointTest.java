@@ -126,7 +126,7 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(10, map.getElement("timeout"));
         Assert.assertEquals("y", map.getElement("parameters.query.x1"));
         Assert.assertEquals(list, map.getElement("parameters.query.x2"));
-        // the HTTP request filter will not execute because /api path is excluded
+        // the HTTP request filter will not execute because the request is not a static content request
         Assert.assertNull(response.getHeader("x-filter"));
     }
 
@@ -882,7 +882,7 @@ public class RestEndpointTest extends TestBase {
         EventEmitter po = EventEmitter.getInstance();
         AsyncHttpRequest req = new AsyncHttpRequest();
         req.setMethod("GET");
-        req.setUrl("/sample.css");
+        req.setUrl("/assets/another.css");
         req.setTargetHost("http://127.0.0.1:"+port);
         EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
         Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
@@ -892,7 +892,7 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals("text/css", response.getHeader("Content-Type"));
         Assert.assertTrue(response.getBody() instanceof String);
         String html = (String) response.getBody();
-        InputStream in = this.getClass().getResourceAsStream("/public/sample.css");
+        InputStream in = this.getClass().getResourceAsStream("/public/assets/another.css");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
         // the HTTP request filter is not executed because ".css" extension is excluded in rest.yaml
@@ -943,6 +943,30 @@ public class RestEndpointTest extends TestBase {
         InputStream in = this.getClass().getResourceAsStream("/public/sample.xml");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
+    }
+
+    @Test
+    public void getAssetPage() throws IOException, InterruptedException {
+        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
+        Utility util = Utility.getInstance();
+        EventEmitter po = EventEmitter.getInstance();
+        AsyncHttpRequest req = new AsyncHttpRequest();
+        req.setMethod("GET");
+        req.setUrl("/assets/hello.txt");
+        req.setTargetHost("http://127.0.0.1:"+port);
+        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
+        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
+        res.onSuccess(bench::offer);
+        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
+        assert response != null;
+        Assert.assertEquals("text/plain", response.getHeader("Content-Type"));
+        Assert.assertTrue(response.getBody() instanceof String);
+        String text = (String) response.getBody();
+        InputStream in = this.getClass().getResourceAsStream("/public/assets/hello.txt");
+        String content = util.stream2str(in);
+        Assert.assertEquals(content, text);
+        // the HTTP request filter will add a test header
+        Assert.assertEquals("demo", response.getHeader("x-filter"));
     }
 
 }

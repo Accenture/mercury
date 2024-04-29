@@ -236,21 +236,28 @@ public class ServiceGateway {
     }
 
     private boolean needFilter(SimpleHttpFilter filter, String path) {
-        boolean pathFound = false;
-        for (String p: filter.pathList) {
-            if (path.startsWith(p)) {
-                pathFound = true;
-                break;
-            }
-        }
-        boolean exclusionFound = false;
-        for (String e: filter.excludeExtensions) {
-            if (path.endsWith(e)) {
-                exclusionFound = true;
-                break;
-            }
-        }
+        boolean pathFound = matchedElement(filter.pathList, path);
+        boolean exclusionFound = matchedElement(filter.exclusionList, path);
         return pathFound && !exclusionFound;
+    }
+
+    private boolean matchedElement(List<String> elements, String path) {
+        for (String p: elements) {
+            if (p.startsWith("*")) {
+                if (path.endsWith(p.substring(1))) {
+                    return true;
+                }
+            } else if (p.endsWith("*")) {
+                if (path.startsWith(p.substring(0, p.length()-1))) {
+                    return true;
+                }
+            } else {
+                if (path.equals(p)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private AsyncHttpRequest getHttpRequestHeaders(HttpServerRequest request, String path) {

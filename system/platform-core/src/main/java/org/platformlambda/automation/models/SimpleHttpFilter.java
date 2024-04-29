@@ -23,12 +23,12 @@ import java.util.List;
 public class SimpleHttpFilter {
 
     public List<String> pathList;
-    public List<String> excludeExtensions;
+    public List<String> exclusionList;
     public String service;
 
-    public SimpleHttpFilter(List<String> pathList, List<String> excludeExtensions, String service) {
+    public SimpleHttpFilter(List<String> pathList, List<String> exclusionList, String service) {
         this.pathList = pathList;
-        this.excludeExtensions = excludeExtensions;
+        this.exclusionList = exclusionList;
         this.service = service;
     }
 }

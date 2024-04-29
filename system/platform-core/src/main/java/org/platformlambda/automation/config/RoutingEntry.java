@@ -197,31 +197,58 @@ public class RoutingEntry {
     @SuppressWarnings(value="unchecked")
     private SimpleHttpFilter getFilter(ConfigReader config) {
         Object path = config.get("static-content-filter.path");
-        Object exclusion = config.get("static-content-filter.excludes");
+        Object exclusion = config.get("static-content-filter.exclusion");
         String service = config.getProperty("static-content-filter.service");
-        if (path instanceof List && exclusion instanceof List && service != null && !service.isEmpty()) {
-            if (Utility.getInstance().validServiceName(service)) {
-                log.info("Static content HTTP-GET filter installed: {} -> {}, excludes extensions {}",
-                        path, service, exclusion);
-                List<String> pathList = new ArrayList<>();
-                List<String> excludeExtensions = new ArrayList<>();
-                List<Object> pList = (List<Object>) path;
-                List<Object> eList = (List<Object>) exclusion;
-                for (int i=0; i < pList.size(); i++) {
-                    pathList.add(config.getProperty("static-content-filter.path["+i+"]"));
-                }
-                for (int i=0; i < eList.size(); i++) {
-                    excludeExtensions.add(config.getProperty("static-content-filter.excludes["+i+"]"));
-                }
-                if (pathList.isEmpty()) {
-                    log.error("Static content HTTP-GET filter {} ignored: - path is empty", service);
-                }
-                return new SimpleHttpFilter(pathList, excludeExtensions, service);
-            } else {
-                log.error("Static content HTTP-GET filter ignored: '{} -> {}' - invalid service name", path, service);
+        if (path instanceof List && service != null && !service.isEmpty()) {
+            if (!Utility.getInstance().validServiceName(service)) {
+                log.error("Static content filter ignored: '{} -> {}' - invalid service name", path, service);
+                return null;
             }
+            List<String> pathList = new ArrayList<>();
+            List<String> exclusionList = new ArrayList<>();
+            List<Object> pList = (List<Object>) path;
+            for (int i=0; i < pList.size(); i++) {
+                pathList.add(config.getProperty("static-content-filter.path["+i+"]"));
+            }
+            if (pathList.isEmpty()) {
+                log.error("Static content filter ignored - path list is empty");
+                return null;
+            }
+            if (exclusion instanceof List) {
+                List<Object> eList = (List<Object>) exclusion;
+                for (int i=0; i < eList.size(); i++) {
+                    exclusionList.add(config.getProperty("static-content-filter.exclusion["+i+"]"));
+                }
+            }
+            if (invalidFilterParameters(pathList)) {
+                log.error("Static content filter ignored - invalid path list {}", service);
+                return null;
+            }
+            if (invalidFilterParameters(exclusionList)) {
+                log.error("Static content filter ignored - invalid exclusion list {}", exclusionList);
+                return null;
+            }
+            log.info("Static content filter loaded: {} -> {}, exclusion {}", pathList, service, exclusionList);
+            return new SimpleHttpFilter(pathList, exclusionList, service);
+        } else {
+            log.error("Static content filter ignored - please check syntax");
         }
         return null;
+    }
+
+    private boolean invalidFilterParameters(List<String> items) {
+        Utility util = Utility.getInstance();
+        for (String item: items) {
+            // accept only "*" as prefix or suffix
+            if (item.contains("**")) {
+                return true;
+            }
+            List<String> parts = util.split(item, "*");
+            if (parts.size() != 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings(value = "unchecked")
