@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## Version 3.0.15, 5/1/2024
 
+This version supercedes 3.0.13 and 3.0.14 due to updated data structure
+for static content handling.
+
 ### Added
 
 Added optional static-content.no-cache-pages in rest.yaml
