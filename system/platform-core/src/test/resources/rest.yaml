@@ -168,9 +168,9 @@ headers:
       # when keep is empty and drop is not, it will drop only the headers in the drop list
       # e.g.
       # keep: ['x-session-id', 'user-agent']
-      # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
+      # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'connection']
       #
-      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'host', 'connection']
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'connection']
       
     response:
       #
