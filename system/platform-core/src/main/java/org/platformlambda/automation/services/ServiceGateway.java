@@ -172,13 +172,15 @@ public class ServiceGateway {
                 if (GET.equals(request.method().name()) && status == 404) {
                     EtagFile file = getStaticFile(path);
                     if (file != null) {
-                        SimpleHttpFilter filter = RoutingEntry.getInstance().getRequestFilter();
-                        if (filter != null && GET.equals(request.method().name()) && needFilter(filter, path)) {
+                        RoutingEntry restConfig = RoutingEntry.getInstance();
+                        boolean noCache = matchedElement(restConfig.getNoCachePages(), path);
+                        SimpleHttpFilter filter = restConfig.getRequestFilter();
+                        if (filter != null && needFilter(filter, path)) {
                             EventEmitter po = EventEmitter.getInstance();
                             if (po.exists(filter.service)) {
                                 try {
                                     EventEnvelope event = new EventEnvelope().setTo(filter.service)
-                                            .setBody(getHttpRequestHeaders(request, path));
+                                            .setBody(createAsyncHttpRequestFromHeaders(request, path));
                                     po.asyncRequest(event, FILTER_TIMEOUT, false)
                                         .onSuccess(filtered -> {
                                             Utility util = Utility.getInstance();
@@ -187,7 +189,7 @@ public class ServiceGateway {
                                             headers.forEach(response::putHeader);
                                             // this allows the filter to send redirect-url or throw exception
                                             if (filtered.getStatus() == 200) {
-                                                sendStaticFile(requestId, file, request, response);
+                                                sendStaticFile(requestId, file, noCache, request, response);
                                             } else {
                                                 response.setStatusCode(filtered.getStatus());
                                                 final byte[] content;
@@ -220,7 +222,7 @@ public class ServiceGateway {
                                         filter.service);
                             }
                         }
-                        sendStaticFile(requestId, file, request, response);
+                        sendStaticFile(requestId, file, noCache, request, response);
                         return;
                     }
                 }
@@ -243,12 +245,12 @@ public class ServiceGateway {
 
     private boolean matchedElement(List<String> elements, String path) {
         for (String p: elements) {
-            if (p.startsWith("*")) {
-                if (path.endsWith(p.substring(1))) {
+            if (p.endsWith("*")) {
+                if (path.startsWith(p.substring(0, p.length()-1))) {
                     return true;
                 }
-            } else if (p.endsWith("*")) {
-                if (path.startsWith(p.substring(0, p.length()-1))) {
+            } else if (p.startsWith("*")) {
+                if (path.endsWith(p.substring(1))) {
                     return true;
                 }
             } else {
@@ -260,7 +262,7 @@ public class ServiceGateway {
         return false;
     }
 
-    private AsyncHttpRequest getHttpRequestHeaders(HttpServerRequest request, String path) {
+    private AsyncHttpRequest createAsyncHttpRequestFromHeaders(HttpServerRequest request, String path) {
         AsyncHttpRequest req = new AsyncHttpRequest();
         String queryString = request.query();
         if (queryString != null) {
@@ -299,17 +301,25 @@ public class ServiceGateway {
         return req.setRemoteIp(request.remoteAddress().hostAddress());
     }
 
-    private void sendStaticFile(String requestId, EtagFile file,
+    private void sendStaticFile(String requestId, EtagFile file, boolean noCache,
                                 HttpServerRequest request, HttpServerResponse response) {
         response.putHeader(CONTENT_TYPE, getFileContentType(file.name));
-        String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
-        if (file.sameTag(ifNoneMatch)) {
-            response.setStatusCode(304);
-            response.putHeader(CONTENT_LEN, "0");
-        } else {
-            response.putHeader(ETAG, file.eTag);
+        if (noCache) {
+            response.putHeader("Cache-Control", "no-cache, no-store");
+            response.putHeader("Pragma", "no-cache");
+            response.putHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
             response.putHeader(CONTENT_LEN, String.valueOf(file.content.length));
             response.write(Buffer.buffer(file.content));
+        } else {
+            String ifNoneMatch = request.getHeader(IF_NONE_MATCH);
+            if (file.sameTag(ifNoneMatch)) {
+                response.setStatusCode(304);
+                response.putHeader(CONTENT_LEN, "0");
+            } else {
+                response.putHeader(ETAG, file.eTag);
+                response.putHeader(CONTENT_LEN, String.valueOf(file.content.length));
+                response.write(Buffer.buffer(file.content));
+            }
         }
         closeContext(requestId);
         response.end();

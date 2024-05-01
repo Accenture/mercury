@@ -8,7 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 3.0.14, 4/28/2023
+## Version 3.0.15, 5/1/2024
+
+### Added
+
+Added optional static-content.no-cache-pages in rest.yaml
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated data structure for static-content section in rest.yaml
+
+---
+## Version 3.0.14, 4/28/2024
 
 ### Added
 
@@ -23,7 +38,7 @@ N/A
 Updated syntax for static-content-filter section in rest.yaml
 
 ---
-## Version 3.0.13, 4/28/2023
+## Version 3.0.13, 4/28/2024
 
 ### Added
 
@@ -38,7 +53,7 @@ N/A
 Updated guava to version 33.1.0-jre
 
 ---
-## Version 3.0.12, 4/24/2023
+## Version 3.0.12, 4/24/2024
 
 ### Added
 

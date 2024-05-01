@@ -6,7 +6,7 @@
 
     <groupId>org.platformlambda</groupId>
     <artifactId>rest-spring-2</artifactId>
-    <version>3.0.14</version>
+    <version>3.0.15</version>
     <packaging>jar</packaging>
 
     <name>Pre-configured Spring Boot 2 module</name>
@@ -45,7 +45,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.14</version>
+            <version>3.0.15</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

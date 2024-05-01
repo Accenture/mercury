@@ -75,6 +75,7 @@ public class RoutingEntry {
     private static final Map<String, HeaderInfo> responseHeaderInfo = new HashMap<>();
     private static final List<String> urlPaths = new ArrayList<>();
     private static SimpleHttpFilter requestFilter;
+    private static List<String> noCachePages;
     private static final RoutingEntry instance = new RoutingEntry();
 
     private RoutingEntry() {
@@ -87,6 +88,10 @@ public class RoutingEntry {
 
     public SimpleHttpFilter getRequestFilter() {
         return requestFilter;
+    }
+
+    public List<String> getNoCachePages() {
+        return noCachePages;
     }
 
     public AssignedRoute getRouteInfo(String method, String url) {
@@ -195,10 +200,33 @@ public class RoutingEntry {
     }
 
     @SuppressWarnings(value="unchecked")
+    private List<String> getNoCacheConfig(ConfigReader config) {
+        Object noCache = config.get("static-content.no-cache-pages");
+        if (noCache != null) {
+            if (noCache instanceof List) {
+                List<String> noCacheList = new ArrayList<>();
+                List<Object> cList = (List<Object>) noCache;
+                for (int i = 0; i < cList.size(); i++) {
+                    noCacheList.add(config.getProperty("static-content.no-cache-pages[" + i + "]"));
+                }
+                if (invalidFilterParameters(noCacheList)) {
+                    log.error("static-content.no-cache-pages ignored - invalid syntax {}", noCache);
+                } else {
+                    log.info("static-content.no-cache-pages loaded: {}", noCacheList);
+                    return noCacheList;
+                }
+            } else {
+                log.error("static-content.no-cache-pages ignored - please check syntax");
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    @SuppressWarnings(value="unchecked")
     private SimpleHttpFilter getFilter(ConfigReader config) {
-        Object path = config.get("static-content-filter.path");
-        Object exclusion = config.get("static-content-filter.exclusion");
-        String service = config.getProperty("static-content-filter.service");
+        Object path = config.get("static-content.filter.path");
+        Object exclusion = config.get("static-content.filter.exclusion");
+        String service = config.getProperty("static-content.filter.service");
         if (path instanceof List && service != null && !service.isEmpty()) {
             if (!Utility.getInstance().validServiceName(service)) {
                 log.error("Static content filter ignored: '{} -> {}' - invalid service name", path, service);
@@ -208,30 +236,30 @@ public class RoutingEntry {
             List<String> exclusionList = new ArrayList<>();
             List<Object> pList = (List<Object>) path;
             for (int i=0; i < pList.size(); i++) {
-                pathList.add(config.getProperty("static-content-filter.path["+i+"]"));
+                pathList.add(config.getProperty("static-content.filter.path["+i+"]"));
             }
             if (pathList.isEmpty()) {
-                log.error("Static content filter ignored - path list is empty");
+                log.error("static-content.filter.path is empty");
                 return null;
             }
             if (exclusion instanceof List) {
                 List<Object> eList = (List<Object>) exclusion;
                 for (int i=0; i < eList.size(); i++) {
-                    exclusionList.add(config.getProperty("static-content-filter.exclusion["+i+"]"));
+                    exclusionList.add(config.getProperty("static-content.filter.exclusion["+i+"]"));
                 }
             }
             if (invalidFilterParameters(pathList)) {
-                log.error("Static content filter ignored - invalid path list {}", service);
+                log.error("static-content.filter.path ignored - invalid syntax {}", path);
                 return null;
             }
             if (invalidFilterParameters(exclusionList)) {
-                log.error("Static content filter ignored - invalid exclusion list {}", exclusionList);
+                log.error("static-content.filter.exclusion ignored - invalid syntax {}", exclusion);
                 return null;
             }
-            log.info("Static content filter loaded: {} -> {}, exclusion {}", pathList, service, exclusionList);
+            log.info("static-content.filter loaded: {} -> {}, exclusion {}", pathList, service, exclusionList);
             return new SimpleHttpFilter(pathList, exclusionList, service);
         } else {
-            log.error("Static content filter ignored - please check syntax");
+            log.error("static-content.filter ignored - please check syntax");
         }
         return null;
     }
@@ -239,6 +267,10 @@ public class RoutingEntry {
     private boolean invalidFilterParameters(List<String> items) {
         Utility util = Utility.getInstance();
         for (String item: items) {
+            // allow either startsWith or endsWith
+            if (item.startsWith("*") && item.endsWith("*")) {
+                return true;
+            }
             // accept only "*" as prefix or suffix
             if (item.contains("**")) {
                 return true;
@@ -254,6 +286,7 @@ public class RoutingEntry {
     @SuppressWarnings(value = "unchecked")
     public void load(ConfigReader config) {
         requestFilter = getFilter(config);
+        noCachePages = getNoCacheConfig(config);
         if (config.exists(HEADERS)) {
             Object headerList = config.get(HEADERS);
             boolean valid = false;

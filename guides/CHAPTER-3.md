@@ -226,26 +226,34 @@ The following example is shown in the unit test section of the platform-core lib
 
 ```yaml
 #
-# Optional HTTP GET request filter for static HTML/CSS/JS files
-# -------------------------------------------------------------
+# Optional static content handling for HTML/CSS/JS bundle
+# -------------------------------------------------------
 #
-# This provides a programmatic way to protect certain static content.
+# no-cache-pages - tells the browser not to cache some specific pages
 #
-# The filter can be used to inspect HTTP path, headers and parameters.
+# The "filter" section is a programmatic way to protect certain static content.
+#
+# The filter can be used to inspect HTTP path, headers and query parameters.
 # The typical use case is to check cookies and perform browser redirection
 # for SSO login. Another use case is to selectively add security HTTP
-# response headers such as cache control and X-Frame-Options.
+# response headers such as cache control and X-Frame-Options. You can also
+# perform HTTP to HTTPS redirection.
 #
-# Syntax for both the "path" and "exclusion" parameters are:
+# Syntax for the "no-cache-pages", "path" and "exclusion" parameters are:
 # 1. Exact match - complete path
 # 2. Match "startsWith" - use a single "*" as the suffix
 # 3. Match "endsWith" - use a single "*" as the prefix
+#
+# If filter is configured, the path and service parameters are mandatory
+# and the exclusion parameter is optional.
 #
 # In the following example, it will intercept the home page, all contents
 # under "/assets/" and any files with extensions ".html" and ".js".
 # It will ignore all CSS files.
 #
-static-content-filter:
+static-content:
+  no-cache-pages: ["/", "/index.html"]
+  filter:
     path: ["/", "/assets/*", "*.html", "*.js"]
     exclusion: ["*.css"]
     service: "http.request.filter"

@@ -371,11 +371,11 @@ public class AdminEndpointTest extends TestBase {
     }
 
     @Test
-    public void getIndexPage() throws AppException, IOException, InterruptedException {
-        EventEnvelope response = httpGet(localHost, "/", null);
+    public void getIndexPage() throws IOException, InterruptedException {
+        EventEnvelope response = httpGet(localHost, "/index.html", null);
         assert response != null;
         Assert.assertEquals("text/html", response.getHeader("content-type"));
-        Assert.assertNotNull(response.getHeader("ETag"));
+        Assert.assertNull(response.getHeader("ETag"));
         Assert.assertTrue(response.getBody() instanceof String);
         String text = (String) response.getBody();
         InputStream in = this.getClass().getResourceAsStream("/public/index.html");
@@ -388,6 +388,7 @@ public class AdminEndpointTest extends TestBase {
         EventEnvelope response = httpGet(localHost, "/sample.css", null);
         assert response != null;
         Assert.assertEquals("text/css", response.getHeader("content-type"));
+        Assert.assertNotNull(response.getHeader("ETag"));
         Assert.assertTrue(response.getBody() instanceof String);
         String text = (String) response.getBody();
         InputStream in = this.getClass().getResourceAsStream("/public/sample.css");

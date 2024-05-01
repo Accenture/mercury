@@ -827,28 +827,12 @@ public class RestEndpointTest extends TestBase {
         InputStream in = this.getClass().getResourceAsStream("/public/index.html");
         String content = util.stream2str(in);
         Assert.assertEquals(content, html);
-    }
-
-    @Test
-    public void getIndexWithoutFilename() throws IOException, InterruptedException {
-        final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
-        Utility util = Utility.getInstance();
-        EventEmitter po = EventEmitter.getInstance();
-        AsyncHttpRequest req = new AsyncHttpRequest();
-        req.setMethod("GET");
-        req.setUrl("/");
-        req.setTargetHost("http://127.0.0.1:"+port);
-        EventEnvelope request = new EventEnvelope().setTo(HTTP_REQUEST).setBody(req);
-        Future<EventEnvelope> res = po.asyncRequest(request, RPC_TIMEOUT);
-        res.onSuccess(bench::offer);
-        EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
-        assert response != null;
-        Assert.assertEquals("text/html", response.getHeader("Content-Type"));
-        Assert.assertTrue(response.getBody() instanceof String);
-        String html = (String) response.getBody();
-        InputStream in = this.getClass().getResourceAsStream("/public/index.html");
-        String content = util.stream2str(in);
-        Assert.assertEquals(content, html);
+        // this page is configured for "no cache" and ETag should not exist
+        Assert.assertNull(response.getHeader("ETag"));
+        // and it should have the cache-control headers
+        Assert.assertEquals("no-cache, no-store", response.getHeader("Cache-Control"));
+        Assert.assertEquals("no-cache", response.getHeader("Pragma"));
+        Assert.assertEquals("Thu, 01 Jan 1970 00:00:00 GMT", response.getHeader("Expires"));
     }
 
     @Test
@@ -873,6 +857,12 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(content, html);
         // the HTTP request filter will add a test header
         Assert.assertEquals("demo", response.getHeader("x-filter"));
+        // this page is configured for "no cache" and ETag should not exist
+        Assert.assertNull(response.getHeader("ETag"));
+        // and it should have the cache-control headers
+        Assert.assertEquals("no-cache, no-store", response.getHeader("Cache-Control"));
+        Assert.assertEquals("no-cache", response.getHeader("Pragma"));
+        Assert.assertEquals("Thu, 01 Jan 1970 00:00:00 GMT", response.getHeader("Expires"));
     }
 
     @Test
@@ -897,6 +887,8 @@ public class RestEndpointTest extends TestBase {
         Assert.assertEquals(content, html);
         // the HTTP request filter is not executed because ".css" extension is excluded in rest.yaml
         Assert.assertNull(response.getHeader("x-filter"));
+        // this page is not configured for "no cache", thus there is a ETag response header
+        Assert.assertNotNull(response.getHeader("ETag"));
     }
 
     @Test
