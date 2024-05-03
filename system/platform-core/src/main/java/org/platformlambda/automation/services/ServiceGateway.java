@@ -218,7 +218,7 @@ public class ServiceGateway {
                                             filter.service, e.getMessage());
                                 }
                             } else {
-                                log.warn("Static content HTTP-GET filter {} ignored because it does not exist",
+                                log.warn("Static content filter {} ignored because it does not exist",
                                         filter.service);
                             }
                         }
