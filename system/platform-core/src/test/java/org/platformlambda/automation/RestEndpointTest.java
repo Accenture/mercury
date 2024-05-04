@@ -705,12 +705,13 @@ public class RestEndpointTest extends TestBase {
         res.onSuccess(bench::offer);
         EventEnvelope response = bench.poll(10, TimeUnit.SECONDS);
         assert response != null;
-        Map<String, String> headers = response.getHeaders();
         // HTTP head response may include custom headers and content-length
-        Assert.assertEquals("HEAD request received", headers.get("X-Response"));
-        Assert.assertEquals("100", headers.get("Content-Length"));
+        Assert.assertEquals("HEAD request received", response.getHeader("X-Response"));
+        Assert.assertEquals("100", response.getHeader("Content-Length"));
         // the same correlation-id is returned to the caller
-        Assert.assertEquals(traceId, headers.get("X-Correlation-Id"));
+        Assert.assertEquals(traceId, response.getHeader("X-Correlation-Id"));
+        // multiple "set-cookie" headers are consolidated into one composite value
+        Assert.assertEquals("first=cookie|second=one", response.getHeader("set-cookie"));
     }
 
     @Test

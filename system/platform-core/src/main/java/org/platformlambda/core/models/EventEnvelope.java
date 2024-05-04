@@ -565,8 +565,8 @@ public class EventEnvelope {
             }
             if (SET_COOKIE.equalsIgnoreCase(key)) {
                 if (this.headers.containsKey(key)) {
-                    String prev = this.headers.get(key);
-                    this.headers.put(key, prev + "|" + v);
+                    String composite = this.headers.get(key) + "|" + v;
+                    this.headers.put(key, composite);
                 } else {
                     this.headers.put(key, v);
                 }

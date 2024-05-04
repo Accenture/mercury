@@ -24,22 +24,16 @@ import org.platformlambda.core.models.TypedLambdaFunction;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class MockHelloWorld implements TypedLambdaFunction<AsyncHttpRequest, Object> {
 
-    private static final AtomicInteger count = new AtomicInteger(0);
     @Override
     public Object handleEvent(Map<String, String> headers, AsyncHttpRequest body, int instance) throws IOException {
         AsyncHttpRequest input = new AsyncHttpRequest(body); // test AsyncHttpRequest clone feature
         if ("HEAD".equals(input.getMethod())) {
             EventEnvelope result = new EventEnvelope().setHeader("X-Response", "HEAD request received")
-                    .setHeader("Content-Length", 100);
-            if (count.incrementAndGet() == 1) {
-                result.setHeader("Set-Cookie", "first=cookie|second=one");
-            } else {
-                result.setHeader("Set-Cookie", "single=cookie");
-            }
+                                            .setHeader("Content-Length", 100);
+            result.setHeader("Set-Cookie", "first=cookie|second=one");
             return result;
         }
         if (input.getStreamRoute() != null) {

@@ -73,9 +73,7 @@ public class SimpleHttpUtility {
         String header = getHeaderCase(SET_COOKIE);
         if (cookies.contains(COOKIE_SEPARATOR)) {
             List<String> items = Utility.getInstance().split(cookies, COOKIE_SEPARATOR);
-            for (String value: items) {
-                response.putHeader(header, value);
-            }
+            response.putHeader(header, items);
         } else {
             response.putHeader(header, cookies);
         }

@@ -15,6 +15,16 @@ import java.util.*;
 
 public class EventEnvelopeTest {
     private static final Logger log = LoggerFactory.getLogger(EventEnvelope.class);
+    private static final String SET_COOKIE = "set-cookie";
+
+    @Test
+    public void cookieTest() {
+        EventEnvelope event = new EventEnvelope();
+        event.setHeader(SET_COOKIE, "a=100");
+        event.setHeader(SET_COOKIE, "b=200");
+        // set-cookie is a special case for composite value
+        Assert.assertEquals("a=100|b=200", event.getHeader(SET_COOKIE));
+    }
 
     @Test
     public void booleanTest() throws IOException {
