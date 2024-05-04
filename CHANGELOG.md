@@ -15,7 +15,8 @@ for static content handling.
 
 ### Added
 
-Added optional static-content.no-cache-pages in rest.yaml
+1. Added optional static-content.no-cache-pages in rest.yaml
+2. AsyncHttpClientLoader
 
 ### Removed
 

@@ -200,7 +200,7 @@ public class AppStarter {
     @SuppressWarnings("rawtypes")
     private static void preload() {
         EventEmitter po = EventEmitter.getInstance();
-        log.info("Preloading started - {}", po);
+        log.info("Preloading started - {}", po.getId());
         Utility util = Utility.getInstance();
         Platform platform = Platform.getInstance();
         SimpleClassScanner scanner = SimpleClassScanner.getInstance();

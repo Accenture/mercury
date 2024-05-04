@@ -36,7 +36,6 @@ import io.vertx.ext.web.multipart.MultipartForm;
 import org.platformlambda.automation.models.OutputStreamQueue;
 import org.platformlambda.automation.services.ServiceGateway;
 import org.platformlambda.core.annotations.EventInterceptor;
-import org.platformlambda.core.annotations.PreLoad;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.AsyncHttpRequest;
 import org.platformlambda.core.models.EventEnvelope;
@@ -62,7 +61,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @EventInterceptor
-@PreLoad(route="async.http.request", instances=200)
 public class AsyncHttpClient implements TypedLambdaFunction<EventEnvelope, Void> {
     private static final Logger log = LoggerFactory.getLogger(AsyncHttpClient.class);
     private static final AtomicInteger initCounter = new AtomicInteger(0);

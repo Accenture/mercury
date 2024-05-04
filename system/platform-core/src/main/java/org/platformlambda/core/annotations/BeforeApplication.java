@@ -27,7 +27,10 @@ import java.lang.annotation.*;
  * <p>
  * Smaller sequence will be executed first
  * <p>
- * sequence must be between 1 and 999 (sequence 0 is reserved for config management)
+ * normal sequence must be between 3 and 999
+ * <p>
+ * (Sequence 2 is reserved by the AsyncHttpClientLoader. If your startup code must run
+ *  before this system module, you can set sequence to 1)
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
