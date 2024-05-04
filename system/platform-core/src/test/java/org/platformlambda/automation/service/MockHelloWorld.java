@@ -33,7 +33,9 @@ public class MockHelloWorld implements TypedLambdaFunction<AsyncHttpRequest, Obj
         if ("HEAD".equals(input.getMethod())) {
             EventEnvelope result = new EventEnvelope().setHeader("X-Response", "HEAD request received")
                                             .setHeader("Content-Length", 100);
-            result.setHeader("Set-Cookie", "first=cookie|second=one");
+            // set multiple cookies
+            result.setHeader("Set-Cookie", "first=cookie");
+            result.setHeader("Set-Cookie", "second=one");
             return result;
         }
         if (input.getStreamRoute() != null) {
