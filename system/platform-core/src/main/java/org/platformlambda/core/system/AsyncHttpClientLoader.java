@@ -27,11 +27,10 @@ import java.io.IOException;
 
 /**
  * This module loads the AsyncHttpClient before loading other user application start-up code
- * so that its service is available to user application modules including those with
- * the "BeforeApplication" annotation. It is recommended that your start-up modules use
- * sequence from 3 onwards.
+ * so that its service is available to them. It is recommended that your start-up modules use
+ * sequence from 6 onwards.
  */
-@BeforeApplication(sequence = 2)
+@BeforeApplication(sequence = 5)
 public class AsyncHttpClientLoader implements EntryPoint {
 
     @Override
