@@ -137,20 +137,20 @@ public class BenchmarkService implements LambdaFunction {
             }
         }
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                " INFO: First oneTrip event arrives in "+number.format(minOneTrip)+MS);
+                " INFO: First one trip event arrives in "+number.format(minOneTrip)+MS);
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                " INFO: Last oneTrip event arrives in "+number.format(maxOneTrip)+MS);
+                " INFO: Last one trip event arrives in "+number.format(maxOneTrip)+MS);
 
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                " INFO: First roundTrip event returns in "+number.format(minRoundTrip)+MS);
+                " INFO: First round trip event returns in "+number.format(minRoundTrip)+MS);
         po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                " INFO: Last roundTrip event returns in "+number.format(maxRoundTrip)+MS);
+                " INFO: Last round trip event returns in "+number.format(maxRoundTrip)+MS);
 
         if (maxOneTrip > 0) {
             float avgOneTrip = ((float) count * 1000) / maxOneTrip;
             float oneTripBps = avgOneTrip * size * 8;
             po.send(BENCHMARK_USERS, util.getLocalTimestamp()+
-                    " INFO: oneTrip = "+number.format(avgOneTrip)+EVENTS_PER_SECOND+", "+
+                    " INFO: one trip = "+number.format(avgOneTrip)+EVENTS_PER_SECOND+", "+
                     number.format(oneTripBps)+BPS);
         }
         if (maxRoundTrip > 0) {
@@ -161,7 +161,7 @@ public class BenchmarkService implements LambdaFunction {
                 roundTripBps *= 2;
             }
             po.send(BENCHMARK_USERS, util.getLocalTimestamp() +
-                    " INFO: roundTrip = " + number.format(avgRoundTrip) + EVENTS_PER_SECOND+", "+
+                    " INFO: round trip = " + number.format(avgRoundTrip) + EVENTS_PER_SECOND+", "+
                     number.format(roundTripBps)+BPS);
         }
     }
