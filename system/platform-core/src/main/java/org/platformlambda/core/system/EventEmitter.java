@@ -64,9 +64,9 @@ public class EventEmitter {
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
     private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
-    private static final String EVENT_OVER_HTTP = "event.over.http";
-    private static final String MULTICAST_YAML = "multicast.yaml";
-    private static final String JOURNAL_YAML = "journal.yaml";
+    private static final String EVENT_OVER_HTTP_YAML = "yaml.event.over.http";
+    private static final String MULTICAST_YAML = "yaml.multicast";
+    private static final String JOURNAL_YAML = "yaml.journal";
     private static final String APP_GROUP_PREFIX = "monitor-";
     private static final ConcurrentMap<String, FutureEvent> futureEvents = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, String> reRoutes = new ConcurrentHashMap<>();
@@ -112,7 +112,7 @@ public class EventEmitter {
                 loadJournalRoutes(reader);
             });
         }
-        String eventHttpConfig = config.getProperty(EVENT_OVER_HTTP);
+        String eventHttpConfig = config.getProperty(EVENT_OVER_HTTP_YAML);
         if (eventHttpConfig != null) {
             platform.getEventExecutor().submit(() -> {
                 log.info("Loading event-over-http config from {}", eventHttpConfig);

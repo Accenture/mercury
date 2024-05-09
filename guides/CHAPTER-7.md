@@ -141,7 +141,7 @@ You can enable Event-over-HTTP configuration by adding this parameter in applica
 #
 # Optional event-over-http target maps
 #
-event.over.http=classpath:/event-over-http.yaml
+yaml.event.over.http=classpath:/event-over-http.yaml
 ```
 
 and then create the configuration file "event-over-http.yaml" like this:
