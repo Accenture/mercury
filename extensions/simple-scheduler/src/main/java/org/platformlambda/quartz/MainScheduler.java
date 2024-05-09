@@ -192,7 +192,7 @@ public class MainScheduler implements EntryPoint {
 
     private ConfigReader getConfig() throws IOException {
         AppConfigReader reader = AppConfigReader.getInstance();
-        List<String> paths = Utility.getInstance().split(reader.getProperty("cron.yaml",
+        List<String> paths = Utility.getInstance().split(reader.getProperty("yaml.cron",
                 "file:/tmp/config/cron.yaml, classpath:/cron.yaml"), ", ");
         for (String p: paths) {
             ConfigReader config = new ConfigReader();

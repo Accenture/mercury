@@ -62,7 +62,7 @@ public class EventEmitter {
     private static final String X_ASYNC = "x-async";
     private static final String X_TRACE_ID = "x-trace-id";
     private static final String ROUTE_SUBSTITUTION = "route.substitution";
-    private static final String ROUTE_SUBSTITUTION_FILE = "route.substitution.file";
+    private static final String ROUTE_SUBSTITUTION_YAML = "yaml.route.substitution";
     private static final String ROUTE_SUBSTITUTION_FEATURE = "application.feature.route.substitution";
     private static final String EVENT_OVER_HTTP_YAML = "yaml.event.over.http";
     private static final String MULTICAST_YAML = "yaml.multicast";
@@ -263,10 +263,10 @@ public class EventEmitter {
     @SuppressWarnings("unchecked")
     private void loadRouteSubstitution() {
         AppConfigReader config = AppConfigReader.getInstance();
-        String location = config.getProperty(ROUTE_SUBSTITUTION_FILE);
+        String location = config.getProperty(ROUTE_SUBSTITUTION_YAML);
         if (location != null) {
             try {
-                // try loading from location(s) given in route.substitution.file
+                // try loading from given location(s)
                 ConfigReader reader = getRouteSubstitutionConfig(location);
                 Object o = reader.get(ROUTE_SUBSTITUTION);
                 if (o instanceof List) {

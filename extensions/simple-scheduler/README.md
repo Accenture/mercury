@@ -18,10 +18,7 @@ Cron jobs can be defined in a "cron.yaml" file.
 
 You can change the file path in application.properties:
 ```
-#
-# path to cron.yaml
-#
-cron.yaml=file:/tmp/config/cron.yaml, classpath:/cron.yaml
+yaml.cron=file:/tmp/config/cron.yaml, classpath:/cron.yaml
 ```
 In this example, it assumes the configuration file is available in "/tmp/config/cron.yaml".
 If it is not there, it will use the default one in the classpath.

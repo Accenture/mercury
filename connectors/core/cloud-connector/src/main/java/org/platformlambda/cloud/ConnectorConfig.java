@@ -100,7 +100,7 @@ public class ConnectorConfig {
             AppConfigReader config = AppConfigReader.getInstance();
             String useStaticTopics = config.getProperty("application.feature.topic.substitution", "false");
             if ("true".equalsIgnoreCase(useStaticTopics)) {
-                ConfigReader topicConfig = getConfig("topic.substitution.file",
+                ConfigReader topicConfig = getConfig("yaml.topic.substitution",
                         "file:/tmp/config/topic-substitution.yaml,classpath:/topic-substitution.yaml");
                 Map<String, Object> map = topicConfig.getCompositeKeyValues();
                 if (map.isEmpty()) {

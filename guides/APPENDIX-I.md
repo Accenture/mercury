@@ -16,9 +16,12 @@ precedence.
 | server.port                            | e.g. 8083                                                       | Yes*1       |
 | rest.automation                        | true if you want to enable automation                           | Optional    |
 | yaml.rest.automation                   | Config location. e.g. classpath:/rest.yaml                      | Optional    |
-| yaml.event.over.http                   | Config location. e.g. classpath:/event-over-http.yaml           | Optional    |
-| yaml.multicast                         | Config location. e.g. classpath:/multicast.yaml                 | Optional    |
-| yaml.journal                           | Config location. e.g. classpath:/journal.yaml                   | Optional    |
+| yaml.event.over.http                   | Config location classpath:/event-over-http.yaml                 | Optional    |
+| yaml.multicast                         | Config location classpath:/multicast.yaml                       | Optional    |
+| yaml.journal                           | Config location classpath:/journal.yaml                         | Optional    |
+| yaml.route.substitution                | Config location                                                 | Optional    |
+| yaml.topic.substitution                | Config location                                                 | Optional    |
+| yaml.cron                              | Config location                                                 | Optional    |
 | yaml.flow.automation                   | Config location. e.g. classpath:/flows.yaml                     | EventScript |
 | rest.server.port                       | e.g. 8085                                                       | Optional    |
 | websocket.server.port                  | Alias for rest.server.port                                      | Optional    |
@@ -39,9 +42,7 @@ precedence.
 | index.page                             | default is index.html                                           | Optional*   |
 | hsts.feature                           | default is true                                                 | Optional*   |
 | application.feature.route.substitution | default is false                                                | Optional    |
-| route.substitution.file                | points to a config file                                         | Optional    |
 | application.feature.topic.substitution | default is false                                                | Optional    |
-| topic.substitution.file                | points to a config file                                         | Optional    |
 | kafka.replication.factor               | 3                                                               | Kafka       |
 | cloud.client.properties                | e.g. classpath:/kafka.properties                                | Connector   |
 | user.cloud.client.properties           | e.g. classpath:/second-kafka.properties                         | Connector   |
