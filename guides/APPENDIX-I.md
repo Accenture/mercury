@@ -14,6 +14,8 @@ precedence.
 | info.app.description                   | Something about your application                                | Yes         |
 | web.component.scan                     | your own package path or parent path                            | Yes         |
 | server.port                            | e.g. 8083                                                       | Yes*1       |
+| rest.server.port                       | e.g. 8085                                                       | Optional    |
+| websocket.server.port                  | Alias for rest.server.port                                      | Optional    |
 | rest.automation                        | true if you want to enable automation                           | Optional    |
 | yaml.rest.automation                   | Config location. e.g. classpath:/rest.yaml                      | Optional    |
 | yaml.event.over.http                   | Config location classpath:/event-over-http.yaml                 | Optional    |
@@ -23,11 +25,9 @@ precedence.
 | yaml.topic.substitution                | Config location                                                 | Optional    |
 | yaml.cron                              | Config location                                                 | Optional    |
 | yaml.flow.automation                   | Config location. e.g. classpath:/flows.yaml                     | EventScript |
-| rest.server.port                       | e.g. 8085                                                       | Optional    |
-| websocket.server.port                  | Alias for rest.server.port                                      | Optional    |
 | static.html.folder                     | classpath:/public/                                              | Yes         |
-| mime.types                             | Map of file extensions to MIME types<br/>(application.yml only) | Optional    |
 | spring.web.resources.static-locations  | (alias for static.html.folder)                                  | Yes*1       |
+| mime.types                             | Map of file extensions to MIME types<br/>(application.yml only) | Optional    |
 | spring.mvc.static-path-pattern         | /**                                                             | Yes*1       |
 | jax.rs.application.path                | /api                                                            | Optional*   |
 | show.env.variables                     | comma separated list of variable names                          | Optional    |
