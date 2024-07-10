@@ -1,18 +1,33 @@
+# IMPORTANT
+
+Good news! We have published our enterprise extension "Event Script" as open source in the "Mercury-Composable" 
+repository below. It is a new paradigm for building maintainable, scalable, and future-proof applications. 
+By embracing the principles of self-contained functions and event-driven communication, you can conquer complexity
+and write code that is a joy to work with.
+
+[Mercury 4.x: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
+
+July 2024
+
 # Mercury 3.0
 
-Reference engine for building "Composable architecture and applications".
+Mercury 3.0 is maintained for backward compatibility only. Occasionally, we may back-port some features from
+Mercury Composable 4.x.
 
-# Java 21 Virtual Thread
+You should use Mercury 4.x unless you need backward compatibility for your production systems.
 
-Mercury 3.0 supports compatibility down to Java 1.8.
+# Differences between Mercury 3.0 and 4.x
 
-If you have Java 21, you may want to jump directly to Mercury 3.1:
+The key differences of Mercury 3.0 vs the latest Mercury-Composable 4.x are:
 
-[Source](https://github.com/Accenture/mercury-composable)
-
-[Documentation](https://accenture.github.io/mercury-composable/)
-
-[Performance-tuning](https://accenture.github.io/mercury-composable/guides/CHAPTER-2/#solving-the-puzzle-of-multithreading-performance)
+| Category             | Mercury 3.0           | Mercury 4.x                                     |
+|:---------------------|:----------------------|:------------------------------------------------|
+| Java version         | Supports Java 1.8     | Requires Java 21 or higher                      |
+| Event orchestration  | Orchestration by code | Orchestration by configuration ("Event Script") |
+| Multitasking         | Coroutine and kernel  | Java 21 virtual threads, coroutine and kernel   |
+| Functional isolation | KernelThreadRunner    | Virtual Threads and KernelThreadRunner          |
 
 # Welcome to the Mercury project
 
@@ -32,8 +47,6 @@ using three function execution strategies:
 
 Mercury achieves virtual threading using coroutine and suspend function. It will fully embrace
 Java 19 virtual thread feature when it becomes officially available later in 2023.
-
-April, 2024
 
 # Breaking changes
 
