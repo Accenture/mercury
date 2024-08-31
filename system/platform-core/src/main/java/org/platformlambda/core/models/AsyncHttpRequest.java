@@ -32,7 +32,6 @@ public class AsyncHttpRequest {
     private static final String HTTP_HEADERS = "headers";
     private static final String HTTP_METHOD = "method";
     private static final String IP_ADDRESS = "ip";
-    private static final String CLASS = "clazz";
     private static final String TIMEOUT = "timeout";
     private static final String HTTP_SESSION = "session";
     private static final String PARAMETERS = "parameters";
@@ -57,7 +56,6 @@ public class AsyncHttpRequest {
     private String url;
     private String ip;
     private String upload;
-    private String type;
     private Map<String, String> headers = new HashMap<>();
     private Map<String, Object> queryParams = new HashMap<>();
     private Map<String, String> pathParams = new HashMap<>();
@@ -135,25 +133,7 @@ public class AsyncHttpRequest {
      * @return original body
      */
     public Object getBody() {
-        if (type == null) {
-            return body;
-        } else {
-            final Class<?> cls = PayloadMapper.getInstance().getClassByName(type);
-            return cls == null? body : SimpleMapper.getInstance().getMapper().readValue(body, cls);
-        }
-    }
-
-    /**
-     * Get body in raw form without object mapping. i.e. Map or Java primitive
-     *
-     * @return body
-     */
-    public Object getRawBody() {
         return body;
-    }
-
-    public String getClassType() {
-        return type;
     }
 
     /**
@@ -211,7 +191,6 @@ public class AsyncHttpRequest {
             this.body = Utility.getInstance().date2str((Date) body);
         } else {
             this.body = SimpleMapper.getInstance().getMapper().readValue(body, Map.class);
-            this.type = body.getClass().getName();
         }
         return this;
     }
@@ -489,9 +468,6 @@ public class AsyncHttpRequest {
         if (ip != null) {
             result.put(IP_ADDRESS, ip);
         }
-        if (type != null) {
-            result.put(CLASS, type);
-        }
         if (url != null) {
             result.put(URL_LABEL, url);
         }
@@ -549,7 +525,6 @@ public class AsyncHttpRequest {
             this.session = source.session;
             this.method = source.method;
             this.ip = source.ip;
-            this.type = source.type;
             this.url = source.url;
             this.timeoutSeconds = source.timeoutSeconds;
             this.fileName = source.fileName;
@@ -580,9 +555,6 @@ public class AsyncHttpRequest {
             }
             if (map.containsKey(IP_ADDRESS)) {
                 ip = (String) map.get(IP_ADDRESS);
-            }
-            if (map.containsKey(CLASS)) {
-                type = (String) map.get(CLASS);
             }
             if (map.containsKey(URL_LABEL)) {
                 url = (String) map.get(URL_LABEL);

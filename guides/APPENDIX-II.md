@@ -1,4 +1,4 @@
-# Reserved route names
+# Reserved Route Names
 
 The Mercury foundation code is written using the same core API and each function has a route name.
 

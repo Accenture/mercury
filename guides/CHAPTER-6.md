@@ -1,4 +1,4 @@
-# Spring Boot integration
+# Spring Boot Integration
 
 While the platform-core foundation code includes a lightweight non-blocking HTTP server, you can also turn your
 application into an executable Spring Boot application.
@@ -231,4 +231,4 @@ In "rest-spring-3", Spring WebFlux replaces JAX-RS as the asynchronous HTTP serv
 
 |               Chapter-5                |                   Home                    |            Chapter-7            |
 |:--------------------------------------:|:-----------------------------------------:|:-------------------------------:|
-| [Build, test and deploy](CHAPTER-4.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event over HTTP](CHAPTER-7.md) |
+| [Build, Test and Deploy](CHAPTER-4.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event over HTTP](CHAPTER-7.md) |

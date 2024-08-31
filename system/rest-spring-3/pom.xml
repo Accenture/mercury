@@ -5,7 +5,7 @@
 
     <groupId>org.platformlambda</groupId>
     <artifactId>rest-spring-3</artifactId>
-    <version>3.0.15</version>
+    <version>3.0.16</version>
     <packaging>jar</packaging>
 
     <name>Pre-configured Spring Boot 3 module</name>
@@ -14,7 +14,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>3.3.3</version>
         <relativePath/>
     </parent>
 
@@ -22,9 +22,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
-        <kafka.version>3.7.0</kafka.version>
-        <gson.version>2.10.1</gson.version>
-        <netty.version>4.1.109.Final</netty.version>
+        <kafka.version>3.7.1</kafka.version>
+        <gson.version>2.11.0</gson.version>
+        <netty.version>4.1.111.Final</netty.version>
         <slf4j.version>2.0.11</slf4j.version>
         <log4j2.version>2.22.0</log4j2.version>
         <kotlin.version>1.9.22</kotlin.version>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.15</version>
+            <version>3.0.16</version>
         </dependency>
 
         <dependency>

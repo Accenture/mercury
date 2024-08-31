@@ -1,4 +1,4 @@
-# REST automation
+# REST Automation
 
 The platform-core foundation library contains a built-in non-blocking HTTP server that you can use to create REST
 endpoints. Behind the curtain, it is using the vertx web client and server libraries.
@@ -259,7 +259,7 @@ static-content:
     service: "http.request.filter"
 ```
 
-The sample request filter function is available in the platform-core project like this:
+A sample request filter function is available in the platform-core project like this:
 
 ```java
 @PreLoad(route="http.request.filter", instances=100)
@@ -286,4 +286,4 @@ code and error message accordingly.
 
 |                   Chapter-2                   |                   Home                    |              Chapter-4              |
 |:---------------------------------------------:|:-----------------------------------------:|:-----------------------------------:|
-| [Function execution strategies](CHAPTER-2.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event orchestration](CHAPTER-4.md) |
+| [Function Execution Strategies](CHAPTER-2.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Event Orchestration](CHAPTER-4.md) |

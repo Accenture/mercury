@@ -201,4 +201,4 @@ Please refer to [Chapter-3 - REST automation](CHAPTER-3.md) for details.
 
 |          Chapter-6          |                   Home                    |          Chapter-8           |
 |:---------------------------:|:-----------------------------------------:|:----------------------------:|
-| [Spring Boot](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Service mesh](CHAPTER-8.md) |
+| [Spring Boot](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Service Mesh](CHAPTER-8.md) |

@@ -1,4 +1,4 @@
-# Migration guide
+# Migration Guide
 
 Let's discuss some migration tips from Mercury version 2 to 3.
 

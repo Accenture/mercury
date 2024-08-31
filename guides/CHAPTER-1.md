@@ -1,6 +1,6 @@
 # Introduction
 
-Mercury version 3 is a toolkit for writing composable applications.
+Mercury version 3 is a toolkit for event-driven programming that is the `foundation` for composable application.
 
 At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
 business applications. With modular design, you can assemble platform components and applications to create
@@ -13,6 +13,14 @@ components or functions that are self-contained and pluggable. You can mix-n-mat
 You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
 can exist, and you can decide how to route user requests to different versions of a function. Applications would be
 easier to design, develop, maintain, deploy, and scale.
+
+While you can write a composable application using event-driven programming, the best way to build a composable
+application is a declarative approach where event choreography of self-contained functions is performed by
+an event manager. Declarative approach for building composable applications is shown in:
+
+[Mercury v4: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
 
 ## Composable application architecture
 
@@ -93,7 +101,7 @@ Note that event orchestration is optional. In the most basic REST application, t
 the user request to a function directly. When the function finishes processing, its output will be routed as
 a HTTP response to the user.
 
-### The Composable engine
+### The in-memory event system
 
 Event routing is done behind the curtain by the composable engine which consists of the REST automation service,
 an in-memory event system ("event loop") and an optional localized pub/sub system.

@@ -1,4 +1,4 @@
-# Build, test and deploy
+# Build, Test and Deploy
 
 The first step in writing an application is to create an entry point for your application.
 

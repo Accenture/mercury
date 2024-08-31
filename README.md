@@ -1,34 +1,3 @@
-# IMPORTANT
-
-Good news! We have published our enterprise extension "Event Script" as open source in the "Mercury-Composable" 
-repository below. It is a new paradigm for building maintainable, scalable, and future-proof applications. 
-By embracing the principles of self-contained functions and event-driven communication, you can conquer complexity
-and write code that is a joy to work with.
-
-[Mercury 4.x: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
-
-[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
-
-July 2024
-
-# Mercury 3.0
-
-Mercury 3.0 is maintained for backward compatibility only. Occasionally, we may back-port some features from
-Mercury Composable 4.x.
-
-You should use Mercury 4.x unless you need backward compatibility for your production systems.
-
-# Differences between Mercury 3.0 and 4.x
-
-The key differences of Mercury 3.0 vs the latest Mercury-Composable 4.x are:
-
-| Category             | Mercury 3.0           | Mercury 4.x                                     |
-|:---------------------|:----------------------|:------------------------------------------------|
-| Java version         | Supports Java 1.8     | Requires Java 21 or higher                      |
-| Event orchestration  | Orchestration by code | Orchestration by configuration ("Event Script") |
-| Multitasking         | Coroutine and kernel  | Java 21 virtual threads, coroutine and kernel   |
-| Functional isolation | KernelThreadRunner    | Virtual Threads and KernelThreadRunner          |
-
 # Welcome to the Mercury project
 
 The Mercury project is created with one primary objective -
@@ -45,25 +14,52 @@ using three function execution strategies:
 2. coroutine
 3. suspend function
 
-Mercury achieves virtual threading using coroutine and suspend function. It will fully embrace
-Java 19 virtual thread feature when it becomes officially available later in 2023.
+Mercury version 3 achieves virtual threading using coroutine and suspend function.
+
+In version 4, it fully embraces Java 21 virtual thread feature that was officially available since 12/2023.
+
+August, 2024
+
+# Mercury version 3
+
+Mercury version 3 is a software development toolkit for event-driven programming.
+
+Event-driven programming allows functional modules to communicate with each other using events instead
+of direct method calls. This allows the functions to be executed asynchronously, improving overall
+application performance.
+
+IMPORTANT: You should use Mercury version 4 unless you need backward compatibility for your production systems.
+
+Please visit Mercury Version 4 using the links below:
+
+[Mercury v4: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
+
+# Differences between Mercury version 3 and 4
+
+The key differences of Mercury version 3 and the latest Mercury-Composable version 4 are:
+
+| Category             | Mercury 3.0                 | Mercury 4.x                                   |
+|:---------------------|:----------------------------|:----------------------------------------------|
+| Java version         | Supports Java 1.8 or higher | Requires Java 21 or higher                    |
+| Event management     | Orchestration by code       | Event choreography by configuration           |
+| Multitasking         | Coroutine and kernel        | Java 21 virtual threads, coroutine and kernel |
+| Functional isolation | KernelThreadRunner          | Virtual Threads and KernelThreadRunner        |
 
 # Breaking changes
 
-By default, the system will run all functions as "coroutines" where previous versions run them using
+By default, the system runs all functions as "coroutines" where previous versions run them using
 a kernel thread pool.
 
-For consistency, this unifies the behavior with Mercury Composable version 3.1.
-
-The `CoroutineRunner` annotation has been removed and a new `KernelThreadRunner` annotation is available
-to tell the system to run a function in the kernel thread pool.
+The `CoroutineRunner` annotation has been removed and replaced with the new `KernelThreadRunner` annotation.
 
 The "rest.automation.yaml" key is renamed as "yaml.rest.automation" after we unify the parsing behavior
 of application.properties with application.yml.
 
 # Write your first composable application
 
-To get started with your first application, please refer to the [Developer Guide](guides/CHAPTER-1.md).
+To get started with your first application, please refer to the [Chapter 4, Developer Guide](guides/CHAPTER-1.md).
 
 # Introduction to composable architecture
 
@@ -137,7 +133,6 @@ For example, the CQRS design pattern is well accepted for building high performa
 > Figure 1 - Cloud native applications use event streams to communicate
 
 ![figure-1.png](diagrams/figure-1.png)
-
 
 However, within a single application unit, the application is mostly built in a traditional way.
 i.e. one function is calling other functions and libraries directly, thus making the modules and libraries

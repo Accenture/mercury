@@ -1,8 +1,8 @@
-# Function execution strategies
+# Function Execution Strategies
 
 ## Define a function
 
-In a composable application, each function is self-contained with zero or minimal dependencies.
+In a composable application, each user function is self-contained with zero dependencies with other user functions.
 
 A function is a class that implements the LambdaFunction, TypedLambdaFunction or KotlinLambdaFunction interface.
 Within each function boundary, it may have private methods that are fully contained within the class.
@@ -22,7 +22,8 @@ public class MyFirstFunction implements TypedLambdaFunction<AsyncHttpRequest, Ob
 ```
 
 A function is an event listener with the "handleEvent" method. The data structures of input and output are defined
-by API interface contract during application design phase.
+by API interface contract during application design phase. A "route" or "topic" is associated with each function.
+When an event arrives to the topic, the function is executed where the event is de-serialized as the function's input.
 
 In the above example, the input is AsyncHttpRequest because this function is designed to handle an HTTP request event
 from a REST endpoint defined in the "rest.yaml" configuration file. We set the output as "Object" so that there is
@@ -40,7 +41,11 @@ In cloud native application, the transaction flow may be more sophisticated than
 This "event orchestration" can be done by code using the "PostOffice" and/or "FastRPC" API.
 
 To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
-Event Script is available as an optional enterprise add-on module from Accenture.
+This feature is available in Mercury version 4.0:
+
+[Mercury v4: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
 
 ## Extensible authentication function
 
@@ -102,7 +107,7 @@ A function is executed when an event arrives. There are three function execution
 ### Kernel thread pool
 
 When you write a function using LambdaFunction and TypedLambdaFunction with the `KernelThreadRunner` annotation,
-the function will be executed using "kernel thread pool" and Java will run your function in native
+the function will be executed using "kernel thread pool" and the Java VM will run your function in native
 "preemptive multitasking" mode.
 
 While preemptive multitasking fully utilizes the CPU, its context switching overheads may increase as the number of
@@ -123,7 +128,7 @@ external HTTP or database calls in a synchronous blocking manner, you may use it
 of worker instances.
 
 To rapidly release kernel thread resources, you can write "asynchronous" code. i.e. for event-driven programming,
-you can use send event to another function asynchronously, and you can create a callback function to listen
+you can send event to another function asynchronously, and you can create a callback function to listen
 to responses.
 
 For RPC call, you can use the `asyncRequest` method to write asynchronous RPC calls. However, coding for asynchronous
@@ -132,7 +137,8 @@ Your code will move on to execute using a "future" that will execute callback me
 Another approach is to annotate the function as an `EventInterceptor` so that your function can respond to the user
 in a "future" callback.
 
-For ease of programming, we recommend using suspend function to handle RPC calls.
+For ease of programming, we recommend using suspend function to handle RPC calls. It allows you to program your
+function in a sequential manner similar to the "async/await" pattern of other programming languages.
 
 ### Coroutine
 
@@ -258,4 +264,4 @@ is non-blocking.
 
 |          Chapter-1           |                   Home                    |            Chapter-3            |
 |:----------------------------:|:-----------------------------------------:|:-------------------------------:|
-| [Introduction](CHAPTER-1.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [REST automation](CHAPTER-3.md) |
+| [Introduction](CHAPTER-1.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [REST Automation](CHAPTER-3.md) |

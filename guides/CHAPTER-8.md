@@ -1,4 +1,4 @@
-# Service mesh
+# Service Mesh
 
 Service mesh is a dedicated infrastructure layer to facilitate inter-container communication using "sidecar" and
 "control plane".
@@ -364,4 +364,4 @@ The presence monitor is using the "presence" feature in websocket, thus we call 
 
 |            Chapter-7            |                   Home                    |          CHAPTER-9           |
 |:-------------------------------:|:-----------------------------------------:|:----------------------------:|
-| [Event over HTTP](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [API overview](CHAPTER-9.md) |
+| [Event over HTTP](CHAPTER-6.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [API Overview](CHAPTER-9.md) |

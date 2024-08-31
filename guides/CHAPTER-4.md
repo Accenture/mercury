@@ -1,4 +1,4 @@
-﻿# Event orchestration
+﻿# Event Orchestration
 
 In traditional programming, we can write modular software components and wire them together as a single application.
 There are many ways to do that. You can rely on a "dependency injection" framework. In many cases, you would need
@@ -403,4 +403,4 @@ In the next chapter, we will discuss the build, test and deploy process.
 
 |            Chapter-3            |                   Home                    |               Chapter-5                |
 |:-------------------------------:|:-----------------------------------------:|:--------------------------------------:|
-| [REST automation](CHAPTER-3.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Build, test and deploy](CHAPTER-5.md) |
+| [REST Automation](CHAPTER-3.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Build, Test and Deploy](CHAPTER-5.md) |

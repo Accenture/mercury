@@ -1,4 +1,4 @@
-# API overview
+# API Overview
 
 ## Main application
 
@@ -616,4 +616,4 @@ for details.
 
 |          Chapter-8           |                   Home                    |            Chapter-10            |
 |:----------------------------:|:-----------------------------------------:|:--------------------------------:|
-| [Service mesh](CHAPTER-8.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Migration guide](CHAPTER-10.md) |
+| [Service Mesh](CHAPTER-8.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Migration Guide](CHAPTER-10.md) |

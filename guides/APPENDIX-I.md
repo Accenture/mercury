@@ -238,4 +238,4 @@ X-Raw-Xml=true
 
 |            Chapter-10            |                   Home                    |              Appendix-II               |
 |:--------------------------------:|:-----------------------------------------:|:--------------------------------------:|
-| [Migration guide](CHAPTER-10.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Reserved route names](APPENDIX-II.md) |
+| [Migration Guide](CHAPTER-10.md) | [Table of Contents](TABLE-OF-CONTENTS.md) | [Reserved Route Names](APPENDIX-II.md) |

@@ -209,8 +209,9 @@ public class MultiLevelMap {
      * @return this
      */
     public MultiLevelMap removeElement(String compositePath) {
-        validateCompositePathSyntax(compositePath);
-        setElement(compositePath, null, multiLevels, true);
+        if (keyExists(compositePath)) {
+            setElement(compositePath, null, multiLevels, true);
+        }
         return this;
     }
 
