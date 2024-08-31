@@ -313,13 +313,6 @@ drop and forget, callback, workflow, pipeline, streaming and interceptor pattern
 Sequential non-blocking RPC reduces the effort in application modernization because we can directly port sequential 
 legacy code from a monolithic application to the new composable cloud native design.
 
-Earlier we discussed “event orchestration.” We have an accelerator called “Event Script” that provides 
-“event orchestration” in configuration to eliminate the most tedious coding effort. Event Script creates a 
-composable application in three steps: (1) the product owner and architect describe the business transaction as 
-a flow of events, (2) the developer converts the flow chart into event script and (3) write the individual 
-functions for business logic. The system will connect the various functions together and orchestrate the 
-event flow as a single application.
-
 # What is "event orchestration"?
 
 In traditional programming, we write code to make calls to different methods and libraries. In event-driven 
@@ -329,11 +322,11 @@ just like traditional programming. It is viable to port legacy orchestration log
 To further reduce coding effort, we can use Event Script to do “event orchestration.” This would replace code with 
 simple event flow configuration.
 
-```text
-Note: Event Script is outside the scope of this open sources project.
-      Please contact your Accenture representative if you are interested to use
-      Event Script to further reduce coding effort for composable applications.
-```
+To use event script, please upgrade to Mercury v4.
+
+[Mercury v4: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
 
 # How steep is the learning curve for a developer?
 

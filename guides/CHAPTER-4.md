@@ -395,8 +395,13 @@ your application works. It makes your code more readable.
 
 To automate event orchestration, there is an enterprise add-on module called "Event Script".
 This is the idea of "config over code" or "declarative programming". The primary purpose of "Event Script"
-is to reduce coding effort so that the team can focus in improving application design and code quality. 
-Please contact your Accenture representative if you would like to evaluate the additional tool.
+is to reduce coding effort so that the team can focus in improving application design and code quality.
+
+To use event script, please upgrade to Mercury v4.
+
+[Mercury v4: https://github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+
+[Documentation: https://accenture.github.io/mercury-composable/](https://accenture.github.io/mercury-composable/)
 
 In the next chapter, we will discuss the build, test and deploy process.
 <br/>
