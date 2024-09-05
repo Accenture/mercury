@@ -114,7 +114,7 @@ public class ConfigReader implements ConfigBase {
                 String middleDefault = null;
                 if (!middle.isEmpty()) {
                     String loopId = loop.length == 1 && !loop[0].isEmpty() ? loop[0] : Utility.getInstance().getUuid();
-                    int colon = middle.lastIndexOf(':');
+                    int colon = middle.indexOf(':');
                     if (colon > 0) {
                         middleDefault = middle.substring(colon+1);
                         middle = middle.substring(0, colon);
