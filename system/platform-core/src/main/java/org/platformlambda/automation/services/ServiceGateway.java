@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -80,6 +81,9 @@ public class ServiceGateway {
     private static final String IF_NONE_MATCH = "If-None-Match";
     private static final int BUFFER_SIZE = 4 * 1024;
     private static final long FILTER_TIMEOUT = 10000;
+    private static final String SIGNATURE = "/" + Utility.getInstance().getUuid();
+    private static final File SIGNATURE_FOLDER = new File(SIGNATURE);
+    private static final Path SIGNATURE_FOLDER_PATH = SIGNATURE_FOLDER.toPath();
     // requestId -> context
     private static final ConcurrentMap<String, AsyncContextHolder> contexts = new ConcurrentHashMap<>();
     private static final Map<String, String> mimeTypes = new HashMap<>();
@@ -356,30 +360,35 @@ public class ServiceGateway {
     }
 
     private EtagFile getStaticFile(String path) {
-        // For security, convert backslash into forward slash
-        String normalizedPath = path.replace("\\", "/");
-        List<String> parts = Utility.getInstance().split(normalizedPath, "/");
-        // For security, reject path that tries to read parent folder or hidden file.
-        for (String p: parts) {
-            if (p.trim().startsWith(".")) {
-                return null;
-            }
+        // 1. for security, test for "path traversal" attack
+        // 2. trim trailing white space because the normalize() function does not allow that in Windows OS
+        Path testPath = new File(SIGNATURE_FOLDER, path.trim().replace("\\", "/"))
+                .toPath().normalize();
+        if (!testPath.startsWith(SIGNATURE_FOLDER_PATH)) {
+            log.error("Reject path traversal attack - {}", path);
+            // reject path traversal attempt
+            return null;
         }
+        String safePath = testPath.toString().substring(SIGNATURE.length());
+        if (!safePath.startsWith("/")) {
+            safePath = "/" + safePath;
+        }
+        List<String> parts = Utility.getInstance().split(safePath, "/");
         // assume ".html" if filename does not have a file extension
         String filename = parts.isEmpty()? INDEX_HTML : parts.get(parts.size() - 1);
-        if (normalizedPath.endsWith("/")) {
-            normalizedPath += INDEX_HTML;
+        if (safePath.endsWith("/")) {
+            safePath += INDEX_HTML;
             filename = INDEX_HTML;
         } else if (!filename.contains(".")) {
-            normalizedPath += HTML_EXT;
+            safePath += HTML_EXT;
             filename += HTML_EXT;
         }
         EtagFile result = null;
         if (resourceFolder != null) {
-            result = getResourceFile(normalizedPath);
+            result = getResourceFile(safePath);
         }
         if (staticFolder != null) {
-            result = getLocalFile(normalizedPath);
+            result = getLocalFile(safePath);
         }
         if (result != null) {
             result.name = filename;

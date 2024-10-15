@@ -2,10 +2,10 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Playground
-  description: You may browse available API specs or select one from the Apps link.
+  description: You may browse available API specs or select one from the Apps link
 
 servers:
-  - url: /api
+  - url: http://127.0.0.1:8222/api
 paths:
   /specs:
     get:
@@ -53,46 +53,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /hello/world:
-    get:
-      summary: Hello World demo
-      operationId: helloworld
-      tags:
-        - helloworld
-      responses:
-        '200':
-          description: echo HTTP request headers and cookies
-          content:
-            application/json:
-              schema:
-                type: "string"
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /hello/concurrent:
-    get:
-      summary: Concurrent Hello World demo
-      operationId: concurrent
-      tags:
-        - helloworld
-      responses:
-        '200':
-          description: demonstrate concurrent execution of the hello-world service
-          content:
-            application/json:
-              schema:
-                type: "string"
         default:
           description: unexpected error
           content:

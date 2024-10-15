@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.Assert.assertEquals;
+
 public class ConfigReaderTest {
 
     @BeforeClass
@@ -262,6 +264,15 @@ public class ConfigReaderTest {
         String value = reader.getProperty("test.no_default");
         // when there is no default value in the reference, it will return empty string as the default value.
         Assert.assertEquals("hello world", value);
+    }
+
+    @Test
+    public void activeProfileTest() {
+        AppConfigReader config = AppConfigReader.getInstance();
+        String testPara = config.getProperty("test.parameter");
+        Object testYaml = config.get("test.yaml");
+        assertEquals("hello world", testPara);
+        assertEquals(100, testYaml);
     }
 
 }

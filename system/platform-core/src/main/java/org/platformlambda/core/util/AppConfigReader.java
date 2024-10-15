@@ -31,6 +31,8 @@ public class AppConfigReader implements ConfigBase {
     private static final Logger log = LoggerFactory.getLogger(AppConfigReader.class);
     private static final String APP_CONFIG_READER_YML = "app-config-reader.yml";
     private static final String RESOURCES = "resources";
+    private static final String SPRING_ACTIVE_PROFILES = "spring.profiles.active";
+    private static final String APPLICATION_PREFIX = "application-";
     private static final ConfigReader config = new ConfigReader();
     private static final AppConfigReader INSTANCE = new AppConfigReader();
 
@@ -44,7 +46,7 @@ public class AppConfigReader implements ConfigBase {
      * <p>
      * Note that you can provide one or both files in the "resources" folder.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     private AppConfigReader() {
         ConfigReader.setBaseConfig(this);
         try (InputStream in = AppConfigReader.class.getResourceAsStream("/"+APP_CONFIG_READER_YML)) {
@@ -57,21 +59,23 @@ public class AppConfigReader implements ConfigBase {
             Map<String, Object> m = yaml.load(data.contains("\t")? data.replace("\t", "  ") : data);
             Object fileList = m.get(RESOURCES);
             if (fileList instanceof List) {
+                List<String> list = (List<String>) fileList;
                 final Map<String, Object> consolidated = new HashMap<>();
-                List list = (List) fileList;
-                list.forEach(filename -> {
-                    ConfigReader reader = new ConfigReader();
-                    try {
-                        reader.load("/"+filename);
-                        Map<String, Object> flat = Utility.getInstance().getFlatMap(reader.getMap());
-                        if (!flat.isEmpty()) {
-                            consolidated.putAll(flat);
-                            log.info("Loaded {}", filename);
-                        }
-                    } catch (IOException e) {
-                        // ok to ignore
-                    }
-                });
+                list.forEach(filename -> mergeConfig(consolidated, filename));
+                // check for the parameter spring.profiles.active
+                List<String> profiles = getActiveProfiles(consolidated);
+                int n = 0;
+                for (String profile: profiles) {
+                    String additionalProp = APPLICATION_PREFIX+profile+".properties";
+                    String additionalYaml = APPLICATION_PREFIX+profile+".yml";
+                    n += mergeConfig(consolidated, additionalProp);
+                    n += mergeConfig(consolidated, additionalYaml);
+                }
+                if (n > 0) {
+                    log.info("Updated {} parameter{} from active profiles {}", n, n == 1? "" : "s", profiles);
+                } else if (!profiles.isEmpty()) {
+                    log.info("Active profiles {} contain no additional parameters", profiles);
+                }
                 MultiLevelMap multiMap = new MultiLevelMap();
                 List<String> keys = new ArrayList<>(consolidated.keySet());
                 Collections.sort(keys);
@@ -86,6 +90,33 @@ public class AppConfigReader implements ConfigBase {
         }
         if (config.isEmpty()) {
             log.error("Application config is empty. Please check.");
+        }
+    }
+
+    private List<String> getActiveProfiles(Map<String, Object> consolidated) {
+        String activeProfiles = System.getProperty(SPRING_ACTIVE_PROFILES);
+        if (activeProfiles == null) {
+            Object ap = consolidated.get(SPRING_ACTIVE_PROFILES);
+            if (ap instanceof String) {
+                activeProfiles = (String) ap;
+            }
+        }
+        return activeProfiles == null? Collections.emptyList() : Utility.getInstance().split(activeProfiles, ", ");
+    }
+
+    private int mergeConfig(Map<String, Object> consolidated, String filename) {
+        ConfigReader reader = new ConfigReader();
+        try {
+            reader.load("/"+filename);
+            Map<String, Object> flat = Utility.getInstance().getFlatMap(reader.getMap());
+            if (!flat.isEmpty()) {
+                consolidated.putAll(flat);
+                log.info("Loaded {}", filename);
+            }
+            return flat.size();
+        } catch (IOException e) {
+            // ok to ignore
+            return 0;
         }
     }
 

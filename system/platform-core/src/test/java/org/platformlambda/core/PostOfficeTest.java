@@ -739,31 +739,6 @@ public class PostOfficeTest extends TestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void pingTest() throws IOException, InterruptedException {
-        BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
-        Platform platform = Platform.getInstance();
-        EventEmitter po = EventEmitter.getInstance();
-        Future<EventEnvelope> asyncResponse = po.ping(HELLO_WORLD, 5000);
-        asyncResponse.onSuccess(bench::offer);
-        EventEnvelope result = bench.poll(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(result);
-        // ping does not execute the target function so execution time should be zero
-        Assert.assertEquals(0, result.getExecutionTime(), 0.0);
-        Assert.assertTrue(result.getRoundTrip() >= 0);
-        Assert.assertTrue(result.getBody() instanceof Map);
-        Map<String, Object> response = (Map<String, Object>) result.getBody();
-        Assert.assertTrue(response.containsKey("time"));
-        Assert.assertTrue(response.containsKey("service"));
-        Assert.assertEquals("pong", response.get("type"));
-        Assert.assertEquals(platform.getName(), response.get("app"));
-        Assert.assertEquals(platform.getOrigin(), response.get("origin"));
-        Assert.assertEquals("This response is generated when you send an event without headers and body",
-                response.get("reason"));
-        log.info("Ping successfully - {}", response.get("message"));
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
     public void broadcastTest() throws IOException, InterruptedException {
         BlockingQueue<String> bench = new ArrayBlockingQueue<>(1);
         String CALLBACK = "my.callback";

@@ -7,7 +7,7 @@
     <artifactId>lambda-example</artifactId>
 
     <packaging>jar</packaging>
-    <version>3.0.16</version>
+    <version>3.0.17</version>
     <name>Composable application example</name>
 
     <parent>
@@ -26,7 +26,7 @@
         <netty.version>4.1.111.Final</netty.version>
         <slf4j.version>2.0.11</slf4j.version>
         <log4j2.version>2.22.0</log4j2.version>
-        <kotlin.version>1.9.22</kotlin.version>
+        <kotlin.version>2.0.20</kotlin.version>
         <spring-framework.version>5.3.39</spring-framework.version>
         <java.version>1.8</java.version>
     </properties>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>platform-core</artifactId>
-            <version>3.0.16</version>
+            <version>3.0.17</version>
         </dependency>
 
         <!-- Select your optional cloud connector if any.
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>org.platformlambda</groupId>
             <artifactId>kafka-connector</artifactId>
-            <version>3.0.16</version>
+            <version>3.0.17</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/junit/junit -->

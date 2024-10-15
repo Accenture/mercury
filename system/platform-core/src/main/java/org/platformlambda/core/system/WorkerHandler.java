@@ -24,7 +24,6 @@ import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -32,18 +31,12 @@ import java.util.concurrent.TimeoutException;
 public class WorkerHandler {
     private static final Logger log = LoggerFactory.getLogger(WorkerHandler.class);
     private static final Utility util = Utility.getInstance();
-    private static final String TYPE = "type";
     private static final String ID = "id";
     private static final String PATH = "path";
     private static final String SUCCESS = "success";
     private static final String FROM = "from";
     private static final String UNKNOWN = "unknown";
     private static final String EXEC_TIME = "exec_time";
-    private static final String TIME = "time";
-    private static final String APP = "app";
-    private static final String PONG = "pong";
-    private static final String REASON = "reason";
-    private static final String MESSAGE = "message";
     private static final String ORIGIN = "origin";
     private static final String SERVICE = "service";
     private static final String START = "start";
@@ -64,7 +57,6 @@ public class WorkerHandler {
     private static final String MY_TRACE_ID = "my_trace_id";
     private static final String MY_TRACE_PATH = "my_trace_path";
     private static final String READY = "ready:";
-    private static final String HASH = "#";
     private final boolean tracing;
     private final ServiceDef def;
     private final String route;
@@ -160,11 +152,6 @@ public class WorkerHandler {
         long begin = System.nanoTime();
         try {
             /*
-             * Interceptor can read any input (i.e. including case for empty headers and null body).
-             * The system therefore disables ping when the target function is an interceptor.
-             */
-            boolean ping = !interceptor && !event.isOptional() && event.getRawBody() == null && eventHeaders.isEmpty();
-            /*
              * If the service is an interceptor or the input argument is EventEnvelope,
              * we will pass the original event envelope instead of the message body.
              */
@@ -200,8 +187,8 @@ public class WorkerHandler {
             if (event.getTracePath() != null) {
                 parameters.put(MY_TRACE_PATH, event.getTracePath());
             }
-            Object result = ping? null : f.handleEvent(parameters, inputBody, instance);
-            float delta = ping? 0 : (float) (System.nanoTime() - begin) / EventEmitter.ONE_MILLISECOND;
+            Object result = f.handleEvent(parameters, inputBody, instance);
+            float delta = (float) (System.nanoTime() - begin) / EventEmitter.ONE_MILLISECOND;
             // adjust precision to 3 decimal points
             float diff = Float.parseFloat(String.format("%.3f", Math.max(0.0f, delta)));
             Map<String, Object> output = new HashMap<>();
@@ -273,26 +260,10 @@ public class WorkerHandler {
                 output.put(STATUS, response.getStatus());
                 inputOutput.put(OUTPUT, output);
                 try {
-                    if (ping) {
-                        String parent = route.contains(HASH) ? route.substring(0, route.lastIndexOf(HASH)) : route;
-                        Platform platform = Platform.getInstance();
-                        // execution time is not set because there is no need to execute the lambda function
-                        Map<String, Object> pong = new HashMap<>();
-                        pong.put(TYPE, PONG);
-                        pong.put(TIME, new Date());
-                        pong.put(APP, platform.getName());
-                        pong.put(ORIGIN, platform.getOrigin());
-                        pong.put(SERVICE, parent);
-                        pong.put(REASON, "This response is generated when you send an event without headers and body");
-                        pong.put(MESSAGE, "you have reached " + parent);
-                        response.setBody(pong);
+                    if (!interceptor && !serviceTimeout) {
+                        response.setExecutionTime(diff);
+                        encodeTraceAnnotations(response);
                         po.send(response);
-                    } else {
-                        if (!interceptor && !serviceTimeout) {
-                            response.setExecutionTime(diff);
-                            encodeTraceAnnotations(response);
-                            po.send(response);
-                        }
                     }
                 } catch (Exception e2) {
                     ps.setUnDelivery(e2.getMessage());

@@ -20,13 +20,9 @@ package com.accenture.examples;
 
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
-import org.platformlambda.core.system.ServerPersonality;
-import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.system.AutoStart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
 
 @MainApplication
 public class MainApp implements EntryPoint {
@@ -38,23 +34,6 @@ public class MainApp implements EntryPoint {
 
     @Override
     public void start(String[] args) throws Exception {
-
-        // Set personality to WEB - this must be done in the beginning
-        ServerPersonality.getInstance().setType(ServerPersonality.Type.APP);
-        // ensure the api-playground folder exists
-        AppConfigReader config = AppConfigReader.getInstance();
-        String playgroundFolder = config.getProperty("api.playground.apps", "/tmp/api-playground");
-        File playground = new File(playgroundFolder);
-        if (!playground.exists()) {
-            playground.mkdirs();
-            log.info("API Playground folder created - {}", playground);
-        }
-        String htmlFolder = config.getProperty("temp.html.folder", "/tmp/swagger-ui-js");
-        File htmlDir = new File(htmlFolder);
-        if (!htmlDir.exists()) {
-            htmlDir.mkdirs();
-            log.info("API Playground temp HTML folder created - {}", htmlDir);
-        }
         log.info("Application started");
     }
 

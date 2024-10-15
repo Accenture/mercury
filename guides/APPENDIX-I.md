@@ -81,6 +81,19 @@ You can use either PROPERTIES or YAML files. YAML files can use "yml" or "yaml" 
 
 For example, you may use only "application.yml" file without scanning application.properties.
 
+## Partial support of Spring Active Profiles
+
+When the parameter "spring.profiles.active" is available in application.properties or application.yml,
+the AppConfigReader will try to load the additional configuration files.
+
+For example, if "spring.profiles.active=dev", the system will load "application-dev.properties"
+and "application-dev.yml" accordingly.
+
+When more than one active profile is needed, you can use a comma separated list of profiles in
+"spring.profiles.active".
+
+For Spring Boot compatibility, the filename prefix "application-" is fixed.
+
 ## Special handling for PROPERTIES file
 
 Since application.properties and application.yml can be used together, 

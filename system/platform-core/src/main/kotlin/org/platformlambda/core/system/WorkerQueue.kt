@@ -162,11 +162,6 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
             val begin = System.nanoTime()
             return try {
                 /*
-                 * Interceptor can read any input (i.e. including case for empty headers and null body).
-                 * The system therefore disables ping when the target function is an interceptor.
-                 */
-                val ping = !interceptor && !event.isOptional && event.rawBody == null && event.headers.isEmpty()
-                /*
                  * If the service is an interceptor or the input argument is EventEnvelope,
                  * we will pass the original event envelope instead of the message body.
                  */
@@ -202,15 +197,12 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                 if (event.tracePath != null) {
                     parameters[MY_TRACE_PATH] = event.tracePath
                 }
-                var result: Any? = null
-                if (!ping) {
-                    result = if (def.isKotlin) {
-                        def.suspendFunction.handleEvent(parameters, inputBody, instance)
-                    } else {
-                        def.function.handleEvent(parameters, inputBody, instance)
-                    }
+                val result: Any? = if (def.isKotlin) {
+                    def.suspendFunction.handleEvent(parameters, inputBody, instance)
+                } else {
+                    def.function.handleEvent(parameters, inputBody, instance)
                 }
-                val delta: Float = if (ping) 0f else (System.nanoTime() - begin).toFloat() / EventEmitter.ONE_MILLISECOND
+                val delta: Float = (System.nanoTime() - begin).toFloat() / EventEmitter.ONE_MILLISECOND
                 // adjust precision to 3 decimal points
                 val diff = String.format("%.3f", 0.0f.coerceAtLeast(delta)).toFloat()
                 val output: MutableMap<String, Any> = HashMap()
@@ -252,7 +244,7 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                              */
                             response.body = result.rawBody
                             if (customSerializer == null) {
-                                response.type = result.type;
+                                response.type = result.type
                                 if (result.parametricType != null) {
                                     response.parametricType = result.parametricType
                                 }
@@ -279,27 +271,10 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
                     output[STATUS] = response.status
                     inputOutput[OUTPUT] = output
                     try {
-                        if (ping) {
-                            val parent =
-                                if (route.contains(HASH)) route.substring(0, route.lastIndexOf(HASH)) else route
-                            val platform = Platform.getInstance()
-                            // execution time is not set because there is no need to execute the lambda function
-                            val pong: MutableMap<String, Any> = HashMap()
-                            pong[TYPE] = PONG
-                            pong[TIME] = Date()
-                            pong[APP] = platform.name
-                            pong[ORIGIN] = platform.origin
-                            pong[SERVICE] = parent
-                            pong[REASON] = "This response is generated when you send an event without headers and body"
-                            pong[MESSAGE] = "you have reached $parent"
-                            response.body = pong
+                        if (!interceptor && !serviceTimeout) {
+                            response.executionTime = diff
+                            encodeTraceAnnotations(response)
                             po.send(response)
-                        } else {
-                            if (!interceptor && !serviceTimeout) {
-                                response.executionTime = diff
-                                encodeTraceAnnotations(response)
-                                po.send(response)
-                            }
                         }
                     } catch (e2: Exception) {
                         ps.setUnDelivery(e2.message)
@@ -413,7 +388,6 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
 
     companion object {
         private val log = LoggerFactory.getLogger(WorkerQueue::class.java)
-        private const val TYPE = "type"
         private const val ID = "id"
         private const val PATH = "path"
         private const val START = "start"
@@ -422,11 +396,6 @@ class WorkerQueue(def: ServiceDef, route: String, private val instance: Int) : W
         private const val SUCCESS = "success"
         private const val FROM = "from"
         private const val EXEC_TIME = "exec_time"
-        private const val TIME = "time"
-        private const val APP = "app"
-        private const val PONG = "pong"
-        private const val REASON = "reason"
-        private const val MESSAGE = "message"
         private const val ORIGIN = "origin"
         private const val SERVICE = "service"
         private const val INPUT = "input"

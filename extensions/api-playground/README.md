@@ -4,58 +4,69 @@ This is a standalone application that uses swagger UI for the rendering of OpenA
 
 This application is designed as a convenient tool for API design and tests.
 
-You can drop your OpenAPI 3.0 JSON or YAML files in the api-playground folder so that you can select them
-to render the documentation.
-
 ## Before you start
 
 1. Clone the latest version from https://github.com/swagger-api/swagger-ui
-2. Copy content from the swagger-ui `dist` folder to the "resources/swagger-ui" folder
-3. Remove all *.js.map files from the "swagger-ui" folder
-4. Remove the README.md file from the "swagger-ui" folder
-5. Perform `mvn clean package` to generate the executable JAR
+2. Copy content from the swagger-ui `dist` folder to the "resources/public" folder
+3. Perform `mvn clean package` to generate the executable JAR
 
 ## OpenAPI specs file folder
 
-The default directory is `/tmp/api-playground`
+The default directory is `resources/sample/yaml`
 
-To change this file location, you can:
-1. update application.properties and rebuild the application, or
-2. change the directory location by overriding the "api.playground.apps" parameter when starting up this 
-application.
+In this folder, you will find the demo.yaml swagger config file.
+This file is a sample for illustration purpose only.
 
+## Sample REST endpoints
+
+To support the demo.yaml config file, two REST endpoints are created in the resources/rest.yaml file.
+
+```text
+GET http://127.0.0.1:8200/specs
+
+# this endpoint returns a list of swagger files
+# under the resources/sample/yaml folder.
+
+GET http://127.0.0.1:8200/specs/demo.yaml
+
+# this endpoint returns content of the demo.yaml file.
 ```
-java -Dapi.playground.apps=another_location -jar api-playground-3.0.9.jar
-```
 
-When you click the "API playground" in the top navigation bar, it will reload the application dropdown box with the 
-available files in the API specs folder.
+The two endpoints are served by their corresponding functions in the package under com.accenture.examples.services.
 
 ## Running this application
 
-Please visit http://127.0.0.1:8200 after starting this application.
-
-Using default API specs location,
+To run this application:
 ```
-java -jar api-playground-3.0.9.jar
+java -jar api-playground-3.0.17.jar
 ```
 
-With user defined API specs location,
-```
-java -Dapi.playground.apps=another_location -jar api-playground-3.0.9.jar
+You will see it starting a Reactive HTTP server at port 8222.
+Then it will run as a Spring Boot app using port-8200.
+
+The port 8222 illustrates that you can use swagger-ui to connect to another host.
+
+Please visit http://127.0.0.1:8200 to see the swagger-ui home page.
+
+Then enter "http://127.0.0.1:8200/yaml/demo.yaml" to load the sample swagger demo.yaml file.
+
+## Loading your own swagger files
+
+You can copy them into the resources/sample/yaml folder and rebuild this app.
+
+Alternatively, you can externalize the swagger folder in the local file system.
+
+You would need to update application.properties and replace "classpath:/sample" with
+"file:/your/local/folder":
+
+```properties
+spring.web.resources.static-locations=classpath:/public/,classpath:/sample/
 ```
 
-## How this application is created?
+Note that you must keep the "classpath:/public/" in the static-locations parameter above.
 
-1. This application is created using "mercury/examples/rest-spring-2-example" as a template
-2. Clone https://github.com/swagger-api/swagger-ui
-3. Copy content from its "dist" folder to the "resources/swagger-ui" folder
-4. Remove all *.js.map files from the "swagger-ui" folder
-5. Download bootstrap 4.4.1 and Jquery 3.4.1 and save them under bootstrap and jquery folders in the "public" 
-   folder under resources
-6. A custom "HomePage" WebServlet for user to select a OpenAPI 3.0 JSON/YAML file to override the "index.html" page
-7. A sample home.yaml OpenAPI file in the "public/playground" folder
-8. A playgroundApi JAX-RS endpoint to render the home page
+This allows the app to serve the swagger-ui from classpath:/public/ and
+your own swagger files from file:/your/local/folder.
 
 ## Acknowledgements
 

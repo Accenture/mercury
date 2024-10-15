@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+Partial support of Active Profile using the "spring.profiles.active" parameter
+
+### Removed
+
+Feature to ping a function without payload and headers.
+
+### Changed
+
+1. OSS update - vertx 2.5.10, spring boot 3.3.4
+2. Simplified api-playground application
+
+---
+## Version 3.0.16, 8/31/2024
+
+### Added
+
 N/A
 
 ### Removed
