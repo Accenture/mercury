@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-7/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-7 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-7";
+        var mkdocs_page_input_path = "guides/CHAPTER-7.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-7/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-7</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#the-event-api-endpoint">The Event API endpoint</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#test-drive-event-api">Test drive Event API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#asynchronous-api-java">Asynchronous API (Java)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#sequential-non-blocking-api-kotlin-suspend-function">Sequential non-blocking API (Kotlin suspend function)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-over-http-using-configuration">Event-over-HTTP using configuration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#advantages">Advantages</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-7</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="event-over-http">Event over HTTP</h1>
+<p>The in-memory event system allows functions to communicate with each other in the same application memory space.</p>
+<p>In composable architecture, applications are modular components in a network. Some transactions may require
+the services of more than one application. "Event over HTTP" extends the event system beyond a single application.</p>
+<p>The Event API service (<code>event.api.service</code>) is a built-in function in the system.</p>
+<h2 id="the-event-api-endpoint">The Event API endpoint</h2>
+<p>To enable "Event over HTTP", you must first turn on the REST automation engine with the following parameters
+in the application.properties file:</p>
+<pre><code class="language-properties">rest.server.port=8085
+rest.automation=true
+</code></pre>
+<p>and then check if the following entry is configured in the "rest.yaml" endpoint definition file. 
+If not, update "rest.yaml" accordingly. The "timeout" value is set to 60 seconds to fit common use cases.</p>
+<pre><code class="language-yaml">  - service: [ &quot;event.api.service&quot; ]
+    methods: [ 'POST' ]
+    url: &quot;/api/event&quot;
+    timeout: 60s
+    tracing: true
+</code></pre>
+<p>This will expose the Event API endpoint at port 8085 and URL "/api/event". </p>
+<p>In kubernetes, The Event API endpoint of each application is reachable through internal DNS and there is no need
+to create "ingress" for this purpose.</p>
+<h2 id="test-drive-event-api">Test drive Event API</h2>
+<p>You may now test drive the Event API service.</p>
+<p>First, build and run the lambda-example application in port 8085.</p>
+<pre><code class="language-shell">cd examples/lambda-example
+java -jar target/lambda-example-3.0.9.jar
+</code></pre>
+<p>Second, build and run the rest-spring-example application.</p>
+<pre><code class="language-shell">cd examples/rest-spring-example-2
+java -jar target/rest-spring-2-example-3.0.9.jar
+</code></pre>
+<p>The rest-spring-2-example application will run as a Spring Boot application in port 8083 and 8086.</p>
+<p>These two applications will start independently.</p>
+<p>You may point your browser to http://127.0.0.1:8083/api/pojo/http/1 to invoke the <code>HelloPojoEventOverHttp</code> 
+endpoint service that will in turn makes an Event API call to the lambda-example's "hello.pojo" service.</p>
+<p>You will see the following response in the browser. This means the rest-spring-example application has successfully
+made an event API call to the lambda-example application using the Event API endpoint.</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: 1,
+  &quot;name&quot;: &quot;Simple PoJo class&quot;,
+  &quot;address&quot;: &quot;100 World Blvd, Planet Earth&quot;,
+  &quot;date&quot;: &quot;2023-03-27T23:17:19.257Z&quot;,
+  &quot;instance&quot;: 6,
+  &quot;seq&quot;: 66,
+  &quot;origin&quot;: &quot;2023032791b6938a47614cf48779b1cf02fc89c4&quot;
+}
+</code></pre>
+<p>To examine how the application makes the Event API call, please refer to the <code>HelloPojoEventOverHttp</code> class
+in the rest-spring-example. The class is extracted below:</p>
+<pre><code class="language-java">@Path(&quot;/pojo&quot;)
+public class HelloPoJoEventOverHttp {
+
+    @GET
+    @Path(&quot;/http/{id}&quot;)
+    @Produces({MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON})
+    public void getPoJo(@PathParam(&quot;id&quot;) Integer id, @Suspended AsyncResponse response) {
+        AppConfigReader config = AppConfigReader.getInstance();
+        String remotePort = config.getProperty(&quot;lambda.example.port&quot;, &quot;8085&quot;);
+        String remoteEndpoint = &quot;http://127.0.0.1:&quot;+remotePort+&quot;/api/event&quot;;
+        String traceId = Utility.getInstance().getUuid();
+        PostOffice po = new PostOffice(&quot;hello.pojo.endpoint&quot;, traceId, &quot;GET /api/pojo/http&quot;);
+        EventEnvelope req = new EventEnvelope().setTo(&quot;hello.pojo&quot;).setHeader(&quot;id&quot;, id);
+        Future&lt;EventEnvelope&gt; res = po.asyncRequest(req, 5000, Collections.emptyMap(), remoteEndpoint, true);
+        res.onSuccess(event -&gt; {
+            // confirm that the PoJo object is transported correctly over the event stream system
+            if (event.getBody() instanceof SamplePoJo) {
+                response.resume(event.getBody());
+            } else {
+                response.resume(new AppException(event.getStatus(), event.getError()));
+            }
+        });
+        res.onFailure(response::resume);
+    }
+}
+</code></pre>
+<p>The method signatures of the Event API is shown as follows:</p>
+<h3 id="asynchronous-api-java">Asynchronous API (Java)</h3>
+<pre><code class="language-java">public Future&lt;EventEnvelope&gt; asyncRequest(final EventEnvelope event, long timeout,
+                                          Map&lt;String, String&gt; headers,
+                                          String eventEndpoint, boolean rpc) throws IOException;
+</code></pre>
+<h3 id="sequential-non-blocking-api-kotlin-suspend-function">Sequential non-blocking API (Kotlin suspend function)</h3>
+<pre><code class="language-kotlin">suspend fun awaitRequest(request: EventEnvelope?, timeout: Long, 
+                          headers: Map&lt;String, String&gt;,
+                          eventEndpoint: String, rpc: Boolean): EventEnvelope
+</code></pre>
+<p>Optionally, you may add security headers in the "headers" argument. e.g. the "Authorization" header.</p>
+<p>The eventEndpoint is a fully qualified URL. e.g. <code>http://peer/api/event</code></p>
+<p>The "rpc" boolean value is set to true so that the response from the service of the peer application instance 
+will be delivered. For drop-n-forget use case, you can set the "rpc" value to false. It will immediately return
+an HTTP-202 response.</p>
+<h2 id="event-over-http-using-configuration">Event-over-HTTP using configuration</h2>
+<p>While you can call the "Event-over-HTTP" APIs programmatically, it would be more convenient to automate it with a
+configuration. This service abstraction means that user applications do not need to know where the target services are.</p>
+<p>You can enable Event-over-HTTP configuration by adding this parameter in application.properties:</p>
+<pre><code class="language-yaml">#
+# Optional event-over-http target maps
+#
+yaml.event.over.http=classpath:/event-over-http.yaml
+</code></pre>
+<p>and then create the configuration file "event-over-http.yaml" like this:</p>
+<pre><code class="language-yaml">event:
+  http:
+  - route: 'event.http.test'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    # optional security headers
+    headers:
+      authorization: 'demo'
+  - route: 'event.save.get'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    headers:
+      authorization: 'demo'
+</code></pre>
+<p>In the above example, there are two routes (event.http.test and event.save.get) with target URLs. If additional
+authentication is required for the peer's "/api/event" endpoint, you may add a set of security headers in each
+route.</p>
+<p>When you send asynchronous event or make a RPC call to "event.save.get" service, it will be forwarded to the
+peer's "event-over-HTTP" endpoint (<code>/api/event</code>) accordingly.</p>
+<p>You may also add variable references to the application.properties (or application.yaml) file, such as
+"server.port" in this example.</p>
+<blockquote>
+<p>Note: The configuration based "event-over-HTTP" feature does not support fork-n-join request API.</p>
+</blockquote>
+<h2 id="advantages">Advantages</h2>
+<p>The Event API exposes all public functions of an application instance to the network using a single REST endpoint.</p>
+<p>The advantages of Event API includes:</p>
+<ol>
+<li>Convenient - you do not need to write or configure individual endpoint for each public service</li>
+<li>Efficient - events are transported in binary format from one application to another</li>
+<li>Secure - you can protect the Event API endpoint with an authentication service</li>
+</ol>
+<p>The following configuration adds authentication service to the Event API endpoint:</p>
+<pre><code class="language-yaml">  - service: [ &quot;event.api.service&quot; ]
+    methods: [ 'POST' ]
+    url: &quot;/api/event&quot;
+    timeout: 60s
+    authentication: &quot;v1.api.auth&quot;
+    tracing: true
+</code></pre>
+<p>This enforces every incoming request to the Event API endpoint to be authenticated by the "v1.api.auth" service
+before passing to the Event API service. You can plug in your own authentication service such as OAuth 2.0 
+"bearer token" validation.</p>
+<p>Please refer to <a href="../CHAPTER-3/">Chapter-3 - REST automation</a> for details.
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-6</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-6/">Spring Boot</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-8/">Service Mesh</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-6/" class="btn btn-neutral float-left" title="Chapter-6"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-8/" class="btn btn-neutral float-right" title="Chapter-8">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-6/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-8/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

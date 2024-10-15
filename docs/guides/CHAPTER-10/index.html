@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-10/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-10 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-10";
+        var mkdocs_page_input_path = "guides/CHAPTER-10.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-10/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-10</a>
+    <ul class="current">
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-10</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="migration-guide">Migration Guide</h1>
+<p>Let's discuss some migration tips from Mercury version 2 to 3.</p>
+<h1 id="breaking-changes">Breaking changes</h1>
+<p>Mercury version 3 is a fully non-blocking event system.</p>
+<p>If you are using Mercury version 2 for production, please note that version 2 codebase has been archived
+to the "release/v2-8-0" branch.</p>
+<p>To enjoy rapid software development and higher application performance and throughput, we recommend porting
+your application to Mercury version 3 as soon as possible.</p>
+<p>The following are the breaking changes that require some code refactoring:</p>
+<ol>
+<li>Retired blocking APIs - the "po.request" methods for RPC have been replaced by the new "FastRPC" APIs.</li>
+<li>Distributed tracing - a new "PostOffice" class is available for compatibility with coroutine.</li>
+<li>Support three function execution strategies - kernel thread pool, coroutine and suspend function.</li>
+</ol>
+<p>We understand the inconvenience of a major release upgrade in production environment. We believe that the benefits
+would out-weight the refactoring effort. Your new code will be composable, easier to read and faster.</p>
+<p>Writing code with Mercury version 3 platform-core is straight forward. By default, all functions run as coroutines.
+To tell the system to execute the function in a kernel thread pool, you may use the <code>KernelThreadRunner</code> annotation.</p>
+<p>To write a suspend function, you can use IDE (JetBrains Intellij) automated code conversion to copy-n-paste 
+Java statements into a KotlinLambdaFunction. This is the easiest way to port code. The conversion accuracy is high. 
+With some minor touch up, you would get your new functions up and running quickly.</p>
+<h1 id="step-by-step-upgrade">Step-by-step upgrade</h1>
+<h2 id="global-replace-of-postoffice-to-eventemitter">Global replace of "PostOffice" to "EventEmitter"</h2>
+<p>The old PostOffice has been renamed as "EventEmitter". You can do a "global search and replace" to change
+the class name.</p>
+<h2 id="fix-broken-code-for-rpc-calls">Fix broken code for RPC calls</h2>
+<p>Since blocking APIs have been removed, the original PostOffice's "request" methods are no longer available.</p>
+<p>There are two ways to refactor the RPC calls.</p>
+<h3 id="convert-code-to-asynchronous-rpc-calls">Convert code to asynchronous RPC calls</h3>
+<p>You can use the "asyncRequest" methods for RPC and fork-n-join. Since the asyncRequest's result is a "Future" object.
+You must implement the "onSuccess" and optionally the "onFailure" logic blocks.</p>
+<p>Since your new code is asynchronous, the function will immediately return before a future response arrives.</p>
+<p>If your function may be called by another function, this would break your code. For this use case, you can annotate
+your function as an "EventInterceptor" and return a dummy "null" value.</p>
+<p>As an EventInterceptor, you can inspect metadata of the incoming event to retrieve the "replyTo" and "correlationId".</p>
+<pre><code class="language-java">@EventInterceptor
+@PreLoad(route=&quot;my.function&quot;, instances=10)
+public class MyFunction implements TypedLambdaFunction&lt;EventEnvelope, Void&gt; {
+    @Override
+    public Void handleEvent(Map&lt;String, String&gt; headers, EventEnvelope input, int instance) {
+        PostOffice po = new PostOffice(headers, instance);
+        // make asyncRequest RPC call
+        EventEnvelope request = new EventEnvelope().setTo(&quot;some.target.service&quot;)
+                                        .setBody(input.getBody());
+        po.asyncRequest(request, 5000)
+                .onSuccess(result -&gt; {
+                    String replyTo = input.getReplyTo();
+                    String correlationId = input.getCorrelationId();
+                    if (replyTo != null &amp;&amp; correlationId != null) {
+                        EventEnvelope response = new EventEnvelope();
+                        response.setTo(replyTo).setBody(result.getBody())
+                                .setCorrelationId(correlationId);
+                        po.send(response);
+                    }
+                });
+        return null;
+    }
+}
+</code></pre>
+<p>In the above example, "my.function" will immediately return a dummy "null" value which will be ignored by the
+event system.</p>
+<p>When it receives a response from a downstream service, it can return result to the upstream service by
+asynchronously sending a response.</p>
+<h2 id="convert-rpc-code-to-a-suspend-function">Convert RPC code to a suspend function</h2>
+<p>You can convert your function containing RPC calls to a suspend function using the KotlinLambdaFunction interface.</p>
+<p>It may look like this:</p>
+<pre><code class="language-kotlin">@PreLoad(route=&quot;my.function&quot;, instances=10)
+class MyFunction: KotlinLambdaFunction&lt;EventEnvelope, Any&gt; {
+    override suspend fun handleEvent(headers: Map&lt;String, String&gt;, input: EventEnvelope, 
+                                     instance: Int): Any {
+        val fastRPC = FastRPC(headers)
+        val request = EventEnvelope().setTo(&quot;some.target.service&quot;).setBody(input.body)
+        return fastRPC.awaitRequest(request, 5000)
+    }
+}
+</code></pre>
+<p>The above example serves the same purpose as the asynchronous "my.function" earlier.
+The code is much easier to read because it is expressed in a sequential manner.</p>
+<p>Sequential non-blocking code communicates the intent clearly, and we highly recommend this coding style.</p>
+<p>If you are new to Kotlin, you may want to leverage the Intellij IDE automated code conversion feature.</p>
+<p>Just create a dummy Java class as a sketchpad. Write your code in Java and copy-n-paste the Java statements
+into the new Kotlin class. The IDE will convert the code automatically. The code conversion is highly accurate.
+With some minor touch up, your new code will be up and running quickly.</p>
+<h2 id="the-new-postoffice-api">The new PostOffice API</h2>
+<p>The new PostOffice class is backward compatible with the original asynchronous RPC and fork-n-join methods.</p>
+<p>You can obtain an instance of the PostOffice API in the "handleEvent" method of your function.</p>
+<p>The PostOffice constructor takes function route name, optional trace ID and path from the headers of the incoming
+event. These are READ only metadata inserted by the event system. It also needs the worker instance number to
+track the current transaction.</p>
+<pre><code class="language-java">@Override
+public Map&lt;String, Object&gt; handleEvent(Map&lt;String, String&gt; headers, 
+                                      EventEnvelope event, int instance) {
+    PostOffice po = new PostOffice(headers, instance);
+    // your business logic here
+}
+</code></pre>
+<p>When you use the PostOffice to send events or make RPC calls to other functions, the system can propagate
+distributed tracing information along the transaction flow automatically.</p>
+<h2 id="the-new-fastrpc-api">The new FastRPC API</h2>
+<p>The non-blocking "awaitRequest" methods for RPC and fork-n-join are available in a new FastRPC kotlin class.
+The constructor is similar to the PostOffice.</p>
+<pre><code class="language-kotlin">val fastRPC = FastRPC(headers)
+</code></pre>
+<h2 id="distributed-tracing">Distributed tracing</h2>
+<p>The new PostOffice and FastRPC will propagate distributed tracing information along multiple functions in
+a transaction path. It will automatically detect if "tracing" is enabled for a transaction.</p>
+<h2 id="asynchttpclient-service">AsyncHttpClient service</h2>
+<p>In Mercury version 3, the "async.http.request" function can be used as a non-blocking HTTP client.</p>
+<p>To make an HTTP request to an external REST endpoint, you can create an HTTP request object using the <code>AsyncHttpRequest</code>
+class and make an async RPC call to the "async.http.request" function like this:</p>
+<pre><code class="language-java">PostOffice po = new PostOffice(headers, instance);
+AsyncHttpRequest req = new AsyncHttpRequest();
+req.setMethod(&quot;GET&quot;);
+req.setHeader(&quot;accept&quot;, &quot;application/json&quot;);
+req.setUrl(&quot;/api/hello/world?hello world=abc&quot;);
+req.setQueryParameter(&quot;x1&quot;, &quot;y&quot;);
+List&lt;String&gt; list = new ArrayList&lt;&gt;();
+list.add(&quot;a&quot;);
+list.add(&quot;b&quot;);
+req.setQueryParameter(&quot;x2&quot;, list);
+req.setTargetHost(&quot;http://127.0.0.1:8083&quot;);
+EventEnvelope request = new EventEnvelope().setTo(&quot;async.http.request&quot;).setBody(req);
+Future&lt;EventEnvelope&gt; res = po.asyncRequest(request, RPC_TIMEOUT);
+res.onSuccess(response -&gt; {
+   // do something with the result 
+});
+</code></pre>
+<p>In a suspend function using KotlinLambdaFunction, the same logic may look like this:</p>
+<pre><code class="language-kotlin">val req = AsyncHttpRequest()
+req.setMethod(&quot;GET&quot;)
+req.setHeader(&quot;accept&quot;, &quot;application/json&quot;)
+req.setUrl(&quot;/api/hello/world?hello world=abc&quot;)
+req.setQueryParameter(&quot;x1&quot;, &quot;y&quot;)
+val list: MutableList&lt;String&gt; = ArrayList()
+list.add(&quot;a&quot;)
+list.add(&quot;b&quot;)
+req.setQueryParameter(&quot;x2&quot;, list)
+req.setTargetHost(&quot;http://127.0.0.1:8083&quot;)
+val request = EventEnvelope().setTo(&quot;some.target.service&quot;).setBody(req)
+val response = fastRPC.awaitRequest(request, 5000)
+// do something with the result
+</code></pre>
+<p>There is virtually no performance difference between the asynchronous approach and sequential non-blocking style.
+However, the latter demands less CPU resources and yields higher throughput.</p>
+<h1 id="kernel-thread-pool">Kernel thread pool</h1>
+<p>A Java function implementing the LambdaFunction or TypedLambdaFunction will be executed as a coroutine.</p>
+<p>To tell the system to run a function using kernel thread pool, you can add the <code>KernelThreadRunner</code> annotation.
+When using a kernel thread pool, please reduce the number of concurrent worker instances when you register 
+your function.</p>
+<p>You can register your function using the <code>PreLoad</code> annotation. For on-demand functions, you can programmatically 
+register the function using the platform APIs.</p>
+<p>Java provides preemptive multitasking using kernel threads. It offers the highest performance in terms of
+operations per second. If your function is computational intensive and long-running, this function execution
+strategy is ideal.</p>
+<p>However, please be reminded that kernel thread pool is a finite resources and thus an application should not run too
+many concurrent kernel threads. The context switching overheads would significantly reduce overall performance 
+when the number of concurrent kernel threads exceed the available CPU power. A rule of thumb is to keep the number
+of concurrent kernel threads to around 100.</p>
+<h2 id="coroutine">Coroutine</h2>
+<p>By default, the system will execute functions in the event loop, thus reducing CPU load.</p>
+<h2 id="suspend-function">Suspend function</h2>
+<p>For a function that make RPC calls, we would recommend writing it as a suspend function using the KotlinLambdaFunction
+interface. This yields higher throughput to support more concurrent users and sessions.</p>
+<h2 id="things-to-avoid">Things to avoid</h2>
+<p>You should avoid blocking methods in your functions. For example, the "Synchronous" keyword, Object wait and lock,
+"Thread" sleep method, BlockingQueue, etc.</p>
+<p>The non-blocking "delay" API is a direct replacement of the "Thread.sleep" method. You can also use the PostOffice's
+"sendLater" API to schedule an event.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>While Mercury has been enhanced from the ground up, the core APIs are intact. The main breaking change is the
+removal of blocking RPC APIs. You should leverage IDE automated code conversion to reduce migration risks.</p>
+<p>The three function execution strategies would provide low-level control of how your application runs, making
+performance tuning more scientific.
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-9</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Appendix-I</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-9/">API overview</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../APPENDIX-I/">Application Configuration</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-9/" class="btn btn-neutral float-left" title="Chapter-9"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../APPENDIX-I/" class="btn btn-neutral float-right" title="Appendix-I">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-9/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../APPENDIX-I/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

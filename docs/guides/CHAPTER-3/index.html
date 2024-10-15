@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-3/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-3 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-3";
+        var mkdocs_page_input_path = "guides/CHAPTER-3.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-3/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-3</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#turn-on-the-rest-automation-engine">Turn on the REST automation engine</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#defining-a-rest-endpoint">Defining a REST endpoint</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#cors-section">CORS section</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#headers-section">HEADERS section</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#static-content">Static content</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-3</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="rest-automation">REST Automation</h1>
+<p>The platform-core foundation library contains a built-in non-blocking HTTP server that you can use to create REST
+endpoints. Behind the curtain, it is using the vertx web client and server libraries.</p>
+<p>The REST automation system is not a code generator. The REST endpoints in the rest.yaml file are handled by
+the system directly - "Config is the code".</p>
+<p>We will use the "rest.yaml" sample configuration file in the "lambda-example" project to elaborate the configuration
+approach.</p>
+<p>The rest.yaml configuration has three sections:</p>
+<ol>
+<li>REST endpoint definition</li>
+<li>CORS header processing</li>
+<li>HTTP header transformation</li>
+</ol>
+<h2 id="turn-on-the-rest-automation-engine">Turn on the REST automation engine</h2>
+<p>REST automation is optional. To turn on REST automation, add or update the following parameters in the
+application.properties file (or application.yml if you like).</p>
+<pre><code class="language-properties">rest.server.port=8085
+rest.automation=true
+yaml.rest.automation=classpath:/rest.yaml
+</code></pre>
+<p>When <code>rest.automation=true</code>, you can configure the server port using <code>rest.server.port</code> or <code>server.port</code>.</p>
+<p>REST automation can co-exist with Spring Boot. Please use <code>rest.server.port</code> for REST automation and
+<code>server.port</code> for Spring Boot.</p>
+<p>The <code>yaml.rest.automation</code> tells the system the location of the rest.yaml configuration file.</p>
+<p>You can configure more than one location and the system will search them sequentially. The following example
+tells the system to load rest.yaml from "/tmp/config/rest.yaml". If the file is not available, it will use
+the rest.yaml in the project's resources folder.</p>
+<pre><code class="language-properties">yaml.rest.automation=file:/tmp/config/rest.yaml, classpath:/rest.yaml
+</code></pre>
+<h2 id="defining-a-rest-endpoint">Defining a REST endpoint</h2>
+<p>The "rest" section of the rest.yaml configuration file may contain one or more REST endpoints.</p>
+<p>A REST endpoint may look like this:</p>
+<pre><code class="language-yaml">  - service: [&quot;hello.world&quot;]
+    methods: ['GET', 'PUT', 'POST', 'HEAD', 'PATCH', 'DELETE']
+    url: &quot;/api/hello/world&quot;
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    threshold: 30000
+    tracing: true
+</code></pre>
+<p>In this example, the URL for the REST endpoint is "/api/hello/world" and it accepts a list of HTTP methods.
+When an HTTP request is sent to the URL, the HTTP event will be sent to the function declared with service route name 
+"hello.world". The input event will be the "AsyncHttpRequest" object. Since the "hello.world" function is written
+as an inline LambdaFunction in the <code>lambda-example</code> application, the AsyncHttpRequest is converted to a HashMap. </p>
+<p>To process the input as an AsyncHttpRequest object, the function must be written as a regular class. See the
+"services" folder of the lambda-example for additional examples.</p>
+<p>The "timeout" value is the maximum time that REST endpoint will wait for a response from your function.
+If there is no response within the specified time interval, the user will receive an HTTP-408 timeout exception.</p>
+<p>The "authentication" tag is optional. If configured, the route name given in the authentication tag will be used.
+The input event will be delivered to a function with the authentication route name. In this example, it is
+"v1.api.auth".</p>
+<p>Your custom authentication function may look like this:</p>
+<pre><code class="language-java">@PreLoad(route = &quot;v1.api.auth&quot;, instances = 10)
+public class SimpleAuthentication implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // Your authentication logic here. The return value should be true or false.
+        return result;
+    }
+}
+</code></pre>
+<p>Your authentication function can return a boolean value to indicate if the request should be accepted or rejected.</p>
+<p>If true, the system will send the HTTP request to the service. In this example, it is the "hello.world" function.
+If false, the user will receive an "HTTP-401 Unauthorized" exception.</p>
+<p>Optionally, you can use the authentication function to return some session information after authentication.
+For example, your authentication can forward the "Authorization" header of the incoming HTTP request to your
+organization's OAuth 2.0 Identity Provider for authentication.</p>
+<p>To return session information to the next function, the authentication function can return an EventEnvelope.
+It can set the session information as key-values in the response event headers.</p>
+<p>In the lambda-example application, there is a demo authentication function in the AuthDemo class with the 
+"v1.api.auth" route name. To demonstrate passing session information, the AuthDemo class set the header
+"user=demo" in the result EventEnvelope.</p>
+<p>You can test this by visiting http://127.0.0.1:8085/api/hello/generic/1 to invoke the "hello.generic" function.</p>
+<p>The console will print:</p>
+<pre><code class="language-shell">DistributedTrace:55 - trace={path=GET /api/hello/generic/1, service=v1.api.auth, success=true,
+  origin=20230326f84dd5f298b64be4901119ce8b6c18be, exec_time=0.056, start=2023-03-26T20:08:01.702Z, 
+  from=http.request, id=aa983244cef7455cbada03c9c2132453, round_trip=1.347, status=200}
+HelloGeneric:56 - Got session information {user=demo}
+DistributedTrace:55 - trace={path=GET /api/hello/generic/1, service=hello.generic, success=true, 
+  origin=20230326f84dd5f298b64be4901119ce8b6c18be, start=2023-03-26T20:08:01.704Z, exec_time=0.506, 
+  from=v1.api.auth, id=aa983244cef7455cbada03c9c2132453, status=200}
+DistributedTrace:55 - trace={path=GET /api/hello/generic/1, service=async.http.response, 
+  success=true, origin=20230326f84dd5f298b64be4901119ce8b6c18be, start=2023-03-26T20:08:01.705Z, 
+  exec_time=0.431, from=hello.generic, id=aa983244cef7455cbada03c9c2132453, status=200}
+</code></pre>
+<p>This illustrates that the HTTP request has been processed by the "v1.api.auth" function. The "hello.generic" function
+is wired to the "/api/hello/generic/{id}" endpoint as follows:</p>
+<pre><code class="language-yaml">  - service: &quot;hello.generic&quot;
+    methods: ['GET']
+    url: &quot;/api/hello/generic/{id}&quot;
+    # Turn on authentication pointing to the &quot;v1.api.auth&quot; function
+    authentication: &quot;v1.api.auth&quot;
+    timeout: 20s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+</code></pre>
+<p>The <code>tracing</code> tag tells the system to turn on "distributed tracing". In the console log shown above, you see
+three lines of log from "distributed trace" showing that the HTTP request is processed by "v1.api.auth" and 
+"hello.generic" before returning result to the browser using the "async.http.response" function.</p>
+<blockquote>
+<p>Note: the "async.http.response" is a built-in function to send the HTTP response to the browser.</p>
+</blockquote>
+<p>The optional <code>cors</code> and <code>headers</code> tags point to the specific CORS and HEADERS sections respectively.</p>
+<h2 id="cors-section">CORS section</h2>
+<p>For ease of development, you can define CORS headers using the CORS section like this.</p>
+<p>This is a convenient feature for development. For cloud native production system, it is most likely that 
+CORS processing is done at the API gateway level.</p>
+<p>You can define different sets of CORS headers using different IDs.</p>
+<pre><code class="language-yaml">cors:
+  - id: cors_1
+    options:
+      - &quot;Access-Control-Allow-Origin: ${api.origin:*}&quot;
+      - &quot;Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS&quot;
+      - &quot;Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id,
+                                       Accept, Content-Type, X-Requested-With&quot;
+      - &quot;Access-Control-Max-Age: 86400&quot;
+    headers:
+      - &quot;Access-Control-Allow-Origin: ${api.origin:*}&quot;
+      - &quot;Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS&quot;
+      - &quot;Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, 
+                                       Accept, Content-Type, X-Requested-With&quot;
+      - &quot;Access-Control-Allow-Credentials: true&quot;
+</code></pre>
+<h2 id="headers-section">HEADERS section</h2>
+<p>The HEADERS section is used to do some simple transformation for HTTP request and response headers.</p>
+<p>You can add, keep or drop headers for HTTP request and response. Sample HEADERS section is shown below.</p>
+<pre><code class="language-yaml">headers:
+  - id: header_1
+    request:
+      #
+      # headers to be inserted
+      #    add: [&quot;hello-world: nice&quot;]
+      #
+      # keep and drop are mutually exclusive where keep has precedent over drop
+      # i.e. when keep is not empty, it will drop all headers except those to be kept
+      # when keep is empty and drop is not, it will drop only the headers in the drop list
+      # e.g.
+      # keep: ['x-session-id', 'user-agent']
+      # drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'connection']
+      #
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'connection']
+
+    response:
+      #
+      # the system can filter the response headers set by a target service,
+      # but it cannot remove any response headers set by the underlying servlet container.
+      # However, you may override non-essential headers using the &quot;add&quot; directive.
+      # i.e. don't touch essential headers such as content-length.
+      #
+      #     keep: ['only_this_header_and_drop_all']
+      #     drop: ['drop_only_these_headers', 'another_drop_header']
+      #
+      #      add: [&quot;server: mercury&quot;]
+      #
+      # You may want to add cache-control to disable browser and CDN caching.
+      # add: [&quot;Cache-Control: no-cache, no-store&quot;, &quot;Pragma: no-cache&quot;, 
+      #       &quot;Expires: Thu, 01 Jan 1970 00:00:00 GMT&quot;]
+      #
+      add:
+        - &quot;Strict-Transport-Security: max-age=31536000&quot;
+        - &quot;Cache-Control: no-cache, no-store&quot;
+        - &quot;Pragma: no-cache&quot;
+        - &quot;Expires: Thu, 01 Jan 1970 00:00:00 GMT&quot;
+</code></pre>
+<h2 id="static-content">Static content</h2>
+<p>Static content (HTML/CSS/JS bundle), if any, can be placed in the "resources/public" folder in your
+application project root. It is because the default value for the "static.html.folder" parameter
+in the application configuration is "classpath:/resources/public". If you want to place your
+static content elsewhere, you may adjust this parameter. You may point it to the local file system
+such as "file:/tmp/html".</p>
+<p>For security reason, you may add the following configuration in the rest.yaml.
+The following example is shown in the unit test section of the platform-core library module.</p>
+<pre><code class="language-yaml">#
+# Optional static content handling for HTML/CSS/JS bundle
+# -------------------------------------------------------
+#
+# no-cache-pages - tells the browser not to cache some specific pages
+#
+# The &quot;filter&quot; section is a programmatic way to protect certain static content.
+#
+# The filter can be used to inspect HTTP path, headers and query parameters.
+# The typical use case is to check cookies and perform browser redirection
+# for SSO login. Another use case is to selectively add security HTTP
+# response headers such as cache control and X-Frame-Options. You can also
+# perform HTTP to HTTPS redirection.
+#
+# Syntax for the &quot;no-cache-pages&quot;, &quot;path&quot; and &quot;exclusion&quot; parameters are:
+# 1. Exact match - complete path
+# 2. Match &quot;startsWith&quot; - use a single &quot;*&quot; as the suffix
+# 3. Match &quot;endsWith&quot; - use a single &quot;*&quot; as the prefix
+#
+# If filter is configured, the path and service parameters are mandatory
+# and the exclusion parameter is optional.
+#
+# In the following example, it will intercept the home page, all contents
+# under &quot;/assets/&quot; and any files with extensions &quot;.html&quot; and &quot;.js&quot;.
+# It will ignore all CSS files.
+#
+static-content:
+  no-cache-pages: [&quot;/&quot;, &quot;/index.html&quot;]
+  filter:
+    path: [&quot;/&quot;, &quot;/assets/*&quot;, &quot;*.html&quot;, &quot;*.js&quot;]
+    exclusion: [&quot;*.css&quot;]
+    service: &quot;http.request.filter&quot;
+</code></pre>
+<p>A sample request filter function is available in the platform-core project like this:</p>
+<pre><code class="language-java">@PreLoad(route=&quot;http.request.filter&quot;, instances=100)
+public class GetRequestFilter implements TypedLambdaFunction&lt;AsyncHttpRequest, EventEnvelope&gt; {
+
+    @Override
+    public EventEnvelope handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        return new EventEnvelope().setHeader(&quot;x-filter&quot;, &quot;demo&quot;);
+    }
+}
+</code></pre>
+<p>In the above http.request.filter, it adds a HTTP response header "X-Filter" for the unit test
+to validate.</p>
+<p>If you set status code in the return EventEnvelope to 302 and add a header "Location", the system
+will redirect the browser to the given URL in the location header. Please be careful to avoid
+HTTP redirection loop.</p>
+<p>Similarly, you can throw exception and the HTTP request will be rejected with the given status
+code and error message accordingly.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-2</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-2/">Function Execution Strategies</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-4/">Event Orchestration</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-2/" class="btn btn-neutral float-left" title="Chapter-2"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-4/" class="btn btn-neutral float-right" title="Chapter-4">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-2/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-4/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

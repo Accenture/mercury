@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-1/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-1 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-1";
+        var mkdocs_page_input_path = "guides/CHAPTER-1.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-1/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-1</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#composable-application-architecture">Composable application architecture</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#main-module">Main module</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#business-logic-modules">Business logic modules</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#event-orchestration">Event orchestration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#the-in-memory-event-system">The in-memory event system</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rest-automation">REST automation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#in-memory-event-system">In-memory event system</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#local-pubsub-system">Local pub/sub system</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#other-user-facing-channels">Other user facing channels</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#build-the-platform-libraries">Build the platform libraries</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#run-the-lambda-example-application">Run the lambda-example application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#light-weight-non-blocking-http-server">Light-weight non-blocking HTTP server</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#function-is-an-event-handler">Function is an event handler</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#execute-the-helloworld-function">Execute the "hello.world" function</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#where-is-the-helloworld-function">Where is the "hello.world" function?</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#typedlambdafunction">TypedLambdaFunction</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#write-your-first-function">Write your first function</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-driven-design">Event driven design</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#deploy-your-new-application">Deploy your new application</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-1</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="introduction">Introduction</h1>
+<p>Mercury version 3 is a toolkit for event-driven programming that is the <code>foundation</code> for composable application.</p>
+<p>At the platform level, composable architecture refers to loosely coupled platform services, utilities, and
+business applications. With modular design, you can assemble platform components and applications to create
+new use cases or to adjust for ever-changing business environment and requirements. Domain driven design (DDD),
+Command Query Responsibility Segregation (CQRS) and Microservices patterns are the popular tools that architects
+use to build composable architecture. You may deploy application in container, serverless or other means.</p>
+<p>At the application level, a composable application means that an application is assembled from modular software
+components or functions that are self-contained and pluggable. You can mix-n-match functions to form new applications.
+You can retire outdated functions without adverse side effect to a production system. Multiple versions of a function
+can exist, and you can decide how to route user requests to different versions of a function. Applications would be
+easier to design, develop, maintain, deploy, and scale.</p>
+<p>While you can write a composable application using event-driven programming, the best way to build a composable
+application is a declarative approach where event choreography of self-contained functions is performed by
+an event manager. Declarative approach for building composable applications is shown in:</p>
+<p><a href="https://github.com/Accenture/mercury-composable">Mercury v4: https://github.com/Accenture/mercury-composable</a></p>
+<p><a href="https://accenture.github.io/mercury-composable/">Documentation: https://accenture.github.io/mercury-composable/</a></p>
+<h2 id="composable-application-architecture">Composable application architecture</h2>
+<blockquote>
+<p>Figure 1 - Composable application architecture</p>
+</blockquote>
+<p><img alt="architecture.png" src="../diagrams/architecture.png" /></p>
+<p>As shown in Figure 1, a minimalist composable application consists of three user defined components:</p>
+<ol>
+<li>Main modules that provides an entry point to your application</li>
+<li>One or more business logic modules (shown as "function-1" to "function-3" in the diagram)</li>
+<li>An event orchestration module to command the business logic modules to work together as an application</li>
+</ol>
+<p>and a composable event engine that provides:</p>
+<ol>
+<li>REST automation</li>
+<li>An in-memory event system (aka "event loop")</li>
+<li>Local pub/sub system</li>
+</ol>
+<h3 id="main-module">Main module</h3>
+<p>Each application has an entry point. You may implement an entry point in a main application like this:</p>
+<pre><code class="language-java">@MainApplication
+public class MainApp implements EntryPoint {
+   public static void main(String[] args) {
+      AutoStart.main(args);
+   }
+   @Override
+   public void start(String[] args) {
+        // your startup logic here
+      log.info(&quot;Started&quot;);
+   }
+}
+</code></pre>
+<p>For a command line use case, your main application ("MainApp") module would get command line arguments and
+send the request as an event to a business logic function for processing.</p>
+<p>For a backend application, the MainApp is usually used to do some "initialization" or setup steps for your
+services.</p>
+<h3 id="business-logic-modules">Business logic modules</h3>
+<p>Your user function module may look like this:</p>
+<pre><code class="language-java">@PreLoad(route = &quot;hello.simple&quot;, instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // business logic here
+        return result;
+    }
+}
+</code></pre>
+<p>Each function in a composable application should be implemented in the first principle of "input-process-output".
+It should be stateless and self-contained. i.e. it has no direct dependencies with any other functions in the
+composable application. Each function is addressable by a unique "route name" and you can use PoJo for input and output.</p>
+<p>In the above example, the function is called "hello.simple". The input is an AsyncHttpRequest object, meaning that
+this function is a "Backend for Frontend (BFF)" module that is invoked by a REST endpoint.</p>
+<p>When a function finishes processing, its output will be delivered to the next function.</p>
+<blockquote>
+<p>Writing code in the first principle of "input-process-output" promotes Test Driven Development (TDD) because
+  interface contact is clearly defined. Self-containment means code is more readable too.</p>
+</blockquote>
+<h3 id="event-orchestration">Event orchestration</h3>
+<p>A transaction can pass through one or more user functions. In this case, you can write a user function to receive
+request from a user, make requests to some user functions, and consolidate the responses before responding to the
+user.</p>
+<p>Note that event orchestration is optional. In the most basic REST application, the REST automation system can send
+the user request to a function directly. When the function finishes processing, its output will be routed as
+a HTTP response to the user.</p>
+<h3 id="the-in-memory-event-system">The in-memory event system</h3>
+<p>Event routing is done behind the curtain by the composable engine which consists of the REST automation service,
+an in-memory event system ("event loop") and an optional localized pub/sub system.</p>
+<h3 id="rest-automation">REST automation</h3>
+<p>REST automation creates REST endpoints by configuration rather than code. You can define a REST endpoint like this:</p>
+<pre><code class="language-yaml">  - service: &quot;hello.world&quot;
+    methods: ['GET']
+    url: &quot;/api/hello/world&quot;
+    timeout: 10s
+</code></pre>
+<p>In this example, when a HTTP request is received at the URL path "/api/hello/world", the REST automation system
+will convert the HTTP request into an event for onward delivery to the user defined function "hello.world". 
+Your function will receive the HTTP request as input and return a result set that will be sent as a HTTP response
+to the user.</p>
+<p>For more sophisticated business logic, you can write a function to receive the HTTP request and do 
+"event orchestration". i.e. you can do data transformation and send "events" to other user functions to
+process the request.</p>
+<h3 id="in-memory-event-system">In-memory event system</h3>
+<p>The composable engine encapsulates the Eclipse vertx event bus library for event routing. It exposes the 
+"PostOffice" API for your orchestration function to send async or RPC events.</p>
+<h3 id="local-pubsub-system">Local pub/sub system</h3>
+<p>The in-memory event system is designed for point-to-point delivery. In some use cases, you may like to have
+a broadcast channel so that more than one function can receive the same event. For example, sending notification
+events to multiple functions. The optional local pub/sub system provides this multicast capability.</p>
+<h3 id="other-user-facing-channels">Other user facing channels</h3>
+<p>While REST is the most popular user facing interface, there are other communication means such as event triggers
+in a serverless environment. You can write a function to listen to these external event triggers and send the events
+to your user defined functions. This custom "adapter" pattern is illustrated as the dotted line path in Figure 1.</p>
+<h2 id="build-the-platform-libraries">Build the platform libraries</h2>
+<p>The first step is to build Mercury libraries from source.
+To simplify the process, you may publish the libraries to your enterprise artifactory.</p>
+<pre><code class="language-shell">mkdir sandbox
+cd sandox
+git clone https://github.com/Accenture/mercury.git
+cd mercury
+mvn clean install
+</code></pre>
+<p>The above sample script clones the Mercury open sources project and builds the libraries from source.</p>
+<p>The pre-requisite is maven 3.8.6 and openjdk 1.8 or higher. We have tested mercury with Java version 1.8 to 19.</p>
+<p>This will build the mercury libraries and the sample applications.</p>
+<p>The <code>platform-core</code> project is the foundation library for writing composable application.</p>
+<h2 id="run-the-lambda-example-application">Run the lambda-example application</h2>
+<p>Assuming you follow the suggested project directory above, you can run a sample composable application
+called "lambda-example" like this:</p>
+<pre><code class="language-shell">cd sandbox/mercury/examples/lambda-example
+java -jar target/lambda-example-3.0.9.jar
+</code></pre>
+<p>You will find the following console output when the app starts</p>
+<pre><code class="language-text">Exact API paths [/api/event, /api/hello/download, /api/hello/upload, /api/hello/world]
+Wildcard API paths [/api/hello/download/{filename}, /api/hello/generic/{id}]
+</code></pre>
+<p>Application parameters are defined in the resources/application.properties file (or application.yml if you prefer).
+When <code>rest.automation=true</code> is defined, the system will parse the "rest.yaml" configuration for REST endpoints.</p>
+<h2 id="light-weight-non-blocking-http-server">Light-weight non-blocking HTTP server</h2>
+<p>When REST automation is turned on, the system will start a lightweight non-blocking HTTP server.
+By default, it will search for the "rest.yaml" file from "/tmp/config/rest.yaml" and then from "classpath:/rest.yaml".
+Classpath refers to configuration files under the "resources" folder in your source code project.</p>
+<p>To instruct the system to load from a specific path. You can add the <code>yaml.rest.automation</code> parameter.</p>
+<p>To select another server port, change the <code>rest.server.port</code> parameter.</p>
+<pre><code class="language-properties">rest.server.port=8085
+rest.automation=true
+yaml.rest.automation=classpath:/rest.yaml
+</code></pre>
+<p>To create a REST endpoint, you can add an entry in the "rest" section of the "rest.yaml" config file like this:</p>
+<pre><code class="language-yaml">  - service: &quot;hello.download&quot;
+    methods: [ 'GET' ]
+    url: &quot;/api/hello/download&quot;
+    timeout: 20s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+</code></pre>
+<p>The above example creates the "/api/hello/download" endpoint to route requests to the "hello.download" function.
+We will elaborate more about REST automation in <a href="../CHAPTER-3/">Chapter-3</a>.</p>
+<h2 id="function-is-an-event-handler">Function is an event handler</h2>
+<p>A function is executed when an event arrives. You can define a "route name" for each function.
+It is created by a class implementing one of the following interfaces:</p>
+<ol>
+<li><code>TypedLambdaFunction</code> allows you to use PoJo or HashMap as input and output</li>
+<li><code>LambdaFunction</code> is untyped, but it will transport PoJo from the caller to the input of your function</li>
+<li><code>KotlinLambdaFunction</code> is a typed lambda function using Kotlin suspend function</li>
+</ol>
+<h2 id="execute-the-helloworld-function">Execute the "hello.world" function</h2>
+<p>With the application started in a command terminal, please use a browser to point to:
+http://127.0.0.1:8085/api/hello/world</p>
+<p>It will echo the HTTP headers from the browser like this:</p>
+<pre><code class="language-json">{
+  &quot;headers&quot;: {},
+  &quot;instance&quot;: 1,
+  &quot;origin&quot;: &quot;20230324b709495174a649f1b36d401f43167ba9&quot;,
+  &quot;body&quot;: {
+    &quot;headers&quot;: {
+      &quot;sec-fetch-mode&quot;: &quot;navigate&quot;,
+      &quot;sec-fetch-site&quot;: &quot;none&quot;,
+      &quot;sec-ch-ua-mobile&quot;: &quot;?0&quot;,
+      &quot;accept-language&quot;: &quot;en-US,en;q=0.9&quot;,
+      &quot;sec-ch-ua-platform&quot;: &quot;\&quot;Windows\&quot;&quot;,
+      &quot;upgrade-insecure-requests&quot;: &quot;1&quot;,
+      &quot;sec-fetch-user&quot;: &quot;?1&quot;,
+      &quot;accept&quot;: &quot;text/html,application/xhtml+xml,application/xml,*/*&quot;,
+      &quot;sec-fetch-dest&quot;: &quot;document&quot;,
+      &quot;user-agent&quot;: &quot;Mozilla/5.0 Chrome/111.0.0.0&quot;
+    },
+    &quot;method&quot;: &quot;GET&quot;,
+    &quot;ip&quot;: &quot;127.0.0.1&quot;,
+    &quot;https&quot;: false,
+    &quot;url&quot;: &quot;/api/hello/world&quot;,
+    &quot;timeout&quot;: 10
+  }
+}
+</code></pre>
+<h3 id="where-is-the-helloworld-function">Where is the "hello.world" function?</h3>
+<p>The function is defined in the MainApp class in the source project with the following segment of code:</p>
+<pre><code class="language-java">LambdaFunction echo = (headers, input, instance) -&gt; {
+    log.info(&quot;echo #{} got a request&quot;, instance);
+    Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();
+    result.put(&quot;headers&quot;, headers);
+    result.put(&quot;body&quot;, input);
+    result.put(&quot;instance&quot;, instance);
+    result.put(&quot;origin&quot;, platform.getOrigin());
+    return result;
+};
+// Register the above inline lambda function
+platform.register(&quot;hello.world&quot;, echo, 10);
+</code></pre>
+<p>The Hello World function is written as an "inline lambda function". It is registered programmatically using
+the <code>platform.register</code> API.</p>
+<p>The rest of the functions are written using regular classes implementing the LambdaFunction, TypedLambdaFunction
+and KotlinLambdaFunction interfaces.</p>
+<h2 id="typedlambdafunction">TypedLambdaFunction</h2>
+<p>Let's examine the <code>SimpleDemoEndpoint</code> example under the "services" folder. It may look like this:</p>
+<pre><code class="language-java">@PreLoad(route = &quot;hello.simple&quot;, instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // business logic here
+    }
+}
+</code></pre>
+<p>The <code>PreLoad</code> annotation assigns a route name to the Java class and registers it with an in-memory event system.
+The <code>instances</code> parameter tells the system to create a number of workers to serve concurrent requests.</p>
+<blockquote>
+<p>Note that you don't need a lot of workers to handle a larger number of users
+  and requests provided that your function can finish execution very quickly.</p>
+</blockquote>
+<p>By default, functions are executed as "coroutine" unless you specify the <code>KernelThreadRunner</code> annotation to tell
+the system to run the function using kernel thread pool.</p>
+<p>There are three function execution strategies (Kernel thread pool, coroutine and suspend function).
+We will explain the concept in <a href="../CHAPTER-2/">Chapter-2</a></p>
+<p>In a composable application, a function is designed using the first principle of "input-process-output".</p>
+<p>In the "hello.simple" function, the input is an HTTP request expressed as a class of <code>AsyncHttpRequest</code>.
+You can ignore <code>headers</code> input argument for the moment. We will cover it later.</p>
+<p>The output is declared as "Object" so that the function can return any data structure using a HashMap or PoJo.</p>
+<p>You may want to review the REST endpoint <code>/api/simple/{task}/*</code> in the rest.yaml config file to see how it is
+connected to the "hello.simple" function.</p>
+<p>We take a minimalist approach for the rest.yaml syntax. The parser will detect any syntax errors. Please check
+application log to ensure all REST endpoint entries in rest.yaml file are valid.</p>
+<h2 id="write-your-first-function">Write your first function</h2>
+<p>Using the lambda-example as a template, let's create your first function by adding a function in the 
+"services" package folder. You will give it the route name "my.first.function" in the "PreLoad" annotation.</p>
+<blockquote>
+<p>Note that route name must use lower case letters and numbers separated by the period character.</p>
+</blockquote>
+<pre><code class="language-java">
+@PreLoad(route = &quot;my.first.function&quot;, instances = 10)
+public class MyFirstFunction implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // your business logic here
+        return input;
+    }
+}
+</code></pre>
+<p>To connect this function with a REST endpoint, you can declare a new REST endpoint in the rest.yaml like this:</p>
+<pre><code class="language-yaml">  - service: &quot;my.first.function&quot;
+    methods: [ 'GET' ]
+    url: &quot;/api/hello/my/function&quot;
+    timeout: 20s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+</code></pre>
+<p>If you do not put any business logic, the above function will echo the incoming HTTP request object back to the
+browser.</p>
+<p>Now you can examine the input HTTP request object and perform some data transformation before returning a result.</p>
+<p>The AsyncHttpRequest class allows you to access data structure such as HTTP method, URL, path parameters,
+query parameters, cookies, etc.</p>
+<p>When you click the "rebuild" button in IDE and run the "MainApp", the new function will be available in the 
+application. Alternatively, you can also do <code>mvn clean package</code> to generate a new executable JAR and run the 
+JAR from command line.</p>
+<p>To test your new function, visit http://127.0.0.1:8085/api/hello/my/function</p>
+<h2 id="event-driven-design">Event driven design</h2>
+<p>Your function automatically uses an in-memory event bus. The HTTP request from the browser is converted to
+an event by the system for delivery to your function as the "input" argument.</p>
+<p>The underlying HTTP server is asynchronous and non-blocking.
+i.e. it does not consume CPU resources while waiting for a response.</p>
+<p>This composable architecture allows you to design and implement applications so that you have precise control of
+performance and throughput. Performance tuning is much easier.</p>
+<h2 id="deploy-your-new-application">Deploy your new application</h2>
+<p>You can assemble related functions in a single composable application, and it can be compiled and built into
+a single "executable" for deployment using <code>mvn clean package</code>.</p>
+<p>The executable JAR is in the target folder. </p>
+<p>Composable application is by definition cloud native. It is designed to be deployable using Kubernetes or serverless.</p>
+<p>A sample Dockerfile for your executable JAR may look like this:</p>
+<pre><code class="language-shell">FROM adoptopenjdk/openjdk11:jre-11.0.11_9-alpine
+EXPOSE 8083
+WORKDIR /app
+COPY target/your-app-name.jar .
+ENTRYPOINT [&quot;java&quot;,&quot;-jar&quot;,&quot;your-app-name.jar&quot;]
+</code></pre>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-2/">Function Execution Strategy</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../TABLE-OF-CONTENTS/" class="btn btn-neutral float-left" title="Contents"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-2/" class="btn btn-neutral float-right" title="Chapter-2">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../TABLE-OF-CONTENTS/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-2/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
