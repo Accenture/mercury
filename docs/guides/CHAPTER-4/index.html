@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-4/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-4 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-4";
+        var mkdocs_page_input_path = "guides/CHAPTER-4.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-4/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-4</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#register-a-function-with-the-in-memory-event-system">Register a function with the in-memory event system</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#private-vs-public-functions">Private vs public functions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#post-office-api">Post Office API</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-patterns">Event patterns</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#request-response-rpc">Request-response (RPC)</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#asynchronous-rpc">Asynchronous RPC</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#asynchronous-fork-n-join">Asynchronous fork-n-join</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#asynchronous-programming-technique">Asynchronous programming technique</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#sequential-non-blocking-rpc-and-fork-n-join">Sequential non-blocking RPC and fork-n-join</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#asynchronous-drop-n-forget">Asynchronous drop-n-forget</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#callback">Callback</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pipeline">Pipeline</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#streaming">Streaming</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#asyncobjectstreamreader">AsyncObjectStreamReader</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#sequential-non-blocking-method">Sequential non-blocking method</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#orchestration-layer">Orchestration layer</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-script">Event Script</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-4</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="event-orchestration">Event Orchestration</h1>
+<p>In traditional programming, we can write modular software components and wire them together as a single application.
+There are many ways to do that. You can rely on a "dependency injection" framework. In many cases, you would need
+to write orchestration logic to coordinate how the various components talk to each other to process a transaction.</p>
+<p>In a composable application, you write modular functions using the first principle of "input-process-output".</p>
+<p>Functions communicate with each other using events and each function has a "handleEvent" method to process "input"
+and return result as "output". Writing software component in the first principle makes Test Driven Development (TDD)
+straight forward. You can write mock function and unit tests before you put in actual business logic.</p>
+<p>Mocking an event-driven function in a composable application is as simple as overriding the function's route name
+with a mock function.</p>
+<h2 id="register-a-function-with-the-in-memory-event-system">Register a function with the in-memory event system</h2>
+<p>There are two ways to register a function:</p>
+<ol>
+<li>Programmatic registration</li>
+<li>Declarative registration</li>
+</ol>
+<p>In programmatic registration, you can register a function like this:</p>
+<pre><code class="language-shell">Platform platform = Platform.getInstance();
+platform.registerPrivate(&quot;my.function&quot;, new MyFunction(), 10);
+</code></pre>
+<p>In the above example, You obtain a singleton instance of the Platform API class and use it to register a private
+function <code>MyFunction</code> with a route name "my.function".</p>
+<p>In declarative approach, you use the <code>PreLoad</code> annotation to register a class with an event handler.</p>
+<p>Your function should implement the LambdaFunction, TypedLambdaFunction or KotlinLambdaFunction. 
+While LambdaFunction is untyped, the event system can transport PoJo and your function should
+test the object type and cast it to the correct PoJo.</p>
+<p>TypedLambdaFunction and KotlinLambdaFunction are typed, and you must declare the input and output classes
+according to the input/output API contract of your function.</p>
+<p>For example, the SimpleDemoEndpoint has the "PreLoad" annotation to declare the route name and number of worker
+instances.</p>
+<p>By default, LambdaFunction and TypedLambdaFunction are executed as "coroutine" for the worker instances.
+To tell the system to run it using kernel threads, you can add the <code>KernelThreadRunner</code> annotation.</p>
+<pre><code class="language-java">@KernelThreadRunner
+@PreLoad(route = &quot;hello.simple&quot;, instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // business logic here
+    }
+}
+</code></pre>
+<p>Once a function is created using the declarative method, you can override it with a mock function by using the
+programmatic registration method in a unit test.</p>
+<h2 id="private-vs-public-functions">Private vs public functions</h2>
+<p>When you use the programmatic registration approach, you can use the "register" or the "registerPrivate" method to
+set the function as "public" or "private" respectively. For declarative approach, the <code>PreLoad</code> annotation
+contains a parameter to define the visibility of the function.</p>
+<pre><code class="language-java">// or register it as &quot;public&quot;
+platform.register(&quot;my.function&quot;, new MyFunction(), 10);
+
+// register a function as &quot;private&quot;
+platform.registerPrivate(&quot;my.function&quot;, new MyFunction(), 10);
+</code></pre>
+<p>A private function is visible by other functions in the same application memory space.</p>
+<p>A public function is accessible by other function from another application instance using service mesh or
+"Event over HTTP" method. We will discuss inter-container communication in <a href="../CHAPTER-7/">Chapter-7</a> and 
+<a href="../CHAPTER-8/">Chapter-8</a>.</p>
+<h2 id="post-office-api">Post Office API</h2>
+<p>To send an asynchronous event or an event RPC call from one function to another, you can use the <code>PostOffice</code> APIs.</p>
+<p>In your function, you can obtain an instance of the PostOffice like this:</p>
+<pre><code class="language-java">@Override
+public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+    PostOffice po = new PostOffice(headers, instance);
+    // e.g. po.send and po.asyncRequest for sending asynchronous event and making RPC call
+}
+</code></pre>
+<p>The PostOffice API detects if tracing is enabled in the incoming request. If yes, it will propagate tracing
+information to "downstream" functions.</p>
+<h2 id="event-patterns">Event patterns</h2>
+<ol>
+<li>RPC <code>“Request-response”, best for interactivity</code></li>
+<li>Asynchronous <code>e.g. Drop-n-forget</code></li>
+<li>Callback <code>e.g. Progressive rendering</code></li>
+<li>Pipeline <code>e.g. Work-flow application</code></li>
+<li>Streaming <code>e.g. File transfer</code></li>
+</ol>
+<h3 id="request-response-rpc">Request-response (RPC)</h3>
+<p>In enterprise application, RPC is the most common pattern in making call from one function to another.</p>
+<p>The "calling" function makes a request and waits for the response from the "called" function.</p>
+<p>In Mercury version 3, there are 2 types of RPC calls - "asynchronous" and "sequential non-blocking".</p>
+<h4 id="asynchronous-rpc">Asynchronous RPC</h4>
+<p>You can use the <code>asyncRequest</code> method to make an asynchronous RPC call. Asynchronous means that the response
+will be delivered to the <code>onSuccess</code> or <code>onFailure</code> callback method.</p>
+<p>Note that normal response and exception are sent to the onSuccess method and timeout exception to the onFailure
+method.</p>
+<p>If you set "timeoutException" to false, the timeout exception will be delivered to the onSuccess callback and
+the onFailure callback will be ignored.</p>
+<pre><code class="language-java">Future&lt;EventEnvelope&gt; asyncRequest(final EventEnvelope event, long timeout) 
+                                   throws IOException;
+Future&lt;EventEnvelope&gt; asyncRequest(final EventEnvelope event, long timeout, 
+                                   boolean timeoutException) throws IOException;
+
+// example
+EventEnvelope request = new EventEnvelope().setTo(SERVICE).setBody(TEXT);
+Future&lt;EventEnvelope&gt; response = po.asyncRequest(request, 2000);
+response.onSuccess(result -&gt; {
+    // handle the response event
+}).onFailure(ex -&gt; {
+    // handle timeout exception
+});
+</code></pre>
+<p>The timeout value is measured in milliseconds.</p>
+<h4 id="asynchronous-fork-n-join">Asynchronous fork-n-join</h4>
+<p>A special version of RPC is the fork-n-join API. This allows you to make concurrent requests to multiple functions.
+The system will consolidate all responses and return them as a list of events.</p>
+<p>Normal responses and user defined exceptions are sent to the onSuccess method and timeout exception to the onFailure
+method. Your function will receive all responses or a timeout exception.</p>
+<p>If you set "timeoutException" to false, partial results will be delivered to the onSuccess method when one or
+more services fail to respond on-time. The onFailure method is not required.</p>
+<pre><code class="language-java">Future&lt;List&lt;EventEnvelope&gt;&gt; asyncRequest(final List&lt;EventEnvelope&gt; event, long timeout) 
+                                         throws IOException;
+
+Future&lt;List&lt;EventEnvelope&gt;&gt; asyncRequest(final List&lt;EventEnvelope&gt; event, long timeout, 
+                                         boolean timeoutException) throws IOException;
+
+// example
+List&lt;EventEnvelope&gt; requests = new ArrayList&lt;&gt;();
+requests.add(new EventEnvelope().setTo(SERVICE1).setBody(TEXT1));
+requests.add(new EventEnvelope().setTo(SERVICE2).setBody(TEXT2));
+Future&lt;List&lt;EventEnvelope&gt;&gt; responses = po.asyncRequest(requests, 2000);
+responses.onSuccess(events -&gt; {
+    // handle the response events
+}).onFailure(ex -&gt; {
+    // handle timeout exception
+});
+</code></pre>
+<h4 id="asynchronous-programming-technique">Asynchronous programming technique</h4>
+<p>When your function is a service by itself, asynchronous RPC and fork-n-join require different programming approaches. </p>
+<p>There are two ways to do that:
+1. Your function returns an immediate result and waits for the response(s) to the onSuccess or onFailure callback
+2. Your function is implemented as an "EventInterceptor"</p>
+<p>For the first approach, your function can return an immediate result telling the caller that your function would need
+time to process the request. This works when the caller can be reached by a callback.</p>
+<p>For the second approach, your function is annotated with the keyword <code>EventInterceptor</code>. 
+It can immediately return a "null" response that will be ignored by the event system. Your function can inspect
+the "replyTo" address and correlation ID in the incoming event and include them in a future response to the caller.</p>
+<h4 id="sequential-non-blocking-rpc-and-fork-n-join">Sequential non-blocking RPC and fork-n-join</h4>
+<p>To simplify coding, you can implement a "suspend function" using the KotlinLambdaFunction interface.</p>
+<p>The following code segment illustrates the creation of the "hello.world" function that makes a non-blocking RPC
+call to "another.service".</p>
+<pre><code class="language-kotlin">@PreLoad(route=&quot;hello.world&quot;, instances=10)
+class FileUploadDemo: KotlinLambdaFunction&lt;AsyncHttpRequest, Any&gt; {
+    override suspend fun handleEvent(headers: Map&lt;String, String&gt;, input: AsyncHttpRequest, 
+                                     instance: Int): Any {
+        val fastRPC = FastRPC(headers)
+        // your business logic here...
+        val req = EventEnvelope().setTo(&quot;another.service&quot;).setBody(myPoJo)
+        return fastRPC.awaitRequest(req, 5000)
+    }
+}
+</code></pre>
+<p>The API method signature for non-blocking RPC and fork-n-join are as follows:</p>
+<pre><code class="language-kotlin">@Throws(IOException::class)
+suspend fun awaitRequest(request: EventEnvelope, timeout: Long): EventEnvelope
+
+@Throws(IOException::class)
+suspend fun awaitRequest(requests: List&lt;EventEnvelope&gt;, timeout: Long): List&lt;EventEnvelope&gt;
+</code></pre>
+<h3 id="asynchronous-drop-n-forget">Asynchronous drop-n-forget</h3>
+<p>To make an asynchronous call from one function to another, use the <code>send</code> method.</p>
+<pre><code class="language-java">void send(String to, Kv... parameters) throws IOException;
+void send(String to, Object body) throws IOException;
+void send(String to, Object body, Kv... parameters) throws IOException;
+void send(final EventEnvelope event) throws IOException;
+</code></pre>
+<p>Kv is a key-value pair for holding one parameter.</p>
+<p>Asynchronous event calls are handled in the background so that your function can continue processing.
+For example, sending a notification message to a user.</p>
+<h3 id="callback">Callback</h3>
+<p>You can declare another function as a "callback". When you send a request to another function, you can set the 
+"replyTo" address in the request event. When a response is received, your callback function will be invoked to 
+handle the response event.</p>
+<pre><code class="language-java">EventEnvelope req = new EventEnvelope().setTo(&quot;some.service&quot;)
+                        .setBody(myPoJo).setReplyTo(&quot;my.callback&quot;);
+po.send(req);
+</code></pre>
+<p>In the above example, you have a callback function with route name "my.callback". You send the request event
+with a MyPoJo object as payload to the "some.service" function. When a response is received, the "my.callback"
+function will get the response as input.</p>
+<h3 id="pipeline">Pipeline</h3>
+<p>Pipeline is a linked list of event calls. There are many ways to do pipeline. One way is to keep the pipeline plan
+in an event's header and pass the event across multiple functions where you can set the "replyTo" address from the
+pipeline plan. You should handle exception cases when a pipeline breaks in the middle of a transaction.</p>
+<p>An example of the pipeline header key-value may look like this:</p>
+<pre><code class="language-properties">pipeline=service.1, service.2, service.3, service.4, service.5
+</code></pre>
+<p>In the above example, when the pipeline event is received by a function, the function can check its position
+in the pipeline by comparing its own route name with the pipeline plan.</p>
+<pre><code class="language-java">PostOffice po = new PostOffice(headers, instance);
+
+// some business logic here...
+String myRoute = po.getRoute();
+</code></pre>
+<p>Suppose myRoute is "service.2", the function can send the response event to "service.3".
+When "service.3" receives the event, it can send its response event to the next one. i.e. "service.4".</p>
+<p>When the event reaches the last service ("service.5"), the processing will complete.</p>
+<h3 id="streaming">Streaming</h3>
+<p>If you set a function as singleton (i.e. one worker instance), it will receive event in an orderly fashion.
+This way you can "stream" events to the function, and it will process the events one by one.</p>
+<p>Another means to do streaming is to create an "ObjectStreamIO" event stream like this:</p>
+<pre><code class="language-java">ObjectStreamIO stream = new ObjectStreamIO(60);
+ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
+out.write(messageOne);
+out.write(messageTwo);
+out.close();
+
+String streamId = stream.getInputStreamId();
+// pass the streamId to another function
+</code></pre>
+<p>In the code segment above, your function creates an object event stream and writes 2 messages into the stream
+It obtains the streamId of the event stream and sends it to another function. The other function can read the
+data blocks orderly.</p>
+<p>You must declare "end of stream" by closing the output stream. If you do not close an output stream,
+it remains open and idle. If a function is trying to read an input stream using the stream ID and the
+next data block is not available, it will time out.</p>
+<p>A stream will be automatically closed when the idle inactivity timer is reached. In the above example, 
+ObjectStreamIO(60) means an idle inactivity timer of 60 seconds.</p>
+<blockquote>
+<p>IMPORTANT: To improve the non-blocking design of your function, you can implement your function as a
+             KotlinLambdaFunction. If you need to send many blocks of data continuously in a "while"
+             loop, you should add the "yield()" statement before it writes a block of data to the 
+             output stream. This way, a long-running function will be non-blocking.</p>
+</blockquote>
+<p>There are two ways to read an input event stream - asynchronous or sequential non-blocking.</p>
+<h4 id="asyncobjectstreamreader">AsyncObjectStreamReader</h4>
+<p>To read events from a stream, you can create an instance of the AsyncObjectStreamReader like this:</p>
+<pre><code class="language-java">AsyncObjectStreamReader in = new AsyncObjectStreamReader(stream.getInputStreamId(), 8000);
+Future&lt;Object&gt; block = in.get();
+block.onSuccess(b -&gt; {
+    if (b != null) {
+        // process the data block
+    } else {
+        // end of stream. Do additional processing.
+        in.close();
+    }
+});
+</code></pre>
+<p>The above illustrates reading the first block of data. The function would need to iteratively read the stream
+until end of stream (i.e. when the stream returns null). As a result, asynchronous application code for stream
+processing is more challenging to write.</p>
+<h4 id="sequential-non-blocking-method">Sequential non-blocking method</h4>
+<p>The industry trend is to use sequential non-blocking method instead of "asynchronous callback" because your code
+will be much easier to read.</p>
+<p>You can use the <code>awaitRequest</code> method to read the next block of data from an event stream.</p>
+<p>An example for reading a stream is shown in the <code>FileUploadDemo</code> kotlin class in the lambda-example project.
+It is using a simple "while" loop to read the stream. When the function fetches the next block of data using
+the <code>awaitRequest</code> method, the function is suspended until the next data block or "end of stream" signal is received.</p>
+<p>It may look like this:</p>
+<pre><code class="language-kotlin">val po = PostOffice(headers, instance)
+val fastRPC = FastRPC(headers)
+
+val req = EventEnvelope().setTo(streamId).setHeader(TYPE, READ)
+while (true) {
+    val event = fastRPC.awaitRequest(req, 5000)
+    if (event.status == 408) {
+        // handle input stream timeout
+        break
+    }
+    if (&quot;eof&quot; == event.headers[&quot;type&quot;]) {
+        po.send(streamId, Kv(&quot;type&quot;, &quot;close&quot;))
+        break
+    }
+    if (&quot;data&quot; == event.headers[&quot;type&quot;]) {
+        val block = event.body
+        if (block is ByteArray) {
+            // handle the data block from the input stream
+        }
+    }
+}
+</code></pre>
+<p>Since the code style is "sequential non-blocking", using a "while" loop does not block the "event loop" provided
+that you are using an "await" API inside the while-loop.</p>
+<p>In this fashion, the intent of the code is clear. Sequential non-blocking method offers high throughput because
+it does not consume CPU resources while the function is waiting for a response from another function.</p>
+<p>We recommend sequential non-blocking style for more sophisticated event streaming logic.</p>
+<blockquote>
+<p>Note: "await" methods are only supported in KotlinLambdaFunction which is a suspend function.
+        When Java 19 virtual thread feature becomes officially available, we will enhance
+        the function execution strategies accordingly.</p>
+</blockquote>
+<h2 id="orchestration-layer">Orchestration layer</h2>
+<p>Once you have implemented modular functions in a self-contained manner, the best practice is to write one or more
+functions to do "event orchestration".</p>
+<p>Think of the orchestration function as a music conductor who guides the whole team to perform.</p>
+<p>For event orchestration, your function can be the "conductor" that sends events to the individual functions so that
+they operate together as a single application. To simplify design, the best practice is to apply event orchestration
+for each transaction or use case. The event orchestration function also serves as a living documentation about how
+your application works. It makes your code more readable.</p>
+<h2 id="event-script">Event Script</h2>
+<p>To automate event orchestration, there is an enterprise add-on module called "Event Script".
+This is the idea of "config over code" or "declarative programming". The primary purpose of "Event Script"
+is to reduce coding effort so that the team can focus in improving application design and code quality.</p>
+<p>To use event script, please upgrade to Mercury v4.</p>
+<p><a href="https://github.com/Accenture/mercury-composable">Mercury v4: https://github.com/Accenture/mercury-composable</a></p>
+<p><a href="https://accenture.github.io/mercury-composable/">Documentation: https://accenture.github.io/mercury-composable/</a></p>
+<p>In the next chapter, we will discuss the build, test and deploy process.
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-3</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-3/">REST Automation</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-5/">Build, Test and Deploy</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-3/" class="btn btn-neutral float-left" title="Chapter-3"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-5/" class="btn btn-neutral float-right" title="Chapter-5">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-3/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-5/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

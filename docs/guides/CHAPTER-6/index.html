@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-6/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-6 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-6";
+        var mkdocs_page_input_path = "guides/CHAPTER-6.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-6/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-6</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#add-platform-core-to-an-existing-spring-boot-application">Add platform-core to an existing Spring Boot application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#use-the-rest-spring-library-in-your-application">Use the rest-spring library in your application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-rest-spring-2-example-demo-application">The rest-spring-2-example demo application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#lightweight-non-blocking-websocket-server">Lightweight non-blocking websocket server</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-6</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="spring-boot-integration">Spring Boot Integration</h1>
+<p>While the platform-core foundation code includes a lightweight non-blocking HTTP server, you can also turn your
+application into an executable Spring Boot application.</p>
+<p>There are two ways to do that:</p>
+<ol>
+<li>Add dependency for Spring Boot version 2.7.10 (or version 3.0.5) and implement your Spring Boot main application</li>
+<li>Add the <code>rest-spring-2</code> or <code>rest-spring-3</code> add-on library for a pre-configured Spring Boot experience</li>
+</ol>
+<h2 id="add-platform-core-to-an-existing-spring-boot-application">Add platform-core to an existing Spring Boot application</h2>
+<p>For option 1, the platform-core library can co-exist with Spring Boot. You can write code specific to Spring Boot
+and the Spring framework ecosystem. Please make sure you add the following startup code to your Spring Boot
+main application like this:</p>
+<pre><code class="language-java">@SpringBootApplication
+public class MyMainApp extends SpringBootServletInitializer {
+
+    public static void main(String[] args) {
+        AutoStart.main(args);
+        SpringApplication.run(MyMainApp.class, args);
+    }
+
+}
+</code></pre>
+<p>We suggest running <code>AutoStart.main</code> before the <code>SpringApplication.run</code> statement. This would allow the platform-core
+foundation code to load the event-listener functions into memory before Spring Boot starts.</p>
+<h2 id="use-the-rest-spring-library-in-your-application">Use the rest-spring library in your application</h2>
+<p>You can add the <code>rest-spring-2</code> or <code>rest-spring-3</code> library in your application and turn it into a pre-configured
+Spring Boot 2 or 3 application.</p>
+<p>The "rest-spring" library configures Spring Boot's serializers (XML and JSON) to behave consistently as the
+built-in lightweight non-blocking HTTP server.</p>
+<p>If you want to disable the lightweight HTTP server, you can set <code>rest.automation=false</code> in application.properties.
+The REST automation engine and the lightweight HTTP server will be turned off.</p>
+<blockquote>
+<p>IMPORTANT: the platform-core library assumes the application configuration files to be either
+  application.yml or application.properties. If you use custom Spring profile, please keep the
+  application.yml or application.properties for the platform-core. If you use default Spring 
+  profile, both platform-core and Spring Boot will use the same configuration files.</p>
+</blockquote>
+<p>You can customize your error page using the default <code>errorPage.html</code> by copying it from the platform-core's or 
+rest-spring's resources folder to your source project. The default page is shown below.</p>
+<p>This is the HTML error page that the platform-core or rest-spring library uses. You can update it with
+your corporate style guide. Please keep the parameters (status, message, path, warning) intact.</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;title&gt;HTTP Error&lt;/title&gt;
+    &lt;meta charset=&quot;utf-8&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;div&gt;
+    &lt;h3&gt;HTTP-${status}&lt;/h3&gt;
+    &lt;div&gt;${warning}&lt;/div&gt;&lt;br/&gt;
+    &lt;table&gt;
+        &lt;tbody&gt;
+        &lt;tr&gt;&lt;td style=&quot;font-style: italic; width: 100px&quot;&gt;Type&lt;/td&gt;&lt;td&gt;error&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;font-style: italic; width: 100px&quot;&gt;Status&lt;/td&gt;&lt;td&gt;${status}&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;font-style: italic; width: 100px&quot;&gt;Message&lt;/td&gt;&lt;td&gt;${message}&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td style=&quot;font-style: italic; width: 100px&quot;&gt;Path&lt;/td&gt;&lt;td&gt;${path}&lt;/td&gt;&lt;/tr&gt;
+        &lt;/tbody&gt;
+    &lt;/table&gt;
+
+&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>If you want to keep REST automation's lightweight HTTP server together with Spring Boot's Tomcat or other 
+application server, please add the following to your application.properties file:</p>
+<pre><code class="language-properties">server.port=8083
+rest.server.port=8085
+rest.automation=true
+</code></pre>
+<p>The platform-core and Spring Boot will use <code>rest.server.port</code> and <code>server.port</code> respectively.</p>
+<h2 id="the-rest-spring-2-example-demo-application">The rest-spring-2-example demo application</h2>
+<p>Let's review the <code>rest-spring-2-example</code> demo application in the "examples/rest-spring-2-example" project.</p>
+<p>You can use the rest-spring-2-example as a template to create a Spring Boot application.</p>
+<p>In addition to the REST automation engine that let you create REST endpoints by configuration, you can also
+programmatically create REST endpoints with the following approaches:</p>
+<ol>
+<li>JAX-RS REST endpoints</li>
+<li>Spring RestControllers</li>
+<li>Servlet 3.1 WebServlets</li>
+</ol>
+<p>We will examine asynchronous REST endpoint with the <code>AsyncHelloWorld</code> class.</p>
+<p>Since the platform-core is event-driven, we would like to use JAX-RS asynchronous HTTP context <code>AsyncResponse</code>
+in the REST endpoints so that the endpoint does not block.</p>
+<pre><code class="language-java">@Path(&quot;/hello&quot;)
+public class AsyncHelloWorld {
+
+    private static final AtomicInteger seq = new AtomicInteger(0);
+
+    @GET
+    @Path(&quot;/world&quot;)
+    @Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
+    public void hello(@Context HttpServletRequest request,
+                      @Suspended AsyncResponse response) {
+
+        String traceId = Utility.getInstance().getUuid();
+        PostOffice po = new PostOffice(&quot;hello.world.endpoint&quot;, traceId, &quot;GET /api/hello/world&quot;);
+        Map&lt;String, Object&gt; forward = new HashMap&lt;&gt;();
+
+        Enumeration&lt;String&gt; headers = request.getHeaderNames();
+        while (headers.hasMoreElements()) {
+            String key = headers.nextElement();
+            forward.put(key, request.getHeader(key));
+        }
+        // As a demo, just put the incoming HTTP headers as a payload and add a counter
+        // The echo service will return both.
+        int n = seq.incrementAndGet();
+        EventEnvelope req = new EventEnvelope();
+        req.setTo(&quot;hello.world&quot;).setBody(forward).setHeader(&quot;seq&quot;, n);
+        Future&lt;EventEnvelope&gt; res = po.asyncRequest(req, 3000);
+        res.onSuccess(event -&gt; {
+            Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();
+            result.put(&quot;status&quot;, event.getStatus());
+            result.put(&quot;headers&quot;, event.getHeaders());
+            result.put(&quot;body&quot;, event.getBody());
+            result.put(&quot;execution_time&quot;, event.getExecutionTime());
+            result.put(&quot;round_trip&quot;, event.getRoundTrip());
+            response.resume(result);
+        });
+        res.onFailure(ex -&gt; response.resume(new AppException(408, ex.getMessage())));
+    }
+}
+</code></pre>
+<p>In this hello world REST endpoint, JAX-RS runs the "hello" method asynchronously without waiting for a response.</p>
+<p>The example code copies the HTTP requests and sends it as the request payload to the "hello.world" function.
+The function is defined in the MainApp like this:</p>
+<pre><code class="language-java">Platform platform = Platform.getInstance();
+LambdaFunction echo = (headers, input, instance) -&gt; {
+    Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();
+    result.put(&quot;headers&quot;, headers);
+    result.put(&quot;body&quot;, input);
+    result.put(&quot;instance&quot;, instance);
+    result.put(&quot;origin&quot;, platform.getOrigin());
+    return result;
+};
+platform.register(&quot;hello.world&quot;, echo, 20);
+</code></pre>
+<p>When "hello.world" responds, its result set will be returned to the <code>onSuccess</code> method as a "future response".</p>
+<p>The "onSuccess" method then sends the response to the browser using the JAX-RS resume mechanism.</p>
+<p>The <code>AsyncHelloConcurrent</code> is the same as the <code>AsyncHelloWorld</code> except that it performs a "fork-n-join" operation
+to multiple instances of the "hello.world" function.</p>
+<p>Unlike "rest.yaml" that defines tracing by configuration, you can turn on tracing programmatically in a JAX-RS
+endpoint. To enable tracing, the function sets the trace ID and path in the PostOffice constructor. </p>
+<p>When you try the endpoint at http://127.0.0.1:8083/api/hello/world, it will echo your HTTP request headers. 
+In the command terminal, you will see tracing information in the console log like this:</p>
+<pre><code class="language-text">DistributedTrace:67 - trace={path=GET /api/hello/world, service=hello.world, success=true, 
+  origin=20230403364f70ebeb54477f91986289dfcd7b75, exec_time=0.249, start=2023-04-03T04:42:43.445Z, 
+  from=hello.world.endpoint, id=e12e871096ba4938b871ee72ef09aa0a, round_trip=20.018, status=200}
+</code></pre>
+<h2 id="lightweight-non-blocking-websocket-server">Lightweight non-blocking websocket server</h2>
+<p>If you want to turn on a non-blocking websocket server, you can add the following configuration to 
+application.properties.</p>
+<pre><code class="language-properties">server.port=8083
+websocket.server.port=8085
+</code></pre>
+<p>The above assumes Spring Boot runs on port 8083 and the websocket server runs on port 8085.</p>
+<blockquote>
+<p>Note that "websocket.server.port" is an alias of "rest.server.port"</p>
+</blockquote>
+<p>You can create a websocket service with a Java class like this:</p>
+<pre><code class="language-java">@WebSocketService(&quot;hello&quot;)
+public class WsEchoDemo implements LambdaFunction {
+
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, Object body, int instance) {
+        // handle the incoming websocket events (type = open, close, bytes or string)
+    }
+}
+</code></pre>
+<p>The above creates a websocket service at the URL "/ws/hello" server endpoint.</p>
+<p>Please review the example code in the WsEchoDemo class in the rest-spring-2-example project for details.</p>
+<p>If you want to use Spring Boot's Tomcat websocket server, you can disable the non-blocking websocket server feature
+by removing the <code>websocket.server.port</code> configuration and any websocket service classes with the <code>WebSocketService</code>
+annotation.</p>
+<p>To try out the demo websocket server, visit http://127.0.0.1:8083 and select "Websocket demo".</p>
+<h1 id="spring-boot-version-3">Spring Boot version 3</h1>
+<p>The <code>rest-spring-3</code> subproject is a pre-configured Spring Boot 3 library. </p>
+<p>In "rest-spring-3", Spring WebFlux replaces JAX-RS as the asynchronous HTTP servlet engine.</p>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-5</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-4/">Build, Test and Deploy</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-7/">Event over HTTP</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-5/" class="btn btn-neutral float-left" title="Chapter-5"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-7/" class="btn btn-neutral float-right" title="Chapter-7">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-5/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-7/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

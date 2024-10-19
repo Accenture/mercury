@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/CHANGELOG/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Release notes - Mercury</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Release notes";
+        var mkdocs_page_input_path = "CHANGELOG.md";
+        var mkdocs_page_url = "/accenture/mercury/CHANGELOG/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../guides/APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Release notes</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#release-notes">Release notes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-4018-10182024">Version 4.0.18, 10/18/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3017-1092024">Version 3.0.17, 10/9/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_1">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_1">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_1">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3016-8312024">Version 3.0.16, 8/31/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_2">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_2">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_2">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3015-512024">Version 3.0.15, 5/1/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_3">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_3">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_3">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3014-4282024">Version 3.0.14, 4/28/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_4">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_4">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_4">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3013-4282024">Version 3.0.13, 4/28/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_5">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_5">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_5">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3012-4242024">Version 3.0.12, 4/24/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_6">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_6">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_6">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3011-4232024">Version 3.0.11, 4/23/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_7">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_7">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_7">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-3010-3192024">Version 3.0.10, 3/19/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_8">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_8">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_8">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-309-292024">Version 3.0.9, 2/9/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_9">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_9">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_9">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-308-1272024">Version 3.0.8, 1/27/2024</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_10">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_10">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_10">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-307-12232023">Version 3.0.7, 12/23/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_11">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_11">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_11">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-306-10262023">Version 3.0.6, 10/26/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_12">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_12">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_12">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-305-10212023">Version 3.0.5, 10/21/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_13">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_13">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_13">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-304-862023">Version 3.0.4, 8/6/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_14">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_14">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_14">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-303-6272023">Version 3.0.3, 6/27/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_15">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_15">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_15">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-302-692023">Version 3.0.2, 6/9/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_16">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_16">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_16">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-301-652023">Version 3.0.1, 6/5/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_17">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_17">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_17">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-300-4182023">Version 3.0.0, 4/18/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_18">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_18">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_18">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-280-3202023">Version 2.8.0, 3/20/2023</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_19">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_19">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_19">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-271-12222022">Version 2.7.1, 12/22/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_20">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_20">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_20">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-270-11112022">Version 2.7.0, 11/11/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_21">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_21">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_21">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-260-10132022">Version 2.6.0, 10/13/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_22">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_22">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_22">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-250-9102022">Version 2.5.0, 9/10/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_23">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_23">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_23">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-236-6212022">Version 2.3.6, 6/21/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_24">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_24">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_24">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-235-5302022">Version 2.3.5, 5/30/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_25">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_25">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_25">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-234-5142022">Version 2.3.4, 5/14/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_26">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_26">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_26">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-233-3302022">Version 2.3.3, 3/30/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_27">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_27">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_27">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-232-2212022">Version 2.3.2, 2/21/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_28">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_28">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_28">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-231-2192022">Version 2.3.1, 2/19/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_29">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_29">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_29">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-230-1282022">Version 2.3.0, 1/28/2022</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_30">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_30">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_30">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-223-12292021">Version 2.2.3, 12/29/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_31">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_31">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_31">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-222-11122021">Version 2.2.2, 11/12/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_32">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_32">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_32">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-221-1012021">Version 2.2.1, 10/1/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_33">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_33">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_33">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-211-9102021">Version 2.1.1, 9/10/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_34">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_34">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_34">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-210-7252021">Version 2.1.0, 7/25/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_35">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_35">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_35">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-200-552021">Version 2.0.0, 5/5/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_36">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_36">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_36">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1130-1152021">Version 1.13.0, 1/15/2021</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11266-1152021">Version 1.12.66, 1/15/2021</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_37">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_37">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_37">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11265-1292020">Version 1.12.65, 12/9/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_38">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_38">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_38">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11264-9282020">Version 1.12.64, 9/28/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_39">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_39">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_39">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11263-8272020">Version 1.12.63, 8/27/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_40">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_40">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_40">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11262-8122020">Version 1.12.62, 8/12/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_41">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_41">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_41">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11261-882020">Version 1.12.61, 8/8/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_42">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_42">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_42">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11256-842020">Version 1.12.56, 8/4/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_43">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_43">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_43">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11255-7192020">Version 1.12.55, 7/19/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_44">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_44">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_44">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11254-7102020">Version 1.12.54, 7/10/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_45">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_45">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_45">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11252-6112020">Version 1.12.52, 6/11/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_46">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_46">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_46">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11250-5202020">Version 1.12.50, 5/20/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_47">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_47">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_47">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11240-542020">Version 1.12.40, 5/4/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_48">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_48">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_48">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11239-532020">Version 1.12.39, 5/3/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_49">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_49">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_49">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11236-4162020">Version 1.12.36, 4/16/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_50">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_50">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_50">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11235-4122020">Version 1.12.35, 4/12/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_51">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_51">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_51">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11234-3282020">Version 1.12.34, 3/28/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_52">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_52">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_52">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11232-3142020">Version 1.12.32, 3/14/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_53">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_53">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_53">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11231-2262020">Version 1.12.31, 2/26/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_54">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_54">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_54">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11230-262020">Version 1.12.30, 2/6/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_55">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_55">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_55">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11229-1102020">Version 1.12.29, 1/10/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_56">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_56">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_56">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11226-142020">Version 1.12.26, 1/4/2020</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_57">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_57">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_57">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11219-12282019">Version 1.12.19, 12/28/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_58">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_58">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_58">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11217-12162019">Version 1.12.17, 12/16/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_59">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_59">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_59">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11214-11202019">Version 1.12.14, 11/20/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_60">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_60">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_60">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11212-10262019">Version 1.12.12, 10/26/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_61">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_61">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_61">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1129-9142019">Version 1.12.9, 9/14/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_62">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_62">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_62">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1128-8152019">Version 1.12.8, 8/15/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_63">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_63">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_63">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1127-7152019">Version 1.12.7, 7/15/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_64">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_64">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_64">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1124-6242019">Version 1.12.4, 6/24/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_65">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_65">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_65">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-1121-6102019">Version 1.12.1, 6/10/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_66">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_66">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_66">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11140-5252019">Version 1.11.40, 5/25/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_67">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_67">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_67">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11139-4302019">Version 1.11.39, 4/30/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_68">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_68">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_68">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11133-3252019">Version 1.11.33, 3/25/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_69">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_69">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_69">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11130-372019">Version 1.11.30, 3/7/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_70">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_70">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_70">Changed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11129-1252019">Version 1.11.29, 1/25/2019</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_71">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_71">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_71">Changed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fixed">Fixed</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#version-11128-12202018">Version 1.11.28, 12/20/2018</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#added_72">Added</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#removed_72">Removed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#changed_72">Changed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fixed_1">Fixed</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Release notes</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="changelog">Changelog</h1>
+<h2 id="release-notes">Release notes</h2>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<hr />
+<h2 id="version-4018-10182024">Version 4.0.18, 10/18/2024</h2>
+<h3 id="added">Added</h3>
+<p>Added Kafka Raft for the Kafka-standalone app.</p>
+<h3 id="removed">Removed</h3>
+<p>Removed zookeeper from Kafka-standalone app.</p>
+<h3 id="changed">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-3017-1092024">Version 3.0.17, 10/9/2024</h2>
+<h3 id="added_1">Added</h3>
+<p>Partial support of Active Profile using the "spring.profiles.active" parameter</p>
+<h3 id="removed_1">Removed</h3>
+<p>Feature to ping a function without payload and headers.</p>
+<h3 id="changed_1">Changed</h3>
+<ol>
+<li>OSS update - vertx 2.5.10, spring boot 3.3.4</li>
+<li>Simplified api-playground application</li>
+</ol>
+<hr />
+<h2 id="version-3016-8312024">Version 3.0.16, 8/31/2024</h2>
+<h3 id="added_2">Added</h3>
+<p>N/A</p>
+<h3 id="removed_2">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_2">Changed</h3>
+<ol>
+<li>Updated documentation</li>
+<li>AsyncHttpRequest - remove the class type variable in the data model</li>
+<li>MultiLevelMap - update the removeElement method</li>
+<li>OSS update - GSON 2.11.0, classpath 4.8.174, guava 33.3.0-jre, vertx 2.5.9, spring boot 3.3.3, spring framework 5.3.39</li>
+</ol>
+<hr />
+<h2 id="version-3015-512024">Version 3.0.15, 5/1/2024</h2>
+<p>This version supercedes 3.0.13 and 3.0.14 due to updated data structure
+for static content handling.</p>
+<h3 id="added_3">Added</h3>
+<ol>
+<li>Added optional static-content.no-cache-pages in rest.yaml</li>
+<li>AsyncHttpClientLoader</li>
+</ol>
+<h3 id="removed_3">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_3">Changed</h3>
+<ol>
+<li>Updated data structure for static-content section in rest.yaml</li>
+<li>Fixed bug for setting multiple HTTP cookies</li>
+<li>Unified configuration file prefix "yaml."</li>
+</ol>
+<hr />
+<h2 id="version-3014-4282024">Version 3.0.14, 4/28/2024</h2>
+<h3 id="added_4">Added</h3>
+<p>N/A</p>
+<h3 id="removed_4">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_4">Changed</h3>
+<p>Updated syntax for static-content-filter section in rest.yaml</p>
+<hr />
+<h2 id="version-3013-4282024">Version 3.0.13, 4/28/2024</h2>
+<h3 id="added_5">Added</h3>
+<p>Added optional static content HTTP-GET request filter in rest.yaml</p>
+<h3 id="removed_5">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_5">Changed</h3>
+<p>Updated guava to version 33.1.0-jre</p>
+<hr />
+<h2 id="version-3012-4242024">Version 3.0.12, 4/24/2024</h2>
+<h3 id="added_6">Added</h3>
+<p>N/A</p>
+<h3 id="removed_6">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_6">Changed</h3>
+<p>Enhanced OptionalService annotation</p>
+<hr />
+<h2 id="version-3011-4232024">Version 3.0.11, 4/23/2024</h2>
+<p>Backport KernelThreadRunner from Mercury Composable 3.1</p>
+<h3 id="added_7">Added</h3>
+<p>KernelThreadRunner annotation</p>
+<h3 id="removed_7">Removed</h3>
+<p>CoroutineRunner annotation</p>
+<h3 id="changed_7">Changed</h3>
+<ol>
+<li>
+<p>Set default execution strategy to "coroutine". To tell the system to run a function
+   using kernel thread pool, add the <code>KernelThreadRunner</code> annotation.</p>
+</li>
+<li>
+<p>Update PersistentWsClient to use vertx WebSocketClient.</p>
+</li>
+<li>
+<p>Upgrade netty to version 4.1.109.Final.</p>
+</li>
+</ol>
+<hr />
+<h2 id="version-3010-3192024">Version 3.0.10, 3/19/2024</h2>
+<h3 id="added_8">Added</h3>
+<p>Added "app-config-reader.yml" file in the resources folder so that you can override
+the default application configuration files.</p>
+<h3 id="removed_8">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_8">Changed</h3>
+<ol>
+<li>Open sources library update (Spring Boot 3.2.4, Vertx 4.5.5)</li>
+<li>Improve AppConfigReader and ConfigReader to use the app-config-reader.yml file.</li>
+</ol>
+<hr />
+<h2 id="version-309-292024">Version 3.0.9, 2/9/2024</h2>
+<h3 id="added_9">Added</h3>
+<ol>
+<li>AutoStart to run application as Spring Boot if the rest-spring-3 library is packaged in app</li>
+</ol>
+<h3 id="removed_9">Removed</h3>
+<ol>
+<li>Bugfix: removed websocket client connection timeout that causes the first connection to drop after one minute</li>
+</ol>
+<h3 id="changed_9">Changed</h3>
+<ol>
+<li>Open sources library update (Spring Boot 3.2.2, Vertx 4.5.3 and MsgPack 0.9.8)</li>
+<li>Rename application parameter "event.worker.pool" to "kernel.thread.pool"</li>
+<li>Support user defined serializer with PreLoad annotation and platform API</li>
+</ol>
+<hr />
+<h2 id="version-308-1272024">Version 3.0.8, 1/27/2024</h2>
+<h3 id="added_10">Added</h3>
+<p>N/A</p>
+<h3 id="removed_10">Removed</h3>
+<p>ActiveMQ and Tibco cloud connectors</p>
+<h3 id="changed_10">Changed</h3>
+<p>Updated AsyncHttpRequest and CryptoApi</p>
+<hr />
+<h2 id="version-307-12232023">Version 3.0.7, 12/23/2023</h2>
+<h3 id="added_11">Added</h3>
+<p>Print out basic JVM information before startup for verification of base container image.</p>
+<h3 id="removed_11">Removed</h3>
+<p>Removed Maven Shade packager</p>
+<h3 id="changed_11">Changed</h3>
+<p>Updated open sources libraries to address security vulnerabilities</p>
+<ol>
+<li>Spring Boot 2/3 to version 2.7.18 and 3.2.1 respectively</li>
+<li>Tomcat 9.0.84</li>
+<li>Vertx 4.5.1</li>
+<li>Classgraph 4.8.165</li>
+<li>Netty 4.1.104.Final</li>
+<li>slf4j API 2.0.9</li>
+<li>log4j2 2.22.0</li>
+<li>Kotlin 1.9.22</li>
+<li>Artemis 2.31.2</li>
+<li>Hazelcast 5.3.6</li>
+<li>Guava 33.0.0-jre</li>
+</ol>
+<hr />
+<h2 id="version-306-10262023">Version 3.0.6, 10/26/2023</h2>
+<h3 id="added_12">Added</h3>
+<p>Enhanced Benchmark tool to support "Event over HTTP" protocol to evaluate performance
+efficiency for commmunication between application containers using HTTP.</p>
+<h3 id="removed_12">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_12">Changed</h3>
+<p>Updated open sources libraries</p>
+<ol>
+<li>Spring Boot 2/3 to version 2.7.17 and 3.1.5 respectively</li>
+<li>Kafka-client 3.6.0</li>
+</ol>
+<hr />
+<h2 id="version-305-10212023">Version 3.0.5, 10/21/2023</h2>
+<h3 id="added_13">Added</h3>
+<p>Support two executable JAR packaging system:
+1. Maven Shade packager
+2. Spring Boot packager</p>
+<p>Starting from version 3.0.5, we have replaced Spring Boot packager with Maven Shade.
+This avoids a classpath edge case for Spring Boot packager when running kafka-client
+under Java 11 or higher.</p>
+<p>Maven Shade also results in smaller executable JAR size.</p>
+<h3 id="removed_13">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_13">Changed</h3>
+<p>Updated open sources libraries</p>
+<ol>
+<li>Spring-Boot 2.7.16 / 3.1.4</li>
+<li>classgraph 4.8.163</li>
+<li>snakeyaml 2.2</li>
+<li>kotlin 1.9.10</li>
+<li>vertx 4.4.6</li>
+<li>guava 32.1.3-jre</li>
+<li>msgpack 0.9.6</li>
+<li>slj4j 2.0.9</li>
+<li>zookeeper 3.7.2</li>
+</ol>
+<p>The "/info/lib" admin endpoint has been enhanced to list library dependencies for executable JAR
+generated by either Maven Shade or Spring Boot Packager.</p>
+<p>Improved ConfigReader to recognize both ".yml" and ".yaml" extensions and their uses are interchangeable.</p>
+<hr />
+<h2 id="version-304-862023">Version 3.0.4, 8/6/2023</h2>
+<h3 id="added_14">Added</h3>
+<p>N/A</p>
+<h3 id="removed_14">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_14">Changed</h3>
+<p>Updated open sources libraries</p>
+<ol>
+<li>Spring-Boot 2.7.14 / 3.1.2</li>
+<li>Kafka-client 3.5.1</li>
+<li>classgraph 4.8.161</li>
+<li>guava 32.1.2-jre</li>
+<li>msgpack 0.9.5</li>
+</ol>
+<hr />
+<h2 id="version-303-6272023">Version 3.0.3, 6/27/2023</h2>
+<h3 id="added_15">Added</h3>
+<ol>
+<li>File extension to MIME type mapping for static HTML file handling</li>
+</ol>
+<h3 id="removed_15">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_15">Changed</h3>
+<ol>
+<li>Open sources library update - Kotlin version 1.9.0</li>
+</ol>
+<hr />
+<h2 id="version-302-692023">Version 3.0.2, 6/9/2023</h2>
+<h3 id="added_16">Added</h3>
+<p>N/A</p>
+<h3 id="removed_16">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_16">Changed</h3>
+<ol>
+<li>Consistent exception handling for Event API endpoint</li>
+<li>Open sources lib update - Vertx 4.4.4, Spring Boot 2.7.13, Spring Boot 3.1.1, classgraph 4.8.160, guava 32.0.1-jre</li>
+</ol>
+<hr />
+<h2 id="version-301-652023">Version 3.0.1, 6/5/2023</h2>
+<p>In this release, we have replace Google HTTP Client with vertx non-blocking WebClient.
+We also tested compatibility up to OpenJDK version 20 and maven 3.9.2.</p>
+<h3 id="added_17">Added</h3>
+<p>When "x-raw-xml" HTTP request header is set to "true", the AsyncHttpClient will skip the built-in 
+XML serialization so that your application can retrieve the original XML text.</p>
+<h3 id="removed_17">Removed</h3>
+<p>Retire Google HTTP client</p>
+<h3 id="changed_17">Changed</h3>
+<p>Upgrade maven plugin versions.</p>
+<hr />
+<h2 id="version-300-4182023">Version 3.0.0, 4/18/2023</h2>
+<p>This is a major release with some breaking changes. Please refer to Chapter-10 (Migration guide) for details.
+This version brings the best of preemptive and cooperating multitasking to Java (version 1.8 to 19) before
+Java 19 virtual thread feature becomes officially available.</p>
+<h3 id="added_18">Added</h3>
+<ol>
+<li>Function execution engine supporting kernel thread pool, Kotlin coroutine and suspend function</li>
+<li>"Event over HTTP" service for inter-container communication</li>
+<li>Support for Spring Boot version 3 and WebFlux</li>
+<li>Sample code for a pre-configured Spring Boot 3 application</li>
+</ol>
+<h3 id="removed_18">Removed</h3>
+<ol>
+<li>Remove blocking APIs from platform-core</li>
+<li>Retire PM2 process manager sample script due to compatibility issue</li>
+</ol>
+<h3 id="changed_18">Changed</h3>
+<ol>
+<li>Refactor "async.http.request" to use vertx web client for non-blocking operation</li>
+<li>Update log4j2 version 2.20.0 and slf4j version 2.0.7 in platform-core</li>
+<li>Update JBoss RestEasy JAX_RS to version 3.15.6.Final in rest-spring</li>
+<li>Update vertx to 4.4.2</li>
+<li>Update Spring Boot parent pom to 2.7.12 and 3.1.0 for spring boot 2 and 3 respectively</li>
+<li>Remove com.fasterxml.classmate dependency from rest-spring</li>
+</ol>
+<hr />
+<h2 id="version-280-3202023">Version 2.8.0, 3/20/2023</h2>
+<h3 id="added_19">Added</h3>
+<p>N/A</p>
+<h3 id="removed_19">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_19">Changed</h3>
+<ol>
+<li>Improved load balancing in cloud-connector</li>
+<li>Filter URI to avoid XSS attack</li>
+<li>Upgrade to SnakeYaml 2.0 and patch Spring Boot 2.6.8 for compatibility with it</li>
+<li>Upgrade to Vertx 4.4.0, classgraph 4.8.157, tomcat 9.0.73</li>
+</ol>
+<hr />
+<h2 id="version-271-12222022">Version 2.7.1, 12/22/2022</h2>
+<h3 id="added_20">Added</h3>
+<ol>
+<li>standalone benchmark report app</li>
+<li>client and server benchmark apps</li>
+<li>add timeout tag to RPC events</li>
+</ol>
+<h3 id="removed_20">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_20">Changed</h3>
+<ol>
+<li>Updated open sources dependencies</li>
+<li>Netty 4.1.86.Final</li>
+<li>Tomcat 9.0.69</li>
+<li>Vertx 4.3.6</li>
+<li>classgraph 4.8.152</li>
+<li>
+<p>google-http-client 1.42.3</p>
+</li>
+<li>
+<p>Improved unit tests to use assertThrows to evaluate exception</p>
+</li>
+<li>Enhanced AsyncHttpRequest serialization</li>
+</ol>
+<hr />
+<h2 id="version-270-11112022">Version 2.7.0, 11/11/2022</h2>
+<p>In this version, REST automation code is moved to platform-core such that REST and Websocket
+service can share the same port.</p>
+<h3 id="added_21">Added</h3>
+<ol>
+<li>AsyncObjectStreamReader is added for non-blocking read operation from an object stream.</li>
+<li>Support of LocalDateTime in SimpleMapper</li>
+<li>Add "removeElement" method to MultiLevelMap</li>
+<li>Automatically convert a map to a PoJo when the sender does not specify class in event body</li>
+</ol>
+<h3 id="removed_21">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_21">Changed</h3>
+<ol>
+<li>REST automation becomes part of platform-core and it can co-exist with Spring Web in the rest-spring module</li>
+<li>Enforce Spring Boot lifecycle management such that user apps will start after Spring Boot has loaded all components</li>
+<li>Update netty to version 4.1.84.Final</li>
+</ol>
+<hr />
+<h2 id="version-260-10132022">Version 2.6.0, 10/13/2022</h2>
+<p>In this version, websocket notification example code has been removed from the REST automation system.
+If your application uses this feature, please recover the code from version 2.5.0 and refactor it as a
+separate library.</p>
+<h3 id="added_22">Added</h3>
+<p>N/A</p>
+<h3 id="removed_22">Removed</h3>
+<p>Simplify REST automation system by removing websocket notification example in REST automation.</p>
+<h3 id="changed_22">Changed</h3>
+<ol>
+<li>Replace Tomcat websocket server with Vertx non-blocking websocket server library</li>
+<li>Update netty to version 4.1.79.Final</li>
+<li>Update kafka client to version 2.8.2</li>
+<li>Update snake yaml to version 1.33</li>
+<li>Update gson to version 2.9.1</li>
+</ol>
+<hr />
+<h2 id="version-250-9102022">Version 2.5.0, 9/10/2022</h2>
+<h3 id="added_23">Added</h3>
+<p>New Preload annotation class to automate pre-registration of LambdaFunction.</p>
+<h3 id="removed_23">Removed</h3>
+<p>Removed Spring framework and Tomcat dependencies from platform-core so that the core library can be applied
+to legacy J2EE application without library conflict.</p>
+<h3 id="changed_23">Changed</h3>
+<ol>
+<li>Bugfix for proper housekeeping of future events.</li>
+<li>Make Gson and MsgPack handling of integer/long consistent</li>
+</ol>
+<p>Updated open sources libraries.</p>
+<ol>
+<li>Eclipse vertx-core version 4.3.4</li>
+<li>MsgPack version 0.9.3</li>
+<li>Google httpclient version 1.42.2</li>
+<li>SnakeYaml version 1.31</li>
+</ol>
+<hr />
+<h2 id="version-236-6212022">Version 2.3.6, 6/21/2022</h2>
+<h3 id="added_24">Added</h3>
+<p>Support more than one event stream cluster. User application can share the same event stream cluster
+for pub/sub or connect to an alternative cluster for pub/sub use cases.</p>
+<h3 id="removed_24">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_24">Changed</h3>
+<p>Cloud connector libraries update to Hazelcast 5.1.2</p>
+<hr />
+<h2 id="version-235-5302022">Version 2.3.5, 5/30/2022</h2>
+<h3 id="added_25">Added</h3>
+<p>Add tagging feature to handle language connector's routing and exception handling</p>
+<h3 id="removed_25">Removed</h3>
+<p>Remove language pack's pub/sub broadcast feature</p>
+<h3 id="changed_25">Changed</h3>
+<ol>
+<li>Update Spring Boot parent to version 2.6.8 to fetch Netty 4.1.77 and Spring Framework 5.3.20</li>
+<li>Streamlined language connector transport protocol for compatibility with both Python and Node.js</li>
+</ol>
+<hr />
+<h2 id="version-234-5142022">Version 2.3.4, 5/14/2022</h2>
+<h3 id="added_26">Added</h3>
+<p>N/A</p>
+<h3 id="removed_26">Removed</h3>
+<ol>
+<li>Remove swagger-ui distribution from api-playground such that developer can clone the latest version</li>
+</ol>
+<h3 id="changed_26">Changed</h3>
+<ol>
+<li>Update application.properties (from spring.resources.static-locations to spring.web.resources.static-locations)</li>
+<li>Update log4j, Tomcat and netty library version using Spring parent 2.6.6</li>
+</ol>
+<hr />
+<h2 id="version-233-3302022">Version 2.3.3, 3/30/2022</h2>
+<h3 id="added_27">Added</h3>
+<p>Enhanced AsyncRequest to handle non-blocking fork-n-join</p>
+<h3 id="removed_27">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_27">Changed</h3>
+<p>Upgrade Spring Boot from 2.6.3 to 2.6.6</p>
+<hr />
+<h2 id="version-232-2212022">Version 2.3.2, 2/21/2022</h2>
+<h3 id="added_28">Added</h3>
+<p>Add support of queue API in native pub/sub module for improved ESB compatibility</p>
+<h3 id="removed_28">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_28">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-231-2192022">Version 2.3.1, 2/19/2022</h2>
+<h3 id="added_29">Added</h3>
+<p>N/A</p>
+<h3 id="removed_29">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_29">Changed</h3>
+<ol>
+<li>Update Vertx to version 4.2.4</li>
+<li>Update Tomcat to version 5.0.58</li>
+<li>Use Tomcat websocket server for presence monitors</li>
+<li>Bugfix - Simple Scheduler's leader election searches peers correctly</li>
+</ol>
+<hr />
+<h2 id="version-230-1282022">Version 2.3.0, 1/28/2022</h2>
+<h3 id="added_30">Added</h3>
+<p>N/A</p>
+<h3 id="removed_30">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_30">Changed</h3>
+<ol>
+<li>Update copyright notice</li>
+<li>Update Vertx to version 4.2.3</li>
+<li>Bugfix - RSA key generator supporting key length from 1024 to 4096 bits</li>
+<li>CryptoAPI - support different AES algorithms and custom IV</li>
+<li>Update Spring Boot to version 2.6.3</li>
+</ol>
+<hr />
+<h2 id="version-223-12292021">Version 2.2.3, 12/29/2021</h2>
+<h3 id="added_31">Added</h3>
+<ol>
+<li>Transaction journaling</li>
+<li>Add parameter <code>distributed.trace.aggregation</code> in application.properties such that trace aggregation 
+   may be disabled.</li>
+</ol>
+<h3 id="removed_31">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_31">Changed</h3>
+<ol>
+<li>Update JBoss RestEasy library to 3.15.3.Final</li>
+<li>Improved po.search(route) to scan local and remote service registries. Added "remoteOnly" selection.</li>
+<li>Fix bug in releasing presence monitor topic for specific closed user group</li>
+<li>Update Apache log4j to version 2.17.1</li>
+<li>Update Spring Boot parent to version 2.6.1</li>
+<li>Update Netty to version 4.1.72.Final</li>
+<li>Update Vertx to version 4.2.2</li>
+<li>Convenient class "UserNotification" for backend service to publish events to the UI when REST automation is deployed</li>
+</ol>
+<hr />
+<h2 id="version-222-11122021">Version 2.2.2, 11/12/2021</h2>
+<h3 id="added_32">Added</h3>
+<ol>
+<li>User defined API authentication functions can be selected using custom HTTP request header</li>
+<li>"Exception chaining" feature in EventEnvelope</li>
+<li>New "deferred.commit.log" parameter for backward compatibility with older PowerMock in unit tests</li>
+</ol>
+<h3 id="removed_32">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_32">Changed</h3>
+<ol>
+<li>Improved and streamlined SimpleXmlParser to handle arrays</li>
+<li>Bugfix for file upload in Service Gateway (REST automation library)</li>
+<li>Update Tomcat library from 9.0.50 to 9.0.54</li>
+<li>Update Spring Boot library to 2.5.6</li>
+<li>Update GSON library to 2.8.9</li>
+</ol>
+<hr />
+<h2 id="version-221-1012021">Version 2.2.1, 10/1/2021</h2>
+<h3 id="added_33">Added</h3>
+<p>Callback function can implement ServiceExceptionHandler to catch exception. It adds the onError() method.</p>
+<h3 id="removed_33">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_33">Changed</h3>
+<p>Open sources library update - Vert.x 4.1.3, Netty 4.1.68-Final</p>
+<hr />
+<h2 id="version-211-9102021">Version 2.1.1, 9/10/2021</h2>
+<h3 id="added_34">Added</h3>
+<ol>
+<li>User defined PoJo and Generics mapping</li>
+<li>Standardized serializers for default case, snake_case and camelCase</li>
+<li>Support of EventEnvelope as input parameter in TypedLambdaFunction so application function can inspect event's 
+   metadata</li>
+<li>Application can subscribe to life cycle events of other application instances</li>
+</ol>
+<h3 id="removed_34">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_34">Changed</h3>
+<ol>
+<li>Replace Tomcat websocket server engine with Vertx in presence monitor for higher performance</li>
+<li>Bugfix for MsgPack transport of integer, long, BigInteger and BigDecimal</li>
+</ol>
+<hr />
+<h2 id="version-210-7252021">Version 2.1.0, 7/25/2021</h2>
+<h3 id="added_35">Added</h3>
+<ol>
+<li>Multicast - application can define a multicast.yaml config to relay events to more than one target service.</li>
+<li>StreamFunction - function that allows the application to control back-pressure</li>
+</ol>
+<h3 id="removed_35">Removed</h3>
+<p>"object.streams.io" route is removed from platform-core</p>
+<h3 id="changed_35">Changed</h3>
+<ol>
+<li>Elastic Queue - Refactored using Oracle Berkeley DB</li>
+<li>Object stream I/O - simplified design using the new StreamFunction feature</li>
+<li>Open sources library update - Spring Boot 2.5.2, Tomcat 9.0.50, Vert.x 4.1.1, Netty 4.1.66-Final</li>
+</ol>
+<hr />
+<h2 id="version-200-552021">Version 2.0.0, 5/5/2021</h2>
+<p>Vert.x is introduced as the in-memory event bus</p>
+<h3 id="added_36">Added</h3>
+<ol>
+<li>ActiveMQ and Tibco connectors</li>
+<li>Admin endpoints to stop, suspend and resume an application instance</li>
+<li>Handle edge case to detect stalled application instances</li>
+<li>Add "isStreamingPubSub" method to the PubSub interface</li>
+</ol>
+<h3 id="removed_36">Removed</h3>
+<ol>
+<li>Event Node event stream emulator has been retired. You may use standalone Kafka server as a replacement for 
+   development and testing in your laptop.</li>
+<li>Multi-tenancy namespace configuration has been retired. It is replaced by the "closed user group" feature.</li>
+</ol>
+<h3 id="changed_36">Changed</h3>
+<ol>
+<li>Refactored Kafka and Hazelcast connectors to support virtual topics and closed user groups.</li>
+<li>Updated ConfigReader to be consistent with Spring value substitution logic for application properties</li>
+<li>Replace Akka actor system with Vert.x event bus</li>
+<li>Common code for various cloud connectors consolidated into cloud core libraries</li>
+</ol>
+<hr />
+<h2 id="version-1130-1152021">Version 1.13.0, 1/15/2021</h2>
+<p>Version 1.13.0 is the last version that uses Akka as the in-memory event system.</p>
+<hr />
+<h2 id="version-11266-1152021">Version 1.12.66, 1/15/2021</h2>
+<h3 id="added_37">Added</h3>
+<ol>
+<li>A simple websocket notification service is integrated into the REST automation system</li>
+<li>Seamless migration feature is added to the REST automation system</li>
+</ol>
+<h3 id="removed_37">Removed</h3>
+<p>Legacy websocket notification example application</p>
+<h3 id="changed_37">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11265-1292020">Version 1.12.65, 12/9/2020</h2>
+<h3 id="added_38">Added</h3>
+<ol>
+<li>"kafka.pubsub" is added as a cloud service</li>
+<li>File download example in the lambda-example project</li>
+<li>"trace.log.header" added to application.properties - when tracing is enabled, this inserts the trace-ID of the 
+   transaction in the log context. For more details, please refer to the <a href="../guides/CHAPTER-5/">Developer Guide</a></li>
+<li>Add API to pub/sub engine to support creation of topic with partitions</li>
+<li>TypedLambdaFunction is added so that developer can predefine input and output classes in a service without casting</li>
+</ol>
+<h3 id="removed_38">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_38">Changed</h3>
+<ol>
+<li>Decouple Kafka pub/sub from kafka connector so that native pub/sub can be used when application is running in 
+   standalone mode</li>
+<li>Rename "relay" to "targetHost" in AsyncHttpRequest data model</li>
+<li>Enhanced routing table distribution by sending a complete list of route tables, thus reducing network admin traffic.</li>
+</ol>
+<hr />
+<h2 id="version-11264-9282020">Version 1.12.64, 9/28/2020</h2>
+<h3 id="added_39">Added</h3>
+<p>If predictable topic is set, application instances will report their predictable topics as "instance ID"
+to the presence monitor. This improves visibility when a developer tests their application in "hybrid" mode.
+i.e. running the app locally and connect to the cloud remotely for event streams and cloud resources.</p>
+<h3 id="removed_39">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_39">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11263-8272020">Version 1.12.63, 8/27/2020</h2>
+<h3 id="added_40">Added</h3>
+<p>N/A</p>
+<h3 id="removed_40">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_40">Changed</h3>
+<p>Improved Kafka producer and consumer pairing</p>
+<hr />
+<h2 id="version-11262-8122020">Version 1.12.62, 8/12/2020</h2>
+<h3 id="added_41">Added</h3>
+<p>New presence monitor's admin endpoint for the operator to force routing table synchronization ("/api/ping/now")</p>
+<h3 id="removed_41">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_41">Changed</h3>
+<p>Improved routing table integrity check</p>
+<hr />
+<h2 id="version-11261-882020">Version 1.12.61, 8/8/2020</h2>
+<h3 id="added_42">Added</h3>
+<p>Event stream systems like Kafka assume topic to be used long term. 
+This version adds support to reuse the same topic when an application instance restarts.</p>
+<p>You can create a predictable topic using unique application name and instance ID.
+For example, with Kubernetes, you can use the POD name as the unique application instance topic.</p>
+<h3 id="removed_42">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_42">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11256-842020">Version 1.12.56, 8/4/2020</h2>
+<h3 id="added_43">Added</h3>
+<p>Automate trace for fork-n-join use case</p>
+<h3 id="removed_43">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_43">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11255-7192020">Version 1.12.55, 7/19/2020</h2>
+<h3 id="added_44">Added</h3>
+<p>N/A</p>
+<h3 id="removed_44">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_44">Changed</h3>
+<p>Improved distributed trace - set the "from" address in EventEnvelope automatically.</p>
+<hr />
+<h2 id="version-11254-7102020">Version 1.12.54, 7/10/2020</h2>
+<h3 id="added_45">Added</h3>
+<p>N/A</p>
+<h3 id="removed_45">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_45">Changed</h3>
+<p>Application life-cycle management - User provided main application(s) will be started after Spring Boot declares web
+application ready. This ensures correct Spring autowiring or dependencies are available.</p>
+<p>Bugfix for locale - String.format(float) returns comma as decimal point that breaks number parser. 
+Replace with BigDecimal decimal point scaling.</p>
+<p>Bugfix for Tomcat 9.0.35 - Change Async servlet default timeout from 30 seconds to -1 so the system can handle the 
+whole life-cycle directly.</p>
+<hr />
+<h2 id="version-11252-6112020">Version 1.12.52, 6/11/2020</h2>
+<h3 id="added_46">Added</h3>
+<ol>
+<li>new "search" method in Post Office to return a list of application instances for a service</li>
+<li>simple "cron" job scheduler as an extension project</li>
+<li>add "sequence" to MainApplication annotation for orderly execution when more than one MainApplication is available</li>
+<li>support "Optional" object in EventEnvelope so a LambdaFunction can read and return Optional</li>
+</ol>
+<h3 id="removed_46">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_46">Changed</h3>
+<ol>
+<li>The rest-spring library has been updated to support both JAR and WAR deployment</li>
+<li>All pom.xml files updated accordingly</li>
+<li>PersistentWsClient will back off for 10 seconds when disconnected by remote host</li>
+</ol>
+<hr />
+<h2 id="version-11250-5202020">Version 1.12.50, 5/20/2020</h2>
+<h3 id="added_47">Added</h3>
+<ol>
+<li>Payload segmentation</li>
+</ol>
+<p>For large payload in an event, the payload is automatically segmented into 64 KB segments.
+   When there are more than one target application instances, the system ensures that the segments of the same event 
+   is delivered to exactly the same target.</p>
+<ol>
+<li>PersistentWsClient added - generalized persistent websocket client for Event Node, Kafka reporter and Hazelcast
+   reporter.</li>
+</ol>
+<h3 id="removed_47">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_47">Changed</h3>
+<ol>
+<li>Code cleaning to improve consistency</li>
+<li>Upgraded to hibernate-validator to v6.1.5.Final and Hazelcast version 4.0.1</li>
+<li>REST automation is provided as a library and an application to handle different use cases</li>
+</ol>
+<hr />
+<h2 id="version-11240-542020">Version 1.12.40, 5/4/2020</h2>
+<h3 id="added_48">Added</h3>
+<p>N/A</p>
+<h3 id="removed_48">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_48">Changed</h3>
+<p>For security reason, upgrade log4j to version 2.13.2</p>
+<hr />
+<h2 id="version-11239-532020">Version 1.12.39, 5/3/2020</h2>
+<h3 id="added_49">Added</h3>
+<p>Use RestEasy JAX-RS library</p>
+<h3 id="removed_49">Removed</h3>
+<p>For security reason, removed Jersey JAX-RS library</p>
+<h3 id="changed_49">Changed</h3>
+<ol>
+<li>Updated RestLoader to initialize RestEasy servlet dispatcher</li>
+<li>Support nested arrays in MultiLevelMap</li>
+</ol>
+<hr />
+<h2 id="version-11236-4162020">Version 1.12.36, 4/16/2020</h2>
+<h3 id="added_50">Added</h3>
+<p>N/A</p>
+<h3 id="removed_50">Removed</h3>
+<p>For simplicity, retire route-substitution admin endpoint. Route substitution uses a simple static table in 
+route-substitution.yaml.</p>
+<h3 id="changed_50">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11235-4122020">Version 1.12.35, 4/12/2020</h2>
+<h3 id="added_51">Added</h3>
+<p>N/A</p>
+<h3 id="removed_51">Removed</h3>
+<p>SimpleRBAC class is retired</p>
+<h3 id="changed_51">Changed</h3>
+<ol>
+<li>Improved ConfigReader and AppConfigReader with automatic key-value normalization for YAML and JSON files</li>
+<li>Improved pub/sub module in kafka-connector</li>
+</ol>
+<hr />
+<h2 id="version-11234-3282020">Version 1.12.34, 3/28/2020</h2>
+<h3 id="added_52">Added</h3>
+<p>N/A</p>
+<h3 id="removed_52">Removed</h3>
+<p>Retired proprietary config manager since we can use the "BeforeApplication" approach to load config from Kubernetes 
+configMap or other systems of config record.</p>
+<h3 id="changed_52">Changed</h3>
+<ol>
+<li>Added "isZero" method to the SimpleMapper class</li>
+<li>Convert BigDecimal to string without scientific notation (i.e. toPlainString instead of toString)</li>
+<li>Corresponding unit tests added to verify behavior</li>
+</ol>
+<hr />
+<h2 id="version-11232-3142020">Version 1.12.32, 3/14/2020</h2>
+<h3 id="added_53">Added</h3>
+<p>N/A</p>
+<h3 id="removed_53">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_53">Changed</h3>
+<p>Kafka-connector will shutdown application instance when the EventProducer cannot send event to Kafka. 
+This would allow the infrastructure to restart application instance automatically.</p>
+<hr />
+<h2 id="version-11231-2262020">Version 1.12.31, 2/26/2020</h2>
+<h3 id="added_54">Added</h3>
+<p>N/A</p>
+<h3 id="removed_54">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_54">Changed</h3>
+<ol>
+<li>Kafka-connector now supports external service provider for Kafka properties and credentials. 
+   If your application implements a function with route name "kafka.properties.provider" before connecting to cloud, 
+   the kafka-connector will retrieve kafka credentials on demand. This addresses case when kafka credentials change 
+   after application start-up.</li>
+<li>Interceptors are designed to forward requests and thus they do not generate replies. However, if you implement a 
+   function as an EventInterceptor, your function can throw exception just like a regular function and the exception 
+   will be returned to the calling function. This makes it easier to write interceptors.</li>
+</ol>
+<hr />
+<h2 id="version-11230-262020">Version 1.12.30, 2/6/2020</h2>
+<h3 id="added_55">Added</h3>
+<ol>
+<li>Expose "async.http.request" as a PUBLIC function ("HttpClient as a service")</li>
+</ol>
+<h3 id="removed_55">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_55">Changed</h3>
+<ol>
+<li>Improved Hazelcast client connection stability</li>
+<li>Improved Kafka native pub/sub</li>
+</ol>
+<hr />
+<h2 id="version-11229-1102020">Version 1.12.29, 1/10/2020</h2>
+<h3 id="added_56">Added</h3>
+<ol>
+<li>Rest-automation will transport X-Trace-Id from/to Http request/response, therefore extending distributed trace 
+   across systems that support the X-Trace-Id HTTP header.</li>
+<li>Added endpoint and service to shutdown application instance.</li>
+</ol>
+<h3 id="removed_56">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_56">Changed</h3>
+<ol>
+<li>Updated SimpleXmlParser with XML External Entity (XXE) injection prevention.</li>
+<li>Bug fix for hazelcast recovery logic - when a hazelcast node is down, the app instance will restart the hazelcast 
+   client and reset routing table correctly.</li>
+<li>HSTS header insertion is optional so that we can disable it to avoid duplicated header when API gateway is doing it.</li>
+</ol>
+<hr />
+<h2 id="version-11226-142020">Version 1.12.26, 1/4/2020</h2>
+<h3 id="added_57">Added</h3>
+<p>Feature to disable PoJo deserialization so that caller can decide if the result set should be in PoJo or a Map.</p>
+<h3 id="removed_57">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_57">Changed</h3>
+<ol>
+<li>Simplified key management for Event Node</li>
+<li>AsyncHttpRequest case insensitivity for headers, cookies, path parameters and session key-values</li>
+<li>Make built-in configuration management optional</li>
+</ol>
+<hr />
+<h2 id="version-11219-12282019">Version 1.12.19, 12/28/2019</h2>
+<h3 id="added_58">Added</h3>
+<p>Added HTTP relay feature in rest-automation project</p>
+<h3 id="removed_58">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_58">Changed</h3>
+<ol>
+<li>Improved hazelcast retry and peer discovery logic</li>
+<li>Refactored rest-automation's service gateway module to use AsyncHttpRequest</li>
+<li>Info endpoint to show routing table of a peer</li>
+</ol>
+<hr />
+<h2 id="version-11217-12162019">Version 1.12.17, 12/16/2019</h2>
+<h3 id="added_59">Added</h3>
+<ol>
+<li>Simple configuration management is added to event-node, hazelcast-presence and kafka-presence monitors</li>
+<li>Added <code>BeforeApplication</code> annotation - this allows user application to execute some setup logic before the main 
+   application starts. e.g. modifying parameters in application.properties</li>
+<li>Added API playground as a convenient standalone application to render OpenAPI 2.0 and 3.0 yaml and json files</li>
+<li>Added argument parser in rest-automation helper app to use a static HTML folder in the local file system if 
+   arguments <code>-html file_path</code> is given when starting the JAR file.</li>
+</ol>
+<h3 id="removed_59">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_59">Changed</h3>
+<ol>
+<li>Kafka publisher timeout value changed from 10 to 20 seconds</li>
+<li>Log a warning when Kafka takes more than 5 seconds to send an event</li>
+</ol>
+<hr />
+<h2 id="version-11214-11202019">Version 1.12.14, 11/20/2019</h2>
+<h3 id="added_60">Added</h3>
+<ol>
+<li>getRoute() method is added to PostOffice to facilitate RBAC</li>
+<li>The route name of the current service is added to an outgoing event when the "from" field is not present</li>
+<li>Simple RBAC using YAML configuration instead of code</li>
+</ol>
+<h3 id="removed_60">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_60">Changed</h3>
+<p>Updated Spring Boot to v2.2.1</p>
+<hr />
+<h2 id="version-11212-10262019">Version 1.12.12, 10/26/2019</h2>
+<h3 id="added_61">Added</h3>
+<p>Multi-tenancy support for event streams (Hazelcast and Kafka).
+This allows the use of a single event stream cluster for multiple non-prod environments.
+For production, it must use a separate event stream cluster for security reason.</p>
+<h3 id="removed_61">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_61">Changed</h3>
+<ol>
+<li>logging framework changed from logback to log4j2 (version 2.12.1)</li>
+<li>Use JSR-356 websocket annotated ClientEndpoint</li>
+<li>Improved websocket reconnection logic</li>
+</ol>
+<hr />
+<h2 id="version-1129-9142019">Version 1.12.9, 9/14/2019</h2>
+<h3 id="added_62">Added</h3>
+<ol>
+<li>Distributed tracing implemented in platform-core and rest-automation</li>
+<li>Improved HTTP header transformation for rest-automation</li>
+</ol>
+<h3 id="removed_62">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_62">Changed</h3>
+<p>language pack API key obtained from environment variable </p>
+<hr />
+<h2 id="version-1128-8152019">Version 1.12.8, 8/15/2019</h2>
+<h3 id="added_63">Added</h3>
+<p>N/A</p>
+<h3 id="removed_63">Removed</h3>
+<p>rest-core subproject has been merged with rest-spring</p>
+<h3 id="changed_63">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-1127-7152019">Version 1.12.7, 7/15/2019</h2>
+<h3 id="added_64">Added</h3>
+<ol>
+<li>Periodic routing table integrity check (15 minutes)</li>
+<li>Set kafka read pointer to the beginning for new application instances except presence monitor</li>
+<li>REST automation helper application in the "extensions" project</li>
+<li>Support service discovery of multiple routes in the updated PostOffice's exists() method</li>
+<li>logback to set log level based on environment variable LOG_LEVEL (default is INFO)</li>
+</ol>
+<h3 id="removed_64">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_64">Changed</h3>
+<p>Minor refactoring of kafka-connector and hazelcast-connector to ensure that they can coexist if you want to include 
+both of these dependencies in your project.</p>
+<p>This is for convenience of dev and testing. In production, please select only one cloud connector library to reduce
+memory footprint.</p>
+<hr />
+<h2 id="version-1124-6242019">Version 1.12.4, 6/24/2019</h2>
+<h3 id="added_65">Added</h3>
+<p>Add inactivity expiry timer to ObjectStreamIO so that house-keeper can clean up resources that are idle</p>
+<h3 id="removed_65">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_65">Changed</h3>
+<ol>
+<li>Disable HTML encape sequence for GSON serializer</li>
+<li>Bug fix for GSON serialization optimization</li>
+<li>Bug fix for Object Stream housekeeper</li>
+</ol>
+<p>By default, GSON serializer converts all numbers to double, resulting in unwanted decimal point for integer and long.
+To handle custom map serialization for correct representation of numbers, an unintended side effect was introduced in 
+earlier releases.</p>
+<p>List of inner PoJo would be incorrectly serialized as map, resulting in casting exception. 
+This release resolves this issue.</p>
+<hr />
+<h2 id="version-1121-6102019">Version 1.12.1, 6/10/2019</h2>
+<h3 id="added_66">Added</h3>
+<ol>
+<li>Store-n-forward pub/sub API will be automatically enabled if the underlying cloud connector supports it. e.g. kafka</li>
+<li>ObjectStreamIO, a convenient wrapper class, to provide event stream I/O API.</li>
+<li>Object stream feature is now a standard feature instead of optional.</li>
+<li>Deferred delivery added to language connector.</li>
+</ol>
+<h3 id="removed_66">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_66">Changed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11140-5252019">Version 1.11.40, 5/25/2019</h2>
+<h3 id="added_67">Added</h3>
+<ol>
+<li>Route substitution for simple versioning use case</li>
+<li>Add "Strict Transport Security" header if HTTPS (https://tools.ietf.org/html/rfc6797)</li>
+<li>Event stream connector for Kafka</li>
+<li>Distributed housekeeper feature for Hazelcast connector</li>
+</ol>
+<h3 id="removed_67">Removed</h3>
+<p>System log service</p>
+<h3 id="changed_67">Changed</h3>
+<p>Refactoring of Hazelcast event stream connector library to sync up with the new Kafka connector.</p>
+<hr />
+<h2 id="version-11139-4302019">Version 1.11.39, 4/30/2019</h2>
+<h3 id="added_68">Added</h3>
+<p>Language-support service application for Python, Node.js and Go, etc.
+Python language pack project is available at https://github.com/Accenture/mercury-python</p>
+<h3 id="removed_68">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_68">Changed</h3>
+<ol>
+<li>replace Jackson serialization engine with Gson (<code>platform-core</code> project)</li>
+<li>replace Apache HttpClient with Google Http Client (<code>rest-spring</code>)</li>
+<li>remove Jackson dependencies from Spring Boot (<code>rest-spring</code>)</li>
+<li>interceptor improvement</li>
+</ol>
+<hr />
+<h2 id="version-11133-3252019">Version 1.11.33, 3/25/2019</h2>
+<h3 id="added_69">Added</h3>
+<p>N/A</p>
+<h3 id="removed_69">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_69">Changed</h3>
+<ol>
+<li>Move safe.data.models validation rules from EventEnvelope to SimpleMapper</li>
+<li>Apache fluent HTTP client downgraded to version 4.5.6 because the pom file in 4.5.7 is invalid</li>
+</ol>
+<hr />
+<h2 id="version-11130-372019">Version 1.11.30, 3/7/2019</h2>
+<h3 id="added_70">Added</h3>
+<p>Added retry logic in persistent queue when OS cannot update local file metadata in real-time for Windows based machine.</p>
+<h3 id="removed_70">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_70">Changed</h3>
+<p>pom.xml changes - update with latest 3rd party open sources dependencies. </p>
+<hr />
+<h2 id="version-11129-1252019">Version 1.11.29, 1/25/2019</h2>
+<h3 id="added_71">Added</h3>
+<p><code>platform-core</code></p>
+<ol>
+<li>Support for long running functions so that any long queries will not block the rest of the system.</li>
+<li>"safe.data.models" is available as an option in the application.properties. 
+   This is an additional security measure to protect against Jackson deserialization vulnerability. 
+   See example below:</li>
+</ol>
+<pre><code>#
+# additional security to protect against model injection
+# comma separated list of model packages that are considered safe to be used for object deserialization
+#
+#safe.data.models=com.accenture.models
+</code></pre>
+<p><code>rest-spring</code></p>
+<p>"/env" endpoint is added. See sample application.properties below:</p>
+<pre><code>#
+# environment and system properties to be exposed to the &quot;/env&quot; admin endpoint
+#
+show.env.variables=USER, TEST
+show.application.properties=server.port, cloud.connector
+</code></pre>
+<h3 id="removed_71">Removed</h3>
+<p>N/A</p>
+<h3 id="changed_71">Changed</h3>
+<p><code>platform-core</code></p>
+<p>Use Java Future and an elastic cached thread pool for executing user functions.</p>
+<h3 id="fixed">Fixed</h3>
+<p>N/A</p>
+<hr />
+<h2 id="version-11128-12202018">Version 1.11.28, 12/20/2018</h2>
+<h3 id="added_72">Added</h3>
+<p>Hazelcast support is added. This includes two projects (hazelcast-connector and hazelcast-presence).</p>
+<p>Hazelcast-connector is a cloud connector library. Hazelcast-presence is the "Presence Monitor" for monitoring the 
+presence status of each application instance.</p>
+<h3 id="removed_72">Removed</h3>
+<p><code>platform-core</code></p>
+<p>The "fixed resource manager" feature is removed because the same outcome can be achieved at the application level. 
+e.g. The application can broadcast requests to multiple application instances with the same route name and use a 
+callback function to receive response asynchronously. The services can provide resource metrics so that the caller
+can decide which is the most available instance to contact. </p>
+<p>For simplicity, resources management is better left to the cloud platform or the application itself.</p>
+<h3 id="changed_72">Changed</h3>
+<p>N/A</p>
+<h3 id="fixed_1">Fixed</h3>
+<p>N/A</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../guides/APPENDIX-III/" class="btn btn-neutral float-left" title="Appendix-III"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../arch-decisions/DESIGN-NOTES/" class="btn btn-neutral float-right" title="Design notes">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../guides/APPENDIX-III/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../arch-decisions/DESIGN-NOTES/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

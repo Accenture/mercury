@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/CHAPTER-9/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Chapter-9 - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Chapter-9";
+        var mkdocs_page_input_path = "guides/CHAPTER-9.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/CHAPTER-9/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Chapter-9</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#main-application">Main application</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#optional-environment-setup-before-mainapplication">Optional environment setup before MainApplication</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#event-envelope">Event envelope</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#custom-exception-using-appexception">Custom exception using AppException</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#defining-a-user-function-in-java">Defining a user function in Java</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#inspect-event-metadata">Inspect event metadata</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#platform-api">Platform API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#register-a-function">Register a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#what-is-a-public-function">What is a public function?</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#release-a-function">Release a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#check-if-a-function-is-available">Check if a function is available</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wait-for-a-function-to-be-ready">Wait for a function to be ready</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#obtain-the-unique-application-instance-id">Obtain the unique application instance ID</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#set-application-personality">Set application personality</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#postoffice-api">PostOffice API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#send-an-asynchronous-event-to-a-function">Send an asynchronous event to a function</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#make-an-asynchronous-rpc-call">Make an asynchronous RPC call</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#perform-a-fork-n-join-rpc-call-to-multiple-functions">Perform a fork-n-join RPC call to multiple functions</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#make-a-sequential-non-blocking-rpc-call">Make a sequential non-blocking RPC call</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#perform-a-sequential-non-blocking-fork-n-join-call-to-multiple-functions">Perform a sequential non-blocking fork-n-join call to multiple functions</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#check-if-a-function-with-a-named-route-exists">Check if a function with a named route exists</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#retrieve-trace-id-and-path">Retrieve trace ID and path</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#trace-annotation">Trace annotation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration-api">Configuration API</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#custom-serializer">Custom serializer</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#minimalist-api-design-for-event-orchestration">Minimalist API design for event orchestration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#optional-event-scripting">Optional Event Scripting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#co-existence-with-other-development-frameworks">Co-existence with other development frameworks</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#template-application-for-quick-start">Template application for quick start</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#source-code-update-frequency">Source code update frequency</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#technical-support">Technical support</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-I/">Appendix-I</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Chapter-9</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="api-overview">API Overview</h1>
+<h2 id="main-application">Main application</h2>
+<p>Each application has an entry point. You may implement an entry point in a main application like this:</p>
+<pre><code class="language-java">@MainApplication
+public class MainApp implements EntryPoint {
+   public static void main(String[] args) {
+      AutoStart.main(args);
+   }
+   @Override
+   public void start(String[] args) {
+        // your startup logic here
+      log.info(&quot;Started&quot;);
+   }
+}
+</code></pre>
+<p>In your main application, you will implement the <code>EntryPoint</code> interface to override the "start" method.
+Typically, a main application is used to initiate some application start up procedure.</p>
+<p>In some case when your application does not need any start up logic, you can just print a message to indicate
+that your application has started.</p>
+<p>You may want to keep the static "main" method which can be used to run your application inside an IDE.</p>
+<p>The pom.xml build script is designed to run the <code>AppStarter</code> start up function that will execute your main
+application's start method.</p>
+<p>In some case, your application may have more than one main application module. You can decide the sequence of
+execution using the "sequence" parameter in the <code>MainApplication</code> annotation. The module with the smallest sequence
+number will run first.</p>
+<h2 id="optional-environment-setup-before-mainapplication">Optional environment setup before MainApplication</h2>
+<p>Sometimes, it may be required to set up some environment configuration before your main application starts.
+You can implement a <code>BeforeApplication</code> module. Its syntax is similar to the <code>MainApplication</code>.</p>
+<pre><code class="language-java">@BeforeApplication
+public class EnvSetup implements EntryPoint {
+
+   @Override
+   public void start(String[] args) {
+        // your environment setup logic here
+      log.info(&quot;initialized&quot;);
+   }
+}
+</code></pre>
+<p>The <code>BeforeApplication</code> logic will run before your <code>MainApplication</code> module. This is useful when you want to do
+special handling of environment variables. For example, decrypt an environment variable secret, construct an X.509
+certificate, and save it in the "/tmp" folder before your main application starts.</p>
+<h2 id="event-envelope">Event envelope</h2>
+<p>Mercury version 3 is an event engine that encapsulates Eclipse Vertx and Kotlin coroutine and suspend function.</p>
+<p>A composable application is a collection of functions that communicate with each other in events.
+Each event is transported by an event envelope. Let's examine the envelope.</p>
+<p>There are 3 elements in an event envelope:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Element</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">metadata</td>
+<td style="text-align: left;">Includes unique ID, target function name, reply address<br/> correlation ID, status, exception, trace ID and path</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">headers</td>
+<td style="text-align: left;">User defined key-value pairs</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">body</td>
+<td style="text-align: left;">Event payload (primitive, hash map or PoJo)</td>
+</tr>
+</tbody>
+</table>
+<p>Headers and body are optional, but you must provide at least one of them. If the envelope do not have any headers
+or body, the system will send your event as a "ping" command to the target function. The response acknowledgements
+that the target function exists. This ping/pong protocol tests the event loop or service mesh. This test mechanism
+is useful for DevSecOps admin dashboard.</p>
+<h2 id="custom-exception-using-appexception">Custom exception using AppException</h2>
+<p>To reject an incoming request, you can throw an AppException like this:</p>
+<pre><code class="language-java">// example-1
+throw new AppException(400, &quot;My custom error message&quot;);
+// example-2
+throw new AppException(400, &quot;My custom error message&quot;, ex);
+</code></pre>
+<p>Example-1 - a simple exception with status code (400) and an error message</p>
+<p>Example-2 - includes a nested exception</p>
+<p>As a best practice, we recommend using error codes that are compatible with HTTP status codes.</p>
+<h2 id="defining-a-user-function-in-java">Defining a user function in Java</h2>
+<p>You can write a function in Java like this:</p>
+<pre><code class="language-java">@PreLoad(route = &quot;hello.simple&quot;, instances = 10)
+public class SimpleDemoEndpoint implements TypedLambdaFunction&lt;AsyncHttpRequest, Object&gt; {
+    @Override
+    public Object handleEvent(Map&lt;String, String&gt; headers, AsyncHttpRequest input, int instance) {
+        // business logic here
+        return result;
+    }
+}
+</code></pre>
+<p>By default, a Java function will run as a coroutine. To tell the system that you want to run the function using
+kernel thread pool, you can add the <code>KernelThreadRunner</code> annotation.</p>
+<p>The <code>PreLoad</code> annotation tells the system to preload the function into memory and register it into the event loop.
+You must provide a "route name" and configure the number of concurrent workers ("instances").</p>
+<p>Route name is used by the event loop to find your function in memory. A route name must use lower letters and numbers,
+and it must have at least one dot as a word separator. e.g. "hello.simple" is a proper route name but "HelloSimple" 
+is not.</p>
+<p>You can implement your function using the LambdaFunction or TypedLambdaFunction. The latter allows you to define
+the input and output classes.</p>
+<p>The system will map the event body into the <code>input</code> argument and the event headers into the <code>headers</code> argument.
+The <code>instance</code> argument informs your function which worker is serving the current request.</p>
+<p>Similarly, you can also write a "suspend function" in Kotlin like this:</p>
+<pre><code class="language-java">@PreLoad(route = &quot;hello.world&quot;, instances = 10, isPrivate = false, 
+         envInstances = &quot;instances.hello.world&quot;)
+class HelloWorld : KotlinLambdaFunction&lt;Any?, Map&lt;String, Any&gt;&gt; {
+
+    @Throws(Exception::class)
+    override suspend fun handleEvent(headers: Map&lt;String, String&gt;, input: Any?, 
+                                     instance: Int): Map&lt;String, Any&gt; {
+        // business logic here
+        return result;
+    }
+}
+</code></pre>
+<p>In the suspend function example above, you may notice the optional <code>envInstances</code> parameter. This tells the system
+to use a parameter from the application.properties (or application.yml) to configure the number of workers for the
+function. When the parameter defined in "envInstances" is not found, the "instances" parameter is used as the
+default value.</p>
+<h2 id="inspect-event-metadata">Inspect event metadata</h2>
+<p>There are some reserved metadata for route name ("my_route"), trace ID ("my_trace_id") and trace path ("my_trace_path")
+in the "headers" argument. They do not exist in the incoming event envelope. Instead, the system automatically
+insert them as read-only metadata.</p>
+<p>They are used when your code want to obtain an instance of PostOffice or FastRPC.</p>
+<p>To inspect all metadata, you can declare the input as "EventEnvelope". The system will map the whole event envelope
+into the "input" argument. You can retrieve the replyTo address and other useful metadata.</p>
+<p>Note that the "replyTo" address is optional. It only exists when the caller is making an RPC call to your function.
+If the caller sends an asynchronous request, the "replyTo" value is null.</p>
+<h2 id="platform-api">Platform API</h2>
+<p>You can obtain a singleton instance of the Platform object to do the following:</p>
+<h3 id="register-a-function">Register a function</h3>
+<p>We recommend using the <code>PreLoad</code> annotation in a class to declare the function route name, number of worker instances
+and whether the function is public or private.</p>
+<p>In some use cases where you want to create and destroy functions on demand, you can register them programmatically.</p>
+<p>In the following example, it registers "my.function" using the MyFunction class as a public function and 
+"another.function" with the AnotherFunction class as a private function. It then registers two kotlin functions
+in public and private scope respectively.</p>
+<pre><code class="language-java">Platform platform = Platform.getInstance();
+
+// register a public function
+platform.register(&quot;my.function&quot;, new MyFunction(), 10);
+
+// register a private function
+platform.registerPrivate(&quot;another.function&quot;, new AnotherFunction(), 20);
+
+// register a public suspend function
+platform.registerKoltin(&quot;my.suspend.function&quot;, new MySuspendFunction(), 10);
+
+// register a private suspend function
+platform.registerKoltinPrivate(&quot;another.suspend.function&quot;, new AnotherSuspendFunction(), 10);
+</code></pre>
+<h3 id="what-is-a-public-function">What is a public function?</h3>
+<p>A public function is visible by any application instances in the same network. When a function is declared as
+"public", the function is reachable through the EventAPI REST endpoint or a service mesh.</p>
+<p>A private function is invisible outside the memory space of the application instance that it resides.
+This allows application to encapsulate business logic according to domain boundary. You can assemble closely
+related functions as a composable application that can be deployed independently.</p>
+<h3 id="release-a-function">Release a function</h3>
+<p>In some use cases, you want to release a function on-demand when it is no longer required.</p>
+<pre><code class="language-java">platform.release(&quot;another.function&quot;);
+</code></pre>
+<p>The above API will unload the function from memory and release it from the "event loop".</p>
+<h3 id="check-if-a-function-is-available">Check if a function is available</h3>
+<p>You can check if a function with the named route has been deployed.</p>
+<pre><code class="language-java">if (platform.hasRoute(&quot;another.function&quot;)) {
+    // do something
+}
+</code></pre>
+<h3 id="wait-for-a-function-to-be-ready">Wait for a function to be ready</h3>
+<p>Functions are registered asynchronously. For functions registered using the <code>PreLoad</code> annotation, they are available
+to your application when the MainApplication starts.</p>
+<p>For functions that are registered on-demand, you can wait for the function to get ready like this:</p>
+<pre><code class="language-java">Future&lt;Boolean&gt; status = platform.waitForProvider(&quot;cloud.connector&quot;, 10);
+status.onSuccess(ready -&gt; {
+   // business logic when &quot;cloud.connector&quot; is ready 
+});
+</code></pre>
+<p>Note that the "onFailure" method is not required. The onSuccess will return true or false. In the above example,
+your application waits for up to 10 seconds. If the function (i.e. the "provider") is available, the API will invoke
+the "onSuccess" method immediately.</p>
+<h3 id="obtain-the-unique-application-instance-id">Obtain the unique application instance ID</h3>
+<p>When an application instance starts, a unique ID is generated. We call this the "Origin ID".</p>
+<pre><code class="language-java">String originId = po.getOrigin();
+</code></pre>
+<p>When running the application in a minimalist service mesh using Kafka or similar network event stream system,
+the origin ID is used to uniquely identify the application instance.</p>
+<p>The origin ID is automatically appended to the "replyTo" address when making a RPC call over a network event stream
+so that the system can send the response event back to the "originator" or "calling" application instance.</p>
+<h3 id="set-application-personality">Set application personality</h3>
+<p>An application may have one of the following personality:</p>
+<ol>
+<li>REST - the deployed application is user facing</li>
+<li>APP - the deployed application serves business logic</li>
+<li>RESOURCES - this is a resource-tier service. e.g. database service, MQ gateway, legacy service proxy, utility, etc.</li>
+</ol>
+<p>You can change the application personality like this:</p>
+<pre><code class="language-java">// the default value is &quot;APP&quot;
+ServerPersonality.getInstance().setType(ServerPersonality.Type.REST);
+</code></pre>
+<p>The personality setting is for documentation purpose only. It does not affect the behavior of your application.
+It will appear in the application "/info" endpoint.</p>
+<h2 id="postoffice-api">PostOffice API</h2>
+<p>You can obtain an instance of the PostOffice from the input "headers" and "instance" parameters in the input
+arguments of your function.</p>
+<pre><code class="language-java">PostOffice po = new PostOffice(headers, instance);
+</code></pre>
+<p>The PostOffice is the event manager that you can use to send asynchronous events or to make RPC requests.
+The constructor uses the READ only metadata in the "headers" argument in the "handleEvent" method of your function.</p>
+<h3 id="send-an-asynchronous-event-to-a-function">Send an asynchronous event to a function</h3>
+<p>You can send an asynchronous event like this.</p>
+<pre><code class="language-java">// example-1
+po.send(&quot;another.function&quot;, &quot;test message&quot;);
+
+// example-2
+po.send(&quot;another.function&quot;, new Kv(&quot;some_key&quot;, &quot;some_value&quot;), new kv(&quot;another_key&quot;, &quot;another_value&quot;));
+
+// example-3
+po.send(&quot;another.function&quot;, somePoJo, new Kv(&quot;some_key&quot;, &quot;some_value&quot;));
+
+// example-4
+EventEnvelope event = new EventEnvelope().setTo(&quot;another.function&quot;)
+                            .setHeader(&quot;some_key&quot;, &quot;some_value&quot;).setBody(somePoJo);
+po.send(event)
+
+// example-5
+po.sendLater(event, new Date(System.currentTimeMillis() + 5000));
+</code></pre>
+<ol>
+<li>Example-1 sends the text string "test message" to the target service named "another.function".</li>
+<li>Example-2 sends two key-values as "headers" parameters to the same service.</li>
+<li>Example-3 sends a PoJo and a key-value pair to the same service.</li>
+<li>Example-4 is the same as example-3. It is using an EventEnvelope to construct the request.</li>
+<li>Example-5 schedules an event to be sent 5 seconds later.</li>
+</ol>
+<p>The first 3 APIs are convenient methods and the system will automatically create an EventEnvelope to hold the
+target route name, key-values and/or event payload.</p>
+<h3 id="make-an-asynchronous-rpc-call">Make an asynchronous RPC call</h3>
+<p>You can make RPC call like this:</p>
+<pre><code class="language-java">// example-1
+EventEnvelope request = new EventEnvelope().setTo(&quot;another.function&quot;)
+                            .setHeader(&quot;some_key&quot;, &quot;some_value&quot;).setBody(somePoJo);
+Future&lt;EventEnvelope&gt; response = po.asyncRequest(request, 5000);
+response.onSuccess(result -&gt; {
+    // result is the response event
+});
+response.onFailure(e -&gt; {
+    // handle timeout exception
+});
+
+// example-2
+Future&lt;EventEnvelope&gt; response = po.asyncRequest(request, 5000, false);
+response.onSuccess(result -&gt; {
+    // result is the response event
+    // Timeout exception is returned as a response event with status=408
+});
+
+// example-3 with the &quot;rpc&quot; boolean parameter set to true
+Future&lt;EventEnvelope&gt; response = po.asyncRequest(request, 5000, &quot;http://peer/api/event&quot;, true);
+response.onSuccess(result -&gt; {
+    // result is the response event
+});
+response.onFailure(e -&gt; {
+    // handle timeout exception
+});
+</code></pre>
+<ol>
+<li>Example-1 makes a RPC call with a 5-second timeout to "another.function".</li>
+<li>Example-2 sets the "timeoutException" to false, telling system to return timeout exception as a regular event.</li>
+<li>Example-3 makes an "event over HTTP" RPC call to "another.function" in another application instance called "peer".</li>
+</ol>
+<p>"Event over HTTP" is an important topic. Please refer to <a href="../CHAPTER-7/">Chapter 7</a> for more details.</p>
+<h3 id="perform-a-fork-n-join-rpc-call-to-multiple-functions">Perform a fork-n-join RPC call to multiple functions</h3>
+<p>In a similar fashion, you can make a fork-n-join call that sends request events in parallel to more than one function.</p>
+<pre><code class="language-java">// example-1
+EventEnvelope request1 = new EventEnvelope().setTo(&quot;this.function&quot;)
+                            .setHeader(&quot;hello&quot;, &quot;world&quot;).setBody(&quot;test message&quot;);
+EventEnvelope request2 = new EventEnvelope().setTo(&quot;that.function&quot;)
+                            .setHeader(&quot;good&quot;, &quot;day&quot;).setBody(somePoJo);
+List&lt;EventEnvelope&gt; requests = new ArrayList&lt;&gt;();
+requests.add(request1);
+requests.add(request2);
+Future&lt;List&lt;EventEnvelope&gt;&gt; responses = po.asyncRequest(requests, 5000);
+response.onSuccess(results -&gt; {
+    // results contains the response events
+});
+response.onFailure(e -&gt; {
+    // handle timeout exception
+});
+
+// example-2
+Future&lt;List&lt;EventEnvelope&gt;&gt; responses = po.asyncRequest(requests, 5000, false);
+response.onSuccess(results -&gt; {
+    // results contains the response events.
+    // Partial result list is returned if one or more functions did not respond.
+});
+</code></pre>
+<h3 id="make-a-sequential-non-blocking-rpc-call">Make a sequential non-blocking RPC call</h3>
+<p>You can make a sequential non-blocking RPC call from one function to another. The FastRPC is similar to the PostOffice.
+It is the event manager for KotlinLambdaFunction. You can create an instance of the FastRPC using the "headers"
+parameters in the input arguments of your function.</p>
+<pre><code class="language-kotlin">val fastRPC = new FastRPC(headers)
+val request = EventEnvelope().setTo(&quot;another.function&quot;)
+                            .setHeader(&quot;some_key&quot;, &quot;some_value&quot;).setBody(somePoJo)
+// example-1
+val response = fastRPC.awaitRequest(request, 5000)
+// handle the response event
+
+// example-2 with the &quot;rpc&quot; boolean parameter set to true
+val response = fastRPC.awaitRequest(request, 5000, &quot;http://peer/api/event&quot;, true)
+// handle the response event
+</code></pre>
+<ol>
+<li>Example-1 performs a non-blocking RPC call</li>
+<li>Example-2 makes a non-blocking "Event Over HTTP" RPC call</li>
+</ol>
+<p>Note that timeout exception is returned as a regular event with status 408.</p>
+<p>Sequential non-blocking code is easier to read. Moreover, it handles more concurrent users and requests
+without consuming a lot of CPU resources because it is "suspended" while waiting for a response from another function.</p>
+<h3 id="perform-a-sequential-non-blocking-fork-n-join-call-to-multiple-functions">Perform a sequential non-blocking fork-n-join call to multiple functions</h3>
+<p>You can make a sequential non-blocking fork-n-join call using the FastRPC API like this:</p>
+<pre><code class="language-kotlin">val fastRPC = FastRPC(headers)
+val template = EventEnvelope().setTo(&quot;hello.world&quot;).setHeader(&quot;someKey&quot;, &quot;someValue&quot;)
+val requests  = ArrayList&lt;EventEnvelope&gt;()
+// create a list of 4 request events
+for (i in 0..3) {
+    requests.add(EventEnvelope(template.toBytes()).setBody(i).setCorrelationId(&quot;cid-$i&quot;))
+}
+val responses: List&lt;EventEnvelope&gt; = fastRPC.awaitRequest(requests, 5000)
+// handle the response events
+</code></pre>
+<p>In the above example, the function creates a list of request events from a template event with target service
+"hello.world". It sets the number 0 to 3 to the individual events with unique correlation IDs.</p>
+<p>The response events contain the same set of correlation IDs so that your business logic can decide how to
+handle individual response event.</p>
+<p>The result may be a partial list of response events if one or more functions failed to respond on time.</p>
+<h3 id="check-if-a-function-with-a-named-route-exists">Check if a function with a named route exists</h3>
+<p>The PostOffice provides the "exists()" method that is similar to the "platform.hasRoute()" command.</p>
+<p>The difference is that the "exists()" method can discover functions of another application instance when running
+in the "service mesh" mode.</p>
+<p>If your application is not deployed in a service mesh, the PostOffice's "exists" and Platform's "hasRoute" APIs
+will provide the same result.</p>
+<pre><code class="language-java">boolean found = po.exists(&quot;another.function&quot;);
+if (found) {
+    // do something
+}
+</code></pre>
+<h3 id="retrieve-trace-id-and-path">Retrieve trace ID and path</h3>
+<p>If you want to know the route name and optional trace ID and path, you can use the following APIs.</p>
+<p>For example, if tracing is enabled, the trace ID will be available. You can put the trace ID in application log
+messages. This would group log messages of the same transaction together when you search the trace ID from 
+a centralized logging dashboard such as Splunk.</p>
+<pre><code class="language-java">String myRoute = po.getRoute();
+String traceId = po.getTraceId();
+String tracePath = po.getTracePath();
+</code></pre>
+<h2 id="trace-annotation">Trace annotation</h2>
+<p>You can use the PostOffice instance to annotate a trace in your function like this:</p>
+<pre><code class="language-java">// annotate a trace with the key-value &quot;hello:world&quot;
+po.annotateTrace(&quot;hello&quot;, &quot;world&quot;);
+</code></pre>
+<p>This is useful when you want to attach transaction specific information in the performance metrics.
+For example, the traces may be used in production transaction analytics.</p>
+<blockquote>
+<p>IMPORTANT: do not annotate sensitive or secret information such as PII, PHI, PCI data because 
+             the trace is visible in application log. It may also be forwarded to a centralized
+             telemetry dashboard. </p>
+</blockquote>
+<h2 id="configuration-api">Configuration API</h2>
+<p>Your function can access the main application configuration from the platform like this:</p>
+<pre><code class="language-java">AppConfigReader config = AppConfigReader.getInstance();
+// the value can be string or a primitive
+Object value = config.get('my.parameter');
+// the return value will be converted to a string
+String text = config.getProperty('my.parameter');
+</code></pre>
+<p>The system uses the standard dot-bracket format for a parameter name.</p>
+<blockquote>
+<p>e.g. "hello.world", "some.key[2]"</p>
+</blockquote>
+<p>You can override the main application configuration at run-time using the Java argument "-D".</p>
+<blockquote>
+<p>e.g. "java -Dserver.port=8080 -jar myApp.jar"</p>
+</blockquote>
+<p>Additional configuration files can be added with the <code>ConfigReader</code> API like this:</p>
+<pre><code class="language-java">// filePath should have location prefix &quot;classpath:/&quot; or &quot;file:/&quot;
+ConfigReader reader = new ConfigReader();
+reader.load(filePath);
+</code></pre>
+<p>The configuration system supports environment variable or reference to the main application configuration
+using the dollar-bracket syntax <code>${reference:default_value}</code>.</p>
+<blockquote>
+<p>e.g. "some.key=${MY_ENV_VARIABLE}", "some.key=${my.key}"</p>
+</blockquote>
+<h2 id="custom-serializer">Custom serializer</h2>
+<p>We are using GSON as the underlying serializer to handle common use cases. However, there may be
+situation that you want to use your own custom serialization library.</p>
+<p>To do that, you may write a serializer that implements the CustomSerializer interface:</p>
+<pre><code class="language-java">public interface CustomSerializer {
+
+    public Map&lt;String, Object&gt; toMap(Object obj);
+
+    public &lt;T&gt; T toPoJo(Object obj, Class&lt;T&gt; toValueType);
+
+}
+</code></pre>
+<p>You may configure a user function to use a custom serializer by adding the "customSerializer" parameter
+in the <code>PreLoad</code> annotation. For example,</p>
+<pre><code class="language-java">@PreLoad(route=&quot;my.user.function&quot;, customSerializer = JacksonSerializer.class)
+public class MyUserFunction implements TypedLambdaFunction&lt;SimplePoJo, SimplePoJo&gt; {
+    @Override
+    public SimplePoJo handleEvent(Map&lt;String, String&gt; headers, SimplePoJo input, int instance) {
+        return input;
+    }
+}
+</code></pre>
+<p>If you register your function dynamically in code, you can use the following <code>platform API</code> to assign
+a custom serializer.</p>
+<pre><code class="language-java">public void setCustomSerializer(String route, CustomSerializer mapper);
+// e.g.
+// platform.setCustomSerializer(&quot;my.function&quot;, new JacksonSerializer());
+</code></pre>
+<p>If you use the PostOffice to programmatically send event or make event RPC call and you need
+custom serializer, you can create a PostOffice instance like this:</p>
+<pre><code class="language-java">// this should be the first statement in the &quot;handleEvent&quot; method.
+PostOffice po = new PostOffice(headers, instance, new MyCustomSerializer());
+</code></pre>
+<p>The outgoing event using the PostOffice will use the custom serializer automatically.
+To interpret an event response from a RPC call, you can use the following PostOffice API:</p>
+<pre><code class="language-java">MyPoJo result = po.getResponseBodyAsPoJo(responseEvent, MyPoJo.class);
+</code></pre>
+<h2 id="minimalist-api-design-for-event-orchestration">Minimalist API design for event orchestration</h2>
+<p>As a best practice, we advocate a minimalist approach in API integration.
+To build powerful composable applications, the above set of APIs is sufficient to perform
+"event orchestration" where you write code to coordinate how the various functions work together as a
+single "executable". Please refer to <a href="../CHAPTER-4/">Chapter-4</a> for more details about event orchestration. </p>
+<p>Since Mercury is used in production installations, we will exercise the best effort to keep the core API stable.</p>
+<p>Other APIs in the toolkits are used internally to build the engine itself, and they may change from time to time.
+They are mostly convenient methods and utilities. The engine is fully encapsulated and any internal API changes
+are not likely to impact your applications.</p>
+<h2 id="optional-event-scripting">Optional Event Scripting</h2>
+<p>To further reduce coding effort, you can perform "event orchestration" by configuration using "Event Script".
+It is available as an enterprise add-on module from Accenture.</p>
+<h2 id="co-existence-with-other-development-frameworks">Co-existence with other development frameworks</h2>
+<p>Mercury libraries are designed to co-exist with your favorite frameworks and tools. Inside a class implementing
+the <code>LambdaFunction</code>, <code>TypedLambdaFunction</code> or <code>KotlinLambdaFunction</code>, you can use any coding style and frameworks
+as you like, including sequential, object-oriented and reactive programming styles.</p>
+<p>Mercury version 3 has a built-in lightweight non-blocking HTTP server, but you can also use Spring Boot and other
+application server framework with it.</p>
+<p>A sample Spring Boot integration is provided in the "rest-spring" project. It is an optional feature, and you can
+decide to use a regular Spring Boot application with Mercury or to pick the customized Spring Boot in the
+"rest-spring" library.</p>
+<h2 id="template-application-for-quick-start">Template application for quick start</h2>
+<p>You can use the <code>lambda-example</code> project as a template to start writing your own applications. It is preconfigured
+to support kernel threads, coroutine and suspend function.</p>
+<h2 id="source-code-update-frequency">Source code update frequency</h2>
+<p>This project is licensed under the Apache 2.0 open sources license. We will update the public codebase after
+it passes regression tests and meets stability and performance benchmarks in our production systems.</p>
+<p>Mercury is developed as an engine for you to build the latest cloud native and composable applications.
+While we are updating the technology frequently, the essential internals and the core APIs are stable.</p>
+<p>We are monitoring the progress of the upcoming Java 19 Virtual Thread feature and will include it in our API
+when it becomes officially available.</p>
+<h2 id="technical-support">Technical support</h2>
+<p>For enterprise clients, optional technical support is available. Please contact your Accenture representative
+for details.
+<br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-8</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Chapter-10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-8/">Service Mesh</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../CHAPTER-10/">Migration Guide</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-8/" class="btn btn-neutral float-left" title="Chapter-8"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../CHAPTER-10/" class="btn btn-neutral float-right" title="Chapter-10">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-8/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../CHAPTER-10/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

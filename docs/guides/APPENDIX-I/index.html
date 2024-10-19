@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://github.com/accenture/mercury/guides/APPENDIX-I/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Appendix-I - Mercury</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Appendix-I";
+        var mkdocs_page_input_path = "guides/APPENDIX-I.md";
+        var mkdocs_page_url = "/accenture/mercury/guides/APPENDIX-I/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Mercury
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../TABLE-OF-CONTENTS/">Contents</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-1/">Chapter-1</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-2/">Chapter-2</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-3/">Chapter-3</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-4/">Chapter-4</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-5/">Chapter-5</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-6/">Chapter-6</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-7/">Chapter-7</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-8/">Chapter-8</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-9/">Chapter-9</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../CHAPTER-10/">Chapter-10</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Appendix-I</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#base-configuration-files">Base configuration files</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#partial-support-of-spring-active-profiles">Partial support of Spring Active Profiles</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#special-handling-for-properties-file">Special handling for PROPERTIES file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#optional-service">Optional Service</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-II/">Appendix-II</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../APPENDIX-III/">Appendix-III</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CHANGELOG/">Release notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../arch-decisions/DESIGN-NOTES/">Design notes</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../INCLUSIVITY/">Inclusivity</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CODE_OF_CONDUCT/">Code of Conduct</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../CONTRIBUTING/">Contribution</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../ROADMAP/">Roadmap</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Mercury</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Appendix-I</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="application-configuration">Application Configuration</h1>
+<p>The following parameters are used by the system. You can define them in either the application.properties or
+application.yml file.</p>
+<p>When you use both application.properties and application.yml, the parameters in application.properties will take
+precedence.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Value (example)</th>
+<th style="text-align: left;">Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">application.name</td>
+<td style="text-align: left;">Application name</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">spring.application.name</td>
+<td style="text-align: left;">Alias for application name</td>
+<td style="text-align: left;">Yes*1</td>
+</tr>
+<tr>
+<td style="text-align: left;">info.app.version</td>
+<td style="text-align: left;">major.minor.build (e.g. 1.0.0)</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">info.app.description</td>
+<td style="text-align: left;">Something about your application</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">web.component.scan</td>
+<td style="text-align: left;">your own package path or parent path</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">server.port</td>
+<td style="text-align: left;">e.g. 8083</td>
+<td style="text-align: left;">Yes*1</td>
+</tr>
+<tr>
+<td style="text-align: left;">rest.server.port</td>
+<td style="text-align: left;">e.g. 8085</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">websocket.server.port</td>
+<td style="text-align: left;">Alias for rest.server.port</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">rest.automation</td>
+<td style="text-align: left;">true if you want to enable automation</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.rest.automation</td>
+<td style="text-align: left;">Config location. e.g. classpath:/rest.yaml</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.event.over.http</td>
+<td style="text-align: left;">Config location classpath:/event-over-http.yaml</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.multicast</td>
+<td style="text-align: left;">Config location classpath:/multicast.yaml</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.journal</td>
+<td style="text-align: left;">Config location classpath:/journal.yaml</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.route.substitution</td>
+<td style="text-align: left;">Config location</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.topic.substitution</td>
+<td style="text-align: left;">Config location</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.cron</td>
+<td style="text-align: left;">Config location</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">yaml.flow.automation</td>
+<td style="text-align: left;">Config location. e.g. classpath:/flows.yaml</td>
+<td style="text-align: left;">EventScript</td>
+</tr>
+<tr>
+<td style="text-align: left;">static.html.folder</td>
+<td style="text-align: left;">classpath:/public/</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">spring.web.resources.static-locations</td>
+<td style="text-align: left;">(alias for static.html.folder)</td>
+<td style="text-align: left;">Yes*1</td>
+</tr>
+<tr>
+<td style="text-align: left;">mime.types</td>
+<td style="text-align: left;">Map of file extensions to MIME types<br/>(application.yml only)</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">spring.mvc.static-path-pattern</td>
+<td style="text-align: left;">/**</td>
+<td style="text-align: left;">Yes*1</td>
+</tr>
+<tr>
+<td style="text-align: left;">jax.rs.application.path</td>
+<td style="text-align: left;">/api</td>
+<td style="text-align: left;">Optional*</td>
+</tr>
+<tr>
+<td style="text-align: left;">show.env.variables</td>
+<td style="text-align: left;">comma separated list of variable names</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">show.application.properties</td>
+<td style="text-align: left;">comma separated list of property names</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">cloud.connector</td>
+<td style="text-align: left;">kafka, none, etc.</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">cloud.services</td>
+<td style="text-align: left;">e.g. some.interesting.service</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">snake.case.serialization</td>
+<td style="text-align: left;">true (recommended)</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">safe.data.models</td>
+<td style="text-align: left;">packages pointing to your PoJo classes</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">protect.info.endpoints</td>
+<td style="text-align: left;">true to disable actuators. Default: true</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">trace.http.header</td>
+<td style="text-align: left;">comma separated list. Default "X-Trace-Id"</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">index.redirection</td>
+<td style="text-align: left;">comma separated list of URI paths</td>
+<td style="text-align: left;">Optional*</td>
+</tr>
+<tr>
+<td style="text-align: left;">index.page</td>
+<td style="text-align: left;">default is index.html</td>
+<td style="text-align: left;">Optional*</td>
+</tr>
+<tr>
+<td style="text-align: left;">hsts.feature</td>
+<td style="text-align: left;">default is true</td>
+<td style="text-align: left;">Optional*</td>
+</tr>
+<tr>
+<td style="text-align: left;">application.feature.route.substitution</td>
+<td style="text-align: left;">default is false</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">application.feature.topic.substitution</td>
+<td style="text-align: left;">default is false</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">kafka.replication.factor</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Kafka</td>
+</tr>
+<tr>
+<td style="text-align: left;">cloud.client.properties</td>
+<td style="text-align: left;">e.g. classpath:/kafka.properties</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">user.cloud.client.properties</td>
+<td style="text-align: left;">e.g. classpath:/second-kafka.properties</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">default.app.group.id</td>
+<td style="text-align: left;">groupId for the app instance.<br/>Default: appGroup</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">default.monitor.group.id</td>
+<td style="text-align: left;">groupId for the presence-monitor.<br/>Default: monitorGroup</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">monitor.topic</td>
+<td style="text-align: left;">topic for the presence-monitor.<br/>Default: service.monitor</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">app.topic.prefix</td>
+<td style="text-align: left;">Default: multiplex (DO NOT change)</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">app.partitions.per.topic</td>
+<td style="text-align: left;">Max Kafka partitions per topic.<br/>Default: 32</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">max.virtual.topics</td>
+<td style="text-align: left;">Max virtual topics = partitions * topics.<br/> Default: 288</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">max.closed.user.groups</td>
+<td style="text-align: left;">Number of closed user groups. <br/>Default: 10, range: 3 - 30</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">closed.user.group</td>
+<td style="text-align: left;">Closed user group. Default: 1</td>
+<td style="text-align: left;">Connector</td>
+</tr>
+<tr>
+<td style="text-align: left;">transient.data.store</td>
+<td style="text-align: left;">Default is "/tmp/reactive"</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">running.in.cloud</td>
+<td style="text-align: left;">Default is false (set to true if containerized)</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">deferred.commit.log</td>
+<td style="text-align: left;">Default is false (for unit tests only)</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+<tr>
+<td style="text-align: left;">kernel.thread.pool</td>
+<td style="text-align: left;">Default 100. Not more than 200.</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+</tbody>
+</table>
+<p><code>*</code> - when using the "rest-spring" library</p>
+<h2 id="base-configuration-files">Base configuration files</h2>
+<p>By default, the system assumes the following application configuration files:</p>
+<ol>
+<li>application.properties</li>
+<li>application.yml</li>
+</ol>
+<p>You can change this behavior by adding the <code>app-config-reader.yml</code> in your project's <code>resources</code> folder.</p>
+<pre><code class="language-yaml">resources:
+  - application.properties
+  - application.yml
+</code></pre>
+<p>You can tell the system to load application configuration from different set of files.
+You can use either PROPERTIES or YAML files. YAML files can use "yml" or "yaml" extension.</p>
+<p>For example, you may use only "application.yml" file without scanning application.properties.</p>
+<h2 id="partial-support-of-spring-active-profiles">Partial support of Spring Active Profiles</h2>
+<p>When the parameter "spring.profiles.active" is available in application.properties or application.yml,
+the AppConfigReader will try to load the additional configuration files.</p>
+<p>For example, if "spring.profiles.active=dev", the system will load "application-dev.properties"
+and "application-dev.yml" accordingly.</p>
+<p>When more than one active profile is needed, you can use a comma separated list of profiles in
+"spring.profiles.active".</p>
+<p>For Spring Boot compatibility, the filename prefix "application-" is fixed.</p>
+<h2 id="special-handling-for-properties-file">Special handling for PROPERTIES file</h2>
+<p>Since application.properties and application.yml can be used together, 
+the system must enforce keyspace uniqueness because YAML keyspaces are hierarchical.</p>
+<p>For example, if you have x.y and x.y.z, x.y is the parent of x.y.z.</p>
+<p>Therefore, you cannot set a value for the parent key since the parent is a key-value container.</p>
+<p>This hierarchical rule is enforced for PROPERTIES files.
+If you have x.y=3 and x.y.z=2 in the same PROPERTIES file, x.y will become a parent of x.y.z and its intended
+value of 3 will be lost.</p>
+<h2 id="optional-service">Optional Service</h2>
+<p>The <code>OptionalService</code> annotation may be used with the following class annotations:</p>
+<ol>
+<li>BeforeApplication</li>
+<li>MainApplication</li>
+<li>PreLoad</li>
+<li>WebSocketService</li>
+</ol>
+<p>When the OptionalService annotation is available, the system will evaluate the annotation value as a
+conditional statement where it supports one or more simple condition using a key-value in the application
+configuration.</p>
+<p>For examples:</p>
+<p>OptionalService("rest.automation") - the class will be loaded when rest.automation=true</p>
+<p>OptionalService("!rest.automation") - the class will be loaded when rest.automation is false or non-exist</p>
+<p>OptionalService("interesting.key=100") - the system will load the class when "interesting.key" is set to 100
+in application configuration.</p>
+<p>To specify more than one condition, use a comma separated list as the value like this:
+OptionalService("web.socket.enabled, rest.automation") - this tells the system to load the class when 
+either web.socket.enabled or rest.automation is true.</p>
+<h1 id="static-html-contents">Static HTML contents</h1>
+<p>You can place static HTML files (e.g. the HTML bundle for a UI program) in the "resources/public" folder or
+in the local file system using the "static.html.folder" parameter.</p>
+<p>The system supports a bare minimal list of file extensions to MIME types. If your use case requires additional
+MIME type mapping, you may define them in the <code>application.yml</code> configuration file under the <code>mime.types</code> 
+section like this:</p>
+<pre><code class="language-yaml">mime.types:
+  pdf: 'application/pdf'
+  doc: 'application/msword'
+</code></pre>
+<p>Note that application.properties file cannot be used for the "mime.types" section because it only supports text
+key-values.</p>
+<h1 id="http-and-websocket-port-assignment">HTTP and websocket port assignment</h1>
+<p>If <code>rest.automation=true</code> and <code>rest.server.port or server.port</code> are configured, the system will start
+a lightweight non-blocking HTTP server. If <code>rest.server.port</code> is not available, it will fall back to <code>server.port</code>.</p>
+<p>If <code>rest.automation=false</code> and you have a websocket server endpoint annotated as <code>WebsocketService</code>, the system
+will start a non-blocking Websocket server with a minimalist HTTP server that provides actuator services.
+If <code>websocket.server.port</code> is not available, it will fall back to <code>rest.server.port</code> or <code>server.port</code>.</p>
+<p>If you add Spring Boot dependency, Spring Boot will use <code>server.port</code> to start Tomcat or similar HTTP server.</p>
+<p>The built-in lightweight non-blocking HTTP server and Spring Boot can co-exist when you configure
+<code>rest.server.port</code> and <code>server.port</code> to use different ports.</p>
+<p>Note that the <code>websocket.server.port</code> parameter is an alias of <code>rest.server.port</code>.</p>
+<h1 id="transient-data-store">Transient data store</h1>
+<p>The system handles back-pressure automatically by overflowing events from memory to a transient data store. 
+As a cloud native best practice, the folder must be under "/tmp". The default is "/tmp/reactive". 
+The "running.in.cloud" parameter must be set to false when your apps are running in IDE or in your laptop. 
+When running in kubernetes, it can be set to true.</p>
+<h1 id="the-safedatamodels-parameter">The safe.data.models parameter</h1>
+<p>PoJo may contain Java code. As a result, it is possible to inject malicious code that does harm when 
+deserializing a PoJo. This security risk applies to any JSON serialization engine.</p>
+<p>For added security and peace of mind, you may want to protect your PoJo package paths.
+When the <code>safe.data.models</code> parameter is configured, the underlying serializers for JAX-RS, Spring RestController
+and Servlets will respect this setting and enforce PoJo filtering.</p>
+<p>If there is a genuine need to programmatically perform serialization, you may use the pre-configured serializer 
+so that the serialization behavior is consistent.</p>
+<p>You can get an instance of the serializer with <code>SimpleMapper.getInstance().getMapper()</code>.</p>
+<p>The serializer may perform snake case or camel serialization depending on the parameter <code>snake.case.serialization</code>.</p>
+<p>If you want to ensure snake case or camel, you can select the serializer like this:</p>
+<pre><code class="language-text">SimpleObjectMapper snakeCaseMapper = SimpleMapper.getInstance().getSnakeCaseMapper();
+SimpleObjectMapper camelCaseMapper = SimpleMapper.getInstance().getCamelCaseMapper();
+</code></pre>
+<h1 id="the-tracehttpheader-parameter">The trace.http.header parameter</h1>
+<p>The <code>trace.http.header</code> parameter sets the HTTP header for trace ID. When configured with more than one label,
+the system will retrieve trace ID from the corresponding HTTP header and propagate it through the transaction
+that may be served by multiple services.</p>
+<p>If trace ID is presented in an HTTP request, the system will use the same label to set HTTP response traceId header.</p>
+<pre><code class="language-text">X-Trace-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+or
+X-Correlation-Id: a9a4e1ec-1663-4c52-b4c3-7b34b3e33697
+</code></pre>
+<h1 id="kafka-specific-configuration">Kafka specific configuration</h1>
+<p>If you use the kafka-connector (cloud connector) and kafka-presence (presence monitor), you may want to 
+externalize kafka.properties like this:</p>
+<pre><code class="language-properties">cloud.client.properties=file:/tmp/config/kafka.properties
+</code></pre>
+<p>Note that "classpath" refers to embedded config file in the "resources" folder in your source code and "file" 
+refers to an external config file.</p>
+<p>You want also use the embedded config file as a backup like this:</p>
+<pre><code class="language-properties">cloud.client.properties=file:/tmp/config/kafka.properties,classpath:/kafka.properties
+</code></pre>
+<h1 id="distributed-trace">Distributed trace</h1>
+<p>To enable distributed trace logging, please set this in log4j2.xml:</p>
+<pre><code>&lt;logger name=&quot;org.platformlambda.core.services.DistributedTrace&quot; level=&quot;INFO&quot; /&gt;
+</code></pre>
+<h1 id="built-in-xml-serializer">Built-in XML serializer</h1>
+<p>The platform-core includes built-in serializers for JSON and XML in the AsyncHttpClient, JAX-RS and
+Spring RestController. The XML serializer is designed for simple use cases. If you need to handle more
+complex XML data structure, you can disable the XML serializer by adding the following HTTP request
+header.</p>
+<pre><code>X-Raw-Xml=true
+</code></pre>
+<p><br/></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Chapter-10</th>
+<th style="text-align: center;">Home</th>
+<th style="text-align: center;">Appendix-II</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="../CHAPTER-10/">Migration Guide</a></td>
+<td style="text-align: center;"><a href="../TABLE-OF-CONTENTS/">Table of Contents</a></td>
+<td style="text-align: center;"><a href="../APPENDIX-II/">Reserved Route Names</a></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../CHAPTER-10/" class="btn btn-neutral float-left" title="Chapter-10"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../APPENDIX-II/" class="btn btn-neutral float-right" title="Appendix-II">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../CHAPTER-10/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../APPENDIX-II/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
