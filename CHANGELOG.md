@@ -8,7 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 3.0.16, 8/31/2024
+## Version 4.0.18, 10/18/2024
+
+### Added
+
+Added Kafka Raft for the Kafka-standalone app.
+
+### Removed
+
+Removed zookeeper from Kafka-standalone app.
+
+### Changed
+
+N/A
+
+---
+## Version 3.0.17, 10/9/2024
 
 ### Added
 

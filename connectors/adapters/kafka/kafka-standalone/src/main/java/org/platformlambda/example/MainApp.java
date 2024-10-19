@@ -21,52 +21,19 @@ package org.platformlambda.example;
 import org.platformlambda.core.annotations.MainApplication;
 import org.platformlambda.core.models.EntryPoint;
 import org.platformlambda.core.system.AutoStart;
-import org.platformlambda.core.util.Utility;
 import org.platformlambda.system.EmbeddedKafka;
-import org.platformlambda.system.EmbeddedZk;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @MainApplication
 public class MainApp implements EntryPoint {
-    private static final Logger log = LoggerFactory.getLogger(MainApp.class);
 
     public static void main(String[] args) {
         AutoStart.main(args);
     }
 
     @Override
-    public void start(String[] args) throws InterruptedException {
-        if (zkRunning()) {
-            log.error("Application quits because another standalone instance is running");
-            System.exit(-1);
-        } else {
-            // start zookeeper
-            EmbeddedZk zk = new EmbeddedZk();
-            zk.start();
-            int timeout = 10;
-            if (!zkReady(timeout)) {
-                log.error("Application quits because standalone zookeeper does not start in {} seconds", timeout);
-                zk.shutdown();
-                System.exit(-1);
-            }
-            // start Kafka single node
-            EmbeddedKafka kafka = new EmbeddedKafka(zk);
-            kafka.start();
-        }
-    }
-
-    private boolean zkReady(int seconds) throws InterruptedException {
-        int seq = seconds;
-        while (seq > 0 && !zkRunning()) {
-            seq--;
-            Thread.sleep(1000);
-        }
-        return zkRunning();
-    }
-
-    private boolean zkRunning() {
-        return Utility.getInstance().portReady("127.0.0.1", 2181, 5000);
+    public void start(String[] args) {
+        EmbeddedKafka kafka = new EmbeddedKafka();
+        kafka.start();
     }
 
 }

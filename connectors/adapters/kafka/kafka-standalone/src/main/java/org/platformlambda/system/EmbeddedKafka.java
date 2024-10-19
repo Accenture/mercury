@@ -19,12 +19,11 @@
 package org.platformlambda.system;
 
 import kafka.server.KafkaConfig;
-import kafka.server.KafkaServer;
+import kafka.server.KafkaRaftServer;
 import org.apache.kafka.common.utils.Time;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,12 +33,7 @@ import java.util.Properties;
 public class EmbeddedKafka extends Thread {
     private static final Logger log = LoggerFactory.getLogger(EmbeddedKafka.class);
 
-    private KafkaServer kafka;
-    private final EmbeddedZk zookeeper;
-
-    public EmbeddedKafka(EmbeddedZk zookeeper) {
-        this.zookeeper = zookeeper;
-    }
+    private KafkaRaftServer kafka;
 
     @Override
     public void run() {
@@ -47,17 +41,28 @@ public class EmbeddedKafka extends Thread {
             if (stream == null) {
                 throw new IOException("server.properties is not available as resource");
             }
+            InputStream md = EmbeddedKafka.class.getResourceAsStream("/meta.properties");
+            if (md == null) {
+                throw new IOException("meta.properties is not available as resource");
+            }
+            Utility util = Utility.getInstance();
+            String metadata = util.stream2str(md);
+
             Properties p = new Properties();
             p.load(stream);
             String dir = p.getProperty("log.dirs");
             if (dir != null) {
-                File reset = new File(dir);
-                if (reset.exists() && reset.isDirectory()) {
-                    Utility.getInstance().cleanupDir(reset);
-                    log.info("Clean up transient Kafka working directory at {}", dir);
+                File kafkaLogs = new File(dir);
+                if (kafkaLogs.exists() && kafkaLogs.isDirectory()) {
+                    util.cleanupDir(kafkaLogs);
+                }
+                if (kafkaLogs.mkdirs()) {
+                    File mdFile = new File(kafkaLogs, "meta.properties");
+                    util.str2file(mdFile, metadata);
+                    log.info("Initialize {}", mdFile);
                 }
             }
-            kafka = new KafkaServer(new KafkaConfig(p), Time.SYSTEM, Option.apply("kafka"), false);
+            kafka = new KafkaRaftServer(new KafkaConfig(p), Time.SYSTEM);
             kafka.startup();
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
@@ -68,12 +73,9 @@ public class EmbeddedKafka extends Thread {
     }
 
     private void shutdown() {
-        // orderly shutdown of kafka and zookeeper
+        // orderly shutdown kafka
         log.info("Shutting down");
         kafka.shutdown();
-        zookeeper.shutdown();
     }
-
-
 
 }
