@@ -18,9 +18,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-framework.version>6.1.14</spring-framework.version>
        <snakeyaml.version>2.2</snakeyaml.version>
         <hazelcast.version>5.3.6</hazelcast.version>
-        <kafka.version>3.7.1</kafka.version>
+        <kafka.version>3.8.0</kafka.version>
         <gson.version>2.11.0</gson.version>
         <netty.version>4.1.111.Final</netty.version>
         <slf4j.version>2.0.11</slf4j.version>
