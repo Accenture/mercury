@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2024 Accenture Technology
+    Copyright 2018-2025 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,35 +36,29 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * This is reserved for system use.
+ * DO NOT use this directly in your application code.
+ * <p>
  * Websocket request handler
  */
 public class WsRequestHandler implements Handler<ServerWebSocket> {
     private static final Logger log = LoggerFactory.getLogger(WsRequestHandler.class);
-
+    private static final CryptoApi crypto = new CryptoApi();
     private static final String HOUSEKEEPER = "system.ws.server.cleanup";
     private static final String IN = ".in";
     private static final String OUT = ".out";
     private static final long HOUSEKEEPING_INTERVAL = 10 * 1000L;      // 10 seconds
-
-    private static final CryptoApi crypto = new CryptoApi();
-
     private static final ConcurrentMap<String, WsEnvelope> connections = new ConcurrentHashMap<>();
     private static final AtomicInteger counter = new AtomicInteger(0);
-    private static final AtomicBoolean housekeeperNotRunning = new AtomicBoolean(true);
-
     private final ConcurrentMap<String, LambdaFunction> lambdas;
-    private final List<String> urls = new ArrayList<>();
+    private final List<String> wsPaths;
 
-    public WsRequestHandler(ConcurrentMap<String, LambdaFunction> lambdas) {
+    public WsRequestHandler(ConcurrentMap<String, LambdaFunction> lambdas, List<String> wsPaths) {
         this.lambdas = lambdas;
-        urls.addAll(lambdas.keySet());
-        if (urls.size() > 1) {
-            urls.sort(Comparator.reverseOrder());
-        }
+        this.wsPaths = new ArrayList<>(wsPaths);
         Platform platform = Platform.getInstance();
         IdleCheck idle = new IdleCheck();
         platform.getVertx().setPeriodic(HOUSEKEEPING_INTERVAL, t -> idle.removeExpiredConnections());
@@ -80,10 +74,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
     public void handle(ServerWebSocket ws) {
         String uri = ws.path().trim();
         String path = findPath(uri);
-        if (path == null) {
-            ws.reject();
-        } else {
-            ws.accept();
+        if (path != null) {
             final Platform platform = Platform.getInstance();
             final EventEmitter po = EventEmitter.getInstance();
             final String ip = ws.remoteAddress().hostAddress();
@@ -102,17 +93,13 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
             try {
                 platform.registerPrivate(rxPath, lambdas.get(path), 1);
                 platform.registerPrivate(txPath, new WsServerTransmitter(ws), 1);
-            } catch (IOException e) {
-                log.error("Unable to register websocket session", e);
-            }
-            try {
                 po.send(rxPath, new Kv(WsEnvelope.TYPE, WsEnvelope.OPEN),
                         new Kv(WsEnvelope.ROUTE, rxPath), new Kv(WsEnvelope.TX_PATH, txPath),
                         new Kv(WsEnvelope.IP, ip), new Kv(WsEnvelope.PATH, path),
                         new Kv(WsEnvelope.QUERY, query),
                         new Kv(WsEnvelope.TOKEN, token));
             } catch (IOException e) {
-                log.error("Unable to send 'open' signal to {} - {}", rxPath, e.getMessage());
+                log.error("Unable to send open signal to {} - {}", rxPath, e.getMessage());
             }
             ws.binaryMessageHandler(b -> {
                 md.touch();
@@ -120,7 +107,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                     po.send(rxPath, b.getBytes(), new Kv(WsEnvelope.TYPE, WsEnvelope.BYTES),
                             new Kv(WsEnvelope.ROUTE, rxPath), new Kv(WsEnvelope.TX_PATH, txPath));
                 } catch (IOException e) {
-                    log.error("Unable to send binary message to {} - {}", rxPath, e.getMessage());
+                    log.warn("Unable to send binary message to {} - {}", rxPath, e.getMessage());
                 }
             });
             ws.textMessageHandler(text -> {
@@ -129,25 +116,27 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                     po.send(rxPath, text, new Kv(WsEnvelope.TYPE, WsEnvelope.STRING),
                             new Kv(WsEnvelope.ROUTE, rxPath), new Kv(WsEnvelope.TX_PATH, txPath));
                 } catch (IOException e) {
-                    log.error("Unable to send text message to {} - {}", rxPath, e.getMessage());
+                    log.warn("Unable to send text message to {} - {}", rxPath, e.getMessage());
                 }
             });
             ws.closeHandler(close -> {
-                connections.remove(session);
                 String reason = ws.closeReason() == null? "ok" : ws.closeReason();
                 log.info("Session {} closed ({}, {})", session, ws.closeStatusCode(), reason);
+                connections.remove(session);
+                // send the close signal to the websocket listener function and then tell housekeeper to clean up
+                EventEnvelope closeSignal = new EventEnvelope().setTo(rxPath);
+                closeSignal.setHeader(WsEnvelope.ROUTE, rxPath)
+                        .setHeader(WsEnvelope.TOKEN, token)
+                        .setHeader(WsEnvelope.CLOSE_CODE, ws.closeStatusCode())
+                        .setHeader(WsEnvelope.CLOSE_REASON, reason)
+                        .setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE)
+                        .setReplyTo(HOUSEKEEPER).setCorrelationId(session);
                 try {
-                    EventEnvelope closing = new EventEnvelope().setTo(rxPath);
-                    // send the close signal to the websocket listener function before closing it
-                    closing.setHeader(WsEnvelope.ROUTE, rxPath)
-                            .setHeader(WsEnvelope.TOKEN, token)
-                            .setHeader(WsEnvelope.CLOSE_CODE, ws.closeStatusCode())
-                            .setHeader(WsEnvelope.CLOSE_REASON, reason)
-                            .setHeader(WsEnvelope.TYPE, WsEnvelope.CLOSE)
-                            .setReplyTo(HOUSEKEEPER).setCorrelationId(session);
-                    po.send(closing);
+                    po.send(closeSignal);
                 } catch (IOException e) {
-                    log.error("Unable to send 'close' signal to {} - {}", rxPath, e.getMessage());
+                    platform.release(rxPath);
+                    platform.release(txPath);
+                    log.error("Unable to send close signal to {} - {}", rxPath, e.getMessage());
                 }
             });
             ws.exceptionHandler(e -> {
@@ -157,11 +146,10 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                 }
             });
         }
-
     }
 
     private String findPath(String path) {
-        for (String u: urls) {
+        for (String u: wsPaths) {
             String prefix = u + "/";
             if (path.startsWith(prefix) && !path.equals(prefix)) {
                 return u;
@@ -184,18 +172,6 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         }
 
         private void removeExpiredConnections() {
-            if (housekeeperNotRunning.compareAndSet(true, false)) {
-                Platform.getInstance().getEventExecutor().submit(() -> {
-                    try {
-                        checkExpiredConnections();
-                    } finally {
-                        housekeeperNotRunning.set(true);
-                    }
-                });
-            }
-        }
-
-        private void checkExpiredConnections() {
             long now = System.currentTimeMillis();
             List<String> sessions = new ArrayList<>();
             for (Map.Entry<String, WsEnvelope> kv : connections.entrySet()) {
@@ -208,7 +184,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
                 WsEnvelope md = connections.get(conn);
                 if (md != null) {
                     connections.remove(conn);
-                    log.warn("Websocket {} expired ({}, {})", md.getPath(), md.getRxPath(), md.getTxPath());
+                    log.warn("Websocket {} expired ({}, {})", md.getUriPath(), md.getRxPath(), md.getTxPath());
                     // drop connection due to inactivity
                     if (!md.getWebSocket().isClosed()) {
                         md.getWebSocket().close((short) 1003, "Idle for " + timeout + " seconds");
@@ -224,8 +200,7 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
         @Override
         public Object handleEvent(Map<String, String> headers, Object input, int instance) {
             if (input instanceof EventEnvelope) {
-                EventEnvelope event = (EventEnvelope) input;
-                String session = event.getCorrelationId();
+                String session = ((EventEnvelope) input).getCorrelationId();
                 if (session != null) {
                     Platform platform = Platform.getInstance();
                     String rxPath = session + IN;
@@ -236,7 +211,5 @@ public class WsRequestHandler implements Handler<ServerWebSocket> {
             }
             return null;
         }
-
     }
-
 }

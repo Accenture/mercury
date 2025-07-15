@@ -35,6 +35,7 @@ import org.platformlambda.core.annotations.WebSocketService;
 import org.platformlambda.core.models.*;
 import org.platformlambda.core.util.*;
 import org.platformlambda.core.websocket.server.MinimalistHttpHandler;
+import org.platformlambda.core.websocket.server.WsHandshakeHandler;
 import org.platformlambda.core.websocket.server.WsRequestHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -345,7 +346,12 @@ public class AppStarter {
                 }
                 // Start websocket server if there are websocket endpoints
                 if (!wsLambdas.isEmpty()) {
-                    server.webSocketHandler(new WsRequestHandler(wsLambdas));
+                    List<String> wsPaths = new ArrayList<>(wsLambdas.keySet());
+                    if (wsPaths.size() > 1) {
+                        Collections.reverse(wsPaths);
+                    }
+                    server.webSocketHandshakeHandler(new WsHandshakeHandler(wsPaths))
+                            .webSocketHandler(new WsRequestHandler(wsLambdas, wsPaths));
                 }
                 server.listen(port)
                 .onSuccess(service -> {

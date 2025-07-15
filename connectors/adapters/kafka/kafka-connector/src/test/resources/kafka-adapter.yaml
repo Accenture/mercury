@@ -1,0 +1,22 @@
+consumer:
+  - topic: 'hello.world'
+    target: 'demo.listener'
+    group: 'group-100'
+    tracing: true
+  - topic: 'hello.notice'
+    target: 'notice.listener'
+    group: 'group-100'
+    tracing: true
+
+producer.enabled: true
+
+#
+# automatically create the following topics if not present
+#
+create:
+  - topic: 'hello.world'
+    partition: 10
+    replication: 1
+  - topic: 'hello.notice'
+    partition: 5
+    replication: 1

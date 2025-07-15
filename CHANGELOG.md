@@ -8,7 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## Version 4.0.18, 10/18/2024
+## Version 3.0.18, 7/14/2025
+
+### Added
+
+Kafka Adapter feature for the Kafka-Connector subproject
+
+### Removed
+
+N/A
+
+### Changed
+
+Updated OSS:
+
+1. Netty version 4.2.2.Final
+2. vertx verson 5.0.1
+3. spring version 3.5.3
+4. guava verion 33.4.8-jre
+5. classgraph version 4.8.180
+6. jacoco version 0.8.13
+
+Spring version 2 should be avoided due to security vulnerabilities reporteed
+
+---
+## Version 3.0.18, 10/18/2024
 
 ### Added
 

@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2018-2024 Accenture Technology
+    Copyright 2018-2025 Accenture Technology
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 package org.platformlambda.automation.models;
 
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -28,7 +27,6 @@ import org.platformlambda.core.util.Utility;
 
 public class OutputStreamQueue implements WriteStream<Buffer> {
     private final ElasticQueue queue = new ElasticQueue("http."+Utility.getInstance().getUuid());
-    private final AcknowledgeResult acknowledgement = new AcknowledgeResult();
 
     public byte[] read() {
         return queue.read();
@@ -46,19 +44,13 @@ public class OutputStreamQueue implements WriteStream<Buffer> {
 
     @Override
     public Future<Void> write(Buffer data) {
-        // no need to implement
-        return null;
+        queue.write(data.getBytes());
+        return Future.succeededFuture();
     }
 
     @Override
-    public void write(Buffer block, Handler<AsyncResult<Void>> handler) {
-        queue.write(block.getBytes());
-        handler.handle(acknowledgement);
-    }
-
-    @Override
-    public void end(Handler<AsyncResult<Void>> handler) {
-        handler.handle(acknowledgement);
+    public Future<Void> end() {
+        return Future.succeededFuture();
     }
 
     @Override
@@ -77,5 +69,4 @@ public class OutputStreamQueue implements WriteStream<Buffer> {
         // no need to implement
         return null;
     }
-
 }
