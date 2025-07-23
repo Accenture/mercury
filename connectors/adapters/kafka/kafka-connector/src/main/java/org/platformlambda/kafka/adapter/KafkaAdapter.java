@@ -22,7 +22,7 @@ import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
-import org.platformlambda.core.annotations.CloudConnector;
+import org.platformlambda.core.annotations.CloudService;
 import org.platformlambda.core.models.CloudSetup;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.util.ConfigReader;
@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-@CloudConnector(name="kafka-adapter")
+@CloudService(name="kafka-adapter")
 public class KafkaAdapter implements CloudSetup {
     private static final Logger log = LoggerFactory.getLogger(KafkaAdapter.class);
 

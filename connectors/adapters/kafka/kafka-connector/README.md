@@ -105,4 +105,4 @@ The use case of handling inbound and outbound messages for Kafka topics are illu
 
 To try the unit test, please run a standalone Kafka server in your development machine before running the
 unit test. A convenient standalone Kafka server is available in the kafka-standalone project under the
-"connnectors/adapter/kafka/kafka-standalone" folder.
+"connectors/adapter/kafka/kafka-standalone" folder.
