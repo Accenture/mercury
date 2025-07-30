@@ -20,8 +20,8 @@ package com.accenture.mock;
 
 import org.platformlambda.core.annotations.OptionalService;
 
-import javax.servlet.*;
-import javax.servlet.annotation.WebFilter;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebFilter;
 import java.io.IOException;
 
 @WebFilter("/none/*")

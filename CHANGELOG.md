@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+
+---
+## Version 2.9.1,  7/29/2025
+
+### Added
+
+N/A
+
+### Removed
+
+N/A
+
+### Changed
+- Bumped to **Spring Boot 3.5.3** on **Java 21**
+- Boot 3 now provides newer Tomcat, Artemis, Jakarta-based Jackson modules by default.
+- Library updates:
+1. Gson 2.11.0
+2. Vert.x 4.5.7
+3. Kafka Clients 3.9.1
+4. Netty 4.2.2.Final
+5. Guava 33.4.8-jre
+6. ClassGraph 4.8.180
+7. MsgPack 0.9.10 
+
 ## Version 2.8.6,  4/15/2024
 
 ### Added

@@ -26,8 +26,8 @@ import org.platformlambda.core.system.PostOffice;
 import org.platformlambda.models.ObjectWithGenericType;
 import org.platformlambda.models.SamplePoJo;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 

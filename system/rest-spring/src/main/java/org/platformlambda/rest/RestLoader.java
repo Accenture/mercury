@@ -32,10 +32,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.stereotype.Component;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletRegistration;
-import javax.ws.rs.Path;
-import javax.ws.rs.ext.Provider;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletRegistration;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.ext.Provider;
 import java.util.*;
 
 @Component
@@ -122,7 +122,7 @@ public class RestLoader implements ServletContextInitializer {
             ServletRegistration.Dynamic reg = servletContext.addServlet(clsName, HttpServlet30Dispatcher.class);
             reg.setLoadOnStartup(1);
             reg.setAsyncSupported(true);
-            // 1. DO NOT set "javax.ws.rs.Application"
+            // 1. DO NOT set "jakarta.ws.rs.Application"
             // 2. Must disable HTML-escape to support HTML and XML output
             reg.setInitParameter(RESTEASY_DISABLE_HTML_ESCAPE, String.valueOf(true));
             // 3. Set context path mapping

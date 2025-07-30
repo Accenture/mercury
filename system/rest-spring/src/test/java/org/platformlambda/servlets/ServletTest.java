@@ -489,7 +489,7 @@ public class ServletTest extends TestBase {
         Assert.assertTrue(error.startsWith("{") && error.endsWith("}"));
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(error, Map.class);
         Assert.assertEquals(404, result.get("status"));
-        Assert.assertEquals("Not Found", result.get("message"));
+        Assert.assertEquals("No static resource no_such_page.", result.get("message"));
     }
 
     @Test

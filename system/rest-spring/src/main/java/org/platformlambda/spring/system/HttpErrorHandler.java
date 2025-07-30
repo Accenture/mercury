@@ -25,9 +25,9 @@ import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.MediaType;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.HashMap;
 
@@ -37,11 +37,11 @@ public class HttpErrorHandler implements ErrorController {
     private static final SimpleXmlWriter xmlWriter = new SimpleXmlWriter();
     private static final String ERROR_PATH = "/error";
     private static final String UTF8 = "utf-8";
-    private static final String REQUEST_URI = "javax.servlet.error.request_uri";
-    private static final String FORWARD_URI = "javax.servlet.forward.request_uri";
-    private static final String ERROR_MESSAGE = "javax.servlet.error.message";
-    private static final String ERROR_EXCEPTION = "javax.servlet.error.exception";
-    private static final String STATUS_CODE = "javax.servlet.error.status_code";
+    private static final String REQUEST_URI = "jakarta.servlet.error.request_uri";
+    private static final String FORWARD_URI = "jakarta.servlet.forward.request_uri";
+    private static final String ERROR_MESSAGE = "jakarta.servlet.error.message";
+    private static final String ERROR_EXCEPTION = "jakarta.servlet.error.exception";
+    private static final String STATUS_CODE = "jakarta.servlet.error.status_code";
     private static final String NOT_FOUND = "Not Found";
 
     private static final String TEMPLATE = "/errorPage.html";
