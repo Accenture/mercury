@@ -18,13 +18,7 @@
 
 package org.platformlambda.core;
 
-import com.google.gson.JsonPrimitive;
-import org.junit.Assert;
-import org.junit.Test;
-import org.platformlambda.core.models.PoJo;
-import org.platformlambda.core.serializers.SimpleMapper;
-import org.platformlambda.core.serializers.SimpleObjectMapper;
-import org.platformlambda.core.util.Utility;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,8 +26,15 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.platformlambda.core.models.PoJo;
+import org.platformlambda.core.serializers.SimpleMapper;
+import org.platformlambda.core.serializers.SimpleObjectMapper;
+import org.platformlambda.core.util.Utility;
+
+import com.google.gson.JsonPrimitive;
+
 
 public class SimpleMapperTest {
 
@@ -43,31 +44,31 @@ public class SimpleMapperTest {
         pojo.setName("hello");
         pojo.setNumber(123);
         Object o = SimpleMapper.getInstance().getMapper().readValue(pojo, PoJo.class);
-        Assert.assertEquals(pojo, o);
+        Assertions.assertEquals(pojo, o);
     }
 
     @Test
     public void typedNumberShouldMapDouble() {
         final JsonPrimitive number = new JsonPrimitive("1.12345678");
         Object result = SimpleMapper.getInstance().typedNumber(number);
-        assertThat(result, is(1.12345678d));
+        assertEquals(1.12345678d, result);
     }
 
     @Test
     public void typedNumberShouldMapFloat() {
         final JsonPrimitive number = new JsonPrimitive("1.12");
         Object result = SimpleMapper.getInstance().typedNumber(number);
-        assertThat(result, is(1.12d));
+        assertEquals(1.12d, result);
     }
 
     @Test
     public void primitiveDataTest() {
         final boolean bol = true;
         Object bolString = SimpleMapper.getInstance().getMapper().writeValueAsString(bol);
-        Assert.assertEquals("true", bolString);
+        Assertions.assertEquals("true", bolString);
         final int n = 1;
         Object intString = SimpleMapper.getInstance().getMapper().writeValueAsString(n);
-        Assert.assertEquals("1", intString);
+        Assertions.assertEquals("1", intString);
     }
 
     @Test
@@ -87,13 +88,13 @@ public class SimpleMapperTest {
         map.put("sql_timestamp", new java.sql.Timestamp(now.getTime()));
         Map<String, Object> converted = mapper.readValue(mapper.writeValueAsString(map), Map.class);
         // verify that java.util.Date, java.sql.Date and java.sql.Timestamp can be serialized to ISO-8601 string format
-        Assert.assertEquals(iso8601, converted.get("date"));
+        Assertions.assertEquals(iso8601, converted.get("date"));
         // LocalDateTime string will drop the "T" separator
-        Assert.assertEquals(iso8601NoTimeZone.replace('T', ' '), converted.get("time"));
+        Assertions.assertEquals(iso8601NoTimeZone.replace('T', ' '), converted.get("time"));
         // sql date is yyyy-mm-dd
-        Assert.assertEquals(new java.sql.Date(now.getTime()).toString(), converted.get("sql_date"));
-        Assert.assertEquals(iso8601, converted.get("sql_timestamp"));
-        Assert.assertEquals(Integer.class, converted.get("integer").getClass());
+        Assertions.assertEquals(new java.sql.Date(now.getTime()).toString(), converted.get("sql_date"));
+        Assertions.assertEquals(iso8601, converted.get("sql_timestamp"));
+        Assertions.assertEquals(Integer.class, converted.get("integer").getClass());
         String name = "hello world";
         Map<String, Object> input = new HashMap<>();
         input.put("full_name", name);
@@ -101,14 +102,14 @@ public class SimpleMapperTest {
         input.put("time", iso8601NoTimeZone);
         PoJo pojo = mapper.readValue(input, PoJo.class);
         // verify that the time is restored correctly
-        Assert.assertEquals(now.getTime(), pojo.getDate().getTime());
-        Assert.assertEquals(time, pojo.getTime());
+        Assertions.assertEquals(now.getTime(), pojo.getDate().getTime());
+        Assertions.assertEquals(time, pojo.getTime());
         // verify that snake case is deserialized correctly
-        Assert.assertEquals(name, pojo.getFullName());
+        Assertions.assertEquals(name, pojo.getFullName());
         // verify input timestamp can be in milliseconds too
         input.put("date", now.getTime());
         pojo = mapper.readValue(input, PoJo.class);
-        Assert.assertEquals(now.getTime(), pojo.getDate().getTime());
+        Assertions.assertEquals(now.getTime(), pojo.getDate().getTime());
     }
 
     @Test
@@ -123,30 +124,30 @@ public class SimpleMapperTest {
         // verify hash map result
         Map<String, Object> mapOne = mapper.getMapper().readValue(one, Map.class);
         // numeric value is preserved
-        Assert.assertEquals(ONE, mapOne.get(NUMBER));
+        Assertions.assertEquals(ONE, mapOne.get(NUMBER));
         // ensure that ZERO is converted to "0"
         Map<String, Object> mapZero = mapper.getMapper().readValue(zero, Map.class);
-        Assert.assertEquals("0", mapZero.get(NUMBER));
+        Assertions.assertEquals("0", mapZero.get(NUMBER));
         // verify PoJo class conversion behavior - this will return the original object because the class is the same
         SimpleNumber numberOne = mapper.getMapper().readValue(one, SimpleNumber.class);
-        Assert.assertEquals(numberOne.number, one.number);
+        Assertions.assertEquals(numberOne.number, one.number);
         // this will pass thru the serializer
         String zeroValue = mapper.getMapper().writeValueAsString(zero);
         SimpleNumber numberZero = mapper.getMapper().readValue(zeroValue, SimpleNumber.class);
         // the original number has the zero number with many zeros after the decimal
-        Assert.assertEquals("0E-8", zero.number.toString());
-        Assert.assertEquals(ZERO, zero.number.toPlainString());
+        Assertions.assertEquals("0E-8", zero.number.toString());
+        Assertions.assertEquals(ZERO, zero.number.toPlainString());
         // the converted BigDecimal gets a zero number without zeros after the decimal
-        Assert.assertEquals("0", numberZero.number.toString());
+        Assertions.assertEquals("0", numberZero.number.toString());
         // verify map to PoJo serialization behavior
         SimpleNumber number0 = mapper.getMapper().readValue(mapZero, SimpleNumber.class);
-        Assert.assertTrue(mapper.isZero(number0.number));
-        Assert.assertTrue(mapper.isZero(zero.number));
+        Assertions.assertTrue(mapper.isZero(number0.number));
+        Assertions.assertTrue(mapper.isZero(zero.number));
         // the two zero objects are different because of precision
-        Assert.assertNotEquals(number0.number, zero.number);
+        Assertions.assertNotEquals(number0.number, zero.number);
         SimpleNumber number1 = mapper.getMapper().readValue(mapOne, SimpleNumber.class);
         // non-zero numbers are exactly the same
-        Assert.assertEquals(number1.number, one.number);
+        Assertions.assertEquals(number1.number, one.number);
     }
 
     @Test
@@ -156,14 +157,14 @@ public class SimpleMapperTest {
         BigDecimal zeroes = new BigDecimal(ZERO);
         BigDecimal result = zero.multiply(zeroes);
         // precision is preserved after multiplication
-        Assert.assertEquals(zeroes, result);
-        Assert.assertEquals(ZERO, result.toPlainString());
+        Assertions.assertEquals(zeroes, result);
+        Assertions.assertEquals(ZERO, result.toPlainString());
         // test zero values
-        Assert.assertTrue(SimpleMapper.getInstance().isZero(zero));
-        Assert.assertTrue(SimpleMapper.getInstance().isZero(zeroes));
-        Assert.assertTrue(SimpleMapper.getInstance().isZero(result));
-        Assert.assertTrue(SimpleMapper.getInstance().isZero(result.toPlainString()));
-        Assert.assertTrue(SimpleMapper.getInstance().isZero(result.toString()));
+        Assertions.assertTrue(SimpleMapper.getInstance().isZero(zero));
+        Assertions.assertTrue(SimpleMapper.getInstance().isZero(zeroes));
+        Assertions.assertTrue(SimpleMapper.getInstance().isZero(result));
+        Assertions.assertTrue(SimpleMapper.getInstance().isZero(result.toPlainString()));
+        Assertions.assertTrue(SimpleMapper.getInstance().isZero(result.toString()));
     }
 
     @SuppressWarnings("unchecked")
@@ -174,13 +175,13 @@ public class SimpleMapperTest {
         String NUMBER = "1.234567890";
         CaseDemo sn = new CaseDemo(NUMBER);
         Map<String, Object> snakeMap = snakeMapper.readValue(sn, Map.class);
-        Assert.assertEquals(NUMBER, snakeMap.get("case_demo"));
+        Assertions.assertEquals(NUMBER, snakeMap.get("case_demo"));
         Map<String, Object> camelMap = camelMapper.readValue(sn, Map.class);
-        Assert.assertEquals(NUMBER, camelMap.get("caseDemo"));
+        Assertions.assertEquals(NUMBER, camelMap.get("caseDemo"));
         CaseDemo restoredFromSnake = snakeMapper.readValue(snakeMap, CaseDemo.class);
-        Assert.assertEquals(NUMBER, restoredFromSnake.caseDemo.toPlainString());
+        Assertions.assertEquals(NUMBER, restoredFromSnake.caseDemo.toPlainString());
         CaseDemo restoredFromCamel = camelMapper.readValue(camelMap, CaseDemo.class);
-        Assert.assertEquals(NUMBER, restoredFromCamel.caseDemo.toPlainString());
+        Assertions.assertEquals(NUMBER, restoredFromCamel.caseDemo.toPlainString());
     }
 
     private static class SimpleNumber {

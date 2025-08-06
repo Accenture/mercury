@@ -1,8 +1,8 @@
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
@@ -24,7 +24,7 @@ public class ExceptionTransportTest {
     private static final String DEMO = "demo";
     private static final BlockingQueue<EventEnvelope> bench = new ArrayBlockingQueue<>(1);
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws IOException {
         Platform platform = Platform.getInstance();
         LambdaFunction f = (headers, body, instance) -> {
@@ -41,8 +41,8 @@ public class ExceptionTransportTest {
             throw new IOException("Event exception transport failed");
         } catch (AppException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause instanceof IllegalArgumentException);
-            Assert.assertEquals(DEMO, cause.getMessage());
+            Assertions.assertTrue(cause instanceof IllegalArgumentException);
+            Assertions.assertEquals(DEMO, cause.getMessage());
         }
     }
 
@@ -57,10 +57,10 @@ public class ExceptionTransportTest {
         PostOffice po = PostOffice.getInstance();
         po.send(request);
         EventEnvelope result = bench.poll(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(result);
-        Assert.assertNotNull(result.getException());
-        Assert.assertTrue(result.getException() instanceof IllegalArgumentException);
-        Assert.assertEquals(DEMO, result.getException().getMessage());
+        Assertions.assertNotNull(result);
+        Assertions.assertNotNull(result.getException());
+        Assertions.assertTrue(result.getException() instanceof IllegalArgumentException);
+        Assertions.assertEquals(DEMO, result.getException().getMessage());
     }
 
     private static class MyCallBack implements TypedLambdaFunction<EventEnvelope, Object> {

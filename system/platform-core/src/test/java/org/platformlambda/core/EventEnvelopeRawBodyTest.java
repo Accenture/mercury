@@ -1,7 +1,7 @@
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.PoJo;
 import org.platformlambda.core.util.MultiLevelMap;
@@ -23,8 +23,8 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(HELLO);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(true, target.getRawBody());
-        Assert.assertEquals(true, target.getBody());
+        Assertions.assertEquals(true, target.getRawBody());
+        Assertions.assertEquals(true, target.getBody());
     }
 
     @Test
@@ -34,8 +34,8 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(VALUE, target.getRawBody());
-        Assert.assertEquals(VALUE, target.getBody());
+        Assertions.assertEquals(VALUE, target.getRawBody());
+        Assertions.assertEquals(VALUE, target.getBody());
     }
 
     @Test
@@ -46,8 +46,8 @@ public class EventEnvelopeRawBodyTest {
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
         // long will be compressed to integer by MsgPack
-        Assert.assertEquals(VALUE.intValue(), target.getRawBody());
-        Assert.assertEquals(VALUE.intValue(), target.getBody());
+        Assertions.assertEquals(VALUE.intValue(), target.getRawBody());
+        Assertions.assertEquals(VALUE.intValue(), target.getBody());
     }
 
     @Test
@@ -57,8 +57,8 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(VALUE, target.getRawBody());
-        Assert.assertEquals(VALUE, target.getBody());
+        Assertions.assertEquals(VALUE, target.getRawBody());
+        Assertions.assertEquals(VALUE, target.getBody());
     }
 
     @Test
@@ -68,8 +68,8 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(VALUE);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(VALUE, target.getRawBody());
-        Assert.assertEquals(VALUE, target.getBody());
+        Assertions.assertEquals(VALUE, target.getRawBody());
+        Assertions.assertEquals(VALUE, target.getBody());
     }
 
     @Test
@@ -81,8 +81,8 @@ public class EventEnvelopeRawBodyTest {
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
         // big decimal is converted to string if it is not encoded in a PoJo
-        Assert.assertEquals(VALUE, target.getRawBody());
-        Assert.assertEquals(VALUE, target.getBody());
+        Assertions.assertEquals(VALUE, target.getRawBody());
+        Assertions.assertEquals(VALUE, target.getBody());
     }
 
     @Test
@@ -93,8 +93,8 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(NOW);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertEquals(util.date2str(NOW), target.getRawBody());
-        Assert.assertEquals(util.date2str(NOW), target.getBody());
+        Assertions.assertEquals(util.date2str(NOW), target.getRawBody());
+        Assertions.assertEquals(util.date2str(NOW), target.getBody());
     }
 
     @SuppressWarnings("unchecked")
@@ -107,12 +107,12 @@ public class EventEnvelopeRawBodyTest {
         source.setBody(pojo);
         byte[] b = source.toBytes();
         EventEnvelope target = new EventEnvelope(b);
-        Assert.assertTrue(target.getRawBody() instanceof Map);
+        Assertions.assertTrue(target.getRawBody() instanceof Map);
         Map<String, Object> map = (Map<String, Object>) target.getRawBody();
-        Assert.assertEquals(HELLO, map.get("name"));
-        Assert.assertTrue(target.getBody() instanceof PoJo);
+        Assertions.assertEquals(HELLO, map.get("name"));
+        Assertions.assertTrue(target.getBody() instanceof PoJo);
         PoJo output = (PoJo) target.getBody();
-        Assert.assertEquals(HELLO, output.getName());
+        Assertions.assertEquals(HELLO, output.getName());
     }
 
     @SuppressWarnings("unchecked")
@@ -128,14 +128,14 @@ public class EventEnvelopeRawBodyTest {
         EventEnvelope target = new EventEnvelope(b);
         // raw body is encoded as a map containing a list of map
         // e.g. {list=[{number=0, long_number=0, name=hello}]}
-        Assert.assertTrue(target.getRawBody() instanceof Map);
+        Assertions.assertTrue(target.getRawBody() instanceof Map);
         Map<String, Object> map = (Map<String, Object>) target.getRawBody();
         MultiLevelMap multi = new MultiLevelMap(map);
-        Assert.assertEquals(HELLO, multi.getElement("list[0].name"));
-        Assert.assertTrue(target.getBody() instanceof List);
+        Assertions.assertEquals(HELLO, multi.getElement("list[0].name"));
+        Assertions.assertTrue(target.getBody() instanceof List);
         List<PoJo> output = (List<PoJo>) target.getBody();
-        Assert.assertEquals(1, output.size());
-        Assert.assertEquals(HELLO, output.get(0).getName());
+        Assertions.assertEquals(1, output.size());
+        Assertions.assertEquals(HELLO, output.get(0).getName());
     }
 
 }

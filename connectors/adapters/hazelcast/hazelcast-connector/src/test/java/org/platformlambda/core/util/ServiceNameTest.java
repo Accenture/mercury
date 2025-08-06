@@ -18,9 +18,9 @@
 
 package org.platformlambda.core.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class ServiceNameTest {
 
@@ -32,9 +32,9 @@ public class ServiceNameTest {
         String invalid = "hello.wor?ld";
         String dotted = "..."+invalid;
         String filtered1 = util.filteredServiceName(invalid);
-        Assert.assertEquals(valid, filtered1);
+        Assertions.assertEquals(valid, filtered1);
         String filtered2 = util.filteredServiceName(dotted);
-        Assert.assertEquals(valid, filtered2);
+        Assertions.assertEquals(valid, filtered2);
     }
 
     @Test
@@ -42,9 +42,9 @@ public class ServiceNameTest {
         String windowsMetafile = "thumbs.db";
         String windowsExt = "hello.com";
         String valid = "com.hello";
-        Assert.assertTrue(util.reservedFilename(windowsMetafile));
-        Assert.assertTrue(util.reservedExtension(windowsExt));
-        Assert.assertFalse(util.reservedExtension(valid));
+        Assertions.assertTrue(util.reservedFilename(windowsMetafile));
+        Assertions.assertTrue(util.reservedExtension(windowsExt));
+        Assertions.assertFalse(util.reservedExtension(valid));
     }
 
 }

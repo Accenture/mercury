@@ -18,8 +18,8 @@
 
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.AsyncHttpRequest;
 
 public class ModelTest {
@@ -50,21 +50,21 @@ public class ModelTest {
         request.setUrl("/api/hello");
 
         AsyncHttpRequest restored = new AsyncHttpRequest(request.toMap());
-        Assert.assertEquals(HELLO, restored.getBody());
-        Assert.assertEquals(WORLD, restored.getHeader(HELLO));
-        Assert.assertEquals(WORLD, restored.getCookie(HELLO));
-        Assert.assertEquals(WORLD, restored.getPathParameter(HELLO));
-        Assert.assertEquals(WORLD, restored.getQueryParameter(HELLO));
-        Assert.assertEquals(PUT, restored.getMethod());
-        Assert.assertEquals("none", restored.getFileName());
-        Assert.assertEquals("127.0.0.1", restored.getRemoteIp());
-        Assert.assertFalse(restored.isSecure());
-        Assert.assertEquals("none", restored.getStreamRoute());
-        Assert.assertEquals(WORLD, restored.getSessionInfo(HELLO));
-        Assert.assertFalse(restored.isTrustAllCert());
-        Assert.assertEquals(10, restored.getTimeoutSeconds());
-        Assert.assertEquals("http://localhost", restored.getTargetHost());
-        Assert.assertEquals("file", restored.getUploadTag());
-        Assert.assertEquals("/api/hello", restored.getUrl());
+        Assertions.assertEquals(HELLO, restored.getBody());
+        Assertions.assertEquals(WORLD, restored.getHeader(HELLO));
+        Assertions.assertEquals(WORLD, restored.getCookie(HELLO));
+        Assertions.assertEquals(WORLD, restored.getPathParameter(HELLO));
+        Assertions.assertEquals(WORLD, restored.getQueryParameter(HELLO));
+        Assertions.assertEquals(PUT, restored.getMethod());
+        Assertions.assertEquals("none", restored.getFileName());
+        Assertions.assertEquals("127.0.0.1", restored.getRemoteIp());
+        Assertions.assertFalse(restored.isSecure());
+        Assertions.assertEquals("none", restored.getStreamRoute());
+        Assertions.assertEquals(WORLD, restored.getSessionInfo(HELLO));
+        Assertions.assertFalse(restored.isTrustAllCert());
+        Assertions.assertEquals(10, restored.getTimeoutSeconds());
+        Assertions.assertEquals("http://localhost", restored.getTargetHost());
+        Assertions.assertEquals("file", restored.getUploadTag());
+        Assertions.assertEquals("/api/hello", restored.getUrl());
     }
 }

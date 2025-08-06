@@ -18,8 +18,8 @@
 
 package org.platformlambda.config;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.util.AppConfigReader;
 
 import java.util.List;
@@ -30,9 +30,9 @@ public class AppConfigTests {
     public void verifyThatJaxRsExampleIsThere() {
         AppConfigReader reader = AppConfigReader.getInstance();
         String value = reader.getProperty("jaxrs.example.enabled");
-        Assert.assertEquals("true", value);
+        Assertions.assertEquals("true", value);
         Object helloWorld = reader.get("hello.world.array");
-        Assert.assertTrue(helloWorld instanceof List);
+        Assertions.assertTrue(helloWorld instanceof List);
     }
     
 }

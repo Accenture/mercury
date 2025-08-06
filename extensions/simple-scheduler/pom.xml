@@ -1,149 +1,147 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.platformlambda</groupId>
-    <artifactId>simple-scheduler</artifactId>
+	<groupId>org.platformlambda</groupId>
+	<artifactId>simple-scheduler</artifactId>
 
-    <packaging>jar</packaging>
-    <version>2.9.1</version>
-    <name>Simple Scheduler</name>
+	<packaging>jar</packaging>
+	<version>2.9.1</version>
+	<name>Simple Scheduler</name>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.3</version>
-        <relativePath/>
-    </parent>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.5.3</version>
+		<relativePath />
+	</parent>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <snakeyaml.version>2.2</snakeyaml.version>
-        <hazelcast.version>5.3.6</hazelcast.version>
-        <kafka.version>3.9.1</kafka.version>
-        <gson.version>2.11.0</gson.version>
-        <netty.version>4.2.2.Final</netty.version>
-        <java.version>21</java.version>
-    </properties>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<snakeyaml.version>2.2</snakeyaml.version>
+		<hazelcast.version>5.3.6</hazelcast.version>
+		<kafka.version>3.9.1</kafka.version>
+		<gson.version>2.11.0</gson.version>
+		<netty.version>4.2.2.Final</netty.version>
+		<java.version>21</java.version>
+	</properties>
 
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-<!--        <repository>-->
-<!--            <id>your-repo</id>-->
-<!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
-<!--        </repository>-->
-    </repositories>
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2/</url>
+		</repository>
+		<!--        <repository>-->
+		<!--            <id>your-repo</id>-->
+		<!--            <url>https://your_repo_here/artifactory/libs-release</url>-->
+		<!--        </repository>-->
+	</repositories>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>rest-spring</artifactId>
-            <version>2.9.1</version>
-        </dependency>
+	<dependencies>
+		<dependency>
+			<groupId>org.platformlambda</groupId>
+			<artifactId>rest-spring</artifactId>
+			<version>2.9.1</version>
+		</dependency>
 
-        <!-- select your cloud connector (hazelcast-connector or kafka-connector).
+		<!-- select your cloud connector (hazelcast-connector or
+		kafka-connector).
 
              For convenience, both Kafka and Hazelcast connectors are added.
              you can select the connector from command line without recompiling from source.
 
-             For production, please select only one cloud connector to reduce memory footprint. -->
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>kafka-connector</artifactId>
-            <version>2.9.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.platformlambda</groupId>
-            <artifactId>hazelcast-connector</artifactId>
-            <version>2.9.1</version>
-        </dependency>
+             For production, please select only one cloud connector to reduce memory
+		footprint. -->
+		<dependency>
+			<groupId>org.platformlambda</groupId>
+			<artifactId>kafka-connector</artifactId>
+			<version>2.9.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.platformlambda</groupId>
+			<artifactId>hazelcast-connector</artifactId>
+			<version>2.9.1</version>
+		</dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
-        <dependency>
-            <groupId>org.quartz-scheduler</groupId>
-            <artifactId>quartz</artifactId>
-            <version>2.3.2</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/junit/junit -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>hamcrest-core</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest</artifactId>
+		<!-- https://mvnrepository.com/artifact/org.quartz-scheduler/quartz -->
+		<dependency>
+			<groupId>org.quartz-scheduler</groupId>
+			<artifactId>quartz</artifactId>
+			<version>2.3.2</version>
+		</dependency>
+		<!-- Test dependencies -->
+		<dependency>
+            <groupId>org.junit</groupId>
+            <artifactId>junit-bom</artifactId>
+            <version>5.11.4</version>
+            <type>pom</type>
             <scope>test</scope>
         </dependency>
 
-    </dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <skipTests>false</skipTests>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <!-- DO NOT CHANGE THIS
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<skipTests>false</skipTests>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<!-- DO NOT CHANGE THIS
                      RestServer will find your Main Application(s) -->
-                <configuration>
-                    <mainClass>org.platformlambda.rest.RestServer</mainClass>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>build-info</id>
-                        <goals>
-                            <goal>build-info</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+				<configuration>
+					<mainClass>org.platformlambda.rest.RestServer</mainClass>
+				</configuration>
+				<executions>
+					<execution>
+						<id>build-info</id>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.13</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

@@ -18,9 +18,9 @@
 
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.automation.util.SimpleHttpUtility;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.PubSub;
@@ -41,7 +41,7 @@ public class UtilityTests {
     private static final long ONE_HOUR = 60 * ONE_MINUTE;
     private static final long ONE_DAY = 24 * ONE_HOUR;
 
-    @Before
+    @BeforeEach
     public void setup() {
         // temp directory should be available from the OS without access right restriction
         File temp = new File("/tmp");
@@ -54,9 +54,9 @@ public class UtilityTests {
     public void setServerPersonality() {
         ServerPersonality personality = ServerPersonality.getInstance();
         String MESSAGE = "Personality cannot be null";
-        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = Assertions.assertThrows(IllegalArgumentException.class,
                                                 () -> personality.setType(null));
-        Assert.assertEquals(MESSAGE, ex.getMessage());
+        Assertions.assertEquals(MESSAGE, ex.getMessage());
     }
 
     @Test
@@ -65,14 +65,14 @@ public class UtilityTests {
         ps.enableFeature(new MockPubSub());
         ps.waitForProvider(1);
         ps.createTopic(HELLO_WORLD);
-        Assert.assertTrue(ps.exists(HELLO_WORLD));
+        Assertions.assertTrue(ps.exists(HELLO_WORLD));
         ps.deleteTopic(HELLO_WORLD);
-        Assert.assertFalse(ps.exists(HELLO_WORLD));
+        Assertions.assertFalse(ps.exists(HELLO_WORLD));
         ps.createTopic(HELLO_WORLD, 10);
-        Assert.assertTrue(ps.exists(HELLO_WORLD));
-        Assert.assertTrue(ps.isStreamingPubSub());
-        Assert.assertEquals(10, ps.partitionCount(HELLO_WORLD));
-        Assert.assertTrue(ps.list().contains(HELLO_WORLD));
+        Assertions.assertTrue(ps.exists(HELLO_WORLD));
+        Assertions.assertTrue(ps.isStreamingPubSub());
+        Assertions.assertEquals(10, ps.partitionCount(HELLO_WORLD));
+        Assertions.assertTrue(ps.list().contains(HELLO_WORLD));
         LambdaFunction f = (headers, body, instance) -> true;
         ps.subscribe(HELLO_WORLD, f, "client100", "group100");
         ps.subscribe(HELLO_WORLD, 0, f, "client100", "group100");
@@ -88,18 +88,18 @@ public class UtilityTests {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
         String MESSAGE = "Not implemented";
-        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = Assertions.assertThrows(IllegalArgumentException.class,
                                             () -> ps.createQueue("demo.queue"));
-        Assert.assertEquals(MESSAGE, ex.getMessage());
+        Assertions.assertEquals(MESSAGE, ex.getMessage());
     }
 
     @Test
     public void mockPubSubDeleteQueue() throws IOException {
         PubSub ps = PubSub.getInstance();
         ps.enableFeature(new MockPubSub());
-        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = Assertions.assertThrows(IllegalArgumentException.class,
                 () -> ps.deleteQueue("demo.queue"));
-        Assert.assertEquals("Not implemented", ex.getMessage());
+        Assertions.assertEquals("Not implemented", ex.getMessage());
     }
 
     @Test
@@ -108,24 +108,24 @@ public class UtilityTests {
         String EXACT_SECOND = ".000";
         Date now = new Date();
         String t = util.getTimestamp();
-        Assert.assertTrue(util.isDigits(t));
+        Assertions.assertTrue(util.isDigits(t));
         String ts = util.getTimestamp(now.getTime());
         long time = util.timestamp2ms(ts);
-        Assert.assertEquals(now.getTime(), time);
+        Assertions.assertEquals(now.getTime(), time);
         String awsTime = util.getAmazonDate(now);
-        Assert.assertTrue(awsTime.contains("T") && awsTime.endsWith("Z"));
+        Assertions.assertTrue(awsTime.contains("T") && awsTime.endsWith("Z"));
         String awsNumber = awsTime.replace("T", "").replace("Z", "");
-        Assert.assertTrue(util.isDigits(awsNumber));
+        Assertions.assertTrue(util.isDigits(awsNumber));
         String iso = util.date2str(now);
         java.sql.Date sql = new java.sql.Date(now.getTime());
         String sqlDate = util.getSqlDate(sql);
-        Assert.assertEquals(iso.substring(0, iso.indexOf('T')), sqlDate);
+        Assertions.assertEquals(iso.substring(0, iso.indexOf('T')), sqlDate);
         java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
         String sqlTime = util.getSqlTimestamp(sqlTs);
         if (sqlTime.endsWith(EXACT_SECOND)) {
             sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
         }
-        Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
+        Assertions.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
     }
 
     @Test
@@ -137,9 +137,9 @@ public class UtilityTests {
         String iso = util.date2str(now);
         java.sql.Timestamp sqlTs = new java.sql.Timestamp(now.getTime());
         String sqlTime = util.getSqlTimestamp(sqlTs);
-        Assert.assertTrue(sqlTime.endsWith(EXACT_SECOND));
+        Assertions.assertTrue(sqlTime.endsWith(EXACT_SECOND));
         sqlTime = sqlTime.substring(0, sqlTime.length() - EXACT_SECOND.length());
-        Assert.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
+        Assertions.assertEquals(iso.replace("T", " ").replace("Z", ""), sqlTime);
     }
 
     @Test
@@ -148,10 +148,10 @@ public class UtilityTests {
         String text = "hello world & good day";
         String b64 = util.bytesToBase64(util.getUTF(text));
         byte[] bytes = util.base64ToBytes(b64);
-        Assert.assertEquals(text, util.getUTF(bytes));
+        Assertions.assertEquals(text, util.getUTF(bytes));
         b64 = util.bytesToUrlBase64(util.getUTF(text));
         bytes = util.urlBase64ToBytes(b64);
-        Assert.assertEquals(text, util.getUTF(bytes));
+        Assertions.assertEquals(text, util.getUTF(bytes));
     }
 
     @Test
@@ -160,7 +160,7 @@ public class UtilityTests {
         Date now = new Date();
         String s = util.date2str(now);
         Date restored = util.str2date(s);
-        Assert.assertEquals(now, restored);
+        Assertions.assertEquals(now, restored);
     }
 
     @Test
@@ -172,7 +172,7 @@ public class UtilityTests {
             String HELLO_WORLD = "hello world";
             util.str2file(tempFile, HELLO_WORLD);
             String restored = util.file2str(tempFile);
-            Assert.assertEquals(HELLO_WORLD, restored);
+            Assertions.assertEquals(HELLO_WORLD, restored);
         } finally {
             tempFile.delete();
         }
@@ -184,7 +184,7 @@ public class UtilityTests {
         String TEST = "hello world this is | a |      test";
         List<String> parts = util.split(TEST, " |");
         for (String p: parts) {
-            Assert.assertTrue(TEST.contains(p));
+            Assertions.assertTrue(TEST.contains(p));
         }
     }
 
@@ -195,30 +195,30 @@ public class UtilityTests {
         int n1 = 12345;
         String s1 = String.valueOf(n1);
         byte[] b1 = util.int2bytes(n1);
-        Assert.assertEquals(4, b1.length);
+        Assertions.assertEquals(4, b1.length);
         int restored1 = util.bytes2int(b1);
-        Assert.assertEquals(n1, restored1);
+        Assertions.assertEquals(n1, restored1);
         int r1 = util.str2int(s1);
-        Assert.assertEquals(n1, r1);
+        Assertions.assertEquals(n1, r1);
         // test long value
         long n2 = 1000000000L;
         String s2 = String.valueOf(n2);
         byte[] b2 = util.long2bytes(n2);
-        Assert.assertEquals(8, b2.length);
+        Assertions.assertEquals(8, b2.length);
         long restored2 = util.bytes2long(b2);
-        Assert.assertEquals(n2, restored2);
+        Assertions.assertEquals(n2, restored2);
         long r2 = util.str2long(s2);
-        Assert.assertEquals(n2, r2);
+        Assertions.assertEquals(n2, r2);
         // test float value
         float n3 = 12345.20f;
         String s3 = String.valueOf(n3);
         float c3 = util.str2float(s3);
-        Assert.assertEquals(n3, c3, 0);
+        Assertions.assertEquals(n3, c3, 0);
         // test double value
         double n4 = 12345.20123456789d;
         String s4 = String.valueOf(n4);
         double c4 = util.str2double(s4);
-        Assert.assertEquals(n4, c4, 0);
+        Assertions.assertEquals(n4, c4, 0);
     }
 
     @Test
@@ -227,13 +227,13 @@ public class UtilityTests {
         // digits
         String CORRECT_DIGITS = "12345";
         String INCORRECT_DIGITS = "123a45";
-        Assert.assertTrue(util.isDigits(CORRECT_DIGITS));
-        Assert.assertFalse(util.isDigits(INCORRECT_DIGITS));
+        Assertions.assertTrue(util.isDigits(CORRECT_DIGITS));
+        Assertions.assertFalse(util.isDigits(INCORRECT_DIGITS));
         // numeric
         String CORRECT_NUMBER = "-12345";
         String INCORRECT_NUMBER = "$12345";
-        Assert.assertTrue(util.isNumeric(CORRECT_NUMBER));
-        Assert.assertFalse(util.isNumeric(INCORRECT_NUMBER));
+        Assertions.assertTrue(util.isNumeric(CORRECT_NUMBER));
+        Assertions.assertFalse(util.isNumeric(INCORRECT_NUMBER));
     }
 
     @Test
@@ -242,7 +242,7 @@ public class UtilityTests {
         String HELLO_WORLD = "hello world";
         byte[] b = util.getUTF(HELLO_WORLD);
         String restored = util.getUTF(b);
-        Assert.assertEquals(HELLO_WORLD, restored);
+        Assertions.assertEquals(HELLO_WORLD, restored);
     }
 
     @Test
@@ -250,7 +250,7 @@ public class UtilityTests {
         Utility util = Utility.getInstance();
         int n = 20;
         String result = util.zeroFill(n, 10000);
-        Assert.assertEquals("00020", result);
+        Assertions.assertEquals("00020", result);
     }
 
     @Test
@@ -264,16 +264,16 @@ public class UtilityTests {
         MultiLevelMap mm = new MultiLevelMap();
         mm.setElement(HELLO, WORLD);
         mm.setElement(NULL_KEY_VALUE, null);
-        Assert.assertEquals(WORLD, mm.getElement(HELLO));
-        Assert.assertNull(mm.getElement(NULL_KEY_VALUE));
+        Assertions.assertEquals(WORLD, mm.getElement(HELLO));
+        Assertions.assertNull(mm.getElement(NULL_KEY_VALUE));
         // key exists but value is null
-        Assert.assertTrue(mm.keyExists(NULL_KEY_VALUE));
-        Assert.assertFalse(mm.exists(NULL_KEY_VALUE));
+        Assertions.assertTrue(mm.keyExists(NULL_KEY_VALUE));
+        Assertions.assertFalse(mm.exists(NULL_KEY_VALUE));
         // key does not exist
-        Assert.assertFalse(mm.keyExists(NOT_EXIST_KEY));
+        Assertions.assertFalse(mm.keyExists(NOT_EXIST_KEY));
         // delete a key-value
         mm.removeElement(HELLO_WORLD);
-        Assert.assertEquals(Collections.EMPTY_MAP, mm.getElement(HELLO));
+        Assertions.assertEquals(Collections.EMPTY_MAP, mm.getElement(HELLO));
     }
 
     @Test
@@ -298,12 +298,12 @@ public class UtilityTests {
         list.add(map2);
         list.add(list2);
         Map<String, Object> flatMap = util.getFlatMap(map);
-        Assert.assertEquals("data", flatMap.get(HELLO_WORLD));
-        Assert.assertEquals(1, flatMap.get("hello.number[0]"));
-        Assert.assertEquals(2, flatMap.get("hello.number[1]"));
-        Assert.assertEquals("data", flatMap.get("hello.number[2].hello.world"));
-        Assert.assertEquals(1, flatMap.get("hello.number[2].hello.number[0]"));
-        Assert.assertEquals(2, flatMap.get("hello.number[2].hello.number[1]"));
+        Assertions.assertEquals("data", flatMap.get(HELLO_WORLD));
+        Assertions.assertEquals(1, flatMap.get("hello.number[0]"));
+        Assertions.assertEquals(2, flatMap.get("hello.number[1]"));
+        Assertions.assertEquals("data", flatMap.get("hello.number[2].hello.world"));
+        Assertions.assertEquals(1, flatMap.get("hello.number[2].hello.number[0]"));
+        Assertions.assertEquals(2, flatMap.get("hello.number[2].hello.number[1]"));
         /*
          * flatmap's keys are composite keys
          * We will create a multi-level map and set the elements with the key-values from the flatmap.
@@ -313,31 +313,31 @@ public class UtilityTests {
         for (String k: flatMap.keySet()) {
             mm.setElement(k, flatMap.get(k));
         }
-        Assert.assertEquals(map, mm.getMap());
+        Assertions.assertEquals(map, mm.getMap());
         /*
          * retrieval using composite keys from the multi-level map must match the original map's values
          */
-        Assert.assertEquals("data", mm.getElement(HELLO_WORLD));
-        Assert.assertEquals(1, mm.getElement("hello.number[0]"));
-        Assert.assertEquals(2, mm.getElement("hello.number[1]"));
-        Assert.assertEquals("data", mm.getElement("hello.number[2].hello.world"));
-        Assert.assertEquals(1, mm.getElement("hello.number[2].hello.number[0]"));
-        Assert.assertEquals(2, mm.getElement("hello.number[2].hello.number[1]"));
+        Assertions.assertEquals("data", mm.getElement(HELLO_WORLD));
+        Assertions.assertEquals(1, mm.getElement("hello.number[0]"));
+        Assertions.assertEquals(2, mm.getElement("hello.number[1]"));
+        Assertions.assertEquals("data", mm.getElement("hello.number[2].hello.world"));
+        Assertions.assertEquals(1, mm.getElement("hello.number[2].hello.number[0]"));
+        Assertions.assertEquals(2, mm.getElement("hello.number[2].hello.number[1]"));
         // really a lot of nested levels
         String NESTED_PATH = "hello[5][4][3][2]";
         String SIMPLE_VALUE = "world";
         MultiLevelMap m2 = new MultiLevelMap();
         m2.setElement(NESTED_PATH, SIMPLE_VALUE);
         Map<String, Object> m2flat = util.getFlatMap(m2.getMap());
-        Assert.assertEquals(SIMPLE_VALUE, m2flat.get(NESTED_PATH));
-        Assert.assertEquals(m2flat.get(NESTED_PATH), m2.getElement(NESTED_PATH));
+        Assertions.assertEquals(SIMPLE_VALUE, m2flat.get(NESTED_PATH));
+        Assertions.assertEquals(m2flat.get(NESTED_PATH), m2.getElement(NESTED_PATH));
         // alternate map and list
         String MIX_PATH = "hello.world[0].headers[0]";
         MultiLevelMap m3 = new MultiLevelMap();
         m3.setElement(MIX_PATH, SIMPLE_VALUE);
         Map<String, Object> m3flat = util.getFlatMap(m3.getMap());
-        Assert.assertEquals(SIMPLE_VALUE, m3flat.get(MIX_PATH));
-        Assert.assertEquals(m3flat.get(MIX_PATH), m3.getElement(MIX_PATH));
+        Assertions.assertEquals(SIMPLE_VALUE, m3flat.get(MIX_PATH));
+        Assertions.assertEquals(m3flat.get(MIX_PATH), m3.getElement(MIX_PATH));
     }
 
     @Test
@@ -345,13 +345,13 @@ public class UtilityTests {
         final Utility util = Utility.getInstance();
         String[] IP_ADDRESSES = {"127.0.0.1:8080", "127.0.0.1", "10.1.2.3", "172.16.1.2", "192.168.1.30"};
         for (String ip: IP_ADDRESSES) {
-            Assert.assertTrue(util.isIntranetAddress(ip));
+            Assertions.assertTrue(util.isIntranetAddress(ip));
         }
-        Assert.assertFalse(util.isIntranetAddress("localhost"));
-        Assert.assertFalse(util.isIntranetAddress(null));
-        Assert.assertFalse(util.isIntranetAddress("128.1.2.3"));
-        Assert.assertFalse(util.isIntranetAddress("hello.world.com"));
-        Assert.assertFalse(util.isIntranetAddress("127.0001.1.1"));
+        Assertions.assertFalse(util.isIntranetAddress("localhost"));
+        Assertions.assertFalse(util.isIntranetAddress(null));
+        Assertions.assertFalse(util.isIntranetAddress("128.1.2.3"));
+        Assertions.assertFalse(util.isIntranetAddress("hello.world.com"));
+        Assertions.assertFalse(util.isIntranetAddress("127.0001.1.1"));
     }
 
     @Test
@@ -359,15 +359,15 @@ public class UtilityTests {
         long time = ONE_DAY + 40 * ONE_HOUR + 5 * ONE_MINUTE + 6 * ONE_SECOND;
         String expected = "2 days 16 hours 5 minutes 6 seconds";
         final Utility util = Utility.getInstance();
-        Assert.assertEquals(expected, util.elapsedTime(time));
+        Assertions.assertEquals(expected, util.elapsedTime(time));
     }
 
     @Test
     public void simpleHttpDecodeTest() {
         SimpleHttpUtility http = SimpleHttpUtility.getInstance();
         Map<String, String> result = http.decodeQueryString("a=b&x=y");
-        Assert.assertEquals("b", result.get("a"));
-        Assert.assertEquals("y", result.get("x"));
+        Assertions.assertEquals("b", result.get("a"));
+        Assertions.assertEquals("y", result.get("x"));
     }
 
     @Test
@@ -377,7 +377,7 @@ public class UtilityTests {
         rewrite.add("/api/");
         rewrite.add("/api/v2/");
         String url = "/api/hello/world";
-        Assert.assertEquals("/api/v2/hello/world", http.normalizeUrl(url, rewrite));
+        Assertions.assertEquals("/api/v2/hello/world", http.normalizeUrl(url, rewrite));
     }
 
 }

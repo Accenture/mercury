@@ -18,7 +18,7 @@
 
 package org.platformlambda.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.serializers.SimpleMapper;
 import org.platformlambda.core.serializers.SimpleObjectMapper;
 
@@ -27,7 +27,7 @@ import java.math.BigInteger;
 import java.util.Date;
 import java.util.Map;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.platformlambda.core.util.Utility;
 
 public class GsonTest {
@@ -38,22 +38,22 @@ public class GsonTest {
         SimplePoJo obj = getSample();
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
         Map m = mapper.readValue(obj, Map.class);
-        Assert.assertEquals(String.class, m.get("date").getClass());
+        Assertions.assertEquals(String.class, m.get("date").getClass());
         // small long number will be converted to integer
-        Assert.assertEquals(Integer.class, m.get("number").getClass());
-        Assert.assertEquals(Integer.class, m.get("small_long").getClass());
-        Assert.assertEquals(Long.class, m.get("long_number").getClass());
-        Assert.assertEquals(Double.class, m.get("float_number").getClass());
+        Assertions.assertEquals(Integer.class, m.get("number").getClass());
+        Assertions.assertEquals(Integer.class, m.get("small_long").getClass());
+        Assertions.assertEquals(Long.class, m.get("long_number").getClass());
+        Assertions.assertEquals(Double.class, m.get("float_number").getClass());
         // small double number will be converted to float
-        Assert.assertEquals(Double.class, m.get("small_double").getClass());
+        Assertions.assertEquals(Double.class, m.get("small_double").getClass());
         // small double number will be converted to float
-        Assert.assertEquals(Double.class, m.get("double_number").getClass());
-        Assert.assertEquals(obj.name, m.get("name"));
+        Assertions.assertEquals(Double.class, m.get("double_number").getClass());
+        Assertions.assertEquals(obj.name, m.get("name"));
         // date is converted to ISO-8601 string
-        Assert.assertEquals(Utility.getInstance().date2str(obj.date), m.get("date"));
+        Assertions.assertEquals(Utility.getInstance().date2str(obj.date), m.get("date"));
         // big integer and big decimal are converted as String to preserve math precision
-        Assert.assertEquals(String.class, m.get("big_integer").getClass());
-        Assert.assertEquals(String.class, m.get("big_decimal").getClass());
+        Assertions.assertEquals(String.class, m.get("big_integer").getClass());
+        Assertions.assertEquals(String.class, m.get("big_decimal").getClass());
     }
 
     @Test
@@ -62,16 +62,16 @@ public class GsonTest {
         SimpleObjectMapper mapper = SimpleMapper.getInstance().getMapper();
         String s = mapper.writeValueAsString(obj);
         SimplePoJo po = mapper.readValue(s, SimplePoJo.class);
-        Assert.assertEquals(obj.number, po.number);
-        Assert.assertEquals(obj.smallLong, po.smallLong);
-        Assert.assertEquals(obj.longNumber, po.longNumber);
-        Assert.assertEquals(obj.floatNumber, po.floatNumber, 0.0);
-        Assert.assertEquals(obj.smallDouble, po.smallDouble, 0.0);
-        Assert.assertEquals(obj.doubleNumber, po.doubleNumber, 0.0);
-        Assert.assertEquals(obj.name, po.name);
-        Assert.assertEquals(obj.date, po.date);
-        Assert.assertEquals(obj.bigInteger, po.bigInteger);
-        Assert.assertEquals(obj.bigDecimal, po.bigDecimal);
+        Assertions.assertEquals(obj.number, po.number);
+        Assertions.assertEquals(obj.smallLong, po.smallLong);
+        Assertions.assertEquals(obj.longNumber, po.longNumber);
+        Assertions.assertEquals(obj.floatNumber, po.floatNumber, 0.0);
+        Assertions.assertEquals(obj.smallDouble, po.smallDouble, 0.0);
+        Assertions.assertEquals(obj.doubleNumber, po.doubleNumber, 0.0);
+        Assertions.assertEquals(obj.name, po.name);
+        Assertions.assertEquals(obj.date, po.date);
+        Assertions.assertEquals(obj.bigInteger, po.bigInteger);
+        Assertions.assertEquals(obj.bigDecimal, po.bigDecimal);
     }
 
     private SimplePoJo getSample() {

@@ -1,8 +1,8 @@
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
 import org.platformlambda.core.system.PostOffice;
@@ -17,7 +17,7 @@ public class MulticastTest {
     private static final Logger log = LoggerFactory.getLogger(MulticastTest.class);
 
     private static final int WAIT_INTERVAL = 300;
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws InterruptedException {
         // The multicast.yaml configuration will be loaded when the EventEmitter singleton initializes
         PostOffice po = PostOffice.getInstance();
@@ -51,9 +51,9 @@ public class MulticastTest {
         }
         po.send("v1.hello.world", TEXT);
         completion.poll(5, TimeUnit.SECONDS);
-        Assert.assertEquals(2, result.size());
+        Assertions.assertEquals(2, result.size());
         for (String t: targets) {
-            Assert.assertEquals(TEXT, result.get(t));
+            Assertions.assertEquals(TEXT, result.get(t));
         }
     }
 

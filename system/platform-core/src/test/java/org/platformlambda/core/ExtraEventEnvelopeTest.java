@@ -1,7 +1,7 @@
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.EventEnvelope;
 
 public class ExtraEventEnvelopeTest {
@@ -17,15 +17,15 @@ public class ExtraEventEnvelopeTest {
         event.addTag(HELLO, WORLD);
         event.addTag(ROUTING, DATA);
         event.addTag(TAG_WITH_NO_VALUE);
-        Assert.assertEquals("", event.getTag(TAG_WITH_NO_VALUE));
-        Assert.assertEquals(WORLD, event.getTag(HELLO));
-        Assert.assertEquals(DATA, event.getTag(ROUTING));
+        Assertions.assertEquals("", event.getTag(TAG_WITH_NO_VALUE));
+        Assertions.assertEquals(WORLD, event.getTag(HELLO));
+        Assertions.assertEquals(DATA, event.getTag(ROUTING));
         event.removeTag(HELLO);
         event.removeTag(ROUTING);
-        Assert.assertNull(event.getTag(HELLO));
-        Assert.assertNull(event.getTag(ROUTING));
-        Assert.assertEquals(TAG_WITH_NO_VALUE, event.getExtra());
+        Assertions.assertNull(event.getTag(HELLO));
+        Assertions.assertNull(event.getTag(ROUTING));
+        Assertions.assertEquals(TAG_WITH_NO_VALUE, event.getExtra());
         event.removeTag(TAG_WITH_NO_VALUE);
-        Assert.assertNull(event.getExtra());
+        Assertions.assertNull(event.getExtra());
     }
 }

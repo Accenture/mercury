@@ -18,7 +18,7 @@
 
 package org.platformlambda.core.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.util.models.ObjectWithGenericType;
 import org.platformlambda.core.util.models.PoJo;
@@ -26,7 +26,7 @@ import org.platformlambda.core.util.models.PoJo;
 import java.io.IOException;
 import java.util.Map;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class GenericTypeTest {
 
@@ -51,12 +51,12 @@ public class GenericTypeTest {
         result.load(b);
 
         Object o = result.getBody();
-        Assert.assertTrue(o instanceof ObjectWithGenericType);
+        Assertions.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
-        Assert.assertEquals(id, gs.getId());
+        Assertions.assertEquals(id, gs.getId());
         PoJo content = gs.getContent();
-        Assert.assertNotNull(content);
-        Assert.assertEquals(name, content.getName());
+        Assertions.assertNotNull(content);
+        Assertions.assertEquals(name, content.getName());
     }
 
     @SuppressWarnings("unchecked")
@@ -75,10 +75,10 @@ public class GenericTypeTest {
         EventEnvelope result = new EventEnvelope();
         result.load(b);
         Object o = result.getBody();
-        Assert.assertTrue(o instanceof ObjectWithGenericType);
+        Assertions.assertTrue(o instanceof ObjectWithGenericType);
         ObjectWithGenericType<PoJo> gs = (ObjectWithGenericType<PoJo>) o;
         // all fields except the ones with generic types can be deserialized correctly
-        Assert.assertEquals(id, gs.getId());
+        Assertions.assertEquals(id, gs.getId());
         /*
          * without parametricType defined, this will throw ClassCastException because the value is a HashMap.
          *
@@ -86,11 +86,11 @@ public class GenericTypeTest {
          * You therefore can retrieve a copy of the HashMap by this:
          * Object content = gs.getContent();
          */
-        ClassCastException ex = Assert.assertThrows(ClassCastException.class, () -> {
+        ClassCastException ex = Assertions.assertThrows(ClassCastException.class, () -> {
             PoJo content = gs.getContent();
-            Assert.assertNotNull(content);
+            Assertions.assertNotNull(content);
         });
-        Assert.assertTrue(ex.getMessage().contains("cannot be cast to"));
+        Assertions.assertTrue(ex.getMessage().contains("cannot be cast to"));
     }
 
     @Test
@@ -116,12 +116,12 @@ public class GenericTypeTest {
 
         // When parametricType is incorrect, it will fall back to a map.
         Object o = result.getBody();
-        Assert.assertTrue(o instanceof Map);
+        Assertions.assertTrue(o instanceof Map);
         MultiLevelMap map = new MultiLevelMap((Map) o);
-        Assert.assertEquals(name, map.getElement("content.name"));
+        Assertions.assertEquals(name, map.getElement("content.name"));
         // numbers are encoded as string in map
-        Assert.assertEquals(id, util.str2int(map.getElement("id").toString()));
-        Assert.assertEquals(id, util.str2int(map.getElement("content.number").toString()));
+        Assertions.assertEquals(id, util.str2int(map.getElement("id").toString()));
+        Assertions.assertEquals(id, util.str2int(map.getElement("content.number").toString()));
     }
 
 }

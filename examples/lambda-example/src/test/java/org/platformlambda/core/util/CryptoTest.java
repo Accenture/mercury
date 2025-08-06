@@ -18,8 +18,8 @@
 
 package org.platformlambda.core.util;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.util.Arrays;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class CryptoTest {
     private static final Logger log = LoggerFactory.getLogger(CryptoTest.class);
@@ -36,7 +36,7 @@ public class CryptoTest {
     private static final CryptoApi crypto = new CryptoApi();
     private static boolean strongCrypto;
 
-    @BeforeClass
+    @BeforeAll
     public static void checkCrypto() {
         strongCrypto = crypto.strongCryptoSupported();
         if (!strongCrypto) {
@@ -54,7 +54,7 @@ public class CryptoTest {
         byte[] key = crypto.generateAesKey(strongCrypto? 256 : 128);
         byte[] encrypted = crypto.aesEncrypt(input.getBytes(), key);
         byte[] decrypted = crypto.aesDecrypt(encrypted, key);
-        Assert.assertEquals(input, new String(decrypted));
+        Assertions.assertEquals(input, new String(decrypted));
     }
 
     @Test
@@ -68,8 +68,8 @@ public class CryptoTest {
         byte[] encrypted = crypto.rsaEncrypt(input, pub);
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
-        // cannot use Assert.assertEquals because we are comparing byte-by-byte
-        Assert.assertTrue(Arrays.equals(input, decrypted));
+        // cannot use Assertions.assertEquals because we are comparing byte-by-byte
+        Assertions.assertTrue(Arrays.equals(input, decrypted));
     }
 
     @Test
@@ -80,7 +80,7 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.dsaSign(data, pri);
         boolean result = crypto.dsaVerify(data, signature, pub);
-        Assert.assertTrue(result);
+        Assertions.assertTrue(result);
     }
 
     @Test
@@ -91,18 +91,18 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.rsaSign(data, pri);
         boolean result = crypto.rsaVerify(data, signature, pub);
-        Assert.assertTrue(result);
+        Assertions.assertTrue(result);
     }
 
     @Test
     public void hashTest() {
         String input = "hello world";
         byte[] hashed = crypto.getSHA256(input.getBytes());
-        Assert.assertEquals(32, hashed.length);
+        Assertions.assertEquals(32, hashed.length);
         hashed = crypto.getSHA1(input.getBytes());
-        Assert.assertEquals(20, hashed.length);
+        Assertions.assertEquals(20, hashed.length);
         hashed = crypto.getMd5(input.getBytes());
-        Assert.assertEquals(16, hashed.length);
+        Assertions.assertEquals(16, hashed.length);
     }
 
     @Test
@@ -111,7 +111,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha1(key, message);
-        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assertions.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
     @Test
@@ -120,7 +120,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha256(key, message);
-        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assertions.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
 }

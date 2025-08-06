@@ -18,7 +18,7 @@
 
 package org.platformlambda.common;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
 import org.platformlambda.rest.RestServer;
@@ -32,7 +32,7 @@ public abstract class TestBase {
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();

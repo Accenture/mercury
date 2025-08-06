@@ -18,8 +18,8 @@
 
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.serializers.SimpleXmlParser;
 import org.platformlambda.core.serializers.SimpleXmlWriter;
 import org.platformlambda.core.util.MultiLevelMap;
@@ -56,36 +56,36 @@ public class XmlReadWriteTest {
         data.put("single", Collections.singletonList("one"));
         String basic = writer.write(data);
         List<String> basicLines = util.split(basic, "\r\n");
-        Assert.assertTrue(basicLines.size() > 2);
-        Assert.assertEquals("<root>", basicLines.get(1));
+        Assertions.assertTrue(basicLines.size() > 2);
+        Assertions.assertEquals("<root>", basicLines.get(1));
         // set root as "result"
         String xml = writer.write("result", data);
         List<String> raw = util.split(xml, "\r\n");
         List<String> lines = new ArrayList<>();
         raw.forEach(line -> lines.add(line.trim()));
-        Assert.assertTrue(lines.size() > 2);
-        Assert.assertEquals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", lines.get(0));
-        Assert.assertEquals("<result>", lines.get(1));
-        Assert.assertTrue(lines.contains("<single>one</single>"));
+        Assertions.assertTrue(lines.size() > 2);
+        Assertions.assertEquals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", lines.get(0));
+        Assertions.assertEquals("<result>", lines.get(1));
+        Assertions.assertTrue(lines.contains("<single>one</single>"));
         Map<String, Object> result = parser.parse(xml);
-        Assert.assertEquals("one", result.get("single"));
-        Assert.assertTrue(result.get("lists") instanceof List);
+        Assertions.assertEquals("one", result.get("single"));
+        Assertions.assertTrue(result.get("lists") instanceof List);
         List<Object> mixedList = (List<Object>) result.get("lists");
         // the 7th element in the array is dropped
-        Assert.assertEquals(6, mixedList.size());
+        Assertions.assertEquals(6, mixedList.size());
         MultiLevelMap multi = new MultiLevelMap(result);
         // empty array element is saved as null
-        Assert.assertNull(multi.getElement("lists[2]"));
-        Assert.assertEquals("internal", multi.getElement("lists[3].inner"));
-        Assert.assertEquals(util.date2str(now), multi.getElement("lists[3].time"));
-        Assert.assertEquals("3", multi.getElement("lists[4]"));
-        Assert.assertEquals("test", multi.getElement("lists[5]"));
+        Assertions.assertNull(multi.getElement("lists[2]"));
+        Assertions.assertEquals("internal", multi.getElement("lists[3].inner"));
+        Assertions.assertEquals(util.date2str(now), multi.getElement("lists[3].time"));
+        Assertions.assertEquals("3", multi.getElement("lists[4]"));
+        Assertions.assertEquals("test", multi.getElement("lists[5]"));
         // xml without array
         try (InputStream in = this.getClass().getResourceAsStream("/log4j2.xml")) {
             MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
-            Assert.assertEquals("console", mm.getElement("Appenders.name"));
-            Assert.assertEquals("false", mm.getElement("Loggers.additivity"));
-            Assert.assertEquals("console", mm.getElement("Loggers.Root.ref"));
+            Assertions.assertEquals("console", mm.getElement("Appenders.name"));
+            Assertions.assertEquals("false", mm.getElement("Loggers.additivity"));
+            Assertions.assertEquals("console", mm.getElement("Loggers.Root.ref"));
         }
     }
 
@@ -93,12 +93,12 @@ public class XmlReadWriteTest {
     public void adlsWithArrayTest() throws IOException {
         try (InputStream in = this.getClass().getResourceAsStream("/sample_adls_response.xml")) {
             MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
-            Assert.assertEquals("\"0x8D90F50C8DD6E2A\"",
+            Assertions.assertEquals("\"0x8D90F50C8DD6E2A\"",
                     mm.getElement("Containers.Container[0].Properties.Etag"));
-            Assert.assertEquals("\"0x8D9934CF1AD9D12\"",
+            Assertions.assertEquals("\"0x8D9934CF1AD9D12\"",
                     mm.getElement("Containers.Container[1].Properties.Etag"));
-            Assert.assertEquals("hello", mm.getElement("Containers.Container[0].Name"));
-            Assert.assertEquals("test", mm.getElement("Containers.Container[1].Name"));
+            Assertions.assertEquals("hello", mm.getElement("Containers.Container[0].Name"));
+            Assertions.assertEquals("test", mm.getElement("Containers.Container[1].Name"));
         }
     }
 
@@ -107,9 +107,9 @@ public class XmlReadWriteTest {
         try (InputStream in = this.getClass().getResourceAsStream("/sample_adls_with_one_container.xml")) {
             MultiLevelMap mm = new MultiLevelMap(parser.parse(in));
             // an array of one element will be rendered as a regular element instead of an array
-            Assert.assertEquals("\"0x8D90F50C8DD6E2A\"",
+            Assertions.assertEquals("\"0x8D90F50C8DD6E2A\"",
                     mm.getElement("Containers.Container.Properties.Etag"));
-            Assert.assertEquals("hello", mm.getElement("Containers.Container.Name"));
+            Assertions.assertEquals("hello", mm.getElement("Containers.Container.Name"));
         }
     }
 

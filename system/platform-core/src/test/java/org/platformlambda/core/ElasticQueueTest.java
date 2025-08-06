@@ -18,8 +18,8 @@
 
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.serializers.PayloadMapper;
@@ -43,21 +43,21 @@ public class ElasticQueueTest {
         byte[] b = spooler.peek();
         EventEnvelope first = new EventEnvelope();
         first.load(b);
-        Assert.assertEquals(firstItem, first.getBody());
+        Assertions.assertEquals(firstItem, first.getBody());
 
         b = spooler.read();
         EventEnvelope firstAgain = new EventEnvelope();
         firstAgain.load(b);
-        Assert.assertEquals(firstItem, firstAgain.getBody());
+        Assertions.assertEquals(firstItem, firstAgain.getBody());
 
         b = spooler.read();
         EventEnvelope second = new EventEnvelope();
         second.load(b);
-        Assert.assertEquals(secondItem, second.getBody());
-        Assert.assertNull(spooler.peek());
-        Assert.assertNull(spooler.read());
+        Assertions.assertEquals(secondItem, second.getBody());
+        Assertions.assertNull(spooler.peek());
+        Assertions.assertNull(spooler.read());
         // elastic queue should be automatically closed when all messages are consumed
-        Assert.assertTrue(spooler.isClosed());
+        Assertions.assertTrue(spooler.isClosed());
         // close elastic queue
         spooler.close();
     }
@@ -90,10 +90,10 @@ public class ElasticQueueTest {
             event.setBody(input);
             spooler.write(event.toBytes());
             byte[] b = spooler.read();
-            Assert.assertNotNull(b);
+            Assertions.assertNotNull(b);
             EventEnvelope data = new EventEnvelope();
             data.load(b);
-            Assert.assertEquals(input, data.getBody());
+            Assertions.assertEquals(input, data.getBody());
         }
         /*
          * Test overflow to temporary storage
@@ -114,25 +114,25 @@ public class ElasticQueueTest {
             byte[] b = spooler.read();
             EventEnvelope data = new EventEnvelope();
             data.load(b);
-            Assert.assertNotNull(data);
-            Assert.assertTrue(data.getBody() instanceof PoJo);
+            Assertions.assertNotNull(data);
+            Assertions.assertTrue(data.getBody() instanceof PoJo);
             PoJo o = (PoJo) data.getBody();
-            Assert.assertEquals(input, o.getName());
+            Assertions.assertEquals(input, o.getName());
         }
         // read one more
         byte[] someData = spooler.read();
-        Assert.assertNotNull(someData);
+        Assertions.assertNotNull(someData);
         spooler.close();
         // it should return null when there are no more messages to be read
         byte[] nothing = spooler.read();
-        Assert.assertNull(nothing);
-        Assert.assertTrue(spooler.isClosed());
+        Assertions.assertNull(nothing);
+        Assertions.assertTrue(spooler.isClosed());
         // closing again has no effect
         spooler.close();
         // finally, verify if the PoJo class name is cached
         ManagedCache cache = ManagedCache.getInstance(PayloadMapper.JAVA_CLASS_CACHE);
-        Assert.assertNotNull(cache);
-        Assert.assertTrue(cache.exists(PoJo.class.getName()));
+        Assertions.assertNotNull(cache);
+        Assertions.assertTrue(cache.exists(PoJo.class.getName()));
     }
 
     @Test
@@ -147,13 +147,13 @@ public class ElasticQueueTest {
                 spooler.write(event.toBytes());
                 if (i < ElasticQueue.MEMORY_BUFFER) {
                     byte[] b = spooler.read();
-                    Assert.assertNotNull(b);
+                    Assertions.assertNotNull(b);
                     EventEnvelope data = new EventEnvelope();
                     data.load(b);
-                    Assert.assertEquals(input, data.getBody());
+                    Assertions.assertEquals(input, data.getBody());
                 }
             }
-            Assert.assertFalse(spooler.isClosed());
+            Assertions.assertFalse(spooler.isClosed());
         }
     }
 

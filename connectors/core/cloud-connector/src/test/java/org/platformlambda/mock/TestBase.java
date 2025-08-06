@@ -18,7 +18,7 @@
 
 package org.platformlambda.mock;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.util.AppConfigReader;
 import org.platformlambda.core.util.Utility;
@@ -30,7 +30,7 @@ public class TestBase {
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();

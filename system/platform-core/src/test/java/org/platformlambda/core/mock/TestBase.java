@@ -21,7 +21,7 @@ package org.platformlambda.core.mock;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 import org.platformlambda.automation.service.MockHelloWorld;
 import org.platformlambda.core.system.AppStarter;
 import org.platformlambda.core.system.Platform;
@@ -51,7 +51,7 @@ public class TestBase {
 
     private static final AtomicInteger startCounter = new AtomicInteger(0);
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws IOException {
         if (startCounter.incrementAndGet() == 1) {
             Utility util = Utility.getInstance();

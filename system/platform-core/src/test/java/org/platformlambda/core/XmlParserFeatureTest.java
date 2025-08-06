@@ -18,7 +18,7 @@
 
 package org.platformlambda.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXParseException;
@@ -29,7 +29,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class XmlParserFeatureTest {
     private static final Logger log = LoggerFactory.getLogger(XmlParserFeatureTest.class);
@@ -62,10 +62,10 @@ public class XmlParserFeatureTest {
     public void featureTest() throws ParserConfigurationException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         for (String feature: FEATURES_TO_ENABLE) {
-            Assert.assertTrue(setFeature(dbf, feature, true));
+            Assertions.assertTrue(setFeature(dbf, feature, true));
         }
         for (String feature: FEATURES_TO_DISABLE) {
-            Assert.assertTrue(setFeature(dbf, feature, false));
+            Assertions.assertTrue(setFeature(dbf, feature, false));
         }
         dbf.setXIncludeAware(false);
         dbf.setExpandEntityReferences(false);
@@ -78,9 +78,9 @@ public class XmlParserFeatureTest {
                              "<stockCheck><productId>&xxe;</productId></stockCheck>";
         DocumentBuilder dBuilder = dbf.newDocumentBuilder();
         dBuilder.setErrorHandler(null);
-        SAXParseException ex = Assert.assertThrows(SAXParseException.class,
+        SAXParseException ex = Assertions.assertThrows(SAXParseException.class,
                 () -> dBuilder.parse(new ByteArrayInputStream(problematic.getBytes(StandardCharsets.UTF_8))));
-        Assert.assertTrue(ex.getMessage().contains("DOCTYPE is disallowed"));
+        Assertions.assertTrue(ex.getMessage().contains("DOCTYPE is disallowed"));
     }
 
     private boolean setFeature(DocumentBuilderFactory dbf, String feature, boolean enable) {

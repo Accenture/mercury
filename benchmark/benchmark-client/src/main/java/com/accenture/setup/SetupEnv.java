@@ -5,7 +5,7 @@ import org.platformlambda.core.models.EntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@BeforeApplication
+@BeforeEachApplication
 public class SetupEnv implements EntryPoint {
     private static final Logger log = LoggerFactory.getLogger(SetupEnv.class);
 

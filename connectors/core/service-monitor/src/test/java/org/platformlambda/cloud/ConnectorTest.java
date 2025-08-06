@@ -18,9 +18,9 @@
 
 package org.platformlambda.cloud;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.MainApp;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
@@ -57,7 +57,7 @@ public class ConnectorTest extends TestBase {
     private static final String CLOUD_CONNECTOR_HEALTH = "cloud.connector.health";
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
 
-    @Before
+    @BeforeEach
     public void waitForMockCloud() {
         if (firstRun.get()) {
             firstRun.set(false);
@@ -118,17 +118,17 @@ public class ConnectorTest extends TestBase {
             headers.put("x-app-instance", Platform.getInstance().getOrigin());
             Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info",
                     "application/json", headers);
-            Assert.assertTrue(response instanceof String);
+            Assertions.assertTrue(response instanceof String);
             Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
             Object info = map.get("additional_info");
-            Assert.assertTrue(info instanceof Map);
+            Assertions.assertTrue(info instanceof Map);
             Map<String, Object> infoMap = (Map<String, Object>) info;
             Object tt = infoMap.get("topics");
-            Assert.assertTrue(tt instanceof List);
+            Assertions.assertTrue(tt instanceof List);
             List<String> topicList = (List<String>) tt;
-            Assert.assertEquals(2, topicList.size());
+            Assertions.assertEquals(2, topicList.size());
             Object vt = infoMap.get("virtual_topics");
-            Assert.assertTrue(vt instanceof List);
+            Assertions.assertTrue(vt instanceof List);
             List<String> vtList = (List<String>) vt;
             if (vtList.isEmpty()) {
                 log.info("Waiting for first active member... {}", n);
@@ -138,7 +138,7 @@ public class ConnectorTest extends TestBase {
                     // ok to ignore
                 }
             } else {
-                Assert.assertTrue(vtList.get(0).startsWith("multiplex.0001-000 (user.topic.one) ->"));
+                Assertions.assertTrue(vtList.get(0).startsWith("multiplex.0001-000 (user.topic.one) ->"));
                 po.send(ServiceDiscovery.SERVICE_REGISTRY,
                         new Kv(TYPE, ALIVE), new Kv(TOPIC, "multiplex.0001-000"),
                         new Kv(ORIGIN, Platform.getInstance().getOrigin()));
@@ -159,22 +159,22 @@ public class ConnectorTest extends TestBase {
         po.request(MainApp.PRESENCE_HOUSEKEEPER, 5000,
                 new Kv(TYPE, MainApp.MONITOR_ALIVE), new Kv(ORIGIN, origin));
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         Map<String, Object> map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals("UP", map.get("status"));
+        Assertions.assertEquals("UP", map.get("status"));
         response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info");
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         map = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         Object info = map.get("additional_info");
-        Assert.assertTrue(info instanceof Map);
+        Assertions.assertTrue(info instanceof Map);
         Map<String, Object> infoMap = (Map<String, Object>) info;
         Object monitorList = infoMap.get("monitors");
-        Assert.assertTrue(monitorList instanceof List);
+        Assertions.assertTrue(monitorList instanceof List);
         String monitors = monitorList.toString();
-        Assert.assertTrue(monitors.contains("test-monitor"));
-        Assert.assertTrue(monitors.contains(Platform.getInstance().getOrigin()));
+        Assertions.assertTrue(monitors.contains("test-monitor"));
+        Assertions.assertTrue(monitors.contains(Platform.getInstance().getOrigin()));
         Map<String, WsMetadata> sessions = MonitorService.getSessions();
-        Assert.assertEquals(1, sessions.size());
+        Assertions.assertEquals(1, sessions.size());
     }
 
 }

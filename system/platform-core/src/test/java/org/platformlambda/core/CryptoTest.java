@@ -18,9 +18,9 @@
 
 package org.platformlambda.core;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.util.CryptoApi;
 import org.platformlambda.core.util.Utility;
 import org.slf4j.Logger;
@@ -40,7 +40,7 @@ public class CryptoTest {
     private static final CryptoApi crypto = new CryptoApi();
     private static boolean strongCrypto;
 
-    @BeforeClass
+    @BeforeAll
     public static void checkCrypto() {
         strongCrypto = crypto.strongCryptoSupported();
         if (!strongCrypto) {
@@ -58,7 +58,7 @@ public class CryptoTest {
         byte[] key = crypto.generateAesKey(strongCrypto? 256 : 128);
         byte[] encrypted = crypto.aesEncrypt(input.getBytes(), key);
         byte[] decrypted = crypto.aesDecrypt(encrypted, key);
-        Assert.assertEquals(input, new String(decrypted));
+        Assertions.assertEquals(input, new String(decrypted));
         // streaming methods
         ByteArrayInputStream clearIn = new ByteArrayInputStream(input.getBytes());
         ByteArrayOutputStream encryptedOut = new ByteArrayOutputStream();
@@ -68,7 +68,7 @@ public class CryptoTest {
         ByteArrayOutputStream clearOut = new ByteArrayOutputStream();
         crypto.aesDecrypt(encryptedIn, clearOut, key);
         decrypted = clearOut.toByteArray();
-        Assert.assertEquals(input, new String(decrypted));
+        Assertions.assertEquals(input, new String(decrypted));
     }
 
     @Test
@@ -83,14 +83,14 @@ public class CryptoTest {
         // decrypt
         byte[] decrypted = crypto.rsaDecrypt(encrypted, pri);
         // do a byte-by-byte comparison
-        Assert.assertArrayEquals(input, decrypted);
+        Assertions.assertArrayEquals(input, decrypted);
     }
 
     @Test
     public void invalidRsaKeyLength() {
-        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException ex = Assertions.assertThrows(IllegalArgumentException.class,
                                             () -> crypto.generateRsaKey(1000));
-        Assert.assertEquals("Key size must be one of [1024, 2048, 3072, 4096]", ex.getMessage());
+        Assertions.assertEquals("Key size must be one of [1024, 2048, 3072, 4096]", ex.getMessage());
     }
 
     @Test
@@ -100,14 +100,14 @@ public class CryptoTest {
         String pem = crypto.writePem(pub, "PUBLIC KEY");
         byte[] restored = crypto.readPem(pem);
         String pemRestored = crypto.writePem(restored, "PUBLIC KEY");
-        Assert.assertEquals(pem, pemRestored);
+        Assertions.assertEquals(pem, pemRestored);
     }
 
     @Test
     public void randomIntegerTest() {
         int n1 = crypto.nextInt(10000);
         int n2 = crypto.nextInt(10000);
-        Assert.assertNotEquals(n1, n2);
+        Assertions.assertNotEquals(n1, n2);
     }
 
     @Test
@@ -117,12 +117,12 @@ public class CryptoTest {
         byte[] pri = kp.getPrivate().getEncoded();
         PublicKey publicKey = crypto.getPublic(pub);
         PrivateKey privateKey = crypto.getPrivate(pri);
-        Assert.assertArrayEquals(pub, publicKey.getEncoded());
-        Assert.assertArrayEquals(pri, privateKey.getEncoded());
+        Assertions.assertArrayEquals(pub, publicKey.getEncoded());
+        Assertions.assertArrayEquals(pri, privateKey.getEncoded());
         byte[] pubAgain = crypto.getEncodedPublicKey(kp);
         byte[] priAgain = crypto.getEncodedPrivateKey(kp);
-        Assert.assertArrayEquals(pubAgain, publicKey.getEncoded());
-        Assert.assertArrayEquals(priAgain, privateKey.getEncoded());
+        Assertions.assertArrayEquals(pubAgain, publicKey.getEncoded());
+        Assertions.assertArrayEquals(priAgain, privateKey.getEncoded());
     }
 
     @Test
@@ -133,7 +133,7 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.dsaSign(data, pri);
         boolean result = crypto.dsaVerify(data, signature, pub);
-        Assert.assertTrue(result);
+        Assertions.assertTrue(result);
     }
 
     @Test
@@ -144,24 +144,24 @@ public class CryptoTest {
         byte[] data = "hello world".getBytes();
         byte[] signature = crypto.rsaSign(data, pri);
         boolean result = crypto.rsaVerify(data, signature, pub);
-        Assert.assertTrue(result);
+        Assertions.assertTrue(result);
     }
 
     @Test
     public void hashTest() throws IOException {
         String input = "hello world";
         byte[] hashed = crypto.getSHA256(input.getBytes());
-        Assert.assertEquals(32, hashed.length);
+        Assertions.assertEquals(32, hashed.length);
         byte[] hashedFromStream = crypto.getSHA256(new ByteArrayInputStream(input.getBytes()));
-        Assert.assertArrayEquals(hashed, hashedFromStream);
+        Assertions.assertArrayEquals(hashed, hashedFromStream);
         hashed = crypto.getSHA1(input.getBytes());
-        Assert.assertEquals(20, hashed.length);
+        Assertions.assertEquals(20, hashed.length);
         hashedFromStream = crypto.getSHA1(new ByteArrayInputStream(input.getBytes()));
-        Assert.assertArrayEquals(hashed, hashedFromStream);
+        Assertions.assertArrayEquals(hashed, hashedFromStream);
         hashed = crypto.getMd5(input.getBytes());
-        Assert.assertEquals(16, hashed.length);
+        Assertions.assertEquals(16, hashed.length);
         hashedFromStream = crypto.getMd5(new ByteArrayInputStream(input.getBytes()));
-        Assert.assertArrayEquals(hashed, hashedFromStream);
+        Assertions.assertArrayEquals(hashed, hashedFromStream);
     }
 
     @Test
@@ -170,7 +170,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha1(key, message);
-        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assertions.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
     @Test
@@ -179,7 +179,7 @@ public class CryptoTest {
         byte[] key = "hello".getBytes();
         byte[] message = "world".getBytes();
         byte[] b = crypto.getHmacSha256(key, message);
-        Assert.assertEquals(expected, Utility.getInstance().bytes2hex(b));
+        Assertions.assertEquals(expected, Utility.getInstance().bytes2hex(b));
     }
 
 }

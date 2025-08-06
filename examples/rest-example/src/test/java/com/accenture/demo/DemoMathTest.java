@@ -18,8 +18,8 @@
 
 package com.accenture.demo;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.Kv;
@@ -30,11 +30,11 @@ import com.accenture.examples.services.DemoMath;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class DemoMathTest {
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws IOException {
         Platform.getInstance().register("math.addition", new DemoMath(), 5);
     }
@@ -47,8 +47,8 @@ public class DemoMathTest {
 
         PostOffice po = PostOffice.getInstance();
         EventEnvelope response = po.request("math.addition", 5000, new Kv("a", a), new Kv("b", b));
-        Assert.assertFalse(response.hasError());
-        Assert.assertEquals(100 + 200, response.getBody());
+        Assertions.assertFalse(response.hasError());
+        Assertions.assertEquals(100 + 200, response.getBody());
 
     }
 

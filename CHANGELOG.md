@@ -20,6 +20,7 @@ N/A
 
 ### Changed
 - Bumped to **Spring Boot 3.5.3** on **Java 21**
+- Bumped to **Junit 5.11.4**
 - Boot 3 now provides newer Tomcat, Artemis, Jakarta-based Jackson modules by default.
 - Library updates:
 1. Gson 2.11.0

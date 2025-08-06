@@ -18,8 +18,8 @@
 
 package org.platformlambda.core;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.LambdaFunction;
 import org.platformlambda.core.system.Platform;
@@ -32,13 +32,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class PayloadSegmentationTest {
     private static final String TEST_STRING = "123456789.";
     private static final int CYCLE = 30000;
 
-    @Before
+    @BeforeEach
     public void init() {
         PostOffice.getInstance().getReady();
     }
@@ -73,7 +73,7 @@ public class PayloadSegmentationTest {
                     }
                 } else {
                     bench.offer(b.length);
-                    Assert.assertEquals(b.length, sb.length());
+                    Assertions.assertEquals(b.length, sb.length());
                 }
             }
             return true;
@@ -84,8 +84,8 @@ public class PayloadSegmentationTest {
         multipart.outgoing(RECEIVER, event);
         // wait for receiver to acknowledge message
         Integer size = bench.poll(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(size);
-        Assert.assertEquals((int) size, sb.length());
+        Assertions.assertNotNull(size);
+        Assertions.assertEquals((int) size, sb.length());
     }
 
 }

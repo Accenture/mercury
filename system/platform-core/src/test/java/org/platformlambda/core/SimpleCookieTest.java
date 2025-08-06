@@ -18,11 +18,11 @@
 
 package org.platformlambda.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.models.EventEnvelope;
 import org.platformlambda.core.models.SimpleHttpCookie;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.platformlambda.core.util.Utility;
 
 import java.util.List;
@@ -43,12 +43,12 @@ public class SimpleCookieTest {
     @Test
     public void validateCookie() {
         String cookie = createCookie("hello", "world").toString();
-        Assert.assertTrue(cookie.contains("Path=/;"));
-        Assert.assertTrue(cookie.contains("HttpOnly"));
-        Assert.assertTrue(cookie.contains("Secure;"));
-        Assert.assertTrue(cookie.contains("hello=world;"));
-        Assert.assertTrue(cookie.contains("Max-Age=60;"));
-        Assert.assertTrue(cookie.contains("GMT;"));
+        Assertions.assertTrue(cookie.contains("Path=/;"));
+        Assertions.assertTrue(cookie.contains("HttpOnly"));
+        Assertions.assertTrue(cookie.contains("Secure;"));
+        Assertions.assertTrue(cookie.contains("hello=world;"));
+        Assertions.assertTrue(cookie.contains("Max-Age=60;"));
+        Assertions.assertTrue(cookie.contains("GMT;"));
     }
 
     @Test
@@ -61,12 +61,12 @@ public class SimpleCookieTest {
         String WORLD = "world";
         event.setHeader(HELLO, WORLD);
         String cookies = event.getHeaders().get(SET_COOKIE);
-        Assert.assertTrue(cookies.contains("|"));
+        Assertions.assertTrue(cookies.contains("|"));
         List<String> cookieList = Utility.getInstance().split(cookies, "|");
-        Assert.assertEquals(2, cookieList.size());
-        Assert.assertTrue(cookieList.get(0).startsWith("key1=value1;"));
-        Assert.assertTrue(cookieList.get(1).startsWith("key2=value2;"));
-        Assert.assertEquals(WORLD, event.getHeaders().get(HELLO));
+        Assertions.assertEquals(2, cookieList.size());
+        Assertions.assertTrue(cookieList.get(0).startsWith("key1=value1;"));
+        Assertions.assertTrue(cookieList.get(1).startsWith("key2=value2;"));
+        Assertions.assertEquals(WORLD, event.getHeaders().get(HELLO));
     }
 
 }

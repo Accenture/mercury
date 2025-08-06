@@ -18,9 +18,17 @@
 
 package org.platformlambda.cloud;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.cloud.reporter.PresenceConnector;
 import org.platformlambda.core.exception.AppException;
 import org.platformlambda.core.models.EventEnvelope;
@@ -35,14 +43,6 @@ import org.platformlambda.util.SimpleHttpRequests;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class ConnectorTest extends TestBase {
     private static final Logger log = LoggerFactory.getLogger(ConnectorTest.class);
 
@@ -50,7 +50,7 @@ public class ConnectorTest extends TestBase {
 
     private static final AtomicBoolean firstRun = new AtomicBoolean(true);
 
-    @Before
+    @BeforeEach
     public void waitForMockCloud() {
         if (firstRun.get()) {
             firstRun.set(false);
@@ -100,9 +100,9 @@ public class ConnectorTest extends TestBase {
         String url = ConnectorConfig.getDisplayUrl();
         String name = ConnectorConfig.getServiceName();
         Map<String, String> topicSubstitution = ConnectorConfig.getTopicSubstitution();
-        Assert.assertEquals(URL, url);
-        Assert.assertEquals(SERVICE_NAME, name);
-        Assert.assertEquals("user.topic.one", topicSubstitution.get("multiplex.0001.0"));
+        Assertions.assertEquals(URL, url);
+        Assertions.assertEquals(SERVICE_NAME, name);
+        Assertions.assertEquals("user.topic.one", topicSubstitution.get("multiplex.0001.0"));
         po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000,
                 new Kv("type", "join"), new Kv("origin", origin), new Kv("topic", "multiplex.0001-001"));
         po.request(ServiceDiscovery.SERVICE_REGISTRY, 5000,
@@ -124,36 +124,36 @@ public class ConnectorTest extends TestBase {
                 new Kv("route", "to.be.removed"));
         EventEnvelope queryResult = po.request(ServiceDiscovery.SERVICE_QUERY, 5000,
                 new Kv("type", "search"), new Kv("route", "hello.world"));
-        Assert.assertTrue(queryResult.getBody() instanceof List);
+        Assertions.assertTrue(queryResult.getBody() instanceof List);
         List<String> instances = (List<String>) queryResult.getBody();
-        Assert.assertTrue(instances.contains("unit-test"));
-        Assert.assertTrue(instances.contains(platform.getOrigin()));
+        Assertions.assertTrue(instances.contains("unit-test"));
+        Assertions.assertTrue(instances.contains(platform.getOrigin()));
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/info/routes");
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         Map<String, Object> info = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
         MultiLevelMap multi = new MultiLevelMap(info);
         Object nodes = multi.getElement("routing.nodes");
-        Assert.assertTrue(nodes instanceof List);
+        Assertions.assertTrue(nodes instanceof List);
         String nodeList = nodes.toString();
-        Assert.assertTrue(nodeList.contains("unit-test"));
-        Assert.assertTrue(po.exists("hello.demo"));
+        Assertions.assertTrue(nodeList.contains("unit-test"));
+        Assertions.assertTrue(po.exists("hello.demo"));
         queryResult = po.request(ServiceDiscovery.SERVICE_QUERY, 5000,
                 Collections.singletonList("hello.world"), new Kv("type", "find"), new Kv("route", "*"));
-        Assert.assertEquals(true, queryResult.getBody());
+        Assertions.assertEquals(true, queryResult.getBody());
         Map<String, String> headers = new HashMap<>();
         headers.put("X-App-Instance", Platform.getInstance().getOrigin());
         response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/suspend/now", headers, new HashMap<>());
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("suspend", result.get("type"));
-        Assert.assertEquals("/suspend/now", result.get("path"));
+        Assertions.assertEquals(200, result.get("status"));
+        Assertions.assertEquals("suspend", result.get("type"));
+        Assertions.assertEquals("/suspend/now", result.get("path"));
         response = SimpleHttpRequests.post("http://127.0.0.1:"+port+"/resume/now", headers, new HashMap<>());
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals(200, result.get("status"));
-        Assert.assertEquals("resume", result.get("type"));
-        Assert.assertEquals("/resume/now", result.get("path"));
+        Assertions.assertEquals(200, result.get("status"));
+        Assertions.assertEquals("resume", result.get("type"));
+        Assertions.assertEquals("/resume/now", result.get("path"));
         po.send(ServiceDiscovery.SERVICE_REGISTRY, new Kv("type", "leave"), new Kv("origin", origin));
     }
 
@@ -162,37 +162,37 @@ public class ConnectorTest extends TestBase {
         String name = "hello.world";
         ConnectorConfig.validateTopicName(name);
         String invalid = "helloworld";
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
+        IOException ex = Assertions.assertThrows(IOException.class, () -> {
             ConnectorConfig.validateTopicName(invalid);
         });
-        Assert.assertEquals("Invalid route helloworld because it is missing dot separator(s). e.g. hello.world",
+        Assertions.assertEquals("Invalid route helloworld because it is missing dot separator(s). e.g. hello.world",
                 ex.getMessage());
     }
 
     @Test
     public void checkEmptyTopic() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
+        IOException ex = Assertions.assertThrows(IOException.class, () -> {
             ConnectorConfig.validateTopicName("");
         });
-        Assert.assertEquals("Invalid route name - use 0-9, a-z, A-Z, period, hyphen or underscore characters",
+        Assertions.assertEquals("Invalid route name - use 0-9, a-z, A-Z, period, hyphen or underscore characters",
                 ex.getMessage());
     }
 
     @Test
     public void reservedExtension() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
+        IOException ex = Assertions.assertThrows(IOException.class, () -> {
             ConnectorConfig.validateTopicName("hello.com");
         });
-        Assert.assertEquals("Invalid route hello.com which is a reserved extension",
+        Assertions.assertEquals("Invalid route hello.com which is a reserved extension",
                 ex.getMessage());
     }
 
     @Test
     public void reservedName() {
-        IOException ex = Assert.assertThrows(IOException.class, () -> {
+        IOException ex = Assertions.assertThrows(IOException.class, () -> {
             ConnectorConfig.validateTopicName("Thumbs.db");
         });
-        Assert.assertEquals("Invalid route Thumbs.db which is a reserved Windows filename",
+        Assertions.assertEquals("Invalid route Thumbs.db which is a reserved Windows filename",
                 ex.getMessage());
     }
 
@@ -201,11 +201,11 @@ public class ConnectorTest extends TestBase {
     public void healthTest() throws AppException, IOException {
         Object response = SimpleHttpRequests.get("http://127.0.0.1:"+port+"/health");
         log.info("{}", response);
-        Assert.assertTrue(response instanceof String);
+        Assertions.assertTrue(response instanceof String);
         Map<String, Object> result = SimpleMapper.getInstance().getMapper().readValue(response, Map.class);
-        Assert.assertEquals("UP", result.get("status"));
-        Assert.assertEquals("cloud-connector", result.get("name"));
+        Assertions.assertEquals("UP", result.get("status"));
+        Assertions.assertEquals("cloud-connector", result.get("name"));
         MultiLevelMap multi = new MultiLevelMap(result);
-        Assert.assertEquals(200, multi.getElement("upstream[0].status_code"));
+        Assertions.assertEquals(200, multi.getElement("upstream[0].status_code"));
     }
 }

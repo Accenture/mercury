@@ -19,8 +19,8 @@
 package org.platformlambda.core;
 
 import io.vertx.core.Future;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.platformlambda.core.system.AsyncObjectStreamReader;
 import org.platformlambda.core.system.ObjectStreamIO;
 import org.platformlambda.core.system.ObjectStreamReader;
@@ -48,18 +48,18 @@ public class ObjectStreamTest {
         Thread.sleep(500);
         out.write(TEXT);
         Map<String, Object> info = ObjectStreamIO.getStreamInfo();
-        Assert.assertNotNull(info.get("count"));
+        Assertions.assertNotNull(info.get("count"));
         int count = util.str2int(info.get("count").toString());
-        Assert.assertTrue(count > 0);
+        Assertions.assertTrue(count > 0);
         String id = stream.getInputStreamId().substring(0, stream.getInputStreamId().indexOf('@'));
-        Assert.assertTrue(info.containsKey(id));
+        Assertions.assertTrue(info.containsKey(id));
         int n = 0;
         for (Object data : in) {
             n++;
-            Assert.assertEquals(TEXT, data);
+            Assertions.assertEquals(TEXT, data);
             break;
         }
-        Assert.assertEquals(1, n);
+        Assertions.assertEquals(1, n);
         // the stream will expire after one second of inactivity
         Thread.sleep(1200);
         /*
@@ -68,7 +68,7 @@ public class ObjectStreamTest {
          */
         ObjectStreamIO.removeExpiredStreams();
         Map<String, Object> infoAfterExpiry = ObjectStreamIO.getStreamInfo();
-        Assert.assertFalse(infoAfterExpiry.containsKey(id));
+        Assertions.assertFalse(infoAfterExpiry.containsKey(id));
     }
 
     @Test
@@ -98,7 +98,7 @@ public class ObjectStreamTest {
                 }
             }
         }
-        Assert.assertEquals(CYCLES + 1, n);
+        Assertions.assertEquals(CYCLES + 1, n);
     }
 
     @Test
@@ -122,10 +122,10 @@ public class ObjectStreamTest {
         log.info("Beginning of Stream");
         fetchNextBlock(in, 0, bench);
         Integer count = bench.poll(8, TimeUnit.SECONDS);
-        Assert.assertNotNull(count);
-        Assert.assertEquals(CYCLES, count.intValue());
-        Assert.assertTrue(in.isStreamEnd());
-        Assert.assertFalse(in.isClosed());
+        Assertions.assertNotNull(count);
+        Assertions.assertEquals(CYCLES, count.intValue());
+        Assertions.assertTrue(in.isStreamEnd());
+        Assertions.assertFalse(in.isClosed());
         in.close();
     }
 
@@ -152,7 +152,7 @@ public class ObjectStreamTest {
         String TEXT = " hello world";
         ObjectStreamIO stream = new ObjectStreamIO();
         log.info("Using {}", stream.getInputStreamId());
-        Assert.assertEquals(ObjectStreamIO.DEFAULT_TIMEOUT, stream.getExpirySeconds());
+        Assertions.assertEquals(ObjectStreamIO.DEFAULT_TIMEOUT, stream.getExpirySeconds());
         ObjectStreamWriter out = new ObjectStreamWriter(stream.getOutputStreamId());
         byte[] b = (1+TEXT).getBytes();
         out.write(b, 0, b.length);
@@ -163,25 +163,25 @@ public class ObjectStreamTest {
             for (Object d : in) {
                 n++;
                 if (n == 1) {
-                    Assert.assertTrue(d instanceof byte[]);
+                    Assertions.assertTrue(d instanceof byte[]);
                     String firstOne = Utility.getInstance().getUTF((byte[]) d);
-                    Assert.assertTrue(firstOne.startsWith("1"));
+                    Assertions.assertTrue(firstOne.startsWith("1"));
                     log.info("Got 1st item as bytes - {}", d);
                 }
                 if (n == 2) {
-                    Assert.assertTrue(d instanceof String);
+                    Assertions.assertTrue(d instanceof String);
                     String secondOne = (String) d;
-                    Assert.assertTrue(secondOne.startsWith("2"));
+                    Assertions.assertTrue(secondOne.startsWith("2"));
                     log.info("Got 2nd item as string '{}'", d);
                 }
                 // the last item is an EOF signal of null value
                 if (n == 3) {
-                    Assert.assertNull(d);
+                    Assertions.assertNull(d);
                     log.info("Got 3nd item as an EOF signal");
                 }
             }
         }
-        Assert.assertEquals(3, n);
+        Assertions.assertEquals(3, n);
     }
 
     @Test
@@ -194,19 +194,19 @@ public class ObjectStreamTest {
         // stop writing and do not close output stream so there are no more item to come
 
         String MESSAGE = stream.getInputStreamId() + " timeout for 2000 ms";
-        RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> {
+        RuntimeException ex = Assertions.assertThrows(RuntimeException.class, () -> {
             int n = 0;
             try (ObjectStreamReader in = new ObjectStreamReader(stream.getInputStreamId(), 2000)) {
                 for (Object d : in) {
                     n++;
                     if (n == 1) {
-                        Assert.assertEquals(TEXT, d);
+                        Assertions.assertEquals(TEXT, d);
                         log.info("Got the 1st item '{}'. The 2nd item is designed to timeout in 2 seconds.", d);
                     }
                 }
             }
         });
-        Assert.assertEquals(MESSAGE, ex.getMessage());
+        Assertions.assertEquals(MESSAGE, ex.getMessage());
     }
 
 }
