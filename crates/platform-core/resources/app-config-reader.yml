@@ -1,0 +1,40 @@
+#
+# This file lists the base application configuration file(s)
+# for the AppConfigReader class.
+#
+# If you want to override the base configuration file(s),
+# you can follow the syntax here and create a "app-config-reader.yml"
+# file in your user application.
+#
+# When you have more than one base configuration file,
+# they will be merged in order.
+#
+# If you want to override this configuration file, you can use
+# the "classpath:/" prefix to read a configuration file under the "resources" folder
+# or the "file:/" prefix to read it from the local file system.
+#
+# IMPORTANT: for compatibility with Spring Boot configuration management,
+#            please keep the default configuration files below.
+#            You may add more configuration files to merge as the base configuration.
+#
+resources:
+  - classpath:/bootstrap.properties
+  - classpath:/bootstrap.yml
+  - classpath:/application.properties
+  - classpath:/application.yml
+
+#
+# the profile parameter is used to merge additional configuration files given in
+# spring.profiles.active (process override parameter) or SPRING_PROFILES_ACTIVE
+# (Environment variable).
+#
+# By default, it is loading from the classpath. You can override it to load
+# from the local file system using the "file:/" syntax.
+#
+# For compatibility with Spring Boot configuration management, please
+# keep the default value unchanged.
+# (Kept verbatim from the Java original for side-by-side comparison during
+#  migration; a generic "app.profiles.active" alias may be added once the
+#  foundation port is robust — see docs/design/platform-core-port.md §8.)
+#
+profiles: 'classpath:/application-'

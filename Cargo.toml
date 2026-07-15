@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["crates/platform-core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/Accenture/mercury-composable"

@@ -1,0 +1,6 @@
+# active-profile overlay (merged when SPRING_PROFILES_ACTIVE=test)
+profile:
+  indicator: test-profile
+
+profile-only:
+  key: only-in-test-profile
