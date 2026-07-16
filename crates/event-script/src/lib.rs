@@ -29,9 +29,18 @@
 //! `Flow`/`Task`), [`flows`] (the template registry), [`compiler`]
 //! (`yaml.flow.automation` discovery + the full grammar validation),
 //! [`converter`] (legacy `:type` → `f:plugin(...)` rewriting), [`validator`]
-//! (mapping-syntax + reserved-key checks) and [`plugins`] (the plugin *name*
-//! registry — execution bodies arrive with increment E-8). The runtime
-//! (state machine, task executor, adapters) arrives with increments E-2+.
+//! (mapping-syntax + reserved-key checks) and [`plugins`].
+//!
+//! **Increment E-2 — data-mapping engine:** [`mlm`] (the runtime
+//! `MultiLevelMap` over the state-machine tree — direct composite-key
+//! traversal is the primary access path, `$.…` delegates to a JSONPath
+//! engine for user-defined complex queries), [`mapping`] (LHS/RHS
+//! resolution: constants, plugin calls, legacy `:type` commands,
+//! `{model.key}` interpolation, `file()`/`classpath()` content),
+//! [`conversions`] (type-conversion utilities) and executable bodies for
+//! the core conversion/logical plugins (the remaining built-ins + the
+//! `#[simple_plugin]` macro arrive with increment E-8). The runtime
+//! (state machine, task executor, adapters) arrives with E-3+.
 //!
 //! Linking this crate makes the engine self-register through the
 //! platform-core annotation inventory: [`CompileFlows`] runs as a
@@ -39,8 +48,11 @@
 //! flows 5, user code ≥ 6 — the Java sequence contract).
 
 pub mod compiler;
+pub mod conversions;
 pub mod converter;
 pub mod flows;
+pub mod mapping;
+pub mod mlm;
 pub mod model;
 pub mod plugins;
 pub mod util;

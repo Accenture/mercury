@@ -10,3 +10,13 @@ repository.workspace = true
 platform-core = { path = "../platform-core" }
 async-trait = "0.1"
 log = "0.4"
+# --- increment E-2: data-mapping engine ---
+# rmpv is the bus currency (envelope bodies) — the flow state machine uses it
+# directly so state<->envelope moves need no conversion (byte-fidelity like
+# Java's Object tree); serde_json + serde_json_path serve the `$.…` JSONPath
+# view (user-defined complex queries — maintainer decision 2026-07-16)
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
+serde_json_path = "0.7"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }

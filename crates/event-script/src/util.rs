@@ -37,9 +37,49 @@ pub fn is_numeric(text: &str) -> bool {
     !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// Java `Utility.str2long` semantics for our use: parse or 0.
+/// Java `Utility.str2long`: empty or invalid input yields **-1**; a decimal
+/// point and everything after it is dropped before parsing.
 pub fn str2long(text: &str) -> i64 {
-    text.trim().parse::<i64>().unwrap_or(0)
+    let t = text.trim();
+    if t.is_empty() {
+        return -1;
+    }
+    let head = match t.find('.') {
+        Some(dot) if dot > 0 => &t[..dot],
+        _ => t,
+    };
+    head.parse::<i64>().unwrap_or(-1)
+}
+
+/// Java `Utility.str2int` (same -1 / decimal-drop semantics), clamped to i32.
+pub fn str2int(text: &str) -> i32 {
+    let t = text.trim();
+    if t.is_empty() {
+        return -1;
+    }
+    let head = match t.find('.') {
+        Some(dot) if dot > 0 => &t[..dot],
+        _ => t,
+    };
+    head.parse::<i32>().unwrap_or(-1)
+}
+
+/// Java `Utility.str2float`: empty or invalid input yields -1.0.
+pub fn str2float(text: &str) -> f32 {
+    let t = text.trim();
+    if t.is_empty() {
+        return -1.0;
+    }
+    t.parse::<f32>().unwrap_or(-1.0)
+}
+
+/// Java `Utility.str2double`: empty or invalid input yields -1.0.
+pub fn str2double(text: &str) -> f64 {
+    let t = text.trim();
+    if t.is_empty() {
+        return -1.0;
+    }
+    t.parse::<f64>().unwrap_or(-1.0)
 }
 
 /// Java `Utility.getDurationInSeconds`: `s`/`m`/`h`/`d` suffix, otherwise the
@@ -76,6 +116,18 @@ mod tests {
         assert!(!is_numeric("-"));
         assert!(!is_numeric("12.5"));
         assert!(!is_numeric(""));
+    }
+
+    #[test]
+    fn numeric_parsers_match_java() {
+        assert_eq!(str2long("123"), 123);
+        assert_eq!(str2long("12.9"), 12); // decimal dropped, not rounded
+        assert_eq!(str2long("abc"), -1);
+        assert_eq!(str2long(""), -1);
+        assert_eq!(str2int("42"), 42);
+        assert_eq!(str2int("oops"), -1);
+        assert_eq!(str2double("12.345"), 12.345);
+        assert_eq!(str2double("x"), -1.0);
     }
 
     #[test]

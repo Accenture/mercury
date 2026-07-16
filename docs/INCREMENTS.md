@@ -27,6 +27,7 @@
 | 10 | Annotation macros + `AutoStart` one-liner + `examples/` convention | 2026-07-16 | §5i | 105 |
 | — | Event-script design doc v1 (layer-2 gate) | 2026-07-16 | E1–E9 | — |
 | 11 | event-script E-1: flow model + compiler (fixture parity) | 2026-07-16 | ES §5a | 120 |
+| 12 | event-script E-2: data-mapping engine (MLM primary, JSONPath queries) | 2026-07-16 | ES §5b | 139 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -256,6 +257,30 @@ knowledge-graph layers will ride on.*
   loading (not their comments): `invalid-condition-mode`, `ext.user` dot-form.
 - Engine self-registers through the increment-10 annotation layer
   (`#[before_application(sequence = 5)]`).
+
+---
+
+## Increment 12 — event-script E-2: data-mapping engine (2026-07-16)
+
+*Maintainer refinement at the gate: **MultiLevelMap (direct composite-key access) is the
+primary data-mapping tool** — lightweight; **JSONPath (`$.…`) serves user-defined complex
+queries**. The Java code is layered the same way, so parity and the refinement coincide.*
+
+- **Runtime `MultiLevelMap`** over `rmpv::Value` — the bus currency, so state↔envelope
+  moves need no conversion and byte arrays stay real binary (Java `byte[]` parity).
+  Java semantics throughout: null vs missing, list padding, stable indices on removal,
+  `key[]` append. `$.…` delegates to `serde_json_path` (RFC 9535) on an on-demand JSON
+  view.
+- **Mapping resolution** (`DataMappingHelper` port): constants (incl. `map(config.key)`
+  and `file()`/`classpath()` content), `f:plugin(...)` invocation (top-level-comma
+  argument split, nested-plugin null guard), legacy `:type` commands
+  (error → pass-through + ERROR log), `{model.key}` runtime interpolation.
+- **19 core plugin bodies** (the ones the legacy-syntax converter emits) now execute;
+  remaining built-ins fail loudly until E-8. Type conversions match Java exactly
+  (String.valueOf display parity, −1 numeric fallbacks with decimal-drop).
+- **Parity capstone test**: the compiled greetings fixture's mappings evaluated against
+  a simulated HTTP dataset produce the exact function-input body the Java engine feeds
+  `greeting.test`.
 
 ---
 

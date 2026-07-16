@@ -27,7 +27,7 @@ and every task execution is an event over the bus.
 |---|---|---|
 | E1 | **New crate `crates/event-script`**, depending only on `platform-core` | D5's workspace layout pays off; mirrors the Java module split (`event-script-engine` depends only on `platform-core`). |
 | E2 | **Flow YAML syntax verbatim (D9 extended to the DSL)** — and **reuse the Java test fixtures unchanged** (51 flows + 20 negative parser fixtures + `flows.yaml`) | The flow files are config-data; a flow written for Java mercury must compile on Rust mercury unchanged. Reusing the canonical fixtures gives us behavior-parity tests for free and keeps the two repos side-by-side comparable. |
-| E3 | **Flow state machine on `serde_json::Value`** + a JSON-tree composite-key engine; **`$.…` via a real JSONPath crate** (`serde_json_path`, RFC 9535) | Java's `MultiLevelMap.getElement` delegates `$`-prefixed paths to the Jayway JsonPath library — a genuine JSONPath engine, not a subset; matching it needs a real implementation. Envelope bodies (rmpv) already convert to/from JSON at the HTTP boundary; flow state is boundary data. |
+| E3 | **Flow state machine on the bus value tree (`rmpv::Value`)** with a runtime `MultiLevelMap` — **direct composite-key traversal is the PRIMARY data-mapping tool** (lightweight, zero conversion, byte-fidelity like Java's `Object` tree); **`$.…` is the user-defined complex query**, delegated to a real JSONPath crate (`serde_json_path`, RFC 9535) over an on-demand JSON view *(refined from serde_json::Value at the E-2 gate — maintainer decision 2026-07-16)* | Java's `MultiLevelMap.getElement` delegates `$`-prefixed paths to the Jayway JsonPath library — a genuine JSONPath engine, not a subset; matching it needs a real implementation. Envelope bodies (rmpv) already convert to/from JSON at the HTTP boundary; flow state is boundary data. |
 | E4 | **Engine components register via the increment-10 annotations** | `event.script.manager`, `task.executor`, `http.flow.adapter`, `resilience.handler` are `#[preload]` functions; `CompileFlows` is `#[before_application(sequence = 5)]`; the plugin loader seq 3 — exactly the Java sequence contract (essential 0 < plugins 3 < flows 5 < user ≥ 6). Cross-crate `inventory` collection (built for this) makes the engine self-register when an app links `event-script`. |
 | E5 | **Minimal platform-core extensions, shipped in lockstep**: (a) an **event-interceptor** registration mode (function receives the raw envelope incl. `reply_to`/`cid` metadata and replies manually — no auto-reply); (b) **scheduled events** (`send_later` + cancel) for the flow TTL watcher; (c) rest.yaml **`flow:` key** → REST automation injects the `x-flow-id` header (Java parity); (d) an envelope-body **deep-copy** helper | The engine's core classes are `@EventInterceptor` in Java; our worker currently always auto-replies. The TTL watcher is `sendLater`/`cancelFutureEvent`. All four are additive platform-core features other layers will reuse. |
 | E6 | **Simple plugins are compiled Rust registered by a `#[simple_plugin]` annotation**; Java's runtime bytecode-safety allowlist is **not ported** (documented divergence) | Java scans `@SimplePlugin` classes at runtime and verifies their bytecode only touches `java.lang/util/math/time`. Rust has no runtime class loading — plugins are compiled, reviewed code linked into the binary; the allowlist's threat model doesn't exist. The registry + `f:name(args)` resolution semantics are ported faithfully. |
@@ -137,6 +137,44 @@ not the fixture comment, is authoritative** (verified against the Java source):
 `invalid-condition-mode` (parser-test-7) is grammar-valid legacy naming and LOADS;
 parser-test-19's `ext.user` (dot form) is a plain body key — only the `ext:`
 namespace triggers the `external.state.machine` requirement — so it loads too.
+
+## 5b. Increment E-2 — data-mapping engine (implemented 2026-07-16)
+
+*Maintainer refinement at the gate: MultiLevelMap (direct composite-key access) is the
+primary data-mapping tool; JSONPath serves user-defined complex queries — which is also
+exactly how the Java code is layered (`MultiLevelMap.getElement` delegates only
+`$`-prefixed paths to Jayway).* Modules:
+
+- **`mlm`** — the runtime `MultiLevelMap` over `rmpv::Value` (the bus currency; byte
+  arrays are real `Binary` values like Java's `byte[]`): get/set/remove/exists/
+  key_exists with Java semantics (null resolves to None but the key exists; lists pad
+  with nulls; removal never shifts indices; `key[]` appends via `appendIndex`); `$.…`
+  → `serde_json_path` on an on-demand JSON view (0 matches → none, 1 → scalar, many →
+  array — Jayway-style).
+- **`mapping`** — the `DataMappingHelper` resolution half: `get_constant_value`
+  (text/int/long/float/double/boolean, `map(k=v,…)` literals + `map(config.key)` from
+  the base configuration, `file()`/`classpath()` content via `SimpleFileDescriptor`
+  with text/json/binary/append modes), `get_lhs_element` (`$` queries, `f:plugin(...)`
+  invocation with top-level-comma argument splitting and the nested-plugin null guard,
+  legacy `:type` commands on model selectors), `get_value_by_type` (simple commands +
+  `substring`/`concat`/`and`/`or`/`boolean(…)` — bad commands log ERROR and pass the
+  value through, Java parity), and the `{model.key}` runtime interpolation
+  (`substituteRuntimeVarsIfAny`: strings/numbers interpolate, anything else renders
+  "null", non-model braces pass through).
+- **`conversions`** — `TypeConversionUtils` port, incl. Java `String.valueOf` display
+  parity (null → "null", floats keep the decimal point) and the Java numeric fallbacks
+  (`str2int`/`str2long` → −1 with decimal-drop).
+- **`plugins`** — executable bodies for the 19 core conversion/logical plugins the
+  legacy-syntax converter emits (`f:int`, `f:not`, `f:isNull`, `f:concat`,
+  `f:substring`, `f:eq`, …); the remaining built-ins stay name-only and fail loudly
+  until E-8.
+
+**Tests:** module unit tests for every resolution rule, plus an integration test that
+takes the **compiled greetings fixture from E-1** and evaluates its normalized input
+mappings against a simulated HTTP dataset — asserting the exact function-input body the
+Java engine produces (type conversions, negation chains, uuid identity across the
+3-part decomposition, `{model.pointer}` interpolation, `f:concat` with a `text(,)`
+argument, header targets).
 
 ## 6. Out of scope (confirmed defaults)
 
