@@ -267,7 +267,7 @@ async fn process(
         if verdict.has_error() {
             return Err(AppError::new(
                 verdict.status(),
-                &verdict
+                verdict
                     .body_as::<String>()
                     .unwrap_or_else(|_| "Unauthorized".to_string()),
             ));

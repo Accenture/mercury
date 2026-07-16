@@ -39,11 +39,39 @@ pub(crate) mod inbox;
 pub mod logging;
 pub mod platform;
 pub mod post_office;
+pub mod registry;
 pub mod telemetry;
 pub mod trace;
 pub mod util;
 
-pub use app_starter::{AppStarter, EntryPoint};
+pub use app_starter::{AppStarter, AutoStart, EntryPoint};
+// the annotation layer (Java @PreLoad/@BeforeApplication/@MainApplication/@ZeroTracing)
+pub use platform_macros::{before_application, main_application, preload};
+// re-exported so the macros' generated `submit!` resolves without the user
+// adding `inventory` as a direct dependency
+pub use inventory;
+
+/// Generate the application `main()` — the Java `AutoStart.main(args)`
+/// one-liner. Expands **in the application crate**, so the app's own
+/// `resources/` folder (next to its `Cargo.toml`) joins the resource roots:
+///
+/// ```ignore
+/// platform_core::auto_start_main!();
+/// ```
+#[macro_export]
+macro_rules! auto_start_main {
+    () => {
+        fn main() -> ::core::result::Result<(), $crate::AppError> {
+            // the application's own resources/ folder (compile-time path of
+            // the invoking crate)
+            $crate::resources::prepend_resource_root(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/resources"
+            ));
+            $crate::AutoStart::run()
+        }
+    };
+}
 pub use envelope::EventEnvelope;
 pub use function::{AppError, ComposableFunction, TypedAdapter, TypedFunction};
 pub use platform::Platform;

@@ -76,7 +76,7 @@ pub trait EntryPoint: Send + Sync {
 #[derive(Default)]
 pub struct AppStarter {
     before: Vec<(u32, Arc<dyn EntryPoint>)>,
-    preloads: Vec<(String, Arc<dyn ComposableFunction>, usize)>,
+    preloads: Vec<(String, Arc<dyn ComposableFunction>, usize, bool)>,
     mains: Vec<(u32, Arc<dyn EntryPoint>)>,
 }
 
@@ -101,7 +101,21 @@ impl AppStarter {
         function: Arc<dyn ComposableFunction>,
         instances: usize,
     ) -> Self {
-        self.preloads.push((route.to_string(), function, instances));
+        self.preloads
+            .push((route.to_string(), function, instances, false));
+        self
+    }
+
+    /// Register a composable function whose executions are excluded from
+    /// distributed-trace recording (Java `@PreLoad` + `@ZeroTracing`).
+    pub fn preload_zero_traced(
+        mut self,
+        route: &str,
+        function: Arc<dyn ComposableFunction>,
+        instances: usize,
+    ) -> Self {
+        self.preloads
+            .push((route.to_string(), function, instances, true));
         self
     }
 
@@ -181,8 +195,8 @@ impl AppStarter {
             })?;
         }
         // 3. preload: bind composable functions to their routes
-        for (route, function, instances) in self.preloads {
-            platform.register(&route, function, instances)?;
+        for (route, function, instances, zero_traced) in self.preloads {
+            platform.register_with_options(&route, function, instances, zero_traced)?;
             log::info!(
                 "{route} with {instances} instance{} started",
                 if instances == 1 { "" } else { "s" }
@@ -213,6 +227,66 @@ impl AppStarter {
                 )
             })?;
         }
+        Ok(())
+    }
+}
+
+/// The one-line application entry point (Java `AutoStart.main(args)`): loads
+/// the `-D` runtime overrides, installs the logger, **collects every
+/// annotated item from the link-time inventory** (`#[preload]`,
+/// `#[before_application]`, `#[main_application]` — the classpath-scanning
+/// analog), runs the lifecycle, keeps serving while REST automation is on
+/// (until Ctrl-C), and cleans up on exit. Use via
+/// [`auto_start_main!`](crate::auto_start_main) — or call
+/// [`AutoStart::main`] from an existing async context.
+pub struct AutoStart;
+
+impl AutoStart {
+    /// Build a Tokio runtime and run the application to completion — the
+    /// whole `fn main()` body (the `auto_start_main!` macro wraps exactly
+    /// this plus the app's resource root).
+    pub fn run() -> Result<(), AppError> {
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|e| AppError::new(500, format!("Unable to start runtime: {e}")))?;
+        runtime.block_on(Self::main(std::env::args().collect()))
+    }
+
+    /// The async lifecycle (must run within a Tokio runtime).
+    pub async fn main(args: Vec<String>) -> Result<(), AppError> {
+        crate::util::overrides::load_runtime_args();
+        crate::logging::init();
+        let mut starter = AppStarter::new();
+        for entry in inventory::iter::<crate::registry::BeforeAppEntry> {
+            starter = starter.before_application(entry.sequence, (entry.factory)());
+        }
+        let config = AppConfigReader::get_instance();
+        for entry in inventory::iter::<crate::registry::PreloadEntry> {
+            // Java envInstances: the instance count may come from configuration
+            let instances = entry
+                .env_instances
+                .and_then(|key| config.get_property(key))
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(entry.instances);
+            starter = if entry.zero_tracing {
+                starter.preload_zero_traced(entry.route, (entry.factory)(), instances)
+            } else {
+                starter.preload(entry.route, (entry.factory)(), instances)
+            };
+        }
+        for entry in inventory::iter::<crate::registry::MainAppEntry> {
+            starter = starter.main_application(entry.sequence, (entry.factory)());
+        }
+        starter.run(args).await?;
+        // REST automation serving: stay alive for HTTP traffic until Ctrl-C
+        // (Java: the JVM stays up on non-daemon threads)
+        if config.get_property_or("rest.automation", "false") == "true" {
+            log::info!("Application running - press Ctrl-C to stop");
+            let _ = tokio::signal::ctrl_c().await;
+        } else {
+            // give fire-and-forget telemetry a beat to be logged before exit
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+        crate::util::elastic_queue::shutdown_cleanup();
         Ok(())
     }
 }

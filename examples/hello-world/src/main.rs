@@ -15,23 +15,28 @@
 //
 
 //! The Rust analog of mercury-composable's README "greeting.demo" taste —
-//! a bootable application proving increments 1–5 end-to-end:
+//! a bootable application proving the platform-core foundation end-to-end:
 //!
 //! configuration (`application.yml`, `${ENV:default}` substitution) →
-//! lifecycle (`AppStarter`: before-application hook → preload → main) →
+//! lifecycle (before-application hook → preload → REST automation → main) →
 //! event bus (a typed composable function invoked by route name over
-//! `PostOffice` RPC) → **distributed tracing** (a traced request produces an
-//! OpenTelemetry-compatible span, logged in real time by the built-in
-//! `distributed.tracing` service) → **application log context** (JSON log
-//! lines carry cid / trace / span ids + business key-values).
+//! `PostOffice` RPC) → distributed tracing (OpenTelemetry-compatible spans
+//! logged in real time) → application log context (JSON log lines carry
+//! cid / trace / span ids + business key-values) → actuators + static
+//! content with etag/304 and a request filter.
+//!
+//! **Increment 10:** the whole application is declared with annotations —
+//! `#[preload]`, `#[before_application]`, `#[main_application]` (the Java
+//! `@PreLoad` / `@BeforeApplication` / `@MainApplication` analogs) — and
+//! started by the one-line `auto_start_main!()` (Java `AutoStart.main(args)`).
 //!
 //! Run it (`-Dkey=value` after `--` is the JVM `-D` runtime-override analog —
 //! it beats any configuration file value):
 //! ```bash
-//! cargo run -p platform-core --example hello_world                            # pretty JSON (from application.yml)
-//! cargo run -p platform-core --example hello_world -- -Dlog.format=compact   # single-line jsonl
-//! cargo run -p platform-core --example hello_world -- -Dlog.format=text      # plain console, no context block
-//! GREETING_USER=eric cargo run -p platform-core --example hello_world
+//! cargo run -p hello-world                            # pretty JSON (from application.yml)
+//! cargo run -p hello-world -- -Dlog.format=compact    # single-line jsonl
+//! cargo run -p hello-world -- -Dlog.format=text       # plain console, no context block
+//! GREETING_USER=eric cargo run -p hello-world
 //! ```
 //!
 //! Watch for two structured log records: the greeting function's own log
@@ -40,14 +45,12 @@
 //! `span_id`, `parent_span_id`, timing, annotations).
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use platform_core::{
-    resources, trace, util::elastic_queue, AppConfigReader, AppError, AppStarter,
-    ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedAdapter,
-    TypedFunction,
+    before_application, main_application, preload, trace, AppConfigReader, AppError,
+    ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
 };
 use serde::{Deserialize, Serialize};
 
@@ -64,6 +67,15 @@ struct GreetingResponse {
     handled_by_instance: usize,
 }
 
+/// `env_instances` (Java `envInstances`) lets `greeting.instances` in
+/// `application.yml` — or a `-Dgreeting.instances=` override — set the worker
+/// pool size; the literal `instances` is the fallback.
+#[preload(
+    route = "greeting.demo",
+    instances = 10,
+    env_instances = "greeting.instances",
+    typed
+)]
 struct Greetings;
 
 #[async_trait]
@@ -94,6 +106,7 @@ impl TypedFunction<GreetingRequest, GreetingResponse> for Greetings {
 /// Receives the AsyncHttpRequest event from the HTTP edge, then composes with
 /// the typed greeting.demo function — the edge-started trace propagates
 /// automatically, producing a two-span tree (greeting.api → greeting.demo).
+#[preload(route = "greeting.api", instances = 5)]
 struct GreetingApi;
 
 #[async_trait]
@@ -137,6 +150,7 @@ impl ComposableFunction for GreetingApi {
 /// the HTTP headers of matching requests and lets them through (status 200).
 /// A real deployment would handle SSO here — inspect the session cookie and
 /// return 302 + Location to the identity provider when absent.
+#[preload(route = "http.request.filter", instances = 2)]
 struct HttpRequestFilter;
 
 #[async_trait]
@@ -165,6 +179,7 @@ impl ComposableFunction for HttpRequestFilter {
 
 /// Honors the actuator health protocol: header `type=info` describes the
 /// dependency; `type=health` reports its live status.
+#[preload(route = "demo.health")]
 struct DemoHealth;
 
 #[async_trait]
@@ -188,6 +203,7 @@ impl ComposableFunction for DemoHealth {
 
 // ---- a before-application hook (Java: @BeforeApplication(sequence = 5), like CompileFlows) ----
 
+#[before_application(sequence = 5)]
 struct PreflightCheck;
 
 #[async_trait]
@@ -211,6 +227,7 @@ impl EntryPoint for PreflightCheck {
 
 // ---- the main application (Java: @MainApplication implementing EntryPoint) ----
 
+#[main_application]
 struct MainApp;
 
 #[async_trait]
@@ -239,39 +256,14 @@ impl EntryPoint for MainApp {
             response.exec_time().unwrap_or(0.0),
             response.trace_id().unwrap_or("-")
         );
+        if config.get_property_or("rest.automation", "false") == "true" {
+            let port = config.get_property_or("rest.server.port", "8085");
+            log::info!("Try: curl http://127.0.0.1:{port}/api/greeting/eric");
+        }
         Ok(())
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), AppError> {
-    // the example's resources/ travels with the example, not the working dir
-    resources::prepend_resource_root(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/resources"));
-    // structured logging with the app-log-context feature (log.format=json)
-    platform_core::logging::init();
-    let instances: usize = AppConfigReader::get_instance()
-        .get_property_or("greeting.instances", "10")
-        .parse()
-        .unwrap_or(10);
-    AppStarter::new()
-        .before_application(5, Arc::new(PreflightCheck))
-        .preload("greeting.demo", TypedAdapter::arc(Greetings), instances)
-        .preload("greeting.api", Arc::new(GreetingApi), 5)
-        .preload("demo.health", Arc::new(DemoHealth), 1)
-        .preload("http.request.filter", Arc::new(HttpRequestFilter), 2)
-        .main_application(1, Arc::new(MainApp))
-        .run(std::env::args().collect())
-        .await?;
-    // REST automation is serving (rest.automation=true): stay alive for HTTP
-    // traffic until Ctrl-C (Java: the JVM stays up on non-daemon threads)
-    if AppConfigReader::get_instance().get_property_or("rest.automation", "false") == "true" {
-        log::info!("Try: curl http://127.0.0.1:8085/api/greeting/eric  (Ctrl-C to stop)");
-        let _ = tokio::signal::ctrl_c().await;
-    } else {
-        // give the fire-and-forget telemetry a beat to be logged before exit
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    // graceful exit (Java: JVM shutdown hook)
-    elastic_queue::shutdown_cleanup();
-    Ok(())
-}
+// the whole startup — Java `AutoStart.main(args)`: runtime, `-D` overrides,
+// structured logging, annotation collection, lifecycle, serve until Ctrl-C
+platform_core::auto_start_main!();

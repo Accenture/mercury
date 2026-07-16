@@ -123,6 +123,19 @@ impl Platform {
         function: Arc<dyn ComposableFunction>,
         instances: usize,
     ) -> Result<(), AppError> {
+        self.register_with_options(route, function, instances, false)
+    }
+
+    /// Register with explicit options: `zero_traced` excludes this route's
+    /// executions from distributed-trace recording (Java `@ZeroTracing`;
+    /// the built-in filter list and `skip.rpc.tracing` still apply).
+    pub fn register_with_options(
+        &self,
+        route: &str,
+        function: Arc<dyn ComposableFunction>,
+        instances: usize,
+        zero_traced: bool,
+    ) -> Result<(), AppError> {
         validate_route(route)?;
         if instances == 0 {
             return Err(AppError::new(400, "instances must be at least 1"));
@@ -156,6 +169,7 @@ impl Platform {
                 worker_rx,
                 mailbox_tx.clone(),
                 self.routes.clone(),
+                zero_traced,
             ));
         }
         // the manager (ServiceQueue analog) owns the state machine + elastic queue
@@ -384,10 +398,12 @@ async fn worker_loop(
     mut events: mpsc::Receiver<EventEnvelope>,
     manager: mpsc::Sender<MailboxMessage>,
     registry: RouteRegistry,
+    zero_traced_option: bool,
 ) {
     // a route that is itself telemetry plumbing (or a temporary RPC inbox, or
-    // listed in skip.rpc.tracing) never traces its own executions
-    let zero_traced = is_zero_traced(&route);
+    // listed in skip.rpc.tracing, or registered with @ZeroTracing semantics)
+    // never traces its own executions
+    let zero_traced = zero_traced_option || is_zero_traced(&route);
     loop {
         if manager.send(MailboxMessage::Ready(instance)).await.is_err() {
             break; // manager gone — route released

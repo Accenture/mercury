@@ -24,6 +24,9 @@ pub struct WorkloadResult {
     pub description: String,
     /// Ordered display parameters (insertion order preserved — Java LinkedHashMap).
     pub params: Vec<(String, String)>,
+    /// Attempted operations (Java parity); informational — the report derives
+    /// counts from `stats.count` and `failures`.
+    #[allow(dead_code)]
     pub total: u64,
     pub failures: u64,
     pub elapsed_sec: f64,

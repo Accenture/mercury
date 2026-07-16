@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. `docs/INCREMENTS.md` = the increment ledger. Next: **event-script (layer 2)** on this measured foundation.
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. **Increment 10 (2026-07-16): annotation macros** — `crates/platform-macros` (`#[preload]`/`#[before_application]`/`#[main_application]`/stacked `#[zero_tracing]`, link-time `inventory` registration = the Java classpath-scan analog, D6 closed) + `AutoStart` one-liner (`auto_start_main!()`; ships OS-signal shutdown) + the **`examples/<name>/` app-crate convention** (hello-world relocated; 105 tests, workspace-wide clippy 0). `docs/INCREMENTS.md` = the increment ledger. Next: **event-script (layer 2)** on this measured foundation.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-022348)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-173011)
 - **last_review:** 2026-07-16 | through 2026-07-16-005505
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
@@ -120,7 +120,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   one overview row + one section per increment, added as part of each increment's
   definition of done (design rationale stays in `docs/design/platform-core-port.md`;
   the ledger records what shipped when).
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: active | origin: 2026-07-15-224707.md -->
+- **Example apps are standalone `examples/<name>/` workspace crates** (increment 10,
+  2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
+  `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
+  Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 10 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -138,7 +142,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   code (Cargo workspace + `crates/platform-core` config management). Stack recorded in
   `## Stack & Tools`, conventions seeded in `## Conventions` (`conventions-rust-baseline`),
   first invariant recorded at harvest (`inv-never-couple-functions`).
-  <!-- id: ot-greenfield-no-code | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: ot-greenfield-no-code | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -155,7 +159,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 13 | tier: active | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Port **event-script** to Rust (on top of platform-core).
   → serves: vision-mercury
-  <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-16 | uses: 3 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Port the **active knowledge graph** to Rust. → serves: vision-mercury
   <!-- id: bp-active-knowledge-graph | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
@@ -275,8 +279,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   throughput). **Saved record** `analysis/rust-tokio.html` + comparison README vs the Java
   file-vthread record (same machine class): 1→50 155K ops/s @ 6µs (8.4×); 50→50 411K
   (2.3×); overload ~1.4× loss-free; probe 17µs/210µs vs 157µs/1.62ms (~9×). 1,003,000 ops,
-  0 failures. **103 tests, clippy/fmt clean.** → serves: vision-mercury
-  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 12 | tier: working | origin: 2026-07-15-221632.md -->
+  0 failures. **103 tests, clippy/fmt clean.**
+  **Increment 10 (annotation macros + AutoStart one-liner + examples/ convention)
+  implemented 2026-07-16** (§5i; maintainer-directed before layer 2): `crates/platform-macros`
+  proc-macro crate — `#[preload(route, instances, env_instances, typed)]`,
+  `#[before_application(sequence)]`, `#[main_application]`, stacked `#[zero_tracing]` (the
+  Java @PreLoad/@BeforeApplication/@MainApplication/@ZeroTracing analogs); registration is
+  **link-time** via `inventory` 0.3 (`registry::*Entry` + `inventory::submit!` — collects
+  across crates, so layer-2/3 library functions register like app-local ones; **closes D6**).
+  `AutoStart::main` (Java parity): -D overrides → logging → collect inventories
+  (env_instances via config, override-aware) → lifecycle → Ctrl-C park under
+  rest.automation → shutdown_cleanup (ships the deferred OS-signal wiring);
+  `auto_start_main!()` = the whole user `fn main()` incl. the invoking crate's resources/.
+  hello-world moved to the standalone `examples/hello-world/` app crate (annotated one-liner
+  main; deps: platform-core+serde+async-trait+log only — no tokio). Test gotcha honored:
+  ONE end-to-end annotations test (global platform's workers die with the first test
+  runtime). Whole-workspace clippy swept to 0 (five pre-existing warnings fixed).
+  **105 tests, clippy/fmt clean**; live-verified (REST/etag-304/filter/actuators unchanged).
+  → serves: vision-mercury
+  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 13 | tier: working | origin: 2026-07-15-221632.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**

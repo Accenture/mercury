@@ -58,9 +58,12 @@ impl ComposableFunction for HttpEcho {
     }
 }
 
+/// The (trace id, trace path, correlation id) triple a probe observed.
+type TraceContext = Arc<Mutex<Option<(Option<String>, Option<String>, Option<String>)>>>;
+
 /// Records the trace context it executes under, for edge-trace assertions.
 struct TraceProbe {
-    seen: Arc<Mutex<Option<(Option<String>, Option<String>, Option<String>)>>>,
+    seen: TraceContext,
     platform: Platform,
 }
 
@@ -169,7 +172,7 @@ headers:
 struct TestServer {
     port: u16,
     platform: Platform,
-    trace_seen: Arc<Mutex<Option<(Option<String>, Option<String>, Option<String>)>>>,
+    trace_seen: TraceContext,
 }
 
 /// Start a fresh server **inside this test's runtime** — a `#[tokio::test]`

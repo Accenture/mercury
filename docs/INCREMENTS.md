@@ -4,7 +4,7 @@
 > v4.8.6) → Rust**, delivered bottom-up in verified increments. Each increment traces to
 > the Blueprint (`bp-platform-core` → `vision-mercury` in `memory/`); the *design
 > rationale* lives in [`docs/design/platform-core-port.md`](design/platform-core-port.md)
-> (§5a–§5f, D1–D10); the full working narrative lives in `memory/sessions/`.
+> (§4–§5i, D1–D10); the full working narrative lives in `memory/sessions/`.
 >
 > **Convention:** add one row + one section here as each increment lands (part of the
 > increment's definition of done).
@@ -24,10 +24,12 @@
 | 7 | Actuator endpoints + static HTML content | 2026-07-16 | §5f | 94 |
 | 8 | Static-content protocol: etag/304, no-cache, filter | 2026-07-16 | §5g | 101 |
 | 9 | Lightweight RPC inbox + benchmark-reporter — **milestone closed** | 2026-07-16 | §5h | 103 |
+| 10 | Annotation macros + `AutoStart` one-liner + `examples/` convention | 2026-07-16 | §5i | 105 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
-`cargo fmt --check` clean, and (from increment 4 on) a live run of the `hello_world`
-example demonstrating the new capability end-to-end.
+`cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
+example app (`cargo run -p hello-world`; before increment 10, a cargo example)
+demonstrating the new capability end-to-end.
 
 ## Scope decisions (maintainer)
 
@@ -208,12 +210,36 @@ knowledge-graph layers will ride on.*
 
 ---
 
-## Deferred backlog (as of increment 9)
+## Increment 10 — Annotation macros + `AutoStart` one-liner + `examples/` convention (2026-07-16)
+
+*Maintainer-directed: two enhancements before event-script (layer 2).*
+
+- **`crates/platform-macros`** — `#[preload(route, instances, env_instances, typed)]`,
+  `#[before_application(sequence)]`, `#[main_application]`, and the stacked
+  `#[zero_tracing]` marker: the Java `@PreLoad` / `@BeforeApplication` /
+  `@MainApplication` / `@ZeroTracing` annotation analogs. Registration is **link-time**
+  (the `inventory` crate) — the D6 answer to Java's classpath scanning, and it works
+  across crates, so layer-2/3 library functions will register like app-local ones.
+- **`AutoStart`** (Java `AutoStart.main(args)` parity): overrides → logging → collect
+  annotations → lifecycle → serve until Ctrl-C → graceful shutdown (this also ships the
+  deferred OS-signal wiring). A user application's whole `main()` is now the one line
+  `platform_core::auto_start_main!();`.
+- **`examples/hello-world/`** — the hello-world demo moved from a cargo example to a
+  standalone workspace app crate (annotated functions + the one-liner; its `resources/`
+  beside it). The convention for the coming event-script and knowledge-graph example
+  apps: one `examples/<name>/` crate each.
+- Verified: end-to-end annotation lifecycle test (hook ordering, `env_instances`
+  config resolution, typed RPC in a trace bracket, `#[zero_tracing]` suppression) + live
+  run of the relocated app (REST, etag/304, filter, actuators unchanged).
+
+---
+
+## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
-streams, kernel-thread analog, `#[preload]` macro, flow binding + HTTP relay + A/B +
+streams, kernel-thread analog, flow binding + HTTP relay + A/B +
 upload + streaming (REST), event-over-HTTP, OTLP forwarder extension, `/info/lib` +
-`/info/routes`, OS-signal shutdown wiring, `yaml.preload.override`, etag/cache, the
+`/info/routes`, `yaml.preload.override`, etag/cache, the
 `Utility` grab-bag, crypto/caches, a dedicated lightweight RPC inbox.
 
 **Next layer:** event-script (layer 2) — the YAML flow DSL, unlocking REST automation's

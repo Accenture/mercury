@@ -39,7 +39,7 @@ and parameterized by **configuration files in `resources/`**.
 | D3 | **serde + rmp-serde** (MsgPack bus) / **serde_json** (HTTP boundary) | Matches Java's "MsgPack on the bus, JSON at HTTP edges." |
 | D4 | **Idiomatic serde wire format** (not byte-compatible with Java) | The Kafka mesh / cross-JVM distribution is out of scope, so Rust↔Java envelope interop isn't needed. Revisit only if interop is ever required. |
 | D5 | **Cargo workspace**, `crates/platform-core` first | Room for `crates/event-script` and `crates/knowledge-graph` later without restructuring. |
-| D6 | **Explicit registration** now; compile-time macro (`inventory`) later | Rust has no runtime annotation scanning (Java uses classgraph for `@PreLoad`). |
+| D6 | **Explicit registration** now; compile-time macro (`inventory`) later *(shipped — increment 10, §5i)* | Rust has no runtime annotation scanning (Java uses classgraph for `@PreLoad`). |
 | D7 | **Spring is fully OUT of scope** (maintainer, 2026-07-15) | Spring is Java-only. `rest-spring-3/-4` are not ported — but platform-core's *own* REST automation (`automation/` package, Vert.x-based, no Spring) remains in scope as a later increment. |
 | D8 | **Config management is increment 1** (maintainer, 2026-07-15) | Everything relies on it — main app, unit tests, integration tests. Port `AppConfigReader` + `ConfigReader` + the `resources/` convention before the event bus. |
 | D9 | **Config files are data — keep syntax verbatim** | `classpath:/` & `file:/` prefixes, `application.yml` semantics, `${ENV_VAR:default}` substitution, dot-bracket composite keys — kept identical so config files port between the Java and Rust versions unchanged. (Same principle as keeping dotted route names.) |
@@ -59,7 +59,7 @@ and parameterized by **configuration files in `resources/`**.
 | Vert.x event bus | per-route **MPMC channel** (`async-channel`) + N worker tasks | increment 2 |
 | `PostOffice.send` / `.request` | `PostOffice::send` / `::request(timeout)` | increment 2 |
 | `AppException(status, message)` | `AppError { status, message }` | shared |
-| `@PreLoad` classpath scan | explicit `register` (→ macro later) | D6 |
+| `@PreLoad` classpath scan | `#[preload]` → link-time `inventory` collection (explicit `register` remains underneath) | D6, §5i |
 
 ## 4. Increment 1 — configuration management
 
@@ -314,11 +314,11 @@ Java's global run-once guard not ported (builder is consumed; framework phases i
 shutdown is an explicit call (OS-signal wiring later); Spring branch of `AutoStart` skipped
 (out of scope, D7).
 
-**Example app** (`examples/hello_world.rs` + `examples/resources/application.yml`) — the
-README "greeting.demo" taste, proving increments 1–4 end-to-end: config with
-`${GREETING_USER:world}` substitution → preflight hook → `greeting.demo` preload
-(instances from config) → main performs route-name RPC and prints the reply.
-`cargo run -p platform-core --example hello_world`.
+**Example app** — the README "greeting.demo" taste, proving increments 1–4 end-to-end:
+config with `${GREETING_USER:world}` substitution → preflight hook → `greeting.demo`
+preload (instances from config) → main performs route-name RPC and prints the reply.
+*(Born here as a cargo example; increment 10 (§5i) moved it to the standalone
+`examples/hello-world/` app crate — `cargo run -p hello-world`.)*
 
 **Tests:** phase ordering (out-of-order sequences sort), multiple mains by sequence,
 failing hook aborts (no preload, no main), missing-main error, shared global platform,
@@ -525,6 +525,49 @@ logging url/ip/user-agent (a real deployment would do SSO here).
 **This closes the platform-core milestone**: the foundation is configured, evented,
 back-pressured, lifecycled, observable, HTTP-serving, operable — and now measured.
 
+## 5i. Increment 10 — annotation macros + `AutoStart` one-liner + `examples/` convention
+
+*(Implemented 2026-07-16, maintainer-directed: two enhancements before event-script.)*
+Closes the D6 deferral — the ergonomic layer over explicit registration, so a user
+application declares itself the way a Java mercury app does with annotations:
+
+- **`crates/platform-macros`** (new proc-macro crate, re-exported by platform-core so apps
+  never depend on it directly): `#[preload(route = "...", instances = N,
+  env_instances = "config.key", typed)]`, `#[before_application(sequence = N)]`,
+  `#[main_application(sequence = N)]` (default 10) — the Java `@PreLoad` /
+  `@BeforeApplication` / `@MainApplication` analogs. `@ZeroTracing` is a **stacked marker**
+  (`#[zero_tracing]` under `#[preload]`) or the `zero_tracing` flag. `typed` wraps the
+  struct via `TypedAdapter::arc` (a `TypedFunction` impl); untyped structs implement
+  `ComposableFunction`. Unit structs construct directly, anything else via `Default`.
+- **Registration is link-time, not classpath-scan-time** (the D6 answer): each macro
+  emits an `inventory::submit!` of a `registry::{Preload,BeforeApp,MainApp}Entry`
+  (`&'static` data + a `fn() -> Arc<...>` factory); the `inventory` crate (0.3) collects
+  them across every linked crate — so annotated functions in layer-2/3 library crates
+  will register exactly like app-local ones, mirroring Java's cross-JAR scanning.
+- **`AutoStart`** (Java `AutoStart.main(args)` parity): `AutoStart::main` = `-D` overrides
+  → structured logging → collect the three inventories (with `env_instances` resolved
+  through the config layer, override-aware) → `AppStarter` lifecycle → park on Ctrl-C
+  while `rest.automation=true` → `shutdown_cleanup()`. That also ships the previously
+  deferred **OS-signal shutdown wiring**. `AutoStart::run()` owns the tokio runtime, and
+  the exported **`auto_start_main!()`** generates the whole `fn main()` — including
+  prepending the *invoking crate's* `resources/` (compile-time `CARGO_MANIFEST_DIR`), so
+  an app's configuration travels with the app. `Platform::register_with_options` +
+  `AppStarter::preload_zero_traced` carry the zero-trace flag into the worker loop
+  (route-name config `zero.tracing.filter` still works; the annotation is per-function).
+- **`examples/` convention**: hello-world left `crates/platform-core/examples/` (a cargo
+  example) and became the standalone **`examples/hello-world/`** workspace app crate —
+  `src/main.rs` is the annotated functions plus the one-line
+  `platform_core::auto_start_main!();`, with its `resources/` beside it. Event-script and
+  knowledge-graph example apps will land as sibling `examples/<name>/` crates. The app's
+  dependency list shrank to platform-core + serde/serde_json + async-trait + log — no
+  tokio, no lifecycle plumbing.
+- **Tests** (`tests/annotations.rs`): one end-to-end lifecycle (single test on purpose —
+  the global platform's workers live on the first test's runtime) asserting hook
+  ordering, all `#[preload]` routes registered, `env_instances` beating the literal
+  count, typed RPC round-trip inside a trace bracket, and the stacked `#[zero_tracing]`
+  marker suppressing the bracket. Live verification: `cargo run -p hello-world` + curl
+  against REST, etag/304, no-cache + filter headers, `/info`, `/health`.
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time
@@ -536,16 +579,14 @@ back-pressured, lifecycled, observable, HTTP-serving, operable — and now measu
 ## 7. Deferred to later increments
 
 Broadcast delivery · streams (`Flux`/`Mono` → Rust `Stream`) · kernel-thread analog
-(`spawn_blocking` pool) · `#[preload]` proc-macro registration · **REST automation** (HTTP
-boundary, `rest.yaml` — no Spring; injects/extracts `traceparent` via the ported
-`w3c_trace`) · Event-over-HTTP · an OTLP forwarder extension (the
+(`spawn_blocking` pool) · Event-over-HTTP · an OTLP forwarder extension (the
 `distributed.trace.forwarder` hook is ready) · trace annotations on the envelope wire ·
-full envelope fields · OS-signal shutdown wiring (`tokio::signal` → `shutdown_cleanup`) ·
-`yaml.preload.override` · `Utility` grab-bag (ported piecemeal as callers need it) ·
-crypto/caches · a lightweight dedicated RPC inbox (Java `AsyncInbox` parity). Each becomes
+full envelope fields · `yaml.preload.override` · `Utility` grab-bag (ported piecemeal as
+callers need it) · crypto/caches · a lightweight dedicated RPC inbox (Java `AsyncInbox`
+parity). Each becomes
 its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer — increment 3, §5b; lifecycle — §5c; telemetry — §5d;
 REST automation — §5e; actuators/static — §5f; static-content protocol — §5g; RPC inbox +
-benchmark — §5h.)*
+benchmark — §5h; annotation macros + `AutoStart` one-liner + OS-signal shutdown — §5i.)*
 
 ## 8. Open questions for the maintainer
 

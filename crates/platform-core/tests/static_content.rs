@@ -60,10 +60,10 @@ impl ComposableFunction for RequestFilter {
         self.seen.lock().expect("filter mutex").push(url);
         if request["parameters"]["query"]["redirect"] == "true" {
             // the SSO-style use case: redirect instead of serving
-            return Ok(EventEnvelope::new()
+            return EventEnvelope::new()
                 .set_status(302)
                 .set_header("Location", "https://sso.example.com/login")
-                .set_body("redirecting")?);
+                .set_body("redirecting");
         }
         // 200 = continue serving; the header rides onto the HTTP response
         EventEnvelope::new()
