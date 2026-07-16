@@ -136,7 +136,9 @@ impl ComposableFunction for NumericDecision {
     }
 }
 
-/// Java `DecisionCase` (`decision.case`): echoes the branch input.
+/// Java `DecisionCase` (`decision.case`) — the loop workhorse: echoes its
+/// input, optionally increments `n`, and raises the quit/jump/continue flags
+/// when `n` hits the configured thresholds.
 #[preload(route = "decision.case", instances = 2)]
 struct DecisionCase;
 
@@ -148,8 +150,30 @@ impl ComposableFunction for DecisionCase {
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
-        let body: serde_json::Value = input.body_as()?;
-        EventEnvelope::new().set_body(serde_json::json!({"decision": body["decision"]}))
+        let mut body: serde_json::Value = input.body_as()?;
+        if let Some(reason) = body["exception"].as_str() {
+            return Err(AppError::new(400, reason));
+        }
+        let as_int = |v: &serde_json::Value| -> i64 {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                .unwrap_or(-1)
+        };
+        let mut n = as_int(&body["n"]);
+        if !body["increment"].is_null() {
+            n += 1;
+            body["n"] = serde_json::json!(n);
+        }
+        if !body["continue"].is_null() && n == as_int(&body["continue"]) {
+            body["continue"] = serde_json::json!(true);
+        }
+        if !body["break"].is_null() && n == as_int(&body["break"]) {
+            body["quit"] = serde_json::json!(true);
+        }
+        if !body["jump"].is_null() && n == as_int(&body["jump"]) {
+            body["jump"] = serde_json::json!(true);
+        }
+        Ok(EventEnvelope::new().set_raw_body(from_json(&body)))
     }
 }
 
@@ -579,6 +603,76 @@ async fn flows_run_end_to_end_like_java() {
         .collect();
     indexes.sort();
     assert_eq!(indexes, vec![0, 1, 2], "every INDEX seen exactly once");
+
+    // --- pipeline without a loop: three steps run once, then the exit task
+    let reply = run_flow(
+        &platform,
+        "pipeline-test",
+        http_dataset(Some("frank"), &[("seq", "1")]),
+        "biz-cid-16",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(
+        body["data"]["user"], "frank",
+        "the pojo travelled the pipeline"
+    );
+
+    // --- for loop: 3 iterations × 3 steps, file append/read/delete included
+    let reply = run_flow(
+        &platform,
+        "for-loop-test",
+        http_dataset(Some("gina"), &[("seq", "2")]),
+        "biz-cid-17",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["n"], 3, "the loop counter finished at model.iteration");
+    assert_eq!(
+        body["content"], "one,two,three,one,two,three,one,two,three,",
+        "each iteration appended its steps to the file"
+    );
+    assert!(
+        !std::path::Path::new("/tmp/for-loop-test.txt").exists(),
+        "the end task's null mapping deletes the file"
+    );
+
+    // --- for loop with a break condition (query break=1 → quit at n==1)
+    let reply = run_flow(
+        &platform,
+        "for-loop-break",
+        http_dataset(Some("hank"), &[("break", "1")]),
+        "biz-cid-18",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["n"], 1, "the loop broke on the quit flag at n==1");
+
+    // --- while loop: echo.three flips model.running via boolean(3=false)
+    let reply = run_flow(
+        &platform,
+        "while-loop",
+        http_dataset(Some("iris"), &[("seq", "3")]),
+        "biz-cid-19",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(
+        body["n"], 3,
+        "the while loop ran until model.running turned false"
+    );
+
+    // --- pipeline step failure routes to the step's own exception handler
+    let reply = run_flow(
+        &platform,
+        "pipeline-exception",
+        http_dataset(Some("jack"), &[("seq", "4")]),
+        "biz-cid-20",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    assert_eq!(json_body(&reply)["message"], "just a test");
 
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);

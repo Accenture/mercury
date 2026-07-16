@@ -32,6 +32,7 @@
 | 14 | event-script E-4: core flow runtime (manager, executor, FlowExecutor) | 2026-07-16 | ES §5d | 146 |
 | 15 | direct execution for reserved engine routes (hidden optimization) | 2026-07-16 | ES §5d.1 | 148 |
 | 16 | event-script E-5: parallel + fork/join (dynamic source, ITEM/INDEX) | 2026-07-16 | ES §5e | 148 |
+| 17 | event-script E-6: pipelines with for/while loops, break/continue | 2026-07-16 | ES §5f | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -357,6 +358,19 @@ reactive back-pressure.*
   `[]`-append assertions).
 - Canonical parallel-test + fork-n-join-test fixtures run verbatim; a marked Rust-side
   supplement covers dynamic fork until its canonical fixture's E-7 dependencies land.
+
+---
+
+## Increment 17 — event-script E-6: pipelines + loops (2026-07-16)
+
+- **`pipeline`** execution with `PipelineState` in the pipe map: ordered steps, pass
+  completion, exit task; **`for`** (initializer/comparator/sequencer) and **`while`**
+  loops; **`break`/`continue`** conditions evaluated after every step (continue clears
+  its flag — Java parity).
+- Canonical fixtures verbatim: pipeline-test, for-loop-test (incl. the `file()`
+  append/read/delete round-trip), for-loop-break, while-loop (per-step `delay`),
+  pipeline-exception (step handler + pipe cleanup). `decision.case` upgraded to the
+  faithful Java `DecisionCase` port.
 
 ---
 

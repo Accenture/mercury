@@ -288,6 +288,26 @@ reactive back-pressure.*
   dynamic-fork-test.yml`) covers `.ITEM`/`.INDEX` iteration and concurrent `[]`
   appends until E-7 activates the canonical one.
 
+## 5f. Increment E-6 — pipelines with for/while loops (implemented 2026-07-16)
+
+- **`pipeline`** execution: `PipelineState` (Java `PipelineInfo` — pointer, completed
+  flag, clamped `nextStep`) joins the pipe map; step callbacks walk the ordered steps,
+  the last step marks the pass complete, and the exit task (`next[0]`) runs after.
+- **Loops**: `for` runs the initializer at entry, the sequencer (`model.n++`/`--`) at
+  the end of each pass, and the comparator both times (model keys or integer literals,
+  `<` `<=` `>` `>=`); `while` gates each pass on its model key being strictly boolean
+  true — flows flip it with mappings like `model.n:boolean(3=false) -> model.running`
+  (the E-2 converter/plugin path in action).
+- **`break`/`continue` conditions** evaluate after every step callback (first true
+  model key wins); `break` drops the pipe entry and exits, `continue` clears its flag
+  (Java parity) and jumps to the pass completion.
+- **Fixtures verbatim**: pipeline-test, for-loop-test (3 × 3 steps with `file()`
+  append/read/delete round-trip), for-loop-break (quit flag at n==1), while-loop
+  (per-step `delay` exercised; stops at n==3), pipeline-exception (a failing step
+  routes to its own handler; the pipe entry cleanup from E-5 applies). The
+  `decision.case` test task is now the faithful Java `DecisionCase` port (echo +
+  increment + quit/jump/continue thresholds) — the loop workhorse.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

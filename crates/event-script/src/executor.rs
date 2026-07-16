@@ -22,9 +22,10 @@
 //! `sink` / `parallel` / `fork`+`join` (incl. dynamic `source` iteration with
 //! `.ITEM`/`.INDEX`), exception routing (task-level handler beats
 //! `flow.exception`), TTL abort (408), per-task trace + metrics, and the flow
-//! summary span. `pipeline` loops arrive with E-6, `flow://` sub-flows and
-//! `ext:` with E-7 — reaching them aborts the flow with an explicit message
-//! rather than misbehaving silently.
+//! summary span. Increment E-6 adds `pipeline` with `for`/`while` loops and
+//! `break`/`continue` conditions. `flow://` sub-flows and `ext:` arrive with
+//! E-7 — reaching them aborts the flow with an explicit message rather than
+//! misbehaving silently.
 //!
 //! State-machine semantics: the consolidated data-mapping view is built **in
 //! the flow instance's own dataset tree** (scratch keys added per callback,
@@ -41,7 +42,7 @@ use rmpv::Value;
 
 use crate::conversions::{display, from_json, get_binary_value};
 use crate::flows;
-use crate::instance::{FlowInstance, JoinTaskInfo, PipeInfo, TaskMetrics};
+use crate::instance::{FlowInstance, JoinTaskInfo, PipeInfo, PipelineState, TaskMetrics};
 use crate::mapping::{
     self, get_constant_value, substitute_runtime_vars, FileMode, SimpleFileDescriptor,
 };
@@ -458,10 +459,16 @@ async fn handle_callback(
         outcome.map_err(|e| AppError::new(400, e))?;
         (response_parts, decision_value)
     };
-    // a callback from a forked branch reports to the join barrier instead of
-    // the normal execution-type dispatch (Java handleCallbackFromForkTask)
+    // a callback from a forked branch or a pipeline step reports to its pipe
+    // entry instead of the normal execution-type dispatch (Java parity)
     if seq > 0 {
-        let join_ready = {
+        enum PipeDispatch {
+            Wait,
+            JoinDone(String),
+            Pipeline,
+            NoPipe,
+        }
+        let dispatch = {
             let mut pipes = instance.pipe_map.lock().expect("pipe map");
             match pipes.get_mut(&seq) {
                 Some(PipeInfo::Join(info)) => {
@@ -476,32 +483,32 @@ async fn handle_callback(
                     if info.result_count >= info.forks {
                         let join_task = info.join_task.clone();
                         pipes.remove(&seq);
-                        Some(join_task)
+                        PipeDispatch::JoinDone(join_task)
                     } else {
-                        None
+                        PipeDispatch::Wait
                     }
                 }
-                None => None,
+                Some(PipeInfo::Pipeline(_)) => PipeDispatch::Pipeline,
+                None => PipeDispatch::NoPipe,
             }
         };
-        if instance
-            .pipe_map
-            .lock()
-            .expect("pipe map")
-            .contains_key(&seq)
-            || join_ready.is_some()
-        {
-            if let Some(join_task) = join_ready {
+        match dispatch {
+            PipeDispatch::Wait => return Ok(()),
+            PipeDispatch::JoinDone(join_task) => {
                 log::debug!(
                     "Flow {}:{} fork-n-join #{seq} done",
                     instance.template.id,
                     instance.id
                 );
                 execute_task(platform, instance, &join_task, parent_span, -1, None, None).await?;
+                return Ok(());
             }
-            return Ok(());
+            PipeDispatch::Pipeline => {
+                return handle_pipeline(platform, instance, seq, parent_span).await;
+            }
+            // seq without a pipe entry (already cleared) falls through — Java parity
+            PipeDispatch::NoPipe => {}
         }
-        // seq without a pipe entry (already cleared) falls through — Java parity
     }
     match task.execution.as_str() {
         "response" => {
@@ -548,15 +555,271 @@ async fn handle_callback(
         "fork" => {
             handle_fork_and_join(platform, instance, task, parent_span).await?;
         }
+        "pipeline" => {
+            handle_pipeline_task(platform, instance, task, parent_span).await?;
+        }
         other => {
-            // pipeline (E-6)
             return Err(AppError::new(
                 500,
-                format!("execution type '{other}' arrives with a later increment"),
+                format!("unknown execution type '{other}'"),
             ));
         }
     }
     Ok(())
+}
+
+/// Begin a pipeline (Java `handlePipelineTask`): evaluate the initial loop
+/// condition; when it holds, register the pipeline in the pipe map and run
+/// step 0 — otherwise skip straight to the exit task.
+async fn handle_pipeline_task(
+    platform: &Platform,
+    instance: &Arc<FlowInstance>,
+    task: &Task,
+    parent_span: Option<String>,
+) -> Result<(), AppError> {
+    if task.pipeline_steps.is_empty() {
+        return Ok(());
+    }
+    let valid = {
+        let mut dataset = instance.dataset.lock().expect("dataset");
+        match task.loop_type.as_str() {
+            "while" => match &task.while_model_key {
+                Some(key) => dataset.get_element(key) == Some(Value::Boolean(true)),
+                None => true,
+            },
+            "for" => {
+                // run the initializer, then evaluate the comparator
+                if task.init.len() == 2 && task.init[0].starts_with("model.") {
+                    let n = str2int(&task.init[1]) as i64;
+                    dataset
+                        .set_element(&task.init[0], Value::from(n))
+                        .map_err(|e| AppError::new(500, e))?;
+                }
+                evaluate_for_condition(&dataset, &task.comparator)
+            }
+            _ => true,
+        }
+    };
+    if valid {
+        let seq = instance.next_pipe_seq();
+        instance
+            .pipe_map
+            .lock()
+            .expect("pipe map")
+            .insert(seq, PipeInfo::Pipeline(PipelineState::new(&task.service)));
+        log::debug!(
+            "Flow {}:{} pipeline #{seq} begin {}",
+            instance.template.id,
+            instance.id,
+            task.pipeline_steps[0]
+        );
+        execute_task(
+            platform,
+            instance,
+            &task.pipeline_steps[0],
+            parent_span,
+            seq,
+            None,
+            None,
+        )
+        .await
+    } else if let Some(exit) = task.next_steps.first() {
+        execute_task(platform, instance, exit, parent_span, -1, None, None).await
+    } else {
+        Ok(())
+    }
+}
+
+/// A callback from a pipeline step (Java `handlePipeline`): walk to the next
+/// step, honor `break`/`continue` conditions, and at the end of the pass run
+/// the loop sequencer/condition to decide whether to iterate again.
+async fn handle_pipeline(
+    platform: &Platform,
+    instance: &Arc<FlowInstance>,
+    seq: i32,
+    parent_span: Option<String>,
+) -> Result<(), AppError> {
+    // resolve the pipeline task from the template
+    let (task_name, was_completed) = {
+        let pipes = instance.pipe_map.lock().expect("pipe map");
+        match pipes.get(&seq) {
+            Some(PipeInfo::Pipeline(state)) => (state.task_name.clone(), state.completed),
+            _ => return Ok(()),
+        }
+    };
+    let task = instance
+        .template
+        .tasks
+        .get(&task_name)
+        .ok_or_else(|| AppError::new(500, format!("Service {task_name} not defined")))?;
+    let steps = task.pipeline_steps.len();
+    if was_completed {
+        return pipeline_completion(platform, instance, task, seq, parent_span).await;
+    }
+    // advance the pointer; the last step marks the pass completed
+    let (n, completed_now) = {
+        let mut pipes = instance.pipe_map.lock().expect("pipe map");
+        match pipes.get_mut(&seq) {
+            Some(PipeInfo::Pipeline(state)) => {
+                let n = state.next_step(steps);
+                let last = n + 1 >= steps;
+                if last {
+                    state.completed = true;
+                }
+                (n, last)
+            }
+            _ => return Ok(()),
+        }
+    };
+    log::debug!(
+        "Flow {}:{} pipeline #{seq} {} step-{} {}",
+        instance.template.id,
+        instance.id,
+        if completed_now { "last" } else { "next" },
+        n + 1,
+        task.pipeline_steps[n.min(steps - 1)]
+    );
+    if task.conditions.is_empty() {
+        if completed_now && steps == 1 {
+            return pipeline_completion(platform, instance, task, seq, parent_span).await;
+        }
+        let step_name = task.pipeline_steps[n.min(steps - 1)].clone();
+        return execute_task(platform, instance, &step_name, parent_span, seq, None, None).await;
+    }
+    // evaluate break/continue conditions (first true model key wins)
+    let mut action: Option<String> = None;
+    {
+        let mut dataset = instance.dataset.lock().expect("dataset");
+        for condition in &task.conditions {
+            if dataset.get_element(&condition[0]) == Some(Value::Boolean(true)) {
+                action = Some(condition[1].clone());
+                if condition[1] == "continue" {
+                    // a consumed continue clears its flag (Java parity)
+                    dataset
+                        .set_element(&condition[0], Value::Boolean(false))
+                        .map_err(|e| AppError::new(500, e))?;
+                }
+                break;
+            }
+        }
+    }
+    match action.as_deref() {
+        Some("break") => {
+            instance.pipe_map.lock().expect("pipe map").remove(&seq);
+            let exit = task
+                .next_steps
+                .first()
+                .cloned()
+                .ok_or_else(|| AppError::new(500, "pipeline has no exit task"))?;
+            execute_task(platform, instance, &exit, parent_span, -1, None, None).await
+        }
+        Some("continue") => pipeline_completion(platform, instance, task, seq, parent_span).await,
+        _ => {
+            if completed_now && steps == 1 {
+                return pipeline_completion(platform, instance, task, seq, parent_span).await;
+            }
+            let step_name = task.pipeline_steps[n.min(steps - 1)].clone();
+            execute_task(platform, instance, &step_name, parent_span, seq, None, None).await
+        }
+    }
+}
+
+/// End of a pipeline pass (Java `pipelineCompletion`): run the `for`
+/// sequencer, evaluate the loop condition, and either iterate from step 0 or
+/// leave through the exit task.
+async fn pipeline_completion(
+    platform: &Platform,
+    instance: &Arc<FlowInstance>,
+    task: &Task,
+    seq: i32,
+    parent_span: Option<String>,
+) -> Result<(), AppError> {
+    let iterate = {
+        let mut dataset = instance.dataset.lock().expect("dataset");
+        match task.loop_type.as_str() {
+            "while" => match &task.while_model_key {
+                Some(key) => dataset.get_element(key) == Some(Value::Boolean(true)),
+                None => false,
+            },
+            "for" => {
+                // execute the sequencer (model.n++ / model.n--)
+                let counter_key = &task.sequencer[0];
+                let current = dataset
+                    .get_element(counter_key)
+                    .map(|v| str2int(&display(&v)) as i64)
+                    .unwrap_or(-1);
+                let next = if task.sequencer[1] == "++" {
+                    current + 1
+                } else {
+                    current - 1
+                };
+                dataset
+                    .set_element(counter_key, Value::from(next))
+                    .map_err(|e| AppError::new(500, e))?;
+                evaluate_for_condition(&dataset, &task.comparator)
+            }
+            _ => false,
+        }
+    };
+    if iterate {
+        {
+            let mut pipes = instance.pipe_map.lock().expect("pipe map");
+            if let Some(PipeInfo::Pipeline(state)) = pipes.get_mut(&seq) {
+                state.reset();
+            }
+        }
+        log::debug!(
+            "Flow {}:{} pipeline #{seq} loop {}",
+            instance.template.id,
+            instance.id,
+            task.pipeline_steps[0]
+        );
+        execute_task(
+            platform,
+            instance,
+            &task.pipeline_steps[0],
+            parent_span,
+            seq,
+            None,
+            None,
+        )
+        .await
+    } else {
+        instance.pipe_map.lock().expect("pipe map").remove(&seq);
+        let exit = task
+            .next_steps
+            .first()
+            .cloned()
+            .ok_or_else(|| AppError::new(500, "pipeline has no exit task"))?;
+        execute_task(platform, instance, &exit, parent_span, -1, None, None).await
+    }
+}
+
+/// Java `evaluateForCondition`: both sides resolve as a model key or an
+/// integer literal; comparison is one of `<` `<=` `>` `>=`.
+fn evaluate_for_condition(dataset: &MultiLevelMap, comparator: &[String]) -> bool {
+    if comparator.len() != 3 {
+        return false;
+    }
+    let resolve = |token: &str| -> i64 {
+        if token.starts_with("model.") {
+            dataset
+                .get_element(token)
+                .map(|v| str2int(&display(&v)) as i64)
+                .unwrap_or(-1)
+        } else {
+            str2int(token) as i64
+        }
+    };
+    let v1 = resolve(&comparator[0]);
+    let v2 = resolve(&comparator[2]);
+    match comparator[1].as_str() {
+        "<" => v1 < v2,
+        "<=" => v1 <= v2,
+        ">" => v1 > v2,
+        ">=" => v1 >= v2,
+        _ => false,
+    }
 }
 
 /// Fork all branches concurrently and register the join barrier (Java

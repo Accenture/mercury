@@ -76,10 +76,48 @@ pub struct JoinTaskInfo {
     pub result_count: usize,
 }
 
-/// One entry of the pipe map (Java `PipeInfo` hierarchy). The pipeline
-/// variant arrives with increment E-6.
+/// A live pipeline execution (Java `PipelineInfo`): the pointer walks the
+/// pipeline steps; `completed` marks the last step so the loop condition is
+/// evaluated on its callback.
+pub struct PipelineState {
+    /// The pipeline task's name (Java keeps the `Task` reference; the Rust
+    /// template is looked up by name).
+    pub task_name: String,
+    /// Java `ptr` (AtomicInteger, -1 until `resetPointer`).
+    pub ptr: i32,
+    pub completed: bool,
+}
+
+impl PipelineState {
+    pub fn new(task_name: &str) -> Self {
+        PipelineState {
+            task_name: task_name.to_string(),
+            ptr: 0, // Java constructs at -1 then resetPointer()s to 0
+            completed: false,
+        }
+    }
+
+    /// Java `nextStep`: advance the pointer, clamped to the last step.
+    pub fn next_step(&mut self, steps: usize) -> usize {
+        if (self.ptr as usize) < steps {
+            self.ptr += 1;
+            self.ptr as usize
+        } else {
+            steps.saturating_sub(1)
+        }
+    }
+
+    /// Java `resetPointer`.
+    pub fn reset(&mut self) {
+        self.ptr = 0;
+        self.completed = false;
+    }
+}
+
+/// One entry of the pipe map (Java `PipeInfo` hierarchy).
 pub enum PipeInfo {
     Join(JoinTaskInfo),
+    Pipeline(PipelineState),
 }
 
 /// One live flow transaction (Java `FlowInstance`).

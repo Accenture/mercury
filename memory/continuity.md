@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. **Increment 10 (2026-07-16): annotation macros** — `crates/platform-macros` (`#[preload]`/`#[before_application]`/`#[main_application]`/stacked `#[zero_tracing]`, link-time `inventory` registration = the Java classpath-scan analog, D6 closed) + `AutoStart` one-liner (`auto_start_main!()`; ships OS-signal shutdown) + the **`examples/<name>/` app-crate convention** (hello-world relocated; 105 tests, workspace-wide clippy 0). `docs/INCREMENTS.md` = the increment ledger. **Layer 2 (event-script) started 2026-07-16**: canonical `event-script-engine` surveyed (~8K LOC; grammar spec = `flow-grammar.md`); `docs/design/event-script-port.md` DRAFT v1 (decisions E1–E9, increment plan E-1…E-9) **approved 2026-07-16**; **E-1 shipped** (repo increment 11): `crates/event-script` — flow model + full `CompileFlows` port, all 90 Java fixtures reused verbatim with the loaded-set/rejection/task-drop outcomes pinned by tests; **E-2 shipped** (repo increment 12): data-mapping engine — runtime MultiLevelMap over `rmpv::Value` (maintainer refinement: direct composite-key access = PRIMARY tool; JSONPath `$.…` = user-defined complex queries via serde_json_path), DataMappingHelper resolution + 19 core plugin bodies; greetings-fixture mappings evaluate byte-for-byte like Java (139 workspace tests, clippy 0). **E-3 shipped** (repo increment 13): platform-core extensions — event-interceptor mode (`FunctionOptions`; success reply guarded, failures still route — Java WorkerHandler parity), `send_later`/`cancel_future_event`, rest.yaml `flow:` → x-flow-id, deep-copy satisfied by `rmpv::Value::clone` (145 tests, clippy 0). **E-4 shipped** (repo increment 14): core flow runtime — FlowInstance + registries, manager/executor interceptors, FlowExecutor launch/request; sequential/response/end/decision/sink + exceptions + TTL abort + metrics + flow-summary span; E2E over the canonical fixtures (146 tests, clippy 0). **FLOWS EXECUTE ON RUST.** **Increment 15**: hidden direct execution for the reserved engine routes (event.script.manager/task.executor run on the event core — private route list in Platform::deliver, NOT exposed via macros/API by maintainer decision; concurrency + liveness, proof tests incl. a serialized control; 148 tests). **E-5 shipped** (repo increment 16): parallel + fork/join with the pipe-map barrier, dynamic `source` iteration (.ITEM/.INDEX), Java-exact pipe cleanup on exceptions; canonical parallel/fork fixtures verbatim + a marked Rust-side dynamic-fork supplement (canonical needs E-7). Next: **E-6 (pipelines + for/while loops)**.
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. **Increment 10 (2026-07-16): annotation macros** — `crates/platform-macros` (`#[preload]`/`#[before_application]`/`#[main_application]`/stacked `#[zero_tracing]`, link-time `inventory` registration = the Java classpath-scan analog, D6 closed) + `AutoStart` one-liner (`auto_start_main!()`; ships OS-signal shutdown) + the **`examples/<name>/` app-crate convention** (hello-world relocated; 105 tests, workspace-wide clippy 0). `docs/INCREMENTS.md` = the increment ledger. **Layer 2 (event-script) started 2026-07-16**: canonical `event-script-engine` surveyed (~8K LOC; grammar spec = `flow-grammar.md`); `docs/design/event-script-port.md` DRAFT v1 (decisions E1–E9, increment plan E-1…E-9) **approved 2026-07-16**; **E-1 shipped** (repo increment 11): `crates/event-script` — flow model + full `CompileFlows` port, all 90 Java fixtures reused verbatim with the loaded-set/rejection/task-drop outcomes pinned by tests; **E-2 shipped** (repo increment 12): data-mapping engine — runtime MultiLevelMap over `rmpv::Value` (maintainer refinement: direct composite-key access = PRIMARY tool; JSONPath `$.…` = user-defined complex queries via serde_json_path), DataMappingHelper resolution + 19 core plugin bodies; greetings-fixture mappings evaluate byte-for-byte like Java (139 workspace tests, clippy 0). **E-3 shipped** (repo increment 13): platform-core extensions — event-interceptor mode (`FunctionOptions`; success reply guarded, failures still route — Java WorkerHandler parity), `send_later`/`cancel_future_event`, rest.yaml `flow:` → x-flow-id, deep-copy satisfied by `rmpv::Value::clone` (145 tests, clippy 0). **E-4 shipped** (repo increment 14): core flow runtime — FlowInstance + registries, manager/executor interceptors, FlowExecutor launch/request; sequential/response/end/decision/sink + exceptions + TTL abort + metrics + flow-summary span; E2E over the canonical fixtures (146 tests, clippy 0). **FLOWS EXECUTE ON RUST.** **Increment 15**: hidden direct execution for the reserved engine routes (event.script.manager/task.executor run on the event core — private route list in Platform::deliver, NOT exposed via macros/API by maintainer decision; concurrency + liveness, proof tests incl. a serialized control; 148 tests). **E-5 shipped** (repo increment 16): parallel + fork/join with the pipe-map barrier, dynamic `source` iteration (.ITEM/.INDEX), Java-exact pipe cleanup on exceptions; canonical parallel/fork fixtures verbatim + a marked Rust-side dynamic-fork supplement (canonical needs E-7). **E-6 shipped** (repo increment 17): pipelines (PipelineState in the pipe map) with for/while loops + break/continue; canonical loop fixtures verbatim incl. file() round-trip and per-step delay; decision.case upgraded to the faithful DecisionCase port. Next: **E-7 (sub-flows + model.parent/root shared state + external state machine)**.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-230251)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-232540)
 - **last_review:** 2026-07-16 | through 2026-07-16-194946
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
@@ -61,15 +61,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 ## Key Decisions
 
-- **AI-enabled at the greenfield stage** — the shared memory layer + Vision were installed
-  *before* any code, so development is guided by shared memory and intent-traceability
-  (VBDI) from the first commit rather than retrofitted later.
-  <!-- id: ai-enabled-greenfield | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **Kafka service mesh is out of scope** — deliberately not ported, for simplicity.
   <!-- id: kafka-mesh-out-of-scope | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **Config management first; Spring fully out of scope** (maintainer, 2026-07-15): port
@@ -87,11 +83,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   strategy facade collapses into one type. Config keys verbatim:
   `elastic.queue.segment.size.bytes`, `elastic.queue.dispatch.mailbox.size`,
   `transient.data.store`, `running.in.cloud`. Design: `docs/design/platform-core-port.md` §5b.
-  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: active | origin: 2026-07-15-232127.md -->
-- **Private prototyping repo → official Accenture repo later** — iterate rapidly here to keep
-  noise away from public readers; move to the official Accenture repo once the foundation is
-  sufficient.
-  <!-- id: private-repo-then-accenture | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
+  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: archive-candidate | origin: 2026-07-15-232127.md -->
 - **platform-core Rust stack (confirmed at the gate, 2026-07-15):** **tokio** async runtime
   (virtual-thread analog; N `instances` = N worker tasks/route), **async_trait**, **serde +
   rmp-serde** (MsgPack bus) + **serde_json** (HTTP edge), **idiomatic serde wire format** (NOT
@@ -124,19 +116,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 17 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 18 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
-
-- [x] **(vision-bootstrap) Vision set by the maintainer at enable — blueprint derived.**
-  Greenfield inverts the bootstrap: the maintainer set the Vision directly (Rust port of
-  mercury-composable). `memory/vision.md` is confirmed (no DRAFT), and the high-level
-  Blueprint below was derived from the stated plan. VBDI drift-detection is now active
-  (advisory until the Designs land).
-  <!-- id: ot-vision-confirm-blueprint | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 
 - [x] **Greenfield — no code yet.** Resolved 2026-07-15: increment 1 landed the first real
   code (Cargo workspace + `crates/platform-core` config management). Stack recorded in
@@ -160,7 +145,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - [ ] **(blueprint)** Port **event-script** to Rust (on top of platform-core).
   **Design drafted 2026-07-16** (`docs/design/event-script-port.md` v1) — gate pending.
   → serves: vision-mercury
-  <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-16 | uses: 10 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-16 | uses: 11 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Port the **active knowledge graph** to Rust. → serves: vision-mercury
   <!-- id: bp-active-knowledge-graph | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
@@ -374,9 +359,17 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (documented in fixtures README) until the canonical dynamic fixture's flow://+ext: deps land in
   E-7 — compiler expected-set now 66. Concurrent [] appends proven under increment-15 direct
   execution. 148 workspace tests / clippy 0.
-  **Next: E-6 — pipelines + for/while loops** (PipelineInfo, loop init/comparator/sequencer,
-  break/continue conditions). → serves: vision-mercury
-  <!-- id: ot-design-event-script | created: 2026-07-16 | last_used: 2026-07-16 | uses: 7 | tier: working | origin: 2026-07-16-174644.md -->
+  **E-6 (pipelines + loops) SHIPPED 2026-07-16** (repo increment 17; ES design §5f):
+  PipelineState (ptr/completed/clamped nextStep) in the pipe map; three-way seq dispatch
+  (Join/Pipeline/fall-through); for (init/comparator/sequencer) + while (strict Boolean true) loops;
+  break/continue after every step (continue clears its flag); singleton short-circuit. decision.case
+  is now the faithful Java DecisionCase (loop workhorse). Fixtures verbatim: pipeline-test,
+  for-loop-test (file() append/read/delete), for-loop-break, while-loop (delay + boolean(3=false)
+  stop), pipeline-exception. 148 workspace tests / clippy 0.
+  **Next: E-7 — sub-flows (flow:// launch/callback, model.parent/model.root shared state — needs a
+  shared-subtree design since rmpv can't alias) + external state machine (ext:)**; activates the
+  canonical dynamic-fork + fork-n-join-flows + children/* fixtures. → serves: vision-mercury
+  <!-- id: ot-design-event-script | created: 2026-07-16 | last_used: 2026-07-16 | uses: 8 | tier: working | origin: 2026-07-16-174644.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**
