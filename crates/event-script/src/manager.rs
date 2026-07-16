@@ -93,6 +93,18 @@ async fn process_request(
         (Some(id), Some(path)) => Some((id.to_string(), path.to_string())),
         _ => None,
     };
+    // a sub-flow inherits the ROOT ancestor's shared state tree
+    let parent = headers.get("parent").and_then(|parent_id| {
+        flows::resolve_root_ancestor(parent_id).map(|ancestor| {
+            log::info!(
+                "{}:{{new}} extends {}:{}",
+                flow_id,
+                ancestor.template.id,
+                ancestor.id
+            );
+            (ancestor.id.clone(), ancestor.shared.clone())
+        })
+    });
     let instance = Arc::new(FlowInstance::new(
         flow_id,
         internal_correlation_id,
@@ -101,6 +113,7 @@ async fn process_request(
         template.clone(),
         ttl_ms,
         trace,
+        parent,
     ));
     // the triggering function's span becomes the flow's parent span (OTel lineage)
     if let Some(span_id) = event.span_id() {

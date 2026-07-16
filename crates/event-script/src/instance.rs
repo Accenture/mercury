@@ -23,8 +23,16 @@
 //! Concurrency model: the engine runs DIRECTLY on the event core (increment
 //! 15), so callbacks execute concurrently; the dataset mutex is the Java
 //! `modelSafety` lock analog and the pipe map guards the fork/join barrier.
-//! The `model.parent` / `model.root` shared-state aliases arrive with
-//! sub-flows (increment E-7).
+//!
+//! Shared parent state (increment E-7): Java aliases `model.parent` and
+//! `model.root` to the ROOT ancestor's shared map by object reference. Rust
+//! values cannot alias, so every instance carries an
+//! `Arc<Mutex<shared tree>>` — a root's own, a sub-flow's cloned from its
+//! resolved root ancestor. The executor materializes the shared tree into
+//! the dataset at `model.parent` for the duration of a mapping pass (under
+//! the shared lock — the Java `ancestor.modelSafety` analog) and writes it
+//! back after; `model.root.*` paths normalize to `model.parent.*` (they are
+//! one object in Java, so one canonical name is semantically identical).
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
@@ -155,6 +163,11 @@ pub struct FlowInstance {
     pipe_counter: AtomicI32,
     /// seq → barrier / pipeline state (Java `pipeMap`).
     pub pipe_map: Mutex<HashMap<i32, PipeInfo>>,
+    /// The family-shared state tree (Java `shared` — `model.parent` /
+    /// `model.root`): a root's own, a sub-flow's root ancestor's.
+    pub shared: Arc<Mutex<Value>>,
+    /// The immediate parent flow instance (sub-flows only).
+    pub parent_id: Option<String>,
 }
 
 impl FlowInstance {
@@ -167,6 +180,7 @@ impl FlowInstance {
         template: Arc<Flow>,
         ttl_ms: u64,
         trace: Option<(String, String)>,
+        parent: Option<(String, Arc<Mutex<Value>>)>,
     ) -> Self {
         let id = uuid::Uuid::new_v4().simple().to_string();
         let mut dataset = MultiLevelMap::new();
@@ -219,6 +233,11 @@ impl FlowInstance {
             timeout_timer: Mutex::new(None),
             pipe_counter: AtomicI32::new(0),
             pipe_map: Mutex::new(HashMap::new()),
+            shared: match &parent {
+                Some((_, shared)) => shared.clone(),
+                None => Arc::new(Mutex::new(Value::Map(Vec::new()))),
+            },
+            parent_id: parent.map(|(id, _)| id),
         }
     }
 

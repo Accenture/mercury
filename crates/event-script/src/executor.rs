@@ -428,9 +428,21 @@ async fn handle_callback(
 ) -> Result<(), AppError> {
     let task = &instance.template.tasks[caller];
     // build the consolidated view IN the instance dataset (scratch keys are
-    // stripped after; model.* writes persist)
-    let (response_parts, decision_value) = {
+    // stripped after; model.* writes persist); a parent-referencing task
+    // materializes the family-shared tree under the shared lock (lock order:
+    // shared → dataset, everywhere)
+    let (response_parts, decision_value, ext_calls) = {
+        let mut shared_guard = if task.output_parent_ref {
+            Some(instance.shared.lock().expect("shared state"))
+        } else {
+            None
+        };
         let mut dataset = instance.dataset.lock().expect("dataset");
+        if let Some(guard) = &shared_guard {
+            dataset
+                .set_element("model.parent", (**guard).clone())
+                .map_err(|e| AppError::new(500, e))?;
+        }
         dataset
             .set_element("status", Value::from(event.status() as i64))
             .map_err(|e| AppError::new(500, e))?;
@@ -456,9 +468,18 @@ async fn handle_callback(
         for key in SCRATCH_KEYS {
             dataset.remove_element(key);
         }
-        outcome.map_err(|e| AppError::new(400, e))?;
-        (response_parts, decision_value)
+        if let Some(guard) = shared_guard.as_deref_mut() {
+            *guard = dataset
+                .get_element("model.parent")
+                .unwrap_or(Value::Map(Vec::new()));
+            dataset.remove_element("model.parent");
+        }
+        let ext_calls = outcome.map_err(|e| AppError::new(400, e))?;
+        (response_parts, decision_value, ext_calls)
     };
+    for (key_rhs, value) in ext_calls {
+        call_external_state_machine(platform, instance, &key_rhs, value).await?;
+    }
     // a callback from a forked branch or a pipeline step reports to its pipe
     // entry instead of the normal execution-type dispatch (Java parity)
     if seq > 0 {
@@ -890,8 +911,18 @@ async fn handle_fork_and_join(
 }
 
 /// Apply the task's output mappings over the consolidated view.
-fn perform_output_mapping(consolidated: &mut MultiLevelMap, task: &Task) -> Result<(), String> {
+fn perform_output_mapping(
+    consolidated: &mut MultiLevelMap,
+    task: &Task,
+) -> Result<Vec<(String, Option<Value>)>, String> {
+    let mut ext_calls: Vec<(String, Option<Value>)> = Vec::new();
     for entry in &task.output {
+        // model.root normalizes to the canonical model.parent (one object in Java)
+        let entry = if task.output_parent_ref && entry.contains("model.root.") {
+            entry.replace("model.root.", "model.parent.")
+        } else {
+            entry.clone()
+        };
         let Some(sep) = entry.rfind("->") else {
             continue;
         };
@@ -923,13 +954,14 @@ fn perform_output_mapping(consolidated: &mut MultiLevelMap, task: &Task) -> Resu
         };
         if rhs.starts_with("file(") {
             write_output_file(&rhs, value.as_ref());
-        } else if let Some(value) = value {
-            set_output_rhs(consolidated, &rhs, value, entry)?;
         } else if rhs.starts_with("ext:") {
-            return Err("external state machine arrives with increment E-7".to_string());
+            // dispatched by the caller after the locks release (value or null)
+            ext_calls.push((rhs.clone(), value));
+        } else if let Some(value) = value {
+            set_output_rhs(consolidated, &rhs, value, &entry)?;
         }
     }
-    Ok(())
+    Ok(ext_calls)
 }
 
 /// Java `setOutputDataMappingRhs`: `output.status` must be a valid HTTP code
@@ -952,9 +984,6 @@ fn set_output_rhs(
     if rhs == "output.header" && !matches!(value, Value::Map(_)) {
         log::error!("Invalid output mapping '{entry}' - expect: Map, actual: non-map value");
         return Ok(());
-    }
-    if rhs.starts_with("ext:") {
-        return Err("external state machine arrives with increment E-7".to_string());
     }
     consolidated.set_element(rhs, value)
 }
@@ -1156,17 +1185,41 @@ pub(crate) async fn execute_task(
             .map(|v| display(&v)),
         None => None,
     };
-    // input data mapping over the state machine (error map as scratch)
-    let (target, optional_headers, delay_ms) = {
+    // input data mapping over the state machine (error map as scratch);
+    // a parent-referencing task materializes the family-shared tree at
+    // model.parent for the pass, under the shared lock (Java: the ancestor's
+    // modelSafety lock) — lock order is always shared → dataset
+    let (target, optional_headers, delay_ms, ext_calls) = {
+        let mut shared_guard = if task.input_parent_ref {
+            Some(instance.shared.lock().expect("shared state"))
+        } else {
+            None
+        };
         let mut dataset = instance.dataset.lock().expect("dataset");
+        if let Some(guard) = &shared_guard {
+            dataset
+                .set_element("model.parent", (**guard).clone())
+                .map_err(|e| AppError::new(500, e))?;
+        }
         if let Some(error) = error {
             dataset
                 .set_element("error", error)
                 .map_err(|e| AppError::new(500, e))?;
         }
-        let outcome = perform_input_mapping(&mut dataset, task, dynamic_list.as_ref());
+        let outcome = perform_input_mapping(
+            &mut dataset,
+            task,
+            dynamic_list.as_ref(),
+            task.input_parent_ref,
+        );
         dataset.remove_element("error");
-        let (target, headers) = outcome.map_err(|e| AppError::new(400, e))?;
+        if let Some(guard) = shared_guard.as_deref_mut() {
+            *guard = dataset
+                .get_element("model.parent")
+                .unwrap_or(Value::Map(Vec::new()));
+            dataset.remove_element("model.parent");
+        }
+        let (target, headers, ext_calls) = outcome.map_err(|e| AppError::new(400, e))?;
         // deferred execution?
         let delay_ms: u64 = if task.delay > 0 {
             task.delay as u64
@@ -1196,8 +1249,13 @@ pub(crate) async fn execute_task(
         } else {
             0
         };
-        (target, headers, delay_ms)
+        (target, headers, delay_ms, ext_calls)
     };
+    // external-state-machine calls collected during the pass dispatch now
+    // (fire-and-forget sends — deferred past the locks, order preserved)
+    for (key_rhs, value) in ext_calls {
+        call_external_state_machine(platform, instance, &key_rhs, value).await?;
+    }
     let uuid = uuid::Uuid::new_v4().simple().to_string();
     task_refs().lock().expect("task refs").insert(
         uuid.clone(),
@@ -1220,21 +1278,6 @@ pub(crate) async fn execute_task(
     } else {
         uuid
     };
-    if task.function_route.starts_with("flow://") {
-        // sub-flows arrive with increment E-7
-        abort_flow(
-            platform,
-            instance,
-            500,
-            Value::from(format!(
-                "{} not supported until increment E-7 (sub-flows)",
-                task.function_route
-            )),
-            parent_span,
-        )
-        .await;
-        return Ok(());
-    }
     // the '*' wildcard maps a whole object as the function input body
     let body = {
         let map = target.to_value();
@@ -1243,6 +1286,63 @@ pub(crate) async fn execute_task(
             None => map,
         }
     };
+    // a flow:// process launches a SUB-FLOW through the manager: the child
+    // inherits the parent's ttl, business correlation-id and shared state;
+    // its end/abort response returns as this task's callback (Java parity)
+    if let Some(flow_id) = task.function_route.strip_prefix("flow://") {
+        if flows::get_flow(flow_id).is_none() {
+            log::error!(
+                "Unable to process flow {}:{} - missing sub-flow {}",
+                instance.template.id,
+                instance.id,
+                task.function_route
+            );
+            abort_flow(
+                platform,
+                instance,
+                500,
+                Value::from(format!("{} not defined", task.function_route)),
+                parent_span,
+            )
+            .await;
+            return Ok(());
+        }
+        let mut sub_dataset = MultiLevelMap::new();
+        sub_dataset
+            .set_element("ttl", Value::from(instance.ttl_ms()))
+            .map_err(|e| AppError::new(500, e))?;
+        sub_dataset
+            .set_element("body", body)
+            .map_err(|e| AppError::new(500, e))?;
+        if !optional_headers.is_empty() {
+            let header_map: Vec<(Value, Value)> = optional_headers
+                .iter()
+                .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
+                .collect();
+            sub_dataset
+                .set_element("header", Value::Map(header_map))
+                .map_err(|e| AppError::new(500, e))?;
+        }
+        let mut forward = EventEnvelope::new()
+            .set_to(crate::manager::SERVICE_NAME)
+            .set_reply_to(SERVICE_NAME)
+            .set_header("parent", &instance.id)
+            .set_header("flow_id", flow_id)
+            .set_header(
+                crate::manager::BUSINESS_CORRELATION_ID,
+                &instance.business_correlation_id,
+            )
+            .set_correlation_id(&composite)
+            .set_raw_body(sub_dataset.to_value());
+        if let Some(span) = &parent_span {
+            forward = forward.set_span_id(span);
+        }
+        if let (Some(trace_id), Some(path)) = (instance.trace_id(), instance.trace_path()) {
+            forward = forward.set_trace(trace_id, path);
+        }
+        let po = PostOffice::new(platform);
+        return po.send(forward).await;
+    }
     let mut event = EventEnvelope::new()
         .set_to(&task.function_route)
         .set_reply_to(SERVICE_NAME)
@@ -1269,16 +1369,34 @@ pub(crate) async fn execute_task(
     }
 }
 
+/// Outcome of an input-mapping pass: the function-input body tree, the
+/// optional event headers, and any external-state-machine calls to dispatch
+/// after the locks release.
+type InputMappingOutcome = (
+    MultiLevelMap,
+    Vec<(String, String)>,
+    Vec<(String, Option<Value>)>,
+);
+
 /// Apply the task's input mappings; returns the function-input body tree and
 /// the optional event headers. Java `performInputDataMapping`.
 fn perform_input_mapping(
     dataset: &mut MultiLevelMap,
     task: &Task,
     dynamic_list: Option<&(usize, String)>,
-) -> Result<(MultiLevelMap, Vec<(String, String)>), String> {
+    parent_ref: bool,
+) -> Result<InputMappingOutcome, String> {
     let mut target = MultiLevelMap::new();
     let mut optional_headers: Vec<(String, String)> = Vec::new();
+    let mut ext_calls: Vec<(String, Option<Value>)> = Vec::new();
     for entry in &task.input {
+        // model.root and model.parent alias one object in Java; normalize to
+        // the canonical model.parent so reads and writes meet in one subtree
+        let entry = if parent_ref && entry.contains("model.root.") {
+            entry.replace("model.root.", "model.parent.")
+        } else {
+            entry.clone()
+        };
         let Some(sep) = entry.rfind("->") else {
             continue;
         };
@@ -1314,7 +1432,8 @@ fn perform_input_mapping(
             }
         }
         if rhs.starts_with("ext:") {
-            return Err("external state machine arrives with increment E-7".to_string());
+            // dispatched by the caller after the locks release
+            ext_calls.push((rhs.clone(), value.clone()));
         } else if rhs.starts_with("model.") {
             // model writes go straight into the state machine
             if input_like {
@@ -1333,7 +1452,7 @@ fn perform_input_mapping(
             }
         } else if input_like {
             match value {
-                Some(v) => set_input_rhs(&mut target, &mut optional_headers, &rhs, v, entry)?,
+                Some(v) => set_input_rhs(&mut target, &mut optional_headers, &rhs, v, &entry)?,
                 None => {
                     if dataset.key_exists(&lhs) {
                         target.set_element(&rhs, Value::Nil)?;
@@ -1356,7 +1475,7 @@ fn perform_input_mapping(
             }
         }
     }
-    Ok((target, optional_headers))
+    Ok((target, optional_headers, ext_calls))
 }
 
 /// Java `setInputDataMappingRhs`: `*` reloads the whole body; `header` /
@@ -1448,6 +1567,60 @@ fn substitute_dynamic_index(
         }
     }
     Ok(text)
+}
+
+/// Java `callExternalStateMachine`: forward a state change to the flow's
+/// external state machine — a composable function route (headers `type` =
+/// put/remove + `key`, body `{data}`), or a `flow://` state flow launched
+/// through the manager.
+async fn call_external_state_machine(
+    platform: &Platform,
+    instance: &Arc<FlowInstance>,
+    rhs: &str,
+    value: Option<Value>,
+) -> Result<(), AppError> {
+    let key = rhs["ext:".len()..].trim();
+    let Some(ext) = &instance.template.external_state_machine else {
+        return Ok(()); // compile-time validated; defensive
+    };
+    let action = if value.is_some() { "put" } else { "remove" };
+    let po = PostOffice::new(platform);
+    if let Some(flow_id) = ext.strip_prefix("flow://") {
+        let mut dataset = MultiLevelMap::new();
+        dataset
+            .set_element("header.key", Value::from(key))
+            .map_err(|e| AppError::new(500, e))?;
+        dataset
+            .set_element("header.type", Value::from(action))
+            .map_err(|e| AppError::new(500, e))?;
+        if let Some(v) = &value {
+            dataset
+                .set_element("body", Value::Map(vec![(Value::from("data"), v.clone())]))
+                .map_err(|e| AppError::new(500, e))?;
+        }
+        let mut forward = EventEnvelope::new()
+            .set_to(crate::manager::SERVICE_NAME)
+            .set_header("parent", &instance.id)
+            .set_header("flow_id", flow_id)
+            .set_correlation_id(&uuid::Uuid::new_v4().simple().to_string())
+            .set_raw_body(dataset.to_value());
+        if let (Some(trace_id), Some(path)) = (instance.trace_id(), instance.trace_path()) {
+            forward = forward.set_trace(trace_id, path);
+        }
+        po.send(forward).await
+    } else {
+        let mut event = EventEnvelope::new()
+            .set_to(ext)
+            .set_header("type", action)
+            .set_header("key", key);
+        if let Some(v) = value {
+            event = event.set_raw_body(Value::Map(vec![(Value::from("data"), v)]));
+        }
+        if let (Some(trace_id), Some(path)) = (instance.trace_id(), instance.trace_path()) {
+            event = event.set_trace(trace_id, path);
+        }
+        po.send(event).await
+    }
 }
 
 /// The programmatic flow API — Rust port of `com.accenture.adapters.FlowExecutor`.

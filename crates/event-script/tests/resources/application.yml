@@ -4,3 +4,6 @@
 application.name: event-script-test
 
 yaml.flow.automation: 'classpath:/not-found.yaml, classpath:/flows.yaml, classpath:/more-flows.yaml, classpath:/rust-flows.yaml'
+
+# Java test-config parity: ${app.id} in the externalize fixtures resolves here
+app.id: A12

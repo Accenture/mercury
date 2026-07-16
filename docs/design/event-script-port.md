@@ -308,6 +308,40 @@ reactive back-pressure.*
   `decision.case` test task is now the faithful Java `DecisionCase` port (echo +
   increment + quit/jump/continue thresholds) — the loop workhorse.
 
+## 5g. Increment E-7 — sub-flows, shared parent state, external state machine (implemented 2026-07-16)
+
+- **`flow://` sub-flows**: a task whose process is `flow://{id}` launches the child
+  through the manager (dataset `{ttl, body, header?}`, headers `parent`/`flow_id` +
+  the inherited business correlation-id, the composite `uuid#seq` correlation id);
+  the child's end/abort response returns as the parent task's normal callback — so
+  output mappings, exception routing and fork barriers all apply unchanged. A dangling
+  reference aborts at runtime with the Java message (missing-sub-flow fixture).
+- **Shared parent state** (the one real Rust divergence, doc'd in `instance.rs`):
+  Java aliases `model.parent`/`model.root` to the root ancestor's shared map by
+  reference. Rust cannot alias, so every instance carries `Arc<Mutex<shared tree>>`
+  (root's own; sub-flows resolve the root ancestor). A parent-referencing task
+  (compiler-tracked `input_parent_ref`/`output_parent_ref`) materializes the tree at
+  `model.parent` for the mapping pass **under the shared lock** — the Java
+  `ancestor.modelSafety` analog (lock order shared → dataset everywhere) — and writes
+  it back after; `model.root.*` normalizes to `model.parent.*` (one object in Java, so
+  one canonical name is semantically identical). Loop conditions/sequencers on
+  parent keys are out of scope (no fixture uses them; doc'd).
+- **External state machine (`ext:`)**: calls collected during a mapping pass dispatch
+  after the locks release (fire-and-forget sends — observationally equivalent to
+  Java's inline sends, order preserved). Route form sends headers `type`
+  (put/remove) + `key` with body `{data}`; the `flow://` form launches the state flow
+  through the manager. `SimpleExceptionHandler` (`simple.exception.handler`) ported
+  as the second engine service built-in.
+- **Fixtures activated**: parent-greetings + children/daughter-greetings (the
+  daughter writes `model.parent.*`, the parent reads via `model.root.*` — the alias
+  round-trip), missing-sub-flow, externalize-put/get (trace-scoped external store,
+  `${app.id}` config substitution, put + remove verified), fork-n-join-flows
+  (sub-flow branches coordinating via parent state), and the **canonical
+  fork-n-join-with-dynamic-model-test** — five concurrent `flow://echo-flow`
+  sub-flows appending to the shared parent state and the external store, every
+  ITEM/INDEX landing exactly once (the shared-lock serialization proven under real
+  concurrency).
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

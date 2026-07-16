@@ -117,3 +117,41 @@ impl ComposableFunction for TaskExecutorService {
         executor::handle(&Platform::get_instance(), headers, input).await
     }
 }
+
+/// The generic exception-handler service (Java `SimpleExceptionHandler`,
+/// `simple.exception.handler`): logs the error context and echoes
+/// `{type: error, status, message}` — the shape flows map into their
+/// responses.
+#[preload(route = "simple.exception.handler", instances = 250)]
+pub struct SimpleExceptionHandler;
+
+#[async_trait]
+impl ComposableFunction for SimpleExceptionHandler {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let view = crate::mlm::MultiLevelMap::from_value(input.body().clone());
+        let (Some(status), Some(message)) =
+            (view.get_element("status"), view.get_element("message"))
+        else {
+            return Ok(EventEnvelope::new().set_raw_body(rmpv::Value::Map(Vec::new())));
+        };
+        let task = view
+            .get_element("task")
+            .map(|v| crate::conversions::display(&v))
+            .unwrap_or_else(|| "previous task".to_string());
+        log::error!(
+            "User defined exception handler received from {task}, rc={}, error={}",
+            crate::conversions::display(&status),
+            crate::conversions::display(&message)
+        );
+        Ok(EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (rmpv::Value::from("type"), rmpv::Value::from("error")),
+            (rmpv::Value::from("status"), status),
+            (rmpv::Value::from("message"), message),
+        ])))
+    }
+}

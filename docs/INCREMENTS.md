@@ -33,6 +33,7 @@
 | 15 | direct execution for reserved engine routes (hidden optimization) | 2026-07-16 | ES §5d.1 | 148 |
 | 16 | event-script E-5: parallel + fork/join (dynamic source, ITEM/INDEX) | 2026-07-16 | ES §5e | 148 |
 | 17 | event-script E-6: pipelines with for/while loops, break/continue | 2026-07-16 | ES §5f | 148 |
+| 18 | event-script E-7: sub-flows, shared parent state, ext state machine | 2026-07-16 | ES §5g | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -371,6 +372,22 @@ reactive back-pressure.*
   append/read/delete round-trip), for-loop-break, while-loop (per-step `delay`),
   pipeline-exception (step handler + pipe cleanup). `decision.case` upgraded to the
   faithful Java `DecisionCase` port.
+
+---
+
+## Increment 18 — event-script E-7: sub-flows + shared state + ext (2026-07-16)
+
+- **`flow://` sub-flows** launched through the manager; the child's response returns
+  as the parent task's callback (mappings/exceptions/fork barriers apply unchanged);
+  ttl + business cid + shared state inherited.
+- **Shared parent state**: `Arc<Mutex<tree>>` per family (Java aliases by reference —
+  Rust materializes at `model.parent` per mapping pass under the shared lock;
+  `model.root.*` normalizes to `model.parent.*`).
+- **`ext:` external state machine** (route + `flow://` forms; calls dispatched after
+  lock release); `SimpleExceptionHandler` built-in ported.
+- Activated fixtures: parent/daughter greetings (alias round-trip), missing-sub-flow,
+  externalize put/get, fork-n-join-flows, and the **canonical dynamic-fork fixture** —
+  five concurrent sub-flows, shared-state appends exactly-once.
 
 ---
 

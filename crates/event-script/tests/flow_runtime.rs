@@ -274,6 +274,67 @@ impl ComposableFunction for ExceptionSimulator {
     }
 }
 
+/// Java `ExternalStateMachine` (`v1.ext.state.machine`): a trace-scoped
+/// key-value store honoring the ext-state-machine contract — headers
+/// `type` (put/get/remove) + `key`, body `{data}`; the `append` key appends
+/// to a list.
+#[preload(route = "v1.ext.state.machine", instances = 4)]
+struct ExternalStateMachine;
+
+static EXT_STORE: std::sync::OnceLock<
+    std::sync::Mutex<HashMap<String, serde_json::Map<String, serde_json::Value>>>,
+> = std::sync::OnceLock::new();
+
+#[async_trait]
+impl ComposableFunction for ExternalStateMachine {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&Platform::get_instance());
+        let trace_id = po.my_trace_id().ok_or_else(|| {
+            AppError::new(400, "Tracing must be enabled for external state machine")
+        })?;
+        let store = EXT_STORE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let action = headers.get("type").map(String::as_str).unwrap_or("");
+        let key = headers.get("key").map(String::as_str).unwrap_or("*");
+        let mut guard = store.lock().expect("ext store");
+        let map = guard.entry(trace_id).or_default();
+        match action {
+            "put" if key != "*" => {
+                let data = body["data"].clone();
+                if key == "append" {
+                    let list = map
+                        .entry("append")
+                        .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+                    if let serde_json::Value::Array(items) = list {
+                        items.push(data);
+                    }
+                } else {
+                    map.insert(key.to_string(), data);
+                }
+                EventEnvelope::new().set_body(true)
+            }
+            "remove" if key != "*" => {
+                map.remove(key);
+                EventEnvelope::new().set_body(true)
+            }
+            "get" => {
+                let value = if key == "*" {
+                    serde_json::Value::Object(map.clone())
+                } else {
+                    map.get(key).cloned().unwrap_or(serde_json::Value::Null)
+                };
+                Ok(EventEnvelope::new().set_raw_body(from_json(&value)))
+            }
+            _ => Err(AppError::new(400, format!("unknown type '{action}'"))),
+        }
+    }
+}
+
 #[main_application]
 struct FlowTestApp;
 
@@ -673,6 +734,137 @@ async fn flows_run_end_to_end_like_java() {
     .await;
     assert_eq!(reply.status(), 400);
     assert_eq!(json_body(&reply)["message"], "just a test");
+
+    // --- sub-flow: the daughter writes model.parent.*, the parent reads it
+    // back through the model.root.* alias (one shared tree)
+    let reply = run_flow(
+        &platform,
+        "parent-greetings",
+        http_dataset(Some("kate"), &[]),
+        "biz-cid-21",
+    )
+    .await;
+    assert_eq!(reply.status(), 201, "the sub-flow's status maps through");
+    let body = json_body(&reply);
+    assert_eq!(
+        body["user"], "kate",
+        "the greeting ran inside the daughter flow"
+    );
+    assert_eq!(
+        body["my_cid"], "biz-cid-21",
+        "the business cid is inherited by the sub-flow"
+    );
+    assert_eq!(
+        body["name"], "event-script-test",
+        "model.root.name reads the daughter's model.parent.name"
+    );
+    assert_eq!(body["hello"], "hello");
+    assert_eq!(
+        reply.headers().get("x-demo").map(String::as_str),
+        Some("test-header")
+    );
+
+    // --- a dangling sub-flow reference aborts at runtime
+    let reply = run_flow(
+        &platform,
+        "missing-sub-flow",
+        http_dataset(Some("liam"), &[]),
+        "biz-cid-22",
+    )
+    .await;
+    assert_eq!(reply.status(), 500);
+    assert!(json_body(&reply)["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("flow://flow-not-found not defined"));
+
+    // --- external state machine: put (with ${app.id} key), then read back in
+    // a second flow under the SAME trace (the store is trace-scoped)
+    let shared_trace = trace::new_trace_id();
+    let reply = FlowExecutor::request(
+        &platform,
+        "externalize-put-key-value",
+        http_dataset(Some("mia"), &[]),
+        "biz-cid-23",
+        Duration::from_secs(8),
+        Some((&shared_trace, "FLOW /ext/put")),
+    )
+    .await
+    .expect("put flow");
+    assert_eq!(reply.status(), 200);
+    // give the fire-and-forget ext: sends a beat to land
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let reply = FlowExecutor::request(
+        &platform,
+        "externalize-get-key-value",
+        http_dataset(None, &[]),
+        "biz-cid-24",
+        Duration::from_secs(8),
+        Some((&shared_trace, "FLOW /ext/get")),
+    )
+    .await
+    .expect("get flow");
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "mia", "ext:/A12/user held the path parameter");
+    // 'text(world) -> ext:hello' then 'model.none -> ext:hello' removed it
+    assert!(body["hello"].is_null(), "removed key must be gone: {body}");
+
+    // --- fork/join over SUB-FLOW branches with parent-model coordination
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-flows",
+        http_dataset(Some("noah"), &[("seq", "7")]),
+        "biz-cid-25",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "noah", "the '*' pojo seeds the join input");
+    assert_eq!(
+        body["key1"], "hello-world-one",
+        "child-one wrote model.parent.key1"
+    );
+    assert_eq!(
+        body["key2"].as_str().unwrap_or(""),
+        "hello-world-two",
+        "child-two read model.parent.hello and completed the value"
+    );
+
+    // --- the CANONICAL dynamic-fork fixture (activated by E-7): five
+    // flow://echo-flow sub-flows, each appending to the shared parent state
+    // and the external state machine
+    let dynamic_trace = trace::new_trace_id();
+    let reply = FlowExecutor::request(
+        &platform,
+        "fork-n-join-with-dynamic-model-test",
+        http_dataset(Some("olga"), &[("seq", "8")]),
+        "biz-cid-26",
+        Duration::from_secs(15),
+        Some((&dynamic_trace, "FLOW /dynamic")),
+    )
+    .await
+    .expect("canonical dynamic fork");
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "olga");
+    let mut parent_items: Vec<String> = body["parent_items"]
+        .as_array()
+        .expect("parent_items")
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
+    parent_items.sort();
+    assert_eq!(
+        parent_items,
+        vec!["five", "four", "one", "three", "two"],
+        "each sub-flow appended its ITEM to the shared parent state exactly once"
+    );
+    let mut parent_indexes: Vec<i64> = body["parent_indexes"]
+        .as_array()
+        .expect("parent_indexes")
+        .iter()
+        .map(|v| v.as_i64().unwrap_or(-1))
+        .collect();
+    parent_indexes.sort();
+    assert_eq!(parent_indexes, vec![0, 1, 2, 3, 4]);
 
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);

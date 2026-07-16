@@ -78,3 +78,16 @@ pub fn add_flow_instance(instance: Arc<FlowInstance>) {
 pub fn close_flow_instance(id: &str) {
     instances().write().expect("instance registry").remove(id);
 }
+
+/// Resolve the ROOT ancestor of a flow family (Java `resolveParent`
+/// recursion): follow parent links until an instance with no parent.
+pub fn resolve_root_ancestor(parent_id: &str) -> Option<Arc<FlowInstance>> {
+    let mut current = get_flow_instance(parent_id)?;
+    while let Some(next_parent) = current.parent_id.clone() {
+        match get_flow_instance(&next_parent) {
+            Some(parent) => current = parent,
+            None => break,
+        }
+    }
+    Some(current)
+}
