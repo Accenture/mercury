@@ -23,3 +23,13 @@ headers:
     response:
       add:
         - "x-served-by: mercury-rust"
+
+# static-content protocol (increment 8): etag/304 caching with no-cache entry
+# pages, plus a request filter — a composable function inspecting HTTP
+# requests for the configured paths (the SSO-redirection hook for UI bundles)
+static-content:
+  no-cache-pages: ["/", "/index.html"]
+  filter:
+    path: ["/", "/assets/*", "*.html", "*.js"]
+    exclusion: ["*.css"]
+    service: "http.request.filter"

@@ -111,9 +111,67 @@ impl HeaderTransform {
     }
 }
 
+/// The `static-content` block (Java `RoutingEntry` + `SimpleHttpFilter`):
+/// no-cache pages and an optional request filter for static assets.
+#[derive(Clone, Debug)]
+pub struct StaticContent {
+    /// Pages served with no-cache headers instead of the etag protocol
+    /// (default `["/", "/index.html"]` — entry pages must never be cached,
+    /// e.g. for SSO redirection).
+    pub no_cache_pages: Vec<String>,
+    pub filter: Option<SimpleHttpFilter>,
+}
+
+impl Default for StaticContent {
+    fn default() -> Self {
+        StaticContent {
+            no_cache_pages: vec!["/".to_string(), "/index.html".to_string()],
+            filter: None,
+        }
+    }
+}
+
+/// A composable function that inspects HTTP requests for configured static
+/// paths (Java `SimpleHttpFilter`) — e.g. a backend handling SSO redirection
+/// for a UI bundle. Patterns: exact, `prefix*`, or `*suffix`.
+#[derive(Clone, Debug)]
+pub struct SimpleHttpFilter {
+    pub path_list: Vec<String>,
+    pub exclusion_list: Vec<String>,
+    pub service: String,
+}
+
+/// Match a path against exact / `prefix*` / `*suffix` patterns
+/// (Java `HttpRouter.matchedElement`).
+pub fn matched_element(elements: &[String], path: &str) -> bool {
+    elements.iter().any(|pattern| {
+        if let Some(prefix) = pattern.strip_suffix('*') {
+            path.starts_with(prefix)
+        } else if let Some(suffix) = pattern.strip_prefix('*') {
+            path.ends_with(suffix)
+        } else {
+            path == pattern
+        }
+    })
+}
+
+/// A valid filter pattern has at most one `*`, and only at the start or end
+/// (Java `invalidFilterParameters`, inverted).
+fn valid_patterns(patterns: &[String]) -> bool {
+    patterns.iter().all(|p| {
+        !p.is_empty()
+            && match p.matches('*').count() {
+                0 => true,
+                1 => p.starts_with('*') || p.ends_with('*'),
+                _ => false,
+            }
+    })
+}
+
 /// The parsed routing table (Java `RoutingEntry`).
 pub struct RoutingTable {
     routes: Vec<RouteInfo>,
+    static_content: StaticContent,
 }
 
 /// A matched route with its extracted `{param}` path variables.
@@ -140,7 +198,16 @@ impl RoutingTable {
             };
             routes.push(parse_route(index, entry, &cors_blocks, &header_blocks)?);
         }
-        Ok(RoutingTable { routes })
+        let static_content = parse_static_content(reader)?;
+        Ok(RoutingTable {
+            routes,
+            static_content,
+        })
+    }
+
+    /// The `static-content` configuration (defaults applied when absent).
+    pub fn static_content(&self) -> &StaticContent {
+        &self.static_content
     }
 
     /// Build a routing table from YAML text (used for the built-in default
@@ -483,6 +550,68 @@ fn parse_transform(section: Option<&ConfigValue>) -> HeaderTransform {
         }
     }
     transform
+}
+
+/// Parse the optional `static-content` block (Java `getNoCacheConfig` +
+/// `getStaticContentFilter`). Missing block → defaults; an invalid filter is
+/// an error (the grammar's fail-on-invalid discipline).
+fn parse_static_content(reader: &ConfigReader) -> Result<StaticContent, AppError> {
+    let mut result = StaticContent::default();
+    if let Some(ConfigValue::List(pages)) = reader
+        .get_map()
+        .get_element("static-content.no-cache-pages")
+    {
+        let list: Vec<String> = pages
+            .iter()
+            .filter_map(|v| v.as_text().map(str::to_string))
+            .collect();
+        if valid_patterns(&list) && !list.is_empty() {
+            result.no_cache_pages = list;
+        } else {
+            return Err(AppError::new(
+                400,
+                "static-content.no-cache-pages has invalid syntax",
+            ));
+        }
+    }
+    let map = reader.get_map();
+    if map.key_exists("static-content.filter") {
+        let Some(ConfigValue::List(paths)) = map.get_element("static-content.filter.path") else {
+            return Err(AppError::new(
+                400,
+                "static-content.filter.path must be a list",
+            ));
+        };
+        let path_list: Vec<String> = paths
+            .iter()
+            .filter_map(|v| v.as_text().map(str::to_string))
+            .collect();
+        let service = map
+            .get_element("static-content.filter.service")
+            .and_then(|v| v.as_text())
+            .map(str::to_string)
+            .ok_or_else(|| AppError::new(400, "static-content.filter.service is required"))?;
+        let exclusion_list: Vec<String> = match map.get_element("static-content.filter.exclusion") {
+            Some(ConfigValue::List(items)) => items
+                .iter()
+                .filter_map(|v| v.as_text().map(str::to_string))
+                .collect(),
+            _ => Vec::new(),
+        };
+        if path_list.is_empty() || !valid_patterns(&path_list) || !valid_patterns(&exclusion_list) {
+            return Err(AppError::new(
+                400,
+                "static-content.filter path/exclusion has invalid syntax",
+            ));
+        }
+        log::info!("static-content.filter loaded: {path_list:?} -> {service}, exclusion {exclusion_list:?}");
+        result.filter = Some(SimpleHttpFilter {
+            path_list,
+            exclusion_list,
+            service,
+        });
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

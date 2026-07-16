@@ -146,7 +146,9 @@ async fn handle(
         // index.html — served only when rest.yaml claims no route (a "/"
         // entry in rest.yaml always wins)
         if method == "GET" || method == "HEAD" {
-            if let Some(response) = try_static(&path, method == "HEAD") {
+            if let Some(response) =
+                serve_static(&state, &path, &query_text, &headers, peer, method == "HEAD").await
+            {
                 return Ok(response);
             }
         }
@@ -284,22 +286,8 @@ async fn process(
     )?;
     let result = po.request(event, info.timeout).await?;
     // map the response envelope back to HTTP
-    let status =
-        StatusCode::from_u16(result.status() as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let (content_type, payload) = match result.body() {
-        rmpv::Value::Nil => (None, Bytes::new()),
-        rmpv::Value::String(text) => (
-            Some("text/plain"),
-            Bytes::from(text.as_str().unwrap_or_default().to_string()),
-        ),
-        rmpv::Value::Binary(bytes) => {
-            (Some("application/octet-stream"), Bytes::from(bytes.clone()))
-        }
-        _ => {
-            let json = result.body_as::<serde_json::Value>().unwrap_or_default();
-            (Some("application/json"), Bytes::from(json.to_string()))
-        }
-    };
+    let status = status_of(result.status());
+    let (content_type, payload) = envelope_payload(&result);
     let mut response_headers: HashMap<String, String> = HashMap::new();
     if let Some(content_type) = content_type {
         response_headers.insert("content-type".to_string(), content_type.to_string());
@@ -427,40 +415,201 @@ fn merge_default_endpoints(table: &mut RoutingTable) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Serve static HTML content from the `resources/public` folder (the Java
-/// static-content behavior, simplified: no etag/cache yet). `/` and directory
-/// paths resolve to `index.html`; parent traversal is rejected; content type
-/// by file extension.
-fn try_static(path: &str, head_only: bool) -> Option<Response<Full<Bytes>>> {
+/// Serve static HTML content from the `resources/public` folder with the
+/// full Java static-content behavior:
+///
+/// 1. **path resolution** (Java `getStaticFile`): `/` and trailing-`/` paths
+///    resolve to `index.html`; an extensionless filename assumes `.html`;
+///    parent traversal is rejected;
+/// 2. **optional request filter** (`static-content.filter`): a composable
+///    function inspects matching requests (e.g. SSO redirection for a UI
+///    bundle) — its response **headers are always copied** onto the HTTP
+///    response; status 200 continues to serve, any other status (or a
+///    redirect) passes the filter's response through;
+/// 3. **no-cache pages** (`static-content.no-cache-pages`, default `/` and
+///    `/index.html`): `Cache-Control: no-cache, no-store` + `Pragma` +
+///    `Expires` instead of caching — entry pages must always revalidate;
+/// 4. **etag protocol** for everything else: a quoted SHA-256 content hash;
+///    a matching `If-None-Match` (comma-list aware) → **HTTP 304** with an
+///    empty body.
+async fn serve_static(
+    state: &RouterState,
+    path: &str,
+    query_text: &str,
+    headers: &HashMap<String, String>,
+    peer: SocketAddr,
+    head_only: bool,
+) -> Option<Response<Full<Bytes>>> {
+    let (bytes, filename) = resolve_static_file(path)?;
+    let static_content = state.table.static_content();
+    let no_cache = super::routing::matched_element(&static_content.no_cache_pages, path);
+    // the optional request filter (Java handleFilter)
+    let mut filter_headers: Vec<(String, String)> = Vec::new();
+    if let Some(filter) = &static_content.filter {
+        let applies = super::routing::matched_element(&filter.path_list, path)
+            && !super::routing::matched_element(&filter.exclusion_list, path);
+        if applies {
+            if state.platform.has_route(&filter.service) {
+                match run_static_filter(state, filter, path, query_text, headers, peer).await {
+                    Ok(filtered) => {
+                        // the filter may set HTTP response headers (Java parity)
+                        for (name, value) in filtered.headers() {
+                            filter_headers.push((name.clone(), value.clone()));
+                        }
+                        if filtered.status() != 200 {
+                            // redirect / rejection: pass the filter's response through
+                            let (content_type, payload) = envelope_payload(&filtered);
+                            let mut response =
+                                Response::builder().status(status_of(filtered.status()));
+                            let mut has_content_type = false;
+                            for (name, value) in &filter_headers {
+                                has_content_type |= name.eq_ignore_ascii_case("content-type");
+                                response = response.header(name, value);
+                            }
+                            if let (Some(content_type), false) = (content_type, has_content_type) {
+                                response = response.header("content-type", content_type);
+                            }
+                            return response.body(Full::new(payload)).ok();
+                        }
+                    }
+                    Err(e) => {
+                        // resilient divergence from Java (which leaves the request
+                        // to time out): log and serve the static file anyway
+                        log::error!(
+                            "Unable to filter static content HTTP-GET {} - {}",
+                            filter.service,
+                            e.message()
+                        );
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Static content filter {} ignored because it does not exist",
+                    filter.service
+                );
+            }
+        }
+    }
+    // serve the file: no-cache headers or the etag protocol
+    let mime = mime_for(
+        std::path::Path::new(&filename)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or(""),
+    );
+    let mut response = Response::builder().status(StatusCode::OK);
+    for (name, value) in &filter_headers {
+        response = response.header(name, value);
+    }
+    response = response.header("content-type", mime);
+    if no_cache {
+        response = response
+            .header("Cache-Control", "no-cache, no-store")
+            .header("Pragma", "no-cache")
+            .header("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+    } else {
+        use sha2::Digest;
+        let etag = format!("\"{:x}\"", sha2::Sha256::digest(&bytes));
+        // If-None-Match may carry a comma-separated list (Java EtagFile.sameTag)
+        let matched = headers
+            .get("if-none-match")
+            .is_some_and(|inm| inm.split(',').any(|tag| tag.trim() == etag));
+        if matched {
+            return Response::builder()
+                .status(StatusCode::NOT_MODIFIED)
+                .header("content-length", "0")
+                .body(Full::new(Bytes::new()))
+                .ok();
+        }
+        response = response.header("ETag", etag);
+    }
+    let payload = if head_only {
+        Bytes::new()
+    } else {
+        Bytes::from(bytes)
+    };
+    response.body(Full::new(payload)).ok()
+}
+
+/// Resolve a request path to a file under `resources/public`
+/// (Java `getStaticFile` rules).
+fn resolve_static_file(path: &str) -> Option<(Vec<u8>, String)> {
     if path.contains("..") {
         return None; // traversal guard
     }
-    let rel = path.trim_matches('/');
-    let candidates = if rel.is_empty() {
-        vec!["public/index.html".to_string()]
+    let rel = path.trim_start_matches('/');
+    let relative = if rel.is_empty() || path.ends_with('/') {
+        format!("{rel}/index.html")
+            .trim_start_matches('/')
+            .to_string()
     } else {
-        vec![format!("public/{rel}"), format!("public/{rel}/index.html")]
-    };
-    for candidate in candidates {
-        let Some(file) = crate::util::resources::resolve_classpath(&candidate) else {
-            continue;
-        };
-        let Ok(bytes) = std::fs::read(&file) else {
-            continue;
-        };
-        let mime = mime_for(file.extension().and_then(|e| e.to_str()).unwrap_or(""));
-        let payload = if head_only {
-            Bytes::new()
+        let filename = rel.rsplit('/').next().unwrap_or(rel);
+        if filename.contains('.') {
+            rel.to_string()
         } else {
-            Bytes::from(bytes)
-        };
-        return Response::builder()
-            .status(StatusCode::OK)
-            .header("content-type", mime)
-            .body(Full::new(payload))
-            .ok();
+            format!("{rel}.html") // assume .html for extensionless paths
+        }
+    };
+    let file = crate::util::resources::resolve_classpath(&format!("public/{relative}"))?;
+    let bytes = std::fs::read(&file).ok()?;
+    let filename = relative.rsplit('/').next().unwrap_or(&relative).to_string();
+    Some((bytes, filename))
+}
+
+/// Invoke the static-content filter with an AsyncHttpRequest-shaped event
+/// (no body, no path parameters — Java `createHttpRequest`).
+async fn run_static_filter(
+    state: &RouterState,
+    filter: &super::routing::SimpleHttpFilter,
+    path: &str,
+    query_text: &str,
+    headers: &HashMap<String, String>,
+    peer: SocketAddr,
+) -> Result<EventEnvelope, AppError> {
+    let mut query: HashMap<String, String> = HashMap::new();
+    for pair in query_text.split('&').filter(|p| !p.is_empty()) {
+        let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+        query.insert(url_decode(name), url_decode(value));
     }
-    None
+    let request = serde_json::json!({
+        "method": "GET",
+        "url": path,
+        "ip": peer.ip().to_string(),
+        "https": false,
+        "host": headers.get("host").cloned().unwrap_or_default(),
+        "headers": headers,
+        "parameters": {"path": {}, "query": query},
+        "body": serde_json::Value::Null,
+    });
+    let event = EventEnvelope::new()
+        .set_to(&filter.service)
+        .set_body(&request)?;
+    let po = PostOffice::new(&state.platform);
+    // Java FILTER_TIMEOUT = 10 seconds
+    po.request(event, std::time::Duration::from_secs(10)).await
+}
+
+/// Map an envelope body to HTTP payload + content type (shared by the normal
+/// dispatch and the filter pass-through).
+fn envelope_payload(result: &EventEnvelope) -> (Option<&'static str>, Bytes) {
+    match result.body() {
+        rmpv::Value::Nil => (None, Bytes::new()),
+        rmpv::Value::String(text) => (
+            Some("text/plain"),
+            Bytes::from(text.as_str().unwrap_or_default().to_string()),
+        ),
+        rmpv::Value::Binary(bytes) => {
+            (Some("application/octet-stream"), Bytes::from(bytes.clone()))
+        }
+        _ => {
+            let json = result.body_as::<serde_json::Value>().unwrap_or_default();
+            (Some("application/json"), Bytes::from(json.to_string()))
+        }
+    }
+}
+
+fn status_of(code: i32) -> StatusCode {
+    StatusCode::from_u16(code as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 /// Minimal content-type resolution by extension (the Java `MimeTypeResolver`

@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–7 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → **actuators + static content** (`/info` `/env` `/health` `/livenessprobe` via the default-endpoint merge; opt-in env exposure; mandatory/optional health-check protocol feeding liveness; `resources/public` static serving with `/`→index.html; `/info/lib` deferred — no runtime dep manifest in Rust) — 94 tests, clippy/fmt clean. Next: **event-script (layer 2)** is the natural next move, or remaining §7 items.
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) — 101 tests, clippy/fmt clean. `docs/INCREMENTS.md` = the increment ledger (row+section per increment = part of done). Next: **event-script (layer 2)** is the natural next move, or remaining §7 items.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-012756)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-015705)
 - **last_review:** 2026-07-16 | through 2026-07-16-005505
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
@@ -64,7 +64,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **AI-enabled at the greenfield stage** — the shared memory layer + Vision were installed
   *before* any code, so development is guided by shared memory and intent-traceability
   (VBDI) from the first commit rather than retrofitted later.
-  <!-- id: ai-enabled-greenfield | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: ai-enabled-greenfield | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
@@ -78,7 +78,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   configuration management. Spring (`rest-spring-3/-4`) is **not ported** (Java-only);
   platform-core's own Vert.x-based REST automation remains in scope later. Config-file syntax
   kept verbatim (D9) so config files port unchanged between Java and Rust.
-  <!-- id: config-first-spring-out | created: 2026-07-15 | last_used: 2026-07-15 | uses: 4 | tier: active | origin: 2026-07-15-222816.md -->
+  <!-- id: config-first-spring-out | created: 2026-07-15 | last_used: 2026-07-16 | uses: 8 | tier: active | origin: 2026-07-15-222816.md -->
 - **Back-pressure = the file-based elastic FIFO; Berkeley DB store NOT ported** (maintainer,
   2026-07-15): the manager-worker dispatch (ServiceQueue ready-signal state machine) rides an
   `ElasticQueue` — first 20 events in memory, overflow to segmented append-only files
@@ -87,11 +87,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   strategy facade collapses into one type. Config keys verbatim:
   `elastic.queue.segment.size.bytes`, `elastic.queue.dispatch.mailbox.size`,
   `transient.data.store`, `running.in.cloud`. Design: `docs/design/platform-core-port.md` §5b.
-  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: active | origin: 2026-07-15-232127.md -->
+  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-16 | uses: 3 | tier: active | origin: 2026-07-15-232127.md -->
 - **Private prototyping repo → official Accenture repo later** — iterate rapidly here to keep
   noise away from public readers; move to the official Accenture repo once the foundation is
   sufficient.
-  <!-- id: private-repo-then-accenture | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: private-repo-then-accenture | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **platform-core Rust stack (confirmed at the gate, 2026-07-15):** **tokio** async runtime
   (virtual-thread analog; N `instances` = N worker tasks/route), **async_trait**, **serde +
   rmp-serde** (MsgPack bus) + **serde_json** (HTTP edge), **idiomatic serde wire format** (NOT
@@ -99,7 +99,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (`crates/platform-core` first), **explicit registration** now (compile-time `inventory`-style
   macro later; Rust has no runtime annotation scanning). Full rationale + type designs:
   `docs/design/platform-core-port.md`.
-  <!-- id: platform-core-stack | created: 2026-07-15 | last_used: 2026-07-15 | uses: 6 | tier: active | origin: 2026-07-15-222242.md -->
+  <!-- id: platform-core-stack | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: active | origin: 2026-07-15-222242.md -->
 
 ## Conventions
 
@@ -120,7 +120,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   one overview row + one section per increment, added as part of each increment's
   definition of done (design rationale stays in `docs/design/platform-core-port.md`;
   the ledger records what shipped when).
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-15 | uses: 4 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 8 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -132,7 +132,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   mercury-composable). `memory/vision.md` is confirmed (no DRAFT), and the high-level
   Blueprint below was derived from the stated plan. VBDI drift-detection is now active
   (advisory until the Designs land).
-  <!-- id: ot-vision-confirm-blueprint | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: ot-vision-confirm-blueprint | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 
 - [x] **Greenfield — no code yet.** Resolved 2026-07-15: increment 1 landed the first real
   code (Cargo workspace + `crates/platform-core` config management). Stack recorded in
@@ -149,7 +149,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - [ ] **(blueprint)** Port **platform-core** to Rust — the foundation layer; everything else
   builds on it. First real porting increment. → serves: vision-mercury
-  <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-15 | uses: 8 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 12 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Port **event-script** to Rust (on top of platform-core).
   → serves: vision-mercury
   <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
@@ -248,8 +248,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   wins). Deferred: `/info/lib` (no runtime dep manifest in Rust — build.rs metadata later),
   `/info/routes`, etag, XML. All five endpoints curl-verified live on hello_world (health
   UP with demo.health mandatory dep, static index at `/`). **94 tests, clippy/fmt clean.**
-  → serves: vision-mercury
-  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 10 | tier: working | origin: 2026-07-15-221632.md -->
+  **Increment 8 (static-content protocol) implemented 2026-07-16** (maintainer-directed;
+  §5g; ref: Java test/resources/rest.yaml static-content block): **etag/HTTP-304** (quoted
+  SHA-256 via new dep `sha2`; comma-aware If-None-Match; 304 + content-length 0),
+  **no-cache pages** (default `/`+`/index.html`: Cache-Control no-cache,no-store + Pragma +
+  epoch Expires — entry pages always revalidate, the SSO case), **request filter**
+  (`static-content.filter` path/exclusion/service; exact/`prefix*`/`*suffix` patterns;
+  filter's response headers ALWAYS copied; 200 = continue serving, else pass-through e.g.
+  302+Location; 10s timeout; unregistered service → warn+serve). Path resolution tightened
+  to Java getStaticFile (extensionless → `.html`). Demo: `http.request.filter` interceptor
+  logging url/ip/user-agent. Live-verified: no-cache+x-filter on `/`, real 304 cycle.
+  Ops lesson: `kill` on a `cargo run` wrapper orphans the child binary — a stale server on
+  8085 masked the new build until pkill'd (demo scripts now kill the binary by name).
+  **101 tests, clippy/fmt clean.** → serves: vision-mercury
+  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 11 | tier: working | origin: 2026-07-15-221632.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**

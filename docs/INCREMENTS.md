@@ -22,6 +22,7 @@
 | 5 | OTel tracing, correlation-id, app-log-context | 2026-07-16 | §5d | 68 |
 | 6 | REST automation (core) | 2026-07-16 | §5e | 83 |
 | 7 | Actuator endpoints + static HTML content | 2026-07-16 | §5f | 94 |
+| 8 | Static-content protocol: etag/304, no-cache, filter | 2026-07-16 | §5g | 101 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the `hello_world`
@@ -166,9 +167,27 @@ manifest in a Rust binary — a build.rs-embedded cargo metadata could provide i
 - The example is now a complete miniature app: a static landing page linking a traced
   API endpoint and all four actuators.
 
+## Increment 8 — Static-content protocol: etag/304, no-cache pages, request filter (2026-07-16)
+
+*Maintainer-directed; reference: the Java platform-core `test/resources/rest.yaml`
+`static-content` block.*
+
+- **ETag / HTTP-304**: quoted SHA-256 content hash; comma-aware `If-None-Match` → 304
+  with an empty body; stale tags re-serve.
+- **No-cache pages** (default `["/", "/index.html"]`): `Cache-Control: no-cache,
+  no-store` + `Pragma` + epoch `Expires` — entry pages always revalidate (the SSO case).
+- **Request filter** (`static-content.filter`: path/exclusion/service; exact / `prefix*`
+  / `*suffix` patterns): a composable function inspects matching static requests; its
+  response headers are always copied; 200 continues serving, any other status (e.g.
+  302 + `Location`) passes through — the SSO-redirection hook. The hello_world demo ships
+  an `http.request.filter` interceptor logging url/ip/user-agent.
+- Path resolution tightened to Java rules (extensionless → `.html`).
+- Verified live: no-cache + `x-filter` headers on `/`, a real 304 revalidation cycle,
+  and the interceptor's inspection log.
+
 ---
 
-## Deferred backlog (as of increment 7)
+## Deferred backlog (as of increment 8)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
 streams, kernel-thread analog, `#[preload]` macro, flow binding + HTTP relay + A/B +

@@ -131,6 +131,36 @@ impl ComposableFunction for GreetingApi {
     }
 }
 
+// ---- the static-content request filter (increment 8) ----
+
+/// A simple interceptor for static content (`static-content.filter`): inspects
+/// the HTTP headers of matching requests and lets them through (status 200).
+/// A real deployment would handle SSO here — inspect the session cookie and
+/// return 302 + Location to the identity provider when absent.
+struct HttpRequestFilter;
+
+#[async_trait]
+impl ComposableFunction for HttpRequestFilter {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        log::info!(
+            "[filter] {} from {} (user-agent: {})",
+            request["url"].as_str().unwrap_or("?"),
+            request["ip"].as_str().unwrap_or("?"),
+            request["headers"]["user-agent"].as_str().unwrap_or("-"),
+        );
+        // 200 = continue serving; the header below rides onto the HTTP response
+        EventEnvelope::new()
+            .set_header("x-filter", "inspected")
+            .set_body(serde_json::Value::Null)
+    }
+}
+
 // ---- a health-check function (increment 7: /health lists it as mandatory) ----
 
 /// Honors the actuator health protocol: header `type=info` describes the
@@ -228,6 +258,7 @@ async fn main() -> Result<(), AppError> {
         .preload("greeting.demo", TypedAdapter::arc(Greetings), instances)
         .preload("greeting.api", Arc::new(GreetingApi), 5)
         .preload("demo.health", Arc::new(DemoHealth), 1)
+        .preload("http.request.filter", Arc::new(HttpRequestFilter), 2)
         .main_application(1, Arc::new(MainApp))
         .run(std::env::args().collect())
         .await?;

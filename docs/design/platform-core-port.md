@@ -460,6 +460,37 @@ health no-deps hint, health UP with mandatory dep (info-merge asserted), health 
 liveness flip, static index at `/`, nested asset content-type, traversal + miss + POST = 404,
 rest.yaml endpoints still win) + elapsed-time unit tests.
 
+## 5g. Increment 8 — static-content protocol: etag/304, no-cache pages, request filter
+
+*(Implemented 2026-07-16, maintainer-directed; reference: the Java platform-core
+`test/resources/rest.yaml` `static-content` block.)*
+
+- **ETag / HTTP-304** (Java `EtagFile` + `sendStaticFile`): a quoted **SHA-256** content
+  hash (new dep: `sha2` — std has no hash); `If-None-Match` compared **comma-list aware**
+  → 304 with `content-length: 0`; else 200 + `ETag`.
+- **No-cache pages** (`static-content.no-cache-pages`, default `["/", "/index.html"]`):
+  served with `Cache-Control: no-cache, no-store` + `Pragma: no-cache` + epoch `Expires`
+  instead of the etag protocol — entry pages must always revalidate (the SSO use case).
+- **Request filter** (`static-content.filter`: `path` / `exclusion` / `service`): a
+  composable function inspects matching static requests (patterns: exact, `prefix*`,
+  `*suffix` — Java `matchedElement`; validation per `invalidFilterParameters`). The
+  filter receives an `AsyncHttpRequest`-shaped event (10 s timeout, Java
+  `FILTER_TIMEOUT`); its response **headers are always copied** onto the HTTP response;
+  **status 200 → continue serving**, any other status passes the filter's response
+  through — the SSO-redirection hook (302 + `Location`). Unregistered filter service →
+  warn + serve normally (Java parity). Divergence (doc'd): a filter *call failure* logs
+  and serves anyway (Java leaves the request to time out).
+- **Path resolution** tightened to Java `getStaticFile` rules: trailing `/` →
+  `index.html`, **extensionless filename → `.html`**, traversal rejected.
+- Refactor: `envelope_payload`/`status_of` shared between normal dispatch and the filter
+  pass-through.
+
+**Tests:** etag cycle (200+ETag → 304 on match, comma-list, stale tag re-serves), no-cache
+headers + no etag + If-None-Match ignored, filter inspect + header stamp, filter redirect
+pass-through (static not served), exclusion bypass (`*.css`), unregistered-service
+fallback, extensionless `.html` assumption. Example: `http.request.filter` interceptor
+logging url/ip/user-agent (a real deployment would do SSO here).
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time

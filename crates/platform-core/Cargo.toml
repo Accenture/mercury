@@ -23,3 +23,5 @@ uuid = { version = "1", features = ["v4"] }
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
+# --- increment 8: etag protocol (Java parity: SHA-256 content hash) ---
+sha2 = "0.10"
