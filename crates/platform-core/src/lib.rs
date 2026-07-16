@@ -31,6 +31,7 @@
 //! by route name and never call each other directly.
 
 pub mod app_starter;
+pub mod automation;
 pub mod envelope;
 pub mod function;
 pub mod logging;

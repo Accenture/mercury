@@ -11,3 +11,7 @@ log.format: json
 greeting:
   user: '${GREETING_USER:world}'
   instances: 10
+
+# REST automation (increment 6): serve rest.yaml endpoints over HTTP
+rest.automation: true
+rest.server.port: 8085

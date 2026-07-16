@@ -165,13 +165,9 @@ impl AppStarter {
                 if instances == 1 { "" } else { "s" }
             );
         }
-        // 4. REST automation starts here in Java (rest.automation=true) — a
-        //    later increment in the Rust port
+        // 4. REST automation: the HTTP protocol boundary (rest.automation=true)
         if config.get_property_or("rest.automation", "false") == "true" {
-            log::warn!(
-                "rest.automation=true is configured but REST automation is not yet ported \
-                 (a later increment) — no HTTP server was started"
-            );
+            crate::automation::start_http_server(&platform).await?;
         }
         // 5. main applications, ordered by sequence
         if self.mains.is_empty() {

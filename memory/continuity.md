@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–5 implemented, bootable, and OBSERVABLE**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle (AppStarter/EntryPoint, Platform identity, housekeeping) → **OpenTelemetry-compatible distributed tracing + business correlation-id + app-log-context** (Telemetry `distributed.tracing` service, task-local trace bracket, W3C ids, automatic propagation, JSON logger with context block; `hello_world` demos logs↔spans join live) — 66 tests, clippy/fmt clean. Next: increment 6+ per `docs/design/platform-core-port.md` §7 (REST automation is the natural next: it starts traces at the HTTP edge via the ported w3c_trace).
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–6 implemented — an HTTP-SERVING, OBSERVABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → **REST automation core** (rest.yaml per the Java grammar doc, hyper HTTP edge that starts traces/ensures cid, CORS/header-transforms/auth, AsyncHttpRequest mapping; hello_world serves `GET /api/greeting/{user}` with a live cross-boundary span tree) — 83 tests, clippy/fmt clean. Next: increment 7+ per `docs/design/platform-core-port.md` §7 — or start **event-script** (layer 2) on this foundation.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-001704)
-- **last_review:** (none yet)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-005505)
+- **last_review:** 2026-07-16 | through 2026-07-16-005505
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -29,10 +29,12 @@
 **Rust edition 2021**, toolchain 1.95.0 (latest stable at increments 1–2). Cargo **workspace**
 (`Cargo.toml` root, members `crates/*`); `crates/platform-core` is the first crate.
 **Deps in use:** serde 1, serde_json 1, serde_yaml 0.9 (⚠ archived upstream — works fine;
-swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4, tokio 1
-(rt-multi-thread/sync/time/macros), async-trait 0.1, async-channel 2 (per-route MPMC
-queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4). Stack rationale:
-`platform-core-stack` + design doc D1–D6. `.gitignore` is stack-aware (Rust section:
+swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4 (std feature),
+tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
+async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
+**hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
+deliberately not a web framework: rest.yaml IS the router). Stack rationale:
+`platform-core-stack` + design doc D1–D10. `.gitignore` is stack-aware (Rust section:
 `target/`, `**/*.rs.bk`, `*.pdb`; Cargo.lock tracked).
 
 **Canonical source:** `mercury-composable` (Java, `com.accenture.mercury:parent-mercury`
@@ -211,8 +213,26 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   opt-in `app-log-context.yaml` + JSON logger (`log.format=json`; context block joins logs to
   spans). hello_world demos the join live (same trace/span ids on log line + span). One real
   bug fixed: OnceLock re-entrancy deadlock (config logging inside its own initializer) →
-  eager init in `logging::init()`. **66 tests, clippy/fmt clean.** → serves: vision-mercury
-  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 8 | tier: working | origin: 2026-07-15-221632.md -->
+  eager init in `logging::init()`. **66 tests, clippy/fmt clean.**
+  **Increment 6 (REST automation core) implemented 2026-07-16** (§5e): `rest.yaml` per the
+  Java project's own agent-ready grammar doc (`rest-grammar.md`) — function binding, methods,
+  `{param}`/trailing-`*` URLs (exact > param > wildcard), timeout clamp 1s–5m, CORS blocks,
+  header add/drop/keep transforms, simple-route authentication, per-entry
+  trace/cid header impedance overrides; **hyper 1** HTTP edge (D10 — no web framework;
+  rest.yaml IS the router) wired into AppStarter phase 4 (`rest.automation=true`,
+  `rest.server.port`); the edge **always ensures a business cid** (exposed via reserved
+  `my_correlation_id` header) and **starts traces** (`tracing: true`: valid W3C traceparent
+  wins + its parent-id becomes our parent span → else trace-id header → else generated;
+  legacy conflation = one id); AsyncHttpRequest-shaped event (Java keys); envelope→HTTP
+  response mapping (status, JSON/text/binary by body type, transforms + CORS headers,
+  Java `{status,message,type:error}` errors, 408 on timeout). Deferred: flow binding, relay,
+  A/B, upload, static-content, actuator default-rest merge. **Verified live**: hello_world
+  serves `GET /api/greeting/{user}` — upstream traceparent → greeting.api → greeting.demo,
+  one trace id, correct parent-span lineage at every hop, cid `order-9000` end-to-end;
+  404/CORS-preflight/generated-cid all curl-checked. Two test-infra bugs fixed: tokio-test
+  shared-server runtime death (server-per-test now) + timeout-clamp expectation.
+  **83 tests, clippy/fmt clean.** → serves: vision-mercury
+  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: working | origin: 2026-07-15-221632.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**

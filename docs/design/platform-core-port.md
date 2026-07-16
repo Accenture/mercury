@@ -380,6 +380,47 @@ recorded; cid propagated to both hops; annotations flow), untraced = no telemetr
 APIs, failure spans (success=false/status/exception), reserved-key rejection, log-context
 render (tokens/constants/custom keys/omit-absent/skip-invalid), W3C round-trip, id shapes.
 
+## 5e. Increment 6 — REST automation (core)
+
+*(Implemented 2026-07-16.)* The HTTP protocol boundary — port of the `automation/` package's
+core (`RoutingEntry` config, `HttpRouter` dispatch), scoped to **function binding**; the
+authoritative schema is the Java project's own `docs/guides/rest-automation/rest-grammar.md`
+(the agent-ready spec, mirrored by the parser invariants).
+
+- **D10 — HTTP stack: hyper 1.x** (+ hyper-util, http-body-util) on tokio. Deliberately
+  *not* a web framework: `rest.yaml` **is** the router — axum/actix would impose a second
+  routing layer; hyper is the minimal, canonical HTTP/1.1 server. tokio gains `net`+`signal`.
+- **`rest.yaml`** (loaded from `yaml.rest.automation`, default `classpath:/rest.yaml`):
+  `rest` entries (service [function route], methods [GET PUT POST DELETE HEAD PATCH;
+  OPTIONS auto], url with `{param}` + trailing `*` [case-insensitive], timeout [default 30 s,
+  clamped 1 s–5 m], `cors`/`headers` refs [must exist], `authentication` [simple route form],
+  `tracing`, per-entry `trace.id.header`/`correlation.id.header` impedance overrides) +
+  `cors` blocks (options/headers, `Access-Control-*` lines) + `headers` blocks
+  (request/response add/drop/keep). Parser invariants enforced per the grammar.
+- **Dispatch:** method+path match (exact literals > `{param}` captures > trailing wildcard),
+  request mapped to the **`AsyncHttpRequest`** shape (`method`, `url`, `ip`, `headers`,
+  `parameters.path`/`parameters.query`, `body` [JSON→map/list, else text], `https`, `host`)
+  → `po.request(service, timeout)` → envelope mapped back (status; body: map/list→JSON,
+  text→text/plain, bytes→octet-stream; response header transforms + CORS headers). Errors are
+  the Java JSON shape `{status, message, type:"error"}`; timeout → 408; OPTIONS preflight →
+  CORS options headers.
+- **The edge starts traces** (the piece increments 5 was built for): a **business
+  correlation-id is always ensured** (per-entry/global header, else generated) — independent
+  of tracing — set on the envelope and exposed via the reserved `my_correlation_id` request
+  header; with `tracing: true` the trace id comes from a valid W3C **`traceparent`**
+  (wins; its parent-id becomes our parent span) else the trace-id header else generated;
+  trace path = `METHOD /path`. Legacy conflation (trace + cid sharing one header name)
+  resolves to one id. Authentication runs before dispatch (non-true / error → 401/custom).
+- **Deferred** (per §7): flow binding (`http.flow.adapter` — needs event-script), HTTP(S)
+  relay + `url_rewrite`/`trust_all_cert`, A/B dual service, multipart upload, static-content,
+  the default-rest.yaml actuator merge (needs actuator services), response streaming.
+
+**Tests:** rest.yaml parse (invariants: bad method, missing cors ref, timeout clamp),
+matcher precedence + param extraction, end-to-end HTTP over an ephemeral port (200 JSON,
+path params, 404 shape, CORS preflight + response headers, header transforms, auth 401,
+timeout 408, **traced request → telemetry span with `GET /path` + edge-started trace id,
+`traceparent` parent-span adoption, cid always present**).
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time

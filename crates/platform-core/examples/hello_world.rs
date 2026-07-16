@@ -45,8 +45,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use platform_core::{
-    resources, trace, util::elastic_queue, AppConfigReader, AppError, AppStarter, EntryPoint,
-    EventEnvelope, Platform, PostOffice, TypedAdapter, TypedFunction,
+    resources, trace, util::elastic_queue, AppConfigReader, AppError, AppStarter,
+    ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedAdapter,
+    TypedFunction,
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,6 +86,48 @@ impl TypedFunction<GreetingRequest, GreetingResponse> for Greetings {
             message: format!("Welcome, {}", input.user),
             handled_by_instance: instance,
         })
+    }
+}
+
+// ---- the HTTP-facing function (REST automation: /api/greeting/{user}) ----
+
+/// Receives the AsyncHttpRequest event from the HTTP edge, then composes with
+/// the typed greeting.demo function — the edge-started trace propagates
+/// automatically, producing a two-span tree (greeting.api → greeting.demo).
+struct GreetingApi;
+
+#[async_trait]
+impl ComposableFunction for GreetingApi {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        let user = request["parameters"]["path"]["user"]
+            .as_str()
+            .unwrap_or("world")
+            .to_string();
+        let po = PostOffice::new(&Platform::get_instance());
+        po.update_context("user", &user)?;
+        log::info!("HTTP request for {user}");
+        // no trace fields set — propagation from the edge-started trace is automatic
+        let reply = po
+            .request(
+                EventEnvelope::new()
+                    .set_to("greeting.demo")
+                    .set_body(GreetingRequest { user })?,
+                Duration::from_secs(5),
+            )
+            .await?;
+        let body: GreetingResponse = reply.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "message": body.message,
+            "handled_by_instance": body.handled_by_instance,
+            "trace_id": po.my_trace_id(),
+            "correlation_id": po.my_correlation_id(),
+        }))
     }
 }
 
@@ -158,13 +201,20 @@ async fn main() -> Result<(), AppError> {
     AppStarter::new()
         .before_application(5, Arc::new(PreflightCheck))
         .preload("greeting.demo", TypedAdapter::arc(Greetings), instances)
+        .preload("greeting.api", Arc::new(GreetingApi), 5)
         .main_application(1, Arc::new(MainApp))
         .run(std::env::args().collect())
         .await?;
-    // give the fire-and-forget telemetry a beat to be logged before exit
-    // (a real application is long-running; this demo returns immediately)
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    // graceful exit (Java: JVM shutdown hook; signal wiring is a later increment)
+    // REST automation is serving (rest.automation=true): stay alive for HTTP
+    // traffic until Ctrl-C (Java: the JVM stays up on non-daemon threads)
+    if AppConfigReader::get_instance().get_property_or("rest.automation", "false") == "true" {
+        log::info!("Try: curl http://127.0.0.1:8085/api/greeting/eric  (Ctrl-C to stop)");
+        let _ = tokio::signal::ctrl_c().await;
+    } else {
+        // give the fire-and-forget telemetry a beat to be logged before exit
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    // graceful exit (Java: JVM shutdown hook)
     elastic_queue::shutdown_cleanup();
     Ok(())
 }
