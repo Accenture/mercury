@@ -1,0 +1,39 @@
+flow:
+  id: 'parser-test-27'
+  description: 'test invalid data mapping that accesses the whole model or parent namespaces'
+  ttl: 10s
+
+first.task: 'greeting.test.alias'
+
+tasks:
+  - name: 'greeting.test.alias'
+    input:
+      - 'input.header -> header'
+      - 'input.path_parameter.user -> header.user'
+      - 'text(hello) -> model'
+      - 'model -> data'
+      - 'model.parent -> my_parent'
+    process: 'greeting.test'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'int(1) -> model.parent'
+      - 'model.hello:boolean(null=true) -> model.parent.ok'
+      - 'model.parent.ok -> model.parent.parent'
+      - 'model.parent.ok -> model.parent.parent.'
+      - 'model.parent.ok:boolean -> model.parent.parent.allowed'
+      - 'model.redundant -> model.redundant'
+    description: 'Hello World'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

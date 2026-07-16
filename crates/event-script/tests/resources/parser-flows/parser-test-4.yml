@@ -1,0 +1,46 @@
+flow:
+  id: 'next-task-not-singular'
+  description: 'Sequential task must have one next task'
+  ttl: 10s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
+    execution: sequential
+    next:
+      - 'sequential.two'
+      - 'sequential.three'
+
+  - input:
+      - 'model.pojo -> pojo'
+    process: 'sequential.two'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body.pojo'
+      - 'int(12345) -> output.body.integer'
+      - 'long(12345) -> output.body.long'
+      - 'float(12.345) -> output.body.float'
+      - 'double(12.345) -> output.body.double'
+    description: 'Return result'
+    execution: end
+
+  - name: 'sequential.three'
+    input:
+      - 'model.pojo -> pojo'
+    process: 'sequential.two'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body.pojo'
+      - 'int(12345) -> output.body.integer'
+      - 'long(12345) -> output.body.long'
+      - 'float(12.345) -> output.body.float'
+      - 'double(12.345) -> output.body.double'
+    description: 'Return result'
+    execution: end

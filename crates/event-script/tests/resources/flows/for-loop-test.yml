@@ -1,0 +1,82 @@
+flow:
+  id: 'for-loop-test'
+  description: 'Test the flow of a pipeline task'
+  ttl: 20s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+      - 'int(3) -> model.iteration'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+      - 'int(5) -> model.n'
+      - 'model.none -> file(/tmp/for-loop-test.txt)'
+    description: 'Pass a pojo to another task'
+    execution: pipeline
+    #
+    # 'loop' feature is optional
+    #
+    # 1. loop.statement is evaluated before the loop
+    # 2. loop.condition are evaluated after each function returns from the pipeline
+    # 3. The condition is a 'if' statement to evaluate a model value to decide to break or continue
+    #
+    loop:
+      statement: 'for (model.n = 0; model.n < model.iteration; model.n++)'
+    pipeline:
+      - 'echo.one'
+      - 'echo.two'
+      - 'echo.three'
+    next:
+      - 'echo.four'
+
+  # you can remove a model key-value by passing a non-exist model. e.g. "model.none"
+  - name: 'echo.one'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo'
+      - 'text(one,) -> file(append:/tmp/for-loop-test.txt)'
+    description: 'first step of a pipeline'
+    execution: sink
+
+  - name: 'echo.two'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo'
+      - 'text(two,) -> file(append:/tmp/for-loop-test.txt)'
+    description: 'second step of a pipeline'
+    execution: sink
+
+  - name: 'echo.three'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo'
+      - 'text(three,) -> file(append:/tmp/for-loop-test.txt)'
+    description: 'third step of a pipeline'
+    execution: sink
+
+  - name: 'echo.four'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+      - 'file(text:/tmp/for-loop-test.txt) -> content'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'model.none -> model.pojo'
+      - 'model.none -> file(/tmp/for-loop-test.txt)'
+    description: 'Final step to take result from the pipeline'
+    execution: end

@@ -1,0 +1,79 @@
+flow:
+  id: 'type-matching'
+  description: 'Test type matching feature'
+  ttl: 10s
+
+first.task: 'no.op'
+
+#
+# input and output data mappings are processed sequentially
+#
+tasks:
+  - input:
+      - 'text(hello world) -> model.text'
+      - 'model.text:binary -> model.binary'
+      - 'model.binary:binary -> model.same-binary'
+      - 'model.text:text -> model.same-text'
+      - 'model.binary:text -> model.text-again'
+      - 'model.binary:b64 -> model.b64'
+      - 'model.b64:b64 -> model.bytes'
+      - 'model.text -> text'
+      - 'model.binary -> binary'
+      - 'model.b64 -> b64'
+      - 'model.bytes -> bytes'
+      - 'model.text:substring(0, 5) -> substring'
+      - 'model.text:unknown -> no-change'
+      - 'model.text:substring(0, 10 -> keep-as-text'
+      - 'model.text:substring(6) -> substring-2'
+      - 'text(hello) -> model.positive:boolean(hello=true)'
+      - 'text(hello) -> model.negative:boolean(hello=false)'
+      - 'text(100) -> model.integer:int'
+      - 'text(101) -> model.long:long'
+      - 'text(100.01) -> model.float:float'
+      - 'text(101.01) -> model.double:double'
+      - 'model.float -> float'
+      - 'model.double -> double'
+      # this null value remove model.same-text
+      - 'model.none -> model.same-text'
+      # this restores model.same-text from model.text
+      - 'model.text -> model.same-text'
+      # this tells the system to set boolean value of true when value is null
+      - 'model.none -> model.null:boolean(null=true)'
+      - 'file(text:/tmp/no-such-file) -> model.has-file:boolean(null=false)'
+      - 'text(item1) -> model.x[0]'
+      - 'text(item2) -> model.x[1]'
+      - 'text(item3) -> model.x[2]'
+      - 'model.x:length -> list_size'
+      - 'int(1000) -> model.x1'
+      - 'model.x1:length -> number_length'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body.source'
+      - 'model.text -> model.binary-2:binary'
+      - 'model.binary-2 -> output.body.binary'
+      - 'model.binary -> model.b64-2:b64'
+      - 'model.b64-2 -> output.body.b64'
+      - 'model.text -> model.substring-2:substring(0, 5)'
+      - 'model.substring-2 -> output.body.substring'
+      - 'model.text -> model.map.text'
+      - 'model.b64 -> model.map.b64'
+      - 'model.map:text -> output.body.json'
+      - 'model.map:binary -> output.body.bson'
+      - 'model.positive -> output.body.positive'
+      - 'model.negative -> output.body.negative'
+      - 'model.same-text:boolean -> output.body.boolean-text'
+      - 'model.same-text:boolean(hello world=true) -> output.body.boolean-text-true'
+      - 'model.integer -> output.body.integer'
+      - 'model.long -> output.body.long'
+      - 'model.float -> output.body.float'
+      - 'model.double -> output.body.double'
+      - 'model.none -> model.is-null:boolean(null=true)'
+      - 'model.null -> output.body.null'
+      - 'model.is-null -> output.body.is-null'
+      - 'model.has-file -> output.body.has-file'
+      # test "and/or" feature
+      - 'model.positive:and(model.negative) -> output.body.and'
+      - 'model.positive:or(model.negative) -> output.body.or'
+    description: 'Hello World'
+    execution: end

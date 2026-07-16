@@ -1,0 +1,49 @@
+flow:
+  id: 'child-one'
+  description: 'This is a sub-flow'
+  ttl: 10s
+
+first.task: 'task.one'
+
+#
+# Since sub-flow does not have access to HTTP's query parameter from the parent flow.
+# We add this input data mapping ('input.query.exception -> model.parent.exception')
+# in the parent flow to save the HTTP query parameter.
+#
+# This allows the sub-flow to retrieve the query parameter using 'model.parent.exception'.
+#
+tasks:
+  - name: 'task.one'
+    input:
+      - 'input.body -> *'
+      - 'input.header -> header'
+      - 'model.parent.exception -> header.exception'
+    process: 'exception.simulator'
+    output:
+      - 'text(hello-world-one) -> model.parent.key1'
+    description: 'Hello World'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  #
+  # Note that this task level exception handler is used to log the exception message
+  # the outcome is the same without it because the default exception handling would
+  # return the same data structure of (type=error, message and status)
+  #
+  # For unit test purpose, we save the stack trace from the error.stack variable
+  # and return it as part of the output body. This allows the parent flow to
+  # propagate the stack trace to the caller.
+  #
+  - input:
+      - 'error.task -> task'
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+      - 'error.stack -> model.stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+      - 'model.stack -> output.body.stack'
+    description: 'Just a demo exception handler'
+    execution: end

@@ -1,0 +1,64 @@
+flow:
+  id: 'pipeline-test'
+  description: 'Test the flow of a pipeline task'
+  ttl: 10s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
+    execution: pipeline
+    pipeline:
+      - 'my.echo.one'
+      - 'my.echo.two'
+      - 'my.echo.three'
+    next:
+      - 'my.echo.four'
+
+  # you can remove a model key-value by passing a non-exist model. e.g. "model.none"
+  - name: 'my.echo.one'
+    input:
+      - 'model.pojo -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo2'
+      - 'model.none -> model.pojo'
+    description: 'first step of a pipeline'
+    execution: sink
+
+  - name: 'my.echo.two'
+    input:
+      - 'model.pojo2 -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo3'
+      - 'model.none -> model.pojo2'
+    description: 'second step of a pipeline'
+    execution: sink
+
+  - name: 'my.echo.three'
+    input:
+      - 'model.pojo3 -> data'
+    process: 'no.op'
+    output:
+      - 'result.data -> model.pojo4'
+      - 'model.none -> model.pojo3'
+    description: 'second step of a pipeline'
+    execution: sink
+
+  - name: 'my.echo.four'
+    input:
+      - 'model.pojo4 -> data'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'model.none -> model.pojo3'
+    description: 'Final step to take result from the pipeline'
+    execution: end

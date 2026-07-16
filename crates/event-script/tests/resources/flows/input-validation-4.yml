@@ -1,0 +1,29 @@
+flow:
+  id: 'input-validation-4'
+  description: 'Test input validation - Float range test'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'no.op'
+
+tasks:
+  - input:
+      - 'f:validate(input.body.user, text(user; Float; 10.01; 20.02)) -> user'
+      - 'text(hello world) -> greeting'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

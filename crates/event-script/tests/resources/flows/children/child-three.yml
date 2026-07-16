@@ -1,0 +1,25 @@
+flow:
+  id: 'child-three'
+  description: 'This is a second-level sub-flow'
+  ttl: 10s
+
+first.task: 'task.one'
+
+#
+# Show that a sub-flow can access the model.parent namespace.
+# The following demonstrates that it can mix-n-match its own state machine
+# with the parent's state machine so that sub-flows run from a primary
+# flow work together as a single use case.
+#
+tasks:
+  - name: 'task.one'
+    input:
+      - 'input.body -> *'
+      - 'input.header -> header'
+      - 'model.parent.key -> model.key2'
+      - 'model.parent.key -> key'
+    process: 'no.op'
+    output:
+      - 'model.key2 -> model.parent.temp'
+    description: 'Update variables in the model.parent namespace'
+    execution: end

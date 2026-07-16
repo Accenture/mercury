@@ -1,0 +1,102 @@
+flow:
+  id: 'parallel-test'
+  description: 'Test parallel processing'
+  ttl: 5s
+
+first.task: 'begin.parallel.test'
+
+tasks:
+  - input:
+      - 'int(2) -> count'
+    process: 'begin.parallel.test'
+    output: []
+    description: 'Setup counter for two parallel tasks'
+    execution: parallel
+    next:
+      - 'parallel.one'
+      - 'parallel.two'
+
+  - name: 'parallel.one'
+    input:
+      - 'text(hello-world-one) -> key1'
+      - 'text(parallel.one) -> from'
+    process: 'parallel.task'
+    output:
+      - 'result.key1 -> model.key1'
+      - 'result.decision -> decision'
+    description: 'Hello world'
+    execution: decision
+    next:
+      - 'echo.one'
+      - 'echo.two'
+
+  - name: 'parallel.two'
+    input:
+      - 'text(hello-world-two) -> key2'
+      - 'text(parallel.two) -> from'
+    process: 'parallel.task'
+    output:
+      - 'result.key2 -> model.key2'
+      - 'result.decision -> decision'
+    description: 'Hello world'
+    execution: decision
+    next:
+      - 'echo.one'
+      - 'echo.two'
+
+  #
+  # Running parallel tasks requires the flow to be active.
+  #
+  # For this unit test, we use a bench to keep track of the remaining tasks.
+  # echo.one will execute when there are no remaining tasks.
+  # Therefore, the execution will come to an end when echo.one finally executes.
+  #
+  - name: 'echo.one'
+    input:
+      - 'model.key1 -> key1'
+      - 'model.key2 -> key2'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Hello world'
+    execution: response
+    next:
+      - 'end.of.flow'
+
+  - name: 'echo.two'
+    input:
+      - 'model.key1 -> key1'
+      - 'model.key2 -> key2'
+    process: 'no.op'
+    output: []
+    description: 'Hello world'
+    execution: sink
+
+  #
+  # Since parallel.one and parallel.two are running concurrently,
+  # it is a racing condition intended to test parallelism.
+  #
+  # To solve this, the "parallel.task" that serves both parallel.one
+  # parallel.two uses a concurrent counter to detect completion of
+  # both tasks. When it is completed, it will go to "echo.one" that
+  # invokes the "end.of.flow" task.
+  #
+  # The end-of-flow application log should look like this:
+  # Run 6 tasks in 7 ms. [
+  # begin.parallel.test,
+  # parallel.one(parallel.task),
+  # parallel.two(parallel.task),
+  # echo.one(no.op),
+  # echo.two(no.op),
+  # end.of.flow(no.op) ]
+  #
+  # Note that the parallel.one and parallel.two can change order
+  # with repeated tests and this behavior is expected.
+  #
+  - name: 'end.of.flow'
+    input: []
+    process: 'no.op'
+    output: []
+    description: 'Hello world'
+    execution: end

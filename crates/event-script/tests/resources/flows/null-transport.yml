@@ -1,0 +1,41 @@
+flow:
+  id: 'null-transport'
+  description: 'Test Null Value Transport and Mapping'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'no.op'
+
+tasks:
+  - input:
+      - 'input.body.number -> number'
+      - 'input.body.hello -> hello'
+      - 'input.body.number -> model.number'
+      - 'model.number -> number2'
+      - 'input.body.number -> model.to_be_removed'
+      - 'model.nothing -> model.to_be_removed'
+      - 'model.to_be_removed -> removed'
+      # left-hand-side does not exist
+      - 'model.nothing -> model.null_is_true:boolean(null=true)'
+      # left-hand-side exists with null value
+      - 'input.body.number -> model.null_is_false:boolean(null=false)'
+      - 'model.null_is_true -> null_is_true'
+      - 'model.null_is_false -> null_is_false'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'model.number -> output.body.number3'
+    description: 'Demo transport and mapping of null values'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

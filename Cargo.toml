@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/platform-core",
     "crates/platform-macros",
+    "crates/event-script",
     "benchmark/benchmark-reporter",
     "examples/hello-world",
 ]

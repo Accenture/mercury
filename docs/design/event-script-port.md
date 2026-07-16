@@ -6,7 +6,7 @@
 > (~8.0K LOC / 69 main files; 90 `@Test` methods; 51 flow fixtures + 20 negative parser
 > fixtures). Authoritative DSL spec: `docs/guides/event-script/flow-grammar.md` (which
 > mirrors `CompileFlows` validation) + `flow-schema-reference.md`; tutorial: `syntax.md`.
-> This is a *Design-altitude* artifact in the VBDI loop. Implementation waits on approval.
+> This is a *Design-altitude* artifact in the VBDI loop. **Approved 2026-07-16** (defaults accepted on all four open questions).
 
 ## 1. Goal & scope
 
@@ -113,6 +113,30 @@ Bottom-up so each increment is independently testable; Java fixtures reused from
 
 Each increment: `cargo test` + clippy + fmt clean, INCREMENTS.md row + section, design-doc
 increment note — the platform-core definition of done, unchanged.
+
+## 5a. Increment E-1 — flow model + compiler (implemented 2026-07-16)
+
+`crates/event-script` created: `model` (`Flow`/`Task`), `flows` (template registry),
+`compiler` (full `CompileFlows` port — `yaml.flow.automation` discovery, grammar
+validation, Java failure semantics: unreadable list = WARN+skip, invalid flow =
+ERROR+skip, invalid mapping = drop the TASK but keep the flow), `converter` (legacy
+`:type` → `f:plugin(...)` rewriting incl. negate / boolean value-match / concat /
+substring forms), `validator` (mapping-syntax rules + the reserved-state-machine-key
+guard, exported for the E-4 runtime re-check) and `plugins` (the plugin **name**
+registry with the 42 built-in names — pulled forward from E-8 because `validInput`
+checks `f:` names at compile time; execution bodies stay E-8). The engine
+self-registers via `#[before_application(sequence = 5)]`.
+
+**Fixtures:** all 90 Java flow files reused verbatim (55 in `flows.yaml` + 35 in
+`more-flows.yaml`, incl. the intentional duplicate and a missing-file location).
+Parity pinned by tests: the exact loaded-flow set, every whole-flow rejection, the
+task-dropped-flow-loads semantics (parser-tests 23/25/26/27/28–31), normalized
+mapping strings (3-part decomposition, negation, plugin rewrites — asserted against
+the greetings fixture), loop/fork/sub-flow metadata. **Two findings where the code,
+not the fixture comment, is authoritative** (verified against the Java source):
+`invalid-condition-mode` (parser-test-7) is grammar-valid legacy naming and LOADS;
+parser-test-19's `ext.user` (dot form) is a plain body key — only the `ext:`
+namespace triggers the `external.state.machine` requirement — so it loads too.
 
 ## 6. Out of scope (confirmed defaults)
 

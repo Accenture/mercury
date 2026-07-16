@@ -1,0 +1,19 @@
+flow:
+  id: 'wildcard-conversion-test'
+  description: 'Test input data mapping of body'
+  ttl: 10s
+
+first.task: 'test.wildcard.conversion'
+
+tasks:
+  - name: 'test.wildcard.conversion'
+    input:
+      - 'text(foo) -> model.list[0].user'
+      - 'text(bar) -> model.list[1].user'
+      -  'model.list -> *'
+    process: 'wildcard.conversion'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Return result'
+    execution: end

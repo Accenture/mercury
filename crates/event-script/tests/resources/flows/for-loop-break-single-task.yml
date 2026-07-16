@@ -1,0 +1,55 @@
+flow:
+  id: 'for-loop-break-single-task'
+  description: 'Test the flow of a pipeline that has only one task'
+  ttl: 20s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
+    execution: pipeline
+    #
+    # 'loop' feature is optional
+    #
+    # 1. loop.statement is evaluated before the loop
+    # 2. loop.condition are evaluated after each function returns from the pipeline
+    # 3. The condition is a 'if' statement to evaluate a model value to decide to break or continue
+    #
+    loop:
+      statement: 'for (model.n = 5; model.n > 0; model.n--)'
+      condition:
+        - 'if (model.quit) break'
+    pipeline:
+      - 'echo.one'
+    next:
+      - 'echo.four'
+
+  # you can remove a model key-value by passing a non-exist model. e.g. "model.none"
+  - name: 'echo.one'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+      - 'text(echo.1) -> title'
+    process: 'decision.case'
+    output:
+      - 'result.data -> model.pojo'
+    description: 'first step of a pipeline'
+    execution: sink
+
+  - name: 'echo.four'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'model.none -> model.pojo'
+    description: 'Final step to take result from the pipeline'
+    execution: end

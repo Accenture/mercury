@@ -26,6 +26,7 @@
 | 9 | Lightweight RPC inbox + benchmark-reporter — **milestone closed** | 2026-07-16 | §5h | 103 |
 | 10 | Annotation macros + `AutoStart` one-liner + `examples/` convention | 2026-07-16 | §5i | 105 |
 | — | Event-script design doc v1 (layer-2 gate) | 2026-07-16 | E1–E9 | — |
+| 11 | event-script E-1: flow model + compiler (fixture parity) | 2026-07-16 | ES §5a | 120 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -232,6 +233,29 @@ knowledge-graph layers will ride on.*
 - Verified: end-to-end annotation lifecycle test (hook ordering, `env_instances`
   config resolution, typed RPC in a trace bracket, `#[zero_tracing]` suppression) + live
   run of the relocated app (REST, etag/304, filter, actuators unchanged).
+
+---
+
+## Increment 11 — event-script E-1: flow model + compiler (2026-07-16)
+
+*Layer 2 begins. Design `docs/design/event-script-port.md` approved same day
+(decisions E1–E9, defaults accepted).*
+
+- **`crates/event-script`** (new workspace member, depends only on platform-core):
+  compiled `Flow`/`Task` model, flow-template registry, and the full `CompileFlows`
+  port — `yaml.flow.automation` discovery, the complete grammar validation
+  (`flow-grammar.md` is the spec), and Java failure semantics (invalid flow skipped
+  with ERROR; invalid data mapping drops the *task* while the flow loads).
+- **Legacy-syntax converter** (`:type` qualifiers → `f:plugin(...)`) and the
+  compile-time mapping validator (incl. the reserved `model.cid/instance/flow/ttl/
+  trace/none` guard) ported; the simple-plugin **name** registry pulled forward from
+  E-8 (42 built-in names) because input mappings validate `f:` names at compile time.
+- **Fixture parity (E2):** all 90 Java flow fixtures copied verbatim; tests pin the
+  exact loaded-flow set, every rejection, task-drop semantics, and the normalized
+  mapping strings. Two legacy-named fixtures verified against the Java *code* as
+  loading (not their comments): `invalid-condition-mode`, `ext.user` dot-form.
+- Engine self-registers through the increment-10 annotation layer
+  (`#[before_application(sequence = 5)]`).
 
 ---
 

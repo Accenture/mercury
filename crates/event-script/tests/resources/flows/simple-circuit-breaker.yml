@@ -1,0 +1,49 @@
+flow:
+  id: 'simple-circuit-breaker'
+  description: 'Demonstrate simple circuit breaker logic'
+  ttl: 10s
+
+first.task: 'my.task'
+
+tasks:
+  - name: 'my.task'
+    input:
+      - 'input.path_parameter.accept -> accept'
+      - 'model.attempt -> attempt'
+    process: 'exception.simulator'
+    output:
+      - 'int(0) -> model.attempt'
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'This function will break until the "accept" number is reached'
+    execution: end
+    exception: 'resilience.handler'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'model.attempt -> attempt'
+      - 'int(2) -> max_attempts'
+    process: 'resilience.handler'
+    output:
+      - 'result.attempt -> model.attempt'
+      - 'result.decision -> decision'
+      - 'result.status -> model.status'
+      - 'result.message -> model.message'
+    description: 'Just a demo circuit breaker'
+    execution: decision
+    next:
+      - '@retry'
+      - 'abort.request'
+
+  - input:
+      - 'text(error) -> type'
+      - 'model.status -> status'
+      - 'model.message -> message'
+    process: 'abort.request'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'This function aborts a request'
+    execution: end

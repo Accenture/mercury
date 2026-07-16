@@ -1,0 +1,12 @@
+[package]
+name = "event-script"
+description = "Rust port of mercury-composable event-script-engine — layer 2, composable orchestration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+platform-core = { path = "../platform-core" }
+async-trait = "0.1"
+log = "0.4"

@@ -1,0 +1,15 @@
+flow:
+  id: 'autostart'
+  description: 'This flow will start automatically because it is configured in modules.autostart'
+  ttl: 10s
+
+first.task: 'my.first.task'
+
+tasks:
+  - name: 'my.first.task'
+    input:
+      - 'text(hello) -> placeholder'
+    process: 'auto.start.demo'
+    output: []
+    description: 'This is a dummy task'
+    execution: end

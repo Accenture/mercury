@@ -1,0 +1,6 @@
+# event-script test configuration — mirrors the Java module's test setup:
+# yaml.flow.automation lists a missing file (graceful-skip case), the main
+# fixture list, and the negative parser fixtures.
+application.name: event-script-test
+
+yaml.flow.automation: 'classpath:/not-found.yaml, classpath:/flows.yaml, classpath:/more-flows.yaml'

@@ -1,0 +1,54 @@
+flow:
+  id: 'http-client-sink-trace'
+  description: 'Mirror the field shape: immediate response, then a SINK task calling the Async HTTP client'
+  ttl: 10s
+
+first.task: 'immediate.response'
+
+tasks:
+  - name: 'immediate.response'
+    input:
+      - 'input.body -> model.request'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(accepted) -> output.body'
+    description: 'Acknowledge the request immediately'
+    execution: response
+    next:
+      - 'fan.out'
+
+  - name: 'fan.out'
+    input:
+      - 'model.request -> body'
+    process: 'no.op'
+    output: []
+    description: 'Continue after the response: fire the forward call and end the flow'
+    execution: parallel
+    next:
+      - 'forward.request'
+      - 'finish'
+
+  - name: 'forward.request'
+    input:
+      - 'text(application/json) -> headers.content-type'
+      - 'text(application/json) -> headers.accept'
+      - 'text(POST) -> method'
+      - 'text(http://127.0.0.1:${server.port}) -> host'
+      - 'text(/api/trace/recorder) -> url'
+      - 'model.request -> body'
+      - 'int(30000) -> timeout'
+      - 'text(Bearer demo-token) -> headers.Authorization'
+    process: 'async.http.request'
+    output:
+      - 'result -> model.forward_result'
+    description: 'Forward the request to a downstream application - fire and forget'
+    execution: sink
+
+  - name: 'finish'
+    input:
+      - 'model.request -> body'
+    process: 'no.op'
+    output: []
+    description: 'End of flow'
+    execution: end

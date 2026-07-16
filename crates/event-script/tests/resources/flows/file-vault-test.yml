@@ -1,0 +1,27 @@
+flow:
+  id: 'file-vault-test'
+  description: 'Read from and Write to a file vault'
+  ttl: 10s
+
+first.task: 'file.vault'
+
+tasks:
+  - input:
+      - 'file(text:/tmp/temp-test-input.txt) -> text'
+      - 'file(binary:/tmp/temp-test-input.txt) -> binary'
+      - 'file(json:/tmp/temp-test-input.txt) -> json'
+      - 'classpath(text:/files/hello.txt) -> text_resource'
+      - 'classpath(binary:/files/hello.txt) -> binary_resource'
+    process: 'file.vault'
+    output:
+      - 'result.text -> file(/tmp/temp-test-output.txt)'
+      - 'result.matched -> file(/tmp/temp-test-match.txt)'
+      - 'result.binary -> file(/tmp/temp-test-binary.txt)'
+      - 'result.list -> file(/tmp/temp-test-list.json)'
+      - 'text(application/json) -> output.header.content-type'
+      - 'result.text_resource -> output.body.text'
+      - 'result.json -> output.body.json'
+      # if left hand side is null and the right hand side is a file, it will be deleted
+      - 'model.none -> file(/tmp/temp-test-input.txt)'
+    description: 'Hello World'
+    execution: end

@@ -1,0 +1,56 @@
+flow:
+  id: 'externalize-put-key-value-flow'
+  description: 'Test externalization of state machine values'
+  ttl: 10s
+
+first.task: 'no.op'
+
+#
+# The "external.state.machine" parameter is optional.
+#
+# When present, the system will send a key-value from the current flow instance's state machine
+# to the function implementing the external state machine. The system uses the "ext:" namespace
+# to externalize a state machine's key-value.
+#
+# Note that the delivery of key-values to the external state machine is asynchronous.
+# Therefore, please assume eventual consistency.
+#
+# You should implement a user function as the external state machine.
+#
+# The input interface contract to the external state machine for saving a key-value is:
+# header.type = 'put'
+# header.key = key
+# body = value
+#
+# Your function should save the input key-value to a persistent store.
+#
+# In another flow that requires the key-value, you can add an initial task
+# to retrieve from the persistent store and do "output data mapping" to
+# save to the in-memory state machine so that your transaction flow can
+# use the persisted key-values to continue processing.
+#
+# In the unit tests, these two flows work together:
+# externalize-put-key-value
+# externalize-get-key-value
+#
+external.state.machine: 'flow://ext-state-machine'
+
+tasks:
+  - input:
+      # A function can call an external state machine using input or output mapping.
+      # In this example, it calls external state machine from input data mapping.
+      - 'input.path_parameter.user -> ext:/${app.id}/user'
+      - 'input.body -> model.body'
+      # demonstrate saving constant to state machine and remove it using model.none
+      - 'text(world) -> ext:hello'
+      - 'model.none -> ext:hello'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      # It calls external state machine again from output data mapping
+      - 'input.body -> ext:/${app.id}/body'
+      - 'input.body -> output.body'
+      - 'text(message) -> ext:test'
+      - 'model.none -> ext:test'
+    description: 'Hello World'
+    execution: end

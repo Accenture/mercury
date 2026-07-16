@@ -1,0 +1,18 @@
+flow:
+  id: 'parser-test-28'
+  description: 'test invalid OUTPUT data mapping that overwrites a reserved metadata model key'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+      # invalid: model.cid is seeded by the engine from the upstream business correlation-id
+      # and must not be overwritten by a data mapping
+      - 'result.user -> model.cid'
+    description: 'Hello World'
+    execution: end
