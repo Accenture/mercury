@@ -185,6 +185,71 @@ impl ComposableFunction for NoOp {
     }
 }
 
+/// Java `ParallelTask` (`parallel.task`): a shared counter detects when both
+/// parallel branches have run; the second one reports decision=true (done).
+#[preload(route = "parallel.task", instances = 2)]
+struct ParallelTask;
+
+#[async_trait]
+impl ComposableFunction for ParallelTask {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let done = n == 2;
+        if done {
+            // let the first branch finish its model writes (Java parity)
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        let mut body: serde_json::Value = input.body_as()?;
+        body["decision"] = serde_json::Value::Bool(done);
+        EventEnvelope::new().set_body(body)
+    }
+}
+
+/// Setup step of the parallel fixture (`begin.parallel.test`): echo.
+#[preload(route = "begin.parallel.test")]
+struct BeginParallel;
+
+#[async_trait]
+impl ComposableFunction for BeginParallel {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `ExceptionSimulator` (`exception.simulator`): throws when the
+/// `exception` event header is present, else echoes.
+#[preload(route = "exception.simulator", instances = 2)]
+struct ExceptionSimulator;
+
+#[async_trait]
+impl ComposableFunction for ExceptionSimulator {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(reason) = headers.get("exception") {
+            return Err(AppError::new(
+                400,
+                format!("simulated exception - {reason}"),
+            ));
+        }
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
 #[main_application]
 struct FlowTestApp;
 
@@ -439,6 +504,81 @@ async fn flows_run_end_to_end_like_java() {
     for handle in handles {
         handle.await.expect("concurrent flow task");
     }
+
+    // --- fork/join: both branches run, the join barrier fires once
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-test",
+        http_dataset(Some("carol"), &[("seq", "9")]),
+        "biz-cid-12",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(
+        body["user"], "carol",
+        "the '*' pojo mapping seeds the join input"
+    );
+    assert_eq!(body["key1"], "hello-world-one");
+    assert_eq!(body["key2"], "hello-world-two");
+
+    // --- fork/join: a failing branch (no handler in the flow) aborts
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-test",
+        http_dataset(Some("dave"), &[("exception", "boom")]),
+        "biz-cid-13",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    assert!(json_body(&reply)["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("simulated exception"));
+
+    // --- parallel: both branches run concurrently; the second to finish
+    // (decision=true) routes to the response task with both model keys set
+    let reply = run_flow(
+        &platform,
+        "parallel-test",
+        http_dataset(None, &[]),
+        "biz-cid-14",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["key1"], "hello-world-one");
+    assert_eq!(body["key2"], "hello-world-two");
+
+    // --- dynamic fork: the single branch replicates per list element with
+    // .ITEM/.INDEX; concurrent [] appends into the state machine stay safe
+    let reply = run_flow(
+        &platform,
+        "dynamic-fork-test",
+        http_dataset(Some("erin"), &[]),
+        "biz-cid-15",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "erin");
+    let mut serialized: Vec<String> = body["serialized"]
+        .as_array()
+        .expect("serialized list")
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
+    serialized.sort();
+    assert_eq!(
+        serialized,
+        vec!["one", "three", "two"],
+        "every ITEM processed exactly once"
+    );
+    let mut indexes: Vec<i64> = body["indexes"]
+        .as_array()
+        .expect("index list")
+        .iter()
+        .map(|v| v.as_i64().unwrap_or(-1))
+        .collect();
+    indexes.sort();
+    assert_eq!(indexes, vec![0, 1, 2], "every INDEX seen exactly once");
 
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);

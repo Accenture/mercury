@@ -20,13 +20,14 @@
 //! watcher (a scheduled event to the task executor; increment E-3's
 //! `send_later`).
 //!
-//! Concurrency model: the task executor runs with **one instance** (Java
-//! parity), so callbacks for a flow are naturally serialized; the dataset
-//! mutex provides interior mutability, matching Java's per-instance
-//! `modelSafety` lock. The `model.parent` / `model.root` shared-state aliases
-//! arrive with sub-flows (increment E-7).
+//! Concurrency model: the engine runs DIRECTLY on the event core (increment
+//! 15), so callbacks execute concurrently; the dataset mutex is the Java
+//! `modelSafety` lock analog and the pipe map guards the fork/join barrier.
+//! The `model.parent` / `model.root` shared-state aliases arrive with
+//! sub-flows (increment E-7).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -67,6 +68,20 @@ impl TaskMetrics {
     }
 }
 
+/// A fork/join barrier (Java `JoinTaskInfo`): the join task fires when all
+/// forked branches have called back.
+pub struct JoinTaskInfo {
+    pub forks: usize,
+    pub join_task: String,
+    pub result_count: usize,
+}
+
+/// One entry of the pipe map (Java `PipeInfo` hierarchy). The pipeline
+/// variant arrives with increment E-6.
+pub enum PipeInfo {
+    Join(JoinTaskInfo),
+}
+
 /// One live flow transaction (Java `FlowInstance`).
 pub struct FlowInstance {
     pub id: String,
@@ -84,7 +99,7 @@ pub struct FlowInstance {
     /// `model.*` writes persist exactly like Java's shared-reference map.
     pub dataset: Mutex<MultiLevelMap>,
     /// uuid → metrics for pending/completed tasks.
-    pub metrics: Mutex<std::collections::HashMap<String, Arc<TaskMetrics>>>,
+    pub metrics: Mutex<HashMap<String, Arc<TaskMetrics>>>,
     /// execution order (for the end-of-flow summary).
     pub tasks: Mutex<Vec<Arc<TaskMetrics>>>,
     responded: AtomicBool,
@@ -98,6 +113,10 @@ pub struct FlowInstance {
     error_reference: Mutex<Option<Value>>,
     /// The TTL watcher's timer id (cancelled on close).
     timeout_timer: Mutex<Option<String>>,
+    /// Fork/pipeline sequence source (Java `pipeCounter`).
+    pipe_counter: AtomicI32,
+    /// seq → barrier / pipeline state (Java `pipeMap`).
+    pub pipe_map: Mutex<HashMap<i32, PipeInfo>>,
 }
 
 impl FlowInstance {
@@ -149,7 +168,7 @@ impl FlowInstance {
                 .map(|d| d.as_millis() as u64)
                 .unwrap_or(0),
             dataset: Mutex::new(dataset),
-            metrics: Mutex::new(std::collections::HashMap::new()),
+            metrics: Mutex::new(HashMap::new()),
             tasks: Mutex::new(Vec::new()),
             responded: AtomicBool::new(false),
             running: AtomicBool::new(true),
@@ -160,7 +179,14 @@ impl FlowInstance {
             end_flow_listeners: Mutex::new(Vec::new()),
             error_reference: Mutex::new(None),
             timeout_timer: Mutex::new(None),
+            pipe_counter: AtomicI32::new(0),
+            pipe_map: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Allocate the next fork/pipeline sequence number (starts at 1).
+    pub fn next_pipe_seq(&self) -> i32 {
+        self.pipe_counter.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     pub fn ttl_ms(&self) -> u64 {

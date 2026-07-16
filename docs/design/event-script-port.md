@@ -265,6 +265,29 @@ reactive back-pressure.*
   an identical probe on a normal route serializes (peak exactly 1 — the control); plus
   20 simultaneous end-to-end greetings transactions with distinct state machines.
 
+## 5e. Increment E-5 — parallel + fork/join (implemented 2026-07-16)
+
+- **`parallel`**: fan out to every `next` task (no barrier — Java parity; the flow
+  converges through model state and a decision, as the canonical parallel-test fixture
+  demonstrates).
+- **`fork`/`join`**: a pipe-map entry (`JoinTaskInfo {forks, join_task, result_count}`)
+  forms the barrier; each branch callback reports via its composite `uuid#seq`
+  correlation id, and the last one fires the join task. A **dynamic `source`** model
+  list replicates the single branch per element, exposing `<source>.ITEM` /
+  `<source>.INDEX` pseudo-keys to each branch's input mapping (Java
+  `getInputDataMappingLhsValue`). Exception cleanup is Java-exact: a task with its own
+  handler clears only its pipe entry; otherwise all pipe queues clear before the
+  generic handler runs.
+- Increment 15's direct execution makes the forked callbacks genuinely concurrent —
+  the barrier and the `[]`-append state-machine writes run under the pipe-map and
+  dataset mutexes (the Java `modelSafety` analog), exercised by the tests.
+- **Fixtures**: canonical parallel-test (racing branches converge via a shared-counter
+  decision) and fork-n-join-test (happy path + a failing branch aborting the flow) run
+  verbatim. The canonical dynamic-fork fixture needs `flow://` + `ext:` (E-7), so a
+  clearly-marked **Rust-side supplement** (`tests/resources/flows-rust/
+  dynamic-fork-test.yml`) covers `.ITEM`/`.INDEX` iteration and concurrent `[]`
+  appends until E-7 activates the canonical one.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

@@ -18,12 +18,13 @@
 //! (`task.executor`, an event interceptor) plus the programmatic
 //! `FlowExecutor` API.
 //!
-//! Increment E-4 scope: `sequential` / `response` / `end` / `decision` /
-//! `sink`, exception routing (task-level handler beats `flow.exception`),
-//! TTL abort (408), per-task trace + metrics, and the flow summary span.
-//! `parallel` + `fork`/`join` arrive with E-5, `pipeline` loops with E-6,
-//! `flow://` sub-flows and `ext:` with E-7 — reaching them aborts the flow
-//! with an explicit message rather than misbehaving silently.
+//! Increments E-4/E-5: `sequential` / `response` / `end` / `decision` /
+//! `sink` / `parallel` / `fork`+`join` (incl. dynamic `source` iteration with
+//! `.ITEM`/`.INDEX`), exception routing (task-level handler beats
+//! `flow.exception`), TTL abort (408), per-task trace + metrics, and the flow
+//! summary span. `pipeline` loops arrive with E-6, `flow://` sub-flows and
+//! `ext:` with E-7 — reaching them aborts the flow with an explicit message
+//! rather than misbehaving silently.
 //!
 //! State-machine semantics: the consolidated data-mapping view is built **in
 //! the flow instance's own dataset tree** (scratch keys added per callback,
@@ -40,7 +41,7 @@ use rmpv::Value;
 
 use crate::conversions::{display, from_json, get_binary_value};
 use crate::flows;
-use crate::instance::{FlowInstance, TaskMetrics};
+use crate::instance::{FlowInstance, JoinTaskInfo, PipeInfo, TaskMetrics};
 use crate::mapping::{
     self, get_constant_value, substitute_runtime_vars, FileMode, SimpleFileDescriptor,
 };
@@ -122,6 +123,7 @@ pub async fn handle(
             instance.parent_span_id(),
             -1,
             None,
+            None,
         )
         .await
     } else {
@@ -192,7 +194,16 @@ async fn handle_function_callback(
         return Ok(());
     }
     instance.set_exception_at_top_level(false);
-    handle_callback(platform, instance, reference, &caller, event, parent_span).await
+    handle_callback(
+        platform,
+        instance,
+        reference,
+        &caller,
+        event,
+        parent_span,
+        seq,
+    )
+    .await
 }
 
 async fn handle_function_exception(
@@ -204,8 +215,17 @@ async fn handle_function_exception(
     status: i32,
     parent_span: Option<String>,
 ) {
-    // pipeline-queue cleanup on exception arrives with E-6 (no pipes exist yet)
     let task = &instance.template.tasks[caller];
+    // Java parity: a task with its own handler clears only its pipe entry;
+    // otherwise all pipe queues are cleared before the generic handler runs
+    if _seq > 0 {
+        let mut pipes = instance.pipe_map.lock().expect("pipe map");
+        if task.exception_task.is_some() {
+            pipes.remove(&_seq);
+        } else {
+            pipes.clear();
+        }
+    }
     let is_task_level = task.exception_task.is_some();
     let handler = task
         .exception_task
@@ -225,6 +245,7 @@ async fn handle_function_exception(
             parent_span.clone(),
             -1,
             Some(error),
+            None,
         )
         .await
         {
@@ -402,6 +423,7 @@ async fn handle_callback(
     caller: &str,
     event: &EventEnvelope,
     parent_span: Option<String>,
+    seq: i32,
 ) -> Result<(), AppError> {
     let task = &instance.template.tasks[caller];
     // build the consolidated view IN the instance dataset (scratch keys are
@@ -436,11 +458,56 @@ async fn handle_callback(
         outcome.map_err(|e| AppError::new(400, e))?;
         (response_parts, decision_value)
     };
+    // a callback from a forked branch reports to the join barrier instead of
+    // the normal execution-type dispatch (Java handleCallbackFromForkTask)
+    if seq > 0 {
+        let join_ready = {
+            let mut pipes = instance.pipe_map.lock().expect("pipe map");
+            match pipes.get_mut(&seq) {
+                Some(PipeInfo::Join(info)) => {
+                    info.result_count += 1;
+                    log::debug!(
+                        "Flow {}:{} fork-n-join #{seq} result {} of {} from {caller}",
+                        instance.template.id,
+                        instance.id,
+                        info.result_count,
+                        info.forks
+                    );
+                    if info.result_count >= info.forks {
+                        let join_task = info.join_task.clone();
+                        pipes.remove(&seq);
+                        Some(join_task)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        };
+        if instance
+            .pipe_map
+            .lock()
+            .expect("pipe map")
+            .contains_key(&seq)
+            || join_ready.is_some()
+        {
+            if let Some(join_task) = join_ready {
+                log::debug!(
+                    "Flow {}:{} fork-n-join #{seq} done",
+                    instance.template.id,
+                    instance.id
+                );
+                execute_task(platform, instance, &join_task, parent_span, -1, None, None).await?;
+            }
+            return Ok(());
+        }
+        // seq without a pipe entry (already cleared) falls through — Java parity
+    }
     match task.execution.as_str() {
         "response" => {
             send_response(platform, instance, &parent_span, response_parts).await;
             if let Some(next) = task.next_steps.first() {
-                execute_task(platform, instance, next, parent_span, -1, None).await?;
+                execute_task(platform, instance, next, parent_span, -1, None, None).await?;
             }
         }
         "end" => {
@@ -460,17 +527,101 @@ async fn handle_callback(
         }
         "sequential" => {
             if let Some(next) = task.next_steps.first() {
-                execute_task(platform, instance, next, parent_span, -1, None).await?;
+                execute_task(platform, instance, next, parent_span, -1, None, None).await?;
             }
         }
         "sink" => {} // terminal branch: no response, no next task
+        "parallel" => {
+            for next in &task.next_steps {
+                execute_task(
+                    platform,
+                    instance,
+                    next,
+                    parent_span.clone(),
+                    -1,
+                    None,
+                    None,
+                )
+                .await?;
+            }
+        }
+        "fork" => {
+            handle_fork_and_join(platform, instance, task, parent_span).await?;
+        }
         other => {
-            // parallel (E-5), fork (E-5), pipeline (E-6)
+            // pipeline (E-6)
             return Err(AppError::new(
                 500,
                 format!("execution type '{other}' arrives with a later increment"),
             ));
         }
+    }
+    Ok(())
+}
+
+/// Fork all branches concurrently and register the join barrier (Java
+/// `handleForkAndJoin`): a dynamic `source` model list replicates the single
+/// branch per element, exposing `<key>.ITEM` / `<key>.INDEX` to each.
+async fn handle_fork_and_join(
+    platform: &Platform,
+    instance: &Arc<FlowInstance>,
+    task: &Task,
+    parent_span: Option<String>,
+) -> Result<(), AppError> {
+    let mut steps = task.next_steps.clone();
+    let mut is_list = false;
+    if let Some(key) = task.source_model_key.as_deref().filter(|k| !k.is_empty()) {
+        if steps.len() == 1 {
+            let list_len = match instance.dataset.lock().expect("dataset").get_element(key) {
+                Some(Value::Array(list)) => list.len(),
+                _ => {
+                    return Err(AppError::new(
+                        400,
+                        format!(
+                            "Flow {}:{} {} - {key} is not a list",
+                            instance.template.id, instance.id, task.service
+                        ),
+                    ));
+                }
+            };
+            is_list = true;
+            let single = steps[0].clone();
+            for _ in 1..list_len {
+                steps.push(single.clone());
+            }
+        }
+    }
+    let Some(join_task) = &task.join_task else {
+        return Ok(());
+    };
+    if steps.is_empty() {
+        return Ok(());
+    }
+    let seq = instance.next_pipe_seq();
+    instance.pipe_map.lock().expect("pipe map").insert(
+        seq,
+        PipeInfo::Join(JoinTaskInfo {
+            forks: steps.len(),
+            join_task: join_task.clone(),
+            result_count: 0,
+        }),
+    );
+    for (index, next) in steps.iter().enumerate() {
+        let dynamic = if is_list {
+            task.source_model_key.as_ref().map(|k| (index, k.clone()))
+        } else {
+            None
+        };
+        execute_task(
+            platform,
+            instance,
+            next,
+            parent_span.clone(),
+            seq,
+            None,
+            dynamic,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -677,10 +828,10 @@ async fn handle_decision(
     if decision_number == 1 && next_list.first().map(String::as_str) == Some("@retry") {
         let error_task = reference.and_then(|r| r.error_task);
         if let Some(error_task) = error_task {
-            execute_task(platform, instance, &error_task, parent_span, -1, None).await?;
+            execute_task(platform, instance, &error_task, parent_span, -1, None, None).await?;
         } else if next_list.len() > 1 {
             let fallback = next_list.remove(1);
-            execute_task(platform, instance, &fallback, parent_span, -1, None).await?;
+            execute_task(platform, instance, &fallback, parent_span, -1, None, None).await?;
         } else {
             abort_flow(
                 platform,
@@ -695,7 +846,16 @@ async fn handle_decision(
             .await;
         }
     } else {
-        execute_task(platform, instance, &next_list[0], parent_span, -1, None).await?;
+        execute_task(
+            platform,
+            instance,
+            &next_list[0],
+            parent_span,
+            -1,
+            None,
+            None,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -709,6 +869,7 @@ pub(crate) async fn execute_task(
     parent_span: Option<String>,
     seq: i32,
     error: Option<Value>,
+    dynamic_list: Option<(usize, String)>,
 ) -> Result<(), AppError> {
     let Some(task) = instance.template.tasks.get(process_name) else {
         log::error!(
@@ -740,7 +901,7 @@ pub(crate) async fn execute_task(
                 .set_element("error", error)
                 .map_err(|e| AppError::new(500, e))?;
         }
-        let outcome = perform_input_mapping(&mut dataset, task);
+        let outcome = perform_input_mapping(&mut dataset, task, dynamic_list.as_ref());
         dataset.remove_element("error");
         let (target, headers) = outcome.map_err(|e| AppError::new(400, e))?;
         // deferred execution?
@@ -850,6 +1011,7 @@ pub(crate) async fn execute_task(
 fn perform_input_mapping(
     dataset: &mut MultiLevelMap,
     task: &Task,
+    dynamic_list: Option<&(usize, String)>,
 ) -> Result<(MultiLevelMap, Vec<(String, String)>), String> {
     let mut target = MultiLevelMap::new();
     let mut optional_headers: Vec<(String, String)> = Vec::new();
@@ -869,11 +1031,25 @@ fn perform_input_mapping(
         if lhs.starts_with("input.header.") {
             lhs = lhs.to_lowercase();
         }
-        let value = if input_like {
+        let mut value = if input_like {
             mapping::get_lhs_element(&lhs, dataset)?
         } else {
             get_constant_value(&lhs)
         };
+        // dynamic fork iteration (Java getInputDataMappingLhsValue): the
+        // pseudo keys <source>.ITEM / <source>.INDEX resolve per branch
+        if value.is_none() {
+            if let Some((index, key)) = dynamic_list {
+                if lhs == format!("{key}.ITEM") {
+                    value = match dataset.get_element(key) {
+                        Some(Value::Array(list)) => list.get(*index).cloned(),
+                        other => other,
+                    };
+                } else if lhs == format!("{key}.INDEX") {
+                    value = Some(Value::from(*index as i64));
+                }
+            }
+        }
         if rhs.starts_with("ext:") {
             return Err("external state machine arrives with increment E-7".to_string());
         } else if rhs.starts_with("model.") {

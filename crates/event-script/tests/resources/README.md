@@ -8,3 +8,7 @@ double as behavior-parity tests. Do not edit them here — fixture changes come 
 Java repo.
 
 `application.yml` is Rust-side test configuration (not a Java copy).
+
+`rust-flows.yaml` + `flows-rust/` are Rust-side supplements (also not Java
+copies): trimmed flows covering features whose canonical fixtures depend on
+later increments (e.g. dynamic fork before sub-flows land in E-7).

@@ -31,6 +31,7 @@
 | 13 | event-script E-3: platform-core extensions (interceptor, send_later, flow:) | 2026-07-16 | ES §5c | 145 |
 | 14 | event-script E-4: core flow runtime (manager, executor, FlowExecutor) | 2026-07-16 | ES §5d | 146 |
 | 15 | direct execution for reserved engine routes (hidden optimization) | 2026-07-16 | ES §5d.1 | 148 |
+| 16 | event-script E-5: parallel + fork/join (dynamic source, ITEM/INDEX) | 2026-07-16 | ES §5e | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -342,6 +343,20 @@ reactive back-pressure.*
   on its own bounded mailbox under saturation).
 - Proof: reserved routes reach peak concurrency > 1 with one worker instance while a
   normal control route serializes (peak exactly 1); 20 simultaneous flows complete.
+
+---
+
+## Increment 16 — event-script E-5: parallel + fork/join (2026-07-16)
+
+- **`parallel`** fan-out and **`fork`/`join`** with the pipe-map barrier
+  (`JoinTaskInfo`); dynamic `source` iteration replicates a single branch per model-list
+  element with `.ITEM`/`.INDEX` pseudo-keys; Java-exact exception cleanup of pipe
+  queues.
+- Rides increment 15's direct execution: forked callbacks are genuinely concurrent;
+  the dataset and pipe-map mutexes carry the thread-safety (proven by concurrent
+  `[]`-append assertions).
+- Canonical parallel-test + fork-n-join-test fixtures run verbatim; a marked Rust-side
+  supplement covers dynamic fork until its canonical fixture's E-7 dependencies land.
 
 ---
 

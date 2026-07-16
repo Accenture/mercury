@@ -105,6 +105,9 @@ fn loaded_flow_set_matches_the_java_engine() {
         "while-loop-break",
         "while-loop-continue",
         "wildcard-conversion-test",
+        // from rust-flows.yaml: the Rust-side dynamic-fork supplement
+        // (canonical fixture needs sub-flows — E-7)
+        "dynamic-fork-test",
         // from more-flows.yaml: the parser fixtures that compile.
         // dynamic-reserved-key: the reserved-key RHS is dynamic, checked at runtime
         "dynamic-reserved-key",
