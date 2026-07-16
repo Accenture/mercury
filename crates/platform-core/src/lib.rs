@@ -20,16 +20,31 @@
 //! foundation layer. Canonical behavior spec: the Java project
 //! (`system/platform-core`, v4.8.6) — see `docs/design/platform-core-port.md`.
 //!
-//! **Increment 1 — configuration management** (this release): the
-//! `resources/` folder convention, [`MultiLevelMap`] composite keys,
-//! [`ConfigReader`] with `${...}` substitution, and the [`AppConfigReader`]
-//! base-config singleton.
+//! **Increment 1 — configuration management:** the `resources/` folder
+//! convention, [`MultiLevelMap`] composite keys, [`ConfigReader`] with `${...}`
+//! substitution, and the [`AppConfigReader`] base-config singleton.
 //!
-//! Increment 2 adds the event-bus foundation (`EventEnvelope`, the composable
-//! function trait, `Platform`, `PostOffice`).
+//! **Increment 2 — event-bus foundation:** the immutable [`EventEnvelope`],
+//! the [`ComposableFunction`] contract (+ [`TypedFunction`]/[`TypedAdapter`]),
+//! the [`Platform`] registry with per-route worker pools, and the
+//! [`PostOffice`] messaging client (send + RPC). Functions are addressed only
+//! by route name and never call each other directly.
 
+pub mod app_starter;
+pub mod envelope;
+pub mod function;
+pub mod logging;
+pub mod platform;
+pub mod post_office;
+pub mod telemetry;
+pub mod trace;
 pub mod util;
 
+pub use app_starter::{AppStarter, EntryPoint};
+pub use envelope::EventEnvelope;
+pub use function::{AppError, ComposableFunction, TypedAdapter, TypedFunction};
+pub use platform::Platform;
+pub use post_office::PostOffice;
 pub use util::app_config_reader::AppConfigReader;
 pub use util::config_reader::{ConfigError, ConfigReader};
 pub use util::multi_level_map::{ConfigValue, MultiLevelMap};

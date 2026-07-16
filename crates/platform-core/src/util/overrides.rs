@@ -66,6 +66,38 @@ pub fn clear_all() {
         .clear();
 }
 
+/// Parse `-Dkey=value` **runtime arguments** from this process's command line
+/// into the override registry — the analog of the JVM's `-D` system
+/// properties, e.g. `hello_world -Dlog.format=json`. Idempotent (parsed once);
+/// other arguments are left untouched for the application. Called
+/// automatically by `logging::init()` and `AppStarter::run()`; call it
+/// directly only when reading configuration before either.
+pub fn load_runtime_args() {
+    use std::sync::OnceLock;
+    static LOADED: OnceLock<()> = OnceLock::new();
+    LOADED.get_or_init(|| {
+        apply_runtime_args(std::env::args().skip(1));
+    });
+}
+
+/// The testable core of [`load_runtime_args`]: apply every `-Dkey=value`
+/// argument from an iterator. Malformed entries (`-Dnokey`, `-D=value`) are
+/// ignored; non-`-D` arguments pass through untouched.
+pub fn apply_runtime_args<I>(args: I)
+where
+    I: IntoIterator<Item = String>,
+{
+    for arg in args {
+        if let Some(pair) = arg.strip_prefix("-D") {
+            if let Some((key, value)) = pair.split_once('=') {
+                if !key.is_empty() {
+                    set(key, value);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,5 +109,26 @@ mod tests {
         clear("unit.test.key");
         assert_eq!(get("unit.test.key"), None);
         assert_eq!(get(""), None);
+    }
+
+    #[test]
+    fn runtime_args_parse_dash_d_pairs() {
+        apply_runtime_args(
+            [
+                "-Dlog.format=json",
+                "-Druntime.arg.test=a=b", // value may itself contain '='
+                "--not-a-property",
+                "-Dmalformed",
+                "-D=novalue",
+                "plainarg",
+            ]
+            .into_iter()
+            .map(String::from),
+        );
+        assert_eq!(get("log.format"), Some("json".to_string()));
+        assert_eq!(get("runtime.arg.test"), Some("a=b".to_string()));
+        assert_eq!(get("malformed"), None);
+        clear("log.format");
+        clear("runtime.arg.test");
     }
 }

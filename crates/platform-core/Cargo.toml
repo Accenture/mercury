@@ -11,4 +11,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 thiserror = "1"
-log = "0.4"
+log = { version = "0.4", features = ["std"] }
+# --- increment 2: event-bus foundation ---
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+async-trait = "0.1"
+async-channel = "2"
+rmp-serde = "1"
+rmpv = { version = "1", features = ["with-serde"] }
+uuid = { version = "1", features = ["v4"] }

@@ -252,6 +252,134 @@ timeout → 408 · N-instance concurrency (≤ N in flight, all complete) · err
 propagates, `has_error()`) · route validation. **Plus, now that config lands first:** worker
 counts / kernel-pool-style limits read via `AppConfigReader` where the Java original does.
 
+## 5b. Increment 3 — FIFO reactive back-pressure (manager-worker + elastic queue)
+
+*(Added 2026-07-15 from a maintainer hint: port the FIFO reactive back-pressure handler
+for the manager-worker design; **ignore the Berkeley DB implementation**.)*
+
+Increment 2's shared-MPMC dispatch was a simplification; the faithful Java design is:
+
+- **`ElasticQueue`** (port of `ElasticQueue` + `FileElasticStore`, collapsed — with BDB
+  ignored, the `ElasticStore` strategy facade has one implementation): a per-route two-tier
+  FIFO — first **20** events (`MEMORY_BUFFER`) in memory, overflow spilled to fixed-size
+  append-only **segment files** with the **byte-identical record format**
+  `[4-byte BE length][payload]`. Segments seal at `elastic.queue.segment.size.bytes`
+  (default 16 MB, min 512) and a sealed, fully-consumed segment is **deleted immediately**
+  (O(1) reclamation — no compaction/cleaner, the reason the file store replaced BDB).
+  Drained queue → counters reset, `generation++` (fresh segment filenames). Holding area:
+  `transient.data.store` (default `/tmp/reactive`) + `<application.name>-<origin>` unless
+  `running.in.cloud=true`; leftover segments purged at startup; RUNNING marker written.
+- **Manager-worker dispatch** (port of the `ServiceQueue` state machine + `WorkerHandler`
+  ready-signal protocol): per route, one **manager task** + N **worker tasks**. Workers
+  *pull*: announce `Ready` → take one event → process → announce again (at most one
+  in-flight event per worker). The manager keeps a ready-worker FIFO (+ uniqueness set);
+  with no free worker it enters **buffering** and spills into the elastic queue, draining
+  one event per ready signal until empty (then the queue closes and direct dispatch
+  resumes). `buffering` starts true (Java parity). The manager's inbound **mailbox is
+  bounded** (`elastic.queue.dispatch.mailbox.size`, default 1024, min 20): full mailbox →
+  senders await (back-pressure, not drops).
+- **Deliberate divergences** (doc-commented): envelopes are serialized (MsgPack) only when
+  crossing into the elastic queue (Java serializes every bus message; in-process Rust moves
+  are free — the on-disk format stays byte-identical); RPC inboxes ride the same route
+  machinery (Java's `AsyncInbox` bypasses `ServiceQueue` — a lighter dedicated inbox is a
+  possible later refinement); the RUNNING keep-alive timer, expired-store scan, and
+  shutdown-hook housekeeping await the lifecycle increment.
+
+**Tests:** elastic queue (FIFO order across tiers, peek, reuse/generation, incremental
+segment reclamation, destroy-purge, empty-write) + end-to-end back-pressure (60-event burst
+into a 20 ms single worker → observable disk spill → strict FIFO delivery order → all
+segments reclaimed after drain) + the increment-2 suite re-passing over the new dispatch.
+
+## 5c. Increment 4 — application lifecycle (AutoStart/AppStarter + example app)
+
+*(Implemented 2026-07-15.)* Port of `AutoStart` + `AppStarter` + `EntryPoint`
+(+ the `EssentialServiceLoader` slot), with the Java startup order exactly:
+
+1. **Essential services** (sequence 0, framework-reserved) — here, the elastic store's
+   **housekeeping**, completing increment 3's deferred items: RUNNING liveness marker,
+   20 s keep-alive refresh, expired-store scan (stale > 1 h marker or unknown dirs holding
+   segments → removed), and `shutdown_cleanup()` for graceful exit.
+2. **Before-application hooks** by `sequence` (1–999, clamped; failure **aborts** startup).
+3. **Preload** — functions registered and bound to routes (callable from this point).
+4. `rest.automation=true` would start the HTTP server — later increment (logs a notice).
+5. **Main applications** by `sequence`; missing main = error (Java parity).
+
+`EntryPoint` is one async trait for both hook kinds (Java parity). **Platform identity**
+lands here too: `Platform::get_instance()` (process-wide registry; `Platform::new()` stays
+for isolated tests), `Platform::name()` (`application.name` → `spring.application.name` →
+`untitled`), `Platform::origin()` (uuid per process) — the elastic store's holding-area
+naming now uses them. **Divergences (doc-commented):** no classpath scanning (D6) —
+`AppStarter` is an explicit builder (the `#[preload]` macro is the later ergonomic layer);
+Java's global run-once guard not ported (builder is consumed; framework phases idempotent);
+shutdown is an explicit call (OS-signal wiring later); Spring branch of `AutoStart` skipped
+(out of scope, D7).
+
+**Example app** (`examples/hello_world.rs` + `examples/resources/application.yml`) — the
+README "greeting.demo" taste, proving increments 1–4 end-to-end: config with
+`${GREETING_USER:world}` substitution → preflight hook → `greeting.demo` preload
+(instances from config) → main performs route-name RPC and prints the reply.
+`cargo run -p platform-core --example hello_world`.
+
+**Tests:** phase ordering (out-of-order sequences sort), multiple mains by sequence,
+failing hook aborts (no preload, no main), missing-main error, shared global platform,
+unknown-holding-area removal + fresh-marker survival, shutdown cleanup. The 1-hour
+stale-marker branch is code-reviewed but not time-simulated (no mtime manipulation without
+a new dependency — honest note).
+
+## 5d. Increment 5 — OpenTelemetry tracing + business correlation-id + app-log-context
+
+*(Implemented 2026-07-15; maintainer directive: telemetry is foundation, before REST
+automation.)* Port of the `Telemetry` service, the trace bracket in `WorkerHandler`, the
+`TraceInfo`/`LogContext` design, `W3cTrace`, and the log-context appenders:
+
+- **IDs are W3C/OTel-compatible** (32-hex trace, 16-hex span; `trace::new_trace_id()` /
+  `new_span_id()`, Java's `%016x` formula). `util/w3c_trace.rs` ports the `traceparent`
+  format/parse for the HTTP boundary (used by REST automation later).
+- **Trace bracket** (worker): a traced event (trace id + path) gets a per-execution
+  `TraceState` — its own span, parented to the sender's span carried on the envelope's new
+  `span_id` field. Java threads this through a per-worker registry keyed by thread id
+  (deliberately not ThreadLocal/MDC); the Rust analog is a **tokio `task_local!`** scoped
+  around the invocation — torn down when the function returns, same spawn/`Mono`-completion
+  boundary as Java. Zero-traced routes: the telemetry plumbing, `inbox.*` (Java's AsyncInbox
+  bypasses ServiceQueue), and `skip.rpc.tracing` (default `async.http.request`, verbatim).
+- **Automatic propagation**: `PostOffice::send`/`request` inside a trace stamp the outbound
+  event with trace id/path, this span (→ receiver's parent), sender route, and the
+  **business correlation-id** when the event carries none — cid is a separate concern from
+  the trace id, readable via `my_correlation_id()`. Responses carry the trace back
+  (applyTraceContext parity).
+- **`Telemetry` service** (`distributed.tracing`, registered by the essential-services
+  phase): logs each span dataset `{trace:{id, span_id, parent_span_id, service, path, from,
+  origin, start, exec_time, success, status, exception?}, annotations}` in real time; filters
+  the plumbing routes; trims `@origin`; forwards to the reserved `distributed.trace.forwarder`
+  (the OTLP-exporter hook) and `transaction.journal.recorder` when registered.
+- **App-log-context** (opt-in `app-log-context.yaml`): output key → `$token` (live:
+  cid/traceId/tracePath/spanId/parentSpanId/service/utc) | `${ENV:default}` (via ConfigReader)
+  | literal; absent values omitted, never null. `PostOffice::update_context` adds business
+  keys (reserved keys rejected; no-op untraced); `annotate_trace` feeds the span instead —
+  two sinks, neither leaks into the other. `logging::init()` installs the process logger
+  with **three formats** (the log4j2 appender-selection analog): `text` = plain console,
+  context-free (Java Console-appender parity, the default); `json` = **pretty-print** JSON
+  (Java `log4j2-json.xml`); `compact` = single-line jsonl, no CR/LF per record (Java
+  `log4j2-compact.xml`). Both JSON forms carry the `context` block.
+- **`-D` runtime overrides** (maintainer request): `-Dkey=value` command-line arguments are
+  parsed into the increment-1 override registry (the `System.getProperty` analog — already
+  checked first in every config lookup), so `hello_world -- -Dlog.format=json` switches
+  format at launch with no file edit. Idempotent, loaded by `logging::init()` and
+  `AppStarter::run()`; other arguments pass through to the application.
+- **Divergences (doc-commented):** invalid log-context token = advisory skip (Java throws);
+  UTC timestamps; no thread id. One real bug found live: the log-context OnceLock deadlocked
+  when the first log line initialized it from inside its own initializer — `logging::init()`
+  now initializes it eagerly before installing the logger.
+
+**Demo:** `hello_world` runs traced end-to-end — the function's JSON log line and the
+telemetry span carry the **same trace/span ids** (the logs↔spans join), with `cid=order-12345`,
+`user` from `update_context`, and `greeting.for` as a span annotation.
+
+**Tests:** two-hop span lineage (same trace; hop-2 `parent_span_id` == hop-1 `span_id`; `from`
+recorded; cid propagated to both hops; annotations flow), untraced = no telemetry + no-op
+APIs, failure spans (success=false/status/exception), reserved-key rejection, log-context
+render (tokens/constants/custom keys/omit-absent/skip-invalid), W3C round-trip, id shapes.
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time
@@ -263,11 +391,16 @@ counts / kernel-pool-style limits read via `AppConfigReader` where the Java orig
 ## 7. Deferred to later increments
 
 Broadcast delivery · streams (`Flux`/`Mono` → Rust `Stream`) · kernel-thread analog
-(`spawn_blocking` pool) · lifecycle (`AutoStart`/`AppStarter`, `@BeforeApplication`/
-`@MainApplication` ordering) · `#[preload]` proc-macro registration · **REST automation** (HTTP
-boundary, `rest.yaml` — no Spring) · Event-over-HTTP · distributed tracing propagation · full
-envelope fields · `Utility` grab-bag (ported piecemeal as callers need it) · crypto/caches/
-elastic overflow buffer. Each becomes its own Design increment tracing to `bp-platform-core`.
+(`spawn_blocking` pool) · `#[preload]` proc-macro registration · **REST automation** (HTTP
+boundary, `rest.yaml` — no Spring; injects/extracts `traceparent` via the ported
+`w3c_trace`) · Event-over-HTTP · an OTLP forwarder extension (the
+`distributed.trace.forwarder` hook is ready) · trace annotations on the envelope wire ·
+full envelope fields · OS-signal shutdown wiring (`tokio::signal` → `shutdown_cleanup`) ·
+`yaml.preload.override` · `Utility` grab-bag (ported piecemeal as callers need it) ·
+crypto/caches · a lightweight dedicated RPC inbox (Java `AsyncInbox` parity). Each becomes
+its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer —
+increment 3, §5b; lifecycle + housekeeping + example app — increment 4, §5c; telemetry +
+correlation-id + log context — increment 5, §5d.)*
 
 ## 8. Open questions for the maintainer
 

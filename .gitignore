@@ -37,7 +37,12 @@ review-scratch/
 __pycache__/
 *.py[cod]
 
-.DS_STORE
+# === Rust (stack-aware — build output & tool artifacts; Cargo.lock stays TRACKED) ===
 target/
-site/
+**/*.rs.bk
+*.pdb
+
+# === OS / editor ===
+.DS_STORE
 .vscode/
+site/

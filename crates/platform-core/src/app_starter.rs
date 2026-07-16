@@ -1,0 +1,199 @@
+//
+// Copyright 2018-2026 Accenture Technology
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+//! Rust port of the Java application lifecycle — `AutoStart` + `AppStarter`
+//! (`org.platformlambda.core.system`) and the `EntryPoint` contract
+//! (`org.platformlambda.core.models.EntryPoint`).
+//!
+//! Startup order is the Java sequence exactly:
+//!
+//! 1. **Essential services** (the Java `EssentialServiceLoader`, sequence 0 —
+//!    reserved for the framework): here, the elastic store's housekeeping
+//!    (holding-area liveness marker, keep-alive refresh, expired-store scan).
+//! 2. **Before-application hooks** (`@BeforeApplication`), ordered by
+//!    `sequence` (1–999, lower first; user code conventionally uses 3–999) —
+//!    validation/compilation work before anything is registered or served
+//!    (e.g. event-script's `CompileFlows` in Java). A failure **aborts
+//!    startup** (Java parity: fatal).
+//! 3. **Preload** (`@PreLoad`): composable functions are registered and bound
+//!    to their routes — callable via `PostOffice` from this point on.
+//! 4. The HTTP server would start here when `rest.automation=true` — REST
+//!    automation is a later increment; the flag currently logs a notice.
+//! 5. **Main applications** (`@MainApplication`), ordered by `sequence`.
+//!    A missing main application is an error (Java parity).
+//!
+//! Java discovers all five phases by classpath annotation scanning; Rust has
+//! no runtime scanning (design D6), so [`AppStarter`] is an explicit
+//! **builder** — a `#[preload]`-style proc-macro can add the ergonomic layer
+//! in a later increment. Java's `AutoStart` global run-once guard is not
+//! ported: the builder is consumed by [`run`](AppStarter::run), and the
+//! framework phases behind it are idempotent (deliberate divergence,
+//! test-friendly).
+
+use std::sync::Arc;
+
+use async_trait::async_trait;
+
+use crate::function::{AppError, ComposableFunction};
+use crate::platform::Platform;
+use crate::util::app_config_reader::AppConfigReader;
+use crate::util::elastic_queue;
+
+/// Highest allowed hook sequence (Java `MAX_SEQ`); larger values clamp to it.
+const MAX_SEQ: u32 = 999;
+
+/// The application entry-point contract (Java `EntryPoint`): implemented by
+/// both before-application hooks and main applications.
+#[async_trait]
+pub trait EntryPoint: Send + Sync {
+    async fn start(&self, args: &[String]) -> Result<(), AppError>;
+}
+
+/// The lifecycle builder (Java `AutoStart`/`AppStarter`, explicit-registration
+/// form). Build the application declaratively, then [`run`](Self::run) it:
+///
+/// ```ignore
+/// AppStarter::new()
+///     .before_application(5, Arc::new(CompileCheck))
+///     .preload("greeting.demo", TypedAdapter::arc(Greetings), 10)
+///     .main_application(1, Arc::new(MainApp))
+///     .run(std::env::args().collect())
+///     .await?;
+/// ```
+#[derive(Default)]
+pub struct AppStarter {
+    before: Vec<(u32, Arc<dyn EntryPoint>)>,
+    preloads: Vec<(String, Arc<dyn ComposableFunction>, usize)>,
+    mains: Vec<(u32, Arc<dyn EntryPoint>)>,
+}
+
+impl AppStarter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register a before-application hook (Java `@BeforeApplication`).
+    /// `sequence` orders execution (lower first, clamped to 999; 0 is reserved
+    /// for the framework's essential services — user code uses 1–999,
+    /// conventionally 3–999).
+    pub fn before_application(mut self, sequence: u32, hook: Arc<dyn EntryPoint>) -> Self {
+        self.before.push((sequence.min(MAX_SEQ), hook));
+        self
+    }
+
+    /// Register a composable function at startup (Java `@PreLoad`).
+    pub fn preload(
+        mut self,
+        route: &str,
+        function: Arc<dyn ComposableFunction>,
+        instances: usize,
+    ) -> Self {
+        self.preloads.push((route.to_string(), function, instances));
+        self
+    }
+
+    /// Register a main application (Java `@MainApplication`); `sequence`
+    /// orders execution when there is more than one (lower first).
+    pub fn main_application(mut self, sequence: u32, entry: Arc<dyn EntryPoint>) -> Self {
+        self.mains.push((sequence.min(MAX_SEQ), entry));
+        self
+    }
+
+    /// Run the lifecycle (Java `AutoStart.main` → `AppStarter.main`).
+    /// Must be called within a Tokio runtime.
+    pub async fn run(self, args: Vec<String>) -> Result<(), AppError> {
+        // -Dkey=value runtime arguments (the JVM -D analog) become process
+        // overrides — idempotent, in case logging::init already loaded them
+        crate::util::overrides::load_runtime_args();
+        let config = AppConfigReader::get_instance();
+        log::info!(
+            "Starting application {} (platform-core v{})",
+            Platform::name(),
+            env!("CARGO_PKG_VERSION")
+        );
+        // 1. essential services (sequence 0, framework-reserved — the Java
+        //    EssentialServiceLoader): elastic-store housekeeping + the
+        //    distributed-tracing telemetry sink (idempotent across runs)
+        elastic_queue::start_housekeeping();
+        let platform = Platform::get_instance();
+        if !platform.has_route(crate::telemetry::DISTRIBUTED_TRACING) {
+            if let Err(e) = platform.register(
+                crate::telemetry::DISTRIBUTED_TRACING,
+                std::sync::Arc::new(crate::telemetry::Telemetry::new(&platform)),
+                1,
+            ) {
+                // a concurrent lifecycle run may have won the race — benign;
+                // anything else is a real startup failure
+                if !platform.has_route(crate::telemetry::DISTRIBUTED_TRACING) {
+                    return Err(e);
+                }
+            }
+        }
+        // 2. before-application hooks, ordered by sequence (stable sort keeps
+        //    registration order within a sequence — Java scan order analog)
+        let mut before = self.before;
+        before.sort_by_key(|(sequence, _)| *sequence);
+        for (sequence, hook) in before {
+            hook.start(&args).await.map_err(|e| {
+                AppError::new(
+                    e.status(),
+                    format!(
+                        "BeforeApplication (sequence {sequence}) failed: {}",
+                        e.message()
+                    ),
+                )
+            })?;
+        }
+        // 3. preload: bind composable functions to their routes
+        for (route, function, instances) in self.preloads {
+            platform.register(&route, function, instances)?;
+            log::info!(
+                "{route} with {instances} instance{} started",
+                if instances == 1 { "" } else { "s" }
+            );
+        }
+        // 4. REST automation starts here in Java (rest.automation=true) — a
+        //    later increment in the Rust port
+        if config.get_property_or("rest.automation", "false") == "true" {
+            log::warn!(
+                "rest.automation=true is configured but REST automation is not yet ported \
+                 (a later increment) — no HTTP server was started"
+            );
+        }
+        // 5. main applications, ordered by sequence
+        if self.mains.is_empty() {
+            // Java: "Missing MainApplication ... Did you forget to annotate your main module?"
+            return Err(AppError::new(
+                400,
+                "Missing main application - did you forget to add one with main_application()?",
+            ));
+        }
+        let mut mains = self.mains;
+        mains.sort_by_key(|(sequence, _)| *sequence);
+        for (sequence, entry) in mains {
+            entry.start(&args).await.map_err(|e| {
+                AppError::new(
+                    e.status(),
+                    format!(
+                        "MainApplication (sequence {sequence}) failed: {}",
+                        e.message()
+                    ),
+                )
+            })?;
+        }
+        Ok(())
+    }
+}

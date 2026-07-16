@@ -24,3 +24,6 @@ deep:
   list:
     - name: first
     - name: second
+
+demo:
+  instances: 3

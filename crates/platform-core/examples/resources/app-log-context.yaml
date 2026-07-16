@@ -1,0 +1,16 @@
+# Optional application log context (increment 5): when this file is present,
+# every structured (JSON) log line emitted inside a traced function carries a
+# "context" block, so logs and spans join up in the observability backend.
+#
+# left side  = output key (your choice)
+# right side = $token (live per line) | ${ENV:default} (once at load) | literal
+context:
+  cid: $cid
+  traceId: $traceId
+  tracePath: $tracePath
+  spanId: $spanId
+  parentSpanId: $parentSpanId
+  service: $service
+  timestamp: $utc
+  environment: '${ENV_NAME:dev}'
+  hello: world
