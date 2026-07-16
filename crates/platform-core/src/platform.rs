@@ -437,15 +437,21 @@ async fn worker_loop(
                     response.set_trace_internal(&trace_id, &trace_path);
                     response.set_span_id_internal(&span_id);
                 }
-                // clone the reply mailbox out of the lock before awaiting
-                let sender = registry
-                    .read()
-                    .expect("route registry poisoned")
-                    .get(&reply_route)
-                    .map(|entry| entry.mailbox.clone());
-                if let Some(sender) = sender {
-                    // inbox may already be released (timeout) — drop silently
-                    let _ = sender.send(MailboxMessage::Event(Box::new(response))).await;
+                // a lightweight RPC inbox (Java AsyncInbox parity) bypasses the
+                // route machinery entirely — complete the caller's oneshot
+                if reply_route.starts_with(crate::inbox::INBOX_PREFIX) {
+                    crate::inbox::deliver(&reply_route, response);
+                } else {
+                    // clone the reply mailbox out of the lock before awaiting
+                    let sender = registry
+                        .read()
+                        .expect("route registry poisoned")
+                        .get(&reply_route)
+                        .map(|entry| entry.mailbox.clone());
+                    if let Some(sender) = sender {
+                        // route may already be released — drop silently
+                        let _ = sender.send(MailboxMessage::Event(Box::new(response))).await;
+                    }
                 }
             }
             (None, Err(e)) => {

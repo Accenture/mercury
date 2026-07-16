@@ -491,6 +491,35 @@ pass-through (static not served), exclusion bypass (`*.css`), unregistered-servi
 fallback, extensionless `.html` assumption. Example: `http.request.filter` interceptor
 logging url/ip/user-agent (a real deployment would do SSO here).
 
+## 5h. Increment 9 — lightweight RPC inbox + benchmark-reporter (milestone closure)
+
+*(Implemented 2026-07-16, maintainer-directed: benchmark the foundation before layer 2.)*
+
+- **Lightweight RPC inbox** (Java `AsyncInbox` parity — the §7 deferred item, pulled in
+  because the benchmark would otherwise measure it): `PostOffice::request` now uses a
+  one-shot **correlation-map entry** (`src/inbox.rs`) instead of registering a throwaway
+  route per RPC (manager task + worker + elastic queue). The route worker's reply delivery
+  recognizes the `inbox.` prefix and completes the caller's oneshot directly — the reply
+  bypasses the ServiceQueue machinery, exactly like Java. Late replies after timeout are
+  dropped silently. All 101 prior tests pass unchanged.
+- **`benchmark/benchmark-reporter`** (new workspace member) — the Java harness ported
+  faithfully: the same six-scenario suite (RPC 1→C / C→C / paced callback = normal;
+  RPC 2C→C / callback flood = overload; latency probe under background flood = mixed
+  isolation), the same `Stats` (nearest-rank percentiles, log-spaced bins) and the same
+  self-contained HTML report (inline SVG histogram + percentile plot), so records sit
+  side-by-side with the Java `analysis/` snapshots. Parameters are `-D` runtime args
+  (`bench.*`), Java-parity defaults. Known divergence (doc'd): paced scenarios ride
+  tokio's ~1 ms timer vs Java's `parkNanos` — compare latency, not throughput, there.
+- **The saved record** (`analysis/rust-tokio.html`, defaults, Apple Silicon 12-core,
+  release build) vs the Java `file-vthread` record on the same machine class:
+  RPC 1→50 **155K ops/s @ 6 µs mean (8.4×)**; RPC 50→50 **411K ops/s (2.3×)**; overload
+  ~1.4× and **loss-free through the disk spill**; the mixed probe **17 µs mean / 210 µs
+  max vs 157 µs / 1.62 ms (~9×)** — the no-GC tail story. 1,003,000 timed ops, 0 failures.
+  Full comparison: `benchmark/benchmark-reporter/analysis/README.md`.
+
+**This closes the platform-core milestone**: the foundation is configured, evented,
+back-pressured, lifecycled, observable, HTTP-serving, operable — and now measured.
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time
@@ -509,9 +538,9 @@ boundary, `rest.yaml` — no Spring; injects/extracts `traceparent` via the port
 full envelope fields · OS-signal shutdown wiring (`tokio::signal` → `shutdown_cleanup`) ·
 `yaml.preload.override` · `Utility` grab-bag (ported piecemeal as callers need it) ·
 crypto/caches · a lightweight dedicated RPC inbox (Java `AsyncInbox` parity). Each becomes
-its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer —
-increment 3, §5b; lifecycle + housekeeping + example app — increment 4, §5c; telemetry +
-correlation-id + log context — increment 5, §5d.)*
+its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer — increment 3, §5b; lifecycle — §5c; telemetry — §5d;
+REST automation — §5e; actuators/static — §5f; static-content protocol — §5g; RPC inbox +
+benchmark — §5h.)*
 
 ## 8. Open questions for the maintainer
 

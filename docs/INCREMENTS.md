@@ -23,6 +23,7 @@
 | 6 | REST automation (core) | 2026-07-16 | §5e | 83 |
 | 7 | Actuator endpoints + static HTML content | 2026-07-16 | §5f | 94 |
 | 8 | Static-content protocol: etag/304, no-cache, filter | 2026-07-16 | §5g | 101 |
+| 9 | Lightweight RPC inbox + benchmark-reporter — **milestone closed** | 2026-07-16 | §5h | 103 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the `hello_world`
@@ -187,7 +188,27 @@ manifest in a Rust binary — a build.rs-embedded cargo metadata could provide i
 
 ---
 
-## Deferred backlog (as of increment 8)
+## Increment 9 — Lightweight RPC inbox + benchmark-reporter (2026-07-16) — **platform-core milestone closed**
+
+*Maintainer-directed closure: benchmark the foundation the event-script and
+knowledge-graph layers will ride on.*
+
+- **Lightweight RPC inbox** (Java `AsyncInbox` parity): an RPC reply is now a one-shot
+  correlation-map entry, not a throwaway route registration — pulled forward from the
+  deferred list so the benchmark measures dispatch, not inbox overhead.
+- **`benchmark/benchmark-reporter`**: the Java harness ported — same six scenarios, same
+  stats, same self-contained HTML report; `-Dbench.*` runtime parameters.
+- **The record** ([`analysis/rust-tokio.html`](../benchmark/benchmark-reporter/analysis/rust-tokio.html),
+  defaults, Apple Silicon 12-core, vs the Java file-vthread record on the same machine
+  class): baseline RPC **155K ops/s @ 6 µs mean (8.4× Java)**; balanced **411K ops/s
+  (2.3×)**; overload ~1.4× and loss-free through the disk spill; the mixed latency probe
+  **17 µs mean / 210 µs max vs 157 µs / 1.62 ms (~9×)** — no GC, no GC pause, tails stay
+  near the median. 1,003,000 timed operations, **0 failures**. Analysis:
+  [`analysis/README.md`](../benchmark/benchmark-reporter/analysis/README.md).
+
+---
+
+## Deferred backlog (as of increment 9)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
 streams, kernel-thread analog, `#[preload]` macro, flow binding + HTTP relay + A/B +

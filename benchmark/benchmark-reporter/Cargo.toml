@@ -1,0 +1,18 @@
+[package]
+name = "benchmark-reporter"
+description = "Self-contained end-to-end performance reporter for the mercury platform-core (Rust port of the Java benchmark-reporter)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "benchmark-reporter"
+path = "src/main.rs"
+
+[dependencies]
+platform-core = { path = "../../crates/platform-core" }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }

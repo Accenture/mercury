@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) — 101 tests, clippy/fmt clean. `docs/INCREMENTS.md` = the increment ledger (row+section per increment = part of done). Next: **event-script (layer 2)** is the natural next move, or remaining §7 items.
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. `docs/INCREMENTS.md` = the increment ledger. Next: **event-script (layer 2)** on this measured foundation.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-015705)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-022348)
 - **last_review:** 2026-07-16 | through 2026-07-16-005505
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
@@ -69,9 +69,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-15 | uses: 3 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
 - **Kafka service mesh is out of scope** — deliberately not ported, for simplicity.
-  <!-- id: kafka-mesh-out-of-scope | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: kafka-mesh-out-of-scope | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - **Config management first; Spring fully out of scope** (maintainer, 2026-07-15): port
   `AppConfigReader`/`ConfigReader`/`MultiLevelMap` + the `resources/` folder convention as
   **increment 1** — everything (main app, unit tests, integration tests) relies on
@@ -87,7 +87,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   strategy facade collapses into one type. Config keys verbatim:
   `elastic.queue.segment.size.bytes`, `elastic.queue.dispatch.mailbox.size`,
   `transient.data.store`, `running.in.cloud`. Design: `docs/design/platform-core-port.md` §5b.
-  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-16 | uses: 3 | tier: active | origin: 2026-07-15-232127.md -->
+  <!-- id: elastic-fifo-no-bdb | created: 2026-07-15 | last_used: 2026-07-16 | uses: 4 | tier: active | origin: 2026-07-15-232127.md -->
 - **Private prototyping repo → official Accenture repo later** — iterate rapidly here to keep
   noise away from public readers; move to the official Accenture repo once the foundation is
   sufficient.
@@ -99,7 +99,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (`crates/platform-core` first), **explicit registration** now (compile-time `inventory`-style
   macro later; Rust has no runtime annotation scanning). Full rationale + type designs:
   `docs/design/platform-core-port.md`.
-  <!-- id: platform-core-stack | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: active | origin: 2026-07-15-222242.md -->
+  <!-- id: platform-core-stack | created: 2026-07-15 | last_used: 2026-07-16 | uses: 10 | tier: active | origin: 2026-07-15-222242.md -->
 
 ## Conventions
 
@@ -120,7 +120,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   one overview row + one section per increment, added as part of each increment's
   definition of done (design rationale stays in `docs/design/platform-core-port.md`;
   the ledger records what shipped when).
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 8 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -147,9 +147,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > project (map, don't mirror); harvest it into per-layer Designs when a local checkout is
 > available and authorized (see the harvest thread below).
 
-- [ ] **(blueprint)** Port **platform-core** to Rust — the foundation layer; everything else
-  builds on it. First real porting increment. → serves: vision-mercury
-  <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 12 | tier: working | origin: 2026-07-15-215538.md -->
+- [x] **(blueprint)** Port **platform-core** to Rust — the foundation layer; everything else
+  builds on it. **MILESTONE CLOSED 2026-07-16** (increments 1–9; benchmarked vs the Java
+  original — see `docs/INCREMENTS.md` and `benchmark/benchmark-reporter/analysis/`). Remaining
+  §7 items (broadcast, streams, #[preload] macro, flow binding, relay, event-over-HTTP, …) are
+  enhancements to fold in as event-script needs them, not blockers. → serves: vision-mercury
+  <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 13 | tier: active | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** Port **event-script** to Rust (on top of platform-core).
   → serves: vision-mercury
   <!-- id: bp-event-script | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
@@ -260,8 +263,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   logging url/ip/user-agent. Live-verified: no-cache+x-filter on `/`, real 304 cycle.
   Ops lesson: `kill` on a `cargo run` wrapper orphans the child binary — a stale server on
   8085 masked the new build until pkill'd (demo scripts now kill the binary by name).
-  **101 tests, clippy/fmt clean.** → serves: vision-mercury
-  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 11 | tier: working | origin: 2026-07-15-221632.md -->
+  **101 tests, clippy/fmt clean.**
+  **Increment 9 (lightweight RPC inbox + benchmark-reporter) implemented 2026-07-16 —
+  PLATFORM-CORE MILESTONE CLOSED** (§5h): RPC replies now ride a one-shot correlation-map
+  inbox (Java AsyncInbox parity; `src/inbox.rs`; reply bypasses ServiceQueue; pulled forward
+  from §7 so the benchmark measures dispatch, not per-request route registration — all prior
+  tests unchanged). `benchmark/benchmark-reporter` (new workspace member): the Java harness
+  ported — same 6 scenarios (normal/overload/mixed-isolation), same Stats (nearest-rank,
+  log-spaced bins), same self-contained HTML report; `-Dbench.*` params, Java defaults;
+  doc'd divergence: paced scenarios ride tokio's ~1ms timer (compare latency there, not
+  throughput). **Saved record** `analysis/rust-tokio.html` + comparison README vs the Java
+  file-vthread record (same machine class): 1→50 155K ops/s @ 6µs (8.4×); 50→50 411K
+  (2.3×); overload ~1.4× loss-free; probe 17µs/210µs vs 157µs/1.62ms (~9×). 1,003,000 ops,
+  0 failures. **103 tests, clippy/fmt clean.** → serves: vision-mercury
+  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 12 | tier: working | origin: 2026-07-15-221632.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**

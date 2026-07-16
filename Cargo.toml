@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/platform-core"]
+members = ["crates/platform-core", "benchmark/benchmark-reporter"]
 
 [workspace.package]
 version = "0.1.0"

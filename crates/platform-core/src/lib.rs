@@ -35,6 +35,7 @@ pub mod app_starter;
 pub mod automation;
 pub mod envelope;
 pub mod function;
+pub(crate) mod inbox;
 pub mod logging;
 pub mod platform;
 pub mod post_office;

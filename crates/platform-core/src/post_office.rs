@@ -17,23 +17,18 @@
 //! Rust port of the Java `PostOffice` (`org.platformlambda.core.system.PostOffice`)
 //! — the inter-function messaging client.
 //!
-//! Increment 2 covers the two core patterns: [`send`](PostOffice::send)
-//! (fire-and-forget) and [`request`](PostOffice::request) (RPC). RPC works
-//! exactly like the Java `AsyncInbox`: a **temporary inbox route** is registered,
-//! the outbound envelope carries `reply_to = inbox` + a correlation id, and the
-//! caller awaits the reply with a timeout (→ status **408** on expiry). The
-//! inbox is always released afterwards. Fork-n-join, `send_later`, and tracing
-//! propagation arrive in later increments.
+//! Two core patterns: [`send`](PostOffice::send) (fire-and-forget) and
+//! [`request`](PostOffice::request) (RPC). RPC works exactly like the Java
+//! `AsyncInbox`: a **lightweight one-shot inbox** (see [`crate::inbox`]) —
+//! one correlation-map entry, no route registration — receives the reply,
+//! bypassing the ServiceQueue machinery entirely; the caller awaits with a
+//! timeout (→ status **408** on expiry). Fork-n-join and `send_later` arrive
+//! in later increments.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use async_trait::async_trait;
-use tokio::sync::oneshot;
-
 use crate::envelope::EventEnvelope;
-use crate::function::{AppError, ComposableFunction};
+use crate::function::AppError;
 use crate::platform::Platform;
 use crate::trace;
 
@@ -163,60 +158,30 @@ impl PostOffice {
         // propagate the trace context first, so a business correlation-id
         // riding the current trace wins over a minted one
         let event = apply_current_trace(event);
-        // temporary reply inbox — a valid (dotted, lowercase) dynamic route
-        let inbox_route = format!("inbox.{}", uuid::Uuid::new_v4().simple());
-        let (tx, rx) = oneshot::channel::<EventEnvelope>();
-        self.platform
-            .register(&inbox_route, Arc::new(OneshotInbox::new(tx)), 1)?;
+        // a lightweight one-shot inbox (Java AsyncInbox parity): one map entry,
+        // no route registration — the reply bypasses the ServiceQueue machinery
+        let (inbox_id, rx) = crate::inbox::open();
         // correlation id: keep the caller's, or mint one (Java parity)
         let cid = event
             .correlation_id()
             .map(str::to_string)
             .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
-        let event = event.set_reply_to(&inbox_route).set_correlation_id(&cid);
+        let event = event.set_reply_to(&inbox_id).set_correlation_id(&cid);
         if let Err(e) = self.send(event).await {
-            self.platform.release(&inbox_route);
+            crate::inbox::close(&inbox_id);
             return Err(e);
         }
         let outcome = tokio::time::timeout(timeout, rx).await;
-        self.platform.release(&inbox_route);
         match outcome {
             Ok(Ok(response)) => Ok(response),
             Ok(Err(_)) => Err(AppError::new(500, "Reply channel closed unexpectedly")),
-            Err(_) => Err(AppError::new(
-                408,
-                format!("Request timeout for {} ms", timeout.as_millis()),
-            )),
+            Err(_) => {
+                crate::inbox::close(&inbox_id);
+                Err(AppError::new(
+                    408,
+                    format!("Request timeout for {} ms", timeout.as_millis()),
+                ))
+            }
         }
-    }
-}
-
-/// The temporary inbox function: completes the caller's oneshot with the first
-/// reply it receives (the Java `AsyncInbox` analog).
-struct OneshotInbox {
-    tx: Mutex<Option<oneshot::Sender<EventEnvelope>>>,
-}
-
-impl OneshotInbox {
-    fn new(tx: oneshot::Sender<EventEnvelope>) -> Self {
-        OneshotInbox {
-            tx: Mutex::new(Some(tx)),
-        }
-    }
-}
-
-#[async_trait]
-impl ComposableFunction for OneshotInbox {
-    async fn handle_event(
-        &self,
-        _headers: HashMap<String, String>,
-        input: EventEnvelope,
-        _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        if let Some(tx) = self.tx.lock().expect("inbox mutex poisoned").take() {
-            // caller may have timed out already — dropping the reply is correct
-            let _ = tx.send(input);
-        }
-        Ok(EventEnvelope::new())
     }
 }
