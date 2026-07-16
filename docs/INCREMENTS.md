@@ -25,6 +25,7 @@
 | 8 | Static-content protocol: etag/304, no-cache, filter | 2026-07-16 | §5g | 101 |
 | 9 | Lightweight RPC inbox + benchmark-reporter — **milestone closed** | 2026-07-16 | §5h | 103 |
 | 10 | Annotation macros + `AutoStart` one-liner + `examples/` convention | 2026-07-16 | §5i | 105 |
+| — | Event-script design doc v1 (layer-2 gate) | 2026-07-16 | E1–E9 | — |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
