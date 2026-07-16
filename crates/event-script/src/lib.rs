@@ -50,7 +50,10 @@
 pub mod compiler;
 pub mod conversions;
 pub mod converter;
+pub mod executor;
 pub mod flows;
+pub mod instance;
+pub mod manager;
 pub mod mapping;
 pub mod mlm;
 pub mod model;
@@ -58,8 +61,14 @@ pub mod plugins;
 pub mod util;
 pub mod validator;
 
+pub use executor::FlowExecutor;
+
+use std::collections::HashMap;
+
 use async_trait::async_trait;
-use platform_core::{before_application, AppError, EntryPoint};
+use platform_core::{
+    before_application, preload, AppError, ComposableFunction, EntryPoint, EventEnvelope, Platform,
+};
 
 /// The flow compiler hook (Java `CompileFlows`, `@BeforeApplication(sequence=5)`).
 #[before_application(sequence = 5)]
@@ -70,5 +79,41 @@ impl EntryPoint for CompileFlows {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
         compiler::compile_flows();
         Ok(())
+    }
+}
+
+/// The flow-engine entry point (Java `EventScriptManager`,
+/// `@EventInterceptor @PreLoad(route = "event.script.manager")`).
+#[preload(route = "event.script.manager")]
+#[event_interceptor]
+pub struct EventScriptManager;
+
+#[async_trait]
+impl ComposableFunction for EventScriptManager {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        manager::handle(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// The task executor (Java `TaskExecutor`,
+/// `@EventInterceptor @PreLoad(route = "task.executor")`).
+#[preload(route = "task.executor")]
+#[event_interceptor]
+pub struct TaskExecutorService;
+
+#[async_trait]
+impl ComposableFunction for TaskExecutorService {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        executor::handle(&Platform::get_instance(), headers, input).await
     }
 }

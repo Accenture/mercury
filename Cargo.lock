@@ -182,6 +182,7 @@ dependencies = [
  "rmpv",
  "serde_json",
  "serde_json_path",
+ "tokio",
  "uuid",
 ]
 

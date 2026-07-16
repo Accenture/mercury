@@ -73,7 +73,22 @@ struct RouteEntry {
     mailbox: mpsc::Sender<MailboxMessage>,
     stop: Arc<Notify>,
     instances: usize,
+    function: Arc<dyn ComposableFunction>,
 }
+
+/// Reserved function route names for Event Script (Java `EventEmitter`
+/// parity): events to these routes are executed DIRECTLY on a fresh task,
+/// bypassing the manager-worker queue, so the engine behaves as part of the
+/// event core — orchestration never waits on its own bounded mailbox
+/// (liveness) and worker-instance count is irrelevant (unbounded concurrency,
+/// like Java's virtual-thread submit). Both functions are stateless event
+/// routers, so functional isolation is guaranteed.
+///
+/// Deliberately NOT exposed through registration options or the annotation
+/// macros (maintainer decision, 2026-07-16): application functions must stay
+/// on the reactive back-pressure path — this bypass is an engine privilege,
+/// not an API.
+const RESERVED_ENGINE_ROUTES: &[&str] = &["event.script.manager", "task.executor"];
 
 type RouteRegistry = Arc<RwLock<HashMap<String, RouteEntry>>>;
 
@@ -163,6 +178,7 @@ impl Platform {
                     mailbox: mailbox_tx.clone(),
                     stop: stop.clone(),
                     instances,
+                    function: function.clone(),
                 },
             );
         }
@@ -250,6 +266,11 @@ impl Platform {
             crate::inbox::deliver(route, event);
             return Ok(());
         }
+        // reserved engine routes run directly (see RESERVED_ENGINE_ROUTES)
+        if let Some(function) = reserved_route_function(&self.routes, route) {
+            spawn_direct(function, event);
+            return Ok(());
+        }
         // clone the sender out of the lock before awaiting
         let sender = self
             .routes
@@ -265,6 +286,40 @@ impl Platform {
             .await
             .map_err(|_| AppError::new(500, format!("Route {route} is closed")))
     }
+}
+
+/// Resolve a reserved engine route to its registered function (None for
+/// normal routes — they take the manager-worker path).
+fn reserved_route_function(
+    registry: &RouteRegistry,
+    route: &str,
+) -> Option<Arc<dyn ComposableFunction>> {
+    if RESERVED_ENGINE_ROUTES.contains(&route) {
+        registry
+            .read()
+            .expect("route registry poisoned")
+            .get(route)
+            .map(|entry| entry.function.clone())
+    } else {
+        None
+    }
+}
+
+/// Direct execution (Java `EventEmitter.runTaskExecutor`): invoke the engine
+/// function on a fresh task with instance 1 — no queue, no trace bracket, no
+/// auto-reply; failures are logged (the engine functions manage their own
+/// replies and error routing).
+fn spawn_direct(function: Arc<dyn ComposableFunction>, event: EventEnvelope) {
+    tokio::spawn(async move {
+        let headers = event.headers().clone();
+        if let Err(e) = function.handle_event(headers, event, 1).await {
+            log::error!(
+                "Unable to execute event script - ({}) {}",
+                e.status(),
+                e.message()
+            );
+        }
+    });
 }
 
 /// Mailbox capacity (Java `ServiceQueue.dispatchMailboxSize`):
@@ -479,6 +534,10 @@ async fn worker_loop(
                 // route machinery entirely — complete the caller's oneshot
                 if reply_route.starts_with(crate::inbox::INBOX_PREFIX) {
                     crate::inbox::deliver(&reply_route, response);
+                } else if let Some(function) = reserved_route_function(&registry, &reply_route) {
+                    // replies to the reserved engine routes (task callbacks)
+                    // take the same direct path as sends
+                    spawn_direct(function, response);
                 } else {
                     // clone the reply mailbox out of the lock before awaiting
                     let sender = registry

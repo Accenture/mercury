@@ -29,6 +29,8 @@
 | 11 | event-script E-1: flow model + compiler (fixture parity) | 2026-07-16 | ES §5a | 120 |
 | 12 | event-script E-2: data-mapping engine (MLM primary, JSONPath queries) | 2026-07-16 | ES §5b | 139 |
 | 13 | event-script E-3: platform-core extensions (interceptor, send_later, flow:) | 2026-07-16 | ES §5c | 145 |
+| 14 | event-script E-4: core flow runtime (manager, executor, FlowExecutor) | 2026-07-16 | ES §5d | 146 |
+| 15 | direct execution for reserved engine routes (hidden optimization) | 2026-07-16 | ES §5d.1 | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -300,6 +302,46 @@ with their own tests.*
 - **rest.yaml `flow:` binding**: injected as the `x-flow-id` header for
   `http.flow.adapter`; closes the increment-6 flow-binding deferral.
 - **Deep-copy**: satisfied by design (`rmpv::Value::clone()` is a deep copy) — no API.
+
+---
+
+## Increment 14 — event-script E-4: core flow runtime (2026-07-16)
+
+*Flows execute. The engine (compiler → manager → executor) self-registers through the
+annotation inventory; every task execution is an event over the layer-1 bus.*
+
+- **`FlowInstance`** (state machine `{input, model}` + TTL watcher on `send_later`),
+  instance registry, **`EventScriptManager`** + **`TaskExecutor`** as event
+  interceptors (one instance each — Java parity, callbacks serialize), and
+  **`FlowExecutor::launch`/`request`**.
+- Execution types `sequential`/`response`/`end`/`decision`/`sink` with exception
+  routing, TTL abort (408), per-task metrics, the traced flow-summary span, deferred
+  tasks, `@retry` decisions, `file()` output targets, and the `*` wildcard body.
+  Later-increment constructs abort with explicit messages.
+- Consolidated mapping view built **in the instance's dataset tree** (scratch keys
+  stripped per callback) — `model.*` writes persist like Java's shared-reference map,
+  zero model copies; dynamic RHS targets re-checked against the reserved-key guard.
+- E2E over the canonical fixtures: greetings, decisions (bool/numeric/out-of-range),
+  sequential + wildcard, response-before-end, exception → handler, TTL abort,
+  dynamic reserved-key rejection, fire-and-forget launch.
+
+---
+
+## Increment 15 — direct execution for the reserved engine routes (2026-07-16)
+
+*From a maintainer design review of Java's `EventEmitter.sendWithEventBus`: the two
+Event Script routes run as part of the event core. Ported — and deliberately hidden
+(no macro flag, no registration option), so application functions cannot opt out of
+reactive back-pressure.*
+
+- `Platform::deliver` + the worker reply path check a **private** reserved-route list
+  (`event.script.manager`, `task.executor`) and run those functions directly on a
+  fresh task — no queue, no trace bracket (Java parity: only the flow-summary span).
+- Rust rationale: not serialization (our bus is zero-copy) but **concurrency** (no
+  single-worker orchestration bottleneck) and **liveness** (the engine can't deadlock
+  on its own bounded mailbox under saturation).
+- Proof: reserved routes reach peak concurrency > 1 with one worker instance while a
+  normal control route serializes (peak exactly 1); 20 simultaneous flows complete.
 
 ---
 

@@ -14,13 +14,14 @@
 // limitations under the License.
 //
 
-//! The process-wide flow-template registry — Rust port of the template half of
-//! `com.accenture.models.Flows`. The live flow-*instance* registry arrives
-//! with the core runtime (design increment E-4).
+//! The process-wide flow registries — Rust port of
+//! `com.accenture.models.Flows`: compiled flow templates (E-1) and live flow
+//! instances (E-4).
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
+use crate::instance::FlowInstance;
 use crate::model::Flow;
 
 fn registry() -> &'static RwLock<HashMap<String, Arc<Flow>>> {
@@ -52,4 +53,28 @@ pub fn get_all_flows() -> Vec<String> {
         .collect();
     ids.sort();
     ids
+}
+
+fn instances() -> &'static RwLock<HashMap<String, Arc<FlowInstance>>> {
+    static INSTANCES: OnceLock<RwLock<HashMap<String, Arc<FlowInstance>>>> = OnceLock::new();
+    INSTANCES.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+pub fn get_flow_instance(id: &str) -> Option<Arc<FlowInstance>> {
+    instances()
+        .read()
+        .expect("instance registry")
+        .get(id)
+        .cloned()
+}
+
+pub fn add_flow_instance(instance: Arc<FlowInstance>) {
+    instances()
+        .write()
+        .expect("instance registry")
+        .insert(instance.id.clone(), instance);
+}
+
+pub fn close_flow_instance(id: &str) {
+    instances().write().expect("instance registry").remove(id);
 }

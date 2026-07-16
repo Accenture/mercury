@@ -204,6 +204,67 @@ send_later delivery/cancel semantics, flow-binding header injection (+ absence o
 unbound endpoints), and the `#[event_interceptor]` marker end-to-end in the
 annotations lifecycle test.
 
+## 5d. Increment E-4 — core flow runtime (implemented 2026-07-16)
+
+The engine executes real flows end-to-end: `FlowInstance` (state machine + TTL watcher
+on E-3's `send_later`), the instance registry, `EventScriptManager` and `TaskExecutor`
+as event interceptors, and the programmatic `FlowExecutor::launch`/`request` API.
+*(§5d.1 superseded the initial one-instance-serialized registration: the engine routes
+now run DIRECTLY on the event core, so callbacks execute concurrently — the instance
+mutexes, not worker serialization, are the thread-safety story, matching Java.)*
+
+- **Scope**: `sequential` / `response` / `end` / `decision` / `sink`; exception routing
+  (task-level handler beats `flow.exception`; the top-level-exception flag guards
+  handler loops); TTL abort (408); per-task metrics + the traced flow-summary span;
+  deferred tasks (`delay` / `delay_var` via `send_later`); the `@retry|fallback`
+  decision form; output `file()` targets; the `*` wildcard body; the
+  `my_correlation_id` read-only header stamped last. `parallel`/`fork` (E-5),
+  `pipeline` loops (E-6), `flow://` sub-flows + `ext:` (E-7) abort with explicit
+  "later increment" messages instead of misbehaving.
+- **State-machine semantics**: the consolidated mapping view is built **inside the
+  instance's own dataset tree** (per-callback scratch keys — status/header/result/
+  output/decision/error — stripped afterwards), so `model.*` writes persist exactly
+  like Java's shared-reference map with zero model copies. The dynamic-index
+  substitution re-checks runtime-resolved RHS targets against the reserved-key guard
+  (Java `substituteDynamicIndex`), proven by the dynamic-reserved-key fixture.
+- **E2E tests** (canonical fixtures + Java-parity task functions, all registered
+  through the annotation inventory exactly as a user app would): greetings (type
+  conversions, business-cid exposure, result-header copying, status mapping),
+  boolean + numeric decisions (incl. out-of-range abort), sequential chaining with the
+  `*` wildcard, response-before-end (early reply wins), exception → handler (409),
+  TTL abort (408 with the caller-supplied `ttl` override), runtime reserved-key
+  rejection, and fire-and-forget launch.
+
+## 5d.1 — Direct execution for the reserved engine routes (implemented 2026-07-16)
+
+*Maintainer-directed after a design review of Java's `EventEmitter.sendWithEventBus`:
+port the optimization, but **hide it** — no macro flag, no registration option, no
+interface contract; developers must not be able to opt application functions out of
+reactive back-pressure.*
+
+- **What**: `Platform::deliver` (and the worker reply path) checks a **private**
+  reserved-route list — `event.script.manager`, `task.executor` (Java parity, same
+  names hard-coded in the platform) — and executes those functions **directly on a
+  fresh task** (`tokio::spawn`, instance 1, failures logged; the Java virtual-thread
+  submit analog). No queue, no trace bracket, no auto-reply.
+- **Why** (differs from Java's motivation): our bus is zero-copy, so Java's biggest
+  saving — skipping `toBytes()` serialization per hop — does not exist in Rust. The
+  wins here are (1) **concurrency**: orchestration no longer serializes through a
+  single worker (worker-instance count is irrelevant, as in Java); (2) **liveness**:
+  an event router that feeds itself through bounded mailboxes risks circular waits
+  under saturation — the direct path removes the engine from the back-pressure graph
+  by construction; (3) µs-level latency (one queue hop removed per task callback) and
+  tracing parity (Java's direct path bypasses `WorkerHandler`, so the engine emits
+  only the flow-summary span — ours now matches).
+- **Safety**: both functions are stateless routers; `FlowInstance` state is
+  mutex-protected and each callback's scratch-key mapping runs under one continuous
+  dataset lock, so concurrent callbacks are correct. Back-pressure still applies where
+  the real work happens — user-function mailboxes; flows stay TTL-bounded.
+- **Proof tests**: 10×150 ms events to each reserved route with **1 worker instance**
+  finish concurrently (peak concurrency > 1, wall-clock a fraction of serialized), while
+  an identical probe on a normal route serializes (peak exactly 1 — the control); plus
+  20 simultaneous end-to-end greetings transactions with distinct state machines.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).
