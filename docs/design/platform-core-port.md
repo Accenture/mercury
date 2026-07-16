@@ -421,6 +421,45 @@ path params, 404 shape, CORS preflight + response headers, header transforms, au
 timeout 408, **traced request → telemetry span with `GET /path` + edge-started trace id,
 `traceparent` parent-span adoption, cid always present**).
 
+## 5f. Increment 7 — actuator endpoints + static HTML content
+
+*(Implemented 2026-07-16, maintainer-directed scope.)* Port of `ActuatorServices` + the
+default-endpoint merge + the static-content behavior:
+
+- **`src/actuator.rs`** — one implementation, four registrations (Java switches on the
+  `my_route` header; the Rust port parameterizes by `ActuatorKind` at registration —
+  cleaner, no header magic), registered in the lifecycle's essential-services phase with a
+  shared `ActuatorContext` (app identity resolved once; the **liveness flag follows the
+  most recent health outcome** — Java `healthStatus`):
+  - `/info` — app{name, version (`info.app.version`, default platform-core's), description
+    (`info.app.description`)}, runtime{rust, platform_core}, origin, time{start, current},
+    up_time (humanized). Java's JVM/memory/streams/personality blocks have no direct Rust
+    analog — omitted rather than faked.
+  - `/env` — **opt-in** lists only (`show.env.variables`, `show.application.properties`),
+    so secrets are never dumped wholesale (Java parity).
+  - `/health` — `mandatory.health.dependencies`/`optional.health.dependencies` routes,
+    each called `type=info` (3 s, advisory — merged into the dependency entry) then
+    `type=health` (10 s, decides); all-mandatory-up → UP/200, any-mandatory-down →
+    DOWN/**400** (Java parity); no-deps → the "Did you forget…" hint; outcome stored for
+    liveness.
+  - `/livenessprobe` — `OK` text, or 400 "Unhealthy. Please check '/health' endpoint."
+- **Default-endpoint merge** (Java `default-rest.yaml`): `/info` `/env` `/health`
+  `/livenessprobe` are appended to the routing table only when `rest.yaml` doesn't claim
+  the URL — user entries always win. Built via the same parser (same invariants).
+- **Static HTML content** from **`resources/public`** (through the resource-roots
+  convention): served when no rest.yaml route matches a GET/HEAD — `/` → `index.html`,
+  directory paths → `<dir>/index.html`, parent traversal rejected, content type by
+  extension (minimal `MimeTypeResolver` analog). A `/` entry in rest.yaml always wins.
+- **Deferred:** `/info/lib` (maintainer-approved — Java reads the JAR manifest at runtime;
+  a Rust binary has no runtime dependency manifest; a `build.rs`-embedded cargo metadata
+  could provide it later), `/info/routes`, XML responses, etag/cache headers,
+  `mime-types.yml` customization, the Java per-route info cache.
+
+**Tests:** 10 end-to-end (info identity/uptime, env opt-in-only exposure, liveness default,
+health no-deps hint, health UP with mandatory dep (info-merge asserted), health DOWN → 400 +
+liveness flip, static index at `/`, nested asset content-type, traversal + miss + POST = 404,
+rest.yaml endpoints still win) + elapsed-time unit tests.
+
 ## 6. Out of scope (confirmed)
 
 - **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time

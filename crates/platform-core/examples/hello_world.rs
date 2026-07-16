@@ -131,6 +131,31 @@ impl ComposableFunction for GreetingApi {
     }
 }
 
+// ---- a health-check function (increment 7: /health lists it as mandatory) ----
+
+/// Honors the actuator health protocol: header `type=info` describes the
+/// dependency; `type=health` reports its live status.
+struct DemoHealth;
+
+#[async_trait]
+impl ComposableFunction for DemoHealth {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        match headers.get("type").map(String::as_str) {
+            Some("info") => EventEnvelope::new().set_body(serde_json::json!({
+                "service": "demo.store",
+                "href": "memory://demo",
+            })),
+            Some("health") => EventEnvelope::new().set_body("demo store is running"),
+            _ => Err(AppError::new(400, "unknown health request type")),
+        }
+    }
+}
+
 // ---- a before-application hook (Java: @BeforeApplication(sequence = 5), like CompileFlows) ----
 
 struct PreflightCheck;
@@ -202,6 +227,7 @@ async fn main() -> Result<(), AppError> {
         .before_application(5, Arc::new(PreflightCheck))
         .preload("greeting.demo", TypedAdapter::arc(Greetings), instances)
         .preload("greeting.api", Arc::new(GreetingApi), 5)
+        .preload("demo.health", Arc::new(DemoHealth), 1)
         .main_application(1, Arc::new(MainApp))
         .run(std::env::args().collect())
         .await?;

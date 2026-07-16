@@ -15,3 +15,11 @@ greeting:
 # REST automation (increment 6): serve rest.yaml endpoints over HTTP
 rest.automation: true
 rest.server.port: 8085
+
+# actuators (increment 7): /info /env /health /livenessprobe are added
+# automatically when rest.yaml does not define them; "/" serves
+# resources/public/index.html
+info.app.description: 'mercury hello-world example'
+show.env.variables: 'GREETING_USER, ENV_NAME'
+show.application.properties: 'application.name, log.format, rest.server.port, greeting.instances'
+mandatory.health.dependencies: 'demo.health'

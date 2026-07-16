@@ -143,8 +143,32 @@ impl RoutingTable {
         Ok(RoutingTable { routes })
     }
 
+    /// Build a routing table from YAML text (used for the built-in default
+    /// endpoints — same parser, same invariants).
+    pub fn from_yaml_text(yaml: &str) -> Result<Self, AppError> {
+        let value: serde_yaml::Value =
+            serde_yaml::from_str(yaml).map_err(|e| AppError::new(400, e.to_string()))?;
+        match ConfigValue::from_yaml(&value) {
+            ConfigValue::Map(map) => {
+                let reader = ConfigReader::from_map(map);
+                Self::load(&reader)
+            }
+            _ => Err(AppError::new(400, "rest.yaml text must be a YAML mapping")),
+        }
+    }
+
     pub fn routes(&self) -> &[RouteInfo] {
         &self.routes
+    }
+
+    /// Whether any entry already claims this URL (used by the default-endpoint
+    /// merge: user entries always win — Java `default-rest.yaml` semantics).
+    pub fn has_url(&self, url: &str) -> bool {
+        self.routes.iter().any(|r| r.url.eq_ignore_ascii_case(url))
+    }
+
+    pub(crate) fn add_route(&mut self, route: RouteInfo) {
+        self.routes.push(route);
     }
 
     /// Match a request (Java `getRouteInfo`): candidates must match every

@@ -142,6 +142,29 @@ impl AppStarter {
                 }
             }
         }
+        // actuator endpoints (Java EssentialServiceLoader parity): /info /env
+        // /health /livenessprobe, exposed via REST automation's default routes
+        if !platform.has_route(crate::actuator::INFO_ACTUATOR) {
+            use crate::actuator::{ActuatorContext, ActuatorKind, ActuatorServices};
+            let context = ActuatorContext::new(&platform);
+            let actuators = [
+                (crate::actuator::INFO_ACTUATOR, ActuatorKind::Info),
+                (crate::actuator::ENV_ACTUATOR, ActuatorKind::Env),
+                (crate::actuator::HEALTH_ACTUATOR, ActuatorKind::Health),
+                (crate::actuator::LIVENESS_ACTUATOR, ActuatorKind::Liveness),
+            ];
+            for (route, kind) in actuators {
+                if let Err(e) = platform.register(
+                    route,
+                    Arc::new(ActuatorServices::new(kind, context.clone())),
+                    1,
+                ) {
+                    if !platform.has_route(route) {
+                        return Err(e);
+                    }
+                }
+            }
+        }
         // 2. before-application hooks, ordered by sequence (stable sort keeps
         //    registration order within a sequence — Java scan order analog)
         let mut before = self.before;

@@ -70,7 +70,9 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
     let rest_yaml = config.get_property_or("yaml.rest.automation", "classpath:/rest.yaml");
     let reader = ConfigReader::load(&rest_yaml)
         .map_err(|e| AppError::new(500, format!("Unable to load {rest_yaml} - {e}")))?;
-    let table = RoutingTable::load(&reader)?;
+    let mut table = RoutingTable::load(&reader)?;
+    merge_default_endpoints(&mut table)?;
+    let table = table;
     for route in table.routes() {
         log::info!(
             "{} {} -> {}",
@@ -140,6 +142,14 @@ async fn handle(
         Err(_) => Bytes::new(),
     };
     let Some(assigned) = state.table.find(&method, &path) else {
+        // static HTML content from resources/public — including "/" →
+        // index.html — served only when rest.yaml claims no route (a "/"
+        // entry in rest.yaml always wins)
+        if method == "GET" || method == "HEAD" {
+            if let Some(response) = try_static(&path, method == "HEAD") {
+                return Ok(response);
+            }
+        }
         return Ok(error_response(404, "Resource not found"));
     };
     // CORS preflight (OPTIONS is auto-added per the grammar)
@@ -382,6 +392,96 @@ fn url_decode(text: &str) -> String {
         }
     }
     String::from_utf8_lossy(&out).to_string()
+}
+
+/// The built-in default endpoints (Java `default-rest.yaml`): added only when
+/// `rest.yaml` does not already claim the URL — user entries always win.
+/// `/info/lib` and `/info/routes` are deferred (see the actuator module doc).
+const DEFAULT_REST_YAML: &str = r#"
+rest:
+  - service: "info.actuator.service"
+    methods: ['GET']
+    url: "/info"
+    timeout: 10s
+  - service: "env.actuator.service"
+    methods: ['GET']
+    url: "/env"
+    timeout: 10s
+  - service: "health.actuator.service"
+    methods: ['GET']
+    url: "/health"
+    timeout: 30s
+  - service: "liveness.actuator.service"
+    methods: ['GET']
+    url: "/livenessprobe"
+    timeout: 10s
+"#;
+
+fn merge_default_endpoints(table: &mut RoutingTable) -> Result<(), AppError> {
+    let defaults = RoutingTable::from_yaml_text(DEFAULT_REST_YAML)?;
+    for route in defaults.routes() {
+        if !table.has_url(&route.url) {
+            table.add_route(route.clone());
+        }
+    }
+    Ok(())
+}
+
+/// Serve static HTML content from the `resources/public` folder (the Java
+/// static-content behavior, simplified: no etag/cache yet). `/` and directory
+/// paths resolve to `index.html`; parent traversal is rejected; content type
+/// by file extension.
+fn try_static(path: &str, head_only: bool) -> Option<Response<Full<Bytes>>> {
+    if path.contains("..") {
+        return None; // traversal guard
+    }
+    let rel = path.trim_matches('/');
+    let candidates = if rel.is_empty() {
+        vec!["public/index.html".to_string()]
+    } else {
+        vec![format!("public/{rel}"), format!("public/{rel}/index.html")]
+    };
+    for candidate in candidates {
+        let Some(file) = crate::util::resources::resolve_classpath(&candidate) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&file) else {
+            continue;
+        };
+        let mime = mime_for(file.extension().and_then(|e| e.to_str()).unwrap_or(""));
+        let payload = if head_only {
+            Bytes::new()
+        } else {
+            Bytes::from(bytes)
+        };
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header("content-type", mime)
+            .body(Full::new(payload))
+            .ok();
+    }
+    None
+}
+
+/// Minimal content-type resolution by extension (the Java `MimeTypeResolver`
+/// analog; `mime-types.yml` customization is deferred).
+fn mime_for(extension: &str) -> &'static str {
+    match extension.to_ascii_lowercase().as_str() {
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "js" | "mjs" => "text/javascript",
+        "json" => "application/json",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "txt" => "text/plain",
+        "pdf" => "application/pdf",
+        "woff2" => "font/woff2",
+        "xml" => "application/xml",
+        _ => "application/octet-stream",
+    }
 }
 
 /// The Java error shape: `{"status": n, "message": "...", "type": "error"}`.

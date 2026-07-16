@@ -30,6 +30,7 @@
 //! [`PostOffice`] messaging client (send + RPC). Functions are addressed only
 //! by route name and never call each other directly.
 
+pub mod actuator;
 pub mod app_starter;
 pub mod automation;
 pub mod envelope;

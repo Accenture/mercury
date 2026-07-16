@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–6 implemented — an HTTP-SERVING, OBSERVABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → **REST automation core** (rest.yaml per the Java grammar doc, hyper HTTP edge that starts traces/ensures cid, CORS/header-transforms/auth, AsyncHttpRequest mapping; hello_world serves `GET /api/greeting/{user}` with a live cross-boundary span tree) — 83 tests, clippy/fmt clean. Next: increment 7+ per `docs/design/platform-core-port.md` §7 — or start **event-script** (layer 2) on this foundation.
+- **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–7 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → **actuators + static content** (`/info` `/env` `/health` `/livenessprobe` via the default-endpoint merge; opt-in env exposure; mandatory/optional health-check protocol feeding liveness; `resources/public` static serving with `/`→index.html; `/info/lib` deferred — no runtime dep manifest in Rust) — 94 tests, clippy/fmt clean. Next: **event-script (layer 2)** is the natural next move, or remaining §7 items.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-005505)
+- **last_session:** 2026-07-16 | agent: Claude Code (2026-07-16-012756)
 - **last_review:** 2026-07-16 | through 2026-07-16-005505
 - **last_invariant_check:** (none yet)
 - **repo:** ~/sandbox/mercury
@@ -116,6 +116,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **Behavior-parity notes** in doc comments wherever the Rust port deliberately mirrors a
   Java quirk (e.g. YAML-tab tolerance) or deliberately diverges — no silent divergence.
 - Config-file syntax verbatim (D9): `classpath:/`, `file:/`, `${ENV:default}`, dotted routes.
+- **`docs/INCREMENTS.md` is the historical ledger** (maintainer-requested, 2026-07-16):
+  one overview row + one section per increment, added as part of each increment's
+  definition of done (design rationale stays in `docs/design/platform-core-port.md`;
+  the ledger records what shipped when).
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-15 | uses: 4 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
@@ -231,8 +235,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   one trace id, correct parent-span lineage at every hop, cid `order-9000` end-to-end;
   404/CORS-preflight/generated-cid all curl-checked. Two test-infra bugs fixed: tokio-test
   shared-server runtime death (server-per-test now) + timeout-clamp expectation.
-  **83 tests, clippy/fmt clean.** → serves: vision-mercury
-  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 9 | tier: working | origin: 2026-07-15-221632.md -->
+  **83 tests, clippy/fmt clean.**
+  **Increment 7 (actuators + static content) implemented 2026-07-16** (maintainer-directed;
+  §5f): `src/actuator.rs` — one impl, four registrations by `ActuatorKind` (vs Java's
+  `my_route` header switch), essential-phase registration with shared `ActuatorContext`
+  (liveness follows last health outcome). `/info` (app identity/origin/uptime; JVM blocks
+  omitted honestly), `/env` (opt-in `show.env.variables`/`show.application.properties` —
+  never a wholesale dump), `/health` (mandatory/optional dependency routes, type=info +
+  type=health protocol, DOWN=400 Java parity), `/livenessprobe`. Default-endpoint merge
+  (Java default-rest.yaml: user rest.yaml entries always win) + **static HTML from
+  `resources/public`** (`/`→index.html, traversal-guarded, mime by extension; rest.yaml `/`
+  wins). Deferred: `/info/lib` (no runtime dep manifest in Rust — build.rs metadata later),
+  `/info/routes`, etag, XML. All five endpoints curl-verified live on hello_world (health
+  UP with demo.health mandatory dep, static index at `/`). **94 tests, clippy/fmt clean.**
+  → serves: vision-mercury
+  <!-- id: ot-design-platform-core | created: 2026-07-15 | last_used: 2026-07-16 | uses: 10 | tier: working | origin: 2026-07-15-221632.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**
