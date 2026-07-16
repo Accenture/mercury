@@ -63,6 +63,16 @@ fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
     event
 }
 
+/// Pending scheduled deliveries (Java `EventEmitter` future events): timer id
+/// → abort handle. Entries remove themselves on firing.
+fn scheduled_events(
+) -> &'static std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>> {
+    static TIMERS: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>,
+    > = std::sync::OnceLock::new();
+    TIMERS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
 /// The messaging client. Cheap to clone; holds a handle to the [`Platform`].
 #[derive(Clone)]
 pub struct PostOffice {
@@ -91,6 +101,53 @@ impl PostOffice {
             return Err(AppError::new(400, "Missing routing path ('to')"));
         };
         self.platform.deliver(&route, event).await
+    }
+
+    /// Schedule a future one-time delivery (Java `po.sendLater(event, time)`):
+    /// the event is sent after `delay`; the returned timer id cancels it via
+    /// [`cancel_future_event`](Self::cancel_future_event). The timer rides an
+    /// abortable tokio task (map-don't-mirror; increment E-3 — built for the
+    /// event-script flow TTL watcher).
+    pub fn send_later(&self, event: EventEnvelope, delay: std::time::Duration) -> String {
+        let timer_id = uuid::Uuid::new_v4().simple().to_string();
+        let platform = self.platform.clone();
+        let id_for_task = timer_id.clone();
+        let handle = tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            scheduled_events()
+                .lock()
+                .expect("timer registry")
+                .remove(&id_for_task);
+            if let Some(route) = event.to().map(str::to_string) {
+                if let Err(e) = platform.deliver(&route, event).await {
+                    log::warn!(
+                        "Unable to deliver scheduled event to {route} - {}",
+                        e.message()
+                    );
+                }
+            }
+        });
+        scheduled_events()
+            .lock()
+            .expect("timer registry")
+            .insert(timer_id.clone(), handle.abort_handle());
+        timer_id
+    }
+
+    /// Cancel a scheduled delivery (Java `po.cancelFutureEvent(id)`).
+    /// Returns whether the timer was still pending.
+    pub fn cancel_future_event(&self, timer_id: &str) -> bool {
+        match scheduled_events()
+            .lock()
+            .expect("timer registry")
+            .remove(timer_id)
+        {
+            Some(handle) => {
+                handle.abort();
+                true
+            }
+            None => false,
+        }
     }
 
     // ---- trace-aware conveniences (Java PostOffice business APIs) ----

@@ -83,6 +83,17 @@ pub struct Platform {
     routes: RouteRegistry,
 }
 
+/// Registration options (Java annotation analogs): `zero_traced` is
+/// `@ZeroTracing` (this route's executions are excluded from trace recording);
+/// `interceptor` is `@EventInterceptor` (the function receives the raw
+/// envelope — `reply_to`/`cid` intact — and replies manually; the worker sends
+/// no auto-reply on success, though a failure still routes to `reply_to`).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FunctionOptions {
+    pub zero_traced: bool,
+    pub interceptor: bool,
+}
+
 impl Platform {
     pub fn new() -> Self {
         Self::default()
@@ -123,18 +134,17 @@ impl Platform {
         function: Arc<dyn ComposableFunction>,
         instances: usize,
     ) -> Result<(), AppError> {
-        self.register_with_options(route, function, instances, false)
+        self.register_with_options(route, function, instances, FunctionOptions::default())
     }
 
-    /// Register with explicit options: `zero_traced` excludes this route's
-    /// executions from distributed-trace recording (Java `@ZeroTracing`;
-    /// the built-in filter list and `skip.rpc.tracing` still apply).
+    /// Register with explicit options (increment E-3 extends the increment-10
+    /// zero-trace flag with the event-interceptor mode).
     pub fn register_with_options(
         &self,
         route: &str,
         function: Arc<dyn ComposableFunction>,
         instances: usize,
-        zero_traced: bool,
+        options: FunctionOptions,
     ) -> Result<(), AppError> {
         validate_route(route)?;
         if instances == 0 {
@@ -169,7 +179,7 @@ impl Platform {
                 worker_rx,
                 mailbox_tx.clone(),
                 self.routes.clone(),
-                zero_traced,
+                options,
             ));
         }
         // the manager (ServiceQueue analog) owns the state machine + elastic queue
@@ -398,12 +408,12 @@ async fn worker_loop(
     mut events: mpsc::Receiver<EventEnvelope>,
     manager: mpsc::Sender<MailboxMessage>,
     registry: RouteRegistry,
-    zero_traced_option: bool,
+    options: FunctionOptions,
 ) {
     // a route that is itself telemetry plumbing (or a temporary RPC inbox, or
     // listed in skip.rpc.tracing, or registered with @ZeroTracing semantics)
     // never traces its own executions
-    let zero_traced = zero_traced_option || is_zero_traced(&route);
+    let zero_traced = options.zero_traced || is_zero_traced(&route);
     loop {
         if manager.send(MailboxMessage::Ready(instance)).await.is_err() {
             break; // manager gone — route released
@@ -445,6 +455,11 @@ async fn worker_loop(
             emit_telemetry(&registry, &route, event_from, &state, &result, elapsed_ms).await;
         }
         match (reply_to, result) {
+            // an event interceptor replies MANUALLY (Java @EventInterceptor):
+            // its successful return value is ignored and no auto-reply is sent
+            // — but a FAILURE still routes to reply_to (Java WorkerHandler:
+            // only the success reply is interceptor-guarded)
+            (Some(_), Ok(_)) if options.interceptor => {}
             (Some(reply_route), result) => {
                 let mut response = match result {
                     Ok(envelope) => envelope,

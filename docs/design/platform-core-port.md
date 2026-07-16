@@ -411,7 +411,7 @@ authoritative schema is the Java project's own `docs/guides/rest-automation/rest
   (wins; its parent-id becomes our parent span) else the trace-id header else generated;
   trace path = `METHOD /path`. Legacy conflation (trace + cid sharing one header name)
   resolves to one id. Authentication runs before dispatch (non-true / error → 401/custom).
-- **Deferred** (per §7): flow binding (`http.flow.adapter` — needs event-script), HTTP(S)
+- **Deferred** (per §7): ~~flow binding~~ *(shipped with event-script E-3 — the `flow:` key injects x-flow-id)*, HTTP(S)
   relay + `url_rewrite`/`trust_all_cert`, A/B dual service, multipart upload, static-content,
   the default-rest.yaml actuator merge (needs actuator services), response streaming.
 
@@ -586,7 +586,9 @@ callers need it) · crypto/caches · a lightweight dedicated RPC inbox (Java `As
 parity). Each becomes
 its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer — increment 3, §5b; lifecycle — §5c; telemetry — §5d;
 REST automation — §5e; actuators/static — §5f; static-content protocol — §5g; RPC inbox +
-benchmark — §5h; annotation macros + `AutoStart` one-liner + OS-signal shutdown — §5i.)*
+benchmark — §5h; annotation macros + `AutoStart` one-liner + OS-signal shutdown — §5i;
+event-interceptor mode + scheduled events (`send_later`/cancel) + rest.yaml `flow:` binding —
+event-script design E-3, `event-script-port.md` §5c.)*
 
 ## 8. Open questions for the maintainer
 

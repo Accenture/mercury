@@ -20,9 +20,10 @@
 //! `docs/guides/rest-automation/rest-grammar.md`.
 //!
 //! Increment-6 scope is **function binding**: `service` is a composable
-//! function route. Deferred (see the design doc §5e/§7): flow binding
-//! (`http.flow.adapter`), HTTP(S) relay (`url_rewrite`/`trust_all_cert`),
-//! A/B dual service, multipart upload, and `static-content`.
+//! function route; increment E-3 added the **flow binding** (`flow:` → the
+//! x-flow-id header for `http.flow.adapter`). Deferred (see the design doc
+//! §5e/§7): HTTP(S) relay (`url_rewrite`/`trust_all_cert`), A/B dual
+//! service, multipart upload.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -53,6 +54,9 @@ pub struct RouteInfo {
     /// `correlation.id.header`).
     pub trace_id_header: Option<String>,
     pub correlation_id_header: Option<String>,
+    /// Event-script flow binding (grammar `flow:`): the flow id injected as
+    /// the `x-flow-id` request header for `http.flow.adapter` (increment E-3).
+    pub flow: Option<String>,
     segments: Vec<Segment>,
 }
 
@@ -420,6 +424,7 @@ fn parse_route(
         tracing,
         trace_id_header: text("trace.id.header"),
         correlation_id_header: text("correlation.id.header"),
+        flow: text("flow"),
         segments,
     })
 }

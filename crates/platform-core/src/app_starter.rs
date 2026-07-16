@@ -48,7 +48,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::function::{AppError, ComposableFunction};
-use crate::platform::Platform;
+use crate::platform::{FunctionOptions, Platform};
 use crate::util::app_config_reader::AppConfigReader;
 use crate::util::elastic_queue;
 
@@ -76,7 +76,7 @@ pub trait EntryPoint: Send + Sync {
 #[derive(Default)]
 pub struct AppStarter {
     before: Vec<(u32, Arc<dyn EntryPoint>)>,
-    preloads: Vec<(String, Arc<dyn ComposableFunction>, usize, bool)>,
+    preloads: Vec<(String, Arc<dyn ComposableFunction>, usize, FunctionOptions)>,
     mains: Vec<(u32, Arc<dyn EntryPoint>)>,
 }
 
@@ -96,26 +96,25 @@ impl AppStarter {
 
     /// Register a composable function at startup (Java `@PreLoad`).
     pub fn preload(
-        mut self,
+        self,
         route: &str,
         function: Arc<dyn ComposableFunction>,
         instances: usize,
     ) -> Self {
-        self.preloads
-            .push((route.to_string(), function, instances, false));
-        self
+        self.preload_with_options(route, function, instances, FunctionOptions::default())
     }
 
-    /// Register a composable function whose executions are excluded from
-    /// distributed-trace recording (Java `@PreLoad` + `@ZeroTracing`).
-    pub fn preload_zero_traced(
+    /// Register a composable function with explicit options (Java `@PreLoad`
+    /// combined with `@ZeroTracing` and/or `@EventInterceptor`).
+    pub fn preload_with_options(
         mut self,
         route: &str,
         function: Arc<dyn ComposableFunction>,
         instances: usize,
+        options: FunctionOptions,
     ) -> Self {
         self.preloads
-            .push((route.to_string(), function, instances, true));
+            .push((route.to_string(), function, instances, options));
         self
     }
 
@@ -195,8 +194,8 @@ impl AppStarter {
             })?;
         }
         // 3. preload: bind composable functions to their routes
-        for (route, function, instances, zero_traced) in self.preloads {
-            platform.register_with_options(&route, function, instances, zero_traced)?;
+        for (route, function, instances, options) in self.preloads {
+            platform.register_with_options(&route, function, instances, options)?;
             log::info!(
                 "{route} with {instances} instance{} started",
                 if instances == 1 { "" } else { "s" }
@@ -267,11 +266,15 @@ impl AutoStart {
                 .and_then(|key| config.get_property(key))
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(entry.instances);
-            starter = if entry.zero_tracing {
-                starter.preload_zero_traced(entry.route, (entry.factory)(), instances)
-            } else {
-                starter.preload(entry.route, (entry.factory)(), instances)
-            };
+            starter = starter.preload_with_options(
+                entry.route,
+                (entry.factory)(),
+                instances,
+                FunctionOptions {
+                    zero_traced: entry.zero_tracing,
+                    interceptor: entry.interceptor,
+                },
+            );
         }
         for entry in inventory::iter::<crate::registry::MainAppEntry> {
             starter = starter.main_application(entry.sequence, (entry.factory)());

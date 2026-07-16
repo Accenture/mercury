@@ -28,6 +28,7 @@
 | — | Event-script design doc v1 (layer-2 gate) | 2026-07-16 | E1–E9 | — |
 | 11 | event-script E-1: flow model + compiler (fixture parity) | 2026-07-16 | ES §5a | 120 |
 | 12 | event-script E-2: data-mapping engine (MLM primary, JSONPath queries) | 2026-07-16 | ES §5b | 139 |
+| 13 | event-script E-3: platform-core extensions (interceptor, send_later, flow:) | 2026-07-16 | ES §5c | 145 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -281,6 +282,24 @@ queries**. The Java code is layered the same way, so parity and the refinement c
 - **Parity capstone test**: the compiled greetings fixture's mappings evaluated against
   a simulated HTTP dataset produce the exact function-input body the Java engine feeds
   `greeting.test`.
+
+---
+
+## Increment 13 — event-script E-3: platform-core extensions (2026-07-16)
+
+*The four extensions the flow engine rides on (design E5), landed in platform-core
+with their own tests.*
+
+- **Event-interceptor mode** (Java `@EventInterceptor`): `FunctionOptions` on
+  registration; the worker ignores an interceptor's successful return (manual replies
+  via `po.send`) while failures still route to `reply_to` — the exact Java
+  `WorkerHandler` split. `#[preload]` gains `interceptor` / stacked
+  `#[event_interceptor]`.
+- **Scheduled events**: `send_later`/`cancel_future_event` (abortable tokio timer,
+  self-removing) — the flow TTL watcher's substrate.
+- **rest.yaml `flow:` binding**: injected as the `x-flow-id` header for
+  `http.flow.adapter`; closes the increment-6 flow-binding deferral.
+- **Deep-copy**: satisfied by design (`rmpv::Value::clone()` is a deep copy) — no API.
 
 ---
 

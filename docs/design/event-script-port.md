@@ -176,6 +176,34 @@ Java engine produces (type conversions, negation chains, uuid identity across th
 3-part decomposition, `{model.pointer}` interpolation, `f:concat` with a `text(,)`
 argument, header targets).
 
+## 5c. Increment E-3 — platform-core extensions (implemented 2026-07-16)
+
+The four E5 extensions, landed in platform-core with their own tests (145 workspace):
+
+- **Event-interceptor registration mode** (Java `@EventInterceptor`):
+  `FunctionOptions { zero_traced, interceptor }` replaces the increment-10 bool on
+  `register_with_options`/`preload_with_options`; the worker passes the raw envelope
+  (`reply_to`/`cid` intact) and **ignores an interceptor's successful return — no
+  auto-reply — while a failure still routes to `reply_to`** (verified against the Java
+  `WorkerHandler`: only the success reply is interceptor-guarded). `#[preload]` gains
+  an `interceptor` flag and a stacked `#[event_interceptor]` marker.
+- **Scheduled events**: `PostOffice::send_later(event, delay) -> timer_id` +
+  `cancel_future_event(id)` (Java `sendLater`/`cancelFutureEvent`) — an abortable
+  tokio timer behind the same API (decision E7), self-removing on fire; built for the
+  flow TTL watcher.
+- **rest.yaml `flow:` binding**: `RouteInfo.flow` + the automation server injects
+  `x-flow-id` into the request headers (what `http.flow.adapter` reads — Java parity).
+  The platform-core §5e "flow binding" deferral closes.
+- **Deep-copy**: satisfied by design — `rmpv::Value::clone()` IS a deep copy (owned
+  tree, no shared references), so the Java `Utility.deepCopy` call site (the manager
+  cloning the input payload) needs no new API. Documented here so the E5 checklist is
+  accounted for.
+
+Tests: manual-reply round-trip, no-auto-reply timeout proof, failure-still-replies,
+send_later delivery/cancel semantics, flow-binding header injection (+ absence on
+unbound endpoints), and the `#[event_interceptor]` marker end-to-end in the
+annotations lifecycle test.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

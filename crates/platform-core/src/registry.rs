@@ -35,6 +35,8 @@ pub struct PreloadEntry {
     /// Java `@ZeroTracing`: this route's executions are excluded from
     /// distributed-trace recording.
     pub zero_tracing: bool,
+    /// Java `@EventInterceptor`: manual replies, no auto-reply on success.
+    pub interceptor: bool,
     pub factory: fn() -> Arc<dyn ComposableFunction>,
 }
 

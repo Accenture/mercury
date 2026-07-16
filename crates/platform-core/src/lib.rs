@@ -74,7 +74,7 @@ macro_rules! auto_start_main {
 }
 pub use envelope::EventEnvelope;
 pub use function::{AppError, ComposableFunction, TypedAdapter, TypedFunction};
-pub use platform::Platform;
+pub use platform::{FunctionOptions, Platform};
 pub use post_office::PostOffice;
 pub use util::app_config_reader::AppConfigReader;
 pub use util::config_reader::{ConfigError, ConfigReader};

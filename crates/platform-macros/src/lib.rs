@@ -62,6 +62,10 @@ use syn::{parse_macro_input, ItemStruct, LitInt, LitStr};
 /// Consumed marker attributes (place them below `#[preload]`):
 /// - `#[zero_tracing]` — the Java `@ZeroTracing`: this route's executions are
 ///   excluded from distributed-trace recording.
+/// - `#[event_interceptor]` — the Java `@EventInterceptor`: the function
+///   receives the raw envelope (`reply_to`/`cid` intact) and replies manually
+///   via `po.send`; the worker sends no auto-reply on success (also available
+///   as the `interceptor` flag parameter).
 ///
 /// The struct must be a unit struct or implement `Default`.
 #[proc_macro_attribute]
@@ -71,6 +75,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut env_instances: Option<LitStr> = None;
     let mut typed = false;
     let mut zero_tracing = false;
+    let mut interceptor = false;
     let parser = syn::meta::parser(|meta| {
         if meta.path.is_ident("route") {
             route = Some(meta.value()?.parse()?);
@@ -83,9 +88,12 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             typed = true;
         } else if meta.path.is_ident("zero_tracing") {
             zero_tracing = true;
+        } else if meta.path.is_ident("interceptor") {
+            interceptor = true;
         } else {
             return Err(meta.error(
-                "unknown preload parameter (expected route, instances, env_instances, typed, zero_tracing)",
+                "unknown preload parameter (expected route, instances, env_instances, typed, \
+                 zero_tracing, interceptor)",
             ));
         }
         Ok(())
@@ -99,6 +107,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     };
     // consume stacked marker attributes (Java annotation stacking)
     zero_tracing |= strip_marker(&mut item, "zero_tracing");
+    interceptor |= strip_marker(&mut item, "event_interceptor");
     let construct = constructor(&item);
     let factory = if typed {
         quote!(::platform_core::TypedAdapter::arc(#construct))
@@ -117,6 +126,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
                 instances: #instances,
                 env_instances: #env_expr,
                 zero_tracing: #zero_tracing,
+                interceptor: #interceptor,
                 factory: || #factory,
             }
         }

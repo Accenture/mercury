@@ -54,6 +54,7 @@ impl ComposableFunction for HttpEcho {
             "my_cid": cid_header,
             "echo_body": body,
             "method": request["method"],
+            "flow_id": request["headers"]["x-flow-id"],
         }))
     }
 }
@@ -156,6 +157,11 @@ rest:
     url: "/api/secure"
     timeout: 5s
     authentication: "api.key.check"
+  - service: "http.echo"
+    methods: ['GET']
+    url: "/api/flow/demo"
+    flow: 'demo-flow'
+    timeout: 5s
 cors:
   - id: cors_1
     options:
@@ -446,4 +452,19 @@ async fn text_response_maps_to_text_plain() {
     assert_eq!(status, 200);
     assert_eq!(headers["content-type"], "text/plain");
     assert_eq!(body, "plain response");
+}
+
+/// Increment E-3: a rest.yaml `flow:` binding injects the x-flow-id request
+/// header the event-script flow adapter reads (Java parity).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn flow_binding_injects_x_flow_id_header() {
+    let ts = server().await;
+    let (status, _, body) = http(ts.port, "GET", "/api/flow/demo", &[], "").await;
+    assert_eq!(status, 200);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["flow_id"], "demo-flow");
+    // endpoints without a flow binding carry no x-flow-id
+    let (_, _, body) = http(ts.port, "GET", "/api/echo/alice", &[], "").await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["flow_id"].is_null());
 }

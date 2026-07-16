@@ -192,6 +192,11 @@ async fn process(
     if let Some(header_info) = &info.headers {
         header_info.request.apply(&mut headers);
     }
+    // event-script flow binding: rest.yaml `flow:` becomes the x-flow-id
+    // header the flow adapter reads (Java parity; increment E-3)
+    if let Some(flow) = &info.flow {
+        headers.insert("x-flow-id".to_string(), flow.clone());
+    }
     // effective header names (per-entry impedance override > global > default)
     let trace_header = info
         .trace_id_header

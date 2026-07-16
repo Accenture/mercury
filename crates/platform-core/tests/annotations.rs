@@ -118,6 +118,34 @@ impl ComposableFunction for ZeroTracedFn {
     }
 }
 
+/// The interceptor flag (Java @PreLoad + @EventInterceptor): manual reply
+/// through the raw envelope's reply_to/cid; no auto-reply on success.
+#[preload(route = "anno.interceptor")]
+#[event_interceptor]
+struct AnnoInterceptor;
+
+#[async_trait]
+impl ComposableFunction for AnnoInterceptor {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let (Some(reply_to), Some(cid)) = (input.reply_to(), input.correlation_id()) {
+            let po = PostOffice::new(&Platform::get_instance());
+            po.send(
+                EventEnvelope::new()
+                    .set_to(reply_to)
+                    .set_correlation_id(cid)
+                    .set_body("manual")?,
+            )
+            .await?;
+        }
+        EventEnvelope::new().set_body("ignored by the worker")
+    }
+}
+
 #[before_application(sequence = 5)]
 struct SecondHook;
 
@@ -235,4 +263,18 @@ async fn annotation_macros_end_to_end() {
         !ZERO_TRACED_HAD_TRACE.load(Ordering::SeqCst),
         "zero-traced route must not execute inside a trace bracket"
     );
+
+    // the stacked #[event_interceptor] marker: the manual reply arrives and
+    // the returned envelope is ignored by the worker
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("anno.interceptor")
+                .set_body("ping")
+                .expect("body"),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("interceptor manual reply");
+    assert_eq!(reply.body_as::<String>().expect("manual reply"), "manual");
 }
