@@ -495,13 +495,18 @@ logging url/ip/user-agent (a real deployment would do SSO here).
 
 *(Implemented 2026-07-16, maintainer-directed: benchmark the foundation before layer 2.)*
 
-- **Lightweight RPC inbox** (Java `AsyncInbox` parity — the §7 deferred item, pulled in
-  because the benchmark would otherwise measure it): `PostOffice::request` now uses a
-  one-shot **correlation-map entry** (`src/inbox.rs`) instead of registering a throwaway
-  route per RPC (manager task + worker + elastic queue). The route worker's reply delivery
-  recognizes the `inbox.` prefix and completes the caller's oneshot directly — the reply
-  bypasses the ServiceQueue machinery, exactly like Java. Late replies after timeout are
-  dropped silently. All 101 prior tests pass unchanged.
+- **Lightweight RPC inbox** (the Java **TemporaryInbox pattern**, precisely: Java registers
+  ONE shared route `temporary.inbox@<origin>` (500 instances, EssentialServiceLoader) and
+  correlates replies via `InboxBase.getHolder(cid)` with a sequenced correlation id that
+  temporarily replaces the business cid — `InboxCorrelation` restores it): the Rust port
+  keeps the **correlation-map half** (`src/inbox.rs`: unique `inbox.<uuid>` → oneshot) and
+  simplifies the rest — correlation by the reply-to id itself, so the **business cid rides
+  through untouched**; replies complete the oneshot at the delivery boundary (both the
+  worker's automatic reply and a **manual `po.send(reply_to)`** — the `@EventInterceptor`
+  pattern — resolve through `Platform::deliver`'s inbox check, keeping inbox ids uniformly
+  addressable, which is what event-over-HTTP will need). The `cid-seq` composite machinery
+  is only needed for fork-n-join multi-inboxes (§7); `@origin` qualification is a mesh
+  concern (out of scope). No throwaway route per RPC. All prior tests pass unchanged.
 - **`benchmark/benchmark-reporter`** (new workspace member) — the Java harness ported
   faithfully: the same six-scenario suite (RPC 1→C / C→C / paced callback = normal;
   RPC 2C→C / callback flood = overload; latency probe under background flood = mixed

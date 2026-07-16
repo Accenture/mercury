@@ -479,3 +479,64 @@ async fn worker_count_can_come_from_configuration() {
         .unwrap();
     assert!(!response.has_error());
 }
+
+// ---- manual reply (the @EventInterceptor pattern; increment 9 inbox) ----
+
+/// Replies MANUALLY via po.send() to the request's reply_to, returning nothing
+/// useful itself — the Java @EventInterceptor pattern. Works because an RPC
+/// inbox is addressable through the normal delivery path (TemporaryInbox
+/// parity), not only via the worker's internal reply short-circuit.
+struct ManualReplier {
+    platform: Platform,
+}
+
+#[async_trait]
+impl ComposableFunction for ManualReplier {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(reply_to) = input.reply_to() {
+            let po = PostOffice::new(&self.platform);
+            let reply = EventEnvelope::new()
+                .set_to(reply_to)
+                .set_correlation_id(input.correlation_id().unwrap_or_default())
+                .set_body("manual reply")?;
+            po.send(reply).await?;
+        }
+        // suppress the automatic reply: without reply_to set on the returned
+        // envelope... the worker would also auto-reply; return an envelope the
+        // caller ignores (first reply wins on a oneshot inbox)
+        EventEnvelope::new().set_body("ignored auto reply")
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn manual_reply_reaches_the_rpc_inbox() {
+    setup_config();
+    let platform = Platform::new();
+    platform
+        .register(
+            "v1.manual.replier",
+            Arc::new(ManualReplier {
+                platform: platform.clone(),
+            }),
+            1,
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let response = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.manual.replier")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .unwrap();
+    // the MANUAL reply won the oneshot (it was sent before the function returned)
+    assert_eq!(response.body_as::<String>().unwrap(), "manual reply");
+}

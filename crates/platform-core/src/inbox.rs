@@ -14,17 +14,30 @@
 // limitations under the License.
 //
 
-//! The lightweight RPC inbox — Rust analog of the Java `AsyncInbox`
-//! (`org.platformlambda.core.models.InboxBase`), which deliberately
-//! **bypasses the `ServiceQueue` machinery**: a reply inbox is a one-shot
-//! correlation entry, not a managed route, so an RPC costs one map
-//! insert/remove instead of a route registration (manager task + workers +
-//! elastic queue) per request.
+//! The lightweight RPC inbox — the Rust analog of Java's **TemporaryInbox
+//! pattern** (`org.platformlambda.core.services.TemporaryInbox` +
+//! `InboxBase.getHolder`): a reply is resolved through a **correlation map**,
+//! not a per-request route registration, so an RPC costs one map insert/remove
+//! instead of a manager task + workers + elastic queue per request.
 //!
 //! `PostOffice::request` registers a unique `inbox.<uuid>` id here and sets it
-//! as the envelope's `reply_to`; the route worker's reply delivery recognizes
-//! the `inbox.` prefix and completes the oneshot directly. A late reply after
+//! as the envelope's `reply_to`; any delivery addressed to an `inbox.` id —
+//! the worker's automatic reply *or* a manual `po.send(reply_to)` (the
+//! `@EventInterceptor` pattern) — completes the oneshot. A late reply after
 //! timeout finds the entry gone and is dropped silently (Java parity).
+//!
+//! **Deliberate divergences from Java** (doc'd, not silent):
+//! - Java routes every reply through one **shared registered route**
+//!   (`temporary.inbox@<origin>`, 500 instances) and correlates by a
+//!   **sequenced cid** that temporarily replaces the business cid
+//!   (`InboxCorrelation` restores it). The Rust port correlates by the unique
+//!   `reply_to` id itself, so the **business correlation-id rides through
+//!   untouched** — one less moving part; the composite `cid-seq` machinery is
+//!   only needed for fork-n-join multi-inboxes (deferred, §7).
+//! - The reply completes the oneshot at the delivery boundary instead of
+//!   dispatching through an inbox function — same observable behavior, one
+//!   less hop. Java's origin-qualified reply address (`@origin`) is a
+//!   service-mesh concern, out of scope with the mesh.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

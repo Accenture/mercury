@@ -219,6 +219,13 @@ impl Platform {
     /// Crate-internal: deliver an event into a route's manager mailbox. Awaits
     /// when the bounded mailbox is full — back-pressure, not drops.
     pub(crate) async fn deliver(&self, route: &str, event: EventEnvelope) -> Result<(), AppError> {
+        // an RPC inbox is addressable like any destination (Java parity: the
+        // TemporaryInbox route receives replies through normal dispatch) — so
+        // a function replying MANUALLY via po.send(reply_to) also works
+        if route.starts_with(crate::inbox::INBOX_PREFIX) {
+            crate::inbox::deliver(route, event);
+            return Ok(());
+        }
         // clone the sender out of the lock before awaiting
         let sender = self
             .routes
