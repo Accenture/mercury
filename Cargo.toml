@@ -7,6 +7,7 @@ members = [
     "crates/event-script-macros",
     "benchmark/benchmark-reporter",
     "examples/hello-world",
+    "examples/hello-flow",
 ]
 
 [workspace.package]

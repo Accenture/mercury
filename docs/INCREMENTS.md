@@ -35,6 +35,7 @@
 | 17 | event-script E-6: pipelines with for/while loops, break/continue | 2026-07-16 | ES §5f | 148 |
 | 18 | event-script E-7: sub-flows, shared parent state, ext state machine | 2026-07-16 | ES §5g | 148 |
 | 19 | event-script E-8: complete plugin catalog + #[simple_plugin] macro | 2026-07-17 | ES §5h | 148 |
+| 20 | event-script E-9: HTTP adapter, resilience, mock, hello-flow — **layer-2 milestone closed** | 2026-07-17 | ES §5i | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -403,6 +404,24 @@ reactive back-pressure.*
 - Fixtures activated: arithmetic, type-conversion (real-bytes body asserted on the
   rmpv tree), string-util, parse-date(-time), input-validation; plus a user plugin
   proven end-to-end.
+
+---
+
+## Increment 20 — event-script E-9: adapter + resilience + mock (2026-07-17) — **EVENT-SCRIPT MILESTONE CLOSED**
+
+- **`HttpToFlow`**: `flow:`-bound endpoints launch flows with the HTTP edge's reply
+  routing preserved; the edge correlation header becomes `model.cid`.
+- **`Resilience4Flow`**: retry / abort / alternative-path decisions, attempt counting,
+  delayed retries, cumulative-failure backoff — the resilience-demo and
+  simple-circuit-breaker fixtures run verbatim.
+- **`EventScriptMock`**: task-route reassign/restore via a dispatch-time override
+  registry (monitors not ported — documented).
+- **`examples/hello-flow`**: a YAML flow served over HTTP with two annotated
+  functions and a one-line main — live-verified in both languages with cid
+  propagation.
+
+**Layer 2 closed**: E-1…E-9 = the complete Event Script engine on the measured
+layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 
 ---
 

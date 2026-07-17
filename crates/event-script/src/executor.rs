@@ -1286,22 +1286,24 @@ pub(crate) async fn execute_task(
             None => map,
         }
     };
+    // test-time mocks may reassign the function route (EventScriptMock)
+    let function_route =
+        crate::mock::effective_route(&instance.template.id, &task.service, &task.function_route);
     // a flow:// process launches a SUB-FLOW through the manager: the child
     // inherits the parent's ttl, business correlation-id and shared state;
     // its end/abort response returns as this task's callback (Java parity)
-    if let Some(flow_id) = task.function_route.strip_prefix("flow://") {
+    if let Some(flow_id) = function_route.strip_prefix("flow://") {
         if flows::get_flow(flow_id).is_none() {
             log::error!(
-                "Unable to process flow {}:{} - missing sub-flow {}",
+                "Unable to process flow {}:{} - missing sub-flow {function_route}",
                 instance.template.id,
-                instance.id,
-                task.function_route
+                instance.id
             );
             abort_flow(
                 platform,
                 instance,
                 500,
-                Value::from(format!("{} not defined", task.function_route)),
+                Value::from(format!("{function_route} not defined")),
                 parent_span,
             )
             .await;
@@ -1344,7 +1346,7 @@ pub(crate) async fn execute_task(
         return po.send(forward).await;
     }
     let mut event = EventEnvelope::new()
-        .set_to(&task.function_route)
+        .set_to(&function_route)
         .set_reply_to(SERVICE_NAME)
         .set_correlation_id(&composite)
         .set_raw_body(body);

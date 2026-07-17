@@ -47,6 +47,7 @@
 //! before-application hook at sequence 5 (essential services 0, plugins 3,
 //! flows 5, user code ≥ 6 — the Java sequence contract).
 
+pub mod adapter;
 pub mod compiler;
 pub mod conversions;
 pub mod converter;
@@ -56,12 +57,15 @@ pub mod instance;
 pub mod manager;
 pub mod mapping;
 pub mod mlm;
+pub mod mock;
 pub mod model;
 pub mod plugins;
+pub mod resilience;
 pub mod util;
 pub mod validator;
 
 pub use executor::FlowExecutor;
+pub use mock::EventScriptMock;
 // re-exported so the #[simple_plugin] macro's generated code resolves
 pub use event_script_macros::simple_plugin;
 pub use platform_core::inventory;
@@ -171,5 +175,41 @@ impl EntryPoint for SimplePluginLoader {
         let user = plugins::load_inventory_plugins();
         log::info!("Total {user} user plugin(s) registered");
         Ok(())
+    }
+}
+
+/// The HTTP flow adapter (Java `HttpToFlow`,
+/// `@EventInterceptor @PreLoad(route = "http.flow.adapter", instances = 200)`).
+#[preload(route = "http.flow.adapter", instances = 200)]
+#[event_interceptor]
+pub struct HttpToFlow;
+
+#[async_trait]
+impl ComposableFunction for HttpToFlow {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        adapter::handle(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// The resilience handler (Java `Resilience4Flow`,
+/// `@EventInterceptor @PreLoad(route = "resilience.handler", instances = 500)`).
+#[preload(route = "resilience.handler", instances = 500)]
+#[event_interceptor]
+pub struct Resilience4Flow;
+
+#[async_trait]
+impl ComposableFunction for Resilience4Flow {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        resilience::handle(&Platform::get_instance(), headers, input).await
     }
 }

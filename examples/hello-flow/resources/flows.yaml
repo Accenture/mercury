@@ -1,0 +1,4 @@
+flows:
+  - 'hello-flow.yml'
+
+location: 'classpath:/flows/'

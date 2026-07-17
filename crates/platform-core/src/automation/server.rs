@@ -255,6 +255,9 @@ async fn process(
         "headers": headers,
         "parameters": {"path": path_params, "query": query},
         "body": body_value,
+        // Java AsyncHttpRequest.getTimeoutSeconds (the flow adapter derives
+        // the flow TTL from it)
+        "timeout": info.timeout.as_secs(),
     });
     let po = PostOffice::new(&state.platform);
     let trace_path = format!("{method} {path}");

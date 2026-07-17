@@ -370,6 +370,51 @@ reactive back-pressure.*
   parse-date/parse-date-time, input-validation-1/-2; plus a user-defined `shout`
   plugin registered via the macro and resolved through `f:shout(...)`.
 
+## 5i. Increment E-9 — HTTP adapter, resilience, mock, hello-flow (implemented 2026-07-17)
+
+**Closes the event-script (layer 2) milestone.**
+
+- **`HttpToFlow`** (`http.flow.adapter` ×200, interceptor): reshapes the
+  AsyncHttpRequest into the flow input dataset (ttl from the route timeout — added to
+  the platform-core request map, additive; header/body/path_parameter/query/method/
+  uri/ip), reads the configurable `http.correlation.id.header` (default
+  X-Correlation-Id) as the business cid, and launches the flow **preserving the HTTP
+  edge's reply routing** — the flow's end response completes the HTTP request.
+  Cookies/streams/filename/session await their platform-core features (§7; absent
+  keys resolve null harmlessly).
+- **`Resilience4Flow`** (`resilience.handler` ×500, interceptor): decision 1 = retry/
+  proceed (gatekeeper mode on status 200), 2 = abort, 3 = alternative path (status
+  codes + ranges, `401, 403-404`); attempt counting against `max_attempts`; retry
+  delays via `send_later`; cumulative-failure backoff (trigger/seconds) with the
+  Java 503 message shape.
+- **`EventScriptMock`**: reassign/restore a task's function route. Java mutates the
+  `Task`; the Rust template is immutable + shared, so overrides live in a registry the
+  executor consults at dispatch (same observable behavior, safer under concurrency).
+  The before/after task monitors are not ported (documented divergence; nothing in
+  this repo's fixture set uses them).
+- **`examples/hello-flow`**: the layer-2 showcase app — one rest.yaml endpoint bound
+  with `flow: 'hello-flow'`, a 3-task decision flow in YAML, two annotated functions,
+  `auto_start_main!()`. Linking `event-script` self-registers the engine through the
+  annotation inventory (the app's `#[main_application]` references the crate, which
+  also guarantees the linker keeps that inventory). Live-verified:
+  `lang=fr` → "Bonjour, eric!", `lang=en` → "Hello, eric!", with the edge
+  X-Correlation-Id flowing through as `model.cid` into the response.
+- **Fixtures/E2E**: resilience-demo (gatekeeper pass, retry-exhaust abort with the
+  original error, 401 → alternative path — including the temp-file
+  cumulative/backoff store from the fixture), simple-circuit-breaker (recovers on
+  accepted attempt 2), the adapter round-trip + missing-x-flow-id 400, and the mock
+  reassign/restore cycle. `exception.simulator` upgraded to the faithful Java port
+  (status-coded exceptions + accept/attempt recovery).
+
+**Milestone summary**: increments E-1…E-9 delivered the complete Event Script engine —
+compiler, data-mapping engine, all eight execution types, sub-flows with shared
+parent state, the external state machine, all 42 built-in plugins plus the
+`#[simple_plugin]` extension point, the HTTP flow adapter, resilience, and mocking —
+validated against the canonical Java fixture suite (66 flows compiled; the working
+set exercised end-to-end). Not ported (each traced to platform-core §7 deferrals or
+no-fixture scope): HTTP-client-dependent fixtures (`async.http.request`), reactor
+stream payloads, mock task monitors.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

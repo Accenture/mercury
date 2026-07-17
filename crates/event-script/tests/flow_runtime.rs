@@ -251,8 +251,9 @@ impl ComposableFunction for BeginParallel {
     }
 }
 
-/// Java `ExceptionSimulator` (`exception.simulator`): throws when the
-/// `exception` event header is present, else echoes.
+/// Java `ExceptionSimulator` (`exception.simulator`): the `exception` header
+/// throws with that status code; `accept`/`attempt` inputs model a service
+/// that recovers on the accepted attempt (the circuit-breaker scenario).
 #[preload(route = "exception.simulator", instances = 2)]
 struct ExceptionSimulator;
 
@@ -265,11 +266,39 @@ impl ComposableFunction for ExceptionSimulator {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         if let Some(reason) = headers.get("exception") {
-            return Err(AppError::new(
-                400,
-                format!("simulated exception - {reason}"),
-            ));
+            let code = reason.parse::<i32>().unwrap_or(400);
+            return Err(AppError::new(code, "Simulated Exception"));
         }
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        if let Some(accept) = body["accept"].as_str().and_then(|s| s.parse::<i64>().ok()) {
+            let attempt = body["attempt"]
+                .as_i64()
+                .or_else(|| body["attempt"].as_str().and_then(|s| s.parse().ok()))
+                .unwrap_or(0);
+            if attempt == accept {
+                return EventEnvelope::new().set_body(serde_json::json!({
+                    "attempt": attempt,
+                    "message": "Task completed successfully",
+                }));
+            }
+            return Err(AppError::new(400, "Simulated Exception"));
+        }
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `AbortRequest` (`abort.request`): logs and echoes the error context.
+#[preload(route = "abort.request")]
+struct AbortRequest;
+
+#[async_trait]
+impl ComposableFunction for AbortRequest {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
         Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
     }
 }
@@ -632,7 +661,7 @@ async fn flows_run_end_to_end_like_java() {
     assert!(json_body(&reply)["message"]
         .as_str()
         .unwrap_or("")
-        .contains("simulated exception"));
+        .contains("Simulated Exception"));
 
     // --- parallel: both branches run concurrently; the second to finish
     // (decision=true) routes to the response task with both model keys set
@@ -1014,6 +1043,136 @@ async fn flows_run_end_to_end_like_java() {
     let shouted = event_script::mapping::get_lhs_element("f:shout(model.word)", &probe)
         .expect("user plugin resolution");
     assert_eq!(shouted, Some(rmpv::Value::from("MERCURY")));
+
+    // --- E-9: resilience handler — gatekeeper (200) passes straight through
+    let _ = std::fs::remove_dir_all("/tmp/resilience");
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[]),
+        "biz-cid-33",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    assert_eq!(json_body(&reply)["hello"], "world");
+
+    // --- E-9: retries exhaust max_attempts → abort with the original error
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[("exception", "400")]),
+        "biz-cid-34",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    let body = json_body(&reply);
+    assert_eq!(body["type"], "error");
+    assert_eq!(body["message"], "Simulated Exception");
+
+    // --- E-9: a 401 reroutes to the alternative path (codes '401, 403-404')
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[("exception", "401")]),
+        "biz-cid-35",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    assert_eq!(json_body(&reply)["path"], "alternative");
+
+    // --- E-9: circuit breaker recovers when the service accepts attempt 2
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.push((
+            Value::from("path_parameter"),
+            from_json(&serde_json::json!({"accept": "2"})),
+        ));
+    }
+    let reply = run_flow(&platform, "simple-circuit-breaker", dataset, "biz-cid-36").await;
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(body["attempt"], 2);
+    assert_eq!(body["message"], "Task completed successfully");
+
+    // --- E-9: the HTTP flow adapter — an AsyncHttpRequest-shaped event with
+    // x-flow-id launches the flow and the response completes the request
+    let po_adapter = PostOffice::new(&platform);
+    let http_event = from_json(&serde_json::json!({
+        "method": "GET",
+        "url": "/api/greetings/petra",
+        "ip": "127.0.0.1",
+        "timeout": 10,
+        "headers": {"x-flow-id": "greetings", "x-correlation-id": "biz-cid-37",
+                     "accept": "application/json"},
+        "parameters": {"path": {"user": "petra"}, "query": {}},
+        "body": {},
+    }));
+    let reply = po_adapter
+        .request(
+            EventEnvelope::new()
+                .set_to("http.flow.adapter")
+                .set_trace(&trace::new_trace_id(), "GET /api/greetings/petra")
+                .set_raw_body(http_event),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("adapter flow");
+    assert_eq!(reply.status(), 201);
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "petra");
+    assert_eq!(
+        body["my_cid"], "biz-cid-37",
+        "the edge correlation header becomes model.cid"
+    );
+    // missing x-flow-id is a 400 from the adapter
+    let bad_event = from_json(&serde_json::json!({
+        "method": "GET", "url": "/x", "headers": {}, "parameters": {}, "body": {},
+    }));
+    let reply = po_adapter
+        .request(
+            EventEnvelope::new()
+                .set_to("http.flow.adapter")
+                .set_raw_body(bad_event),
+            Duration::from_secs(3),
+        )
+        .await
+        .expect("adapter error envelope");
+    assert_eq!(reply.status(), 400);
+
+    // --- E-9: EventScriptMock reassigns a task's function route
+    let mock = event_script::EventScriptMock::new("sequential-test").expect("flow exists");
+    assert_eq!(
+        mock.get_function_route("sequential.one").unwrap(),
+        "sequential.one"
+    );
+    mock.assign_function_route("sequential.one", "greeting.test")
+        .unwrap();
+    assert_eq!(
+        mock.get_function_route("sequential.one").unwrap(),
+        "greeting.test"
+    );
+    // greeting.test rejects the pojo input (no user/greeting) → 400 through the mock
+    let reply = run_flow(
+        &platform,
+        "sequential-test",
+        http_dataset(Some("quinn"), &[("seq", "1")]),
+        "biz-cid-38",
+    )
+    .await;
+    assert_eq!(reply.status(), 400, "the mock rerouted the first task");
+    mock.restore_function_route("sequential.one");
+    let reply = run_flow(
+        &platform,
+        "sequential-test",
+        http_dataset(Some("quinn"), &[("seq", "1")]),
+        "biz-cid-39",
+    )
+    .await;
+    assert_eq!(
+        json_body(&reply)["pojo"]["user"],
+        "quinn",
+        "restored route works again"
+    );
 
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);
