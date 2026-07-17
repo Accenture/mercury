@@ -35,6 +35,7 @@ pub mod app_starter;
 pub mod automation;
 pub mod envelope;
 pub mod function;
+pub mod graph;
 pub(crate) mod inbox;
 pub mod logging;
 pub mod platform;
@@ -74,6 +75,7 @@ macro_rules! auto_start_main {
 }
 pub use envelope::EventEnvelope;
 pub use function::{AppError, ComposableFunction, TypedAdapter, TypedFunction};
+pub use graph::{MiniGraph, SimpleConnection, SimpleNode, SimpleRelationship};
 pub use platform::{FunctionOptions, Platform};
 pub use post_office::PostOffice;
 pub use util::app_config_reader::AppConfigReader;

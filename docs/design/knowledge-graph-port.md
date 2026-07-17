@@ -8,7 +8,7 @@
 > Java, and stays one here). Authoritative docs: `docs/guides/knowledge-graph/` (index,
 > property-graph, skills-reference, command-reference, playground-and-companion,
 > composing-the-layers — 1,579 lines). This is a *Design-altitude* artifact in the VBDI
-> loop. Implementation waits on approval.
+> loop. **Approved 2026-07-17** (defaults accepted; K5 upgraded to retirement — see below).
 
 ## 1. Goal & scope
 
@@ -32,7 +32,7 @@ changes).
 | K2 | **New crate `crates/knowledge-graph`** for the engine, depending on platform-core + event-script | The D5 workspace pattern; mirrors the Java module split. The engine self-registers through the annotation inventory like event-script does. |
 | K3 | **Graph JSON verbatim; Java fixtures reused unchanged** (13 `tutorial-*.json` graphs, mock data, help markdown, `graph-executor.yml` + `flow-11.yml` flows) | The E2 principle extended to layer 3: a graph exported from the Java playground must import and run on the Rust engine. The help files power `describe skill` identically. |
 | K4 | **The math expression engine is ported faithfully** (own lexer/parser/evaluator, ~700 lines — no dependency) | `graph.math` is the fast inline compute/branching path; the Java `ExpressionEngineFullTest` becomes the parity suite. |
-| K5 | **`graph.js` is deferred** (documented gap; the skill name stays registered and fails with an explicit message) | Java embeds GraalVM JavaScript; Rust would need a JS engine dependency (`boa_engine` is the candidate). `graph.math` + `graph.task` cover the same use cases faster/typed. Revisit on demand. |
+| K5 | **`graph.js` is RETIRED** (maintainer decision, 2026-07-17 — not deferred): the skill is not registered; a graph carrying `skill: graph.js` fails with an explicit retirement message pointing to `graph.math`/`graph.task` | **Security**: an embedded interpreter executing arbitrary user-supplied code is an attack surface; Java carries GraalVM only for lack of a viable alternative. The Rust engine deliberately does not reproduce the risk — `graph.math` (typed, bounded) and `graph.task` (reviewed, compiled functions) cover the use cases. |
 | K6 | **Two platform-core extensions, shipped in lockstep with their own tests**: (a) a **WebSocket server** (hyper upgrade + `tokio-tungstenite`; the Java `@WebSocketService` analog) for the Playground session; (b) an **HTTP client** service (`async.http.request`, hyper client — closing that long-standing §7 deferral) for `graph.api.fetcher` | Both are genuine layer-1 features other layers will reuse (the HTTP client also unblocks the event-script http-client fixtures deferred at E-9). |
 | K7 | **The React webapp is copied verbatim** into `crates/knowledge-graph/webapp/`; only `scripts/clean.js` + `scripts/deploy.js` change: `../src/main/resources/public` → **`../resources/public`** (maintainer-directed). `node_modules`/`dist` gitignored; `npm run release` stays a human/dev step (no npm in CI — the no-code invariant applies to the tool chain, not the UI asset pipeline) | The compiled bundle lands in the engine crate's `resources/public`, served by REST automation exactly like the Java jar's resources. |
 | K8 | **The engine contributes its own resource root** (a before-application hook appending `CARGO_MANIFEST_DIR/resources`) | The Rust analog of a jar's bundled resources: graphs, flows, help, mock data and the webapp bundle travel with the engine crate; the app's own `resources/` still wins (prepend beats append). |
@@ -58,6 +58,16 @@ changes).
 
 1. **K-1 — MiniGraph in platform-core.** The property graph (827 Java lines) + its test
    suite. No engine yet.
+   > **Shipped 2026-07-17 (increment 21).** `platform_core::graph` — `MiniGraph` +
+   > `SimpleNode`/`SimpleConnection`/`SimpleRelationship`/`GraphProperties` with
+   > Java-exact semantics and error messages; `Arc`-shared nodes with interior
+   > mutability stand in for Java's shared mutable objects; property values are
+   > `rmpv::Value`; export/import is deterministic (sorted) and matches the
+   > tutorial-graph JSON shape. Full `GraphTest` ported (10 tests). One deliberate
+   > divergence: `remove_node` uses the lowercased alias key (Java has a latent
+   > case-sensitivity slip). Two Java behaviors kept faithfully: the max-nodes
+   > check is `count > max` before increment (so `max + 1` nodes fit), and a failed
+   > import resets the graph to empty.
 2. **K-2 — the math expression engine.** Lexer/parser/evaluator/functions;
    `ExpressionEngineFullTest` ported as the parity suite. Pure functions, no bus.
 3. **K-3 — graph compiler + registry.** Graph JSON ⇄ MiniGraph (import/export shape),
@@ -83,7 +93,7 @@ changes).
 
 ## 5. Out of scope (confirmed defaults)
 
-- **`graph.js`** (K5 deferral — explicit runtime message, name registered).
+- **`graph.js`** (K5 retirement — security decision; explicit failure message, name NOT registered).
 - Kafka exposure of graphs (the mesh is out of scope repo-wide).
 - The governance lifecycle (certify → stage → approve → promote) — roadmap in Java too,
   not in code.

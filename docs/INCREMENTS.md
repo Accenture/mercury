@@ -37,6 +37,7 @@
 | 19 | event-script E-8: complete plugin catalog + #[simple_plugin] macro | 2026-07-17 | ES §5h | 148 |
 | 20 | event-script E-9: HTTP adapter, resilience, mock, hello-flow — **layer-2 milestone closed** | 2026-07-17 | ES §5i | 148 |
 | — | Knowledge-graph design doc v1 (layer-3 gate) | 2026-07-17 | KG K1–K9 | — |
+| 21 | knowledge-graph K-1: MiniGraph property graph in platform-core | 2026-07-17 | KG K1 | 158 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -423,6 +424,30 @@ reactive back-pressure.*
 
 **Layer 2 closed**: E-1…E-9 = the complete Event Script engine on the measured
 layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
+
+---
+
+## Increment 21 — knowledge-graph K-1: MiniGraph in platform-core (2026-07-17)
+
+- **`platform_core::graph`** — faithful port of the Java `MiniGraph` (827 lines) +
+  its models (`SimpleNode`, `SimpleConnection`, `SimpleRelationship`,
+  `GraphProperties`): reserved aliases, the `0-9 A-Z a-z _ -` name charset with
+  Java-exact error messages, case-insensitive alias/type/property-key lookups,
+  idempotent `connect` (the existing connection is returned), successor/predecessor
+  adjacency, neighbors/forward/backward links, BFS level discovery (`find_paths`),
+  deterministic sorted `export_graph`/`import_graph` (the graph JSON file format —
+  the layer-3 tutorial fixtures' shape), `same_as` deep comparison, `reset`, and the
+  750-node default cap.
+- **Rust translation choices**: Java's shared mutable objects become `Arc`-shared
+  nodes/connections/relations with interior mutability; property values are
+  `rmpv::Value` (the envelope/state-machine currency), so graph JSON round-trips
+  through the same conversions as layer 2; errors are `Result<_, AppError>` with
+  status 400 (Java throws `IllegalArgumentException`). One deliberate divergence:
+  `remove_node` removes the lowercased alias key (Java has a latent
+  case-sensitivity slip there).
+- **Parity suite**: `tests/graph.rs` — all 8 Java `GraphTest` methods ported (node,
+  directional, import/export incl. a JSON round-trip, six exception suites) plus a
+  max-nodes/import-failure test; 10 tests.
 
 ---
 
