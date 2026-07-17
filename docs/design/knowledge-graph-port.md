@@ -70,6 +70,14 @@ changes).
    > import resets the graph to empty.
 2. **K-2 — the math expression engine.** Lexer/parser/evaluator/functions;
    `ExpressionEngineFullTest` ported as the parity suite. Pure functions, no bus.
+   > **Shipped 2026-07-17 (increment 22).** `knowledge_graph::math` in the new
+   > `crates/knowledge-graph` (crate created one increment early to host it; engine
+   > wiring still lands at K-3): lexer/parser/evaluator with Java-exact semantics —
+   > strict JS `**` rule, short-circuit logic, dual number rendering (display `3.0` vs
+   > concatenation `3`), `NaN != NaN`, the mirrored `Math.*` namespace. `MathError::
+   > Parse`/`Eval` mirrors the two Java exception types; `random()` uses `getrandom`
+   > (OS entropy, the `SecureRandom` analog); `round` is Java's `floor(x+0.5)`. All 14
+   > `ExpressionEngineFullTest` methods + an arity/coercion test = 15 tests.
 3. **K-3 — graph compiler + registry.** Graph JSON ⇄ MiniGraph (import/export shape),
    `CompiledGraphs`, `PlaygroundLoader` startup loading; the 13 tutorial fixtures compile
    verbatim. Engine crate + resource-root hook (K8) land here.

@@ -1,0 +1,11 @@
+[package]
+name = "knowledge-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# OS entropy for the math engine's random() — the SecureRandom analog
+getrandom = "0.4"
+thiserror = "1"

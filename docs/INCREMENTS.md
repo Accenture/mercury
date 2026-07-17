@@ -38,6 +38,7 @@
 | 20 | event-script E-9: HTTP adapter, resilience, mock, hello-flow — **layer-2 milestone closed** | 2026-07-17 | ES §5i | 148 |
 | — | Knowledge-graph design doc v1 (layer-3 gate) | 2026-07-17 | KG K1–K9 | — |
 | 21 | knowledge-graph K-1: MiniGraph property graph in platform-core | 2026-07-17 | KG K1 | 158 |
+| 22 | knowledge-graph K-2: math expression engine (`knowledge-graph` crate) | 2026-07-17 | KG K4 | 173 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -448,6 +449,28 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Parity suite**: `tests/graph.rs` — all 8 Java `GraphTest` methods ported (node,
   directional, import/export incl. a JSON round-trip, six exception suites) plus a
   max-nodes/import-failure test; 10 tests.
+
+## Increment 22 — knowledge-graph K-2: the math expression engine (2026-07-17)
+
+- **New crate `crates/knowledge-graph`** (created one increment ahead of the K-3 plan to
+  host the engine's first module; the compiler/registry and resource-root hook still land
+  at K-3). Its doc-comment records the `graph.js` retirement rationale.
+- **`knowledge_graph::math`** — faithful port of the Java `com.accenture.minigraph.math`
+  package (979 lines): character-addressed lexer, the non-recursive shunting-yard parser
+  with postfix call/member chains and the strict JS rule (`-2 ** 2` is a parse error),
+  and the recursive evaluator — short-circuit `&&`/`||`, ternaries, string concatenation
+  (JS-like number rendering: `'answer=' + 3` → `answer=3`) vs display rendering
+  (`as_string()` keeps Java's `3.0`), string/number relational comparison,
+  same-type-only equality with `NaN != NaN`, and the `EvalContext` whose constants and
+  functions mirror into the `Math.*` namespace.
+- **Rust translation choices**: `MathError::Parse`/`Eval` split mirrors Java's
+  `ParseException` vs `IllegalArgumentException`; functions are `Arc<dyn Fn(&[f64]) ->
+  Result<f64>>` so a user function can fail (the short-circuit tests rely on it);
+  `random()` draws OS entropy via `getrandom` (the `SecureRandom` analog); `round`
+  reproduces Java `Math.round` (floor(x+0.5), NaN→0) rather than Rust's
+  half-away-from-zero.
+- **Parity suite**: all 14 `ExpressionEngineFullTest` methods + an added
+  random/arity/coercion test; 15 tests, green first run.
 
 ---
 

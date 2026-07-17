@@ -463,6 +463,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "knowledge-graph"
+version = "0.1.0"
+dependencies = [
+ "getrandom",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
