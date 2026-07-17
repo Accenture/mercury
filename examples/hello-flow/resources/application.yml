@@ -7,3 +7,5 @@ rest.automation: true
 rest.server.port: 8086
 
 info.app.description: 'mercury hello-flow example (event-script)'
+show.application.properties: 'application.name, rest.server.port'
+mandatory.health.dependencies: 'flow.engine.health'

@@ -78,6 +78,42 @@ impl ComposableFunction for GreetingComposer {
     }
 }
 
+/// Health check honoring the actuator protocol (header `type=info`
+/// describes the dependency; `type=health` reports live status) — here the
+/// dependency IS the flow engine: healthy when flows are deployed.
+#[preload(route = "flow.engine.health")]
+struct FlowEngineHealth;
+
+#[async_trait]
+impl ComposableFunction for FlowEngineHealth {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        match headers.get("type").map(String::as_str) {
+            Some("info") => EventEnvelope::new().set_body(serde_json::json!({
+                "service": "event.script.engine",
+                "href": "flow://hello-flow",
+            })),
+            Some("health") => {
+                let flows = event_script::flows::get_all_flows();
+                if flows.is_empty() {
+                    Err(AppError::new(503, "no flows deployed"))
+                } else {
+                    EventEnvelope::new().set_body(format!(
+                        "flow engine is running with {} flow{} deployed",
+                        flows.len(),
+                        if flows.len() == 1 { "" } else { "s" }
+                    ))
+                }
+            }
+            _ => Err(AppError::new(400, "unknown health request type")),
+        }
+    }
+}
+
 /// The main application: by the time it runs, the engine has compiled the
 /// flows (CompileFlows at sequence 5) — announce what's deployed. Referencing
 /// the event-script crate here also guarantees the linker keeps its

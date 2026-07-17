@@ -55,11 +55,22 @@ request produces spans for the flow's tasks plus the flow-summary span
 (watch the `distributed.tracing` lines in the terminal listing every task
 and its timing).
 
-**Actuators** work here too:
+**The landing page** — static HTML from `resources/public/` with links to
+everything below:
+
+```bash
+curl 'http://127.0.0.1:8086/'          # or open it in a browser
+```
+
+**Actuators** — `/health` runs the sample `flow.engine.health` dependency,
+which reports on the flow engine itself (healthy while flows are deployed):
 
 ```bash
 curl 'http://127.0.0.1:8086/info'
+curl 'http://127.0.0.1:8086/env'       # the properties selected in application.yml
 curl 'http://127.0.0.1:8086/health'
+# {"dependency":[{"message":"flow engine is running with 1 flow deployed",...}],"status":"UP"}
+curl 'http://127.0.0.1:8086/livenessprobe'
 ```
 
 ## Change the transaction without touching code
@@ -78,4 +89,5 @@ orchestration is configuration.
 | `resources/flows/hello-flow.yml` | **the transaction** (decision + 2 end tasks) |
 | `resources/flows.yaml` | which flows to compile at startup |
 | `resources/rest.yaml` | the endpoint → flow binding |
-| `resources/application.yml` | app name, port |
+| `resources/application.yml` | app name, port, health dependency, /env selections |
+| `resources/public/index.html` | the static landing page |

@@ -365,23 +365,37 @@ async fn end_flow(platform: &Platform, instance: &Arc<FlowInstance>, normal: boo
             let tasks = instance.tasks.lock().expect("tasks");
             let info: Vec<serde_json::Value> = tasks
                 .iter()
-                .map(|m| serde_json::json!({"name": m.route, "spent": m.elapsed()}))
+                .map(|m| {
+                    // Java shape: name(process) when they differ; spent to 3 dp
+                    let spent = (m.elapsed() as f64 * 1000.0).round() / 1000.0;
+                    serde_json::json!({"name": m.display_name(), "spent": spent})
+                })
                 .collect();
             (info, tasks.len())
         };
         let elapsed = instance.elapsed_ms();
+        let start_time =
+            std::time::UNIX_EPOCH + std::time::Duration::from_millis(instance.start_epoch_ms());
+        let mut trace_block = serde_json::json!({
+            "origin": Platform::origin(),
+            "id": trace_id,
+            "service": SERVICE_NAME,
+            "from": crate::manager::SERVICE_NAME,
+            "exec_time": elapsed as f64,
+            "start": platform_core::trace::iso8601_utc(start_time),
+            "path": instance.trace_path().unwrap_or("?"),
+            "status": if normal { 200 } else { 400 },
+            "success": normal,
+            "span_id": platform_core::trace::new_span_id(),
+        });
+        if let Some(parent_span) = instance.parent_span_id() {
+            trace_block["parent_span_id"] = serde_json::json!(parent_span);
+        }
+        if !normal {
+            trace_block["exception"] = serde_json::json!("Flow aborted");
+        }
         let payload = serde_json::json!({
-            "trace": {
-                "origin": Platform::origin(),
-                "id": trace_id,
-                "service": SERVICE_NAME,
-                "from": crate::manager::SERVICE_NAME,
-                "exec_time": elapsed as f64,
-                "path": instance.trace_path().unwrap_or("?"),
-                "status": if normal { 200 } else { 400 },
-                "success": normal,
-                "span_id": platform_core::trace::new_span_id(),
-            },
+            "trace": trace_block,
             "annotations": {
                 "execution": format!("Run {count} task{} in {elapsed} ms",
                                      if count == 1 { "" } else { "s" }),
@@ -1266,7 +1280,11 @@ pub(crate) async fn execute_task(
             span_id: None,
         },
     );
-    let metrics = Arc::new(TaskMetrics::new(&task.service));
+    // test-time mocks may reassign the function route (EventScriptMock);
+    // resolved here so the metrics record what actually ran (Java parity)
+    let function_route =
+        crate::mock::effective_route(&instance.template.id, &task.service, &task.function_route);
+    let metrics = Arc::new(TaskMetrics::new(&task.service, &function_route));
     instance
         .metrics
         .lock()
@@ -1286,9 +1304,6 @@ pub(crate) async fn execute_task(
             None => map,
         }
     };
-    // test-time mocks may reassign the function route (EventScriptMock)
-    let function_route =
-        crate::mock::effective_route(&instance.template.id, &task.service, &task.function_route);
     // a flow:// process launches a SUB-FLOW through the manager: the child
     // inherits the parent's ttl, business correlation-id and shared state;
     // its end/abort response returns as this task's callback (Java parity)

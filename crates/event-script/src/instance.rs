@@ -48,16 +48,29 @@ use crate::model::Flow;
 pub struct TaskMetrics {
     /// Task name (Java `service`).
     pub route: String,
+    /// The composable function the task dispatched to (Java `functionRoute`).
+    pub function_route: String,
     start: Instant,
     elapsed_ms: Mutex<Option<f32>>,
 }
 
 impl TaskMetrics {
-    pub fn new(route: &str) -> Self {
+    pub fn new(route: &str, function_route: &str) -> Self {
         TaskMetrics {
             route: route.to_string(),
+            function_route: function_route.to_string(),
             start: Instant::now(),
             elapsed_ms: Mutex::new(None),
+        }
+    }
+
+    /// The flow-summary display name (Java `getRoute`): the task name alone
+    /// when it equals the function route, otherwise `name(process)`.
+    pub fn display_name(&self) -> String {
+        if self.route == self.function_route {
+            self.route.clone()
+        } else {
+            format!("{}({})", self.route, self.function_route)
         }
     }
 
