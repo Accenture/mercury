@@ -121,6 +121,85 @@ impl ComposableFunction for HelloTask {
     }
 }
 
+/// Java `MdmProfile` mock (`mock.mdm.profile`): serves profile JSON from
+/// classpath fixtures; person id from the POST body or the GET path.
+#[preload(route = "mock.mdm.profile", instances = 50)]
+struct MdmProfile;
+
+#[async_trait]
+impl ComposableFunction for MdmProfile {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        if request["headers"]["x-exception"] == "true" {
+            return Err(AppError::new(401, "simulated exception"));
+        }
+        let person_id = if request["method"] == "POST" {
+            request["body"]["person_id"]
+                .as_i64()
+                .map(|n| n.to_string())
+                .or_else(|| request["body"]["person_id"].as_str().map(str::to_string))
+        } else {
+            request["parameters"]["path"]["id"]
+                .as_str()
+                .map(str::to_string)
+        };
+        let Some(person_id) = person_id else {
+            return Err(AppError::new(400, "Missing person id"));
+        };
+        serve_mock_json(
+            &format!("profile-{person_id}"),
+            &format!("Profile {person_id} not found"),
+        )
+    }
+}
+
+/// Java `AccountDetails` mock (`mock.account.details`).
+#[preload(route = "mock.account.details", instances = 50)]
+struct AccountDetails;
+
+#[async_trait]
+impl ComposableFunction for AccountDetails {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        log::info!(
+            "Got request parameters {} and Authorization='{}'",
+            request["body"],
+            request["headers"]["authorization"]
+                .as_str()
+                .unwrap_or_default()
+        );
+        let account_id = request["body"]["account_id"].as_str().map(str::to_string);
+        let (Some(account_id), true) = (account_id, request["method"] == "POST") else {
+            return Err(AppError::new(400, "Missing account id"));
+        };
+        serve_mock_json(
+            &format!("account-{account_id}"),
+            &format!("Account {account_id} not found"),
+        )
+    }
+}
+
+fn serve_mock_json(name: &str, not_found: &str) -> Result<EventEnvelope, AppError> {
+    match platform_core::ConfigReader::load(&format!("classpath:/mock/{name}.json")) {
+        Ok(reader) => {
+            let json =
+                platform_core::ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+            Ok(EventEnvelope::new().set_raw_body(event_script::conversions::from_json(&json)))
+        }
+        Err(_) => Err(AppError::new(400, not_found)),
+    }
+}
+
 #[main_application]
 struct GraphRuntimeTestApp;
 
@@ -147,7 +226,13 @@ async fn boot() -> Platform {
     AutoStart::main(vec![])
         .await
         .expect("second call must be a no-op");
-    Platform::get_instance()
+    let platform = Platform::get_instance();
+    // the API-fetcher tutorials call the mock endpoints over real HTTP
+    let addr = platform_core::automation::start_http_server(&platform)
+        .await
+        .expect("rest server");
+    assert_eq!(8090, addr.port(), "rest.server.port from test config");
+    platform
 }
 
 /// The Java `runTutorial`/`runGraph` analog: POST /api/graph/{graph-id}
@@ -186,6 +271,165 @@ async fn graph_runtime_end_to_end() {
     graphs_run_end_to_end_like_java(&platform).await;
     graph_task_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
+    api_fetcher_matches_java_semantics(&platform).await;
+}
+
+/// Java `GraphTests` fetcher tutorials + `GraphExecutionTest.unitTest1HappyPath`:
+/// dictionary/provider fetch over real HTTP against the mock endpoints.
+async fn api_fetcher_matches_java_semantics(platform: &Platform) {
+    let platform = platform.clone();
+
+    // --- tutorial 3: two dictionaries share one provider (cache exercised)
+    let reply = run_graph(
+        &platform,
+        "tutorial-3",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "tutorial-3 failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+
+    // --- tutorial 3 negative: a missing profile aborts with the mock's error
+    let reply = run_graph(
+        &platform,
+        "tutorial-3",
+        serde_json::json!({"person_id": 10}),
+        serde_json::json!({}),
+    )
+    .await;
+    let mm = body_map(&reply);
+    assert_eq!(
+        Some(Value::from("Profile 10 not found")),
+        mm.get_element("message")
+    );
+    assert_eq!(Some(Value::from(400)), mm.get_element("status"));
+    assert_eq!(Some(Value::from("error")), mm.get_element("type"));
+
+    // --- tutorial 5: fork-join branches fetch two profiles, join merges them
+    let reply = run_graph(
+        &platform,
+        "tutorial-5",
+        serde_json::json!({"person1": 100, "person2": 200}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "tutorial-5 failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    let Some(Value::Array(profiles)) = mm.get_element("profile") else {
+        panic!("expected a profile list, got {:?}", reply.body());
+    };
+    assert_eq!(2, profiles.len());
+    let mut names: Vec<String> = profiles
+        .iter()
+        .map(|p| {
+            event_script::conversions::display(
+                &MultiLevelMap::from_value(p.clone())
+                    .get_element("name")
+                    .expect("name"),
+            )
+        })
+        .collect();
+    names.sort();
+    assert_eq!(vec!["Mary".to_string(), "Peter".to_string()], names);
+
+    // --- tutorial 6: for_each fork-join over the account list
+    let reply = run_graph(
+        &platform,
+        "tutorial-6",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "tutorial-6 failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+    let Some(Value::Array(accounts)) = mm.get_element("accounts") else {
+        panic!("expected an account list, got {:?}", reply.body());
+    };
+    assert_eq!(5, accounts.len());
+    for account in &accounts {
+        let account = MultiLevelMap::from_value(account.clone());
+        let id = event_script::conversions::display(&account.get_element("id").expect("id"));
+        let balance = account.get_element("balance").and_then(|v| v.as_f64());
+        match id.as_str() {
+            "a101" => {
+                assert_eq!(Some(Value::from("Saving")), account.get_element("type"));
+                assert_eq!(Some(25032.13), balance);
+            }
+            "b202" => assert_eq!(Some(6020.68), balance),
+            "c303" => assert_eq!(Some(120000.0), balance),
+            "d400" => assert_eq!(Some(6000.0), balance),
+            "e500" => assert_eq!(Some(8200.0), balance),
+            other => panic!("unexpected account id {other}"),
+        }
+    }
+
+    // --- tutorial 12: mapper + math + fetcher + island combined
+    let reply = run_graph(
+        &platform,
+        "tutorial-12",
+        serde_json::json!({"person_id": 100, "exception": true}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "tutorial-12 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+
+    // --- tutorial 114: loop detection with a fetcher in the cycle
+    let reply = run_graph(
+        &platform,
+        "tutorial-114",
+        serde_json::json!({"person_id": 100, "exception": true}),
+        serde_json::json!({}),
+    )
+    .await;
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(400)), mm.get_element("status"));
+    assert_eq!(
+        Some(Value::from("Node fetcher executed too frequently")),
+        mm.get_element("message")
+    );
+
+    // --- unit-test-1 (GraphExecutionTest happy path)
+    let reply = run_graph(
+        &platform,
+        "unit-test-1",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "unit-test-1 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
 }
 
 async fn graphs_run_end_to_end_like_java(platform: &Platform) {

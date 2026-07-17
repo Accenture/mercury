@@ -378,6 +378,30 @@ fn shout(args: &[rmpv::Value]) -> Result<rmpv::Value, String> {
     }
 }
 
+/// The wire-echo endpoint for the http-client fixtures (Java
+/// `echo.endpoint`): returns the parameters, body and headers exactly as
+/// received over HTTP, so tests can assert what really went on the wire.
+#[preload(route = "echo.endpoint", instances = 10)]
+struct EchoEndpoint;
+
+#[async_trait]
+impl ComposableFunction for EchoEndpoint {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "parameters": request["parameters"],
+            "body": request["body"],
+            "headers": request["headers"],
+            "method": request["method"],
+        }))
+    }
+}
+
 #[main_application]
 struct FlowTestApp;
 
@@ -1172,6 +1196,78 @@ async fn flows_run_end_to_end_like_java() {
         json_body(&reply)["pojo"]["user"],
         "quinn",
         "restored route works again"
+    );
+
+    // --- async.http.request (increment K-5 activates the E-9 deferral):
+    // the http-client-by-config flow calls the real HTTP client against this
+    // test's own REST server, which echoes what arrived on the wire
+    let addr = platform_core::automation::start_http_server(&platform)
+        .await
+        .expect("rest server");
+    assert_eq!(8102, addr.port(), "fixture port (server.port) expected");
+    let reply = run_flow(
+        &platform,
+        "http-client-by-config",
+        from_json(&serde_json::json!({
+            "body": {"hello": "world"},
+            "path_parameter": {"demo": "test"},
+            "method": "POST",
+        })),
+        "cid-http-client",
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "http-client flow failed: {:?}",
+        reply.body()
+    );
+    let echoed = json_body(&reply);
+    assert_eq!("test", echoed["parameters"]["path"]["demo"]);
+    assert_eq!("world", echoed["parameters"]["query"]["hello"]);
+    assert_eq!(serde_json::json!({"hello": "world"}), echoed["body"]);
+    // classpath(text:/files/token.txt) resolved the bearer token
+    assert_eq!("Bearer demo123", echoed["headers"]["authorization"]);
+    assert_eq!("application/json", echoed["headers"]["accept"]);
+    assert_eq!("application/json", echoed["headers"]["content-type"]);
+    assert_eq!("async-http-client", echoed["headers"]["user-agent"]);
+
+    // --- declarative trace propagation (Java parity): the outer request
+    // enters through the REAL HTTP edge carrying a W3C traceparent; the
+    // adapter adopts it, the flow's task calls async.http.request, and the
+    // downstream echo must observe the SAME distributed trace on the wire
+    let trace_id = "4bf92f3577b34da6a3ce929d0e0e4736";
+    let traceparent = format!("00-{trace_id}-00f067aa0ba902b7-01");
+    let outer = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/http/client/by/config/trace-case")
+        .set_header("accept", "application/json")
+        .set_header("content-type", "application/json")
+        .set_header("traceparent", &traceparent)
+        .set_body(from_json(&serde_json::json!({"hello": "trace"})));
+    let po = PostOffice::new(&platform);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(outer.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("traced http flow");
+    let echoed = json_body(&reply);
+    assert_eq!(
+        trace_id, echoed["headers"]["x-trace-id"],
+        "X-Trace-Id on the wire; headers: {}",
+        echoed["headers"]
+    );
+    let wire_traceparent = echoed["headers"]["traceparent"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        wire_traceparent.contains(trace_id),
+        "W3C traceparent carries the trace id: {wire_traceparent}"
     );
 
     // sanity: the RPC inbox is still healthy after all scenarios

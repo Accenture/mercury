@@ -178,6 +178,23 @@ impl AppStarter {
                 }
             }
         }
+        // the Async HTTP client (Java EssentialServiceLoader parity);
+        // tolerate a concurrent registration like the actuators above
+        if !platform.has_route(crate::automation::ASYNC_HTTP_REQUEST) {
+            if let Err(e) = platform.register_with_options(
+                crate::automation::ASYNC_HTTP_REQUEST,
+                Arc::new(crate::automation::http_client::AsyncHttpClientService),
+                500,
+                FunctionOptions {
+                    zero_traced: false,
+                    interceptor: true,
+                },
+            ) {
+                if !platform.has_route(crate::automation::ASYNC_HTTP_REQUEST) {
+                    return Err(e);
+                }
+            }
+        }
         // 2. before-application hooks, ordered by sequence (stable sort keeps
         //    registration order within a sequence — Java scan order analog)
         let mut before = self.before;

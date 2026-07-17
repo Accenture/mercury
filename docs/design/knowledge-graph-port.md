@@ -112,6 +112,19 @@ changes).
 5. **K-5 — platform-core HTTP client** (`async.http.request`, lockstep increment) →
    `graph.api.fetcher` with dictionary/provider nodes, caching, fork-join concurrency.
    Also activates the event-script http-client fixtures deferred at E-9.
+   > **Shipped 2026-07-17 (increment 25).** platform-core: `automation/http_client.rs`
+   > (interceptor at 500 instances, per-request hyper http1, Java header semantics,
+   > trace/cid propagation via envelope + invocation headers — the
+   > `PostOffice.trackable` model; deferrals documented: streams/multipart, XML as
+   > text, https rejected explicitly) + the `AsyncHttpRequest` builder/parser.
+   > event-script: E-9 http-client fixtures activated E2E incl. the full-shape W3C
+   > trace-propagation test through the real HTTP edge. knowledge-graph:
+   > `fetcher.rs` (dictionary/provider, `key:default` fallbacks, instance cache,
+   > for-each fork-join) + `features.rs` (`FeatureRunner` registry — explicit
+   > registration replaces the Java annotation scan; built-in log-request/
+   > response-headers). Tutorials 3/5/6/12/114 + unit-test-1 pass over real HTTP
+   > against the ported mocks. hello* graphs wait for K-6 (`graph.extension`);
+   > tutorial-113 permanently skipped (retired `graph.js`).
 6. **K-6 — `graph.extension`** (sub-graph + `flow://` flow) + the remaining REST
    endpoints (describe/upload/inspect/live-graph).
 7. **K-7 — platform-core WebSocket server** (lockstep increment) → the Playground:

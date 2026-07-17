@@ -32,6 +32,8 @@
 pub mod common;
 pub mod compiler;
 pub mod executor;
+pub mod features;
+pub mod fetcher;
 pub mod graphs;
 pub mod math;
 pub mod model;
@@ -60,7 +62,26 @@ impl EntryPoint for GraphResources {
             env!("CARGO_MANIFEST_DIR"),
             "/resources"
         ));
+        // built-in API-fetcher features (Java ships them in the engine jar)
+        features::register_builtins();
         Ok(())
+    }
+}
+
+/// Java `GraphApiFetcher` (`graph.api.fetcher`) — dictionary/provider HTTP
+/// fetch through the platform-core async HTTP client.
+#[preload(route = "graph.api.fetcher", instances = 300)]
+pub struct GraphApiFetcher;
+
+#[async_trait]
+impl ComposableFunction for GraphApiFetcher {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        fetcher::handle(&Platform::get_instance(), headers, input).await
     }
 }
 

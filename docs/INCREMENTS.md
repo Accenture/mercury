@@ -41,6 +41,7 @@
 | 22 | knowledge-graph K-2: math expression engine (`knowledge-graph` crate) | 2026-07-17 | KG K4 | 173 |
 | 23 | knowledge-graph K-3: graph compiler + registry, fixtures verbatim, resource-root hook | 2026-07-17 | KG K3/K8 | 176 |
 | 24 | knowledge-graph K-4: graph runtime (executor + core skills), graph.js retired | 2026-07-17 | KG K1–K5 | 177 |
+| 25 | knowledge-graph K-5: platform-core HTTP client + graph.api.fetcher | 2026-07-17 | KG K6b | 177 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -533,6 +534,45 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **E2E suite** (one flow-engine boot): tutorials 1/2/4/7/8/9/13 + `GraphTaskTest`
   unit-test-task-1..5 (Java-parity task functions ported) + Rust-supplement graphs for
   the join barrier, loop detection and the retirement message; graph.health checks.
+## Increment 25 — knowledge-graph K-5: HTTP client + API fetcher (2026-07-17)
+
+- **platform-core `async.http.request`** (Java `AsyncHttpClient`, closing the design §7
+  deferral — a lockstep layer-1 extension): an event interceptor registered by the app
+  starter (Java `EssentialServiceLoader` parity, 500 instances, untraced via the
+  existing `skip.rpc.tracing` default). Per-request hyper http1 connections (Java
+  creates a client per request too), the header ignore-list, `user-agent:
+  async-http-client`, cookies/session, per-request `x-ttl` timeout (default 30s),
+  connect timeout config, and content-type-driven response decoding (JSON object/
+  array/text, `x-content-length` when the server omits content-length). **Outbound
+  trace propagation** reads the ENVELOPE trace + the injected invocation headers —
+  exactly Java's `PostOffice.trackable(headers)` model, since the route itself is
+  untraced: `X-Trace-Id` (configurable) + W3C `traceparent` + the business
+  correlation-id header. Documented deferrals: object streams/multipart (await the
+  streams port), XML bodies pass through as text, `https` rejected with an explicit
+  error until a TLS stack is adopted. Header values are trimmed at wire time (netty
+  strips OWS; hyper strictly rejects it — e.g. a token file's trailing newline).
+- **`AsyncHttpRequest`** map-backed builder/parser in platform-core (method, host,
+  url + `{path}` substitution + query merge, headers, body, cookies, session).
+- **E-9 http-client fixtures ACTIVATED** in event-script: an `echo.endpoint` +
+  rest.yaml join the test resources; `http-client-by-config` runs E2E (bearer token
+  from `classpath(text:...)`, query/path parameters on the wire) and the Java
+  trace-propagation test runs in its full shape — outer request through the real HTTP
+  edge with a W3C `traceparent`, adopted by the adapter, carried by the flow's
+  declarative `async.http.request` task, observed by the downstream echo.
+- **`graph.api.fetcher`** (Java `GraphApiFetcher`, 512 lines): dictionary/provider
+  model with `key:default` input fallbacks, provider `input` mapping
+  (`path_parameter.*`/`query.*`/`header.*`/`body.*`), per-instance provider cache,
+  `response.*`→`result.*` dictionary output mapping (`[]`-appended per fork-join
+  response), `for_each` fan-out with clamped concurrency, break-on-exception vs
+  per-node exception routing. **Features** (Java `@FetchFeature` scan → explicit
+  registry): `FeatureRunner` trait, `features::register`, built-ins
+  `log-request-headers`/`log-response-headers`; unimplemented features get the
+  throttled advisory.
+- **E2E**: the mock services (`mock.mdm.profile`, `mock.account.details`) + 7 mock
+  JSON fixtures verbatim + mock rest.yaml; the test boots the real REST server —
+  tutorials 3 (+negative), 5, 6, 12, 114 and unit-test-1 all pass over real HTTP.
+  hello/helloworld/helloworld2 wait for `graph.extension` (K-6); tutorial-113 is
+  permanently skipped (it carries the retired `graph.js`).
 
 ---
 

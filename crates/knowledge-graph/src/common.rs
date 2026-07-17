@@ -693,3 +693,112 @@ pub fn split_blocks(statements: &[String]) -> [Vec<String>; 3] {
     }
     blocks
 }
+
+// ---- API-fetcher helpers (Java GraphLambdaFunction fetcher tail) ----
+
+/// Stage one fetcher `input` entry: a `model.*` RHS writes through; anything
+/// else lands in the fetcher's staging area — `{node}.fetch.{rhs}` for a
+/// single call, `{node}.each.{rhs}[]` per for-each iteration
+/// (Java `fillFetcherApiParameters`).
+pub fn fill_fetcher_api_parameters(
+    node_name: &str,
+    command: &str,
+    state: &mut MultiLevelMap,
+    is_array: bool,
+) -> Result<(), AppError> {
+    let Some(sep) = command.rfind(MAP_TO) else {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} does not have '->' in '{command}'"
+        )));
+    };
+    let lhs = substitute_var_if_any(command[..sep].trim(), state)?;
+    let rhs = command[sep + MAP_TO.len()..].trim();
+    let target = if rhs.starts_with(MODEL_NAMESPACE) {
+        rhs.to_string()
+    } else if is_array {
+        format!("{node_name}.each.{rhs}[]")
+    } else {
+        format!("{node_name}.fetch.{rhs}")
+    };
+    let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
+    match value {
+        Some(v) => state.set_element(&target, v).map_err(invalid)?,
+        None => {
+            if target.ends_with(']') && target.contains('[') {
+                state.set_element(&target, Value::Nil).map_err(invalid)?;
+            } else {
+                state.remove_element(&target);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Resolve a provider-input LHS: constant, then the state machine, then the
+/// dictionary's API-input staging area (Java `getValueBestEffort`).
+fn get_value_best_effort(
+    node_name: &str,
+    dd_name: &str,
+    lhs: &str,
+    state: &MultiLevelMap,
+) -> Result<Option<Value>, AppError> {
+    if let Some(constant) = get_constant_value(lhs) {
+        return Ok(Some(constant));
+    }
+    if let Some(value) = get_lhs_element(lhs, state).map_err(invalid)? {
+        return Ok(Some(value));
+    }
+    get_lhs_element(&format!("{node_name}.dd.{dd_name}.{lhs}"), state).map_err(invalid)
+}
+
+/// Build the HTTP request parts from a provider's `input` mapping
+/// (Java `mapHttpInput` + `mapHttpParams`): `path_parameter.*`, `query.*`
+/// and `header.*` namespaces, `body.*` fields, or the whole body.
+pub fn map_http_input(
+    mut request: platform_core::automation::AsyncHttpRequest,
+    node_name: &str,
+    dd_name: &str,
+    state: &MultiLevelMap,
+    mapping: &[String],
+) -> Result<platform_core::automation::AsyncHttpRequest, AppError> {
+    let mut body = MultiLevelMap::new();
+    let mut whole_body: Option<Value> = None;
+    let mut has_fields = false;
+    for entry in mapping {
+        let Some(sep) = entry.rfind(MAP_TO) else {
+            continue;
+        };
+        let lhs = entry[..sep].trim();
+        let rhs = entry[sep + MAP_TO.len()..].trim();
+        let Some(value) = get_value_best_effort(node_name, dd_name, lhs, state)? else {
+            continue;
+        };
+        if let Some(key) = rhs.strip_prefix("path_parameter.") {
+            request = request.set_path_parameter(key.trim(), &display(&value));
+        } else if let Some(key) = rhs.strip_prefix("query.") {
+            request = request.set_query_parameter(key.trim(), &display(&value));
+        } else if let Some(key) = rhs.strip_prefix("header.") {
+            request = request.set_header(key.trim(), &display(&value));
+        } else if let Some(key) = rhs.strip_prefix("body.") {
+            let key = key.trim();
+            if key.is_empty() {
+                whole_body = Some(value);
+            } else {
+                body.set_element(key, value).map_err(invalid)?;
+                has_fields = true;
+            }
+        } else if rhs == "body" {
+            whole_body = Some(value);
+        } else {
+            body.set_element(rhs, value).map_err(invalid)?;
+            has_fields = true;
+        }
+    }
+    // a whole-body mapping wins over individual fields; Java always sets a
+    // body (an empty map when nothing mapped)
+    let _ = has_fields;
+    Ok(match whole_body {
+        Some(whole) => request.set_body(whole),
+        None => request.set_body(body.to_value()),
+    })
+}

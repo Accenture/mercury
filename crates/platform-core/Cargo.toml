@@ -20,7 +20,7 @@ rmp-serde = "1"
 rmpv = { version = "1", features = ["with-serde"] }
 uuid = { version = "1", features = ["v4"] }
 # --- increment 6: REST automation (D10 — hyper, not a web framework: rest.yaml IS the router) ---
-hyper = { version = "1", features = ["http1", "server"] }
+hyper = { version = "1", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
 # --- increment 8: etag protocol (Java parity: SHA-256 content hash) ---

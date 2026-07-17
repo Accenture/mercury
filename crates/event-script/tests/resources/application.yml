@@ -7,3 +7,8 @@ yaml.flow.automation: 'classpath:/not-found.yaml, classpath:/flows.yaml, classpa
 
 # Java test-config parity: ${app.id} in the externalize fixtures resolves here
 app.id: A12
+
+# http-client fixture support (increment K-5): the flows target the test's
+# own REST server; server.port feeds ${server.port} in the fixtures
+server.port: 8102
+rest.server.port: 8102

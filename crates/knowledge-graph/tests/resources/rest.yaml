@@ -1,0 +1,21 @@
+#
+# Mock endpoints for the graph.api.fetcher tests (Java rest.yaml parity).
+#
+rest:
+  - service: 'mock.mdm.profile'
+    methods: ['POST']
+    url: '/api/mdm/profile'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.mdm.profile'
+    methods: ['GET']
+    url: '/api/mdm/profile/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.account.details'
+    methods: ['POST']
+    url: '/api/account/details'
+    timeout: 10s
+    tracing: true
