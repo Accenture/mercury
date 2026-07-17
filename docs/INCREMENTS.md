@@ -42,6 +42,7 @@
 | 23 | knowledge-graph K-3: graph compiler + registry, fixtures verbatim, resource-root hook | 2026-07-17 | KG K3/K8 | 176 |
 | 24 | knowledge-graph K-4: graph runtime (executor + core skills), graph.js retired | 2026-07-17 | KG K1–K5 | 177 |
 | 25 | knowledge-graph K-5: platform-core HTTP client + graph.api.fetcher | 2026-07-17 | KG K6b | 177 |
+| 26 | knowledge-graph K-6: graph.extension (sub-graph + flow:// delegation) | 2026-07-17 | KG K2 | 178 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -571,8 +572,44 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **E2E**: the mock services (`mock.mdm.profile`, `mock.account.details`) + 7 mock
   JSON fixtures verbatim + mock rest.yaml; the test boots the real REST server —
   tutorials 3 (+negative), 5, 6, 12, 114 and unit-test-1 all pass over real HTTP.
-  hello/helloworld/helloworld2 wait for `graph.extension` (K-6); tutorial-113 is
-  permanently skipped (it carries the retired `graph.js`).
+  hello/helloworld/helloworld2 wait for `graph.extension` (K-6); the graphs carrying
+  `graph.js` are activated at K-6 by the maintainer-directed swap to `graph.math`.
+## Increment 26 — knowledge-graph K-6: graph.extension (2026-07-17)
+
+- **`graph.extension`** (Java `GraphExtension`, 266 lines): a node delegates to another
+  deployed graph (launched as its own flow instance through the `graph-executor` flow
+  with `path_parameter.graph_id`) or to an event-script flow (`flow://<id>`, validated
+  against the flow registry). Input mapping stages the delegated body; `for_each` fans
+  the delegation out with clamped concurrency; responses land in the node's `result`
+  (`[]`-appended per fork-join call) for fetcher-style output mapping;
+  break-on-exception vs per-node exception routing (Java parity).
+- **`flow-11.yml`** joins the engine-shipped flows (verbatim; the flows.yaml manifest
+  now matches the Java module).
+- **Two more parity gaps found and fixed at the right layer**:
+  (a) **`no.op` is a platform-core built-in in Java** (`NoOpFunction`, 500 instances,
+  `worker.instances.no.op` override) — the port had it only in the event-script test
+  binary; now registered by the app starter, echoing headers + body like Java.
+  (b) **JSONPath member names with hyphens**: Java's Jayway engine tolerates
+  `$.fetcher-ext.result` in dot notation; `serde_json_path` is RFC 9535-strict — the
+  event-script `MultiLevelMap` now rewrites such segments to bracket notation when
+  strict parsing fails (unit-tested).
+- **Scope adjustment recorded**: the "remaining REST endpoints" sketched for K-6
+  (describe/upload/inspect/live-graph) all hang off `GraphCommandService` and the
+  Playground draft/temp dirs — they move to K-7 with the Playground.
+- **E2E**: tutorial-10 (extension → the tutorial-3 sub-graph), tutorial-11
+  (extension → `flow://flow-11` echo), and `helloworld2` (`GraphExecutionTest` MATH
+  variant: fetcher → for-each extension over the `helloext` sub-graph → math → end,
+  incl. the `$.result[*]` JSONPath output and the `x-hello` response header).
+- **`graph.js` fixtures activated by skill swap** (maintainer direction): the graphs
+  carrying the retired skill (`hello`, `helloworld`, `hellojs`, `tutorial-113`) now use
+  `graph.math` — the statement grammar (IF/COMPUTE/EXECUTE/MAPPING/RESET/NEXT/DELAY)
+  is identical, which is exactly why `graph.math` is the sanctioned replacement. One
+  node (`helloworld` js-3) carried genuine JavaScript (`.filter()`, object literals,
+  `.toFixed()`) and was adapted to math-grammar computes; the former JS variant now
+  renders numbers as doubles (math semantics: 558.0 not 558). `rust-js-retired`
+  remains the single `graph.js` case proving the retirement error. E2E: hello,
+  helloworld, hellojs and the tutorial-113 retry pattern (error-handler +
+  clear-exception + DELAY) all pass.
 
 ---
 

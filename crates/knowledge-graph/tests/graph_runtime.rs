@@ -272,6 +272,193 @@ async fn graph_runtime_end_to_end() {
     graph_task_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
+    graph_extension_matches_java_semantics(&platform).await;
+    activated_hello_graphs_match_java_semantics(&platform).await;
+}
+
+/// Java `GraphExecutionTest.testGraphExecutionMath/Js` + `GraphTests.tutorial113`
+/// — the graphs that carried `graph.js`, activated by the maintainer-directed
+/// swap to `graph.math` (2026-07-17). The former JS variant now renders
+/// numbers as doubles (math-engine semantics); `rust-js-retired` remains the
+/// single `graph.js` case proving the retirement error.
+async fn activated_hello_graphs_match_java_semantics(platform: &Platform) {
+    let platform = platform.clone();
+
+    // --- hello (MATH variant): fetch + math + join + extension composite
+    let reply = run_graph(
+        &platform,
+        "hello",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "hello failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+    assert_eq!(Some(Value::from(558.0)), mm.get_element("sum"));
+    assert_eq!(Some(Value::from(50000.0)), mm.get_element("multiply"));
+    let Some(Value::Array(accounts)) = mm.get_element("accounts") else {
+        panic!("expected accounts, got {:?}", reply.body());
+    };
+    assert_eq!(5, accounts.len());
+
+    // --- helloworld (CONVERT variant): deprecated-syntax conversion + joins
+    let reply = run_graph(
+        &platform,
+        "helloworld",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "helloworld failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+
+    // --- hellojs (the former JS variant, now math semantics — doubles)
+    let reply = run_graph(
+        &platform,
+        "hellojs",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "hellojs failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+    assert_eq!(Some(Value::from(558.0)), mm.get_element("sum"));
+    assert_eq!(Some(Value::from(50000.0)), mm.get_element("multiply"));
+    let Some(Value::Array(accounts)) = mm.get_element("accounts") else {
+        panic!("expected accounts, got {:?}", reply.body());
+    };
+    assert_eq!(5, accounts.len());
+    let Some(Value::Array(details)) = mm.get_element("account_details") else {
+        panic!("expected account details, got {:?}", reply.body());
+    };
+    assert_eq!(5, details.len());
+
+    // --- tutorial 113: the retry pattern (error-handler + clear-exception)
+    let reply = run_graph(
+        &platform,
+        "tutorial-113",
+        serde_json::json!({"person_id": 100, "exception": true}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "tutorial-113 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+}
+
+/// Java `GraphTests` tutorials 10/11 + `GraphExecutionTest` helloworld2:
+/// graph.extension delegating to a sub-graph and to a `flow://` flow.
+async fn graph_extension_matches_java_semantics(platform: &Platform) {
+    let platform = platform.clone();
+
+    // --- tutorial 10: extension -> the tutorial-3 sub-graph
+    let reply = run_graph(
+        &platform,
+        "tutorial-10",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "tutorial-10 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+
+    // --- tutorial 11: extension -> flow://flow-11 (echo flow)
+    let reply = run_graph(
+        &platform,
+        "tutorial-11",
+        serde_json::json!({"hello": "world", "message": "this is a good day"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "tutorial-11 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("world")), mm.get_element("hello"));
+    assert_eq!(
+        Some(Value::from("this is a good day")),
+        mm.get_element("message")
+    );
+
+    // --- helloworld2 (GraphExecutionTest, MATH variant): fetcher ->
+    // for-each extension over the helloext sub-graph -> math -> end
+    let reply = run_graph(
+        &platform,
+        "helloworld2",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "helloworld2 failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("name"));
+    assert_eq!(
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("address")
+    );
+    // graph.math renders numbers as doubles (Java parity)
+    assert_eq!(Some(Value::from(558.0)), mm.get_element("sum"));
+    assert_eq!(Some(Value::from(50000.0)), mm.get_element("multiply"));
+    let Some(Value::Array(accounts)) = mm.get_element("accounts") else {
+        panic!("expected an accounts list, got {:?}", reply.body());
+    };
+    let mut ids: Vec<String> = accounts
+        .iter()
+        .map(event_script::conversions::display)
+        .collect();
+    ids.sort();
+    assert_eq!(vec!["a101", "b202", "c303", "d400", "e500"], ids);
+    let Some(Value::Array(details)) = mm.get_element("account_details") else {
+        panic!("expected account details, got {:?}", reply.body());
+    };
+    assert_eq!(5, details.len());
+    // the fetcher's output header mapping surfaces as a response header
+    assert_eq!(
+        Some("world"),
+        reply.headers().get("x-hello").map(String::as_str)
+    );
 }
 
 /// Java `GraphTests` fetcher tutorials + `GraphExecutionTest.unitTest1HappyPath`:

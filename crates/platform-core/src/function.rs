@@ -145,3 +145,24 @@ where
         EventEnvelope::new().set_body(output)
     }
 }
+
+/// The convenient no-operation function for event scripts (Java
+/// `NoOpFunction`, route `no.op`): an echo — reply headers and body mirror
+/// the input.
+pub struct NoOpFunction;
+
+#[async_trait]
+impl ComposableFunction for NoOpFunction {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let mut response = EventEnvelope::new();
+        for (key, value) in &headers {
+            response = response.set_header(key, value);
+        }
+        Ok(response.set_raw_body(input.body().clone()))
+    }
+}

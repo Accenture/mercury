@@ -1,6 +1,6 @@
 # Flows shipped with the knowledge-graph engine (Java module parity).
-# flow-11.yml joins at increment K-6 with the graph.extension skill.
 flows:
   - 'graph-executor.yml'
+  - 'flow-11.yml'
 
 location: 'classpath:/flows/'

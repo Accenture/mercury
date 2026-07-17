@@ -6,7 +6,7 @@
       ],
       "alias": "clear-exception",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "MAPPING: boolean(false) -> model.exception",
           "MAPPING: int(0) -> model.attempts",
@@ -36,7 +36,7 @@
       ],
       "alias": "error-handler",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "IF: {fetcher.status} == 200\nTHEN: end\nELSE: next",
           "MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts",

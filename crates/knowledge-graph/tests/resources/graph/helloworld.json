@@ -91,7 +91,7 @@
       ],
       "alias": "js-2",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "COMPUTE: positive_items -> {model.item} == 'Y'",
           "COMPUTE: negative_items -> {model.item} != 'Y'"
@@ -107,13 +107,12 @@
       ],
       "alias": "js-3",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
-          "COMPUTE: positive_items -> {model.a}.filter(item => item== 'Y')",
-          "COMPUTE: negative_items -> {model.a}.filter(item => item!= 'Y')",
-          "COMPUTE: test -> var x = {name:'Alice', age: 30, nested: {'inner': {model.a}}, tags: ['a','b']}; x;",
           "COMPUTE: y -> 3 * 4",
-          "COMPUTE: z -> var x = 3 * 4.02; x.toFixed(3);"
+          "COMPUTE: z -> 3 * 4.02",
+          "COMPUTE: sum -> {js-3.result.y} + {js-3.result.z}",
+          "COMPUTE: has_negative -> {model.item} == 'N'"
         ]
       }
     },

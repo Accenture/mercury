@@ -193,22 +193,6 @@ impl ComposableFunction for SequentialOne {
     }
 }
 
-/// Java `NoOp` (`no.op`): passthrough echo.
-#[preload(route = "no.op", instances = 2)]
-struct NoOp;
-
-#[async_trait]
-impl ComposableFunction for NoOp {
-    async fn handle_event(
-        &self,
-        _headers: HashMap<String, String>,
-        input: EventEnvelope,
-        _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
-    }
-}
-
 /// Java `ParallelTask` (`parallel.task`): a shared counter detects when both
 /// parallel branches have run; the second one reports decision=true (done).
 #[preload(route = "parallel.task", instances = 2)]

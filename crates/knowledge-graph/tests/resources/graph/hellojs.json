@@ -69,7 +69,7 @@
       ],
       "alias": "decision-1",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "IF: {helloworld.x.y.z} == 100\nTHEN: hello\nELSE: next\",\n\"IF: {hello.hello} == 200\nTHEN: hello\nELSE: helloworld",
           "COMPUTE: value -> 3 * {helloworld.x.y.z}",
@@ -199,7 +199,7 @@
       ],
       "alias": "js-1",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "EXECUTE: js-2",
           "COMPUTE: sum -> 3 + 555",
@@ -214,7 +214,7 @@
       ],
       "alias": "js-2",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "COMPUTE: value -> {helloworld.x.y.z} / 3.0",
           "MAPPING: js-2.result.value -> helloworld.value"

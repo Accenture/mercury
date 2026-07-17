@@ -69,7 +69,7 @@
       ],
       "alias": "decision-1",
       "properties": {
-        "skill": "graph.js",
+        "skill": "graph.math",
         "statement": [
           "IF: {helloworld.x.y.z} == 100\nTHEN: hello\nELSE: next\",\n\"IF: {hello.hello} == 200\nTHEN: hello\nELSE: helloworld",
           "COMPUTE: value -> 3 * {helloworld.x.y.z}",

@@ -32,6 +32,7 @@
 pub mod common;
 pub mod compiler;
 pub mod executor;
+pub mod extension;
 pub mod features;
 pub mod fetcher;
 pub mod graphs;
@@ -82,6 +83,23 @@ impl ComposableFunction for GraphApiFetcher {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         fetcher::handle(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphExtension` (`graph.extension`) — delegate to a sub-graph or a
+/// `flow://` event-script flow.
+#[preload(route = "graph.extension", instances = 300)]
+pub struct GraphExtension;
+
+#[async_trait]
+impl ComposableFunction for GraphExtension {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        extension::handle(&Platform::get_instance(), headers, input).await
     }
 }
 

@@ -158,7 +158,13 @@ impl MultiLevelMap {
     /// evaluated by `serde_json_path` over an on-demand JSON view.
     fn json_path_query(&self, path: &str) -> Option<Value> {
         let json = to_json(&self.to_value())?;
-        let query = serde_json_path::JsonPath::parse(path).ok()?;
+        let query = match serde_json_path::JsonPath::parse(path) {
+            Ok(query) => query,
+            // Jayway (the Java engine) tolerates hyphens in dot-notation
+            // member names (e.g. `$.fetcher-ext.result`); RFC 9535 does not.
+            // Rewrite such segments to bracket notation and retry.
+            Err(_) => serde_json_path::JsonPath::parse(&bracketize_lenient_segments(path)).ok()?,
+        };
         let nodes = query.query(&json).all();
         match nodes.len() {
             0 => None,
@@ -329,6 +335,76 @@ fn remove_in(current: &mut Value, segments: &[Segment]) {
     }
 }
 
+/// Rewrite dot-notation segments that are not valid RFC 9535 shorthand
+/// names (currently: names containing hyphens) into bracket notation —
+/// `$.fetcher-ext.result` becomes `$['fetcher-ext'].result` (Jayway parity).
+fn bracketize_lenient_segments(path: &str) -> String {
+    let chars: Vec<char> = path.chars().collect();
+    let mut out = String::with_capacity(path.len() + 8);
+    let mut in_brackets = 0usize;
+    let mut in_quote: Option<char> = None;
+    let mut i = 0usize;
+    while i < chars.len() {
+        let c = chars[i];
+        if let Some(quote) = in_quote {
+            out.push(c);
+            if c == quote {
+                in_quote = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            '\'' | '"' => {
+                in_quote = Some(c);
+                out.push(c);
+                i += 1;
+            }
+            '[' => {
+                in_brackets += 1;
+                out.push(c);
+                i += 1;
+            }
+            ']' => {
+                in_brackets = in_brackets.saturating_sub(1);
+                out.push(c);
+                i += 1;
+            }
+            '.' if in_brackets == 0 => {
+                let descendant = chars.get(i + 1) == Some(&'.');
+                let start = if descendant { i + 2 } else { i + 1 };
+                let mut end = start;
+                while end < chars.len()
+                    && (chars[end].is_alphanumeric() || chars[end] == '_' || chars[end] == '-')
+                {
+                    end += 1;
+                }
+                let name: String = chars[start..end].iter().collect();
+                if name.contains('-') {
+                    if descendant {
+                        out.push_str("..");
+                    }
+                    out.push_str("['");
+                    out.push_str(&name);
+                    out.push_str("']");
+                } else {
+                    out.push('.');
+                    if descendant {
+                        out.push('.');
+                    }
+                    out.push_str(&name);
+                }
+                i = end;
+            }
+            other => {
+                out.push(other);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,5 +479,18 @@ mod tests {
         );
         // no match
         assert_eq!(m.get_element("$.shop.missing"), None);
+    }
+
+    #[test]
+    fn jsonpath_tolerates_hyphenated_member_names_like_jayway() {
+        let mut m = MultiLevelMap::new();
+        m.set_element("fetcher-ext.result[0].account_details", Value::from("a"))
+            .unwrap();
+        m.set_element("fetcher-ext.result[1].account_details", Value::from("b"))
+            .unwrap();
+        assert_eq!(
+            m.get_element("$.fetcher-ext.result[*].account_details"),
+            Some(Value::Array(vec![Value::from("a"), Value::from("b")]))
+        );
     }
 }

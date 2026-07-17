@@ -127,6 +127,20 @@ changes).
    > tutorial-113 permanently skipped (retired `graph.js`).
 6. **K-6 — `graph.extension`** (sub-graph + `flow://` flow) + the remaining REST
    endpoints (describe/upload/inspect/live-graph).
+   > **Shipped 2026-07-17 (increment 26).** `extension.rs`: sub-graph delegation
+   > through the `graph-executor` flow (`path_parameter.graph_id`), `flow://`
+   > delegation validated against the flow registry, for-each fork-join with clamped
+   > concurrency; `flow-11.yml` joins the engine flows. Two lockstep parity fixes:
+   > `no.op` promoted to a platform-core built-in (Java `NoOpFunction`), and the
+   > event-script `MultiLevelMap` gained Jayway-parity tolerance for hyphenated
+   > JSONPath member names (`$.fetcher-ext.result`). E2E: tutorials 10/11 +
+   > `helloworld2` (fetcher → for-each extension → math). **Scope adjustment:** the
+   > REST endpoints sketched here (describe/upload/inspect/live-graph) all depend on
+   > `GraphCommandService` + the Playground draft dirs → moved to K-7.
+   > **Maintainer follow-up (same day):** the `graph.js`-carrying fixtures (`hello`,
+   > `helloworld`, `hellojs`, `tutorial-113`) are activated by swapping the skill to
+   > `graph.math` (identical statement grammar; one genuinely-JS node adapted);
+   > `rust-js-retired` remains the single retirement test case. All four run E2E.
 7. **K-7 — platform-core WebSocket server** (lockstep increment) → the Playground:
    `GraphUserInterface` sessions, `GraphCommandService` grammar, the companion command
    API, dev-gating (K9).

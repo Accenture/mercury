@@ -178,6 +178,25 @@ impl AppStarter {
                 }
             }
         }
+        // the no-op echo function (Java NoOpFunction, a platform built-in
+        // for event scripts): echoes headers and body; instance count is
+        // overridable via worker.instances.no.op (Java envInstances parity)
+        if !platform.has_route("no.op") {
+            let config = AppConfigReader::get_instance();
+            let no_op_instances = config
+                .get_property("worker.instances.no.op")
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(500);
+            if let Err(e) = platform.register(
+                "no.op",
+                Arc::new(crate::function::NoOpFunction),
+                no_op_instances,
+            ) {
+                if !platform.has_route("no.op") {
+                    return Err(e);
+                }
+            }
+        }
         // the Async HTTP client (Java EssentialServiceLoader parity);
         // tolerate a concurrent registration like the actuators above
         if !platform.has_route(crate::automation::ASYNC_HTTP_REQUEST) {
