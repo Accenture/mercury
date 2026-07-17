@@ -6,6 +6,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+platform-core = { path = "../platform-core" }
+# layer 3 rides layer 2: the data-mapping mini-language (converter, rmpv
+# MultiLevelMap) is shared with event-script, and deployed graphs are
+# exposed through event-script flows
+event-script = { path = "../event-script" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
 # OS entropy for the math engine's random() — the SecureRandom analog
 getrandom = "0.4"
 thiserror = "1"

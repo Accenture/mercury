@@ -81,6 +81,16 @@ changes).
 3. **K-3 — graph compiler + registry.** Graph JSON ⇄ MiniGraph (import/export shape),
    `CompiledGraphs`, `PlaygroundLoader` startup loading; the 13 tutorial fixtures compile
    verbatim. Engine crate + resource-root hook (K8) land here.
+   > **Shipped 2026-07-17 (increment 23).** `compiler::compile_graphs`
+   > (`#[before_application(sequence = 6)]`): manifest-gated load → `${...}` resolution
+   > via `ConfigReader` → deprecated-syntax conversion (shared event-script converter)
+   > → `MiniGraph::import_graph` structural validation → `graphs` registry (Java
+   > `CompiledGraphs`). K8 hook at sequence 1 appends the crate's resources (append,
+   > never prepend — the app wins). 13 tutorial fixtures in `resources/graph/` + 13
+   > Java test fixtures and `graphs.yaml` in `tests/resources/`, all verbatim; all 26
+   > compile. `CompileGraphTest` ported + a reference-resolution check (3 tests).
+   > **Design correction:** Java `PlaygroundLoader` is the `FetchFeature` scanner, not
+   > a graph loader — it moves to K-5 (`graph.api.fetcher`).
 4. **K-4 — the graph runtime.** `GraphExecutor`/`GraphTraveler`/`GraphInstance`: state
    machine, `{id}@{node}` correlation, decision routing (`next` / node-name / `.sink`),
    loop detection, exception handler, health, housekeeper; core skills

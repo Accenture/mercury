@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "fail-task",
+      "properties": {
+        "task": "v1.demo.task",
+        "input": [
+          "text(yes) -> exception"
+        ],
+        "exception": "on-error",
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "on-error",
+      "properties": {
+        "mapping": [
+          "text(recovered) -> output.body.message",
+          "fail-task.status -> output.body.status"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task error routing to an exception handler node",
+        "name": "unit-test-task-4"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "fail-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "on-error",
+      "relations": [
+        {
+          "type": "recover",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "fail-task"
+    }
+  ]
+}

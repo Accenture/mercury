@@ -466,7 +466,13 @@ dependencies = [
 name = "knowledge-graph"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "event-script",
  "getrandom",
+ "log",
+ "platform-core",
+ "rmpv",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 

@@ -29,4 +29,41 @@
 //! (maintainer decision, 2026-07-17). `graph.math` (typed, bounded) and
 //! `graph.task` (reviewed, compiled functions) cover the use cases.
 
+pub mod compiler;
+pub mod graphs;
 pub mod math;
+
+use async_trait::async_trait;
+use platform_core::{before_application, AppError, EntryPoint};
+
+/// The engine's bundled resources (graphs, flows, help, mock data, the
+/// webapp bundle) — the Rust analog of a jar's classpath resources. Appended
+/// (not prepended), so the application's own `resources/` always wins.
+/// Runs early (sequence 1) so both the flow compiler (5) and the graph
+/// compiler (6) can see `classpath:` resources that travel with this crate.
+#[before_application(sequence = 1)]
+pub struct GraphResources;
+
+#[async_trait]
+impl EntryPoint for GraphResources {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        platform_core::resources::append_resource_root(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/resources"
+        ));
+        Ok(())
+    }
+}
+
+/// The graph-model quality gate (Java `CompileGraph`,
+/// `@BeforeApplication(sequence=6)`).
+#[before_application(sequence = 6)]
+pub struct CompileGraph;
+
+#[async_trait]
+impl EntryPoint for CompileGraph {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        compiler::compile_graphs();
+        Ok(())
+    }
+}

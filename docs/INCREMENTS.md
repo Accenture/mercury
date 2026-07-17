@@ -39,6 +39,7 @@
 | — | Knowledge-graph design doc v1 (layer-3 gate) | 2026-07-17 | KG K1–K9 | — |
 | 21 | knowledge-graph K-1: MiniGraph property graph in platform-core | 2026-07-17 | KG K1 | 158 |
 | 22 | knowledge-graph K-2: math expression engine (`knowledge-graph` crate) | 2026-07-17 | KG K4 | 173 |
+| 23 | knowledge-graph K-3: graph compiler + registry, fixtures verbatim, resource-root hook | 2026-07-17 | KG K3/K8 | 176 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -471,6 +472,30 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   half-away-from-zero.
 - **Parity suite**: all 14 `ExpressionEngineFullTest` methods + an added
   random/arity/coercion test; 15 tests, green first run.
+## Increment 23 — knowledge-graph K-3: graph compiler + registry (2026-07-17)
+
+- **`compiler::compile_graphs`** (Java `CompileGraph`, `@BeforeApplication(sequence=6)`)
+  — the graph-model quality gate: reads the opt-in `graph.model.automation` manifest,
+  loads each `{location.graph.deployed}/{id}.json` through `ConfigReader` (so `${...}`
+  references resolve against the app config, Java parity), converts deprecated
+  "simple type matching" mapping entries to plugin syntax via the shared event-script
+  converter (layer 3 riding layer 2), validates structurally through
+  `MiniGraph::import_graph`, and registers the model. An invalid graph is skipped with
+  an error log; an unreadable manifest is a warning (Java failure semantics).
+- **`graphs` registry** (Java `CompiledGraphs`): process-wide validated-model store the
+  graph executor will consult before lazy per-request loading.
+- **K8 resource-root hook**: `#[before_application(sequence = 1)]` appends the engine
+  crate's `CARGO_MANIFEST_DIR/resources` — the jar-classpath analog; appended (never
+  prepended) so the application's own `resources/` always wins. Runs before both the
+  flow compiler (5) and the graph compiler (6).
+- **Fixtures verbatim**: the 13 `tutorial-*.json` graphs travel with the engine crate
+  (`resources/graph/`); the 13 Java test-only graphs + `graphs.yaml` manifest mirror
+  `src/test/resources` (`tests/resources/`). All 26 manifest graphs compile.
+- **Correction to the design sketch**: Java's `PlaygroundLoader` is the `FetchFeature`
+  scanner (API-fetcher features), not a graph loader — it moves to K-5 with
+  `graph.api.fetcher`.
+- **Parity suite**: `CompileGraphTest` ported (manifest gating, deprecated-syntax
+  conversion) + a `${...}`-resolution check; 3 tests.
 
 ---
 

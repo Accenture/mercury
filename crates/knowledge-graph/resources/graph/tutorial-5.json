@@ -1,0 +1,234 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "dictionary",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher-1",
+      "properties": {
+        "output": [
+          "result.name -> model.fetcher-1.name",
+          "result.address -> model.fetcher-1.address",
+          "model.fetcher-1 -> output.body.profile[]"
+        ],
+        "input": [
+          "input.body.person1 -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher-2",
+      "properties": {
+        "output": [
+          "result.name -> model.fetcher-2.name",
+          "result.address -> model.fetcher-2.address",
+          "model.fetcher-2 -> output.body.profile[]"
+        ],
+        "input": [
+          "input.body.person2 -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Join"
+      ],
+      "alias": "join",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "Master Data Management's profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.address"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "purpose": "address of a person",
+        "provider": "mdm-profile"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.name"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "name of a person"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate data sourcing using the Data Dictionary method",
+        "name": "tutorial-5"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-address"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-name"
+    },
+    {
+      "source": "fetcher-1",
+      "relations": [
+        {
+          "type": "join",
+          "properties": {}
+        }
+      ],
+      "target": "join"
+    },
+    {
+      "source": "fetcher-2",
+      "relations": [
+        {
+          "type": "join",
+          "properties": {}
+        }
+      ],
+      "target": "join"
+    },
+    {
+      "source": "join",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "person-address",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "person-name",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "dictionary"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "one",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-1"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "two",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-2"
+    }
+  ]
+}

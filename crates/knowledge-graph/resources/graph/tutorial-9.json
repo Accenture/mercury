@@ -1,0 +1,99 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "addition",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: sum -> {model.a} + {model.b}"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Compute"
+      ],
+      "alias": "compute",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: input.body.a -> model.a",
+          "MAPPING: input.body.b -> model.b",
+          "EXECUTE: addition",
+          "MAPPING: compute.result.sum -> output.body.sum"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "modules",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate use of modules",
+        "name": "tutorial-9"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "compute",
+      "relations": [
+        {
+          "type": "finish",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "modules",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "addition"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "calculate",
+          "properties": {}
+        }
+      ],
+      "target": "compute"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "modules"
+    }
+  ]
+}

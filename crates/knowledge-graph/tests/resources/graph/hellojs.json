@@ -1,0 +1,395 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "account-details",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.person_name",
+          "response.account.details -> result.account_details"
+        ],
+        "input": [
+          "person_id",
+          "account_id"
+        ],
+        "provider": "account-details-provider",
+        "purpose": "Account details"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "account-details-provider",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "text(application/json) -> header.content-type",
+          "person_id -> body.person_id",
+          "account_id -> body.account_id"
+        ],
+        "feature": [
+          "oauth-bearer",
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "POST",
+        "purpose": "Account Management Endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/account/details"
+      }
+    },
+    {
+      "types": [
+        "Join"
+      ],
+      "alias": "converge",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": [
+        "mapper"
+      ],
+      "alias": "data-mapper",
+      "properties": {
+        "mapping": [
+          "helloworld.x.y.z -> model.number",
+          "model.number:int -> hello.xyz",
+          "int(${rest.server.port}) -> hello.port"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "decision-1",
+      "properties": {
+        "skill": "graph.js",
+        "statement": [
+          "IF: {helloworld.x.y.z} == 100\nTHEN: hello\nELSE: next\",\n\"IF: {hello.hello} == 200\nTHEN: hello\nELSE: helloworld",
+          "COMPUTE: value -> 3 * {helloworld.x.y.z}",
+          "COMPUTE: sum -> 5 * 123"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "mapping": [
+          "js-1.result.sum -> output.body.sum",
+          "js-1.result.multiply -> output.body.multiply",
+          "js-1.result.value -> output.body.value"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Extension"
+      ],
+      "alias": "extension",
+      "properties": {
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "extension": "helloworld",
+        "skill": "graph.extension"
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "output": [
+          "result.person_name -> output.body.name",
+          "result.person_address -> output.body.address",
+          "result.person_accounts -> output.body.accounts",
+          "text(world) -> output.header.x-hello"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address",
+          "person-accounts"
+        ],
+        "skill": "graph.api.fetcher",
+        "error": "break"
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher-2",
+      "properties": {
+        "output": [
+          "result.account_details -> output.body.account_details"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "model.account_number -> account_id"
+        ],
+        "dictionary": [
+          "account-details"
+        ],
+        "skill": "graph.api.fetcher",
+        "for_each": [
+          "fetcher.result.person_accounts -> model.account_number"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Test"
+      ],
+      "alias": "hello",
+      "properties": {
+        "hello": "world"
+      }
+    },
+    {
+      "types": [
+        "Test"
+      ],
+      "alias": "helloworld",
+      "properties": {
+        "x": {
+          "y": {
+            "z": "100"
+          }
+        }
+      }
+    },
+    {
+      "types": [
+        "mapper"
+      ],
+      "alias": "invalid-data-mapper",
+      "properties": {
+        "mapping": [
+          "hello.hello -> hello.skill"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "island",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "JavaScript"
+      ],
+      "alias": "js-1",
+      "properties": {
+        "skill": "graph.js",
+        "statement": [
+          "EXECUTE: js-2",
+          "COMPUTE: sum -> 3 + 555",
+          "COMPUTE: multiply -> {helloworld.x.y.z} * 500",
+          "IF: {helloworld.x.y.z} == '100'\nTHEN: hello\nELSE: next"
+        ]
+      }
+    },
+    {
+      "types": [
+        "JavaScript"
+      ],
+      "alias": "js-2",
+      "properties": {
+        "skill": "graph.js",
+        "statement": [
+          "COMPUTE: value -> {helloworld.x.y.z} / 3.0",
+          "MAPPING: js-2.result.value -> helloworld.value"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "oauth-bearer",
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-accounts",
+      "properties": {
+        "output": [
+          "response.accounts -> result.person_accounts"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "accounts of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.person_address"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "address of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.person_name"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "purpose": "name of a person",
+        "provider": "mdm-profile"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demo Graph Model",
+        "name": "hellojs"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "converge",
+      "relations": [
+        {
+          "type": "ext",
+          "properties": {}
+        }
+      ],
+      "target": "extension"
+    },
+    {
+      "source": "data-mapper",
+      "relations": [
+        {
+          "type": "fork",
+          "properties": {}
+        }
+      ],
+      "target": "converge"
+    },
+    {
+      "source": "extension",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "fetcher-2",
+      "relations": [
+        {
+          "type": "calculate",
+          "properties": {}
+        }
+      ],
+      "target": "js-1"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "more",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-2"
+    },
+    {
+      "source": "hello",
+      "relations": [
+        {
+          "type": "computed",
+          "properties": {}
+        }
+      ],
+      "target": "converge"
+    },
+    {
+      "source": "js-1",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "converge"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "mapping",
+          "properties": {}
+        }
+      ],
+      "target": "data-mapper"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    }
+  ]
+}

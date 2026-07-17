@@ -1,0 +1,234 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "clear-exception",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: boolean(false) -> model.exception",
+          "MAPPING: int(0) -> model.attempts",
+          "RESET: fetcher, clear-exception"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "dictionary",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "error-handler",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {fetcher.status} == 200\nTHEN: end\nELSE: next",
+          "MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts",
+          "MAPPING: f:add(model.attempts, int(1)) -> model.attempts",
+          "IF: {model.attempts} >= 30\nTHEN: clear-exception\nELSE: next",
+          "RESET: fetcher, error-handler",
+          "NEXT: fetcher",
+          "DELAY: 50"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "exception": "error-handler",
+        "output": [
+          "result.name -> output.body.name",
+          "result.address -> output.body.address"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "model.exception -> exception"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "exception -> header.x-exception",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "Master Data Management's profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.address"
+        ],
+        "input": [
+          "person_id",
+          "exception:false"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "address of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.name"
+        ],
+        "input": [
+          "person_id",
+          "exception:false"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "name of a person"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "mapping": [
+          "f:defaultValue(input.body.exception, boolean(false)) -> model.exception"
+        ],
+        "purpose": "Demonstrate custom error handling with high frequency error case",
+        "skill": "graph.data.mapper",
+        "name": "high-frequency"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "clear-exception",
+      "relations": [
+        {
+          "type": "reset",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-address"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-name"
+    },
+    {
+      "source": "error-handler",
+      "relations": [
+        {
+          "type": "retry",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "complete",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "person-address",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "person-name",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "dictionary"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    }
+  ]
+}
