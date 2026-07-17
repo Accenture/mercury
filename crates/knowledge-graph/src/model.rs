@@ -57,6 +57,7 @@ pub struct GraphInstance {
     pub skill_run: Mutex<HashMap<String, bool>>,
     pub complete: AtomicBool,
     metadata: Mutex<Metadata>,
+    start_time_ms: std::sync::atomic::AtomicI64,
 }
 
 impl GraphInstance {
@@ -70,7 +71,16 @@ impl GraphInstance {
             skill_run: Mutex::new(HashMap::new()),
             complete: AtomicBool::new(false),
             metadata: Mutex::new(Metadata::default()),
+            start_time_ms: std::sync::atomic::AtomicI64::new(now_epoch_ms()),
         }
+    }
+
+    pub fn reset_start_time(&self) {
+        self.start_time_ms.store(now_epoch_ms(), Ordering::SeqCst);
+    }
+
+    pub fn start_time_ms(&self) -> i64 {
+        self.start_time_ms.load(Ordering::SeqCst)
     }
 
     pub fn is_complete(&self) -> bool {
@@ -123,6 +133,13 @@ impl GraphInstance {
     pub fn set_reply_to(&self, reply_to: &str) {
         self.metadata.lock().expect("graph metadata").reply_to = Some(reply_to.to_string());
     }
+}
+
+fn now_epoch_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 fn registry() -> &'static RwLock<HashMap<String, Arc<GraphInstance>>> {

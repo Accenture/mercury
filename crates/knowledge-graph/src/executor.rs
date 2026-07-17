@@ -50,7 +50,7 @@ pub const HOUSEKEEPER_ROUTE: &str = "graph.housekeeper";
 const INSTANCE: &str = "instance";
 const GRAPH: &str = "graph";
 const NEXT: &str = "next";
-const RETIRED_JS_MESSAGE: &str =
+pub(crate) const RETIRED_JS_MESSAGE: &str =
     "Skill graph.js is retired for security reasons - use graph.math or graph.task instead";
 
 fn is_dev_env() -> bool {

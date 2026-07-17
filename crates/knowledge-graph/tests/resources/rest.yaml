@@ -25,3 +25,15 @@ rest:
     url: '/api/echo/auth'
     timeout: 10s
     tracing: true
+
+  - service: 'post.companion.command'
+    methods: ['POST']
+    url: '/api/companion/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'get.live.graph'
+    methods: ['GET']
+    url: '/api/graph/session/{id}'
+    timeout: 10s
+    tracing: true

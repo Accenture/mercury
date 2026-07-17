@@ -29,6 +29,7 @@
 //! (maintainer decision, 2026-07-17). `graph.math` (typed, bounded) and
 //! `graph.task` (reviewed, compiled functions) cover the use cases.
 
+pub mod commands;
 pub mod common;
 pub mod compiler;
 pub mod executor;
@@ -38,8 +39,12 @@ pub mod fetcher;
 pub mod graphs;
 pub mod math;
 pub mod model;
+pub mod rest;
 pub mod services;
+pub mod session;
 pub mod skills;
+pub mod traveler;
+pub mod ws_ui;
 
 // the annotation layer (Java @FetchFeature analog)
 pub use knowledge_graph_macros::fetch_feature;
@@ -254,6 +259,126 @@ impl ComposableFunction for GraphExceptionHandler {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         services::exception_handler(headers, input).await
+    }
+}
+
+/// The Playground loader (the Java `PlaygroundLoader` + `@OptionalService`
+/// analog — design K9): when `app.env=dev`, registers the dev workbench —
+/// the command service (+ its singleton for orderly AI-companion requests),
+/// the traveler, the websocket handlers and the dev REST endpoints. In any
+/// other environment none of it exists (production graphs run only through
+/// `POST /api/graph/{graph-id}`). The home page is registered regardless
+/// (it serves `/template` outside dev).
+#[before_application(sequence = 8)]
+pub struct PlaygroundLoader;
+
+#[async_trait]
+impl EntryPoint for PlaygroundLoader {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        let platform = Platform::get_instance();
+        let config = platform_core::AppConfigReader::get_instance();
+        let dev = config.get_property_or("app.env", "dev") == "dev";
+        register_once(&platform, "get.index.html", 10, |e| async move {
+            rest::get_index_html(e).await
+        });
+        if !dev {
+            log::info!("Playground disabled (app.env is not dev)");
+            return Ok(());
+        }
+        commands::start_housekeeping();
+        register_once(&platform, commands::ROUTE, 50, |e| async move {
+            commands::handle(&Platform::get_instance(), HashMap::new(), e).await
+        });
+        register_once(
+            &platform,
+            commands::SINGLETON_COMMAND_HANDLER,
+            1,
+            |e| async move { commands::handle(&Platform::get_instance(), HashMap::new(), e).await },
+        );
+        if !platform.has_route(traveler::ROUTE) {
+            let _ = platform.register_with_options(
+                traveler::ROUTE,
+                std::sync::Arc::new(GraphTravelerService),
+                300,
+                platform_core::FunctionOptions {
+                    zero_traced: true,
+                    interceptor: true,
+                },
+            );
+        }
+        platform_core::automation::register_ws_service("graph", || {
+            std::sync::Arc::new(ws_ui::GraphUserInterface)
+        });
+        platform_core::automation::register_ws_service("json", || {
+            std::sync::Arc::new(ws_ui::JsonPathHandler)
+        });
+        register_once(&platform, "get.ws.html", 10, |e| async move {
+            rest::get_ws_html(e).await
+        });
+        register_once(&platform, "post.companion.command", 10, |e| async move {
+            rest::post_companion_command(&Platform::get_instance(), e).await
+        });
+        register_once(&platform, "upload.json.content", 10, |e| async move {
+            rest::upload_json_content(&Platform::get_instance(), e).await
+        });
+        register_once(&platform, "upload.mock.content", 10, |e| async move {
+            rest::upload_mock_content(&Platform::get_instance(), e).await
+        });
+        register_once(&platform, "show.graph.model", 20, |e| async move {
+            rest::show_graph_model(e).await
+        });
+        register_once(&platform, "get.live.graph", 10, |e| async move {
+            rest::get_live_graph(e).await
+        });
+        register_once(&platform, "inspect.state.machine", 10, |e| async move {
+            rest::inspect_state_machine(e).await
+        });
+        log::info!("Playground loaded (app.env=dev)");
+        Ok(())
+    }
+}
+
+/// A small adapter turning an async fn into a registered composable function.
+struct FnService<F>(F);
+
+#[async_trait]
+impl<F, Fut> ComposableFunction for FnService<F>
+where
+    F: Fn(EventEnvelope) -> Fut + Send + Sync,
+    Fut: std::future::Future<Output = Result<EventEnvelope, AppError>> + Send,
+{
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        (self.0)(input).await
+    }
+}
+
+fn register_once<F, Fut>(platform: &Platform, route: &str, instances: usize, function: F)
+where
+    F: Fn(EventEnvelope) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<EventEnvelope, AppError>> + Send + 'static,
+{
+    if !platform.has_route(route) {
+        let _ = platform.register(route, std::sync::Arc::new(FnService(function)), instances);
+    }
+}
+
+/// The traveler service wrapper (dev-gated registration above).
+struct GraphTravelerService;
+
+#[async_trait]
+impl ComposableFunction for GraphTravelerService {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        traveler::handle(&Platform::get_instance(), headers, input).await
     }
 }
 

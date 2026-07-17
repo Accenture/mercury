@@ -44,6 +44,7 @@
 | 25 | knowledge-graph K-5: platform-core HTTP client + graph.api.fetcher | 2026-07-17 | KG K6b | 177 |
 | 26 | knowledge-graph K-6: graph.extension (sub-graph + flow:// delegation) | 2026-07-17 | KG K2 | 178 |
 | 27 | knowledge-graph K-7a: platform-core WebSocket server (hyper upgrade + tungstenite) | 2026-07-17 | KG K6a | 179 |
+| 28 | knowledge-graph K-7b: the Playground (command grammar, traveler, companion API, dev-gating K9) | 2026-07-17 | KG K9 | 181 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -655,6 +656,54 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   Playground: `GraphUserInterface` sessions, the 1,494-line `GraphCommandService`
   grammar, `GraphTraveler`, companion API, the K-6-deferred REST endpoints,
   dev-gating K9) — next increment.
+
+## Increment 28 — knowledge-graph K-7b: the Playground (2026-07-17)
+
+- **The Playground command grammar** (`commands.rs` — the Rust port of the 1,494-line Java
+  `GraphCommandService`): a per-session draft-graph workbench driven by a text grammar —
+  `open`/`close`/`command`, word-alias normalization (`start`→instantiate, `clear`→delete),
+  create/update/delete node, connect, list nodes/connections, describe graph/skill/node/
+  connection (help served from the 39 ported `help/*.md` resources), edit, export/import
+  graph/node, instantiate (mock-data grammar), execute a single node, run the traveler,
+  inspect the state machine, `seen`, and session subscribe/unsubscribe/reset — with duplicate
+  suppression, temp-dir housekeeping, and the `graph.command.singleton` handler for orderly
+  AI-companion requests.
+- **Sessions, traveler and websocket UI** (`session.rs`, `traveler.rs`, `ws_ui.rs`):
+  `GraphSession` + registries, the `{route}.in`/`.out` ↔ public `ws-{id}` route↔id conversion,
+  the dev-only `graph.traveler` walker (zero-tracing interceptor, idempotent per run), and the
+  `GraphUserInterface` (`/ws/graph`) + `JsonPathHandler` (`/ws/json`) handlers (XML branch a
+  documented deferral).
+- **The AI-companion REST hop** (`rest.rs` — the field use case): `POST /api/companion/{id}`
+  dispatches a text command to the session's singleton handler and the output streams to the
+  session console; plus the K-6-deferred dev endpoints (home/workbench pages, mock/JSON
+  uploads into a live session, draft-graph description, live-graph download, state-machine
+  inspection).
+- **Dev-gating (K9)** — `PlaygroundLoader` (`#[before_application(sequence = 8)]`) registers
+  the command service, singleton, traveler, both websocket services and every dev REST
+  endpoint **only when `app.env=dev`** (Java `@OptionalService("app.env=dev")` parity;
+  `app.env` defaults to `dev`, matching the Java `application.properties`); the home page is
+  registered regardless (it serves `/template` outside dev). Production graphs still run only
+  through `POST /api/graph/{graph-id}`.
+- **platform-core fix surfaced by integration (lockstep)**: booting the engine now registers
+  websocket services, which made `AutoStart::main` block on `ctrl_c` (the serve-forever wait)
+  — hanging every test that boots the engine and awaits `main`. Corrected the entry-point
+  contract: the serve-until-Ctrl-C wait moved into `AutoStart::run` (the standalone `fn main()`
+  path); `AutoStart::main` now **returns once the app is booted** (the accept loop runs as a
+  background task), so an embedder gets control back. `start_http_server` gained a
+  `server_address()` accessor (first-bind wins) so an ephemeral-port (`rest.server.port=0`)
+  boot can recover its assigned port; it still binds a fresh listener per call (each
+  `#[tokio::test]` keeps its own server). `graph_runtime` now reads `server_address()` instead
+  of starting a second server.
+- **E2E** (`tests/playground.rs`): a booted dev app drives the grammar end-to-end through the
+  command service as the websocket UI would — help, describe skill, build (root/end/mapper +
+  connections), list, instantiate + run, inspect — then the AI-companion REST hop
+  (`POST /api/companion/{public_id}` → console) and the live-graph download
+  (`GET /api/graph/session/{public_id}`), then close. Graph-executor fixtures reused: the
+  mapper writes `input.body.id → end.message`; `list connections` renders Java's
+  `source -[relation]-> target`.
+- **Next**: K-8 — copy the React webapp verbatim, adjust `clean.js`/`deploy.js` to
+  `../resources/public`, `npm run release`, live-verify in a browser, and close the layer-3
+  milestone.
 
 ---
 

@@ -179,6 +179,25 @@ impl SimpleNode {
         Ok(())
     }
 
+    /// Replace all types with one initial type (the Java Playground's
+    /// `update node` mutates the live type set; this is the explicit analog).
+    pub fn reset_types(&self, initial: &str) -> Result<(), AppError> {
+        validate_name(initial)?;
+        let mut types = self.types.lock().expect("node types");
+        types.clear();
+        types.insert(initial.to_string());
+        Ok(())
+    }
+
+    /// Remove all properties (the Java Playground's `update node` analog).
+    pub fn clear_properties(&self) {
+        self.properties
+            .properties
+            .lock()
+            .expect("graph properties")
+            .clear();
+    }
+
     /// A node keeps at least one type (Java parity).
     pub fn remove_type(&self, node_type: &str) -> Result<(), AppError> {
         if node_type.is_empty() {

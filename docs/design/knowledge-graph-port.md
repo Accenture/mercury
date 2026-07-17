@@ -157,10 +157,21 @@ changes).
    > maintainer-directed: the declarative `#[fetch_feature]` macro** (new
    > `knowledge-graph-macros` crate) — Java `@FetchFeature` parity for
    > field-installation cases like OAuth 2.0 bearer injection; proven E2E with the
-   > DemoAuth pattern on the wire. **K-7b (next):** the Playground —
-   > `GraphUserInterface` + `GraphSession`, `GraphCommandService` (1,494 lines),
-   > `GraphTraveler`, `JsonPathHandler`, companion API, the K-6-deferred REST
-   > endpoints, help files, dev-gating (K9).
+   > DemoAuth pattern on the wire. **K-7b shipped 2026-07-17 (increment 28):** the
+   > Playground — `GraphUserInterface` + `GraphSession`, `GraphCommandService`
+   > (`commands.rs`, the 1,494-line grammar), `GraphTraveler`, `JsonPathHandler`,
+   > the AI-companion REST hop (`POST /api/companion/{id}`) + the K-6-deferred dev
+   > REST endpoints, the 39 ported `help/*.md` files, dev-gating (K9): the
+   > `PlaygroundLoader` registers the workbench only when `app.env=dev` (default
+   > `dev`, Java `application.properties` parity); production graphs run only
+   > through `POST /api/graph/{graph-id}`. **platform-core contract fix surfaced by
+   > integration:** the serve-until-Ctrl-C wait moved from `AutoStart::main` to
+   > `AutoStart::run` (the standalone `fn main()` path) — `main` now returns once
+   > booted (the accept loop runs in the background), so an embedder that awaits it
+   > no longer hangs when websocket services are registered; `server_address()`
+   > recovers an ephemeral (`rest.server.port=0`) port. E2E in `tests/playground.rs`
+   > (grammar → companion REST hop → live-graph download). **K-8 (next):** the
+   > React webapp + milestone close.
 8. **K-8 — the React webapp + milestone close.** Copy the webapp, adjust
    `clean.js`/`deploy.js` to `../resources/public`, run `npm run release`, live-verify
    the Playground end-to-end in a browser; README; milestone banner.

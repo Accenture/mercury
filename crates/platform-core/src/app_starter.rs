@@ -291,23 +291,48 @@ impl AppStarter {
 /// the `-D` runtime overrides, installs the logger, **collects every
 /// annotated item from the link-time inventory** (`#[preload]`,
 /// `#[before_application]`, `#[main_application]` — the classpath-scanning
-/// analog), runs the lifecycle, keeps serving while REST automation is on
-/// (until Ctrl-C), and cleans up on exit. Use via
-/// [`auto_start_main!`](crate::auto_start_main) — or call
-/// [`AutoStart::main`] from an existing async context.
+/// analog), and runs the lifecycle. A standalone `fn main()` uses
+/// [`AutoStart::run`], which then keeps serving until Ctrl-C; an embedder
+/// (tests, an existing async context) calls [`AutoStart::main`], which returns
+/// once the app is booted (the HTTP/websocket accept loop runs in the
+/// background).
 pub struct AutoStart;
 
 impl AutoStart {
-    /// Build a Tokio runtime and run the application to completion — the
-    /// whole `fn main()` body (the `auto_start_main!` macro wraps exactly
-    /// this plus the app's resource root).
+    /// Build a Tokio runtime, boot the application, then — when serving (REST
+    /// automation on, or any websocket service registered) — stay alive until
+    /// Ctrl-C (Java: the JVM stays up on non-daemon threads). This is the whole
+    /// `fn main()` body; the `auto_start_main!` macro wraps exactly this plus
+    /// the app's resource root.
     pub fn run() -> Result<(), AppError> {
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| AppError::new(500, format!("Unable to start runtime: {e}")))?;
-        runtime.block_on(Self::main(std::env::args().collect()))
+        runtime.block_on(async {
+            Self::main(std::env::args().collect()).await?;
+            // HTTP/websocket serving: stay alive until Ctrl-C. This blocking
+            // wait lives here (the standalone-process entry point), NOT in
+            // `main`, so an embedder that awaits `main` gets control back once
+            // the app is booted instead of hanging on the signal.
+            let config = AppConfigReader::get_instance();
+            if config.get_property_or("rest.automation", "false") == "true"
+                || crate::automation::ws_server::has_ws_services()
+            {
+                log::info!("Application running - press Ctrl-C to stop");
+                let _ = tokio::signal::ctrl_c().await;
+            } else {
+                // give fire-and-forget telemetry a beat to be logged before exit
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+            crate::util::elastic_queue::shutdown_cleanup();
+            Ok(())
+        })
     }
 
-    /// The async lifecycle (must run within a Tokio runtime).
+    /// The async lifecycle (must run within a Tokio runtime): run every
+    /// before-application hook, bind the preloads, start the HTTP/websocket
+    /// server when serving — then **return** (the accept loop keeps running as
+    /// a background task). Booting the engine hands control back to the caller;
+    /// a standalone process uses [`AutoStart::run`] to serve until Ctrl-C.
     ///
     /// Runs only once per process (Java parity: `AutoStart.started` is an
     /// `AtomicBoolean`) — repeated execution is a no-op.
@@ -344,18 +369,9 @@ impl AutoStart {
             starter = starter.main_application(entry.sequence, (entry.factory)());
         }
         starter.run(args).await?;
-        // HTTP/websocket serving: stay alive until Ctrl-C
-        // (Java: the JVM stays up on non-daemon threads)
-        if config.get_property_or("rest.automation", "false") == "true"
-            || crate::automation::ws_server::has_ws_services()
-        {
-            log::info!("Application running - press Ctrl-C to stop");
-            let _ = tokio::signal::ctrl_c().await;
-        } else {
-            // give fire-and-forget telemetry a beat to be logged before exit
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        }
-        crate::util::elastic_queue::shutdown_cleanup();
+        // The app is booted; the HTTP/websocket accept loop (if serving) runs
+        // as a background task. Return control to the caller — `AutoStart::run`
+        // is what blocks a standalone process alive until Ctrl-C.
         Ok(())
     }
 }

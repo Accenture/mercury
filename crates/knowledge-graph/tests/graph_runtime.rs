@@ -273,10 +273,11 @@ async fn boot() -> Platform {
         .await
         .expect("second call must be a no-op");
     let platform = Platform::get_instance();
-    // the API-fetcher tutorials call the mock endpoints over real HTTP
-    let addr = platform_core::automation::start_http_server(&platform)
-        .await
-        .expect("rest server");
+    // the engine serves (the dev Playground registers websocket services), so
+    // the lifecycle already started the HTTP server the API-fetcher tutorials
+    // call over real HTTP — recover its bound port.
+    let addr =
+        platform_core::automation::server_address().expect("rest server started by lifecycle");
     assert_eq!(8090, addr.port(), "rest.server.port from test config");
     platform
 }

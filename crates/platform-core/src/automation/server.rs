@@ -30,7 +30,7 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
@@ -52,6 +52,19 @@ use super::routing::{AssignedRoute, RoutingTable};
 /// Reserved read-only request header exposing the business correlation-id to
 /// the target function (Java `HttpRouter.MY_CORRELATION_ID`).
 pub const MY_CORRELATION_ID: &str = "my_correlation_id";
+
+/// The address the first HTTP server bound to in this process (first-bind
+/// wins; `start_http_server` still binds a fresh listener on every call).
+/// Intended for a test or embedder that boots the app once on an ephemeral
+/// port (`rest.server.port=0`) and needs the assigned port afterwards.
+static SERVER_ADDR: OnceLock<SocketAddr> = OnceLock::new();
+
+/// The address the HTTP server bound to, if one has started (see
+/// [`SERVER_ADDR`]). With `rest.server.port=0` (ephemeral) this is how a
+/// single-server app recovers the port the OS assigned at bind time.
+pub fn server_address() -> Option<SocketAddr> {
+    SERVER_ADDR.get().copied()
+}
 
 struct RouterState {
     table: RoutingTable,
@@ -97,6 +110,7 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
     let addr = listener
         .local_addr()
         .map_err(|e| AppError::new(500, e.to_string()))?;
+    let _ = SERVER_ADDR.set(addr);
     log::info!("REST automation service started on port {}", addr.port());
     tokio::spawn(async move {
         loop {

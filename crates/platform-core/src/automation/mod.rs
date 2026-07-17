@@ -9,5 +9,5 @@ pub mod ws_server;
 
 pub use http_client::{AsyncHttpRequest, ASYNC_HTTP_REQUEST};
 pub use routing::{AssignedRoute, CorsInfo, HeaderInfo, RouteInfo, RoutingTable};
-pub use server::{start_http_server, MY_CORRELATION_ID};
+pub use server::{server_address, start_http_server, MY_CORRELATION_ID};
 pub use ws_server::register_ws_service;
