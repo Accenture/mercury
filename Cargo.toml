@@ -4,6 +4,7 @@ members = [
     "crates/platform-core",
     "crates/platform-macros",
     "crates/event-script",
+    "crates/event-script-macros",
     "benchmark/benchmark-reporter",
     "examples/hello-world",
 ]

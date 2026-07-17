@@ -62,6 +62,9 @@ pub mod util;
 pub mod validator;
 
 pub use executor::FlowExecutor;
+// re-exported so the #[simple_plugin] macro's generated code resolves
+pub use event_script_macros::simple_plugin;
+pub use platform_core::inventory;
 
 use std::collections::HashMap;
 
@@ -153,5 +156,20 @@ impl ComposableFunction for SimpleExceptionHandler {
             (rmpv::Value::from("status"), status),
             (rmpv::Value::from("message"), message),
         ])))
+    }
+}
+
+/// The plugin loader (Java `SimplePluginLoader`,
+/// `@BeforeApplication(sequence = 3)` — before flows compile at sequence 5,
+/// so `f:` names in mappings validate against user plugins too).
+#[before_application(sequence = 3)]
+pub struct SimplePluginLoader;
+
+#[async_trait]
+impl EntryPoint for SimplePluginLoader {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        let user = plugins::load_inventory_plugins();
+        log::info!("Total {user} user plugin(s) registered");
+        Ok(())
     }
 }

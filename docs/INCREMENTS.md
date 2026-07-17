@@ -34,6 +34,7 @@
 | 16 | event-script E-5: parallel + fork/join (dynamic source, ITEM/INDEX) | 2026-07-16 | ES §5e | 148 |
 | 17 | event-script E-6: pipelines with for/while loops, break/continue | 2026-07-16 | ES §5f | 148 |
 | 18 | event-script E-7: sub-flows, shared parent state, ext state machine | 2026-07-16 | ES §5g | 148 |
+| 19 | event-script E-8: complete plugin catalog + #[simple_plugin] macro | 2026-07-17 | ES §5h | 148 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -388,6 +389,20 @@ reactive back-pressure.*
 - Activated fixtures: parent/daughter greetings (alias round-trip), missing-sub-flow,
   externalize put/get, fork-n-join-flows, and the **canonical dynamic-fork fixture** —
   five concurrent sub-flows, shared-state appends exactly-once.
+
+---
+
+## Increment 19 — event-script E-8: the plugin catalog + `#[simple_plugin]` (2026-07-17)
+
+- All **42 built-in plugins** execute (arithmetic, generators, dates, comparisons,
+  list-of-map operations, the full `validate` rule engine) with Java-exact semantics
+  and error messages.
+- **`#[simple_plugin]`** (new `event-script-macros` crate): user plugin functions
+  register through the link-time inventory, collected by the `SimplePluginLoader`
+  at sequence 3 — before flows compile, so `f:` names validate.
+- Fixtures activated: arithmetic, type-conversion (real-bytes body asserted on the
+  rmpv tree), string-util, parse-date(-time), input-validation; plus a user plugin
+  proven end-to-end.
 
 ---
 

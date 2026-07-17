@@ -335,6 +335,20 @@ impl ComposableFunction for ExternalStateMachine {
     }
 }
 
+/// A USER-DEFINED plugin registered by the `#[simple_plugin]` macro (Java
+/// `@SimplePlugin` analog): collected by the `SimplePluginLoader` at
+/// sequence 3, so it is available to compile-time `f:` validation and
+/// runtime resolution alike.
+#[event_script::simple_plugin]
+fn shout(args: &[rmpv::Value]) -> Result<rmpv::Value, String> {
+    match args {
+        [one] => Ok(rmpv::Value::from(
+            event_script::conversions::get_text_value(one).to_uppercase(),
+        )),
+        _ => Err("shout expects one argument".to_string()),
+    }
+}
+
 #[main_application]
 struct FlowTestApp;
 
@@ -865,6 +879,141 @@ async fn flows_run_end_to_end_like_java() {
         .collect();
     parent_indexes.sort();
     assert_eq!(parent_indexes, vec![0, 1, 2, 3, 4]);
+
+    // --- E-8: arithmetic plugins through a flow (canonical fixture)
+    let reply = run_flow(
+        &platform,
+        "arithmetic",
+        http_dataset(None, &[]),
+        "biz-cid-27",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["sum"], 11);
+    assert_eq!(body["difference"], 1);
+    assert_eq!(body["product"], 12);
+    assert_eq!(body["quotient"], 3);
+    assert_eq!(body["incremented"], 7);
+    assert_eq!(body["decremented"], 5);
+
+    // --- E-8: the type-conversion catalog (canonical fixture). The body
+    // contains REAL bytes (f:binary), so assert on the rmpv tree, not JSON
+    let reply = run_flow(
+        &platform,
+        "type-conversion",
+        http_dataset(None, &[]),
+        "biz-cid-28",
+    )
+    .await;
+    let body = event_script::mlm::MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(body.get_element("integer_convert"), Some(Value::from(256)));
+    assert_eq!(
+        body.get_element("long_convert"),
+        Some(Value::from(9223372036854775807i64))
+    );
+    assert_eq!(body.get_element("bool_convert"), Some(Value::Boolean(true)));
+    assert_eq!(
+        body.get_element("positive_ternary"),
+        Some(Value::from("Hello"))
+    );
+    assert_eq!(
+        body.get_element("negative_ternary"),
+        Some(Value::from(" World!"))
+    );
+    assert_eq!(
+        body.get_element("greater_than_positive"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("less_than_positive"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("substring_two"),
+        Some(Value::from("World"))
+    );
+    assert_eq!(
+        body.get_element("concat"),
+        Some(Value::from("Hello World!"))
+    );
+    assert_eq!(body.get_element("isNull"), Some(Value::Boolean(true)));
+    assert_eq!(body.get_element("isNotNull"), Some(Value::Boolean(true)));
+    // binary conversion produced real bytes (Java byte[] parity)
+    assert_eq!(
+        body.get_element("binary"),
+        Some(Value::Binary(b"Hello".to_vec()))
+    );
+    // b64 round trip: "SGVsbG8=" decodes to bytes, re-encoding restores it
+    assert_eq!(
+        body.get_element("to_bytestring"),
+        Some(Value::from("SGVsbG8="))
+    );
+
+    // --- E-8: string operators (canonical fixture; body {text: "Hello..."})
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"text": "Hello this is a test World"})),
+        ));
+    }
+    let reply = run_flow(&platform, "string-util", dataset, "biz-cid-29").await;
+    let body = json_body(&reply);
+    assert_eq!(body["starts_with"], true);
+    assert_eq!(body["ends_with"], true);
+    assert_eq!(body["not_starts_with"], false);
+    assert_eq!(body["includes"], true);
+    assert_eq!(body["not_includes"], false);
+
+    // --- E-8: date parsing (canonical fixtures)
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"date": "01/15/2026"})),
+        ));
+    }
+    let reply = run_flow(&platform, "parse-date", dataset, "biz-cid-30").await;
+    let body = json_body(&reply);
+    assert!(body["ms"].as_i64().unwrap_or(0) > 1_700_000_000_000);
+
+    // --- E-8: input validation — pass and range-violation → handler
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"user": "12345"})),
+        ));
+    }
+    let reply = run_flow(&platform, "input-validation-1", dataset, "biz-cid-31").await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "12345");
+    assert_eq!(body["greeting"], "hello world");
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"user": "ABC"})),
+        ));
+    }
+    let reply = run_flow(&platform, "input-validation-2", dataset, "biz-cid-32").await;
+    assert_eq!(reply.status(), 400);
+    assert_eq!(json_body(&reply)["message"], "user (ABC) < CCC");
+
+    // --- E-8: the user-defined #[simple_plugin] is registered by the loader
+    // (sequence 3) and callable through the f: resolution path
+    assert!(event_script::plugins::contains_simple_plugin("shout"));
+    let mut probe = event_script::mlm::MultiLevelMap::new();
+    probe
+        .set_element("model.word", rmpv::Value::from("mercury"))
+        .unwrap();
+    let shouted = event_script::mapping::get_lhs_element("f:shout(model.word)", &probe)
+        .expect("user plugin resolution");
+    assert_eq!(shouted, Some(rmpv::Value::from("MERCURY")));
 
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);

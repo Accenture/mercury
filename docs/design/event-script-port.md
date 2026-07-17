@@ -342,6 +342,34 @@ reactive back-pressure.*
   ITEM/INDEX landing exactly once (the shared-lock serialization proven under real
   concurrency).
 
+## 5h. Increment E-8 — the complete plugin catalog + `#[simple_plugin]` (implemented 2026-07-17)
+
+- **All 42 built-in plugin bodies now execute**: the 19 core conversion/logical bodies
+  from E-2 plus the remaining 23 — arithmetic (whole-number promotion, Java
+  `promoteNumber` semantics incl. divide-by-zero guards), generators (`now` with
+  iso/local/ms, `dateTime` with Java-pattern formatting), comparisons (`gt`/`lt`,
+  `ternary`, case-insensitive `startsWith`/`endsWith`/`includes` with list
+  membership), date parsing (`parseDate`/`parseDateTime` — a small Java-pattern →
+  chrono format converter covers the yyyy/MM/dd/HH/mm/ss tokens flow files use),
+  list-of-map operations (`listOfMap` normalization + column merge,
+  `updateListOfMap`, `removeKey`, `uniqueSet`, `defaultValue`), and the full
+  `validate` rule engine (type checks, `required`/`evaluate` modes, string/integer/
+  float range checks with Java's exact error messages).
+- **The user extension point**: `#[simple_plugin]` (new `event-script-macros` crate,
+  the Java `@SimplePlugin` analog) registers a plugin function through the link-time
+  inventory; the `SimplePluginLoader` before-application hook (sequence 3 — before
+  flows compile at 5, exactly the Java loader's slot) collects every entry, so user
+  plugin names validate at compile time and resolve at runtime. Name defaults to the
+  camelCase of the function name (the Java class-name convention); `name = "..."`
+  overrides.
+- **Error propagation fixed to Java parity**: a plugin's own error message propagates
+  unwrapped to the exception handler (input-validation-2 asserts the exact
+  `user (ABC) < CCC` message).
+- **Fixtures activated**: arithmetic, type-conversion (asserted on the rmpv tree —
+  the body carries REAL bytes from `f:binary`, Java `byte[]` parity), string-util,
+  parse-date/parse-date-time, input-validation-1/-2; plus a user-defined `shout`
+  plugin registered via the macro and resolved through `f:shout(...)`.
+
 ## 6. Out of scope (confirmed defaults)
 
 - **Kafka flow adapter** — the mesh is out of scope (enable-time decision).

@@ -282,8 +282,9 @@ fn get_value_from_simple_plugin(selector: &str, source: &MultiLevelMap) -> Resul
             args.push(get_lhs_or_constant(lhs, source)?.unwrap_or(Value::Nil));
         }
     }
+    // Java parity: the plugin's own error propagates unwrapped (only a
+    // missing plugin gets the descriptive registry message)
     plugins::calculate(plugin_name, &args)
-        .map_err(|e| format!("Unable to process SimplePlugin: {selector} - {e}"))
 }
 
 /// Split plugin arguments by top-level comma only, ignoring commas nested
