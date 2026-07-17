@@ -40,6 +40,7 @@
 | 21 | knowledge-graph K-1: MiniGraph property graph in platform-core | 2026-07-17 | KG K1 | 158 |
 | 22 | knowledge-graph K-2: math expression engine (`knowledge-graph` crate) | 2026-07-17 | KG K4 | 173 |
 | 23 | knowledge-graph K-3: graph compiler + registry, fixtures verbatim, resource-root hook | 2026-07-17 | KG K3/K8 | 176 |
+| 24 | knowledge-graph K-4: graph runtime (executor + core skills), graph.js retired | 2026-07-17 | KG K1–K5 | 177 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -496,6 +497,42 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   `graph.api.fetcher`.
 - **Parity suite**: `CompileGraphTest` ported (manifest gating, deprecated-syntax
   conversion) + a `${...}`-resolution check; 3 tests.
+## Increment 24 — knowledge-graph K-4: the graph runtime (2026-07-17)
+
+- **`graph.executor`** (zero-tracing event interceptor, Java `GraphExecutor`): a plain
+  correlation id starts a traversal from the root node; a composite
+  `{flowInstanceId}@{nodeName}` id is a skill callback deciding the next hop (`next`,
+  a node alias to jump to, `.sink` to stop a branch). Compiled models are reused;
+  unlisted graphs load lazily; `tutorial-*` ids are dev-gated. Loop detection aborts a
+  node exceeding `graph.node.high.frequency` hits within `graph.max.loop.interval`.
+  Exposed through the verbatim `graph-executor.yml` flow (`POST /api/graph/{graph_id}`
+  once REST automation binds it) — layer 3 riding layer 2.
+- **Core skills**: `graph.data.mapper` (the event-script mapping mini-language over the
+  graph state machine), `graph.math` (statements: COMPUTE/IF-THEN-ELSE/MAPPING/RESET/
+  DELAY/NEXT, `EXECUTE:` merge, BEGIN/END for-each blocks — powered by the K-2
+  expression engine), `graph.task` (whole-body `*` staging, request/response headers,
+  `for_each` fork-join with clamped concurrency, per-node exception routing),
+  `graph.join` (barrier over backward links) and `graph.island` (terminal `.sink`).
+- **Support services**: `graph.housekeeper` wired as an end-flow listener (the
+  event-script end-flow advice clears the traversal state), `graph.exception.handler`
+  (the flow-level error normalizer), `graph.health` (the template actuator check).
+- **`GraphLambdaFunction` base** ported as `common.rs` free functions: `{var}`
+  substitution with logical-quoting rules, RHS validation with reserved properties,
+  node-property seeding, `for_each` resolution, fetcher-style output mapping,
+  statement-block splitting. `GraphInstance` state is a mutex-scoped rmpv
+  `MultiLevelMap` (guards never cross awaits).
+- **`graph.js` RETIRED in code**: the route is never registered and the executor fails
+  a `skill: graph.js` node with an explicit message pointing at `graph.math` /
+  `graph.task` (maintainer security decision — deliberate divergence from Java, which
+  ships a GraalVM interpreter for lack of an alternative).
+- **Deferred within layer 3**: `GraphTraveler` (dev-only Playground walker) moves to
+  K-7 with sessions; fetcher/extension tutorials activate at K-5/K-6.
+- **`AutoStart` idempotency restored** (maintainer review): Java guards `AutoStart.main`
+  with an `AtomicBoolean` (repeated execution is a no-op); the Rust port was missing the
+  guard — added in platform-core and asserted in the E2E suite.
+- **E2E suite** (one flow-engine boot): tutorials 1/2/4/7/8/9/13 + `GraphTaskTest`
+  unit-test-task-1..5 (Java-parity task functions ported) + Rust-supplement graphs for
+  the join barrier, loop detection and the retirement message; graph.health checks.
 
 ---
 

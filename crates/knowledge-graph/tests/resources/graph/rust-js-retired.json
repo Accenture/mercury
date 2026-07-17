@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.js retirement check",
+        "name": "rust-js-retired"
+      }
+    },
+    {
+      "types": [
+        "JavaScript"
+      ],
+      "alias": "legacy-js",
+      "properties": {
+        "skill": "graph.js",
+        "statement": [
+          "COMPUTE: x -> 1 + 1"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(unreachable) -> output.body"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "legacy-js"
+    },
+    {
+      "source": "legacy-js",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

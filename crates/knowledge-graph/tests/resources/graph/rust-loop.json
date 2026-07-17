@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "loop detection supplement",
+        "name": "rust-loop"
+      }
+    },
+    {
+      "types": [
+        "Loop"
+      ],
+      "alias": "spinner",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> 1 + 1",
+          "RESET: spinner",
+          "NEXT: spinner"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(unreachable) -> output.body"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "spin",
+          "properties": {}
+        }
+      ],
+      "target": "spinner"
+    },
+    {
+      "source": "spinner",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

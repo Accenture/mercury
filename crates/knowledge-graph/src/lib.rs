@@ -29,12 +29,21 @@
 //! (maintainer decision, 2026-07-17). `graph.math` (typed, bounded) and
 //! `graph.task` (reviewed, compiled functions) cover the use cases.
 
+pub mod common;
 pub mod compiler;
+pub mod executor;
 pub mod graphs;
 pub mod math;
+pub mod model;
+pub mod services;
+pub mod skills;
+
+use std::collections::HashMap;
 
 use async_trait::async_trait;
-use platform_core::{before_application, AppError, EntryPoint};
+use platform_core::{
+    before_application, preload, AppError, ComposableFunction, EntryPoint, EventEnvelope, Platform,
+};
 
 /// The engine's bundled resources (graphs, flows, help, mock data, the
 /// webapp bundle) — the Rust analog of a jar's classpath resources. Appended
@@ -65,5 +74,154 @@ impl EntryPoint for CompileGraph {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
         compiler::compile_graphs();
         Ok(())
+    }
+}
+
+/// The graph runtime (Java `GraphExecutor` — `@ZeroTracing @EventInterceptor
+/// @PreLoad(route = "graph.executor", instances = 300)`).
+#[preload(route = "graph.executor", instances = 300)]
+#[zero_tracing]
+#[event_interceptor]
+pub struct GraphExecutorService;
+
+#[async_trait]
+impl ComposableFunction for GraphExecutorService {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        executor::handle(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphDataMapper` (`graph.data.mapper`).
+#[preload(route = "graph.data.mapper", instances = 300)]
+pub struct GraphDataMapper;
+
+#[async_trait]
+impl ComposableFunction for GraphDataMapper {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        skills::data_mapper(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphMath` (`graph.math`) — the retired `graph.js`'s sanctioned
+/// replacement for inline compute/branching.
+#[preload(route = "graph.math", instances = 300)]
+pub struct GraphMath;
+
+#[async_trait]
+impl ComposableFunction for GraphMath {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        skills::math(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphTask` (`graph.task`) — invoke a composable function by route.
+#[preload(route = "graph.task", instances = 300)]
+pub struct GraphTask;
+
+#[async_trait]
+impl ComposableFunction for GraphTask {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        skills::task(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphJoin` (`graph.join`) — the fork-join barrier node.
+#[preload(route = "graph.join", instances = 300)]
+pub struct GraphJoin;
+
+#[async_trait]
+impl ComposableFunction for GraphJoin {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        skills::join(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphIsland` (`graph.island`) — a terminal no-op branch.
+#[preload(route = "graph.island", instances = 200)]
+pub struct GraphIsland;
+
+#[async_trait]
+impl ComposableFunction for GraphIsland {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        skills::island(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphHousekeeper` (`graph.housekeeper`, zero-tracing).
+#[preload(route = "graph.housekeeper", instances = 20)]
+#[zero_tracing]
+pub struct GraphHousekeeper;
+
+#[async_trait]
+impl ComposableFunction for GraphHousekeeper {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        services::housekeeper(headers, input).await
+    }
+}
+
+/// Java `GraphExceptionHandler` (`graph.exception.handler`).
+#[preload(route = "graph.exception.handler")]
+pub struct GraphExceptionHandler;
+
+#[async_trait]
+impl ComposableFunction for GraphExceptionHandler {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        services::exception_handler(headers, input).await
+    }
+}
+
+/// Java `GraphHealth` (`graph.health`) — the template health service.
+#[preload(route = "graph.health", instances = 10)]
+pub struct GraphHealth;
+
+#[async_trait]
+impl ComposableFunction for GraphHealth {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        services::health(headers, input).await
     }
 }

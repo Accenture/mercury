@@ -251,7 +251,14 @@ impl AutoStart {
     }
 
     /// The async lifecycle (must run within a Tokio runtime).
+    ///
+    /// Runs only once per process (Java parity: `AutoStart.started` is an
+    /// `AtomicBoolean`) — repeated execution is a no-op.
     pub async fn main(args: Vec<String>) -> Result<(), AppError> {
+        static STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if STARTED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            return Ok(());
+        }
         crate::util::overrides::load_runtime_args();
         crate::logging::init();
         let mut starter = AppStarter::new();

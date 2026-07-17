@@ -97,6 +97,18 @@ changes).
    (`graph.data.mapper`, `graph.math`, `graph.task`, `graph.join`, `graph.island`).
    Tutorial graphs run E2E; the `graph-executor.yml` flow exposes
    `POST /api/graph/{graph-id}`.
+   > **Shipped 2026-07-17 (increment 24).** `executor.rs` (interceptor; walk/decide
+   > traversal with boxed async recursion), `common.rs` (the 756-line
+   > `GraphLambdaFunction` base as free functions), `skills.rs` (data.mapper, math,
+   > task incl. `for_each` fork-join, join, island), `services.rs` (housekeeper via
+   > the end-flow listener, exception handler, health); `graph-executor.yml` +
+   > `flows.yaml` ship with the crate (K8 root). **K5 enforced in code**: `graph.js`
+   > is never registered and fails with the explicit retirement message.
+   > **Scope adjustments:** `GraphTraveler` is the dev-only Playground walker → moved
+   > to K-7 (sessions); tutorials needing fetcher/extension activate at K-5/K-6; the
+   > `@OptionalService(app.env=dev)` mock gating lands with K-9. E2E parity suite:
+   > tutorials 1/2/4/7/8/9/13, `GraphTaskTest` 1..5, Rust-supplement graphs
+   > (join barrier, loop detection, retirement message).
 5. **K-5 — platform-core HTTP client** (`async.http.request`, lockstep increment) →
    `graph.api.fetcher` with dictionary/provider nodes, caching, fork-join concurrency.
    Also activates the event-script http-client fixtures deferred at E-9.

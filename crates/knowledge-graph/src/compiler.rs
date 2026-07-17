@@ -81,13 +81,25 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
     }
 }
 
+/// Load a graph JSON as an rmpv value with `${...}` references resolved —
+/// the raw form both the startup compiler and the executor's lazy
+/// per-request path share (Java uses `ConfigReader` in both places).
+pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
+    let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id)).map_err(|e| {
+        if matches!(e, platform_core::ConfigError::NotFound(_)) {
+            format!("{graph_id} not found")
+        } else {
+            e.to_string()
+        }
+    })?;
+    let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+    Ok(event_script::conversions::from_json(&json))
+}
+
 fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     // the ConfigReader load resolves ${...} references against the app
     // config, exactly like the Java loader
-    let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id))
-        .map_err(|e| e.to_string())?;
-    let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
-    let mut model = event_script::conversions::from_json(&json);
+    let mut model = load_raw_graph(deploy_location, graph_id)?;
     convert_data_mapping_entries(graph_id, &mut model);
     // structural validation - a malformed graph is skipped with an error log
     MiniGraph::new()
