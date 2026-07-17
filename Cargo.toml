@@ -6,6 +6,7 @@ members = [
     "crates/event-script",
     "crates/event-script-macros",
     "crates/knowledge-graph",
+    "crates/knowledge-graph-macros",
     "benchmark/benchmark-reporter",
     "examples/hello-world",
     "examples/hello-flow",

@@ -134,6 +134,71 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
+/// The Java `@WebSocketService(value, namespace)` analog: registers a
+/// websocket server endpoint declaratively. The annotated struct implements
+/// `ComposableFunction` and receives the session lifecycle events
+/// (`type: open` / `string` / `bytes` / `close`) on its per-connection
+/// `{session}.in` route; replies go to the `tx_path` given in the headers.
+///
+/// ```ignore
+/// #[websocket_service("graph")]                     // /ws/graph/{token}
+/// struct GraphUserInterface;
+///
+/// #[websocket_service(name = "json", namespace = "ws")]
+/// struct JsonPathHandler;
+/// ```
+///
+/// The AppStarter lifecycle collects these entries and registers the URL
+/// paths before the HTTP server starts; the server itself starts when REST
+/// automation is enabled **or** at least one websocket service exists
+/// (Java parity). One function object is created per connection.
+#[proc_macro_attribute]
+pub fn websocket_service(args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut name: Option<LitStr> = None;
+    let mut namespace: Option<LitStr> = None;
+    // Java positional form: #[websocket_service("graph")]
+    if let Ok(positional) = syn::parse::<LitStr>(args.clone()) {
+        name = Some(positional);
+    } else {
+        let parser = syn::meta::parser(|meta| {
+            if meta.path.is_ident("name") || meta.path.is_ident("value") {
+                name = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("namespace") {
+                namespace = Some(meta.value()?.parse()?);
+            } else {
+                return Err(meta.error(
+                    "unknown websocket_service parameter (expected a service name literal, \
+                     name/value = \"...\", namespace = \"...\")",
+                ));
+            }
+            Ok(())
+        });
+        parse_macro_input!(args with parser);
+    }
+    let item = parse_macro_input!(input as ItemStruct);
+    let Some(name) = name else {
+        return syn::Error::new_spanned(
+            &item.ident,
+            "#[websocket_service] requires a service name, e.g. #[websocket_service(\"graph\")]",
+        )
+        .to_compile_error()
+        .into();
+    };
+    let namespace = namespace.unwrap_or_else(|| LitStr::new("ws", name.span()));
+    let construct = constructor(&item);
+    let expanded = quote! {
+        #item
+        ::platform_core::inventory::submit! {
+            ::platform_core::registry::WsServiceEntry {
+                name: #name,
+                namespace: #namespace,
+                factory: || ::std::sync::Arc::new(#construct),
+            }
+        }
+    };
+    expanded.into()
+}
+
 /// The Java `@BeforeApplication(sequence)` analog: an `EntryPoint` that runs
 /// before functions are registered (validation/compilation work). Lower
 /// sequences run first (default 10; 0 is framework-reserved; a failing hook

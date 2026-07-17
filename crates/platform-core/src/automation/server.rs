@@ -112,6 +112,7 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
                 });
                 if let Err(e) = hyper::server::conn::http1::Builder::new()
                     .serve_connection(io, service)
+                    .with_upgrades()
                     .await
                 {
                     log::debug!("HTTP connection ended - {e}");
@@ -127,6 +128,15 @@ async fn handle(
     request: Request<hyper::body::Incoming>,
     peer: SocketAddr,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
+    // websocket upgrade on a registered `/ws/{name}/{token}` path takes the
+    // connection out of the HTTP request/response cycle (Java parity)
+    if super::ws_server::is_ws_upgrade(&request) {
+        return Ok(super::ws_server::handle_ws_upgrade(
+            &state.platform,
+            request,
+            peer.ip().to_string(),
+        ));
+    }
     let method = request.method().as_str().to_uppercase();
     let path = request.uri().path().to_string();
     let query_text = request.uri().query().unwrap_or("").to_string();

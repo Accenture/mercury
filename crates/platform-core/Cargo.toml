@@ -23,6 +23,9 @@ uuid = { version = "1", features = ["v4"] }
 hyper = { version = "1", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
+# --- increment K-7a: WebSocket server (design K6a — hyper upgrade + tungstenite) ---
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 # --- increment 8: etag protocol (Java parity: SHA-256 content hash) ---
 sha2 = "0.10"
 # --- increment 10: annotation macros (Java @PreLoad/@BeforeApplication/@MainApplication) ---

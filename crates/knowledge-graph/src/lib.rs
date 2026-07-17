@@ -41,6 +41,12 @@ pub mod model;
 pub mod services;
 pub mod skills;
 
+// the annotation layer (Java @FetchFeature analog)
+pub use knowledge_graph_macros::fetch_feature;
+// re-exported so the macro's generated `submit!` resolves without the user
+// adding `inventory` as a direct dependency
+pub use platform_core::inventory;
+
 use std::collections::HashMap;
 
 use async_trait::async_trait;
@@ -65,6 +71,8 @@ impl EntryPoint for GraphResources {
         ));
         // built-in API-fetcher features (Java ships them in the engine jar)
         features::register_builtins();
+        // declarative #[fetch_feature] entries (the PlaygroundLoader scan analog)
+        features::load_declared_features();
         Ok(())
     }
 }

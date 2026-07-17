@@ -237,8 +237,29 @@ impl AppStarter {
                 if instances == 1 { "" } else { "s" }
             );
         }
-        // 4. REST automation: the HTTP protocol boundary (rest.automation=true)
-        if config.get_property_or("rest.automation", "false") == "true" {
+        // 4. REST automation: the HTTP protocol boundary. Websocket services
+        //    from the `#[websocket_service]` inventory register their URL
+        //    paths first (Java `prepareWebsocketServices`); the server starts
+        //    when REST automation is enabled OR any websocket service exists
+        //    (Java `startHttpServerIfAny` parity).
+        for entry in inventory::iter::<crate::registry::WsServiceEntry> {
+            if validate_ws_service_name(entry.name) && validate_ws_service_name(entry.namespace) {
+                crate::automation::ws_server::register_ws_service_with_namespace(
+                    entry.namespace,
+                    entry.name,
+                    entry.factory,
+                );
+            } else {
+                log::error!(
+                    "Unable to load websocket service /{}/{} - not a valid service name",
+                    entry.namespace,
+                    entry.name
+                );
+            }
+        }
+        let serve_http = config.get_property_or("rest.automation", "false") == "true"
+            || crate::automation::ws_server::has_ws_services();
+        if serve_http {
             crate::automation::start_http_server(&platform).await?;
         }
         // 5. main applications, ordered by sequence
@@ -323,9 +344,11 @@ impl AutoStart {
             starter = starter.main_application(entry.sequence, (entry.factory)());
         }
         starter.run(args).await?;
-        // REST automation serving: stay alive for HTTP traffic until Ctrl-C
+        // HTTP/websocket serving: stay alive until Ctrl-C
         // (Java: the JVM stays up on non-daemon threads)
-        if config.get_property_or("rest.automation", "false") == "true" {
+        if config.get_property_or("rest.automation", "false") == "true"
+            || crate::automation::ws_server::has_ws_services()
+        {
             log::info!("Application running - press Ctrl-C to stop");
             let _ = tokio::signal::ctrl_c().await;
         } else {
@@ -335,4 +358,13 @@ impl AutoStart {
         crate::util::elastic_queue::shutdown_cleanup();
         Ok(())
     }
+}
+
+/// Java `validServiceName` for websocket paths: lowercase letters, digits,
+/// '.', '-', '_'.
+fn validate_ws_service_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'_')
+        })
 }

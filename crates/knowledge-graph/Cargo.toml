@@ -11,6 +11,7 @@ platform-core = { path = "../platform-core" }
 # MultiLevelMap) is shared with event-script, and deployed graphs are
 # exposed through event-script flows
 event-script = { path = "../event-script" }
+knowledge-graph-macros = { path = "../knowledge-graph-macros" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }

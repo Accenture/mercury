@@ -19,3 +19,9 @@ rest:
     url: '/api/account/details'
     timeout: 10s
     tracing: true
+
+  - service: 'mock.echo.auth'
+    methods: ['POST']
+    url: '/api/echo/auth'
+    timeout: 10s
+    tracing: true

@@ -144,6 +144,23 @@ changes).
 7. **K-7 — platform-core WebSocket server** (lockstep increment) → the Playground:
    `GraphUserInterface` sessions, `GraphCommandService` grammar, the companion command
    API, dev-gating (K9).
+   > **Split into K-7a + K-7b. K-7a shipped 2026-07-17 (increment 27):** the
+   > platform-core WebSocket server (`automation/ws_server.rs`, hyper upgrade +
+   > tokio-tungstenite — the K6a decision): Java `WsRequestHandler` protocol parity —
+   > `/ws/{name}/{token}`, per-connection `{session}.in`/`.out` route pair,
+   > open/string/bytes/close lifecycle events, transmitter text/binary/JSON-segmented
+   > frames + `type: close`, idle sweep, housekeeper cleanup. **Declarative
+   > `#[websocket_service]` macro** (maintainer direction) mirrors the Java
+   > annotation: inventory registration, lifecycle-loaded URL paths, and the server
+   > starts when REST automation is on OR any websocket service exists. E2E with a
+   > real tungstenite client (programmatic + declarative suites). **Also
+   > maintainer-directed: the declarative `#[fetch_feature]` macro** (new
+   > `knowledge-graph-macros` crate) — Java `@FetchFeature` parity for
+   > field-installation cases like OAuth 2.0 bearer injection; proven E2E with the
+   > DemoAuth pattern on the wire. **K-7b (next):** the Playground —
+   > `GraphUserInterface` + `GraphSession`, `GraphCommandService` (1,494 lines),
+   > `GraphTraveler`, `JsonPathHandler`, companion API, the K-6-deferred REST
+   > endpoints, help files, dev-gating (K9).
 8. **K-8 — the React webapp + milestone close.** Copy the webapp, adjust
    `clean.js`/`deploy.js` to `../resources/public`, run `npm run release`, live-verify
    the Playground end-to-end in a browser; README; milestone banner.

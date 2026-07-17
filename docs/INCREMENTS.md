@@ -43,6 +43,7 @@
 | 24 | knowledge-graph K-4: graph runtime (executor + core skills), graph.js retired | 2026-07-17 | KG K1–K5 | 177 |
 | 25 | knowledge-graph K-5: platform-core HTTP client + graph.api.fetcher | 2026-07-17 | KG K6b | 177 |
 | 26 | knowledge-graph K-6: graph.extension (sub-graph + flow:// delegation) | 2026-07-17 | KG K2 | 178 |
+| 27 | knowledge-graph K-7a: platform-core WebSocket server (hyper upgrade + tungstenite) | 2026-07-17 | KG K6a | 179 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -610,6 +611,50 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   remains the single `graph.js` case proving the retirement error. E2E: hello,
   helloworld, hellojs and the tutorial-113 retry pattern (error-handler +
   clear-exception + DELAY) all pass.
+## Increment 27 — knowledge-graph K-7a: the WebSocket server (2026-07-17)
+
+- **platform-core WebSocket server** (design K6a — the second lockstep layer-1
+  extension): `automation/ws_server.rs` rides the REST automation server's HTTP
+  upgrade path (hyper upgrade + tokio-tungstenite). Java `WsRequestHandler` protocol
+  parity: a service listens at `/ws/{name}/{token}`; each connection becomes a private
+  route pair `{session}.in` (the service function) / `{session}.out` (the
+  transmitter), `session = ws.{random}.{seq}`; lifecycle events `open` (route,
+  tx_path, ip, path, query, token) / `string` / `bytes` / `close` (code, reason;
+  reply-to housekeeper releases the pair); transmitter semantics: string → text
+  frame, bytes → binary frame, map/list → JSON text segmented above 62 KB,
+  `type: close` with status/message closes the socket; idle sweep
+  (`websocket.idle.timeout`, default 60s, min 10).
+- **Declarative `#[websocket_service]` macro** (maintainer direction — full Java
+  `@WebSocketService(value, namespace)` parity): the annotated struct registers
+  through the link-time inventory like `#[preload]`; the AppStarter lifecycle loads
+  the URL paths (with Java's `validServiceName` check — an invalid name logs an error
+  and is skipped) before the HTTP server starts, and the server now starts when REST
+  automation is enabled **or** any websocket service exists (Java
+  `startHttpServerIfAny` semantics — the app also stays alive for WS-only services).
+  Positional and named forms both work: `#[websocket_service("graph")]` /
+  `#[websocket_service(name = "json", namespace = "ws")]`. The programmatic
+  `register_ws_service(_with_namespace)` stays available for tests and dynamic cases.
+- **E2E** (`tests/ws_server.rs`, a real tungstenite client through the real server):
+  the 101 handshake, open greeting via the tx path, text/binary echoes, JSON-map
+  framing, client- and server-initiated close (close event observed by the service),
+  and the negative case (an unregistered `/ws/*` path does not upgrade). A second
+  suite (`tests/ws_macro.rs`) proves the declarative path end-to-end: a
+  `#[websocket_service]` struct served by an `AutoStart`-booted app with
+  `rest.automation` disabled.
+- **Declarative `#[fetch_feature]` macro** (maintainer direction — field
+  installations use the declarative form for load-bearing cases such as fetching/
+  refreshing an OAuth 2.0 access token and inserting the bearer token into the
+  provider request): full Java `@FetchFeature(value)` parity via a new
+  `knowledge-graph-macros` crate (the `#[simple_plugin]` pattern) — a link-time
+  `FetchFeatureEntry` inventory loaded by the engine at startup (the
+  `PlaygroundLoader` scan analog); explicit `features::register` remains for
+  dynamic cases. E2E: the Java test feature `DemoAuth` declared with the macro, a
+  provider carrying `feature: [demo-auth, ...]`, and the wire-echoed
+  `Authorization: Bearer {node}` asserted through a real HTTP round trip.
+- **Increment split recorded**: K-7 = K-7a (this, the layer-1 substrate) + K-7b (the
+  Playground: `GraphUserInterface` sessions, the 1,494-line `GraphCommandService`
+  grammar, `GraphTraveler`, companion API, the K-6-deferred REST endpoints,
+  dev-gating K9) — next increment.
 
 ---
 

@@ -200,6 +200,52 @@ fn serve_mock_json(name: &str, not_found: &str) -> Result<EventEnvelope, AppErro
     }
 }
 
+/// Java `DemoAuth` (`@FetchFeature("demo-auth")`), declared with the Rust
+/// macro: a before-feature adding a demo bearer token — the field-installation
+/// pattern for OAuth 2.0 access-token insertion. The token is the fetcher's
+/// node name so the test can validate it on the wire (Java parity).
+#[knowledge_graph::fetch_feature("demo-auth")]
+struct DemoAuth;
+
+impl knowledge_graph::features::FeatureRunner for DemoAuth {
+    fn run_before(&self) -> bool {
+        true
+    }
+
+    fn execute(
+        &self,
+        request: Option<&mut platform_core::automation::AsyncHttpRequest>,
+        _response: Option<&knowledge_graph::features::HttpResponseView>,
+        _state: &mut MultiLevelMap,
+        node_name: &str,
+    ) {
+        if let Some(request) = request {
+            *request = request
+                .clone()
+                .set_header("Authorization", &format!("Bearer {node_name}"));
+        }
+    }
+}
+
+/// Echoes the Authorization header it received on the wire.
+#[preload(route = "mock.echo.auth", instances = 10)]
+struct MockEchoAuth;
+
+#[async_trait]
+impl ComposableFunction for MockEchoAuth {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "auth": request["headers"]["authorization"],
+        }))
+    }
+}
+
 #[main_application]
 struct GraphRuntimeTestApp;
 
@@ -347,6 +393,19 @@ async fn activated_hello_graphs_match_java_semantics(platform: &Platform) {
         panic!("expected account details, got {:?}", reply.body());
     };
     assert_eq!(5, details.len());
+
+    // --- rust-auth: the declarative #[fetch_feature] (OAuth-bearer pattern) —
+    // the before-feature injects the bearer token into the provider request
+    let reply = run_graph(
+        &platform,
+        "rust-auth",
+        serde_json::json!({"person_id": 7}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "rust-auth failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Bearer fetcher")), mm.get_element("auth"));
 
     // --- tutorial 113: the retry pattern (error-handler + clear-exception)
     let reply = run_graph(

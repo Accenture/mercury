@@ -40,6 +40,17 @@ pub struct PreloadEntry {
     pub factory: fn() -> Arc<dyn ComposableFunction>,
 }
 
+/// A `#[websocket_service]`-annotated websocket handler
+/// (Java `@WebSocketService(value, namespace)`).
+pub struct WsServiceEntry {
+    /// The service name — the URL becomes `/{namespace}/{name}/{token}`.
+    pub name: &'static str,
+    /// Java `namespace()` default: "ws".
+    pub namespace: &'static str,
+    /// One function object per websocket connection.
+    pub factory: fn() -> Arc<dyn ComposableFunction>,
+}
+
 /// A `#[before_application]`-annotated entry point (Java `@BeforeApplication`).
 pub struct BeforeAppEntry {
     pub sequence: u32,
@@ -53,5 +64,6 @@ pub struct MainAppEntry {
 }
 
 inventory::collect!(PreloadEntry);
+inventory::collect!(WsServiceEntry);
 inventory::collect!(BeforeAppEntry);
 inventory::collect!(MainAppEntry);

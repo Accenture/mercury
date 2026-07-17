@@ -21,11 +21,13 @@
 //! after-feature reads the HTTP response. Both may read/write the graph
 //! instance's state machine.
 //!
-//! Rust has no runtime annotation scanning, so features register explicitly
-//! through [`register`] (applications typically do this in a
-//! `#[before_application]` hook). The two built-in demonstration features —
-//! `log-request-headers` and `log-response-headers` — are registered by the
-//! engine itself.
+//! Rust has no runtime annotation scanning, so features register either
+//! **declaratively** with the `#[fetch_feature("name")]` macro (the Java
+//! annotation analog — used in field installations for cases like fetching/
+//! refreshing an OAuth 2.0 access token and inserting the bearer token into
+//! the outbound request) or explicitly through [`register`]. The two
+//! built-in demonstration features — `log-request-headers` and
+//! `log-response-headers` — are registered by the engine itself.
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -52,6 +54,27 @@ pub trait FeatureRunner: Send + Sync {
         state: &mut MultiLevelMap,
         node_name: &str,
     );
+}
+
+/// A `#[fetch_feature]`-annotated feature (Java `@FetchFeature`) collected
+/// from the link-time inventory.
+pub struct FetchFeatureEntry {
+    pub name: &'static str,
+    pub factory: fn() -> Arc<dyn FeatureRunner>,
+}
+
+platform_core::inventory::collect!(FetchFeatureEntry);
+
+/// Load every `#[fetch_feature]` from the link-time inventory (the Java
+/// `PlaygroundLoader` classpath-scan analog). Runs once at startup;
+/// idempotent — a name already registered explicitly is left untouched, and
+/// a later explicit [`register`] call may still replace any feature.
+pub fn load_declared_features() {
+    for entry in platform_core::inventory::iter::<FetchFeatureEntry> {
+        if get_feature(entry.name).is_none() {
+            register(entry.name, (entry.factory)());
+        }
+    }
 }
 
 fn registry() -> &'static RwLock<HashMap<String, Arc<dyn FeatureRunner>>> {
