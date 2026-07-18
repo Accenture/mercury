@@ -322,6 +322,13 @@ async fn playground_command_grammar_and_companion() {
         result_json.contains("hello world"),
         "sync run returns the output.body as structured result: {result_json}"
     );
+    // On success `error` is Nil; the JSON edge omits it by default
+    // (serializer.null.transport=false) — the Java Gson parity the field reported.
+    assert!(
+        outcome.get_element("error").is_none(),
+        "the null `error` field is omitted from the JSON response by default: {:?}",
+        reply.body()
+    );
     // The same output is teed live to the session console (human co-view).
     assert!(
         console_has(&lines, "Graph traversal completed"),

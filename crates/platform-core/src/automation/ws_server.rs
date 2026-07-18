@@ -254,8 +254,9 @@ impl ComposableFunction for WsTransmitter {
                 .await
                 .is_ok(),
             value @ (Value::Map(_) | Value::Array(_)) => {
-                // maps and lists render as JSON text, segmented above 62 KB
-                let text = serde_json::to_value(value)
+                // maps and lists render as JSON text, segmented above 62 KB;
+                // Nil map entries are omitted unless serializer.null.transport=true
+                let text = serde_json::to_value(crate::serializer::strip_nulls(value))
                     .map(|v| v.to_string())
                     .unwrap_or_default();
                 let mut ok = true;

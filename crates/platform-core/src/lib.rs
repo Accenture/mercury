@@ -41,6 +41,7 @@ pub mod logging;
 pub mod platform;
 pub mod post_office;
 pub mod registry;
+pub mod serializer;
 pub mod telemetry;
 pub mod trace;
 pub mod util;

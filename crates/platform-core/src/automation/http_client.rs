@@ -630,8 +630,9 @@ fn request_body_bytes(request: &AsyncHttpRequest, method: &str) -> Result<Vec<u8
         Value::String(text) => Ok(text.as_str().unwrap_or_default().as_bytes().to_vec()),
         value @ (Value::Map(_) | Value::Array(_)) => {
             // maps and lists serialize as JSON (the Java XML writer path is a
-            // documented deferral)
-            let json = serde_json::to_value(value)
+            // documented deferral); Nil map entries are omitted unless
+            // serializer.null.transport=true (Java Gson parity)
+            let json = serde_json::to_value(crate::serializer::strip_nulls(value))
                 .map_err(|e| AppError::new(400, format!("Invalid HTTP request body - {e}")))?;
             serde_json::to_vec(&json)
                 .map_err(|e| AppError::new(400, format!("Invalid HTTP request body - {e}")))

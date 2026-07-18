@@ -14,5 +14,11 @@ rest.server.port: 8100
 # Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
 location.graph.temp: file:/tmp/graph
 
+# Serializer null handling (Java parity). Default false: Nil map entries are
+# omitted from JSON and MsgPack output (e.g. a successful /sync response drops
+# the null `error` field), mirroring Gson's default + MsgPack packMap null-skip.
+# Set true to transport nulls explicitly for a downstream that needs them.
+serializer.null.transport: false
+
 info.app.description: 'mercury MiniGraph Playground (active knowledge graph)'
 show.application.properties: 'application.name, app.env, rest.server.port'

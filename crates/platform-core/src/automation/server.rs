@@ -634,7 +634,9 @@ fn envelope_payload(result: &EventEnvelope) -> (Option<&'static str>, Bytes) {
             (Some("application/octet-stream"), Bytes::from(bytes.clone()))
         }
         _ => {
-            let json = result.body_as::<serde_json::Value>().unwrap_or_default();
+            // Omit Nil map entries unless serializer.null.transport=true (Java Gson parity).
+            let body = crate::serializer::strip_nulls(result.body());
+            let json = serde_json::to_value(&body).unwrap_or_default();
             (Some("application/json"), Bytes::from(json.to_string()))
         }
     }

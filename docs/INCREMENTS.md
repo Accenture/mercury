@@ -845,6 +845,32 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 
 ---
 
+## Increment 33 — `serializer.null.transport` (Java null-omission parity) (2026-07-18)
+
+- **platform-core serializer parity.** Java strips `null`s from **both** wire serializers by default,
+  gated on one config `serializer.null.transport` (default `false`): Gson omits null object/map fields
+  unless `serializeNulls()` (`SimpleMapper`), and `MsgPack.packMap` skips null map values
+  (`if (supportNulls || value != null)`). The Rust port did the **opposite** — it always transported
+  nulls via serde — so a successful `/api/companion/{id}/sync` response emitted `"error": null` where
+  Java omits the field. Surfaced by a field test comparing the two engines' `/sync` output.
+- **Fix:** new `crates/platform-core/src/serializer.rs` — `null_transport()` (cached read, default
+  false) + `strip_nulls`/`strip_nulls_always` (recursively drop `Nil` **map** entries; **array**
+  elements preserved, matching Gson field-omission and Java `packList`). Applied at every wire
+  boundary: the JSON HTTP response (`server.rs` `envelope_payload`), the WebSocket text frame
+  (`ws_server.rs` — the companion tee), the outbound HTTP request body (`http_client.rs`), and the
+  MsgPack envelope encoder (`envelope.rs::to_bytes`, guarded so a scalar body / transport-on path
+  encodes with no extra clone).
+- **Behavior:** default (`false`) now matches Java byte-for-byte on null handling — the `/sync`
+  success response omits `error`; `serializer.null.transport: true` restores explicit null transport.
+  Documented in `examples/minigraph-playground/resources/application.yml`.
+- **Tests:** 5 unit tests in `serializer.rs` (map-drop, nested recursion, array-slot preservation,
+  maps-in-arrays, scalar pass-through); `playground.rs` `/sync` HTTP round-trip now asserts `error` is
+  omitted on success. Full workspace green (the only failure is the pre-existing two-`#[tokio::test]`-
+  per-binary `graph_runtime` boot flake — reproduces on HEAD, unrelated). fmt + clippy clean.
+- **Java side:** unchanged — it is the source of truth this mirrors.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
