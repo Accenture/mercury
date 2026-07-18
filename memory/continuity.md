@@ -113,8 +113,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   second fresh agent solved it from the docs alone (dry-run PASS, all branches + `a==b`). Also validated
   MiniGraph **session-management** (`session subscribe` link + a zero-dep Node WS subscriber gave the
   orchestrator live console visibility). **Pending: 5–13** — each expected to surface more; that is the
-  *purpose*, hardening the Rust port toward production quality. **Resume:** user restarts the Rust server
-  (`app.env=dev`) + provides a fresh `ws-…` primary; spin a companion the same way.
+  *purpose*, hardening the Rust port toward production quality. **Resume — NEXT: tutorial-5.** User
+  restarts the Rust server (`app.env=dev`) + provides a fresh `ws-…` primary; spin a companion the same
+  way. **Brief it from THIS repo's own ported docs** — `docs/llms.txt` +
+  `docs/guides/knowledge-graph/{ai-agent-guide,command-reference,minigraph-commands.json}` (ported here
+  during the companion-sync arc; no longer mercury-composable's copies). Since then the companion `/sync`
+  endpoint is live in both ports + the drain/terminal + null-transport parity landed, so tut-5 can drive
+  entirely via `POST /api/companion/{id}/sync`.
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
   <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 4 | tier: working | origin: 2026-07-18-061457.md -->
 
