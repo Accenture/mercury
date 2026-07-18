@@ -76,6 +76,18 @@ async fn execute_graph(
                     .set_correlation_id(&cid),
             )
             .await;
+        // Uniform end-of-transmission even when the traversal fails before it
+        // starts (no graph instance yet, missing root/end) — no `GraphInstance`
+        // exists here, so emit the terminal line directly to the reply route.
+        let _ = po
+            .send(
+                EventEnvelope::new()
+                    .set_to(&reply_to)
+                    .set_status(400)
+                    .set_raw_body(Value::from("Graph traversal aborted"))
+                    .set_correlation_id(&cid),
+            )
+            .await;
     }
 }
 
@@ -186,7 +198,7 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
                     .set_status(rc.as_i64().unwrap_or(500) as i32),
             )
             .await;
-        send_error(po, &instance, "Graph traversal aborted").await;
+        emit_aborted(po, &instance).await;
     } else if !instance.is_complete() {
         let next = display(response.body());
         decide_next(platform, po, &instance, node, &next).await;
@@ -423,9 +435,30 @@ async fn handle_error_response(
                 .set_status(response.status()),
         )
         .await;
-    send_error(po, instance, "Graph traversal aborted").await;
+    emit_aborted(po, instance).await;
 }
 
+/// Canonical failure terminal — the mirror of the success terminal in
+/// [`execution_complete`]. Marks the traversal complete and emits the single
+/// end-of-transmission line the synchronous companion endpoint drains on, so
+/// **every** `run` finishes with either `Graph traversal completed in N ms` or
+/// `Graph traversal aborted` — a deterministic signal, never a timeout.
+async fn emit_aborted(po: &PostOffice, instance: &Arc<GraphInstance>) {
+    instance.set_complete();
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(&instance.get_reply_to())
+                .set_correlation_id(&instance.get_correlation_id())
+                .set_raw_body(Value::from("Graph traversal aborted"))
+                .set_status(400),
+        )
+        .await;
+}
+
+/// Emit a specific failure reason and then the canonical [`emit_aborted`]
+/// terminal, so the human/companion sees *why* and any watcher (the sync
+/// endpoint included) still gets the uniform end-of-transmission line last.
 async fn send_error(po: &PostOffice, instance: &Arc<GraphInstance>, message: &str) {
     instance.set_complete();
     let _ = po
@@ -437,4 +470,5 @@ async fn send_error(po: &PostOffice, instance: &Arc<GraphInstance>, message: &st
                 .set_status(400),
         )
         .await;
+    emit_aborted(po, instance).await;
 }

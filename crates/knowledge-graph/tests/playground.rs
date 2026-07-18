@@ -265,6 +265,122 @@ async fn playground_command_grammar_and_companion() {
         "companion command output should reach the console"
     );
 
+    // --- the SYNCHRONOUS companion hop over REST: POST /api/companion/{id}/sync
+    // returns the command outcome in-band. `run` is asynchronous (the traveler
+    // streams its output after the handler replies), so this is the regression
+    // guard for the drain: the response must carry the WHOLE traversal, drained
+    // on the traveler's terminal line — not a sentinel-raced truncation.
+    lines.lock().expect("console").clear();
+    let sync_run = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/companion/{public_id}/sync"))
+        .set_header("content-type", "text/plain")
+        .set_body(Value::from("run"));
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(sync_run.to_value()),
+            Duration::from_secs(35),
+        )
+        .await
+        .expect("sync run request");
+    let outcome = MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(
+        Some(Value::Boolean(true)),
+        outcome.get_element("ok"),
+        "sync run → ok:true: {:?}",
+        reply.body()
+    );
+    // The output array must span the full async tail, ending on the terminal.
+    let output_lines: Vec<String> = match outcome.get_element("output") {
+        Some(Value::Array(items)) => items.iter().map(display).collect(),
+        other => panic!("sync run output must be an array, got {other:?}"),
+    };
+    assert!(
+        output_lines.iter().any(|l| l == "Walk to root"),
+        "sync run captures the traversal start: {output_lines:?}"
+    );
+    assert!(
+        output_lines
+            .iter()
+            .any(|l| l.starts_with("Executed mapper with skill graph.data.mapper")),
+        "sync run captures mid-traversal skill execution: {output_lines:?}"
+    );
+    assert!(
+        output_lines
+            .iter()
+            .any(|l| l.starts_with("Graph traversal completed in")),
+        "sync run must capture the traversal terminal (drain waited for it): {output_lines:?}"
+    );
+    // The structured result carries the run's output.body ("hello world").
+    let result_json = event_script::conversions::to_json_string(
+        &outcome.get_element("result").unwrap_or(Value::Nil),
+    );
+    assert!(
+        result_json.contains("hello world"),
+        "sync run returns the output.body as structured result: {result_json}"
+    );
+    // The same output is teed live to the session console (human co-view).
+    assert!(
+        console_has(&lines, "Graph traversal completed"),
+        "sync run output is teed to the session console"
+    );
+
+    // A failing traversal still returns promptly with the uniform terminal,
+    // proving the drain never hangs to the safety timeout on an early failure.
+    // Use a fresh session with no instantiated graph (a realistic companion
+    // mistake: `run` before `instantiate`) so the main session is untouched.
+    let bad_in = "ws.100009.1.in";
+    let bad_id = "ws-100009-1";
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(knowledge_graph::commands::ROUTE)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("open")),
+                    (Value::from("in"), Value::from(bad_in)),
+                ])),
+        )
+        .await;
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    let sync_bad = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/companion/{bad_id}/sync"))
+        .set_header("content-type", "text/plain")
+        .set_body(Value::from("run"));
+    let started = std::time::Instant::now();
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(sync_bad.to_value()),
+            Duration::from_secs(35),
+        )
+        .await
+        .expect("sync bad run request");
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "a failed run must drain on the terminal, not the safety timeout"
+    );
+    let bad_outcome = MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(
+        Some(Value::Boolean(false)),
+        bad_outcome.get_element("ok"),
+        "run with no instance → ok:false: {:?}",
+        reply.body()
+    );
+    let bad_lines: Vec<String> = match bad_outcome.get_element("output") {
+        Some(Value::Array(items)) => items.iter().map(display).collect(),
+        other => panic!("sync bad run output must be an array, got {other:?}"),
+    };
+    assert!(
+        bad_lines.iter().any(|l| l == "Graph traversal aborted"),
+        "every run ends with a terminal, even on early failure: {bad_lines:?}"
+    );
+
     // --- the live-graph REST download returns the session's draft
     let get = platform_core::automation::AsyncHttpRequest::new()
         .set_method("GET")

@@ -77,13 +77,33 @@ completion and returns what was captured:
 3. Dispatch the command to `graph.command.singleton` with `out = companion.sync.{uuid}` using
    **`PostOffice::request` (RPC)** — `handle()` awaits `handle_request()` (all `say()` calls
    complete) before returning its `"done"` ack, so the RPC resolving marks the command finished.
-4. **Completion signaling.** `say()` is fire-and-forget (`send` enqueues to the route mailbox), so
-   after the RPC resolves the last lines may still be in the capture route's mailbox. The pipeline
-   is FIFO per route, so the sync path enqueues a **sentinel** to the capture route *after* the RPC
-   resolves; the capture function signals done when it sees the sentinel (deterministic — no
-   arbitrary sleep). *(Prototype may use a short bounded settle; production uses the sentinel.)*
-5. Drain the buffer → classify (`ok`/`error`), parse `run`/`inspect` results, build the envelope.
-6. Deregister the capture route; return the JSON.
+4. **Completion signaling — two end-of-transmission signals, by command shape.** `say()` is
+   fire-and-forget (`send` enqueues to the route mailbox), so after the RPC resolves the last lines
+   may still be in flight. The right "done" signal depends on whether the command is synchronous:
+   - **Synchronous commands** (create, connect, inspect, describe, …) emit *all* output before
+     `handle()` replies. The sync path enqueues a **sentinel** to the capture route *after* the RPC
+     resolves; the capture buffer is fully drained once the sentinel appears (FIFO per route —
+     deterministic, no sleep).
+   - **A traversal (`run`) is asynchronous.** The command handler only *launches* the traveler
+     (`send`, not `request`) and replies immediately; the traveler then walks the graph and streams
+     `Walk to…` / `Executed…` / the `output` map / a **terminal line** to `out` *after* the RPC has
+     resolved. A sentinel enqueued at that point **races (and usually beats) the traversal tail**,
+     truncating the capture — the original bug (the `/sync` response showed only `Walk to root` /
+     `Walk to end`). The deterministic fix: drain a traversal on the **traveler's own terminal
+     line** — `Graph traversal completed in N ms` (success) or `Graph traversal aborted` (failure) —
+     which is always emitted **last**, so once it is seen every prior line is already buffered.
+5. **Uniform terminal contract (engine change).** For the terminal signal to be reliable, *every*
+   `run` must end with exactly one terminal line. The traveler already emitted `completed` on success
+   and `aborted` on the mid-traversal error paths, but several early-failure paths (no instance yet,
+   missing root/end node, unknown skill, dangling next-node) ended with only a *reason* line. Those
+   now emit the reason **then** the canonical `Graph traversal aborted` terminal (`emit_aborted`), so
+   a companion mistake such as `run` before `instantiate` drains promptly (`ok:false` + the reason)
+   instead of waiting out the safety timeout. This is symmetric with the Java engine so the REST
+   contract is byte-identical across languages.
+6. The bounded poll remains **only a safety net** (matched to the 30s command timeout); correctness
+   comes from the signal, never from a timer.
+7. Drain the buffer → classify (`ok`/`error`), parse `run`/`inspect` results, build the envelope.
+8. Deregister the capture route; return the JSON.
 
 > **Tee to both (v1 — real-time human+AI collaboration).** The capture sink also **fire-and-forget
 > forwards** each line (except the sentinel) to the session's real WebSocket `.out` route. So the

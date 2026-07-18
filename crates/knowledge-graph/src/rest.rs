@@ -216,6 +216,22 @@ fn is_error_line(line: &str) -> bool {
         || line.contains("Please try 'help'")
 }
 
+/// The Playground's only **asynchronous** command: `run` launches the traveler,
+/// which streams its output *after* the command handler has already replied — so
+/// the sentinel drain (correct for synchronous commands) races the traversal
+/// tail. A traversal is drained on its terminal line instead (see
+/// [`is_traversal_terminal`]).
+fn is_traversal_command(command: &str) -> bool {
+    command.eq_ignore_ascii_case("run")
+}
+
+/// The traveler's end-of-transmission lines. One of these is **always** emitted
+/// last (success or failure), so the synchronous endpoint drains a traversal
+/// deterministically — no timer, no truncated capture.
+fn is_traversal_terminal(line: &str) -> bool {
+    line.starts_with("Graph traversal completed in") || line == "Graph traversal aborted"
+}
+
 /// **Synchronous** AI-companion command (design: `docs/design/ai-companion-sync.md`).
 /// Additive sibling of [`post_companion_command`]: dispatches the same command but
 /// returns the command's **outcome in-band** — `ok`, the console `output` lines,
@@ -275,21 +291,44 @@ pub async fn post_companion_command_sync(
         )
         .await;
 
-    // `say()` is fire-and-forget; the sentinel (enqueued after, FIFO) marks the
-    // buffer fully drained — deterministic, no arbitrary sleep.
-    let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(capture_route.as_str())
-                .set_raw_body(Value::from(SYNC_SENTINEL)),
-        )
-        .await;
-    for _ in 0..250 {
-        let seen = {
+    // Wait until the command's output is fully buffered, keyed to how the command
+    // signals end-of-transmission:
+    //
+    //  * A traversal (`run`) replies *before* its output exists — the traveler
+    //    streams `Walk to…` / `Executed…` / the `output` map / a terminal line to
+    //    the capture route after the handler has returned. Its deterministic end
+    //    marker is the traveler's own terminal line (`Graph traversal completed in
+    //    N ms` | `Graph traversal aborted`), always emitted LAST — so once seen,
+    //    every prior line is already buffered (single FIFO capture route). A
+    //    sentinel would race (and usually beat) that tail, truncating the capture.
+    //  * Every other (synchronous) command emits all output before the handler
+    //    replies; the FIFO sentinel enqueued after marks the buffer fully drained.
+    //
+    // The bounded poll is only a safety net (matched to the 30s command timeout);
+    // correctness comes from the signal, not from any arbitrary sleep.
+    let is_traversal = is_traversal_command(&command);
+    if !is_traversal {
+        let _ = po
+            .send(
+                EventEnvelope::new()
+                    .set_to(capture_route.as_str())
+                    .set_raw_body(Value::from(SYNC_SENTINEL)),
+            )
+            .await;
+    }
+    let max_polls = if is_traversal { 1500 } else { 250 };
+    for _ in 0..max_polls {
+        let done = {
             let g = buffer.lock().expect("capture buffer poisoned");
-            g.iter().any(|v| v.as_str() == Some(SYNC_SENTINEL))
+            if is_traversal {
+                g.iter()
+                    .filter_map(|v| v.as_str())
+                    .any(is_traversal_terminal)
+            } else {
+                g.iter().any(|v| v.as_str() == Some(SYNC_SENTINEL))
+            }
         };
-        if seen {
+        if done {
             break;
         }
         tokio::time::sleep(Duration::from_millis(20)).await;

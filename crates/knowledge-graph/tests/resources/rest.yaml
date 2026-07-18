@@ -32,6 +32,12 @@ rest:
     timeout: 10s
     tracing: true
 
+  - service: 'post.companion.command.sync'
+    methods: ['POST']
+    url: '/api/companion/{id}/sync'
+    timeout: 30s
+    tracing: true
+
   - service: 'get.live.graph'
     methods: ['GET']
     url: '/api/graph/session/{id}'
