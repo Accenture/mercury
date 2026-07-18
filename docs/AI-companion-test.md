@@ -31,7 +31,8 @@
 | **L1 — mechanics + transcription** | 1–2 | drive the endpoints; look up exact syntax for a *known* graph | command list / syntax reference | step-wise | commands dispatch; graph built |
 | **L2 — comprehension** | 3 | reconstruct a *specified* graph from the canonical docs alone (no walkthrough) | full node/connection plan; derive syntax | step-wise, screenshot each step | structural match to canonical + dry-run |
 | **L3 — synthesis / problem-solving** | 4 | *design* a correct solution to a stated **problem + output contract**, with **no syntax hints** | problem statement only | build whole graph, pause for dry-run | **behavioral**: dry-run honors the contract on every branch |
-| **L4+ …** | 5–13 | escalate further (composition, error paths, extensions, …) | TBD per tutorial | TBD | TBD |
+| **L4 — composition** | 5 | *compose* mechanisms (parallel fan-out + join barrier + data sourcing + list assembly) from a problem + contract, no syntax hints | problem statement only | build whole graph, pause for dry-run | **behavioral** + demonstrable parallelism (traversal-log timing) |
+| **L5+ …** | 6–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -135,6 +136,71 @@
 - **Trivial aside:** the first (failed) build showed as "untitled-1" — the root node had no `name`
   property (sets the graph title / export name); not the focus.
 
+### Tutorial 5 — L4 (composition: parallel fan-out + join + data sourcing) — PASSED (first attempt)
+- **Task (problem only, no syntax hints):** fetch the profiles of TWO people **in parallel** (both API
+  calls at the same time) and return one combined response. Input: `{person1: <id>, person2: <id>}`
+  (mock ids 100/200). Profile API: `GET /api/mdm/profile/{id}` on the same server (the dev mock).
+  Output contract: `output.body = { "profile": [ <both profiles> ] }`, each entry carrying at least
+  name and address; order irrelevant. Tutorial-5's focus is **parallelism + the `graph.join` barrier**.
+- **Method:** fresh companion; **this repo's own AI docs for the first time** (`docs/llms.txt` + the
+  four `docs/guides/knowledge-graph/` files — tutorials 1–4 used the Java upstream's copies); build
+  whole graph → dry-run; allowed to probe the profile endpoint directly and to use anything the
+  engine says **in-band**; drove the human's live UI session (`ws-976371-7`) entirely via `/sync`.
+- **Result: PASSED on the first run — 18/18 commands `ok:true`, zero failed commands** (a first for
+  the sweep at L3+; tut-4 needed a doc fix + retry). Design: `root` forks to `fetch-one`/`fetch-two`
+  (`graph.api.fetcher`, per-fetcher `model.profile1`/`model.profile2` scratch), both converge on
+  `join-profiles` (`graph.join`), and `end` (`graph.data.mapper`) assembles
+  `model.profile1 -> output.body.profile[0]`, `model.profile2 -> output.body.profile[1]`; one
+  shared Dictionary (`person-profile`, `response.profile -> result.profile`) + Provider
+  (`mdm-profile`, `person_id -> path_parameter.id`). Dry-run (verified independently by the
+  orchestrator re-running it):
+  `{"profile":[{"address":"100 World Blvd","id":"100","name":"Peter"},{"address":"200 World Blvd","id":"200","name":"Mary"}]}`.
+  **Parallelism proven from the traversal log:** both `Walk to fetch-*` lines precede either
+  `Executed`; the two fetches (~4.5–5 ms each) complete out-of-order inside a ~6 ms total traversal;
+  the join executes twice (sink, then release). Exported as `parallel-profile-fetch`.
+- **Judged against canonical `tutorial-5.json` — semantically equivalent, three deliberate
+  divergences, all valid and two arguably better:**
+  1. **One** Dictionary returning the whole `response.profile` object vs canonical's two
+     field-level entries (`person-name`, `person-address`) — fewer nodes for the same contract
+     (each profile also carries `id`, a superset).
+  2. **Deterministic post-join assembly** at `end` (`profile[0]`/`profile[1]`) vs canonical's
+     per-fetcher append (`model.fetcher-N -> output.body.profile[]`, order undetermined) — avoids
+     the concurrent-append hazard entirely and pins order (canonical's own walkthrough mentions the
+     indexed variant as the order-guaranteeing option).
+  3. No organizational Island node — the docs mark it optional; Provider/Dictionary stayed
+     unconnected per the documented config-node exception.
+  Notably the companion derived tutorial-5's **key lesson** — parallel branches must write to
+  disjoint `model.*` scratch keys — on its own, with no hint.
+- **KEY method finding — the five AI docs alone were *not* sufficient; in-band help bridged the
+  gap.** Provider URL `{name}` placeholders and the Dictionary node's **bare** `input[]` (a parameter
+  name, not a `source -> target` mapping) are documented nowhere in the five docs — the page both
+  guides delegate to (`composing-the-layers.md#data-dictionary`) **doesn't exist in this repo**. The
+  companion resolved both *before* authoring — `describe skill graph.api.fetcher` (documented) told it
+  to run `help data-dictionary` (undocumented but discoverable), whose in-band text carries the full
+  recipe — and that is why it never issued a failing command. Legitimate under the rules (in-band is
+  fair game, and the `/sync` channel is exactly this feedback loop), but it means doc completeness was
+  rescued by the engine's own help surface.
+- **Doc frictions recorded by the companion (all candidates below, rollup #9–#13):** the dangling
+  links (`composing-the-layers.md`, `build-your-first-graph.md`, `playground-and-companion.md`,
+  `index.md`, `../event-script/syntax.md` — the latter owed the **full constant-type set**, tut-4
+  friction (a) again); `help {topic}` absent from the grammar docs; ai-agent-guide prose still calls
+  the endpoint "`/command`" post-rename; the success envelope **omits** `error`/`result` (increment-33
+  null-omission) though the docs write `error: null`, and carries an undocumented `id` field; fan-out
+  concurrency (multiple outgoing connections = parallel branches) implied only by `graph.join`'s notes.
+- **Engine bug found by the orchestrator (not the companion): `session subscribe` issued via
+  `/sync` poisons the subscriber list.** The command registers its reply route as the subscriber —
+  through `/sync` that is the **ephemeral per-request capture route** (`companion.sync.<uuid>`,
+  released when the POST returns), not the session's real WS `.out`. Engine state confirmed it:
+  the primary reported `subscribed by ["companion.sync.3da2143d…"]` while the watcher session
+  believed `subscribed to ws-976371-7`; the orchestrator's headless watcher received mirrors for ~6
+  minutes, then the feed **died silently mid-test**. Java upstream mirrors the same `/sync` mechanism
+  (#189) — check both ports. Workaround: issue `session subscribe` over the WS connection itself.
+  Tracked as an Open Thread in `memory/continuity.md`.
+- **Session-hygiene aside:** the "fresh" primary session arrived carrying a complete leftover draft
+  of this very exercise (`session reset` does not clear the draft graph — it resets subscriptions);
+  the orchestrator deleted all 7 nodes before briefing the companion, or the exercise would have been
+  contaminated. Worth a UX note on `session reset` semantics.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -149,3 +215,10 @@
 | 6 | Tut 4 | no example of a mapper reading another node's `.result`; `IF` jump ↔ `connect` relationship unspecified; skill-less terminal `End` only implied | (candidate) add small examples/notes to the skills/command reference |
 | 7 | Tut-4 live demo | **`graph.js` retired at runtime but still listed as available** in the AI docs → a fresh companion wasted three commands trying it (though it self-corrected each time via the in-band error) | **DONE** — AI docs **ported into this Rust repo** (`docs/guides/knowledge-graph/` + `docs/llms.txt`) and `graph.js` marked retired everywhere (command-reference, minigraph-commands.json, skills-reference); future tests reference the Rust repo's docs |
 | 8 | Tut-4 live demo | `graph.math`'s dialect is narrower than "JS-like" implies (no bitwise ops, no function calls) and serializes integers as floats (`8.0`) with no in-grammar coercion | **DONE** — documented in the ported command-reference + skills-reference |
+| 9 | Tut 5 | Provider URL `{name}` placeholder syntax and the Dictionary node's **bare** `input[]` shape are in none of the five AI docs — the page they delegate to (`composing-the-layers.md#data-dictionary`) doesn't exist in this repo; the recipe lives only in in-band `help data-dictionary` | (candidate) inline a Provider/Dictionary authoring subsection into `command-reference.md` + `minigraph-commands.json` |
+| 10 | Tut 5 | `help {topic}` is the engine's own discovery surface (in-band `describe skill` even points to it) but is absent from the AI grammar docs | (candidate) document `help {topic}` as a command in `command-reference.md` + `minigraph-commands.json` |
+| 11 | Tut 5 | `ai-agent-guide.md` prose still calls the synchronous endpoint "the `/command` endpoint" after the `/command` → `/sync` rename (tables/examples are correct) | (candidate) sweep the prose |
+| 12 | Tut 5 | the `/sync` success envelope **omits** `error`/`result` (increment-33 serializer null-omission) though the docs write `error: null | "..."`, and carries an undocumented `id` field — a strict parser trips | (candidate) doc note: absent ⇒ null; document `id` |
+| 13 | Tut 5 | fan-out concurrency (multiple outgoing connections fork **parallel** branches) is implied only by `graph.join`'s notes | (candidate) one explicit sentence in `command-reference.md` traversal/invariants |
+| 14 | Tut 5 (orchestrator) | **engine bug, both ports suspected:** `session subscribe` via `/sync` registers the ephemeral `companion.sync.<uuid>` capture route as a durable subscriber → dangling subscriber, silent mirror death, asymmetric session state | **Open Thread** in `memory/continuity.md` — fix subscribe (resolve to the session's real `.out`, or reject session commands on the sync path); workaround: subscribe over the WS connection |
+| 15 | Tut 5 (orchestrator) | `session reset` resets subscriptions but does **not** clear the draft graph — a "fresh" session can carry a stale (here: exercise-contaminating) draft | (candidate) UX note in `help session.md`; consider a `clear graph` affordance |

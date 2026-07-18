@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (Accenture's event-driven composable app platform; canonical impl in Java v4.8.6), carrying the same vision. In scope: three layers — platform-core → event-script → active knowledge graph (bottom-up, foundation → UI); **Kafka service mesh and Spring out of scope**. Private prototyping repo (pushed to `acn-ericlaw/mercury`); graduates to the official Accenture repo once the foundation is sufficient. **platform-core increments 1–8 implemented — an HTTP-SERVING, OBSERVABLE, OPERABLE foundation**: config management → event-bus foundation → FIFO reactive back-pressure (ElasticQueue + manager-worker; BDB ignored) → application lifecycle → OTel tracing + business cid + app-log-context (3-format logger, -D overrides) → REST automation core (rest.yaml per the Java grammar, hyper HTTP edge that starts traces/ensures cid) → actuators + static content (`/info` `/env` `/health` `/livenessprobe`, default-endpoint merge, `resources/public`) → **static-content protocol** (SHA-256 etag/HTTP-304 with comma-aware If-None-Match; no-cache pages default `/`+`/index.html`; `static-content.filter` request interceptor — the SSO-redirection hook: 200=serve, else pass-through, headers always copied) → **increment 9: lightweight RPC inbox (AsyncInbox parity) + benchmark-reporter** — **PLATFORM-CORE MILESTONE CLOSED 2026-07-16**: 103 tests, clippy/fmt clean, and a saved benchmark record (`benchmark/benchmark-reporter/analysis/rust-tokio.html`): baseline RPC 155K ops/s @ 6µs mean (8.4× the Java file-vthread record), balanced 411K ops/s (2.3×), overload ~1.4× loss-free through the disk spill, mixed latency probe 17µs mean / 210µs max vs Java 157µs/1.62ms (~9× — the no-GC tail story); 1,003,000 timed ops, 0 failures. **Increment 10 (2026-07-16): annotation macros** — `crates/platform-macros` (`#[preload]`/`#[before_application]`/`#[main_application]`/stacked `#[zero_tracing]`, link-time `inventory` registration = the Java classpath-scan analog, D6 closed) + `AutoStart` one-liner (`auto_start_main!()`; ships OS-signal shutdown) + the **`examples/<name>/` app-crate convention** (hello-world relocated; 105 tests, workspace-wide clippy 0). `docs/INCREMENTS.md` = the increment ledger. **Layer 2 (event-script) started 2026-07-16**: canonical `event-script-engine` surveyed (~8K LOC; grammar spec = `flow-grammar.md`); `docs/design/event-script-port.md` DRAFT v1 (decisions E1–E9, increment plan E-1…E-9) **approved 2026-07-16**; **E-1 shipped** (repo increment 11): `crates/event-script` — flow model + full `CompileFlows` port, all 90 Java fixtures reused verbatim with the loaded-set/rejection/task-drop outcomes pinned by tests; **E-2 shipped** (repo increment 12): data-mapping engine — runtime MultiLevelMap over `rmpv::Value` (maintainer refinement: direct composite-key access = PRIMARY tool; JSONPath `$.…` = user-defined complex queries via serde_json_path), DataMappingHelper resolution + 19 core plugin bodies; greetings-fixture mappings evaluate byte-for-byte like Java (139 workspace tests, clippy 0). **E-3 shipped** (repo increment 13): platform-core extensions — event-interceptor mode (`FunctionOptions`; success reply guarded, failures still route — Java WorkerHandler parity), `send_later`/`cancel_future_event`, rest.yaml `flow:` → x-flow-id, deep-copy satisfied by `rmpv::Value::clone` (145 tests, clippy 0). **E-4 shipped** (repo increment 14): core flow runtime — FlowInstance + registries, manager/executor interceptors, FlowExecutor launch/request; sequential/response/end/decision/sink + exceptions + TTL abort + metrics + flow-summary span; E2E over the canonical fixtures (146 tests, clippy 0). **FLOWS EXECUTE ON RUST.** **Increment 15**: hidden direct execution for the reserved engine routes (event.script.manager/task.executor run on the event core — private route list in Platform::deliver, NOT exposed via macros/API by maintainer decision; concurrency + liveness, proof tests incl. a serialized control; 148 tests). **E-5 shipped** (repo increment 16): parallel + fork/join with the pipe-map barrier, dynamic `source` iteration (.ITEM/.INDEX), Java-exact pipe cleanup on exceptions; canonical parallel/fork fixtures verbatim + a marked Rust-side dynamic-fork supplement (canonical needs E-7). **E-6 shipped** (repo increment 17): pipelines (PipelineState in the pipe map) with for/while loops + break/continue; canonical loop fixtures verbatim incl. file() round-trip and per-step delay; decision.case upgraded to the faithful DecisionCase port. **E-7 shipped** (repo increment 18): flow:// sub-flows via the manager (child response = parent callback), shared parent state (Arc<Mutex<tree>> per family; materialized at model.parent under the shared lock; model.root normalized), ext: state machine (route + flow:// forms), SimpleExceptionHandler built-in; canonical dynamic-fork fixture ACTIVATED (5 concurrent sub-flows, exactly-once shared appends). **E-8 shipped** (repo increment 19): all 42 plugin bodies + `#[simple_plugin]` macro (new event-script-macros crate; SimplePluginLoader at sequence 3); plugin fixtures activated; user plugin proven E2E. **E-9 shipped (repo increment 20) — EVENT-SCRIPT (LAYER 2) MILESTONE CLOSED 2026-07-17**: HttpToFlow, Resilience4Flow, EventScriptMock, examples/hello-flow (live-verified: YAML flow over HTTP, cid propagation). E-1…E-9 = the complete engine, validated on the canonical Java fixtures. **Layer 3 (knowledge graph) started 2026-07-17**: canonical minigraph-playground-engine surveyed (~9.8K LOC + React webapp; MiniGraph itself is a Java platform-core built-in); `docs/design/knowledge-graph-port.md` (K1–K9). **LAYER 3 MILESTONE CLOSED 2026-07-18** (increments K-1…K-8 / repo 21–29): MiniGraph → math engine → compiler+registry → runtime + core skills (graph.js retired) → HTTP client + graph.api.fetcher → graph.extension → WebSocket server + declarative `#[websocket_service]`/`#[fetch_feature]` macros → the Playground (command grammar, traveler, companion API, dev-gating K9) → React webapp + `examples/minigraph-playground` (live-verified). **Post-milestone refinements (repo 30–32, 2026-07-18):** `#[optional_service]` macro + dev mock data providers (mock.mdm.profile/account.details/hello.task) → **full declarative dev-gating** — `#[optional_service]` extended to `#[websocket_service]`/`#[before_application]`/`#[main_application]`, the Playground retired from programmatic registration to declarative `#[preload]`/`#[websocket_service]` + `#[optional_service("app.env=dev")]` (Java parity; the Java PlaygroundLoader is only the @FetchFeature loader), `app.env` env-overridable (`${APP_ENV:dev}`); prod-mode verified to skip the whole Playground. Increment 32: `inspect` **docs** `{…}`-placeholder fix (examples unbraced, both repos; Java canonical pushed) — the webapp autocomplete template was briefly changed then reverted (its `{variable_name}` is a correct fill-in placeholder, not an example) — surfaced by the AI-companion validation of tutorial-3, which PASSED end-to-end (a fresh companion built the data-dictionary graph from the canonical docs alone → exact match to tutorial-3.json; dry-run returned Peter/100 World Blvd). **Increment 33 (2026-07-18):** `serializer.null.transport` — the Rust port now mirrors Java's null-omission serialization (Gson + MsgPack) at every wire boundary (JSON response, WS tee, outbound HTTP, MsgPack encoder); default `false` omits `Nil` map entries (the `/sync` success response drops the null `error` field, matching Java), config `true` restores transport (`crates/platform-core/src/serializer.rs`). **All three layers ported bottom-up.**
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-18 | agent: Claude Code (2026-07-18-212727)
+- **last_session:** 2026-07-18 | agent: Claude Code (2026-07-18-231641)
 - **last_review:** 2026-07-18 | through 2026-07-18-194853
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -103,7 +103,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   + `command-reference.md` + `minigraph-commands.json` — never the tutorial walkthroughs), one node /
   one connection at a time with human screenshot validation, through the instantiate→run→inspect
   dry-run (from tut-4 on: L3 = problem-only brief, no syntax hints, build-whole-then-dry-run). Running
-  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4.** Tut-3 surfaced + drove the
+  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4, 5.** Tut-3 surfaced + drove the
   `#[optional_service]` / dev-mock / Dictionary bare-`input[]` / inspect-doc-placeholder arc (increments
   30–32, both repos). **Tut-4** (decision node) found an AI-grammar gap — the AI docs listed
   `graph.math` statement keywords but gave no statement syntax, so a fresh agent invented wrong
@@ -112,16 +112,45 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [Accenture/mercury-composable#187](https://github.com/Accenture/mercury-composable/pull/187), then a
   second fresh agent solved it from the docs alone (dry-run PASS, all branches + `a==b`). Also validated
   MiniGraph **session-management** (`session subscribe` link + a zero-dep Node WS subscriber gave the
-  orchestrator live console visibility). **Pending: 5–13** — each expected to surface more; that is the
-  *purpose*, hardening the Rust port toward production quality. **Resume — NEXT: tutorial-5.** User
-  restarts the Rust server (`app.env=dev`) + provides a fresh `ws-…` primary; spin a companion the same
-  way. **Brief it from THIS repo's own ported docs** — `docs/llms.txt` +
-  `docs/guides/knowledge-graph/{ai-agent-guide,command-reference,minigraph-commands.json}` (ported here
-  during the companion-sync arc; no longer mercury-composable's copies). Since then the companion `/sync`
-  endpoint is live in both ports + the drain/terminal + null-transport parity landed, so tut-5 can drive
-  entirely via `POST /api/companion/{id}/sync`.
+  orchestrator live console visibility). **Pending: 6–13** — each expected to surface more; that is the
+  *purpose*, hardening the Rust port toward production quality. **Tut-5 (L4, composition:
+  parallel fan-out + `graph.join` + data sourcing) PASSED on the FIRST attempt — 18/18 commands ok,
+  zero failures** — first test on this repo's own AI docs, driven wholly via `/sync` on the human's
+  live UI session; design semantically equivalent to canonical (one whole-profile Dictionary,
+  deterministic post-join `profile[0]/[1]` assembly — avoids canonical's unordered concurrent
+  append; the disjoint-`model.*`-scratch lesson derived unaided). Key finding: the five AI docs
+  alone were NOT sufficient — Provider `{name}` URL placeholders + Dictionary bare `input[]` live
+  only behind the non-existent `composing-the-layers.md`; the companion bridged in-band
+  (`describe skill` → `help data-dictionary`). New rollup findings #9–#15 in
+  `docs/AI-companion-test.md` (dangling links incl. the constant-set page, `help {topic}`
+  undocumented, stale `/command` prose, `/sync` envelope null-omission vs docs + undocumented `id`,
+  fan-out parallelism implied only, subscribe-via-sync bug → [[ot-subscribe-via-sync-bug]],
+  `session reset` doesn't clear the draft graph — contaminated-session hazard, orchestrator had to
+  delete 7 leftover nodes pre-brief). **Resume — NEXT: tutorial-6.** Same recipe: user provides a
+  fresh primary (verify it's actually EMPTY first), brief from this repo's docs, drive via `/sync`;
+  orchestrator watcher should subscribe over the WS connection itself (not via `/sync`) until the
+  subscribe bug is fixed.
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
   <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 4 | tier: working | origin: 2026-07-18-061457.md -->
+
+- [ ] **Bug: `session subscribe` via `/sync` poisons the subscriber list (both ports suspected).**
+  Found during tut-5 ([[ot-companion-validation-sweep]]): the command service registers its reply
+  route as the subscriber (`commands.rs` `synchronize_graph` → `target.subscribe(out_route)`), but on
+  the sync path that route is the **ephemeral per-request capture route** (`companion.sync.<uuid>`,
+  released when the POST returns — `rest.rs` `post_companion_command_sync`). Observed live: primary
+  `subscribed by ["companion.sync.3da2143d…"]` while the watcher session claims
+  `subscribed to <primary>`; the watcher's mirror **died silently mid-test**. Unexplained residue to
+  decode while fixing: mirrored output DID reach the watcher's real WS out for ~6 min before dying,
+  and a delayed replay of the subscribe echo surfaced ~6 min later — trace the actual fan-out path
+  first. Fix options: resolve subscription to the session's real `.out` (the sync handler knows the
+  session id from the URL), or special-case session-topology commands on the sync path. **Check the
+  Java upstream too** — `PostCompanionCommandSync` (merged #189) mirrors the mechanism. Add a
+  deterministic test (OutTap pattern in `tests/playground.rs`). Workaround until fixed: headless
+  watchers subscribe **over the WS connection itself**, never via `/sync`. Rollup #14 in
+  `docs/AI-companion-test.md`; also noted there: `session reset` does not clear the draft graph
+  (rollup #15 — a "fresh" session can arrive contaminated; verify-empty before companion tests).
+  → serves: vision-mercury
+  <!-- id: ot-subscribe-via-sync-bug | created: 2026-07-18 | last_used: 2026-07-18 | uses: 1 | tier: working | origin: 2026-07-18-231641.md -->
 
 - [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
   `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
