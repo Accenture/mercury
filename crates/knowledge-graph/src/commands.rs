@@ -1900,8 +1900,9 @@ fn convert_mapping_properties(
     node_type: Option<&str>,
 ) -> Result<Option<String>, AppError> {
     let mut conversions: Vec<String> = Vec::new();
+    let is_dictionary = node_type.is_some_and(|t| t.eq_ignore_ascii_case("Dictionary"));
     for property in MAPPING_PROPERTIES {
-        if *property == "input" && node_type == Some("Dictionary") {
+        if *property == "input" && is_dictionary {
             continue;
         }
         if let Some(Value::Array(entries)) = key_values.get_element(property) {
@@ -2076,6 +2077,15 @@ mod tests {
             kv.get_element("input"),
             Some(Value::Array(vec![Value::from("person_id:100")]))
         );
+    }
+
+    #[test]
+    fn dictionary_type_match_is_case_insensitive() {
+        for label in ["dictionary", "DICTIONARY", "Dictionary"] {
+            let mut kv = map_with("input", &["person_id"]);
+            convert_mapping_properties(&mut kv, Some(label))
+                .unwrap_or_else(|_| panic!("bare input accepted for type '{label}'"));
+        }
     }
 
     #[test]
