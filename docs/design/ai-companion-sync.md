@@ -85,9 +85,15 @@ completion and returns what was captured:
 5. Drain the buffer → classify (`ok`/`error`), parse `run`/`inspect` results, build the envelope.
 6. Deregister the capture route; return the JSON.
 
-> **Why not stream to both?** For a pure AI sync call there is no human on that session, so output
-> goes to the caller only. If a human *is* also watching (a subscribed session), a later enhancement
-> can tee output to both the WS `.out` and the capture route. Out of scope for v1.
+> **Tee to both (v1 — real-time human+AI collaboration).** The capture sink also **fire-and-forget
+> forwards** each line (except the sentinel) to the session's real WebSocket `.out` route. So the
+> caller gets the structured response *and* a human watching the Playground UI sees the same output
+> live — and, because the command service already re-dispatches a primary's command to each
+> subscriber's own `.out` (`handle_command`), any **subscribed** session (e.g. a product owner who
+> ran `session subscribe`) watches too. This is the headline goal: an architect + AI draft the graph
+> while others watch/participate on the same live session; suspend/resume across sprints via
+> `export`/`import`. *(Without the tee, sync output went only to the caller — a watching human saw a
+> quiet console even as the model changed; observed live during verification.)*
 
 > **Why capture-route rather than threading a sink through `say()`?** The command runs in the
 > command-service task (reached over the event bus), not the endpoint's task, so an in-process

@@ -22,6 +22,7 @@
 //! cover the join barrier, loop detection and the `graph.js` retirement.
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -894,10 +895,35 @@ async fn join_loop_retirement_and_health(platform: &Platform) {
     );
 }
 
+/// Stand-in for a session's WebSocket `.out` route — captures whatever the sync
+/// endpoint tees to the live console (proves real-time human+AI collaboration).
+struct OutTap {
+    seen: Arc<Mutex<Vec<String>>>,
+}
+
+#[async_trait]
+impl ComposableFunction for OutTap {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Value::String(s) = input.body() {
+            self.seen
+                .lock()
+                .expect("tap")
+                .push(s.as_str().unwrap_or_default().to_string());
+        }
+        EventEnvelope::new().set_body("ok")
+    }
+}
+
 /// Prototype: the **synchronous** companion endpoint returns the command outcome
 /// in-band — `ok`/`output`/`error`/`result` — instead of a fire-and-forget ack
 /// (design: `docs/design/ai-companion-sync.md`). This is the Tut-4 blind-spot fix:
-/// an invalid command's error is now in the HTTP response, not WS-only.
+/// an invalid command's error is now in the HTTP response, not WS-only — and the
+/// output is *also* teed to the session's `.out` so a human watches live.
 #[tokio::test]
 async fn companion_sync_returns_outcome_in_band() {
     let platform = boot().await;
@@ -926,6 +952,13 @@ async fn companion_sync_returns_outcome_in_band() {
         knowledge_graph::commands::has_session(sid),
         "session must exist before a companion command"
     );
+
+    // stand in for the session's WebSocket console to prove the sync endpoint
+    // tees output there (the real-time human+AI collaboration path)
+    let tap = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register("ws.770001.1.out", Arc::new(OutTap { seen: tap.clone() }), 1)
+        .expect("register out tap");
 
     // call the synchronous endpoint and decode its structured body
     async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
@@ -970,5 +1003,14 @@ async fn companion_sync_returns_outcome_in_band() {
     assert!(
         good["output"].as_array().is_some_and(|a| !a.is_empty()),
         "console output returned in-band: {good}"
+    );
+
+    // 3) the tee — the same output also reached the session's WebSocket .out route,
+    //    so a human (or a subscribed session) watches live, not just the AI caller
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let teed = tap.lock().expect("tap").clone();
+    assert!(
+        teed.iter().any(|l| l.contains("node root created")),
+        "sync output must be teed to the session's WS .out for live human view: {teed:?}"
     );
 }

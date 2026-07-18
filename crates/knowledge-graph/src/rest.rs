@@ -168,10 +168,16 @@ pub async fn post_companion_command(
 const SYNC_SENTINEL: &str = "__companion_sync_done__";
 
 /// A private, per-call **capture route** used by [`post_companion_command_sync`]:
-/// the command pipeline's `say()` output is directed here (instead of the WS
-/// `.out`) and buffered so the outcome can be returned in the HTTP response.
+/// the command pipeline's `say()` output is directed here and buffered so the
+/// outcome can be returned in the HTTP response. It **also tees** each line to the
+/// session's real WebSocket `.out` route (fire-and-forget) so a watching human —
+/// and, via the command service's subscriber fan-out, any subscribed sessions —
+/// see the same output live. This is what makes the synchronous endpoint a
+/// **real-time human+AI collaboration** surface rather than an AI-only side
+/// channel. The internal sentinel is never teed.
 struct CaptureSink {
     buffer: Arc<Mutex<Vec<Value>>>,
+    tee_to: String,
 }
 
 #[async_trait]
@@ -182,10 +188,21 @@ impl ComposableFunction for CaptureSink {
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
+        let body = input.body().clone();
+        if !self.tee_to.is_empty() && body.as_str() != Some(SYNC_SENTINEL) {
+            let po = PostOffice::new(&Platform::get_instance());
+            let _ = po
+                .send(
+                    EventEnvelope::new()
+                        .set_to(self.tee_to.as_str())
+                        .set_raw_body(body.clone()),
+                )
+                .await;
+        }
         self.buffer
             .lock()
             .expect("capture buffer poisoned")
-            .push(input.body().clone());
+            .push(body);
         EventEnvelope::new().set_body("ok")
     }
 }
@@ -203,8 +220,10 @@ fn is_error_line(line: &str) -> bool {
 /// Additive sibling of [`post_companion_command`]: dispatches the same command but
 /// returns the command's **outcome in-band** — `ok`, the console `output` lines,
 /// the first `error` (if any), and any structured `result` (e.g. a run's
-/// `output.body`) — instead of a fire-and-forget `{status:"accepted"}`. The
-/// existing endpoint and the WebSocket console are unchanged.
+/// `output.body`) — instead of a fire-and-forget `{status:"accepted"}`. The output
+/// is **also teed to the session's WebSocket console** (via [`CaptureSink`]) so a
+/// watching human — and any subscribed sessions — see it live: real-time human+AI
+/// collaboration on one graph. The legacy fire-and-forget endpoint is unchanged.
 pub async fn post_companion_command_sync(
     platform: &Platform,
     event: EventEnvelope,
@@ -226,12 +245,15 @@ pub async fn post_companion_command_sync(
 
     let route = id.replace('-', ".");
     let in_route = format!("{route}.in");
+    let out_route = format!("{route}.out");
     let capture_route = format!("companion.sync.{}", uuid::Uuid::new_v4().simple());
     let buffer = Arc::new(Mutex::new(Vec::<Value>::new()));
     platform.register(
         &capture_route,
         Arc::new(CaptureSink {
             buffer: buffer.clone(),
+            // tee to the session's real WebSocket console so humans watch live
+            tee_to: out_route,
         }),
         1,
     )?;
