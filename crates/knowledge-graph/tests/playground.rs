@@ -169,7 +169,7 @@ async fn playground_command_grammar_and_companion() {
         &po,
         in_route,
         out_route,
-        "create node mapper\nwith type mapper\nwith properties\nskill=graph.data.mapper\nmapping[]=input.body.id -> end.message",
+        "create node mapper\nwith type mapper\nwith properties\nskill=graph.data.mapper\nmapping[]=input.body.id -> output.body",
     )
     .await;
     assert!(console_has(&lines, "node mapper created"));
@@ -221,10 +221,14 @@ async fn playground_command_grammar_and_companion() {
     );
 
     // --- inspect the state machine: the mapper wrote input.body.id into
-    // end.message, so the `end` namespace carries "hello world"
+    // output.body — the graph's result namespace (what execution_complete
+    // returns as the response), so `output` carries "hello world"
     lines.lock().expect("console").clear();
-    command(&po, in_route, out_route, "inspect end").await;
-    assert!(console_has(&lines, "hello world"), "inspect end expected");
+    command(&po, in_route, out_route, "inspect output").await;
+    assert!(
+        console_has(&lines, "hello world"),
+        "inspect output expected"
+    );
 
     // --- export the draft; describe graph writes the temp file
     command(&po, in_route, out_route, "export graph as playtest").await;
