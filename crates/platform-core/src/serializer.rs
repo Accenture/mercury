@@ -60,13 +60,30 @@ pub fn null_transport() -> bool {
     })
 }
 
-/// Drop `Nil` map values recursively unless null transport is enabled. A no-op
-/// clone when `serializer.null.transport=true`.
+/// Drop `Nil` map values recursively unless null transport is enabled — or unless
+/// there is nothing to drop. Returns a plain clone when
+/// `serializer.null.transport=true` **or** [`has_nil_map_entry`] is false, so the
+/// recursive rebuild only runs when a strippable `Nil` is actually present.
 pub fn strip_nulls(value: &Value) -> Value {
-    if null_transport() {
+    if null_transport() || !has_nil_map_entry(value) {
         value.clone()
     } else {
         strip_nulls_always(value)
+    }
+}
+
+/// Read-only, allocation-free predicate: does `value` hold a `Nil` at any **map**
+/// key-value position (recursively, through nested maps and arrays)? This is
+/// exactly "would [`strip_nulls_always`] change anything" — a `Nil` *array*
+/// element is preserved, so it does **not** count. Callers use it to skip the
+/// clone/strip entirely when there is nothing to remove (the common case).
+pub fn has_nil_map_entry(value: &Value) -> bool {
+    match value {
+        Value::Map(entries) => entries
+            .iter()
+            .any(|(_, v)| matches!(v, Value::Nil) || has_nil_map_entry(v)),
+        Value::Array(items) => items.iter().any(has_nil_map_entry),
+        _ => false,
     }
 }
 
@@ -184,6 +201,29 @@ mod tests {
             vec!["empty_list", "empty_map"],
             "empty [] and {{}} are kept; only the Nil entry is dropped"
         );
+    }
+
+    #[test]
+    fn has_nil_map_entry_matches_what_strip_removes() {
+        // strippable: a Nil map value, at any depth reachable via maps/arrays
+        assert!(has_nil_map_entry(&Value::Map(vec![(s("a"), Value::Nil)])));
+        assert!(has_nil_map_entry(&Value::Map(vec![(
+            s("a"),
+            Value::Map(vec![(s("b"), Value::Nil)]),
+        )])));
+        assert!(has_nil_map_entry(&Value::Array(vec![Value::Map(vec![(
+            s("k"),
+            Value::Nil,
+        )])])));
+        // NOT strippable: no Nil map value present
+        assert!(!has_nil_map_entry(&Value::Map(vec![(s("a"), s("x"))])));
+        // NOT strippable: a Nil *array element* is preserved, so it doesn't count
+        assert!(!has_nil_map_entry(&Value::Array(vec![Value::Nil, s("x")])));
+        // NOT strippable: empty collections / scalars
+        assert!(!has_nil_map_entry(&Value::Array(vec![])));
+        assert!(!has_nil_map_entry(&Value::Map(vec![])));
+        assert!(!has_nil_map_entry(&Value::Nil));
+        assert!(!has_nil_map_entry(&s("x")));
     }
 
     #[test]

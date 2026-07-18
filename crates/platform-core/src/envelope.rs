@@ -239,12 +239,14 @@ impl EventEnvelope {
     /// Encode the envelope as MsgPack bytes (idiomatic serde — design D4).
     ///
     /// The body's `Nil` map entries are omitted unless `serializer.null.transport`
-    /// is `true` — the Rust mirror of Java `MsgPack.packMap`'s null-skip. The
-    /// strip only clones for a structured body when transport is off; a scalar
-    /// body (or transport on) encodes `self` directly with no extra allocation.
+    /// is `true` — the Rust mirror of Java `MsgPack.packMap`'s null-skip. This is
+    /// only reached on the ElasticQueue (back-pressure/spill) path, never on the
+    /// in-memory fast path. The clone + strip runs **only** when the body actually
+    /// carries a strippable `Nil` (`has_nil_map_entry`); otherwise — a scalar body,
+    /// a structured body with no nulls, or transport on — `self` encodes directly
+    /// with no extra allocation, so the common case pays only a read-only scan.
     pub fn to_bytes(&self) -> Result<Vec<u8>, AppError> {
-        if crate::serializer::null_transport()
-            || !matches!(self.body, rmpv::Value::Map(_) | rmpv::Value::Array(_))
+        if crate::serializer::null_transport() || !crate::serializer::has_nil_map_entry(&self.body)
         {
             return rmp_serde::to_vec_named(self)
                 .map_err(|e| AppError::new(500, format!("unable to encode envelope: {e}")));
