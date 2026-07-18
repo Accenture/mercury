@@ -66,6 +66,12 @@ use syn::{parse_macro_input, ItemStruct, LitInt, LitStr};
 ///   receives the raw envelope (`reply_to`/`cid` intact) and replies manually
 ///   via `po.send`; the worker sends no auto-reply on success (also available
 ///   as the `interceptor` flag parameter).
+/// - `#[optional_service("condition")]` — the Java `@OptionalService`: the
+///   route registers only when the configuration condition holds (evaluated at
+///   startup, Java `Feature.isRequired` semantics — comma-separated OR, `!key`
+///   negation, `key=value` / `key` / `key=` forms, case-insensitive). Example:
+///   `#[optional_service("app.env=dev")]` registers the route only in dev. Also
+///   available as the `optional_service = "condition"` parameter.
 ///
 /// The struct must be a unit struct or implement `Default`.
 #[proc_macro_attribute]
@@ -73,6 +79,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut route: Option<LitStr> = None;
     let mut instances: usize = 1;
     let mut env_instances: Option<LitStr> = None;
+    let mut optional_service: Option<LitStr> = None;
     let mut typed = false;
     let mut zero_tracing = false;
     let mut interceptor = false;
@@ -84,6 +91,8 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             instances = lit.base10_parse()?;
         } else if meta.path.is_ident("env_instances") {
             env_instances = Some(meta.value()?.parse()?);
+        } else if meta.path.is_ident("optional_service") {
+            optional_service = Some(meta.value()?.parse()?);
         } else if meta.path.is_ident("typed") {
             typed = true;
         } else if meta.path.is_ident("zero_tracing") {
@@ -92,8 +101,8 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             interceptor = true;
         } else {
             return Err(meta.error(
-                "unknown preload parameter (expected route, instances, env_instances, typed, \
-                 zero_tracing, interceptor)",
+                "unknown preload parameter (expected route, instances, env_instances, \
+                 optional_service, typed, zero_tracing, interceptor)",
             ));
         }
         Ok(())
@@ -108,6 +117,14 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     // consume stacked marker attributes (Java annotation stacking)
     zero_tracing |= strip_marker(&mut item, "zero_tracing");
     interceptor |= strip_marker(&mut item, "event_interceptor");
+    // `#[optional_service("...")]` marker (arg-carrying) wins over the param form
+    if let Some(cond) = strip_optional_service(&mut item) {
+        optional_service = Some(cond);
+    }
+    let optional_expr = match &optional_service {
+        Some(cond) => quote!(::core::option::Option::Some(#cond)),
+        None => quote!(::core::option::Option::None),
+    };
     let construct = constructor(&item);
     let factory = if typed {
         quote!(::platform_core::TypedAdapter::arc(#construct))
@@ -125,6 +142,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
                 route: #route,
                 instances: #instances,
                 env_instances: #env_expr,
+                optional_service: #optional_expr,
                 zero_tracing: #zero_tracing,
                 interceptor: #interceptor,
                 factory: || #factory,
@@ -262,4 +280,22 @@ fn strip_marker(item: &mut ItemStruct, name: &str) -> bool {
     let before = item.attrs.len();
     item.attrs.retain(|attr| !attr.path().is_ident(name));
     item.attrs.len() != before
+}
+
+/// Consume a stacked `#[optional_service("condition")]` marker (Java
+/// `@OptionalService`), returning its condition string literal. Removes the
+/// attribute so it does not reach the compiler.
+fn strip_optional_service(item: &mut ItemStruct) -> Option<LitStr> {
+    let mut found = None;
+    item.attrs.retain(|attr| {
+        if attr.path().is_ident("optional_service") {
+            if let Ok(lit) = attr.parse_args::<LitStr>() {
+                found = Some(lit);
+            }
+            false
+        } else {
+            true
+        }
+    });
+    found
 }

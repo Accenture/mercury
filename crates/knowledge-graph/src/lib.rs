@@ -38,6 +38,7 @@ pub mod features;
 pub mod fetcher;
 pub mod graphs;
 pub mod math;
+pub mod mock;
 pub mod model;
 pub mod rest;
 pub mod services;

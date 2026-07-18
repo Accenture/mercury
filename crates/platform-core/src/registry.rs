@@ -32,6 +32,10 @@ pub struct PreloadEntry {
     /// Optional configuration key for the instance count (Java `envInstances`);
     /// `instances` is the fallback.
     pub env_instances: Option<&'static str>,
+    /// Java `@OptionalService`: a configuration condition (e.g. `"app.env=dev"`)
+    /// that must hold at startup for this route to register; `None` = always
+    /// register. Evaluated by [`crate::util::feature::is_required`].
+    pub optional_service: Option<&'static str>,
     /// Java `@ZeroTracing`: this route's executions are excluded from
     /// distributed-trace recording.
     pub zero_tracing: bool,

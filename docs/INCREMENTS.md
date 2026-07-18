@@ -46,6 +46,7 @@
 | 27 | knowledge-graph K-7a: platform-core WebSocket server (hyper upgrade + tungstenite) | 2026-07-17 | KG K6a | 179 |
 | 28 | knowledge-graph K-7b: the Playground (command grammar, traveler, companion API, dev-gating K9) | 2026-07-17 | KG K9 | 181 |
 | 29 | knowledge-graph K-8: React webapp + `minigraph-playground` app — **LAYER 3 MILESTONE CLOSED** | 2026-07-18 | KG K7/K8 | 181 |
+| 30 | `#[optional_service]` macro (Java `@OptionalService`) + dev mock data providers | 2026-07-18 | KG K9 | 188 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -744,6 +745,35 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Verification:** `cargo test --workspace` 181 green (K-8 adds no Rust tests — the webapp +
   runnable app are verified live), `cargo clippy --workspace --all-targets` 0 warnings,
   `cargo fmt --all --check` clean.
+
+## Increment 30 — `#[optional_service]` macro + dev mock data providers (2026-07-18)
+
+- **`#[optional_service("condition")]` — the Java `@OptionalService` annotation** (platform-core).
+  A config-condition gate that registers a `#[preload]` route only when the condition holds at
+  startup. Implemented as a stacked marker consumed by `#[preload]` (like `#[zero_tracing]` /
+  `#[event_interceptor]`), plus an equivalent `optional_service = "…"` parameter; adds
+  `PreloadEntry.optional_service`, and the AppStarter skips a gated route whose condition fails
+  (logging `Skip optional {route}`). The condition evaluator is a faithful port of Java
+  `Feature.isRequired` (`util/feature.rs`): comma-separated **OR**, `!key` negation,
+  `key=value` / `key=` / `key` forms, all case-insensitive; **unset key never matches** (no
+  implicit default). 7 unit tests over the condition forms.
+- **Dev mock data providers** (`knowledge-graph/src/mock.rs`) — the Rust port of the Java
+  `com.accenture.minigraph.mock` package: `MdmProfile` (`mock.mdm.profile`), `AccountDetails`
+  (`mock.account.details`), `HelloTask` (`v1.hello.task`), each `#[preload]` +
+  `#[optional_service("app.env=dev")]`, with the profile/account fixtures shipped in the engine
+  crate's `resources/mock/`. The tutorials' data-dictionary / API-fetcher exercises call these
+  over HTTP as stand-in enterprise services; the `minigraph-playground` example app
+  (`app.env=dev`) wires their routes (`/api/mdm/profile`, `/api/account/details`).
+- **Motivation:** the AI-companion validation of tutorial-3 surfaced that its fetcher needs the
+  `mdm-profile` provider, which the Java engine ships (`@OptionalService` dev) but the Rust port
+  only had as a test fixture. This closes that parity gap — a **Rust-only** increment (Java
+  already has both the annotation and the mocks). `graph_runtime` is untouched: it runs with
+  `app.env` unset, so the dev-gated engine mocks skip there and its own test mocks still register
+  (no route collision).
+- **Verification:** `cargo test --workspace` **188 green** (+7 feature unit tests),
+  `cargo clippy --workspace --all-targets` 0 warnings, `cargo fmt --all --check` clean; the mock
+  provider live-verified on a temp instance (`GET /api/mdm/profile/100` → Peter / 100 World Blvd;
+  `/api/mdm/profile/10` → 400).
 
 ---
 

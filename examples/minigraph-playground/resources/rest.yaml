@@ -5,8 +5,9 @@
 # companion/API hops. The compiled React bundle is served as static content
 # from the engine crate's resources/public at "/".
 #
-# The two demo-mock routes (/api/mdm/*, /api/account/*) are omitted: those
-# services are test fixtures, not engine built-ins.
+# The demo-mock data providers (mock.mdm.profile, mock.account.details) are
+# dev-only engine services (#[optional_service("app.env=dev")]); the tutorials'
+# data-dictionary / API-fetcher exercises call them over HTTP.
 #
 rest:
   - service: 'get.index.html'
@@ -61,4 +62,23 @@ rest:
     methods: ['POST']
     url: '/api/companion/{id}'
     timeout: 30s
+    tracing: true
+
+  # dev-only mock data providers (app.env=dev) — the tutorials' API-fetcher exercises
+  - service: 'mock.mdm.profile'
+    methods: ['POST']
+    url: '/api/mdm/profile'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.mdm.profile'
+    methods: ['GET']
+    url: '/api/mdm/profile/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.account.details'
+    methods: ['POST']
+    url: '/api/account/details'
+    timeout: 10s
     tracing: true

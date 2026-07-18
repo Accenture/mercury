@@ -349,6 +349,16 @@ impl AutoStart {
         }
         let config = AppConfigReader::get_instance();
         for entry in inventory::iter::<crate::registry::PreloadEntry> {
+            // Java @OptionalService: skip a conditionally-registered route when
+            // its configuration condition does not hold (Java `Feature`).
+            if !crate::util::feature::is_required(entry.optional_service, config) {
+                log::info!(
+                    "Skip optional {} (condition: {})",
+                    entry.route,
+                    entry.optional_service.unwrap_or_default()
+                );
+                continue;
+            }
             // Java envInstances: the instance count may come from configuration
             let instances = entry
                 .env_instances
