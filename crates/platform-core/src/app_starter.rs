@@ -243,6 +243,17 @@ impl AppStarter {
         //    when REST automation is enabled OR any websocket service exists
         //    (Java `startHttpServerIfAny` parity).
         for entry in inventory::iter::<crate::registry::WsServiceEntry> {
+            // Java @OptionalService: skip a conditionally-registered websocket
+            // service when its configuration condition does not hold.
+            if !crate::util::feature::is_required(entry.optional_service, config) {
+                log::info!(
+                    "Skip optional websocket service /{}/{} (condition: {})",
+                    entry.namespace,
+                    entry.name,
+                    entry.optional_service.unwrap_or_default()
+                );
+                continue;
+            }
             if validate_ws_service_name(entry.name) && validate_ws_service_name(entry.namespace) {
                 crate::automation::ws_server::register_ws_service_with_namespace(
                     entry.namespace,
@@ -343,11 +354,19 @@ impl AutoStart {
         }
         crate::util::overrides::load_runtime_args();
         crate::logging::init();
+        let config = AppConfigReader::get_instance();
         let mut starter = AppStarter::new();
         for entry in inventory::iter::<crate::registry::BeforeAppEntry> {
+            // Java @OptionalService: skip a conditionally-run before-application hook
+            if !crate::util::feature::is_required(entry.optional_service, config) {
+                log::info!(
+                    "Skip optional before-application (condition: {})",
+                    entry.optional_service.unwrap_or_default()
+                );
+                continue;
+            }
             starter = starter.before_application(entry.sequence, (entry.factory)());
         }
-        let config = AppConfigReader::get_instance();
         for entry in inventory::iter::<crate::registry::PreloadEntry> {
             // Java @OptionalService: skip a conditionally-registered route when
             // its configuration condition does not hold (Java `Feature`).
@@ -376,6 +395,14 @@ impl AutoStart {
             );
         }
         for entry in inventory::iter::<crate::registry::MainAppEntry> {
+            // Java @OptionalService: skip a conditionally-run main application
+            if !crate::util::feature::is_required(entry.optional_service, config) {
+                log::info!(
+                    "Skip optional main-application (condition: {})",
+                    entry.optional_service.unwrap_or_default()
+                );
+                continue;
+            }
             starter = starter.main_application(entry.sequence, (entry.factory)());
         }
         starter.run(args).await?;

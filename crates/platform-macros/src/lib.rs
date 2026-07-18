@@ -121,10 +121,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     if let Some(cond) = strip_optional_service(&mut item) {
         optional_service = Some(cond);
     }
-    let optional_expr = match &optional_service {
-        Some(cond) => quote!(::core::option::Option::Some(#cond)),
-        None => quote!(::core::option::Option::None),
-    };
+    let optional_expr = optional_service_expr(&optional_service);
     let construct = constructor(&item);
     let factory = if typed {
         quote!(::platform_core::TypedAdapter::arc(#construct))
@@ -193,7 +190,7 @@ pub fn websocket_service(args: TokenStream, input: TokenStream) -> TokenStream {
         });
         parse_macro_input!(args with parser);
     }
-    let item = parse_macro_input!(input as ItemStruct);
+    let mut item = parse_macro_input!(input as ItemStruct);
     let Some(name) = name else {
         return syn::Error::new_spanned(
             &item.ident,
@@ -203,6 +200,8 @@ pub fn websocket_service(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     };
     let namespace = namespace.unwrap_or_else(|| LitStr::new("ws", name.span()));
+    // consume a stacked `#[optional_service("...")]` marker (Java @OptionalService)
+    let optional_expr = optional_service_expr(&strip_optional_service(&mut item));
     let construct = constructor(&item);
     let expanded = quote! {
         #item
@@ -210,6 +209,7 @@ pub fn websocket_service(args: TokenStream, input: TokenStream) -> TokenStream {
             ::platform_core::registry::WsServiceEntry {
                 name: #name,
                 namespace: #namespace,
+                optional_service: #optional_expr,
                 factory: || ::std::sync::Arc::new(#construct),
             }
         }
@@ -250,13 +250,16 @@ fn entry_point_attribute(
         }
     });
     parse_macro_input!(args with parser);
-    let item = parse_macro_input!(input as ItemStruct);
+    let mut item = parse_macro_input!(input as ItemStruct);
+    // consume a stacked `#[optional_service("...")]` marker (Java @OptionalService)
+    let optional_expr = optional_service_expr(&strip_optional_service(&mut item));
     let construct = constructor(&item);
     let expanded = quote! {
         #item
         ::platform_core::inventory::submit! {
             ::platform_core::registry::#entry_type {
                 sequence: #sequence,
+                optional_service: #optional_expr,
                 factory: || ::std::sync::Arc::new(#construct),
             }
         }
@@ -298,4 +301,13 @@ fn strip_optional_service(item: &mut ItemStruct) -> Option<LitStr> {
         }
     });
     found
+}
+
+/// Render an `Option<&'static str>` initializer for a registry entry's
+/// `optional_service` field.
+fn optional_service_expr(cond: &Option<LitStr>) -> proc_macro2::TokenStream {
+    match cond {
+        Some(c) => quote!(::core::option::Option::Some(#c)),
+        None => quote!(::core::option::Option::None),
+    }
 }

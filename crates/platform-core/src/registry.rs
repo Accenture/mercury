@@ -51,6 +51,10 @@ pub struct WsServiceEntry {
     pub name: &'static str,
     /// Java `namespace()` default: "ws".
     pub namespace: &'static str,
+    /// Java `@OptionalService`: a config condition (e.g. `"app.env=dev"`) that
+    /// must hold at startup for this websocket service to register; `None` =
+    /// always. Evaluated by [`crate::util::feature::is_required`].
+    pub optional_service: Option<&'static str>,
     /// One function object per websocket connection.
     pub factory: fn() -> Arc<dyn ComposableFunction>,
 }
@@ -58,12 +62,16 @@ pub struct WsServiceEntry {
 /// A `#[before_application]`-annotated entry point (Java `@BeforeApplication`).
 pub struct BeforeAppEntry {
     pub sequence: u32,
+    /// Java `@OptionalService` condition; `None` = always run.
+    pub optional_service: Option<&'static str>,
     pub factory: fn() -> Arc<dyn crate::app_starter::EntryPoint>,
 }
 
 /// A `#[main_application]`-annotated entry point (Java `@MainApplication`).
 pub struct MainAppEntry {
     pub sequence: u32,
+    /// Java `@OptionalService` condition; `None` = always run.
+    pub optional_service: Option<&'static str>,
     pub factory: fn() -> Arc<dyn crate::app_starter::EntryPoint>,
 }
 
