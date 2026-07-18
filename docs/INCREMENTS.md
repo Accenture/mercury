@@ -777,6 +777,41 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 
 ---
 
+## Increment 31 — full declarative dev-gating for the Playground (2026-07-18)
+
+- **`#[optional_service]` extended to the other three registration macros** (platform-core;
+  commit `d582123`). Increment 30 only gated `#[preload]`; Java's `@OptionalService` also applies
+  to `@WebSocketService`, `@BeforeApplication`, and `@MainApplication`. The marker (and the
+  `optional_service = "…"` parameter) is now consumed by `#[websocket_service]`,
+  `#[before_application]`, and `#[main_application]` too; `WsServiceEntry`/`BeforeAppEntry`/
+  `MainAppEntry` each gained `optional_service`, and `AppStarter` skips a gated websocket
+  service / entry-point whose condition fails (logging `Skip optional …`).
+- **Playground registration is now declarative** (`knowledge-graph`; commit `448f125`). The former
+  programmatic loader is retired: every Playground REST endpoint (`get.ws.html`,
+  `post.companion.command`, `upload.json.content`, `upload.mock.content`, `show.graph.model`,
+  `get.live.graph`, `inspect.state.machine`, `graph.command.service`/`.singleton`), the
+  `graph.traveler` interceptor, and both websocket UIs (`GraphUserInterface` `/ws/graph`,
+  `JsonPathHandler` `/ws/json`) now carry `#[preload]`/`#[websocket_service]` +
+  `#[optional_service("app.env=dev")]`, plus a `#[before_application]` housekeeping hook. This
+  mirrors Java, which registers these through `@PreLoad`/`@WebSocketService` + `@OptionalService`
+  (the Java `PlaygroundLoader` is only the `@FetchFeature` loader, not the service registrar).
+  `get.index.html` stays always-on (Java's non-optional `GetIndexHtml`).
+- **`graph_runtime` now runs `app.env: dev`** and inherits the engine's dev-gated mocks; its local
+  copies of `v1.hello.task` / `mock.mdm.profile` / `mock.account.details` are removed (they would
+  otherwise collide with the now-registering engine mocks). This supersedes increment 30's
+  "graph_runtime runs with app.env unset" arrangement.
+- **`app.env` is env-overridable** in the example app: `${APP_ENV:dev}` (Java parity). Default is
+  dev; `APP_ENV=prod` skips the entire Playground — closing loose-end #1 (conditional
+  Playground load).
+- **Verification:** `cargo test --workspace` **193 green**, `clippy --workspace --all-targets` 0,
+  `fmt --all --check` clean. Live-verified both ways on a temp instance: **dev** loads all
+  Playground routes + both websockets, "Playground loaded (app.env=dev)", `/api/mdm/profile/100`
+  → Peter; **prod** (`APP_ENV=prod`) logs `Skip optional …` for every dev-gated service and both
+  websockets, `/` static home + `http.flow.adapter` still serve, `/api/mdm/profile/100` → 404
+  (also confirming loose-end #2: a rest.yaml entry cleanly 404s when its service isn't registered).
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
