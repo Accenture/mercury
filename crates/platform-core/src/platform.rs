@@ -500,7 +500,13 @@ async fn worker_loop(
         };
         let (result, finished_state) =
             trace::run_scoped(trace_state, function.handle_event(headers, event, instance)).await;
+        // execution-time metric, standardized to 3 decimal points at the source
+        // (Java `WorkerHandler.getExecTime` parity: clamp ≥ 0, round to 3 dp).
+        // Rounding here means every consumer — the reply envelope, the telemetry
+        // dataset, and the Playground traveler's "Executed … in T ms" narration —
+        // reports the same value rather than a raw full-precision float.
         let elapsed_ms = started.elapsed().as_secs_f32() * 1000.0;
+        let elapsed_ms = (elapsed_ms.max(0.0) * 1000.0).round() / 1000.0;
         // propagate the trace to the response so the next hop chains correctly
         let trace_triple = finished_state
             .as_ref()
