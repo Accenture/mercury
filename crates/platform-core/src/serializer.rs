@@ -16,12 +16,27 @@
 //! `serializer.null.transport` (Java `SimpleMapper`/Gson for JSON and `MsgPack`
 //! for the event bus, both reading the same config).
 //!
-//! When the config is `false` (the **default**, matching Gson's default field
-//! omission), `Nil` **map** values are dropped from JSON and MsgPack output —
-//! exactly like Gson omitting null object fields and Java `MsgPack.packMap`'s
-//! `if (supportNulls || value != null)`. When `true`, nulls are transported.
-//! **Array** elements are always preserved (Gson and Java `packList` keep null
-//! slots), so only map entries are affected.
+//! ## Rationale
+//!
+//! A PoJo rarely has every field initialized, so serializing it emits a crowd of
+//! `null` fields that are pure noise; dropping them makes the JSON/MsgPack output
+//! much cleaner. That is why omission is the **default**. The opposite need is
+//! real too: some applications must distinguish "key present with a null value"
+//! from "key absent" — for them, `serializer.null.transport=true` keeps the nulls
+//! on the wire.
+//!
+//! ## Behavior (the invariants — must match Java exactly)
+//!
+//! - Config `false` (**default**): `Nil` **map** key-values are dropped — like
+//!   Gson's default field omission and Java `MsgPack.packMap`'s
+//!   `if (supportNulls || value != null)`. Config `true`: nulls are transported.
+//! - **Map key-values only.** The parameter affects nothing else.
+//! - **Array elements are always kept — including `Nil`.** Dropping a null array
+//!   element would shift the following elements and break array ordering, so
+//!   arrays are never filtered (Gson and Java `packList` keep null slots too).
+//! - **An empty collection is not a null.** A map value of `[]` or `{}` is a
+//!   real, present value and is kept regardless of the config; only `Nil` is
+//!   dropped.
 //!
 //! Apply [`strip_nulls`] at every wire boundary that emits a payload: JSON HTTP
 //! responses, WebSocket text frames, outbound HTTP request bodies, and the
@@ -150,5 +165,45 @@ mod tests {
     fn scalars_pass_through() {
         assert_eq!(strip_nulls_always(&s("x")), s("x"));
         assert_eq!(strip_nulls_always(&Value::Nil), Value::Nil);
+    }
+
+    #[test]
+    fn empty_collections_are_not_null() {
+        // An empty array or map value is a present value, not a null — kept.
+        let input = Value::Map(vec![
+            (s("empty_list"), Value::Array(vec![])),
+            (s("empty_map"), Value::Map(vec![])),
+            (s("gone"), Value::Nil),
+        ]);
+        let Value::Map(entries) = strip_nulls_always(&input) else {
+            panic!("map");
+        };
+        let keys: Vec<&str> = entries.iter().filter_map(|(k, _)| k.as_str()).collect();
+        assert_eq!(
+            keys,
+            vec!["empty_list", "empty_map"],
+            "empty [] and {{}} are kept; only the Nil entry is dropped"
+        );
+    }
+
+    #[test]
+    fn array_ordering_preserved_with_interior_null() {
+        // Dropping a null element would shift the rest and corrupt ordering.
+        let input = Value::Array(vec![
+            Value::from(0),
+            Value::Nil,
+            Value::from(2),
+            Value::Nil,
+            Value::from(4),
+        ]);
+        let Value::Array(items) = strip_nulls_always(&input) else {
+            panic!("array");
+        };
+        assert_eq!(items.len(), 5, "no element dropped");
+        assert_eq!(items[0], Value::from(0));
+        assert!(matches!(items[1], Value::Nil));
+        assert_eq!(items[2], Value::from(2));
+        assert!(matches!(items[3], Value::Nil));
+        assert_eq!(items[4], Value::from(4));
     }
 }

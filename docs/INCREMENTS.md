@@ -853,6 +853,14 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   (`if (supportNulls || value != null)`). The Rust port did the **opposite** — it always transported
   nulls via serde — so a successful `/api/companion/{id}/sync` response emitted `"error": null` where
   Java omits the field. Surfaced by a field test comparing the two engines' `/sync` output.
+- **Rationale (maintainer).** A PoJo rarely initializes every field, so serializing it emits many
+  `null` fields that are pure noise — omitting them keeps the payload clean (hence omission is the
+  default). The `=true` case exists for applications that must distinguish "key present with a null
+  value" from "key absent".
+- **Invariants (must match Java exactly):** (1) affects **map key-values only**; (2) **array elements
+  are always kept, including `Nil`** — dropping one would shift the rest and break array ordering
+  (Gson / `packList` keep null slots too); (3) an **empty `[]` or `{}` is a real value, never a null**
+  — only `Nil` is dropped.
 - **Fix:** new `crates/platform-core/src/serializer.rs` — `null_transport()` (cached read, default
   false) + `strip_nulls`/`strip_nulls_always` (recursively drop `Nil` **map** entries; **array**
   elements preserved, matching Gson field-omission and Java `packList`). Applied at every wire
