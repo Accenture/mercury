@@ -50,10 +50,11 @@ scanning (→ compile-time registration; no runtime scanning in Rust). platform-
 
 > Hard constraints that must never change. These never decay (treated as `core`).
 
-- **Never couple functions directly** — inter-function coupling stays **route-name +
+- **Never couple functions directly** (ADR-0001) — inter-function coupling stays **route-name +
   `EventEnvelope`** only; no direct calls between user functions. This is the defining
   invariant inherited from mercury-composable (the actor-model decoupling); the whole
-  three-layer design rests on it. Preserve it in the Rust port.
+  three-layer design rests on it. Preserve it in the Rust port. Full ADR ledger:
+  `docs/arch-decisions/ADR.md` (ADR-0001…0007, adapted from the Java repo — read on demand).
   <!-- id: inv-never-couple-functions | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: core | origin: 2026-07-15-221632.md -->
 
 *(More invariants will be distilled from mercury-composable's docs/ADRs as each layer is

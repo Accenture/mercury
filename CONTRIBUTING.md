@@ -11,7 +11,7 @@ in a pull request.
 
 This project and everyone participating in it is governed by our
 [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
-Please report unacceptable behavior to Kevin Bader, who is the current project maintainer.
+Please report unacceptable behavior to Eric Law, who is the current project maintainer.
 
 ## What should I know before I get started?
 
@@ -32,9 +32,11 @@ Before submitting a Pull Request:
 ### Design Decisions
 
 When we make a significant decision in how to write code, or how to maintain the project and
-what we can or cannot support, we document it. Take a look at the
-[design docs](docs/design/) and the increment ledger ([docs/INCREMENTS.md](docs/INCREMENTS.md))
-for the rationale behind the port. If you have a question around how we do things, check to see
-if it is documented there. If it is *not* documented there, please ask us - chances are you're
-not the only one wondering. Of course, also feel free to challenge the decisions by starting a
-discussion.
+what we can or cannot support, we document it using
+[Architecture Decision Records (ADR)](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions).
+Take a look at the [architecture decisions](docs/arch-decisions/ADR.md) for existing ADRs, the
+per-layer [design docs](docs/design/), and the increment ledger
+([docs/INCREMENTS.md](docs/INCREMENTS.md)) for the rationale behind the port. If you have a
+question around how we do things, check to see if it is documented there. If it is *not*
+documented there, please ask us - chances are you're not the only one wondering. Of course,
+also feel free to challenge the decisions by starting a discussion.
