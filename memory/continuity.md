@@ -97,6 +97,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
+- [ ] **AI-companion validation sweep (tutorials 1–13)** — dogfooding the full human–AI
+  collaboration path: a *fresh* companion agent builds each Playground tutorial from the **canonical
+  AI-agent docs alone** (`mercury-composable/docs/llms.txt` + `.../knowledge-graph/ai-agent-guide.md`
+  + `command-reference.md` + `minigraph-commands.json` — never the tutorial walkthroughs), one node /
+  one connection at a time with human screenshot validation, through the instantiate→run→inspect
+  dry-run. **Done: 1, 2, 3** — tutorial-3 surfaced + drove the `#[optional_service]` / dev-mock /
+  Dictionary bare-`input[]` / inspect-doc-placeholder arc (increments 30–32, both repos).
+  **Pending: 4–13** — each expected to surface more loose ends; that is the *purpose*, hardening the
+  Rust port toward production quality. **Resume:** user restarts the Rust server (`app.env=dev` from
+  the example config) + provides a fresh `ws-…` session id; spin a companion the same way.
+  → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 1 | tier: working | origin: 2026-07-18-061457.md -->
+
 - [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
   `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
   route-name + `EventEnvelope` only) and the **Vision** (`vision-mercury`, `memory/vision.md`)
