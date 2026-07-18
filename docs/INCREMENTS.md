@@ -699,8 +699,8 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   connections), list, instantiate + run, inspect — then the AI-companion REST hop
   (`POST /api/companion/{public_id}` → console) and the live-graph download
   (`GET /api/graph/session/{public_id}`), then close. Graph-executor fixtures reused: the
-  mapper writes `input.body.id → end.message`; `list connections` renders Java's
-  `source -[relation]-> target`.
+  mapper writes `input.body.id → output.body` (the graph's result namespace, what
+  `execution_complete` returns); `list connections` renders Java's `source -[relation]-> target`.
 - **Next**: K-8 — copy the React webapp verbatim, adjust `clean.js`/`deploy.js` to
   `../resources/public`, `npm run release`, live-verify in a browser, and close the layer-3
   milestone.
