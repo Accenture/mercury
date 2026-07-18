@@ -1322,8 +1322,8 @@ async fn handle_create_node(
     lines: &[String],
 ) -> Result<(), AppError> {
     let mut key_values = node_properties(lines)?;
-    let notice = convert_mapping_properties(&mut key_values)?;
     let node_type = node_type_of(lines);
+    let notice = convert_mapping_properties(&mut key_values, node_type.as_deref())?;
     let Some(graph) = session::get_graph_model(in_route) else {
         return Ok(());
     };
@@ -1361,8 +1361,8 @@ async fn handle_update_node(
     lines: &[String],
 ) -> Result<(), AppError> {
     let mut key_values = node_properties(lines)?;
-    let notice = convert_mapping_properties(&mut key_values)?;
     let node_type = node_type_of(lines);
+    let notice = convert_mapping_properties(&mut key_values, node_type.as_deref())?;
     let Some(graph) = session::get_graph_model(in_route) else {
         return Ok(());
     };
@@ -1890,9 +1890,20 @@ fn node_properties(lines: &[String]) -> Result<MultiLevelMap, AppError> {
 /// (Java `convertMappingProperties`): deprecated "simple type matching"
 /// converts to plugin syntax with a deprecation notice; malformed syntax and
 /// unknown `f:` plugins are rejected immediately.
-fn convert_mapping_properties(key_values: &mut MultiLevelMap) -> Result<Option<String>, AppError> {
+///
+/// A `Dictionary` node's `input[]` is exempt: it holds an input parameter (with
+/// an optional colon-default like `person_id:100`), not a `LHS -> RHS` data
+/// mapping, so it is stored as-is (Java parity — the runtime `graph.api.fetcher`
+/// parses the colon form).
+fn convert_mapping_properties(
+    key_values: &mut MultiLevelMap,
+    node_type: Option<&str>,
+) -> Result<Option<String>, AppError> {
     let mut conversions: Vec<String> = Vec::new();
     for property in MAPPING_PROPERTIES {
+        if *property == "input" && node_type == Some("Dictionary") {
+            continue;
+        }
         if let Some(Value::Array(entries)) = key_values.get_element(property) {
             let mut converted: Vec<Value> = Vec::new();
             for entry in &entries {
@@ -2025,4 +2036,61 @@ pub fn download_graph(id: &str) -> Option<Value> {
     let in_route = GraphSession::in_route_of(id);
     let graph = session::get_graph_model(&in_route)?;
     Some(graph.export_graph())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::convert_mapping_properties;
+    use event_script::mlm::MultiLevelMap;
+    use rmpv::Value;
+
+    fn map_with(property: &str, entries: &[&str]) -> MultiLevelMap {
+        let mut m = MultiLevelMap::new();
+        m.set_element(
+            property,
+            Value::Array(entries.iter().map(|e| Value::from(*e)).collect()),
+        )
+        .expect("set array");
+        m
+    }
+
+    #[test]
+    fn dictionary_input_is_exempt_from_mapping_validation() {
+        // a Dictionary node's bare input parameter is accepted and stored as-is
+        let mut kv = map_with("input", &["person_id"]);
+        let notice =
+            convert_mapping_properties(&mut kv, Some("Dictionary")).expect("bare input accepted");
+        assert!(notice.is_none());
+        assert_eq!(
+            kv.get_element("input"),
+            Some(Value::Array(vec![Value::from("person_id")]))
+        );
+    }
+
+    #[test]
+    fn dictionary_input_with_colon_default_is_accepted() {
+        // an input parameter with an optional colon-default is not a mapping
+        let mut kv = map_with("input", &["person_id:100"]);
+        convert_mapping_properties(&mut kv, Some("Dictionary")).expect("param:default accepted");
+        assert_eq!(
+            kv.get_element("input"),
+            Some(Value::Array(vec![Value::from("person_id:100")]))
+        );
+    }
+
+    #[test]
+    fn non_dictionary_input_still_requires_a_mapping() {
+        // Provider/Fetcher input[] entries are LHS -> RHS mappings
+        let mut kv = map_with("input", &["person_id"]);
+        assert!(convert_mapping_properties(&mut kv, Some("Provider")).is_err());
+    }
+
+    #[test]
+    fn dictionary_output_is_still_validated_as_a_mapping() {
+        // only input is exempt for a Dictionary; output must still be a mapping
+        let mut bad = map_with("output", &["no-arrow-here"]);
+        assert!(convert_mapping_properties(&mut bad, Some("Dictionary")).is_err());
+        let mut good = map_with("output", &["response.profile.name -> result.name"]);
+        convert_mapping_properties(&mut good, Some("Dictionary")).expect("valid mapping ok");
+    }
 }
