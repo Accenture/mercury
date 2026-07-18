@@ -12,13 +12,14 @@
 ## Method
 
 - **Fresh agent per test** — a new sub-agent with no prior context, briefed only with a task and a
-  pointer to the canonical AI-agent docs:
-  `mercury-composable/docs/llms.txt`, `docs/guides/knowledge-graph/ai-agent-guide.md`,
-  `command-reference.md`, `minigraph-commands.json`. **Never** the interactive `help/*.md` or the
-  tutorial walkthroughs.
-- **The companion drives the live session** over the documented endpoints:
-  `POST /api/companion/{id}` (one command per request), `GET /api/graph/session/{id}` (read the
-  model), `GET /api/inspect/{id}/{key}` (read state after a run).
+  pointer to the canonical AI-agent docs. **As of 2026-07-18 these are ported into THIS repo** so a
+  test references the Rust port's own docs (which reflect its reality — e.g. `graph.js` retired, the
+  synchronous companion endpoint): `docs/llms.txt`, `docs/guides/knowledge-graph/ai-agent-guide.md`,
+  `command-reference.md`, `minigraph-commands.json`, `skills-reference.md`. **Never** the interactive
+  `help/*.md` or the tutorial walkthroughs. (Tutorials 1–4 used the Java upstream's copies.)
+- **The companion drives the live session** over the documented endpoints. AI agents use the
+  **synchronous** `POST /api/companion/{id}/command` (outcome in-band `{ok, output, error, result}`;
+  also teed to the human's WS console); `GET /api/graph/session/{id}` reads the model shape.
 - **The human validates** in the Playground UI (screenshots) and via a behavioral **dry-run**.
 - The orchestrator (Claude Code) may privately consult the canonical tutorial to *judge* correctness
   and assist if the companion is genuinely stuck, but never leaks it into the briefing.
@@ -146,3 +147,5 @@
 | 4 | Tut 4 | companion is **blind to run-time errors** — POST returns 200, the parser error only reaches the WS console, read-back shows empty state | **DONE (Rust prototype, verified end-to-end)** — additive synchronous `POST /api/companion/{id}/command` returns `{ok, output, error, result}` in-band (design: `docs/design/ai-companion-sync.md`; blueprint `bp-companion-sync`). Re-verified: a fresh companion rebuilt tutorial-4 **fully autonomously** via `/command` (built + ran + self-validated all 3 cases; explicitly *never needed the WS console or a GET fallback*); errors return in-band (`ok:false` + `error`). Java upstream PR still to follow. |
 | 5 | Tut 4 | boolean/float/list **constant syntax** (`boolean(...)`, etc.) isn't reachable from the four AI docs (deferred to the Event Script page) | (candidate) inline the constant-type table into the knowledge-graph grammar |
 | 6 | Tut 4 | no example of a mapper reading another node's `.result`; `IF` jump ↔ `connect` relationship unspecified; skill-less terminal `End` only implied | (candidate) add small examples/notes to the skills/command reference |
+| 7 | Tut-4 live demo | **`graph.js` retired at runtime but still listed as available** in the AI docs → a fresh companion wasted three commands trying it (though it self-corrected each time via the in-band error) | **DONE** — AI docs **ported into this Rust repo** (`docs/guides/knowledge-graph/` + `docs/llms.txt`) and `graph.js` marked retired everywhere (command-reference, minigraph-commands.json, skills-reference); future tests reference the Rust repo's docs |
+| 8 | Tut-4 live demo | `graph.math`'s dialect is narrower than "JS-like" implies (no bitwise ops, no function calls) and serializes integers as floats (`8.0`) with no in-grammar coercion | **DONE** — documented in the ported command-reference + skills-reference |
