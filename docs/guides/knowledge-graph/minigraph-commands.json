@@ -1,7 +1,7 @@
 {
   "dsl": "minigraph-commands",
   "version": "1.0",
-  "description": "Machine-readable command catalog for the MiniGraph Playground DSL (Rust port of mercury-composable). Mirrors command-reference.md. An AI agent should ingest this to generate and validate commands deterministically before dispatching them via the companion endpoint (POST /api/graph/{id} for execution; POST /api/companion/{session-id} for live Playground commands, fire-and-forget; POST /api/companion/{session-id}/command for a SYNCHRONOUS response returning the command outcome in-band as {ok, output, error, result} — preferred for AI agents).",
+  "description": "Machine-readable command catalog for the MiniGraph Playground DSL (Rust port of mercury-composable). Mirrors command-reference.md. An AI agent should ingest this to generate and validate commands deterministically before dispatching them via the companion endpoint (POST /api/graph/{id} for execution; POST /api/companion/{session-id} for live Playground commands, fire-and-forget; POST /api/companion/{session-id}/sync for a SYNCHRONOUS response returning the command outcome in-band as {ok, output, error, result} — preferred for AI agents).",
   "source_of_truth": "crates/knowledge-graph/resources/help/",
   "lexical": {
     "node_name": "lowercase letters and hyphen only",

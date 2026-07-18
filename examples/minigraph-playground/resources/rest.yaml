@@ -68,7 +68,7 @@ rest:
   # outcome in-band {ok, output, error, result}; additive sibling of the above
   - service: 'post.companion.command.sync'
     methods: ['POST']
-    url: '/api/companion/{id}/command'
+    url: '/api/companion/{id}/sync'
     timeout: 30s
     tracing: true
 

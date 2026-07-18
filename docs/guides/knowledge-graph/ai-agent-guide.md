@@ -28,7 +28,7 @@ related:
 | Goal | Endpoint | Notes |
 |---|---|---|
 | **Execute a deployed graph** | `POST /api/graph/{graph-id}` | Send the request body; get the response. No session. |
-| **Build/edit a graph — AI agents, preferred** | `POST /api/companion/{session-id}/command` | **Synchronous** — returns the command outcome **in-band** `{ok, output, error, result}`; output is *also* teed to the human's WS console. |
+| **Build/edit a graph — AI agents, preferred** | `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command outcome **in-band** `{ok, output, error, result}`; output is *also* teed to the human's WS console. |
 | **Build/edit a graph — fire-and-forget (legacy)** | `POST /api/companion/{session-id}` | Dispatches the command; outcome streams to the WS console only (HTTP returns just an ack). Kept for Java parity. |
 | **Read the live model** | `GET /api/graph/session/{session-id}` | Returns the current graph as JSON. |
 
@@ -43,7 +43,7 @@ in-band and can self-correct without a human relaying the console:
 ```
 1. A human opens the Playground (ws://{host}/ws/graph); the first WebSocket frame carries the
    session id (ws-<6 digits>-<counter>, e.g. ws-384729-17). Get this id from the human.
-2. For each command:  POST /api/companion/{session-id}/command   Content-Type: text/plain,
+2. For each command:  POST /api/companion/{session-id}/sync   Content-Type: text/plain,
    exactly ONE command in the body.
 3. The HTTP response returns the outcome IN-BAND as JSON:
      { "ok": bool, "command": "...", "output": ["...console lines..."],
@@ -111,20 +111,20 @@ Each call returns `{ok, output, error, result}` — check `ok` and self-correct 
 ```bash
 SID="ws-384729-17"   # from the WebSocket welcome frame
 
-curl -sS -X POST "http://{host}/api/companion/${SID}/command" -H 'Content-Type: text/plain' \
+curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary $'create node root\nwith type Root\nwith properties\npurpose=demo'
 # → {"ok":true,"command":"create node root...","output":["> create node root","node root created"],"error":null,"result":null}
 
-curl -sS -X POST "http://{host}/api/companion/${SID}/command" -H 'Content-Type: text/plain' \
+curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary $'create node end\nwith type End\nwith properties\nskill=graph.data.mapper\nmapping[]=text(hello world) -> output.body'
 
-curl -sS -X POST "http://{host}/api/companion/${SID}/command" -H 'Content-Type: text/plain' \
+curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary 'connect root to end with done'
 
-curl -sS -X POST "http://{host}/api/companion/${SID}/command" -H 'Content-Type: text/plain' \
+curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary 'instantiate graph'
 
-curl -sS -X POST "http://{host}/api/companion/${SID}/command" -H 'Content-Type: text/plain' \
+curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary 'run'
 # → {"ok":true,...,"result":[{"output":{"body":"hello world"}}]}   # the run outcome, in-band
 ```

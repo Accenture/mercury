@@ -44,7 +44,7 @@ feedback**: send a command → get back what happened.
 ## Design
 
 ### Surface (additive)
-A sibling route — **`POST /api/companion/{id}/command`** (service `post.companion.command.sync`) —
+A sibling route — **`POST /api/companion/{id}/sync`** (service `post.companion.command.sync`) —
 identical body (`text/plain`, one command), returning a structured envelope:
 
 ```json
