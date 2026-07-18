@@ -1,0 +1,32 @@
+[
+  {
+    "name": "node already exists (error, not mutation)",
+    "raw": "Node foo already exists",
+    "expectedKinds": ["docs.response"],
+    "notExpectedKinds": ["graph.mutation"]
+  },
+  {
+    "name": "graph instance created (not a node mutation)",
+    "raw": "Graph instance created for session ws-123-4",
+    "expectedKinds": ["docs.response"],
+    "notExpectedKinds": ["graph.mutation"]
+  },
+  {
+    "name": "root node created because (not a node mutation)",
+    "raw": "Root node created because graph was empty",
+    "expectedKinds": ["docs.response"],
+    "notExpectedKinds": ["graph.mutation"]
+  },
+  {
+    "name": "describe graph echo (excluded from helpOrDescribe)",
+    "raw": "> describe graph",
+    "expectedKinds": ["command.echo"],
+    "notExpectedKinds": ["command.helpOrDescribe"]
+  },
+  {
+    "name": "plain command echo (not helpOrDescribe)",
+    "raw": "> create node foo",
+    "expectedKinds": ["command.echo"],
+    "notExpectedKinds": ["command.helpOrDescribe", "docs.response"]
+  }
+]

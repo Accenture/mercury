@@ -1,0 +1,14 @@
+[
+  {
+    "name": "mock upload invitation",
+    "raw": "You may upload JSON payload -> POST /api/mock/ws-417669-24",
+    "expectedKinds": ["upload.invitation"],
+    "expectedProps": { "uploadPath": "/api/mock/ws-417669-24" }
+  },
+  {
+    "name": "mock upload invitation with different id",
+    "raw": "You may upload JSON payload -> POST /api/mock/ws-100-1",
+    "expectedKinds": ["upload.invitation"],
+    "expectedProps": { "uploadPath": "/api/mock/ws-100-1" }
+  }
+]

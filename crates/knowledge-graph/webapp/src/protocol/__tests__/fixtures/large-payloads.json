@@ -1,0 +1,14 @@
+[
+  {
+    "name": "large payload with size and path",
+    "raw": "Large payload (254922) -> GET /api/inspect/ws-734563-3/input.body",
+    "expectedKinds": ["payload.large"],
+    "expectedProps": { "apiPath": "/api/inspect/ws-734563-3/input.body", "byteSize": 254922, "filename": "input.body.json" }
+  },
+  {
+    "name": "large payload with different size",
+    "raw": "Large payload (1024) -> GET /api/inspect/ws-100-1/output.json",
+    "expectedKinds": ["payload.large"],
+    "expectedProps": { "apiPath": "/api/inspect/ws-100-1/output.json", "byteSize": 1024, "filename": "output.json.json" }
+  }
+]

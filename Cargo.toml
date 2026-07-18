@@ -10,6 +10,7 @@ members = [
     "benchmark/benchmark-reporter",
     "examples/hello-world",
     "examples/hello-flow",
+    "examples/minigraph-playground",
 ]
 
 [workspace.package]

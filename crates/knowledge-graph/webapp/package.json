@@ -1,0 +1,38 @@
+{
+  "name": "minigraph-playground-webapp",
+  "version": "1.0.0",
+  "description": "A lightweight React-based Minigraph playground for testing and debugging",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "node scripts/clean.js",
+    "release": "npm run clean && npm run build && npm run deploy",
+    "deploy": "node scripts/deploy.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.10.1",
+    "idb": "^8.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-json-view-lite": "^2.5.0",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.6.5",
+    "react-router-dom": "^7.16.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "fake-indexeddb": "^6.2.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16",
+    "vite-plugin-svgr": "^4.5.0",
+    "vitest": "^4.1.0"
+  }
+}

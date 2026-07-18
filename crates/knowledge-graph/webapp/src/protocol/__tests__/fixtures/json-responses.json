@@ -1,0 +1,17 @@
+[
+  {
+    "name": "JSON array",
+    "raw": "[1, 2, 3]",
+    "expectedKinds": ["json.response"]
+  },
+  {
+    "name": "JSON object without type field",
+    "raw": "{\"name\":\"test\",\"value\":42}",
+    "expectedKinds": ["json.response"]
+  },
+  {
+    "name": "nested JSON object",
+    "raw": "{\"data\":{\"nodes\":[{\"id\":1},{\"id\":2}]}}",
+    "expectedKinds": ["json.response"]
+  }
+]

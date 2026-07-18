@@ -1,0 +1,17 @@
+# minigraph-playground example — active knowledge graph (layer 3) on
+# event-script (layer 2) on platform-core (layer 1).
+application.name: minigraph-playground
+
+# REST automation serves rest.yaml + the static webapp bundle; app.env=dev
+# turns on the Playground (the dev-gated PlaygroundLoader). Production
+# deployments set app.env to something else and run graphs only through
+# POST /api/graph/{graph-id}.
+app.env: dev
+rest.automation: true
+rest.server.port: 8100
+
+# Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
+location.graph.temp: file:/tmp/graph
+
+info.app.description: 'mercury MiniGraph Playground (active knowledge graph)'
+show.application.properties: 'application.name, app.env, rest.server.port'

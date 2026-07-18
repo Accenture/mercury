@@ -1,0 +1,50 @@
+/* ── Root — flex column, fills tab body ── */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Empty state ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  opacity: 0.4;
+}
+
+/* ── Toolbar button — composes from the canonical definition in GraphToolbar ── */
+.toolbarButton {
+  composes: toolbarButton from '../GraphToolbar/GraphToolbar.module.css';
+}
+
+/* ── Scrollable JSON body ── */
+.scrollBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono-terminal);
+  font-size: 0.875rem;
+  background: var(--console-bg);
+}
+
+/* ── JSON tree colour overrides — mirrors Console.module.css ── */
+.jsonContainer { background: transparent !important; padding: 0 !important; }
+.jsonLabel     { color: var(--json-key);    }
+.jsonString    { color: var(--json-string); }
+.jsonNumber    { color: var(--json-number); }
+.jsonBoolean   { color: var(--json-bool);   }
+.jsonNull      { color: var(--json-null);   }

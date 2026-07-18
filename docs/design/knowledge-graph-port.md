@@ -175,6 +175,20 @@ changes).
 8. **K-8 — the React webapp + milestone close.** Copy the webapp, adjust
    `clean.js`/`deploy.js` to `../resources/public`, run `npm run release`, live-verify
    the Playground end-to-end in a browser; README; milestone banner.
+   > **K-8 SHIPPED 2026-07-18 (increment 29) — LAYER 3 MILESTONE CLOSED.** The React
+   > webapp copied verbatim into `crates/knowledge-graph/webapp/`; `clean.js`/`deploy.js`
+   > retargeted to `../resources/public`. A **third** path of the same class needed the
+   > same retarget (maintainer-approved): `src/data/helpContent.ts`'s build-time
+   > `import.meta.glob` for the in-app Help panel → `../../../resources/help/*.md` (else the
+   > panel renders empty). `npm run release` → the committed bundle in `resources/public`
+   > (served at `/`; source maps gitignored as regenerable). **`examples/minigraph-playground`**
+   > (open question 4 = yes): a one-line `auto_start_main!` app with its own
+   > `application.yml`/`rest.yaml`, mirroring the `hello-flow` convention. Live-verified
+   > against the running app (Chrome ext unavailable → verified the exact browser
+   > protocol/paths): static serving at `/`, the `/ws/graph/playground` session + command
+   > round-trip (help served from the ported `help/*.md`), and the `POST /api/companion/{id}`
+   > hop streaming to the WS console. **Three layers ported bottom-up: platform-core →
+   > event-script → active knowledge graph.**
 
 ## 5. Out of scope (confirmed defaults)
 
@@ -197,3 +211,7 @@ changes).
 4. **Playground app shape** — the engine crate is directly runnable through any app that
    links it; should K-8 also add an `examples/minigraph-playground` app crate (mirroring
    the Java `examples/` module and our examples convention)? *(Default: yes.)*
+   **RESOLVED (K-8, 2026-07-18): yes.** `examples/minigraph-playground` ships a one-line
+   `auto_start_main!` app with its own `application.yml` (`app.env=dev`, port 8100) and
+   `rest.yaml` (Playground/companion endpoints) — the `hello-flow` convention (app owns the
+   deployment config; the engine stays a clean library).

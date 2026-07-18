@@ -1,0 +1,326 @@
+/* ── CommandInput root (no card wrapper — lives inside LeftPanel) ── */
+.commandInput {
+  padding: 0.75rem;
+  flex: 0 0 auto;
+}
+
+/* ── Label row ──────────────────────────────────────────────────── */
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Groups the "Command" text with the info icon so they sit inline. */
+.labelGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── Info icon + popover wrapper ────────────────────────────────── */
+.infoWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.paletteToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  /* Reset <button> default styles */
+  border: 1px solid var(--border-color);
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.paletteToggle:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.paletteToggle:focus-visible {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.paletteToggleActive {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* The popover / command palette panel */
+.popover {
+  position: absolute;
+  /* Sit just above the icon */
+  bottom: calc(100% + 0.4rem);
+  top: auto;
+  left: 0;
+  z-index: 200;
+  width: 26rem;
+  max-height: 22rem;
+  overflow-y: scroll;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popover);
+  padding: 0 0.75rem 0.5rem;
+  /* Hidden until hovered or pinned open via click */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Opened via click only — toggled by the .popoverOpen class */
+.popoverOpen {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* ── Webkit scrollbar — always visible on macOS/Chrome ─────────── */
+.popover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.popover::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xs);
+}
+
+.popover::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+  border-radius: var(--radius-xs);
+}
+
+.popover::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary);
+}
+
+.popoverTitle {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 -0.75rem 0.4rem;
+  padding: 0.6rem 0.75rem 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Each row inside the popover: keyword badge + description */
+.popoverRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.25rem 0.35rem;
+  margin: 0 -0.35rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.popoverRow:hover {
+  background: var(--autocomplete-highlight);
+}
+
+.popoverRow:focus-visible {
+  background: var(--autocomplete-highlight);
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.popoverKeyword {
+  flex: 0 0 9.5rem;
+  font-family: var(--font-mono-code);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-top: 0.05rem; /* optical alignment with description text */
+}
+
+.popoverDesc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.popoverAlias {
+  font-weight: bold;
+  font-family: var(--font-mono-code);
+  opacity: 1;
+}
+
+/* ── Single-line layout: textarea and Send button share one row ─── */
+.inputRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.inputRow .inputWrapper {
+  flex: 1 1 auto;
+}
+
+/* ── inputWrapper: positions the dropdown relative to the input ─── */
+.inputWrapper {
+  position: relative;
+}
+
+/* ── Textarea ───────────────────────────────────────────────────── */
+.textarea {
+  display: flex;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 2.5rem;
+  max-height: 28rem;
+  overflow-y: auto;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-color: var(--input-focus-border);
+}
+
+.textarea:disabled {
+  background-color: var(--disabled-bg);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ── Send button ────────────────────────────────────────────────── */
+.sendButton {
+  padding: 0.5rem 1.25rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.sendButton:hover:not(:disabled) { background: var(--primary-hover); }
+.sendButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Hint text ──────────────────────────────────────────────────── */
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+/* ── Dropup container — positioned above the textarea ──────────── */
+.dropup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);  /* shadow projects upward */
+  margin-bottom: 0.25rem;                        /* small gap between dropup and textarea */
+  overflow: hidden;                              /* clips item border-radius */
+}
+
+/* Dropup header label — identifies the panel as history-based autocomplete */
+.dropupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+/* Individual suggestion row */
+.dropupItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-family: var(--font-mono-code);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: background 0.1s;
+}
+
+.dropupItem:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Driven by aria-selected so visual and semantic states are always in sync */
+.dropupItem[aria-selected="true"] {
+  background-color: var(--autocomplete-highlight);
+  color: var(--text-primary);  /* ensures readable text in dark-mode themes */
+}
+
+/* Text part of the row — truncates long lines */
+.dropupItemText {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bold matched prefix inside a suggestion row */
+.matchHighlight {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+/* Multi-line indicator symbol */
+.multilineIndicator {
+  flex: 0 0 auto;
+  font-style: normal;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  user-select: none;
+}
+

@@ -1,0 +1,64 @@
+#
+# The Playground REST endpoints (ported from the Java minigraph engine's
+# rest.yaml). The dev workbench itself loads over WebSocket (/ws/graph,
+# /ws/json — handled by the upgrade path, not routed here); these are the
+# companion/API hops. The compiled React bundle is served as static content
+# from the engine crate's resources/public at "/".
+#
+# The two demo-mock routes (/api/mdm/*, /api/account/*) are omitted: those
+# services are test fixtures, not engine built-ins.
+#
+rest:
+  - service: 'get.index.html'
+    methods: ['GET']
+    url: '/index.html'
+    timeout: 10s
+
+  - service: 'get.ws.html'
+    methods: ['GET']
+    url: '/api/ws/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    methods: ['POST', 'GET']
+    url: '/api/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    tracing: true
+
+  - service: 'show.graph.model'
+    methods: ['GET']
+    url: '/api/graph/model/{graph_id}/{sequence}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'get.live.graph'
+    methods: ['GET']
+    url: '/api/graph/session/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.json.content'
+    methods: ['POST']
+    url: '/api/json/content/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.mock.content'
+    methods: ['POST']
+    url: '/api/mock/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'inspect.state.machine'
+    methods: ['GET']
+    url: '/api/inspect/{id}/{key}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'post.companion.command'
+    methods: ['POST']
+    url: '/api/companion/{id}'
+    timeout: 30s
+    tracing: true

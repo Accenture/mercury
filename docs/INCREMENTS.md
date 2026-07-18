@@ -45,6 +45,7 @@
 | 26 | knowledge-graph K-6: graph.extension (sub-graph + flow:// delegation) | 2026-07-17 | KG K2 | 178 |
 | 27 | knowledge-graph K-7a: platform-core WebSocket server (hyper upgrade + tungstenite) | 2026-07-17 | KG K6a | 179 |
 | 28 | knowledge-graph K-7b: the Playground (command grammar, traveler, companion API, dev-gating K9) | 2026-07-17 | KG K9 | 181 |
+| 29 | knowledge-graph K-8: React webapp + `minigraph-playground` app — **LAYER 3 MILESTONE CLOSED** | 2026-07-18 | KG K7/K8 | 181 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -704,6 +705,45 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Next**: K-8 — copy the React webapp verbatim, adjust `clean.js`/`deploy.js` to
   `../resources/public`, `npm run release`, live-verify in a browser, and close the layer-3
   milestone.
+
+## Increment 29 — knowledge-graph K-8: React webapp + Playground app — LAYER 3 MILESTONE CLOSED (2026-07-18)
+
+> **🎧 Active knowledge graph (layer 3) complete.** The MiniGraph Playground runs on the
+> Rust engine: build a graph in the browser, traverse it (traversal *is* execution),
+> inspect the state machine, drive it by AI-companion command. Three layers ported
+> bottom-up — platform-core → event-script → active knowledge graph — foundation to UI.
+
+- **The React webapp, copied verbatim** into `crates/knowledge-graph/webapp/` (React 19 +
+  Vite + `@xyflow/react`, 573 modules). Per the maintainer's K7 decision only the deploy
+  path changes: `scripts/clean.js` + `scripts/deploy.js` retarget
+  `../src/main/resources/public` → **`../resources/public`**. A **third** path of the same
+  class needed retargeting (maintainer-approved, not in the original K7 note): the in-app
+  Help panel bundles the help markdown at build time via `import.meta.glob`, so
+  `src/data/helpContent.ts` (+ the `vite.config.ts` dev-server comment) moved from the Java
+  `../../../src/main/resources/help/*.md` to **`../../../resources/help/*.md`** — the engine
+  crate's help dir — or the Help panel would render empty.
+- **`npm run release`** (clean → `vite build` → deploy) lands the compiled bundle in the
+  engine crate's `resources/public/`, served by REST automation as static content at `/`
+  (the Rust analog of the Java jar's bundled resources; K8 resource-root hook). The served
+  bundle (js/css/html, ~1 MB) is **committed** so a fresh clone serves the Playground with no
+  npm step (Java parity); the 3+ MB of Vite **source maps are gitignored** as regenerable
+  debug artifacts (`crates/knowledge-graph/resources/public/**/*.map` — map, don't mirror).
+- **`examples/minigraph-playground`** — the runnable app (open question 4, default yes):
+  a one-line `auto_start_main!` app that links the engine, with `resources/application.yml`
+  (`app.env=dev`, `rest.automation`, port 8100) and `resources/rest.yaml` (the Playground/
+  companion endpoints ported from the Java engine `rest.yaml`; the two demo-mock routes are
+  omitted — those services are test fixtures). Mirrors the `hello-flow` example convention
+  (the app ships its own rest.yaml/application.yml; the engine stays a clean library).
+- **Live-verified against the running app** (`cargo run -p minigraph-playground`): the Chrome
+  extension was unavailable, so verification exercised the exact protocol/paths the browser's
+  React app uses — (1) static serving: `GET /` → `index.html` (title "Minigraph Playground")
+  and `/assets/*.js` 200; (2) the websocket workbench: connect `ws://…/ws/graph/playground`
+  → session greeting → `create node root` → `node root created` → `help connect` streamed the
+  ported help content; (3) the AI-companion REST hop: `POST /api/companion/{id}` → 202
+  accepted → the command output streamed to the session's WebSocket console.
+- **Verification:** `cargo test --workspace` 181 green (K-8 adds no Rust tests — the webapp +
+  runnable app are verified live), `cargo clippy --workspace --all-targets` 0 warnings,
+  `cargo fmt --all --check` clean.
 
 ---
 

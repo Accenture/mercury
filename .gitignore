@@ -42,6 +42,13 @@ target/
 **/*.rs.bk
 *.pdb
 
+# === MiniGraph Playground webapp (K-8) ===
+# node_modules/dist are ignored by webapp/.gitignore. The DEPLOYED bundle in
+# resources/public IS committed (so a fresh clone serves the Playground without
+# npm — Java parity), EXCEPT the source maps: 3+ MB of regenerable debug
+# artifacts (`npm run release` rebuilds them). Map, don't mirror.
+crates/knowledge-graph/resources/public/**/*.map
+
 # === OS / editor ===
 .DS_STORE
 .vscode/
