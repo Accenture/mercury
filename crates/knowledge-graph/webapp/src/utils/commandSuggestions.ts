@@ -95,7 +95,7 @@ export const COMMAND_QUICKSTART: QuickstartEntry[] = [
   { keyword: 'execute',         description: 'Execute a single node skill in isolation',
     template: 'execute node {name}' },
   { keyword: 'inspect',         description: 'Inspect a state-machine variable',
-    template: 'inspect output.body' },
+    template: 'inspect {variable_name}' },
   { keyword: 'run',             description: 'Run the graph instance from root to end',
     template: 'run' },
 ];
@@ -329,7 +329,7 @@ export const COMMAND_SUGGESTIONS: CommandSuggestion[] = [
   // ── inspect ─────────────────────────────────────────────────────────────
   {
     tokens:   ['inspect'],
-    template: 'inspect output.body',
+    template: 'inspect {variable_name}',
     hint:     'Inspect a state-machine variable',
   },
 

@@ -822,14 +822,22 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   `{output`→`body}` = empty `outcome`. **Not a code bug** — Java `handleInspectCommand` →
   `MultiLevelMap.getElement` splits on `.` without stripping braces, identical to Rust; the docs
   were the defect.
-- **Fix:** examples unbraced (`inspect output.body`); braces kept only in syntax lines; a
-  placeholder-convention note added to `command-reference.md`, `ai-agent-guide.md` (pre-send
-  checklist), `help inspect.md`, and `minigraph-commands.json` (machine-readable `notes`). The
-  webapp autocomplete `inspect` template changed `inspect {variable_name}` → `inspect output.body`
-  (both repos), and the compiled `resources/public` bundle rebuilt via `npm run release`.
-- **Rust scope:** `crates/knowledge-graph/resources/help/help inspect.md`, `webapp/src/utils/
-  commandSuggestions.ts`, rebuilt `resources/public`. `resources/help`/`resources/public` are
-  served from disk (not compile-time embedded), so no Rust rebuild required; workspace unaffected.
+- **Fix (docs only):** examples unbraced (`inspect output.body`); braces kept only in syntax
+  lines; a placeholder-convention note added to `command-reference.md`, `ai-agent-guide.md`
+  (pre-send checklist), `help inspect.md`, and `minigraph-commands.json` (machine-readable
+  `notes`).
+- **Webapp autocomplete template — NOT changed (initial change reverted).** A first pass changed
+  the `inspect` autocomplete `template` `inspect {variable_name}` → `inspect output.body`, but the
+  maintainer correctly noted the webapp `template` field is a fill-in **template**, not an example
+  — its `{…}` is the placeholder convention shared by every sibling (`execute node {name}`,
+  `import node {node-name} from {graph-name}`, `instantiate graph … {constant} -> input.body.{key}`).
+  So the template was reverted to `inspect {variable_name}` (Java `029a4912`, Rust revert commit).
+  The bundle was still rebuilt — to carry the help-doc *example* fix embedded via
+  `import.meta.glob('../../../resources/help/*.md')`.
+- **Rust scope:** `crates/knowledge-graph/resources/help/help inspect.md` + rebuilt
+  `resources/public` (help-example fix); `webapp/src/utils/commandSuggestions.ts` net-unchanged.
+  `resources/help`/`resources/public` are served from disk (not compile-time embedded), so no Rust
+  rebuild required; workspace unaffected.
 - **Validation context:** tutorial-3 itself passed end-to-end — a fresh AI companion built the
   data-dictionary graph (7 nodes + 7 connections, exact structural match to canonical
   `tutorial-3.json`) from the canonical docs alone and the dry-run returned
