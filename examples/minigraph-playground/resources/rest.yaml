@@ -64,6 +64,14 @@ rest:
     timeout: 30s
     tracing: true
 
+  # synchronous companion (design/ai-companion-sync.md) — returns the command
+  # outcome in-band {ok, output, error, result}; additive sibling of the above
+  - service: 'post.companion.command.sync'
+    methods: ['POST']
+    url: '/api/companion/{id}/command'
+    timeout: 30s
+    tracing: true
+
   # dev-only mock data providers (app.env=dev) — the tutorials' API-fetcher exercises
   - service: 'mock.mdm.profile'
     methods: ['POST']

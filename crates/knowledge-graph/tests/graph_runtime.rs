@@ -29,7 +29,7 @@ use event_script::mlm::MultiLevelMap;
 use event_script::FlowExecutor;
 use platform_core::{
     main_application, preload, trace, AppError, AutoStart, ComposableFunction, EntryPoint,
-    EventEnvelope, Platform,
+    EventEnvelope, Platform, PostOffice,
 };
 use rmpv::Value;
 
@@ -891,5 +891,84 @@ async fn join_loop_retirement_and_health(platform: &Platform) {
     assert!(
         knowledge_graph::model::get_instance("no-such-instance").is_none(),
         "registry lookup sanity"
+    );
+}
+
+/// Prototype: the **synchronous** companion endpoint returns the command outcome
+/// in-band — `ok`/`output`/`error`/`result` — instead of a fire-and-forget ack
+/// (design: `docs/design/ai-companion-sync.md`). This is the Tut-4 blind-spot fix:
+/// an invalid command's error is now in the HTTP response, not WS-only.
+#[tokio::test]
+async fn companion_sync_returns_outcome_in_band() {
+    let platform = boot().await;
+    let po = PostOffice::new(&platform);
+    let sid = "ws-770001-1";
+    let in_route = "ws.770001.1.in";
+
+    // create the session (mimic the WebSocket "open" event)
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(
+        knowledge_graph::commands::has_session(sid),
+        "session must exist before a companion command"
+    );
+
+    // call the synchronous endpoint and decode its structured body
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // 1) an invalid command → ok:false, error present in-band (the blind spot, closed)
+    let bad = sync_cmd(&platform, sid, "flibbertigibbet not a command").await;
+    assert_eq!(
+        bad["ok"],
+        serde_json::json!(false),
+        "invalid command → ok:false"
+    );
+    assert!(
+        bad["error"].is_string(),
+        "error text returned in-band, not WS-only: {bad}"
+    );
+
+    // 2) a valid command → ok:true, error null, output populated
+    let good = sync_cmd(&platform, sid, "create node root\nwith type Root").await;
+    assert_eq!(
+        good["ok"],
+        serde_json::json!(true),
+        "valid command → ok:true: {good}"
+    );
+    assert!(good["error"].is_null(), "no error on success: {good}");
+    assert!(
+        good["output"].as_array().is_some_and(|a| !a.is_empty()),
+        "console output returned in-band: {good}"
     );
 }

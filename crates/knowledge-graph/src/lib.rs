@@ -395,6 +395,25 @@ impl ComposableFunction for PostCompanionCommand {
     }
 }
 
+/// Synchronous AI-companion command (`post.companion.command.sync`) — returns the
+/// command outcome in-band (design: `docs/design/ai-companion-sync.md`). Additive
+/// sibling of `post.companion.command`; the fire-and-forget hop is unchanged.
+#[preload(route = "post.companion.command.sync", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct PostCompanionCommandSync;
+
+#[async_trait]
+impl ComposableFunction for PostCompanionCommandSync {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::post_companion_command_sync(&Platform::get_instance(), input).await
+    }
+}
+
 /// Java `UploadJsonContent` (`upload.json.content`).
 #[preload(route = "upload.json.content", instances = 10)]
 #[optional_service("app.env=dev")]

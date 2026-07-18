@@ -22,9 +22,14 @@
 //! + `@OptionalService` analog), so they register only when `app.env=dev`.
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use async_trait::async_trait;
 use event_script::conversions::{display, from_json, to_json_string};
-use platform_core::{AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
+use platform_core::{
+    AppConfigReader, AppError, ComposableFunction, EventEnvelope, Platform, PostOffice,
+};
 use rmpv::Value;
 
 use crate::commands;
@@ -154,6 +159,161 @@ pub async fn post_companion_command(
                     "Command dispatched to graph.command.service. Output streams to the \
                      WebSocket console for this session.",
                 ),
+            ),
+        ])))
+}
+
+/// Sentinel appended after a synchronous command so the capture route knows the
+/// command's (FIFO) output is fully drained. Not part of the returned output.
+const SYNC_SENTINEL: &str = "__companion_sync_done__";
+
+/// A private, per-call **capture route** used by [`post_companion_command_sync`]:
+/// the command pipeline's `say()` output is directed here (instead of the WS
+/// `.out`) and buffered so the outcome can be returned in the HTTP response.
+struct CaptureSink {
+    buffer: Arc<Mutex<Vec<Value>>>,
+}
+
+#[async_trait]
+impl ComposableFunction for CaptureSink {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        self.buffer
+            .lock()
+            .expect("capture buffer poisoned")
+            .push(input.body().clone());
+        EventEnvelope::new().set_body("ok")
+    }
+}
+
+fn is_error_line(line: &str) -> bool {
+    line.starts_with("ERROR:")
+        || line.contains("aborted")
+        || line.contains("does not have")
+        || line.starts_with("Invalid")
+        || line.contains("not found")
+        || line.contains("Please try 'help'")
+}
+
+/// **Synchronous** AI-companion command (design: `docs/design/ai-companion-sync.md`).
+/// Additive sibling of [`post_companion_command`]: dispatches the same command but
+/// returns the command's **outcome in-band** — `ok`, the console `output` lines,
+/// the first `error` (if any), and any structured `result` (e.g. a run's
+/// `output.body`) — instead of a fire-and-forget `{status:"accepted"}`. The
+/// existing endpoint and the WebSocket console are unchanged.
+pub async fn post_companion_command_sync(
+    platform: &Platform,
+    event: EventEnvelope,
+) -> Result<EventEnvelope, AppError> {
+    let (path_parameters, body, _) = request_view(&event);
+    let Some(id) = path_parameters.get("id") else {
+        return Err(invalid("Missing path parameter: id"));
+    };
+    let command = match &body {
+        Value::String(text) => text.as_str().unwrap_or_default().trim().to_string(),
+        _ => String::new(),
+    };
+    if command.is_empty() {
+        return Err(invalid("Body must be a non-empty text/plain command"));
+    }
+    if !commands::has_session(id) {
+        return Err(AppError::new(404, format!("No active session for id {id}")));
+    }
+
+    let route = id.replace('-', ".");
+    let in_route = format!("{route}.in");
+    let capture_route = format!("companion.sync.{}", uuid::Uuid::new_v4().simple());
+    let buffer = Arc::new(Mutex::new(Vec::<Value>::new()));
+    platform.register(
+        &capture_route,
+        Arc::new(CaptureSink {
+            buffer: buffer.clone(),
+        }),
+        1,
+    )?;
+
+    let po = PostOffice::new(platform);
+    // RPC the command handler with the capture route as `out`; `handle()` awaits
+    // all `say()` calls before replying, so this resolves once the command is done.
+    let _ = po
+        .request(
+            EventEnvelope::new()
+                .set_to(commands::SINGLETON_COMMAND_HANDLER)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("command")),
+                    (Value::from("in"), Value::from(in_route.as_str())),
+                    (Value::from("out"), Value::from(capture_route.as_str())),
+                    (Value::from("message"), Value::from(command.as_str())),
+                ])),
+            Duration::from_secs(30),
+        )
+        .await;
+
+    // `say()` is fire-and-forget; the sentinel (enqueued after, FIFO) marks the
+    // buffer fully drained — deterministic, no arbitrary sleep.
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(capture_route.as_str())
+                .set_raw_body(Value::from(SYNC_SENTINEL)),
+        )
+        .await;
+    for _ in 0..250 {
+        let seen = {
+            let g = buffer.lock().expect("capture buffer poisoned");
+            g.iter().any(|v| v.as_str() == Some(SYNC_SENTINEL))
+        };
+        if seen {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    platform.release(&capture_route);
+
+    // Build the structured outcome.
+    let items = buffer.lock().expect("capture buffer poisoned").clone();
+    let mut output: Vec<Value> = Vec::new();
+    let mut result: Vec<Value> = Vec::new();
+    let mut error: Option<String> = None;
+    for v in items {
+        match &v {
+            Value::String(s) => {
+                let line = s.as_str().unwrap_or_default().to_string();
+                if line == SYNC_SENTINEL {
+                    continue;
+                }
+                if error.is_none() && is_error_line(&line) {
+                    error = Some(line.clone());
+                }
+                output.push(Value::from(line.as_str()));
+            }
+            _ => result.push(v),
+        }
+    }
+    let ok = error.is_none();
+
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(vec![
+            (Value::from("ok"), Value::Boolean(ok)),
+            (Value::from("id"), Value::from(id.as_str())),
+            (Value::from("command"), Value::from(command.as_str())),
+            (Value::from("output"), Value::Array(output)),
+            (
+                Value::from("error"),
+                error.as_deref().map(Value::from).unwrap_or(Value::Nil),
+            ),
+            (
+                Value::from("result"),
+                if result.is_empty() {
+                    Value::Nil
+                } else {
+                    Value::Array(result)
+                },
             ),
         ])))
 }
