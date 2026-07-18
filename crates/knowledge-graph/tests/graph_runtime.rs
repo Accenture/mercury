@@ -220,6 +220,10 @@ async fn graph_runtime_end_to_end() {
     api_fetcher_matches_java_semantics(&platform).await;
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
+    // Run in this single test so the whole file shares one runtime + one booted
+    // server: a second `#[tokio::test]` gets its own runtime, which drops (killing
+    // the shared HTTP server task) when the first finishes — the harness flake.
+    companion_sync_returns_outcome_in_band(&platform).await;
 }
 
 /// Java `GraphExecutionTest.testGraphExecutionMath/Js` + `GraphTests.tutorial113`
@@ -924,10 +928,8 @@ impl ComposableFunction for OutTap {
 /// (design: `docs/design/ai-companion-sync.md`). This is the Tut-4 blind-spot fix:
 /// an invalid command's error is now in the HTTP response, not WS-only — and the
 /// output is *also* teed to the session's `.out` so a human watches live.
-#[tokio::test]
-async fn companion_sync_returns_outcome_in_band() {
-    let platform = boot().await;
-    let po = PostOffice::new(&platform);
+async fn companion_sync_returns_outcome_in_band(platform: &Platform) {
+    let po = PostOffice::new(platform);
     let sid = "ws-770001-1";
     let in_route = "ws.770001.1.in";
 
@@ -981,7 +983,7 @@ async fn companion_sync_returns_outcome_in_band() {
     }
 
     // 1) an invalid command → ok:false, error present in-band (the blind spot, closed)
-    let bad = sync_cmd(&platform, sid, "flibbertigibbet not a command").await;
+    let bad = sync_cmd(platform, sid, "flibbertigibbet not a command").await;
     assert_eq!(
         bad["ok"],
         serde_json::json!(false),
@@ -993,7 +995,7 @@ async fn companion_sync_returns_outcome_in_band() {
     );
 
     // 2) a valid command → ok:true, error null, output populated
-    let good = sync_cmd(&platform, sid, "create node root\nwith type Root").await;
+    let good = sync_cmd(platform, sid, "create node root\nwith type Root").await;
     assert_eq!(
         good["ok"],
         serde_json::json!(true),
