@@ -11,12 +11,15 @@ Syntax
 ```
 inspect {variable_name}
 ```
+`{variable_name}` is a placeholder — substitute your key and do **not** type the
+braces (see the examples). A whole namespace (`input` | `output` | `model`) is
+also valid, e.g. `inspect output`.
 
 Examples
 --------
 ```
-inspect {input.body.user_id}
-inspect {book.price}
-inpsect {model.some_variable}
-inspect {output.body.some_key}
+inspect input.body.user_id
+inspect book.price
+inspect model.some_variable
+inspect output.body.some_key
 ```
