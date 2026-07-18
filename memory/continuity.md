@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-18 | uses: 15 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-18 | uses: 16 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -116,7 +116,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   *purpose*, hardening the Rust port toward production quality. **Resume:** user restarts the Rust server
   (`app.env=dev`) + provides a fresh `ws-…` primary; spin a companion the same way.
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 1 | tier: working | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 3 | tier: working | origin: 2026-07-18-061457.md -->
 
 - [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
   `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
@@ -156,7 +156,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Playground (command grammar, traveler, companion API, dev-gating K9) → the React webapp +
   `examples/minigraph-playground`, live-verified in the browser. **Three layers ported
   bottom-up: platform-core → event-script → active knowledge graph.** → serves: vision-mercury
-  <!-- id: bp-active-knowledge-graph | created: 2026-07-15 | last_used: 2026-07-18 | uses: 18 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-active-knowledge-graph | created: 2026-07-15 | last_used: 2026-07-18 | uses: 20 | tier: active | origin: 2026-07-15-215538.md -->
   **Design drafted 2026-07-17** (`docs/design/knowledge-graph-port.md` v1) — gate pending.
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
   → serves: vision-mercury
@@ -511,7 +511,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   exact browser protocol/paths): static `/` + assets 200, `/ws/graph/playground` session +
   command round-trip (help streamed), `POST /api/companion/{id}` → WS console. → serves:
   vision-mercury
-  <!-- id: ot-design-knowledge-graph | created: 2026-07-17 | last_used: 2026-07-18 | uses: 11 | tier: active | origin: 2026-07-17-010622.md -->
+  <!-- id: ot-design-knowledge-graph | created: 2026-07-17 | last_used: 2026-07-18 | uses: 11 | tier: archive-candidate | origin: 2026-07-17-010622.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**
