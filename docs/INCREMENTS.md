@@ -812,6 +812,31 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 
 ---
 
+## Increment 32 — `inspect` docs: `{…}` is a placeholder, not literal (2026-07-18)
+
+- **Documentation/UX fix, both repos** (Rust `0252c05`; Java canonical
+  `Accenture/mercury-composable` `c04036f8`). Surfaced by the AI-companion validation of
+  tutorial-3: the `inspect` grammar used `{…}` as a placeholder in the *syntax* line but repeated
+  the braces in the *examples* (`inspect {output.body}`), so a literal-minded reader — or an AI
+  agent — types the braces. Both engines then resolve `{output.body}` as the composite key
+  `{output`→`body}` = empty `outcome`. **Not a code bug** — Java `handleInspectCommand` →
+  `MultiLevelMap.getElement` splits on `.` without stripping braces, identical to Rust; the docs
+  were the defect.
+- **Fix:** examples unbraced (`inspect output.body`); braces kept only in syntax lines; a
+  placeholder-convention note added to `command-reference.md`, `ai-agent-guide.md` (pre-send
+  checklist), `help inspect.md`, and `minigraph-commands.json` (machine-readable `notes`). The
+  webapp autocomplete `inspect` template changed `inspect {variable_name}` → `inspect output.body`
+  (both repos), and the compiled `resources/public` bundle rebuilt via `npm run release`.
+- **Rust scope:** `crates/knowledge-graph/resources/help/help inspect.md`, `webapp/src/utils/
+  commandSuggestions.ts`, rebuilt `resources/public`. `resources/help`/`resources/public` are
+  served from disk (not compile-time embedded), so no Rust rebuild required; workspace unaffected.
+- **Validation context:** tutorial-3 itself passed end-to-end — a fresh AI companion built the
+  data-dictionary graph (7 nodes + 7 connections, exact structural match to canonical
+  `tutorial-3.json`) from the canonical docs alone and the dry-run returned
+  `output.body = {name:"Peter", address:"100 World Blvd"}`.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
