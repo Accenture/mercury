@@ -17,8 +17,9 @@
 //! The Playground REST endpoints (Java `rest` package, all dev-gated):
 //! home/workbench pages, the AI-companion command hop, uploads into live
 //! sessions, draft-graph description, live-graph download and state-machine
-//! inspection. Registered by the `PlaygroundLoader` hook when `app.env=dev`
-//! (the `@OptionalService` analog).
+//! inspection. Registered declaratively in [`crate`] via `#[preload]` +
+//! `#[optional_service("app.env=dev")]` (the Java `@RestEndpoint`/`@PreLoad`
+//! + `@OptionalService` analog), so they register only when `app.env=dev`.
 
 use std::collections::HashMap;
 

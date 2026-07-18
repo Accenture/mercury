@@ -9,6 +9,11 @@ info.app:
   version: '1.0.0'
   description: 'Knowledge graph compiler tests'
 
+# dev environment so the Playground services + dev mocks (now #[optional_service(
+# "app.env=dev")]) register — the API-fetcher tests call the mocks over HTTP, and
+# the ws services trigger the HTTP server start.
+app.env: dev
+
 rest.server.port: 8090
 
 location.graph.temp: 'file:/tmp/graph'

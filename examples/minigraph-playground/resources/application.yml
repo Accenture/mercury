@@ -3,10 +3,11 @@
 application.name: minigraph-playground
 
 # REST automation serves rest.yaml + the static webapp bundle; app.env=dev
-# turns on the Playground (the dev-gated PlaygroundLoader). Production
-# deployments set app.env to something else and run graphs only through
-# POST /api/graph/{graph-id}.
-app.env: dev
+# turns on the dev-gated Playground services (each declared with
+# #[optional_service("app.env=dev")]). Env-overridable (Java parity:
+# ${APP_ENV:dev}) — set APP_ENV=prod to run graphs only through
+# POST /api/graph/{graph-id}, with the Playground UI/WS/mocks not loaded.
+app.env: ${APP_ENV:dev}
 rest.automation: true
 rest.server.port: 8100
 

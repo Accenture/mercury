@@ -263,113 +263,91 @@ impl ComposableFunction for GraphExceptionHandler {
     }
 }
 
-/// The Playground loader (the Java `PlaygroundLoader` + `@OptionalService`
-/// analog — design K9): when `app.env=dev`, registers the dev workbench —
-/// the command service (+ its singleton for orderly AI-companion requests),
-/// the traveler, the websocket handlers and the dev REST endpoints. In any
-/// other environment none of it exists (production graphs run only through
-/// `POST /api/graph/{graph-id}`). The home page is registered regardless
-/// (it serves `/template` outside dev).
+// --- The MiniGraph Playground (the Java `@OptionalService("app.env=dev")`
+// services + the `@WebSocketService` handlers in `ws_ui`). Each Playground
+// service registers only when `app.env=dev` (via `#[optional_service]`); in any
+// other environment none of it exists — production graphs run only through
+// `POST /api/graph/{graph-id}`. The home page (`get.index.html`) is registered
+// regardless (it serves `/template` outside dev), matching Java's non-optional
+// `GetIndexHtml`.
+
+/// Dev-only: start the Playground's temp-graph housekeeping sweep. A
+/// `#[before_application]` gated by `#[optional_service]`. This hook plus the
+/// dev-gated services below (each `#[optional_service("app.env=dev")]`)
+/// declaratively replace the former programmatic Playground registration —
+/// mirroring how Java registers these via `@PreLoad`/`@WebSocketService` +
+/// `@OptionalService` rather than through a loader.
 #[before_application(sequence = 8)]
-pub struct PlaygroundLoader;
+#[optional_service("app.env=dev")]
+struct PlaygroundHousekeeping;
 
 #[async_trait]
-impl EntryPoint for PlaygroundLoader {
+impl EntryPoint for PlaygroundHousekeeping {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
-        let platform = Platform::get_instance();
-        let config = platform_core::AppConfigReader::get_instance();
-        let dev = config.get_property_or("app.env", "dev") == "dev";
-        register_once(&platform, "get.index.html", 10, |e| async move {
-            rest::get_index_html(e).await
-        });
-        if !dev {
-            log::info!("Playground disabled (app.env is not dev)");
-            return Ok(());
-        }
         commands::start_housekeeping();
-        register_once(&platform, commands::ROUTE, 50, |e| async move {
-            commands::handle(&Platform::get_instance(), HashMap::new(), e).await
-        });
-        register_once(
-            &platform,
-            commands::SINGLETON_COMMAND_HANDLER,
-            1,
-            |e| async move { commands::handle(&Platform::get_instance(), HashMap::new(), e).await },
-        );
-        if !platform.has_route(traveler::ROUTE) {
-            let _ = platform.register_with_options(
-                traveler::ROUTE,
-                std::sync::Arc::new(GraphTravelerService),
-                300,
-                platform_core::FunctionOptions {
-                    zero_traced: true,
-                    interceptor: true,
-                },
-            );
-        }
-        platform_core::automation::register_ws_service("graph", || {
-            std::sync::Arc::new(ws_ui::GraphUserInterface)
-        });
-        platform_core::automation::register_ws_service("json", || {
-            std::sync::Arc::new(ws_ui::JsonPathHandler)
-        });
-        register_once(&platform, "get.ws.html", 10, |e| async move {
-            rest::get_ws_html(e).await
-        });
-        register_once(&platform, "post.companion.command", 10, |e| async move {
-            rest::post_companion_command(&Platform::get_instance(), e).await
-        });
-        register_once(&platform, "upload.json.content", 10, |e| async move {
-            rest::upload_json_content(&Platform::get_instance(), e).await
-        });
-        register_once(&platform, "upload.mock.content", 10, |e| async move {
-            rest::upload_mock_content(&Platform::get_instance(), e).await
-        });
-        register_once(&platform, "show.graph.model", 20, |e| async move {
-            rest::show_graph_model(e).await
-        });
-        register_once(&platform, "get.live.graph", 10, |e| async move {
-            rest::get_live_graph(e).await
-        });
-        register_once(&platform, "inspect.state.machine", 10, |e| async move {
-            rest::inspect_state_machine(e).await
-        });
         log::info!("Playground loaded (app.env=dev)");
         Ok(())
     }
 }
 
-/// A small adapter turning an async fn into a registered composable function.
-struct FnService<F>(F);
+/// Java `GetIndexHtml` (`get.index.html`) — the home page; registered in **all**
+/// environments (serves `/template` outside dev).
+#[preload(route = "get.index.html", instances = 10)]
+pub struct GetIndexHtml;
 
 #[async_trait]
-impl<F, Fut> ComposableFunction for FnService<F>
-where
-    F: Fn(EventEnvelope) -> Fut + Send + Sync,
-    Fut: std::future::Future<Output = Result<EventEnvelope, AppError>> + Send,
-{
+impl ComposableFunction for GetIndexHtml {
     async fn handle_event(
         &self,
         _headers: HashMap<String, String>,
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
-        (self.0)(input).await
+        rest::get_index_html(input).await
     }
 }
 
-fn register_once<F, Fut>(platform: &Platform, route: &str, instances: usize, function: F)
-where
-    F: Fn(EventEnvelope) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<EventEnvelope, AppError>> + Send + 'static,
-{
-    if !platform.has_route(route) {
-        let _ = platform.register(route, std::sync::Arc::new(FnService(function)), instances);
+/// Java `GraphCommandService` (`graph.command.service`) — the Playground command grammar.
+#[preload(route = "graph.command.service", instances = 50)]
+#[optional_service("app.env=dev")]
+pub struct GraphCommandServiceFn;
+
+#[async_trait]
+impl ComposableFunction for GraphCommandServiceFn {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        commands::handle(&Platform::get_instance(), HashMap::new(), input).await
     }
 }
 
-/// The traveler service wrapper (dev-gated registration above).
-struct GraphTravelerService;
+/// The singleton command handler (orderly AI-companion requests).
+#[preload(route = "graph.command.singleton", instances = 1)]
+#[optional_service("app.env=dev")]
+pub struct GraphCommandSingleton;
+
+#[async_trait]
+impl ComposableFunction for GraphCommandSingleton {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        commands::handle(&Platform::get_instance(), HashMap::new(), input).await
+    }
+}
+
+/// Java `GraphTraveler` (`graph.traveler`) — the dev-only graph walker
+/// (zero-tracing event interceptor).
+#[preload(route = "graph.traveler", instances = 300)]
+#[zero_tracing]
+#[event_interceptor]
+#[optional_service("app.env=dev")]
+pub struct GraphTravelerService;
 
 #[async_trait]
 impl ComposableFunction for GraphTravelerService {
@@ -380,6 +358,125 @@ impl ComposableFunction for GraphTravelerService {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         traveler::handle(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GetWsHtml` (`get.ws.html`) — the raw websocket workbench pages.
+#[preload(route = "get.ws.html", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct GetWsHtml;
+
+#[async_trait]
+impl ComposableFunction for GetWsHtml {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::get_ws_html(input).await
+    }
+}
+
+/// Java `PostCompanionCommand` (`post.companion.command`) — the AI-companion hop.
+#[preload(route = "post.companion.command", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct PostCompanionCommand;
+
+#[async_trait]
+impl ComposableFunction for PostCompanionCommand {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::post_companion_command(&Platform::get_instance(), input).await
+    }
+}
+
+/// Java `UploadJsonContent` (`upload.json.content`).
+#[preload(route = "upload.json.content", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct UploadJsonContent;
+
+#[async_trait]
+impl ComposableFunction for UploadJsonContent {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::upload_json_content(&Platform::get_instance(), input).await
+    }
+}
+
+/// Java `UploadMockContent` (`upload.mock.content`).
+#[preload(route = "upload.mock.content", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct UploadMockContent;
+
+#[async_trait]
+impl ComposableFunction for UploadMockContent {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::upload_mock_content(&Platform::get_instance(), input).await
+    }
+}
+
+/// Java `DescribeGraph` (`show.graph.model`).
+#[preload(route = "show.graph.model", instances = 20)]
+#[optional_service("app.env=dev")]
+pub struct ShowGraphModel;
+
+#[async_trait]
+impl ComposableFunction for ShowGraphModel {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::show_graph_model(input).await
+    }
+}
+
+/// Java `GetLiveGraph` (`get.live.graph`).
+#[preload(route = "get.live.graph", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct GetLiveGraph;
+
+#[async_trait]
+impl ComposableFunction for GetLiveGraph {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::get_live_graph(input).await
+    }
+}
+
+/// Java `InspectStateMachine` (`inspect.state.machine`).
+#[preload(route = "inspect.state.machine", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct InspectStateMachine;
+
+#[async_trait]
+impl ComposableFunction for InspectStateMachine {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::inspect_state_machine(input).await
     }
 }
 

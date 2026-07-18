@@ -19,9 +19,10 @@
 //! `knowledge_graph` crate pulls in its annotation inventory: the graph
 //! runtime + core skills (`#[preload]`), the graph/flow compilers
 //! (`#[before_application]`), and — because this app runs with `app.env=dev`
-//! (`resources/application.yml`) — the dev-gated `PlaygroundLoader` that
-//! registers the command service, the websocket UI (`/ws/graph`, `/ws/json`)
-//! and the companion REST endpoints (`resources/rest.yaml`).
+//! (`resources/application.yml`) — the dev-gated Playground services, each
+//! declared with `#[optional_service("app.env=dev")]`: the command service,
+//! the websocket UI (`/ws/graph`, `/ws/json`) and the companion REST
+//! endpoints (`resources/rest.yaml`).
 //!
 //! The compiled React webapp travels with the engine crate
 //! (`crates/knowledge-graph/resources/public`, built by `npm run release` in

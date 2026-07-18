@@ -16,17 +16,19 @@
 
 //! The Playground websocket handlers — Rust ports of `GraphUserInterface`
 //! (`/ws/graph/{token}`, dispatching to the command service) and
-//! `JsonPathHandler` (`/ws/json/{token}`, the JSON-Path playground). Both
-//! are dev-gated: the `PlaygroundLoader` hook registers them only when
-//! `app.env=dev` (the Java `@OptionalService` analog — this is why they use
-//! programmatic `register_ws_service` instead of the static macro).
+//! `JsonPathHandler` (`/ws/json/{token}`, the JSON-Path playground). Both are
+//! dev-gated via `#[websocket_service(...)] #[optional_service("app.env=dev")]`
+//! — the Java `@OptionalService @WebSocketService` analog — so they register
+//! through the static inventory only when `app.env=dev`.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 use async_trait::async_trait;
 use event_script::mlm::MultiLevelMap;
-use platform_core::{AppError, ComposableFunction, EventEnvelope, Platform, PostOffice};
+use platform_core::{
+    websocket_service, AppError, ComposableFunction, EventEnvelope, Platform, PostOffice,
+};
 use rmpv::Value;
 
 use crate::commands;
@@ -43,7 +45,10 @@ async fn say(po: &PostOffice, to: &str, message: impl Into<String>) {
         .await;
 }
 
-/// Java `GraphUserInterface` (`@WebSocketService("graph")`).
+/// Java `GraphUserInterface` (`@OptionalService("app.env=dev") @WebSocketService("graph")`)
+/// — the Playground websocket UI, registered only in a dev environment.
+#[websocket_service("graph")]
+#[optional_service("app.env=dev")]
 pub struct GraphUserInterface;
 
 #[async_trait]
@@ -151,7 +156,10 @@ fn text_map() -> &'static Mutex<HashMap<String, JsonSession>> {
     TEXT.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Java `JsonPathHandler` (`@WebSocketService("json")`).
+/// Java `JsonPathHandler` (`@OptionalService("app.env=dev") @WebSocketService("json")`)
+/// — the JSON-Path playground, registered only in a dev environment.
+#[websocket_service("json")]
+#[optional_service("app.env=dev")]
 pub struct JsonPathHandler;
 
 #[async_trait]
