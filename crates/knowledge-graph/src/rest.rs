@@ -251,10 +251,19 @@ pub async fn inspect_state_machine(event: EventEnvelope) -> Result<EventEnvelope
     let (Some(id), Some(key)) = (path_parameters.get("id"), path_parameters.get("key")) else {
         return Err(invalid("Missing path parameter: id or key"));
     };
+    // Wrap the resolved value in `{inspect, outcome}` — the same envelope the
+    // `inspect {key}` console command emits (Java/Rust `GraphCommandService`).
+    // Because it is always a Map, a scalar / primitive / Map / List all
+    // serialize as clean JSON (no bare-scalar content-type ambiguity), and the
+    // shape matches the command exactly. The composite key resolves through the
+    // MultiLevelMap in `download_content`; 404 only when it resolves to nothing.
     match commands::download_content(id, key) {
-        Some(content @ (Value::Map(_) | Value::Array(_))) => Ok(EventEnvelope::new()
+        Some(outcome) => Ok(EventEnvelope::new()
             .set_header("Content-Type", "application/json")
-            .set_raw_body(content)),
-        _ => Err(AppError::new(404, "Not found")),
+            .set_raw_body(Value::Map(vec![
+                (Value::from("inspect"), Value::from(key.as_str())),
+                (Value::from("outcome"), outcome),
+            ]))),
+        None => Err(AppError::new(404, "Not found")),
     }
 }

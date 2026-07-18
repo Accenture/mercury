@@ -37,3 +37,9 @@ rest:
     url: '/api/graph/session/{id}'
     timeout: 10s
     tracing: true
+
+  - service: 'inspect.state.machine'
+    methods: ['GET']
+    url: '/api/inspect/{id}/{key}'
+    timeout: 10s
+    tracing: true

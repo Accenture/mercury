@@ -282,6 +282,35 @@ async fn playground_command_grammar_and_companion() {
     let graph = MultiLevelMap::from_value(reply.body().clone());
     assert!(graph.get_element("nodes").is_some(), "live graph has nodes");
 
+    // --- the inspect REST endpoint resolves a COMPOSITE key through the state
+    // machine and wraps the result in {inspect, outcome} (the same shape as the
+    // `inspect {key}` console command), so a scalar value serializes as clean
+    // JSON instead of 404ing (the AI-companion read-back path)
+    let inspect = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/inspect/{public_id}/output.body"));
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(inspect.to_value()),
+            Duration::from_secs(5),
+        )
+        .await
+        .expect("inspect request");
+    let inspected = MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(
+        Some(Value::from("output.body")),
+        inspected.get_element("inspect"),
+        "inspect endpoint echoes the composite key"
+    );
+    assert_eq!(
+        Some(Value::from("hello world")),
+        inspected.get_element("outcome"),
+        "inspect endpoint resolves the composite scalar key and wraps it"
+    );
+
     // --- close the session
     let _ = po
         .send(
