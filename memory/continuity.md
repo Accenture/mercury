@@ -206,11 +206,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   + `emit_aborted`/`emitAborted`), so `run` before `instantiate` returns promptly (ok:false), not on the
   timeout. **`/sync` REST contract now byte-identical across engines** (the companion surface is
   language-neutral). Tests: Rust `playground.rs` (full traversal capture + tee + early-failure
-  terminal), Java `CompanionSyncTest` (same); 64-test Java module green. **Upstream: #190 + #191 OPEN**
-  (merge #190 then #191; #191 auto-retargets to main on #190 merge; then return the Java clone to
-  `main`). **Feature complete pending those two merges.**
+  terminal), Java `CompanionSyncTest` (same); 64-test Java module green. **ALL UPSTREAM PRs MERGED
+  (2026-07-18):** #188 (ADR) + #189 (impl) + #190 (example rest.yaml) + the drain fix + #192
+  (Thread.sleep→`Utility.sleep` Sonar cleanup) are on `Accenture/mercury-composable` `main`. Note: the
+  drain-fix PR #191 was **auto-closed** by GitHub when #190's base branch was deleted on squash-merge
+  (GitHub closed the stacked PR instead of retargeting it); recovered as **#193** (same commit
+  cherry-picked onto the updated main) and merged. Lesson → [[github-squash-merge-closes-stacked-pr]].
+  **The companion `/sync` feature is COMPLETE and MERGED in both ports** (Rust R&D main + Java upstream
+  main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
-  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-18 | uses: 8 | tier: working | origin: 2026-07-18-162832.md -->
+  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-18 | uses: 9 | tier: working | origin: 2026-07-18-162832.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
