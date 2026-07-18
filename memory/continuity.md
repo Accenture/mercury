@@ -17,7 +17,7 @@
 - **last_enabled:** 2026-07-15
 - **last_session:** 2026-07-18 | agent: Claude Code (2026-07-18-061457)
 - **last_review:** 2026-07-18 | through 2026-07-18-061457
-- **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (prompted — reverify thread open)
+- **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -97,10 +97,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] **Re-verify invariants (due):** confirm `inv-never-couple-functions` (the sole Architectural
-  Invariant — inter-function coupling stays route-name + `EventEnvelope` only) and the **Vision**
-  (`vision-mercury`, `memory/vision.md`) still hold, or supersede any that don't (`DECAY.md` §9).
-  First invariant check since enable (cadence: `verify_invariants_every: 40` sessions).
+- [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
+  `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
+  route-name + `EventEnvelope` only) and the **Vision** (`vision-mercury`, `memory/vision.md`)
+  re-confirmed unchanged. First invariant check since enable (cadence:
+  `verify_invariants_every: 40` sessions).
   <!-- id: ot-reverify-invariants-2026-07 | created: 2026-07-18 | last_used: 2026-07-18 | uses: 1 | tier: working | origin: 2026-07-18-061457.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
