@@ -1392,15 +1392,22 @@ For example:
 
 ### Built-in Plugins
 
+> **Numeric promotion** (arithmetic + `gt`/`lt`): whole numbers and whole-number strings promote
+> to long, decimals (and decimal strings) to double. The result type is decided over **all**
+> arguments before folding — any floating-point argument promotes the whole computation to
+> double; all-integral inputs keep exact 64-bit arithmetic, including integer division. Once a
+> double enters, precision follows IEEE-754 (integers exact to 2^53).
+
 | Type                | Plugin `name`   | Expected Inputs                                                                                                       |
 |:--------------------|:----------------|:----------------------------------------------------------------------------------------------------------------------|
-| **Arithmetic**      | add             | At least two _whole_ numbers                                                                                          |
-| **Arithmetic**      | subtract        | At least two _whole_ numbers                                                                                          |
-| **Arithmetic**      | multiply        | At least two _whole_ numbers                                                                                          |
-| **Arithmetic**      | div             | At least two _whole_ numbers                                                                                          |
-| **Arithmetic**      | mod             | Two individual whole numbers                                                                                          |
-| **Arithmetic**      | increment       | A single _whole_ number                                                                                               |
-| **Arithmetic**      | decrement       | A single _whole_ number                                                                                               |
+| **Arithmetic**      | add             | At least two numbers (all whole ⇒ exact long result; any decimal ⇒ double)                                           |
+| **Arithmetic**      | subtract        | At least two numbers (all whole ⇒ exact long result; any decimal ⇒ double)                                           |
+| **Arithmetic**      | multiply        | At least two numbers (all whole ⇒ exact long result; any decimal ⇒ double)                                           |
+| **Arithmetic**      | div             | At least two numbers (all whole ⇒ integer division; any decimal ⇒ double division)                                   |
+| **Arithmetic**      | mod             | Two individual numbers (all whole ⇒ long; any decimal ⇒ double)                                                      |
+| **Arithmetic**      | increment       | A single number (whole ⇒ long; decimal ⇒ double)                                                                     |
+| **Arithmetic**      | decrement       | A single number (whole ⇒ long; decimal ⇒ double)                                                                     |
+| **Arithmetic**      | round           | A number and optional decimal places (whole ≥ 0, default 0) — half-up rounding on the decimal representation (1.005 → 1.01 at 2 places) |
 | **Generator**       | uuid            | None                                                                                                                  |
 | **Generator**       | dateTime        | None.                                                                                                                 |
 | **Generator**       | now             | text(iso), text(local) or text(ms)                                                                                    |

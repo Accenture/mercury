@@ -98,9 +98,10 @@ becomes an iteration array (parallel lists advance in lockstep and must agree on
 bind once; an unresolvable source removes the key). `BEGIN`/`END` split the statements into
 pre-block (once) / each-block (per element) / post-block (once) — **without `BEGIN` the whole
 list is the loop body**. Iteration is strictly sequential in list order, inside one node
-execution; a taken `IF` jump breaks the loop and skips the post-block. Numeric accumulators stay
-inside `COMPUTE` (its doubles don't feed the whole-number-only `f:add`). Full rules + worked
-example: [for_each](command-reference.md#math-for-each).
+execution; a taken `IF` jump breaks the loop and skips the post-block. Numeric accumulators work
+with either `f:add` (numeric promotion: all-whole stays exact long, any decimal promotes to
+double) or a pure-`COMPUTE` read-back. Full rules + worked example:
+[for_each](command-reference.md#math-for-each).
 
 **Gotchas:** a node runs **once** (guard against loops) unless you `RESET` it — an advanced,
 use-with-care feature; a node may not contain only `MAPPING` statements (use the data mapper). The

@@ -134,9 +134,13 @@ statement[]=...       <- post-block: runs ONCE, after the loop
   remaining elements and the post-block, and redirects traversal. An
   "ELSE: next" falls through within the iteration.
 - Empty lists are fine: the each-block runs zero times; pre/post still run.
-- COMPUTE yields doubles, and the f:add family is whole-number-only - keep
-  numeric accumulators inside COMPUTE (read the model key back into the
-  expression), as below.
+- COMPUTE yields doubles; the f:add family uses numeric promotion - inputs
+  that are all whole numbers keep exact long arithmetic (including integer
+  division), while any decimal argument promotes the whole computation to a
+  double. So f:add composes directly with COMPUTE results; accumulate with
+  either f:add or a pure-COMPUTE read-back, as below. Tame floating-point
+  precision artifacts with f:round(value, int(2)) - half-up rounding on the
+  number's decimal representation (1.005 rounds to 1.01 at 2 places).
 
 ```
 create node totaler
@@ -156,7 +160,9 @@ statement[]=MAPPING: model.total -> output.body.total
 With prices=[10,20,30] and quantities=[7,8,9] the run yields total: 500.0 -
 the pre-block seeds the accumulator once, each pass computes
 total + price*qty and writes it back, and the post-block maps the final
-value out.
+value out. The plugin form is equivalent:
+COMPUTE: line -> {model.price} * {model.qty} followed by
+MAPPING: f:add(model.total, totaler.result.line) -> model.total.
 
 Example
 -------

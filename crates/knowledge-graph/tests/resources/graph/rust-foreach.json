@@ -46,8 +46,11 @@
         ],
         "statement": [
           "COMPUTE: line -> {model.price2} * {model.qty2}",
+          "MAPPING: f:defaultValue(model.lsum, int(0)) -> model.lsum",
+          "MAPPING: f:add(model.lsum, plain.result.line) -> model.lsum",
           "MAPPING: plain.result.line -> output.body.lines[]",
-          "MAPPING: model.qty2 -> output.body.seen2[]"
+          "MAPPING: model.qty2 -> output.body.seen2[]",
+          "MAPPING: model.lsum -> output.body.lsum"
         ]
       }
     },

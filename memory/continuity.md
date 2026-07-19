@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 38 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 39 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-223012)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-225257)
 - **last_review:** 2026-07-19 | through 2026-07-19-165609
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -253,10 +253,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `first_error_line()` in `rest.rs` + both-direction test in `graph_runtime.rs`
   (workspace/clippy/fmt green). Java: mirrored in `PostCompanionCommandSync` +
   `CompanionSyncTest` (66-test module suite green), committed on local branch
-  **`fix/companion-sync-ok-heuristic`**, pushed to origin at maintainer direction (push
-  worked this time) — **PR [#195](https://github.com/Accenture/mercury-composable/pull/195)
-  open, maintainer-reviewed ("All good"), merging after CI**. Both engines live-validated by
-  the maintainer. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
+  **`fix/companion-sync-ok-heuristic`**, pushed to origin at maintainer direction — **PR
+  [#195](https://github.com/Accenture/mercury-composable/pull/195) MERGED upstream
+  (2026-07-19)**. Both engines live-validated by the maintainer; the fix is live in BOTH. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
   `minigraph-commands.json` sync_envelope note, rollup #40 → DONE. `/sync` contract stays
   byte-identical across engines. → serves: vision-mercury
   <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 2 | tier: active | origin: 2026-07-19-205854.md -->
@@ -279,6 +278,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
   both engines, even mislabeled as JSON). → serves: vision-mercury
   <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
+
+- [x] **Numeric promotion for the simple-plugin arithmetic family (increment 39, BOTH ports).**
+  Maintainer decision 2026-07-19 (prompted by increment 38's probe: `f:add` couldn't consume a
+  `COMPUTE` double — "simple arithmetic belongs in a simple plugin"): `promoteNumber` now
+  promotes whole numbers/strings to **long**, decimals to **double**; result type decided over
+  ALL args before folding (order-independent) — any floating arg ⇒ double computation,
+  all-integral ⇒ exact long incl. integer division (**strictly widening**: no previously-working
+  call changes). Covers add/subtract/multiply/div/mod + increment/decrement + gt/lt (whole pairs
+  compare exact). Rust: `plugins_e8.rs` + mixed-type unit cases + the `f:add`-on-doubles
+  accumulator in the `rust-foreach` probe (workspace 202/clippy 0/fmt). Java: upstream branch
+  **`feat/simple-plugin-number-promotion`** pushed (`SimplePluginUtils.reduceNumbers`, 7
+  arithmetic classes, gt/lt, `SimplePluginNumberPromotionTest`; 140+67 module tests green) —
+  maintainer opens the PR. Docs relaxed across all surfaces (grammar/#math-for-each, JSON
+  catalog, skills-reference, help page + bundle, event-script syntax.md matrix). Boundary
+  documented: once a double enters, IEEE-754 (ints exact to 2^53). **Follow-up same session:
+  new `f:round(number[, places])` plugin (both ports, second commit `80e64166` on the branch)**
+  — half-up on the shortest DECIMAL representation (1.005 → 1.01 at 2 places; binary error
+  never leaks into the decision); whole inputs pass through. → serves: vision-mercury
+  <!-- id: plugin-numeric-promotion | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-225257.md -->
 
 - [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:
   the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +

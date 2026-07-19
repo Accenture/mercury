@@ -55,6 +55,7 @@
 | 36 | HTTP-boundary content-type dispatch: exact Java parity (no sniffing, binary path, form fields) | 2026-07-19 | D10 | — |
 | 37 | Spring config names retired: `APP_PROFILES_ACTIVE`/`app.profiles.active` rename + `application.name` alone for the app name | 2026-07-19 | §8 Q1 | 202 |
 | 38 | `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (finding #29) — probe fixture + grammar/catalog/help docs | 2026-07-19 | — | 202 |
+| 39 | numeric promotion for the simple-plugin arithmetic family + new `f:round` half-up decimal rounding (both ports) | 2026-07-19 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1006,6 +1007,47 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Tests:** workspace **202** (the probe runs inside the orchestrating
   `graph_runtime_end_to_end` test), clippy 0, fmt clean. Rollup #29 → DONE in
   `docs/AI-companion-test.md`.
+
+---
+
+## Increment 39 — numeric promotion for the simple-plugin arithmetic family (2026-07-19)
+
+**Maintainer decision, prompted by increment 38's probe finding: the `f:` arithmetic plugins
+were whole-number-only, so `f:add` could not consume a `COMPUTE` double (or any decimal API
+value) — "it does not make sense to use a composable function to do simple calculation if a
+simple-plugin can do the job."**
+
+- **Rule (both ports, identical):** `promoteNumber`/`promote_number` now promotes whole numbers
+  (and whole-number strings) to **long** and floating-point values (and decimal strings) to
+  **double**. The result type is decided over **all** arguments before folding — order-independent:
+  any floating argument promotes the whole computation to double; all-integral inputs keep exact
+  64-bit arithmetic **including integer division**, so every previously-working call returns the
+  identical result and only previously-erroring calls start working (strictly widening).
+  Covers `add`/`subtract`/`multiply`/`div`/`mod` + `increment`/`decrement`; `gt`/`lt` compare
+  exactly for whole pairs, as doubles otherwise. Divide-by-zero rejects `0` and `0.0`.
+- **Rust:** `plugins_e8.rs` (`Number` enum + two-op `fold_numbers`); mixed-type cases added to
+  `e8_plugins_match_java_semantics`; the `rust-foreach` probe gains the `f:add`-on-COMPUTE-doubles
+  accumulator (`lsum: 500.0`) as the live regression — the exact composition that failed in
+  increment 38. Workspace 202 tests / clippy 0 / fmt clean.
+- **Java (upstream branch `feat/simple-plugin-number-promotion`):** `SimplePluginUtils`
+  (`promoteNumber` → `Number`, new `reduceNumbers`), the seven arithmetic plugin classes,
+  `GreaterThanOperator`/`LessThanOperator`; new `SimplePluginNumberPromotionTest`;
+  event-script-engine 140 tests + playground engine 67 tests green.
+- **Docs relaxed** (increment 38's "whole-number-only" caveats replaced by the promotion rule):
+  `command-reference.md#math-for-each` (+ the `f:add` accumulator form now shown as equivalent),
+  `minigraph-commands.json`, `skills-reference.md`, `help graph-math.md` (bundle re-released,
+  124 webapp tests), event-script `syntax.md` plugin matrix + promotion note.
+- **Documented boundary:** once a double enters, precision is IEEE-754 (integers exact to 2^53);
+  the all-integral path stays exact 64-bit.
+- **New `f:round(number[, decimal_places])` plugin (maintainer follow-up, same session):** the
+  companion to the promotion — half-up rounding (ties away from zero) applied to the number's
+  **shortest decimal representation** (Java `BigDecimal.valueOf`; the Rust port reproduces the
+  same semantics on the shortest-repr string), so binary representation error never leaks into
+  the rounding decision: `f:round(1.005, int(2))` → `1.01`, where a naive multiply-round-divide
+  gives `1.0`. `decimal_places` optional (default 0, whole ≥ 0); whole-number inputs pass
+  through unchanged. Registered in both engines (`RoundNumbers` + `plugin_round`), tested in
+  both suites (Java 142, Rust mixed-type cases), documented in the syntax.md matrix, the KG
+  grammar/catalog/help page.
 
 ---
 

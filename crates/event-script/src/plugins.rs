@@ -318,6 +318,7 @@ fn builtin_registrations() -> HashMap<String, Registration> {
         ("mod", plugin_mod),
         ("increment", plugin_increment),
         ("decrement", plugin_decrement),
+        ("round", plugin_round),
         ("now", plugin_now),
         ("dateTime", plugin_date_time),
         ("gt", plugin_gt),
@@ -427,6 +428,87 @@ mod tests {
         assert_eq!(
             calculate("increment", &[Value::from(6)]),
             Ok(Value::from(7))
+        );
+        // numeric promotion (generalized from whole-number-only): any
+        // floating-point arg promotes the whole computation to a double,
+        // decided over ALL args (order-independent); all-integral stays
+        // exact i64 — including integer division (asserted above)
+        assert_eq!(
+            calculate("add", &[Value::from(6), Value::from(2.5)]),
+            Ok(Value::from(8.5))
+        );
+        assert_eq!(
+            calculate("add", &[Value::from(2.5), Value::from(6)]),
+            Ok(Value::from(8.5))
+        );
+        assert_eq!(
+            calculate("add", &[Value::from(1), Value::from("2.5"), Value::from(3)]),
+            Ok(Value::from(6.5))
+        );
+        assert_eq!(
+            calculate("multiply", &[Value::from(2.5), Value::from(4)]),
+            Ok(Value::from(10.0))
+        );
+        assert_eq!(
+            calculate("div", &[Value::from(6.0), Value::from(4)]),
+            Ok(Value::from(1.5))
+        );
+        assert!(calculate("div", &[Value::from(6), Value::from(0.0)]).is_err());
+        assert_eq!(
+            calculate("mod", &[Value::from(7.5), Value::from(2)]),
+            Ok(Value::from(1.5))
+        );
+        assert_eq!(
+            calculate("increment", &[Value::from(2.5)]),
+            Ok(Value::from(3.5))
+        );
+        assert_eq!(
+            calculate("decrement", &[Value::from(2.5)]),
+            Ok(Value::from(1.5))
+        );
+        assert!(calculate("add", &[Value::from(1), Value::from("not-a-number")]).is_err());
+        // round: half-up (ties away from zero) on the shortest DECIMAL
+        // representation - binary artifacts don't leak into the decision
+        assert_eq!(
+            calculate("round", &[Value::from(2.345), Value::from(2)]),
+            Ok(Value::from(2.35))
+        );
+        assert_eq!(
+            // the classic trap: a naive multiply-round-divide yields 1.0
+            calculate("round", &[Value::from(1.005), Value::from(2)]),
+            Ok(Value::from(1.01))
+        );
+        assert_eq!(
+            calculate("round", &[Value::from(2.5)]),
+            Ok(Value::from(3.0))
+        );
+        assert_eq!(
+            calculate("round", &[Value::from(-2.5)]),
+            Ok(Value::from(-3.0))
+        );
+        assert_eq!(
+            calculate("round", &[Value::from(4.86459), Value::from(3)]),
+            Ok(Value::from(4.865))
+        );
+        assert_eq!(
+            calculate("round", &[Value::from("2.345"), Value::from(2)]),
+            Ok(Value::from(2.35))
+        );
+        // a whole number is already exact and passes through unchanged
+        assert_eq!(
+            calculate("round", &[Value::from(5), Value::from(2)]),
+            Ok(Value::from(5))
+        );
+        assert!(calculate("round", &[Value::from(1.5), Value::from(1.5)]).is_err());
+        assert!(calculate("round", &[Value::from(1.5), Value::from(-1)]).is_err());
+        // comparisons follow the same promotion (whole pairs stay exact)
+        assert_eq!(
+            calculate("gt", &[Value::from(2.5), Value::from(2)]),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            calculate("lt", &[Value::from("2.5"), Value::from(3)]),
+            Ok(Value::Boolean(true))
         );
         // comparisons + ternary
         assert_eq!(

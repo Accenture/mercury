@@ -2,50 +2,108 @@
 // (arithmetic, generators, dates, comparisons, list-of-map operations and
 // input validation), each a faithful port of its Java plugin class.
 
-/// Java `SimplePluginUtils.promoteNumber`: integers and numeric strings
-/// promote to i64; anything else is an error.
-fn promote_number(value: &Value) -> Result<i64, String> {
+/// Java-style numeric promotion for the plugin family: whole numbers stay
+/// exact `i64`, floating-point values are `f64`.
+enum Number {
+    Long(i64),
+    Double(f64),
+}
+
+impl Number {
+    fn as_f64(&self) -> f64 {
+        match self {
+            Number::Long(l) => *l as f64,
+            Number::Double(d) => *d,
+        }
+    }
+
+    fn is_zero(&self) -> bool {
+        match self {
+            Number::Long(l) => *l == 0,
+            Number::Double(d) => *d == 0.0,
+        }
+    }
+}
+
+/// Java `SimplePluginUtils.promoteNumber`: whole numbers and whole-number
+/// strings promote to i64, floating-point values and decimal strings to f64
+/// (generalized from whole-number-only — maintainer decision, 2026-07-19);
+/// anything else is an error.
+fn promote_number(value: &Value) -> Result<Number, String> {
     match value {
         Value::Integer(i) => i
             .as_i64()
-            .ok_or_else(|| format!("Cannot convert the object to a whole number: {value}")),
-        Value::String(s) => s
-            .as_str()
-            .unwrap_or_default()
-            .trim()
-            .parse::<i64>()
-            .map_err(|_| format!("Cannot convert the object to a whole number: {value}")),
-        other => Err(format!("Cannot convert the object to a whole number: {other}")),
+            .map(Number::Long)
+            .ok_or_else(|| format!("Cannot convert the object to a number: {value}")),
+        Value::F32(f) => Ok(Number::Double(*f as f64)),
+        Value::F64(f) => Ok(Number::Double(*f)),
+        Value::String(s) => {
+            let text = s.as_str().unwrap_or_default().trim();
+            match text.parse::<i64>() {
+                Ok(whole) => Ok(Number::Long(whole)),
+                Err(_) => text
+                    .parse::<f64>()
+                    .map(Number::Double)
+                    .map_err(|_| format!("Cannot convert the object to a number: {value}")),
+            }
+        }
+        other => Err(format!("Cannot convert the object to a number: {other}")),
     }
 }
 
-fn fold_numbers(args: &[Value], what: &str, op: impl Fn(i64, i64) -> i64) -> Result<Value, String> {
+/// Fold with numeric promotion decided over ALL args first (so the result is
+/// order-independent): any floating-point arg promotes the whole computation
+/// to f64; all-integral inputs keep exact i64 arithmetic — including integer
+/// division, exactly as before this generalization.
+fn fold_numbers(
+    args: &[Value],
+    what: &str,
+    op_long: impl Fn(i64, i64) -> i64,
+    op_double: impl Fn(f64, f64) -> f64,
+) -> Result<Value, String> {
     if args.len() < 2 {
-        return Err(format!("Expected at least two Whole Numbers to {what}"));
+        return Err(format!("Expected at least two Numbers to {what}"));
     }
-    let mut numbers = args.iter().map(promote_number);
-    let mut total = numbers.next().expect("len checked")?;
-    for n in numbers {
-        total = op(total, n?);
+    let numbers: Vec<Number> = args
+        .iter()
+        .map(promote_number)
+        .collect::<Result<_, String>>()?;
+    if numbers.iter().any(|n| matches!(n, Number::Double(_))) {
+        let mut total = numbers[0].as_f64();
+        for n in &numbers[1..] {
+            total = op_double(total, n.as_f64());
+        }
+        Ok(Value::from(total))
+    } else {
+        let mut total = match numbers[0] {
+            Number::Long(l) => l,
+            Number::Double(_) => unreachable!("checked above"),
+        };
+        for n in &numbers[1..] {
+            let Number::Long(l) = n else {
+                unreachable!("checked above")
+            };
+            total = op_long(total, *l);
+        }
+        Ok(Value::from(total))
     }
-    Ok(Value::from(total))
 }
 
 fn plugin_add(args: &[Value]) -> Result<Value, String> {
-    fold_numbers(args, "add", |a, b| a + b)
+    fold_numbers(args, "add", |a, b| a + b, |a, b| a + b)
 }
 
 fn plugin_subtract(args: &[Value]) -> Result<Value, String> {
-    fold_numbers(args, "subtract", |a, b| a - b)
+    fold_numbers(args, "subtract", |a, b| a - b, |a, b| a - b)
 }
 
 fn plugin_multiply(args: &[Value]) -> Result<Value, String> {
-    fold_numbers(args, "multiply", |a, b| a * b)
+    fold_numbers(args, "multiply", |a, b| a * b, |a, b| a * b)
 }
 
 fn divide_by_zero_check(divisors: &[Value]) -> Result<(), String> {
     for v in divisors {
-        if promote_number(v)? == 0 {
+        if promote_number(v)?.is_zero() {
             return Err("Dividing the input would cause Division By Zero".to_string());
         }
     }
@@ -54,11 +112,11 @@ fn divide_by_zero_check(divisors: &[Value]) -> Result<(), String> {
 
 fn plugin_div(args: &[Value]) -> Result<Value, String> {
     if args.len() < 2 {
-        return Err("Expected at least two Whole Numbers to divide".to_string());
+        return Err("Expected at least two Numbers to divide".to_string());
     }
     // only divisors can trigger division by zero - a zero dividend is valid
     divide_by_zero_check(&args[1..])?;
-    fold_numbers(args, "divide", |a, b| a / b)
+    fold_numbers(args, "divide", |a, b| a / b, |a, b| a / b)
 }
 
 fn plugin_mod(args: &[Value]) -> Result<Value, String> {
@@ -66,23 +124,106 @@ fn plugin_mod(args: &[Value]) -> Result<Value, String> {
         return Err("Modulus expects only two values".to_string());
     }
     divide_by_zero_check(&args[1..])?;
-    Ok(Value::from(
-        promote_number(&args[0])? % promote_number(&args[1])?,
-    ))
+    fold_numbers(args, "modulus", |a, b| a % b, |a, b| a % b)
 }
 
 fn plugin_increment(args: &[Value]) -> Result<Value, String> {
     match args {
-        [one] => Ok(Value::from(promote_number(one)? + 1)),
-        _ => Err("Expected exactly one Whole Number to increment".to_string()),
+        [one] => Ok(match promote_number(one)? {
+            Number::Long(l) => Value::from(l + 1),
+            Number::Double(d) => Value::from(d + 1.0),
+        }),
+        _ => Err("Expected exactly one Number to increment".to_string()),
     }
 }
 
 fn plugin_decrement(args: &[Value]) -> Result<Value, String> {
     match args {
-        [one] => Ok(Value::from(promote_number(one)? - 1)),
-        _ => Err("Expected exactly one Whole Number to decrement".to_string()),
+        [one] => Ok(match promote_number(one)? {
+            Number::Long(l) => Value::from(l - 1),
+            Number::Double(d) => Value::from(d - 1.0),
+        }),
+        _ => Err("Expected exactly one Number to decrement".to_string()),
     }
+}
+
+/// Half-up decimal rounding (ties away from zero) applied to the value's
+/// SHORTEST decimal representation — the Java `BigDecimal.valueOf(double)
+/// .setScale(dp, HALF_UP)` analog — so binary representation error does not
+/// leak into the rounding decision (1.005 rounds to 1.01 at 2 places, not
+/// 1.0 as a naive multiply-round-divide would give).
+fn round_half_up(value: f64, dp: usize) -> f64 {
+    if !value.is_finite() {
+        return value;
+    }
+    let negative = value.is_sign_negative();
+    // Rust's Display prints the shortest round-trip decimal form, without
+    // exponent notation (the Double.toString analog)
+    let text = format!("{}", value.abs());
+    let (int_part, frac_part) = match text.split_once('.') {
+        Some((i, f)) => (i, f),
+        None => (text.as_str(), ""),
+    };
+    if frac_part.len() <= dp {
+        return value;
+    }
+    let mut digits: Vec<u8> = format!("{int_part}{}", &frac_part[..dp]).into_bytes();
+    if frac_part.as_bytes()[dp] >= b'5' {
+        // increment the kept digit string with carry
+        let mut i = digits.len();
+        loop {
+            if i == 0 {
+                digits.insert(0, b'1');
+                break;
+            }
+            i -= 1;
+            if digits[i] == b'9' {
+                digits[i] = b'0';
+            } else {
+                digits[i] += 1;
+                break;
+            }
+        }
+    }
+    let digits = String::from_utf8(digits).expect("ascii digits");
+    let (new_int, new_frac) = digits.split_at(digits.len() - dp);
+    let text = if dp == 0 {
+        new_int.to_string()
+    } else {
+        format!("{new_int}.{new_frac}")
+    };
+    let rounded: f64 = text.parse().unwrap_or(value);
+    if rounded == 0.0 {
+        // never return a negative zero
+        0.0
+    } else if negative {
+        -rounded
+    } else {
+        rounded
+    }
+}
+
+fn plugin_round(args: &[Value]) -> Result<Value, String> {
+    let (number, dp) = match args {
+        [one] => (promote_number(one)?, 0usize),
+        [one, two] => {
+            let dp = match promote_number(two)? {
+                Number::Long(l) if l >= 0 => l as usize,
+                _ => {
+                    return Err(
+                        "Decimal places for round must be a whole number >= 0".to_string()
+                    )
+                }
+            };
+            (promote_number(one)?, dp)
+        }
+        _ => return Err("Expected a number and optional decimal places to round".to_string()),
+    };
+    Ok(match number {
+        // a whole number is already exact - rounding never changes it
+        Number::Long(l) => Value::from(l),
+        Number::Double(d) => Value::from(round_half_up(d, dp)),
+    })
 }
 
 fn plugin_now(args: &[Value]) -> Result<Value, String> {
@@ -127,16 +268,32 @@ fn plugin_date_time(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+/// Compare with the same promotion rule as the arithmetic: both whole ⇒
+/// exact i64 comparison, otherwise f64.
+fn compare_numbers(a: &Value, b: &Value) -> Result<std::cmp::Ordering, String> {
+    match (promote_number(a)?, promote_number(b)?) {
+        (Number::Long(x), Number::Long(y)) => Ok(x.cmp(&y)),
+        (x, y) => Ok(x
+            .as_f64()
+            .partial_cmp(&y.as_f64())
+            .unwrap_or(std::cmp::Ordering::Equal)),
+    }
+}
+
 fn plugin_gt(args: &[Value]) -> Result<Value, String> {
     match args {
-        [a, b] => Ok(Value::Boolean(promote_number(a)? > promote_number(b)?)),
+        [a, b] => Ok(Value::Boolean(
+            compare_numbers(a, b)? == std::cmp::Ordering::Greater,
+        )),
         _ => Err("Input is required to compare using 'Greater Than'".to_string()),
     }
 }
 
 fn plugin_lt(args: &[Value]) -> Result<Value, String> {
     match args {
-        [a, b] => Ok(Value::Boolean(promote_number(a)? < promote_number(b)?)),
+        [a, b] => Ok(Value::Boolean(
+            compare_numbers(a, b)? == std::cmp::Ordering::Less,
+        )),
         _ => Err("Input is required to compare using 'Less Than'".to_string()),
     }
 }

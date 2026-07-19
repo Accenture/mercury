@@ -274,9 +274,12 @@ async fn math_for_each_blocks_and_iteration(platform: &Platform) {
             .collect::<Vec<_>>()
     );
     // the pure-COMPUTE accumulator (node `totaler`): read model.total back
-    // into the expression each iteration; f:add is whole-number-only and
-    // cannot consume a COMPUTE double, so accumulation stays in COMPUTE
+    // into the expression each iteration
     assert_eq!(Some(Value::from(500.0)), mm.get_element("total"));
+    // ...and the f:add accumulator on the SAME doubles (node `plain`):
+    // numeric promotion lets f:add consume COMPUTE results — any floating
+    // arg promotes the fold to f64 (all-integral input still stays exact i64)
+    assert_eq!(Some(Value::from(500.0)), mm.get_element("lsum"));
 
     // B) early exit: the IF jump at element 99 breaks the loop, skips post
     let reply = run_graph(

@@ -662,11 +662,14 @@ Rules (engine-verified):
   pre-block it skips the loop and post-block the same way. (A `NEXT:` exits too, after its block
   completes.) An `ELSE: next` falls through to the rest of the iteration.
 - **Empty lists are fine:** the each-block runs zero times; the pre- and post-blocks still run.
-- **Number dialect:** `COMPUTE` yields **doubles**, while the `f:add`/`f:subtract`/… simple
-  plugins are **whole-number-only** (*"Cannot convert the object to a whole number"*) — so a
-  numeric accumulator stays inside `COMPUTE` (read the model key back into the expression, as
-  below). `f:add` remains right for pure integer counters
-  (see [Failure routing](#failure-routing)).
+- **Number dialect:** `COMPUTE` yields **doubles**; the `f:add`/`f:subtract`/… simple plugins
+  use **numeric promotion** — all-whole-number inputs keep exact long arithmetic (including
+  integer division and the classic integer counters of
+  [Failure routing](#failure-routing)), while **any** floating-point argument promotes the
+  whole computation to a double. So `f:add` composes directly with `COMPUTE` results and
+  decimal API data; accumulate with either `f:add` or a pure-`COMPUTE` read-back (both shown
+  below). Tame floating-point artifacts with **`f:round(value, int(2))`** — half-up rounding
+  applied to the number's decimal representation (`1.005` → `1.01` at 2 places).
 - `EXECUTE:` inlining happens **before** the blocks are split, so an executed module's
   statements land at the `EXECUTE:` position and may contribute to (or delimit) the loop body.
 - Without `for_each[]`, `BEGIN`/`END` lines are accepted and ignored.
@@ -690,7 +693,10 @@ statement[]=MAPPING: model.total -> output.body.total
 
 With `prices=[10,20,30]` and `quantities=[7,8,9]` the run yields `total: 500.0`: the pre-block
 seeds the accumulator once, each pass computes `total + price*qty` and writes it back to
-`model.total`, and the post-block maps the final value out.
+`model.total`, and the post-block maps the final value out. The plugin form is equivalent —
+`COMPUTE: line -> {model.price} * {model.qty}` then
+`MAPPING: f:add(model.total, totaler.result.line) -> model.total` — numeric promotion carries
+the `COMPUTE` doubles through `f:add` (both forms are engine-verified).
 
 ## Invariants {#invariants}
 
