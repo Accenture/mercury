@@ -206,6 +206,22 @@
   mirrors the same `/sync` mechanism (#189) — check both ports. Workaround: issue
   `session subscribe` over the WS connection itself. Tracked as an Open Thread in
   `memory/continuity.md`.
+- **RETEST (2026-07-19, after grammar fixes #9–#13 and #17–#22) — PASSED on the tightened
+  criterion: ZERO in-band lookups.** A fresh companion, same problem-only brief, session
+  `ws-876960-4`: **20/20 commands `ok:true`, zero failures, first-attempt dry-run pass** — and
+  where the first run had to pull `describe skill` + `help data-dictionary` for Provider/Dictionary
+  authoring, this run needed **no in-band help at all**: the docs alone sufficed (that is exactly
+  what fixes #9–#13 claimed). Bonus validations: the companion **wired the Island knowledge layer
+  unprompted** (`root -[contains]-> knowledge -[data]-> person-profile -[provider]-> mdm-profile`
+  — the #22 mandate, applied from the grammar with no hint in the brief), cited the documented
+  fork/state-safety rules (#13) in its design rationale, and produced an even cleaner design than
+  the first run (each fetcher's result read directly from its own `{node}.result` namespace —
+  no scratch keys needed — with deterministic post-join `profile[0]/[1]` assembly). Independently
+  re-verified by the orchestrator (the island sinks in 0.014 ms; both fetchers overlap; contract
+  honored). Two **inference-only** frictions noted (worked first try, but the docs never show
+  them): array-index mapping targets (`-> output.body.profile[0]`) and whole-subtree Dictionary
+  output (`response.profile -> result.profile`) — rollup #23/#24. Exported as
+  `parallel-profile-fetch-v2`.
 - **Session-hygiene aside (cause understood):** the human's browser restarted accidentally before
   the test; the primary session closed, a new one (`ws-976371-7`) was handed over — and it arrived
   carrying a complete draft of this very exercise (the UI restores the local draft into the
@@ -286,4 +302,6 @@
 | 19 | Tut 6 | `output[]` contradiction for `graph.api.fetcher`: the AI skill matrix + `minigraph-commands.json` said **required**; the engine help says **optional** ("use another data mapper") | **DONE** — engine-verified (only `dictionary[]` is hard-required; the result always lands at `{node}.result`): matrix + JSON now say `dictionary[]` required, `input[]` conditional (when dictionaries declare parameters), `output[]` optional. The engine help contradicts *itself* on this — folded into the help-rewrite backlog (#16) |
 | 20 | Tut 6 | **POST-body Provider authoring was example-free** — `body.{key}` targets + `content-type` header were stated only as a target list; the only worked example was GET/path_parameter | **DONE** — second worked example (POST + `body.*` + `content-type`) in `command-reference.md#provider-dictionary` |
 | 21 | Tut 6 | the KG grammar's constants section read as a **closed set**, but `f:` simple-plugin calls and `$.` JSONPath are resolvable in graph mappings (shared Event Script mapping engine; code-confirmed) — and the engine help recommends `f:` as the `:type` replacement | **DONE** — "non-constant source forms" table added under `#constants` (pointing at the event-script plugin catalog) + `_non_constant_sources` note in `minigraph-commands.json` |
-| 22 | Tut 6 (maintainer) | **`graph.island` is required, not optional**: islands are isolated from traversal but they link data entities and dictionaries into the graph's **entity-relationship diagram** — the graph is living documentation of enterprise knowledge (a new joiner discovers the domain model from the connected dictionaries/entities). The tut-6 companion left its four config nodes floating (the docs said "optionally group") | **DONE** (2026-07-19, maintainer decision) — the AI grammar now mandates **no node left unconnected**: `command-reference.md#island` (new section), invariants + node-types + `#provider-dictionary` reworded, `graph.island` rewritten in `skills-reference.md`, pre-send checklist + recipe step in `ai-agent-guide.md`, `minigraph-commands.json` (`_role`, invariants, island notes) |
+| 22 | Tut 6 (maintainer) | **`graph.island` is required, not optional**: islands are isolated from traversal but they link data entities and dictionaries into the graph's **entity-relationship diagram** — the graph is living documentation of enterprise knowledge (a new joiner discovers the domain model from the connected dictionaries/entities). The tut-6 companion left its four config nodes floating (the docs said "optionally group") | **DONE** (2026-07-19, maintainer decision) — the AI grammar now mandates **no node left unconnected**: `command-reference.md#island` (new section), invariants + node-types + `#provider-dictionary` reworded, `graph.island` rewritten in `skills-reference.md`, pre-send checklist + recipe step in `ai-agent-guide.md`, `minigraph-commands.json` (`_role`, invariants, island notes). **Verified by the tut-5 retest**: a fresh companion wired the island unprompted |
+| 23 | Tut-5 retest | **array-index mapping targets are never shown** — the lexical rules say keys "may be composite (dot-bracket)" but no doc has a worked example of building a JSON list in a mapper target (`… -> output.body.profile[0]`), the natural post-join assembly idiom; the companion inferred it correctly | (candidate) one-line example in `command-reference.md` lexical/`graph.data.mapper` sections |
+| 24 | Tut-5 retest | **whole-subtree Dictionary output mapping is only implied** — examples map leaf paths (`response.profile.name -> result.name`); that an interior path (`response.profile -> result.profile`) yields the entire subtree is never stated; the companion inferred it correctly | (candidate) a sentence + example in `command-reference.md#provider-dictionary` |
