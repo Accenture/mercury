@@ -132,10 +132,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   explicit parallel fork/join/state-safety rules — across `command-reference.md`,
   `minigraph-commands.json`, `skills-reference.md`, `ai-agent-guide.md`, `llms.txt`; all dangling
   links removed (the four AI docs are now self-sufficient — agents should never need the human help
-  pages; help-page polish → [[ot-help-pages-rewrite]]). **Resume — NEXT: tutorial-6.** Same recipe:
-  user provides a fresh primary (**verify it's actually EMPTY first** — browser restarts restore
-  drafts), brief from this repo's docs, drive via `/sync`; an orchestrator watcher subscribes over
-  the WS connection itself — by design, companion endpoints now reject session-topology commands
+  pages; help-page polish → [[ot-help-pages-rewrite]]). **Resume — NEXT: RETEST tutorial-5 with the updated AI
+  grammar** (maintainer, 2026-07-18): a fresh companion, same problem-only brief — the pass
+  criterion tightens to **no in-band `help`/`describe skill` fallback needed** (the first run
+  passed only by pulling `help data-dictionary`; the four docs must now suffice alone — that is
+  what fixes #9–#13 claim). Then proceed to **tutorial-6**. Same recipe: user provides a fresh
+  primary (**verify it's actually EMPTY first** — browser restarts restore drafts), brief from
+  this repo's docs, drive via `/sync`; an orchestrator watcher subscribes over the WS connection
+  itself — by design, companion endpoints now reject session-topology commands
   ([[ot-subscribe-via-sync-bug]] resolution). Restart the dev server first (picks up the guard).
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
   <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-18 | uses: 7 | tier: working | origin: 2026-07-18-061457.md -->
