@@ -39,7 +39,8 @@
 | **L4 — composition** | 5 | *compose* mechanisms (parallel fan-out + join barrier + data sourcing + list assembly) from a problem + contract, no syntax hints | problem statement only | build whole graph, pause for dry-run | **behavioral** + demonstrable parallelism (traversal-log timing) |
 | **L5 — data-driven iteration** | 6 | chained multi-step fetch where the fan-out set is **runtime data** (`for_each` inside a fetcher), incl. a POST provider | problem statement only | build whole graph, pause for dry-run | **behavioral**: every element of the runtime list fetched + assembled; nothing hardcoded |
 | **L6 — mapping-language depth** | 7 | the data-mapping mini-language end-to-end: constants, nested extraction, ordered array assembly, execution-time `f:` plugin values — pure transformation, no backends | problem statement only | build whole graph, pause for dry-run | **behavioral**: exact reshaped contract incl. a genuinely runtime-generated value |
-| **L7+ …** | 8–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
+| **L7 — reshaping toolbox** | 8 | choose the right transformation tool (JSONPath wildcard extraction, `f:listOfMap`, `f:removeKey`) for a data-driven list-reshaping contract | problem statement only | build whole graph, pause for dry-run | **behavioral**: contract met for any list length; internal field never exposed |
+| **L8+ …** | 9–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -308,6 +309,34 @@
   examples now inline; nested composite keys in `instantiate` seed lines were implied but never
   shown → nested-seed example added.
 
+### Tutorial 8 — L7 (reshaping toolbox: JSONPath + transformation plugins) — PASSED (first attempt)
+- **Task (problem only, no syntax hints):** pure transformation — input
+  `{profile: {name, account: [{id, amount, description, type}, …]}}`; output
+  `{name, account: [same accounts, same order, each WITHOUT the internal "description" field]}`;
+  list length data-driven, nothing hardcoded per element. Tutorial-8's teaching set: JSONPath
+  wildcard extraction (`$.…account[*].type` → map-of-lists), `f:listOfMap` consolidation, and
+  `f:removeKey` — the walkthrough's own "indeed easier" single-source route.
+- **Result: PASSED — 17/17 commands `ok:true`, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass** (session `ws-783755-2`). Output verbatim:
+  `{"account":[{"amount":18000.3,"id":"100","type":"C/D"},{"amount":62050.8,"id":"200","type":"Saving"}],"name":"Peter"}`
+  — order preserved, `description` gone; independently re-run by the orchestrator.
+- **Technique chosen:** the one-mapping `f:removeKey(input.body.profile.account, text(description))`
+  route — the canonical's own recommendation for a single source; the invocation form was
+  **inferred** from the generic plugin pattern (→ #28). JSONPath/`f:listOfMap` were not needed by
+  the winning design (the JSONPath machinery itself remains covered by the canonical fixture
+  suite); the companion's unused fallback plan was a `graph.math` `for_each` loop (→ #29).
+- **Emergent knowledge-layer behavior (beyond the #22 mandate):** with **no config nodes at all**,
+  the companion still built an island with two **data-entity nodes** (`person-profile`, `account`)
+  whose purposes document the domain — including "description is internal-only and never exposed".
+  The graph-as-living-documentation idea is now shaping designs unprompted; it also flagged that
+  the mandate's scope for pure-transformation graphs could be stated crisply (→ #30, maintainer
+  question).
+- **Frictions:** #28 (`f:removeKey` had no syntax line/example anywhere — fixed same day,
+  code-verified: map or list-of-maps, N key args, returns a copy) and #29 (`graph.math`
+  `for_each[]`/`BEGIN`/`END` thinly specified — candidate; likely better addressed when a later
+  tutorial exercises it). Verified-by-use with no issues: nested/indexed `instantiate` seeds
+  (#27's fix), `double(…)` constants, the `/sync` envelope contract.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -341,3 +370,6 @@
 | 25 | maintainer | the **`[]` array-append target** (`… -> output.body.profile[]` appends an element, creating the list with the first element when absent) was absent from the KG grammar — and the parallel state-safety wording ("write to disjoint keys") over-restricted: data mapping is **thread-safe**, so concurrent appends carry no racing risk (element order follows completion order) | **DONE** (2026-07-19, engine-verified: `mlm.rs` `appendIndex` parity; the state mutex serializes mapping ops) — append + thread-safety + ordering guidance in the composite-keys block, `#connect` state-safety refined, `graph.join` gotcha aligned, `array_append` note in `minigraph-commands.json` |
 | 26 | Tut 7 | the KG grammar named **no example `f:` plugin** — an agent needing an execution-time value (timestamp, uuid) must realize the answer lives a layer down in the event-script plugin catalog; the pointer existed but carried no scent | **DONE** (same day) — generator/arithmetic/logic examples (`f:now(text(local))`, `f:uuid()`, …) inlined in the `#constants` non-constant-sources row + `minigraph-commands.json` |
 | 27 | Tut 7 | **nested composite keys in `instantiate` seed lines** were implied by the global lexical rule but never shown — every example seeded flat keys | **DONE** (same day) — nested-seed example (`text(Peter) -> input.body.profile.name`) in `command-reference.md#instantiate` + a note in `minigraph-commands.json` |
+| 28 | Tut 8 | **`f:removeKey` had no syntax line or worked example anywhere** (the plugin table only said "remove one or more keys from a map or list of maps") — the companion inferred `f:removeKey(source, text(key))` from the generic pattern; this is the natural idiom for hiding internal fields | **DONE** (same day, code-verified in `plugins_e8.rs`: map or list-of-maps, N key args, non-map list elements pass through, returns a copy) — syntax in the plugin table + a worked *removeKey* example in `syntax.md`; `removeKey`/`listOfMap` added to the KG grammar's `f:` examples + JSONPath wildcard note in `minigraph-commands.json` |
+| 29 | Tut 8 | **`graph.math` `for_each[]`/`BEGIN`/`END` is thinly specified** — no worked example, loop-variable binding / iteration order / interaction with the "MAPPING-only rejected" rule unstated (the fetcher's `for_each` got full rules in #17/#18; the math skill's didn't) | (candidate) document with engine verification — best addressed when a later tutorial exercises `graph.math` iteration |
+| 30 | Tut 8 | **island-scope crispness for graphs with *no* config nodes:** the recipe says wire an island "if the graph has Dictionary/Provider (or data-entity) nodes" — for a pure-transformation graph, is a knowledge layer expected? (The tut-8 companion volunteered one with data-entity nodes documenting the domain — arguably the vision working, but the convention's scope is fuzzy) | **maintainer question** — proposed wording: *required* whenever config/data-entity nodes exist; *encouraged* otherwise as ER documentation |

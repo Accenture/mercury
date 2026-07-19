@@ -1430,7 +1430,7 @@ For example:
 | **Type Conversion** | text            | A list of variables that can evaluate to a String                                                                     |
 | **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps"                                                                          |
 | **Type Conversion** | updateListOfMap | Update "a list of maps" with "maps of lists"                                                                          |
-| **Type Conversion** | removeKey       | Remove one or more keys from a map or "list of maps"                                                                  |
+| **Type Conversion** | removeKey       | Remove one or more keys from a map or "list of maps". Syntax: `f:removeKey(source, text(key1), text(key2), …)` — see the worked example below. |
 | **Type Conversion** | defaultValue    | If the first argument is null, return the 2nd argument                                                                |
 | **Type Conversion** | parseDate       | Parse a date string to ISO, Local or Milliseconds.                                                                    |
 | **Type Conversion** | parseDateTime   | Parse a date-time string to ISO, Local or Milliseconds.                                                               |
@@ -1596,6 +1596,21 @@ The list of maps may be a prior result of a ListOfMap operation.
 ```
 
 If the list sizes do not match, the plugin will return an empty list.
+
+*removeKey*
+
+The `removeKey(source, key1, key2, ...)` plugin removes one or more keys from a **map** — or from
+**every map element of a list** (non-map elements pass through unchanged). It returns a copy; the
+source is not modified. This is the natural idiom for hiding internal fields when reshaping data
+for external consumption:
+
+```yaml
+# strip the internal "description" field from every account in the list
+- 'f:removeKey(input.body.profile.account, text(description)) -> output.body.account'
+
+# remove several keys at once — one text(...) argument per key
+- 'f:removeKey(model.record, text(internal_id), text(audit_trail)) -> output.body.record'
+```
 
 For details, please refer to the configuration example in `header-and-json-path-test.yml` under
 `crates/event-script/tests/resources/flows/` and its test in `crates/event-script/tests/`

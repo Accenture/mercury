@@ -105,7 +105,7 @@ skills share Event Script's mapping engine):
 
 | Form | Meaning |
 |---|---|
-| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`. **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
+| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list) and `f:listOfMap(...)` (maps-of-lists → list-of-maps). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
 | `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it) |
 
 ## Commands {#commands}
