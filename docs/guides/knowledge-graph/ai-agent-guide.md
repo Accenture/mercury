@@ -86,8 +86,12 @@ Subscriptions are managed from WebSocket-connected sessions only.
 > - [ ] Node names and types are **lowercase + hyphen** only.
 > - [ ] Each node has **0 or 1** skill (`skill={route}`); the skill's required properties are present
 >       (see the [skill→property matrix](command-reference.md#skill-matrix)).
-> - [ ] Every node *in the traversal path* connects to ≥1 node (or `export` fails). **Config nodes**
->       (`Dictionary`/`Provider`) are referenced by name (`dictionary[]=`, `provider=`) and need **no** connections.
+> - [ ] Every node *in the traversal path* connects to ≥1 node (or `export` fails).
+> - [ ] **No node is left unconnected.** Config nodes (`Dictionary`/`Provider`) are referenced by
+>       name (`dictionary[]=`, `provider=`) and not traversed — wire them under a `graph.island`
+>       (`root -[contains]-> island -[data]-> dictionary -[provider]-> provider`): the island is
+>       the graph's entity-relationship knowledge layer
+>       ([required convention](command-reference.md#island)).
 > - [ ] Multi-line commands (`create`/`update`/`instantiate`) are sent as one block; multi-line
 >       *values* use `'''…'''`.
 > - [ ] `instantiate graph` precedes `run`/`execute`/`inspect`.
@@ -104,10 +108,14 @@ A reliable order for building a graph:
 2. **Create nodes:** `create node root` (type `Root`), the active/skill nodes, and `create node end`
    (type `End`, usually with `graph.data.mapper` to shape `output.body`).
 3. **Connect** them so traversal flows root → end, with no orphans.
-4. **Instantiate** with mock input: `instantiate graph` + `{constant} -> input.body.{key}` lines.
-5. **Run and inspect:** `run` (or `execute {node}`), then `inspect output.body`; iterate.
+4. **Wire the knowledge layer:** if the graph has `Dictionary`/`Provider` (or data-entity) nodes,
+   create an `Island` (`skill=graph.island`) and connect
+   `root -[contains]-> island -[data]-> dictionary -[provider]-> provider` — **no node is left
+   unconnected** ([required convention](command-reference.md#island)).
+5. **Instantiate** with mock input: `instantiate graph` + `{constant} -> input.body.{key}` lines.
+6. **Run and inspect:** `run` (or `execute {node}`), then `inspect output.body`; iterate.
    (`{node}` is a placeholder — you write e.g. `execute fetcher`, `inspect output.body`.)
-6. **Export & deploy:** `export graph as {name}`, deploy the JSON, then call
+7. **Export & deploy:** `export graph as {name}`, deploy the JSON, then call
    `POST /api/graph/{name}`.
 
 ## Worked example {#example}

@@ -32,7 +32,8 @@
     "file(text:/tmp/f.txt) | file(json:...) | file(binary:...)": "file content as text / parsed JSON / bytes",
     "classpath(text:/data/f.txt)": "like file(), resolved against the app's resource roots",
     "_valid_where": "any mapping SOURCE: mapping[]/input[]/output[] left-hand side, instantiate seed lines",
-    "_deprecated": "the ':type' suffix (simple type matching) is deprecated and must not be generated; a ':' in a Dictionary input[] entry is a DEFAULT VALUE only"
+    "_deprecated": "the ':type' suffix (simple type matching) is deprecated and must not be generated; a ':' in a Dictionary input[] entry is a DEFAULT VALUE only",
+    "_non_constant_sources": "two further source forms are valid in mappings (shared Event Script mapping engine): 'f:plugin(args...)' simple-plugin invocations (the modern :type replacement; catalog in guides/event-script/syntax.md#simple-plugins) and '$....' JSONPath (prefer plain dot-bracket keys)"
   },
   "traversal": {
     "fork": "a node with multiple outgoing connections forks traversal into PARALLEL branches (one per connection, executed concurrently)",
@@ -129,9 +130,16 @@
       "example": "skill=graph.math\nstatement[]=COMPUTE: sum -> {input.body.a} + {input.body.b}\nstatement[]='''\nIF: {input.body.a} >= {input.body.b}\nTHEN: ge-path\nELSE: lt-path\n'''" },
     { "route": "graph.js", "retired": true,
       "notes": ["RETIRED in this Rust port (disabled for security); the runtime rejects it: 'Skill graph.js is retired for security reasons - use graph.math or graph.task instead'", "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer"] },
-    { "route": "graph.api.fetcher", "help": "help graph-api-fetcher.md", "required": ["dictionary[]", "input[]", "output[]"], "optional": ["for_each[]", "concurrency", "exception"],
+    { "route": "graph.api.fetcher", "help": "help graph-api-fetcher.md", "required": ["dictionary[]"], "conditional": ["input[] (required whenever its dictionaries declare parameters - the usual case)"], "optional": ["output[] (the result set always lands at {node}.result for a later mapper)", "for_each[]", "concurrency", "exception"],
       "notes": ["concurrency 1-30 (default 3); identical requests are deduplicated"],
-      "example": "skill=graph.api.fetcher\ndictionary[]=person-name\ninput[]=input.body.person_id -> person_id\noutput[]=result.name -> output.body.name" },
+      "for_each": {
+        "syntax": "for_each[]={array-source} -> model.{var}",
+        "source": "must resolve to a list - typically a prior fetcher's result ({fetcher}.result.{key}, the cross-node .result namespace) or any model.* array; multiple for_each[] lines iterate in lock-step",
+        "wiring": "pass the current element into each call with input[]=model.{var} -> {dictionary-parameter}; non-iterated inputs are passed unchanged to every call",
+        "concurrency": "bounds the parallel fan-out (1-30, default 3): calls run in batches of that size",
+        "aggregation": "GUARANTEED: each iteration's result.{key} values are appended into a single array on this node's result set (N iterations -> an array of N); order deterministically follows the source list (batches execute in order; responses join in request order)"
+      },
+      "example": "skill=graph.api.fetcher\ndictionary[]=account-detail\nfor_each[]=profile-fetcher.result.accounts -> model.account_id\nconcurrency=3\ninput[]=input.body.person_id -> person_id\ninput[]=model.account_id -> account_id\noutput[]=result.detail -> model.account_details" },
     { "route": "graph.extension", "help": "help graph-extension.md", "required": ["extension", "input[]"], "optional": ["output[]", "for_each[]", "concurrency", "exception"],
       "notes": ["extension={graph-id} for a sub-graph, or flow://{flow-id} for an Event Script flow"],
       "example": "skill=graph.extension\nextension=evaluate-sales-performance\ninput[]=input.body.department_id -> id\noutput[]=result -> output.body" },
@@ -144,11 +152,13 @@
       "notes": ["returns next only when all upstream nodes complete, else .sink (pause)"],
       "example": "skill=graph.join" },
     { "route": "graph.island", "help": "help graph-island.md", "required": [], "optional": [],
-      "notes": ["always returns .sink; organizational/isolated node"],
+      "notes": ["always returns .sink - isolated from traversal, never executed",
+                "REQUIRED CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - wire every Dictionary/Provider/data-entity node under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider); leave no node unconnected",
+                "relation labels are descriptive/free-form; contains/data/provider are the shipped conventions"],
       "example": "skill=graph.island" }
   ],
   "config_nodes": {
-    "_role": "Provider/Dictionary nodes configure graph.api.fetcher; they never execute, are referenced BY NAME (dictionary[]=, provider=), and need no connections (optionally grouped under a graph.island for organization). Full spec: command-reference.md#provider-dictionary",
+    "_role": "Provider/Dictionary nodes configure graph.api.fetcher; they never execute and are referenced BY NAME (dictionary[]=, provider=) - but must NOT be left floating: wire them under a graph.island (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), the graph's entity-relationship knowledge layer. Full spec: command-reference.md#provider-dictionary + #island",
     "Provider": {
       "properties": ["purpose", "url", "method", "feature[]", "input[]"],
       "url": "may embed {name} path placeholders, each filled by an input[] mapping to path_parameter.{name}; ${config.key:default} substitution applies (e.g. url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id})",
@@ -172,7 +182,7 @@
     "a node has 0 or 1 skill",
     "node names are lowercase + hyphen only (types are descriptive labels, commonly capitalized)",
     "every node in the traversal path must connect to >=1 node or export fails",
-    "Dictionary/Provider config nodes are referenced by name (not traversed) and need no connections; optionally grouped under a graph.island",
+    "Dictionary/Provider config nodes are referenced by name and not traversed - but the required convention is NO NODE LEFT UNCONNECTED: wire them under a graph.island (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), the graph's entity-relationship knowledge layer",
     "a node is executed once per run (a graph.math RESET statement is the only escape)",
     "instantiate graph must precede run/execute/inspect"
   ]

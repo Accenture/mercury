@@ -34,7 +34,7 @@ related:
 | [`graph.task`](#task) | invoke a composable function through its route name |
 | [`graph.extension`](#extension) | delegate to a sub-graph or an Event Script flow |
 | [`graph.join`](#join) | synchronize parallel paths |
-| [`graph.island`](#island) | mark an isolated/organizational node |
+| [`graph.island`](#island) | link the knowledge layer (dictionaries, providers, data entities) — isolated from traversal |
 
 ## graph.data.mapper {#data-mapper}
 
@@ -111,13 +111,20 @@ and bounded fork-join concurrency.
 
 ```
 skill=graph.api.fetcher
-dictionary[]=<data-dictionary-node>     # one or more
+dictionary[]=<data-dictionary-node>     # one or more (required)
 input[]=input.body.person_id -> person_id
-output[]=result.name -> output.body.name
-for_each[]=<array> -> model.<var>        # optional: iterate
+output[]=result.name -> output.body.name   # optional: result always lands at {node}.result
+for_each[]=<array-source> -> model.<var>   # optional: iterate a runtime list (see below)
 concurrency=3                            # optional: 1–30, default 3
 exception=<error-handler-node>           # optional
 ```
+
+**Iterating a runtime list (`for_each`):** the array source is typically a **prior fetcher's
+result** (`{fetcher}.result.{key}`); wire the current element into each call with
+`input[]=model.<var> -> {dictionary-parameter}`. Each iteration's `result.{key}` values are
+**appended into one array** on this node's result set, and the order **deterministically follows
+the source list** (batches of `concurrency` run in order; responses join in request order). Full
+rules: [Iterative fetching](command-reference.md#for-each).
 
 Worked example (fetch a person's name and address):
 
@@ -227,8 +234,14 @@ concurrent writes don't collide.
 ## graph.island {#island}
 
 Marks an **isolated** node: it always returns `.sink`, so traversal does not continue through it.
-Used to organize non-executable configuration (e.g. grouping data-dictionary and provider nodes)
-or to park a sub-graph that isn't wired in yet.
+That isolation is the point — an island is **not executable, but it is required knowledge
+structure**: linking Dictionary, Provider, and data-entity nodes under it gives the graph its
+**entity-relationship diagram**. The graph is living documentation of enterprise knowledge — a
+new joiner (or an agent) discovers the domain model by reading the connected dictionaries and
+entities, not just the execution path.
+
+**Convention (required): leave no node unconnected** — wire every config node into the island
+structure (see [Island — the knowledge layer](command-reference.md#island)):
 
 ```
 skill=graph.island
@@ -238,6 +251,8 @@ skill=graph.island
 connect root to dictionary with contains
 connect dictionary to person-name with data
 connect dictionary to person-address with data
+connect person-name to mdm-profile with provider
+connect person-address to mdm-profile with provider
 ```
 
 ## See also {#see-also}

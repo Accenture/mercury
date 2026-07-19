@@ -17,6 +17,11 @@
   synchronous companion endpoint): `docs/llms.txt`, `docs/guides/knowledge-graph/ai-agent-guide.md`,
   `command-reference.md`, `minigraph-commands.json`, `skills-reference.md`. **Never** the interactive
   `help/*.md` or the tutorial walkthroughs. (Tutorials 1–4 used the Java upstream's copies.)
+  **From tutorial 6 on, the allowed set is `docs/llms.txt` + every guide it maps** — including the
+  layer-1/2 AI docs (`docs/guides/event-script/`, `docs/guides/event-driven/`, ported 2026-07-19)
+  for tutorials whose extensions use flows and tasks. In-band engine lookups (`help`,
+  `describe skill`) remain fair game but each one is **recorded as a doc gap** — the grammar's goal
+  is that agents never need them.
 - **The companion drives the live session** over the documented endpoints. AI agents use the
   **synchronous** `POST /api/companion/{id}/sync` (outcome in-band `{ok, output, error, result}`;
   also teed to the human's WS console); `GET /api/graph/session/{id}` reads the model shape.
@@ -32,7 +37,8 @@
 | **L2 — comprehension** | 3 | reconstruct a *specified* graph from the canonical docs alone (no walkthrough) | full node/connection plan; derive syntax | step-wise, screenshot each step | structural match to canonical + dry-run |
 | **L3 — synthesis / problem-solving** | 4 | *design* a correct solution to a stated **problem + output contract**, with **no syntax hints** | problem statement only | build whole graph, pause for dry-run | **behavioral**: dry-run honors the contract on every branch |
 | **L4 — composition** | 5 | *compose* mechanisms (parallel fan-out + join barrier + data sourcing + list assembly) from a problem + contract, no syntax hints | problem statement only | build whole graph, pause for dry-run | **behavioral** + demonstrable parallelism (traversal-log timing) |
-| **L5+ …** | 6–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
+| **L5 — data-driven iteration** | 6 | chained multi-step fetch where the fan-out set is **runtime data** (`for_each` inside a fetcher), incl. a POST provider | problem statement only | build whole graph, pause for dry-run | **behavioral**: every element of the runtime list fetched + assembled; nothing hardcoded |
+| **L6+ …** | 7–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -207,6 +213,52 @@
   deleted all 7 nodes before briefing the companion, or the exercise would have been contaminated.
   Lesson for the method: **always verify the primary is empty before briefing.**
 
+### Tutorial 6 — L5 (data-driven iteration: for_each + chained fetch) — PASSED (first attempt)
+- **Task (problem only, no syntax hints):** given `{person_id: <id>}`, return the person's profile
+  AND the details of **every** account they hold: `output.body = {name, address, accounts:[detail…]}`.
+  Two live services: `GET /api/mdm/profile/{id}` (profile + the account-number list) and
+  `POST /api/account/details` (JSON body `person_id`+`account_id` → one account's details). The
+  account list is **runtime data** — nothing hardcoded. Tutorial-6's focus is **`for_each`
+  iterative fetching** (chained fetchers, parallel batches).
+- **Method:** fresh companion on the human's live session (`ws-876960-4`), driven via `/sync`;
+  **docs = `docs/llms.txt` + the guides it maps** (first run on the post-#9–#13 grammar and the
+  newly ported layer-1/2 docs); in-band lookups allowed but each recorded as a doc gap; the
+  orchestrator's headless watcher subscribed **over the WS connection** (`subscribed by
+  ["ws-759054-5"]` — the #194 read-only companion rule + WS-side subscribe validated live; the
+  mirror held for the entire run).
+- **Result: PASSED on the first dry-run — 18 observed POSTs, all `ok:true`, zero failed commands**
+  (the companion reported 16 — it didn't count its two `describe graph` read-backs). Design:
+  `root → profile-fetcher (person-profile Dictionary → GET provider; name/address/accounts into
+  disjoint model.* scratch) → accounts-fetcher (`for_each[]=profile-fetcher.result.accounts ->
+  model.account_id`, explicit `concurrency=3`, account-detail Dictionary → **POST provider** with
+  `body.*` targets) → end (mapper assembles the contract)`. Dry-run returned all **5** account
+  details + name/address for person 100; independently re-verified by the orchestrator (chained
+  traversal ~15 ms; iteration inside the second fetcher — no join barrier needed, correctly).
+- **Judged vs canonical `tutorial-6.json` — semantically equivalent; economical divergences:** one
+  whole-profile Dictionary vs canonical's three field-level entries (name/address/accounts); scratch
+  `model.*` + deterministic `end`-mapper assembly vs canonical's direct-to-`output.body` writes; no
+  organizational Island; no `feature[]` flags (the mock needs none — canonical shows `oauth2-bearer`
+  as a placeholder). The **key mechanism — a cross-node runtime array
+  (`profile-fetcher.result.accounts`) driving `for_each` iteration with `model.*` per-element input
+  wiring — was derived correctly**, with exactly **one** in-band lookup.
+- **Grammar-sufficiency check (the tightened criterion from tut-5's planned retest, applied here):**
+  the tut-5 fixes **held** — Provider/Dictionary authoring (incl. the previously-undocumented POST
+  `body.*` form) and everything else came **straight from the AI docs, zero lookups**. The single
+  in-band `help graph-api-fetcher` was for the **`for_each` idiom**, whose authoring detail the AI
+  docs still lack (rollup #17) — one gap class per tutorial, each narrower than the last.
+- **Doc frictions recorded by the companion (rollup #17–#21 — all fixed same day,
+  maintainer-directed, engine-verified; plus the #22 island mandate):** `for_each` idiom absent from the AI
+  grammar (bare `for_each[]=<array> -> model.<var>` syntax only — no cross-node source example, no
+  input-wiring pattern); **aggregation semantics undocumented** (per-iteration `result.{key}` values
+  collect into an array — confirmed only by experiment; ordering unspecified though observed
+  input-order under `concurrency=3`); `output[]` **required-vs-optional contradiction** for
+  `graph.api.fetcher` (AI matrix says required, engine help says optional); POST-body Provider
+  authoring was example-free; and the KG grammar's constants section reads as a **closed set** while
+  `f:` simple-plugin calls (and `$.` JSONPath) are in fact resolvable in graph mappings — the graph
+  skills route through the shared Event Script mapping engine (code-confirmed:
+  `skills.rs` → `get_lhs_or_constant` → `f:` dispatch); the in-band help even recommends `f:` as the
+  `:type` replacement.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -229,3 +281,9 @@
 | 14 | Tut 5 (orchestrator) | **engine defect, both ports:** `session subscribe` via `/sync` registers the ephemeral `companion.sync.<uuid>` capture route as a durable subscriber → dangling subscriber + asymmetric session state. (The mirror death observed mid-test was later user-confirmed as collateral of an accidental browser restart — the wrong-registration defect stands on the engine-state evidence alone.) | **DONE (Rust, same day; maintainer decision):** both companion endpoints now limit `session` to the **read-only status query** — `subscribe`/`unsubscribe`/`reset` are rejected before dispatch (a companion is an *assistant to* a session, not a WS session of its own); refusal returned in-band (`ok:false` on `/sync`, 400 on fire-and-forget) **and** teed to the live console; deterministic test in `graph_runtime.rs`; AI docs updated. **Java fix MERGED** ([Accenture/mercury-composable#194](https://github.com/Accenture/mercury-composable/pull/194)): same guard in PostCompanionCommand/-Sync + shared statics in GraphCommandService, byte-identical refusal text, test `companionEndpointsLimitSessionCommandToReadOnly`, 65-test module suite green — the read-only rule is live in **both** engines. |
 | 15 | Tut 5 (orchestrator) | `session reset` resets subscriptions but does **not** clear the draft graph, and the UI restores the local draft into a reconnected session — a "fresh" session can carry a stale (here: exercise-contaminating) draft | (candidate) UX note in `help session.md`; consider a `clear graph` affordance; method rule: verify-empty before briefing |
 | 16 | Tut 5 (maintainer) | the interactive `help/*.md` pages are written for **human operators** and double as the engine's in-band reference; after tut-5 the AI grammar is self-sufficient, so the help pages deserve a dedicated human-UX rewrite (clarity, structure, the #15 `session reset` note) | **Backlog** — Open Thread `ot-help-pages-rewrite` in `memory/continuity.md`; separate session; coordinate with the Java upstream (the pages are verbatim ports) |
+| 17 | Tut 6 | the **`for_each` authoring idiom** was absent from the AI grammar — only the bare `for_each[]=<array> -> model.<var>` syntax appeared; no cross-node array source (`{fetcher}.result.{key}`), no `input[]=model.<var> -> {param}` wiring pattern — the companion's single in-band lookup (`help graph-api-fetcher`) was for exactly this | **DONE** (2026-07-19, maintainer-directed) — new [Iterative fetching](guides/knowledge-graph/command-reference.md#for-each) section (source, wiring, `concurrency`, worked example) + `for_each` object in `minigraph-commands.json` + `skills-reference.md#api-fetcher` |
+| 18 | Tut 6 | **`for_each` result aggregation was undocumented everywhere** (incl. the engine help): per-iteration `result.{key}` values collect into a single array; ordering under `concurrency` unspecified — the companion confirmed by experiment | **DONE** — engine-verified (`fetcher.rs`: batches execute in input order, responses join in request order, results `[]`-append per response ⇒ **order deterministically follows the source list**) and documented as a guarantee in all three docs |
+| 19 | Tut 6 | `output[]` contradiction for `graph.api.fetcher`: the AI skill matrix + `minigraph-commands.json` said **required**; the engine help says **optional** ("use another data mapper") | **DONE** — engine-verified (only `dictionary[]` is hard-required; the result always lands at `{node}.result`): matrix + JSON now say `dictionary[]` required, `input[]` conditional (when dictionaries declare parameters), `output[]` optional. The engine help contradicts *itself* on this — folded into the help-rewrite backlog (#16) |
+| 20 | Tut 6 | **POST-body Provider authoring was example-free** — `body.{key}` targets + `content-type` header were stated only as a target list; the only worked example was GET/path_parameter | **DONE** — second worked example (POST + `body.*` + `content-type`) in `command-reference.md#provider-dictionary` |
+| 21 | Tut 6 | the KG grammar's constants section read as a **closed set**, but `f:` simple-plugin calls and `$.` JSONPath are resolvable in graph mappings (shared Event Script mapping engine; code-confirmed) — and the engine help recommends `f:` as the `:type` replacement | **DONE** — "non-constant source forms" table added under `#constants` (pointing at the event-script plugin catalog) + `_non_constant_sources` note in `minigraph-commands.json` |
+| 22 | Tut 6 (maintainer) | **`graph.island` is required, not optional**: islands are isolated from traversal but they link data entities and dictionaries into the graph's **entity-relationship diagram** — the graph is living documentation of enterprise knowledge (a new joiner discovers the domain model from the connected dictionaries/entities). The tut-6 companion left its four config nodes floating (the docs said "optionally group") | **DONE** (2026-07-19, maintainer decision) — the AI grammar now mandates **no node left unconnected**: `command-reference.md#island` (new section), invariants + node-types + `#provider-dictionary` reworded, `graph.island` rewritten in `skills-reference.md`, pre-send checklist + recipe step in `ai-agent-guide.md`, `minigraph-commands.json` (`_role`, invariants, island notes) |

@@ -20,9 +20,11 @@ These are self-contained; you should not need the engine source or the tutorial 
   **in-band** as `{ok, output, error, result}` (self-correct from `error`; no console relay needed),
   and tees the same output to the human's WebSocket console for real-time human+AI collaboration.
 - [Command grammar](guides/knowledge-graph/command-reference.md) — the rules: lexical, namespaces,
-  the **closed constant set**, every command's syntax (incl. `help {topic}`), node types, parallel
-  fan-out/join traversal, the skill→property matrix, **Provider & Dictionary authoring** (the
-  data-dictionary method), and the `graph.math` statement grammar (`IF`/`THEN`/`ELSE`, `COMPUTE`,
+  the constant set (+ `f:` plugin / `$.` JSONPath source forms), every command's syntax (incl.
+  `help {topic}`), node types, parallel fan-out/join traversal, the skill→property matrix,
+  **Provider & Dictionary authoring** (the data-dictionary method), **iterative fetching**
+  (`for_each` with guaranteed ordered aggregation), the **Island knowledge layer** (required — no
+  node left unconnected), and the `graph.math` statement grammar (`IF`/`THEN`/`ELSE`, `COMPUTE`,
   `MAPPING`, …).
 - [`minigraph-commands.json`](guides/knowledge-graph/minigraph-commands.json) — the machine-readable
   command catalog; ingest it and validate commands against it before dispatching.

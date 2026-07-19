@@ -73,6 +73,14 @@ else — see [Provider & Dictionary](#provider-dictionary)):
 | `file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)` | file content as text / parsed JSON / bytes |
 | `classpath(text:/data/f.txt)` | like `file()`, resolved against the app's resource roots |
 
+Beyond constants, two further **non-constant source forms** are valid in mappings (the graph
+skills share Event Script's mapping engine):
+
+| Form | Meaning |
+|---|---|
+| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation (e.g. `f:concat(model.a, text(!))`) — the modern replacement for the deprecated `:type` suffixes; plugin catalog in the Event Script syntax page |
+| `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it) |
+
 ## Commands {#commands}
 
 Each command's exact form. Lines shown stacked are a single **multi-line** command (enter as one
@@ -221,7 +229,7 @@ validated by the node's skill, if any. Common conventional types:
 | data-entity | passive data holder | none |
 | `Dictionary` | external attribute definition | none (config) |
 | `Provider` | external endpoint definition | none (config) |
-| `Island` | groups configuration / isolated nodes (not executed) | `graph.island` |
+| `Island` | the **knowledge layer**: links config/data-entity nodes into an entity-relationship view (isolated from traversal, never executed) — see [Island](#island) | `graph.island` |
 | (active node) | does work during traversal | a `graph.*` skill |
 
 ## Skill → property matrix {#skill-matrix}
@@ -234,7 +242,7 @@ and examples; this is the at-a-glance contract.
 | `graph.data.mapper` | `mapping[]` | — |
 | `graph.math` | `statement[]` (`COMPUTE`/`IF`/`MAPPING`/`EXECUTE`/`RESET`) | `for_each[]`, `NEXT:`, `DELAY:`, `BEGIN`/`END` |
 | ~~`graph.js`~~ | ⚠️ **retired in this Rust port** (security) — use `graph.math` or `graph.task` | — |
-| `graph.api.fetcher` | `dictionary[]`, `input[]`, `output[]` | `for_each[]`, `concurrency` (1–30, def 3), `exception` |
+| `graph.api.fetcher` | `dictionary[]` (+ `input[]` whenever its dictionaries declare parameters — the usual case) | `output[]` (the result set always lands at `{node}.result` for a later mapper), `for_each[]` (see [Iterative fetching](#for-each)), `concurrency` (1–30, def 3), `exception` |
 | `graph.extension` | `extension` (`{graph-id}` or `flow://{flow-id}`), `input[]` | `output[]`, `for_each[]`, `concurrency`, `exception` |
 | `graph.task` | `task` (a composable function's route name) | `input[]`, `output[]`, `for_each[]`, `concurrency`, `exception` |
 | `graph.join` | — | — |
@@ -252,8 +260,10 @@ Configuration nodes used by `graph.api.fetcher` — full authoring rules in
 
 `graph.api.fetcher` never holds a URL itself. It names one or more **Dictionary** nodes (data
 attributes); each Dictionary names the **Provider** node (endpoint definition) that supplies it.
-Both are **config nodes**: they never execute, are referenced **by name**, and need **no**
-connections (group them under a `graph.island` node purely for visual organization if you wish).
+Both are **config nodes**: they never execute and are referenced **by name** — but they must
+**not** be left floating. Wire them into the knowledge structure under a `graph.island` node
+(see [Island — the knowledge layer](#island)): the island subgraph is the graph's
+entity-relationship diagram, and **no node is left unconnected**.
 
 **Provider** — defines the HTTP call:
 
@@ -339,6 +349,87 @@ output[]=result.name -> output.body.name
 output[]=result.address -> output.body.address
 ```
 
+Second worked example — a **POST** Provider: `body.{key}` targets build the JSON request body
+(set `content-type`; there is no URL placeholder — the parameters travel in the body):
+
+```
+create node account-api
+with type Provider
+with properties
+purpose=account management endpoint
+url=http://127.0.0.1:${rest.server.port:8080}/api/account/details
+method=POST
+input[]=text(application/json) -> header.accept
+input[]=text(application/json) -> header.content-type
+input[]=person_id -> body.person_id
+input[]=account_id -> body.account_id
+```
+
+## Iterative fetching — `for_each` {#for-each}
+
+A `graph.api.fetcher` node can execute **once per element of a runtime array** — the mechanism for
+"fetch details for each item in a list obtained from a previous call":
+
+```
+create node accounts-fetcher
+with type Fetcher
+with properties
+skill=graph.api.fetcher
+dictionary[]=account-detail
+for_each[]=profile-fetcher.result.accounts -> model.account_id
+concurrency=3
+input[]=input.body.person_id -> person_id
+input[]=model.account_id -> account_id
+output[]=result.detail -> model.account_details
+```
+
+- `for_each[]={array-source} -> model.{var}` — the source **must resolve to a list**; it is
+  typically a **prior fetcher's result** (`{fetcher}.result.{key}` — the cross-node `.result`
+  namespace) or any `model.*` array. Multiple `for_each[]` lines iterate multiple parameters in
+  lock-step.
+- Wire the current element into each call with an ordinary input mapping:
+  `input[]=model.{var} -> {dictionary-parameter}`. Non-iterated inputs (like `person_id` above)
+  are passed unchanged to every call.
+- `concurrency` bounds the parallel fan-out (1–30, default 3): the calls run in batches of that
+  size.
+- **Aggregation (guaranteed):** each iteration's `result.{key}` values are **appended into a
+  single array** on this node's result set — after N iterations, `result.detail` above is an
+  array of N. **Order is deterministic**: batches execute in input-list order and responses join
+  in request order, so the aggregated array preserves the source array's order regardless of
+  `concurrency`.
+- Identical requests are still deduplicated into one HTTP call.
+
+## Island — the knowledge layer (required) {#island}
+
+A `graph.island` node is **isolated from graph traversal** (it always sinks — never executed),
+but it is **not optional decoration**: the island subgraph is the graph's
+**entity-relationship diagram**. Connecting Dictionary, Provider, and data-entity nodes under an
+island turns the graph into **living documentation of enterprise knowledge** — a new joiner (or an
+agent) reads the connected dictionaries and entities to discover the domain model, not just the
+execution path.
+
+**Convention (required): leave no node unconnected.** Wire every config node into the knowledge
+structure:
+
+```
+create node dictionary
+with type Island
+with properties
+skill=graph.island
+```
+
+```
+connect root to dictionary with contains
+connect dictionary to person-profile with data
+connect dictionary to account-detail with data
+connect person-profile to mdm-profile with provider
+connect account-detail to account-api with provider
+```
+
+The relation labels are descriptive (free-form) — choose names that capture the real-world
+relationship; `contains` / `data` / `provider` are the shipped conventions. Traversal is
+unaffected: the island sinks, so the execution path never enters the knowledge layer.
+
 ## `graph.math` statement grammar {#math-statements}
 
 > **`graph.js` is retired in this Rust port** (disabled for security — the runtime rejects it with
@@ -401,10 +492,12 @@ Hard rules the engine enforces — violate them and generation fails:
 2. A node has **0 or 1** skill.
 3. Node **names** are **lowercase + hyphen** only (`root`/`end` reserved). Node **types** are
    descriptive labels — shipped examples capitalize structural types (see [lexical](#lexical)).
-4. Every node **in the traversal path** must connect to ≥1 node, or `export` fails. **Exception:**
+4. Every node **in the traversal path** must connect to ≥1 node, or `export` fails.
    `Dictionary` and `Provider` configuration nodes are referenced *by name* (`dictionary[]=`,
-   `provider=`) — not traversed — and need **no** connections; optionally group them under a
-   `graph.island` node purely for organization.
+   `provider=`) and are **not traversed** — but the convention is still **no node left
+   unconnected**: wire them under a `graph.island` node
+   (`root -[contains]-> island -[data]-> dictionary -[provider]-> provider`) so the graph carries
+   the entity-relationship knowledge — see [Island](#island).
 5. A node is **executed once** per run (loop guard); a `graph.math` `RESET` statement is the only
    escape, for advanced re-execution.
 6. `instantiate graph` must precede `run` / `execute` / `inspect`.
