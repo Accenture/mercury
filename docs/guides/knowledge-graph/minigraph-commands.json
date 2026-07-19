@@ -35,7 +35,7 @@
     "classpath(text:/data/f.txt)": "like file(), resolved against the app's resource roots",
     "_valid_where": "any mapping SOURCE: mapping[]/input[]/output[] left-hand side, instantiate seed lines",
     "_deprecated": "the ':type' suffix (simple type matching) is deprecated and must not be generated; a ':' in a Dictionary input[] entry is a DEFAULT VALUE only",
-    "_non_constant_sources": "two further source forms are valid in mappings (shared Event Script mapping engine): 'f:plugin(args...)' simple-plugin invocations (the modern :type replacement; catalog in guides/event-script/syntax.md#simple-plugins) and '$....' JSONPath (prefer plain dot-bracket keys)"
+    "_non_constant_sources": "two further source forms are valid in mappings (shared Event Script mapping engine): 'f:plugin(args...)' simple-plugin invocations (the modern :type replacement - e.g. generators f:uuid() and f:now(text(local)) for the current date-time at execution (iso/local/ms), arithmetic f:add(...), logic f:ternary(...); FULL catalog in guides/event-script/syntax.md#simple-plugins) and '$....' JSONPath (prefer plain dot-bracket keys)"
   },
   "traversal": {
     "fork": "a node with multiple outgoing connections forks traversal into PARALLEL branches (one per connection, executed concurrently)",
@@ -74,7 +74,7 @@
       "syntax": "delete connection {node-a} and {node-b}", "example": "delete connection root and end" },
     { "name": "instantiate graph", "multiline": true, "help": "help instantiate.md", "alias": "start",
       "syntax": "instantiate graph\n{constant} -> input.body.{key}",
-      "notes": ["required before run/execute/inspect", "seed lines optional"],
+      "notes": ["required before run/execute/inspect", "seed lines optional", "seed keys may be composite (dot-bracket), so nested mock payloads seed directly: text(Peter) -> input.body.profile.name"],
       "example": "instantiate graph\nint(100) -> input.body.profile_id\ntext(application/json) -> input.header.content-type" },
     { "name": "run", "multiline": false, "help": "help run.md",
       "syntax": "run", "notes": ["traverse from root to end"], "example": "run" },

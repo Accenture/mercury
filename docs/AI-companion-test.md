@@ -38,7 +38,8 @@
 | **L3 — synthesis / problem-solving** | 4 | *design* a correct solution to a stated **problem + output contract**, with **no syntax hints** | problem statement only | build whole graph, pause for dry-run | **behavioral**: dry-run honors the contract on every branch |
 | **L4 — composition** | 5 | *compose* mechanisms (parallel fan-out + join barrier + data sourcing + list assembly) from a problem + contract, no syntax hints | problem statement only | build whole graph, pause for dry-run | **behavioral** + demonstrable parallelism (traversal-log timing) |
 | **L5 — data-driven iteration** | 6 | chained multi-step fetch where the fan-out set is **runtime data** (`for_each` inside a fetcher), incl. a POST provider | problem statement only | build whole graph, pause for dry-run | **behavioral**: every element of the runtime list fetched + assembled; nothing hardcoded |
-| **L6+ …** | 7–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
+| **L6 — mapping-language depth** | 7 | the data-mapping mini-language end-to-end: constants, nested extraction, ordered array assembly, execution-time `f:` plugin values — pure transformation, no backends | problem statement only | build whole graph, pause for dry-run | **behavioral**: exact reshaped contract incl. a genuinely runtime-generated value |
+| **L7+ …** | 8–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -275,6 +276,38 @@
   `skills.rs` → `get_lhs_or_constant` → `f:` dispatch); the in-band help even recommends `f:` as the
   `:type` replacement.
 
+### Tutorial 7 — L6 (mapping-language depth) — PASSED (first attempt; the cleanest run yet)
+- **Task (problem only, no syntax hints):** a **pure transformation** graph, no backends. Input
+  `{profile: {name, address1, address2}}`; output contract
+  `{hello: "world" (literal), name, address: [address1, address2] (ordered), time: <current local
+  date-time generated at execution — not a constant>}`. Tutorial-7's focus is the **data-mapping
+  mini-language**: constants, nested extraction, array assembly, plugin functions.
+- **Pre-flight (maintainer prompt):** the tutorial needs the `f:now()` simple plugin and not all
+  Java plugins were assumed converted — verified **present and correct** in the port (registry +
+  `plugins_e8.rs` + a live scratch-session probe: `iso`/`local`/`ms` all working in a real graph
+  mapping) before briefing; no engine work needed. Also noted: the tutorial help pages carry
+  known errors (backlog #16) — the canonical walkthrough itself recommends direct addressing over
+  its own append+clear (`model.none`) sequence.
+- **Result: PASSED — 8/8 commands `ok:true`, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass** (session `ws-783755-2`). Output verbatim:
+  `{"address":["100 World Blvd","New York"],"hello":"world","name":"Peter","time":"2026-07-19 08:54:28.815"}`;
+  independently re-run by the orchestrator (fresh timestamp proved execution-time generation).
+- **The updated grammar visibly drove the design:** indexed `address[0]/[1]` chosen **with the
+  documented determinism-vs-append rationale** (#23/#25 in action); `f:now(text(local))`
+  discovered by following the #21 pointer from the KG grammar into the **event-script plugin
+  catalog** (the cross-layer llms.txt map worked); nested seed lines
+  (`text(Peter) -> input.body.profile.name`) inferred from the composite-key rule; and **no
+  cargo-cult island** — the companion correctly reasoned the #22 mandate doesn't apply to a graph
+  with no config/data-entity nodes.
+- **Judged vs canonical `tutorial-7.json`:** semantically equivalent and **more economical** —
+  2 nodes (`root` → `end`-as-mapper, per the docs' own recipe) vs canonical's 3 (separate mapper +
+  skill-less end); the companion independently landed on the walkthrough's own "better solution"
+  (direct addressing, no `model.none` clearing needed).
+- **Frictions (inference-only, both fixed same day → rollup #26/#27):** the KG grammar named no
+  example `f:` plugin (an agent must realize the timestamp answer lives a layer down) → generator
+  examples now inline; nested composite keys in `instantiate` seed lines were implied but never
+  shown → nested-seed example added.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -306,3 +339,5 @@
 | 23 | Tut-5 retest | **array-index mapping targets were never shown** — the lexical rules said keys "may be composite (dot-bracket)" but no doc had a worked example of building a JSON list in a mapper target (`… -> output.body.profile[0]`), the natural post-join assembly idiom; the companion inferred it correctly | **DONE** (2026-07-19) — "Composite keys & arrays" block in `command-reference.md#namespaces` + indexed-assembly example in `skills-reference.md#data-mapper` + `composite_keys` lexical note in `minigraph-commands.json` |
 | 24 | Tut-5 retest | **whole-subtree Dictionary output mapping was only implied** — examples mapped leaf paths (`response.profile.name -> result.name`); that an interior path (`response.profile -> result.profile`) yields the entire subtree was never stated; the companion inferred it correctly | **DONE** (2026-07-19) — leaf-vs-interior rule + examples in `command-reference.md#provider-dictionary` (and the composite-keys block) + the Dictionary `output` note in `minigraph-commands.json` |
 | 25 | maintainer | the **`[]` array-append target** (`… -> output.body.profile[]` appends an element, creating the list with the first element when absent) was absent from the KG grammar — and the parallel state-safety wording ("write to disjoint keys") over-restricted: data mapping is **thread-safe**, so concurrent appends carry no racing risk (element order follows completion order) | **DONE** (2026-07-19, engine-verified: `mlm.rs` `appendIndex` parity; the state mutex serializes mapping ops) — append + thread-safety + ordering guidance in the composite-keys block, `#connect` state-safety refined, `graph.join` gotcha aligned, `array_append` note in `minigraph-commands.json` |
+| 26 | Tut 7 | the KG grammar named **no example `f:` plugin** — an agent needing an execution-time value (timestamp, uuid) must realize the answer lives a layer down in the event-script plugin catalog; the pointer existed but carried no scent | **DONE** (same day) — generator/arithmetic/logic examples (`f:now(text(local))`, `f:uuid()`, …) inlined in the `#constants` non-constant-sources row + `minigraph-commands.json` |
+| 27 | Tut 7 | **nested composite keys in `instantiate` seed lines** were implied by the global lexical rule but never shown — every example seeded flat keys | **DONE** (same day) — nested-seed example (`text(Peter) -> input.body.profile.name`) in `command-reference.md#instantiate` + a note in `minigraph-commands.json` |

@@ -105,7 +105,7 @@ skills share Event Script's mapping engine):
 
 | Form | Meaning |
 |---|---|
-| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation (e.g. `f:concat(model.a, text(!))`) — the modern replacement for the deprecated `:type` suffixes; plugin catalog in the Event Script syntax page |
+| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`. **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
 | `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it) |
 
 ## Commands {#commands}
@@ -173,6 +173,14 @@ instantiate graph
 instantiate graph
 int(100) -> input.body.profile_id
 text(application/json) -> input.header.content-type
+```
+
+Seed keys may be **composite** (dot-bracket), so nested mock payloads seed directly:
+
+```
+instantiate graph
+text(Peter) -> input.body.profile.name
+text(100 World Blvd) -> input.body.profile.address1
 ```
 
 ### run / execute / inspect {#run}
