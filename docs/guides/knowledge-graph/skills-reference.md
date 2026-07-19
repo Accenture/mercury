@@ -57,6 +57,14 @@ mapping[]=input.body.hr_id -> employee.id
 mapping[]=input.body.join_date -> employee.join_date
 ```
 
+Targets take **numeric list indices** too — the idiom for assembling a JSON list deterministically
+(e.g. an `end` mapper after a fork/join):
+
+```
+mapping[]=fetch-one.result.profile -> output.body.profile[0]
+mapping[]=fetch-two.result.profile -> output.body.profile[1]
+```
+
 ## graph.math {#math}
 
 Fast inline math and boolean evaluation for computation and decision-making. This is **the** skill
@@ -228,8 +236,10 @@ connect join to combine with proceed
 **Gotchas:** needs at least two predecessors to be meaningful; it is the explicit fork-join
 mechanism — without it, traversal proceeds as branches complete. The fork side needs no special
 node: **multiple outgoing connections from one node run their branches in parallel** (see
-[connect](command-reference.md#connect)); give each branch its own `model.*` scratch keys so
-concurrent writes don't collide.
+[connect](command-reference.md#connect)). Data mapping is thread-safe, but branches should not
+overwrite the **same scalar key** (last writer wins) — use per-branch `model.*` keys, or the
+race-free `[]` **list append** (element order then follows completion order; use numeric indices
+after the join when order must be deterministic).
 
 ## graph.island {#island}
 

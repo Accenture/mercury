@@ -16,6 +16,8 @@
     "node_type": "a descriptive label; examples capitalize structural types (Root, End, Provider, Dictionary, Fetcher, Island)",
     "reserved_names": { "root": "the root/entry node must be named 'root'", "end": "the end/exit node must be named 'end'" },
     "property": "key=value; keys may be composite using dot-bracket notation",
+    "composite_keys": "every mapping source and target addresses nested data with dot-bracket keys, INCLUDING numeric list indices on the target side ('fetch-one.result.profile -> output.body.profile[0]' sets list slot 0 - the deterministic post-join assembly idiom); a non-leaf (interior) path maps the WHOLE subtree ('response.profile -> result.profile' captures the entire object, 'response.accounts' an entire array)",
+    "array_append": "an EMPTY index in a target appends one element to the list, creating the list with the first element when absent ('model.fetcher-one -> output.body.profile[]'); data mapping is thread-safe, so concurrent appends from parallel branches carry no racing risk - but element order follows completion order (undetermined across branches); use [] when order does not matter, numeric indices when it must be deterministic",
     "list_property": "a 'key[]=entry' line appends one entry to the list 'key'; repeat to add more",
     "multiline_value": "wrap a value in triple single quotes ''' ... ''' to span lines",
     "constant": "type(value) — the CLOSED set in the 'constants' object below; no other constant/coercion form exists (the legacy ':type' suffix is deprecated — never generate it)",
@@ -171,7 +173,7 @@
     "Dictionary": {
       "properties": ["purpose", "provider", "input[]", "output[]"],
       "input": "BARE parameter names, NOT source->target mappings (the one exception to the mapping rule); optional ':{default}' suffix supplies a default value (input[]=detail:true) — the ONLY meaning of ':' here",
-      "output": "maps the Provider's raw HTTP response body (response.*) into the result set (result.{key}) exposed by the fetcher",
+      "output": "maps the Provider's raw HTTP response body (response.*) into the result set (result.{key}) exposed by the fetcher; the source may be a leaf ('response.profile.name -> result.name') or an INTERIOR path mapping the whole subtree ('response.profile -> result.profile' = the entire object, 'response.accounts -> result.account_numbers' = the entire array)",
       "notes": ["a fetcher's input[] targets must MATCH the dictionary parameter names or execution fails",
                 "several Dictionary nodes may share one Provider; identical calls (same provider + same input values) are deduplicated into one HTTP request"],
       "example": "create node person-profile\nwith type Dictionary\nwith properties\npurpose=full profile record of a person\nprovider=mdm-profile\ninput[]=person_id\noutput[]=response.profile.name -> result.name\noutput[]=response.profile.address -> result.address"

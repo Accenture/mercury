@@ -54,6 +54,33 @@ mappings):
 | `response.*` | a **data Provider's** raw HTTP response — used in a **Dictionary** node's `output[]` | ✓ (in a dictionary mapping) | (set by the fetch) |
 | `result.*` | a **Dictionary/Fetcher** result set | ✓ | (set by the skill) |
 
+**Composite keys & arrays.** Every mapping source and target addresses nested data with the
+**dot-bracket** convention — including **numeric list indices**, on the target side too. A numeric
+index in a target creates/sets that list slot, which is the natural idiom for assembling a JSON
+list deterministically (e.g. after a parallel fork/join):
+
+```
+mapping[]=fetch-one.result.profile -> output.body.profile[0]
+mapping[]=fetch-two.result.profile -> output.body.profile[1]
+```
+
+An **empty index appends**: `[]` in a target adds one element to the end of the list — and
+creates the list with that first element when it does not yet exist:
+
+```
+output[]=model.fetcher-one -> output.body.profile[]
+output[]=model.fetcher-two -> output.body.profile[]
+```
+
+Data mapping is **thread-safe** (state-machine operations are serialized), so concurrent `[]`
+appends from parallel branches carry **no racing risk** — but their **element order follows
+completion order**, which is undetermined across parallel branches. Use `[]` when order does not
+matter; use numeric indices (above) when the order must be deterministic.
+
+A **non-leaf (interior) path maps the entire subtree**, not just scalars: a source like
+`fetch-one.result.profile` above carries the whole profile object, and `response.accounts` in a
+Dictionary mapping carries the whole array.
+
 ## Constants {#constants}
 
 A constant is valid wherever a mapping **source** is (a `mapping[]`/`input[]`/`output[]` source, an
@@ -117,8 +144,11 @@ enterprise knowledge.
 A node may have **multiple outgoing connections** — traversal **forks into parallel branches**, one
 per connection, and the branches execute **concurrently**. Synchronize them with a
 [`graph.join`](skills-reference.md#join) barrier node; without one, traversal proceeds as each
-branch completes. Parallel branches must write to **disjoint** state keys (e.g. per-branch
-`model.*` variables) to avoid stepping on each other.
+branch completes. Data mapping is **thread-safe**, but parallel branches should not write the
+**same scalar key** (the last writer wins, nondeterministically) — write to disjoint keys (e.g.
+per-branch `model.*` variables), or **append to a shared list with `[]`**, which is race-free
+(element order then follows completion order — see
+[Composite keys & arrays](#namespaces)).
 
 ### delete {#delete}
 
@@ -309,6 +339,10 @@ output[]=response.{path} -> result.{key}
 - `output[]` maps the Provider's raw HTTP response body (the **`response.*`** namespace) into the
   **result set** (`result.{key}`). The result set is what a fetcher exposes: as the `result.*`
   source inside its own `output[]` mappings, and as `{fetcher-node}.result` to later nodes.
+  The source path may be a **leaf or an interior node** — an interior path maps the **whole
+  subtree**: `response.profile.name -> result.name` extracts one field, while
+  `response.profile -> result.profile` captures the entire profile object and
+  `response.accounts -> result.account_numbers` an entire array.
 - A fetcher's `input[]` **targets must match the dictionary parameter names** exactly, or execution
   fails. Several Dictionary nodes may share one Provider; identical calls (same provider + same
   input values) are **deduplicated** into a single HTTP request.

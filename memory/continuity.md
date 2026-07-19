@@ -153,8 +153,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   criterion: ZERO in-band lookups** (first run needed two), 20/20 ok, first-attempt dry-run pass;
   the companion also wired the **Island knowledge layer unprompted** (#22 verified) and cited the
   documented fork/state-safety rules (#13 verified) — the grammar self-sufficiency claim is now
-  proven end-to-end. Two inference-only frictions → candidates #23 (array-index mapping target
-  example) + #24 (whole-subtree Dictionary output example). **Resume — NEXT:
+  proven end-to-end. Two inference-only frictions → #23 (array-index mapping targets) + #24 (whole-subtree
+  Dictionary output) — **both FIXED same day** (composite-keys block + examples across the
+  grammar docs). **Resume — NEXT:
   tutorial-7.** Same recipe: fresh primary (**verify EMPTY first**), brief = llms.txt + its map,
   drive via `/sync`, watcher subscribes over the WS connection.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
