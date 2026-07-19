@@ -168,8 +168,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   same day with a code-verified syntax+example), and — with NO config nodes — volunteered an
   island with data-entity nodes documenting the domain (#22 shaping designs unprompted). Open:
   #29 (graph.math for_each thinly specified — defer to a tutorial that exercises it) + #30
-  (island scope for pure-transformation graphs — maintainer question; proposed: required with
-  config/data-entity nodes, encouraged otherwise). **Resume — NEXT: tutorial-9.** Same recipe:
+  RESOLVED (maintainer agreed): island required with config/data-entity nodes, encouraged
+  otherwise — landed in the grammar; `listOfMap`/JSONPath impedance-matching rationale captured
+  in syntax.md. **Resume — NEXT: tutorial-9.** Same recipe:
   fresh primary (**verify EMPTY first**), brief = llms.txt + its map, drive via `/sync`, watcher
   subscribes over the WS connection; tutorial help pages carry known errors (backlog
   [[ot-help-pages-rewrite]]) — derive contracts carefully.

@@ -108,10 +108,11 @@ A reliable order for building a graph:
 2. **Create nodes:** `create node root` (type `Root`), the active/skill nodes, and `create node end`
    (type `End`, usually with `graph.data.mapper` to shape `output.body`).
 3. **Connect** them so traversal flows root → end, with no orphans.
-4. **Wire the knowledge layer:** if the graph has `Dictionary`/`Provider` (or data-entity) nodes,
-   create an `Island` (`skill=graph.island`) and connect
-   `root -[contains]-> island -[data]-> dictionary -[provider]-> provider` — **no node is left
-   unconnected** ([required convention](command-reference.md#island)).
+4. **Wire the knowledge layer:** whenever the graph has `Dictionary`/`Provider` or data-entity
+   nodes, an `Island` (`skill=graph.island`) is **required** — connect
+   `root -[contains]-> island -[data]-> dictionary -[provider]-> provider`; **no node is left
+   unconnected**. For a graph with none, an island with data-entity nodes documenting the domain
+   is **encouraged** ([convention](command-reference.md#island)).
 5. **Instantiate** with mock input: `instantiate graph` + `{constant} -> input.body.{key}` lines.
 6. **Run and inspect:** `run` (or `execute {node}`), then `inspect output.body`; iterate.
    (`{node}` is a placeholder — you write e.g. `execute fetcher`, `inspect output.body`.)

@@ -1500,6 +1500,9 @@ Please note that the validation rule uses semicolon as separator because comma i
 *JSON-Path helpers*
 
 The listOfMap and updateListOfMap plugins are designed to handle the search result of JSON-Path.
+Together they serve **"impedance matching"** between external and internal API contracts: when a
+third-party response's data structure does not fit your internal schema, JSON-Path wildcard
+extraction plus these consolidation plugins reshape it declaratively — no custom code.
 
 The `listOfMap(map1, map2, ...)` plugin re-arranges one or more maps of lists back to a list of maps.
 

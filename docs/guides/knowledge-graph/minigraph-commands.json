@@ -155,7 +155,7 @@
       "example": "skill=graph.join" },
     { "route": "graph.island", "help": "help graph-island.md", "required": [], "optional": [],
       "notes": ["always returns .sink - isolated from traversal, never executed",
-                "REQUIRED CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - wire every Dictionary/Provider/data-entity node under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider); leave no node unconnected",
+                "CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - REQUIRED whenever the graph has Dictionary/Provider/data-entity nodes: wire every one under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), leave no node unconnected; ENCOURAGED for graphs with none (add data-entity nodes documenting the domain model)",
                 "relation labels are descriptive/free-form; contains/data/provider are the shipped conventions"],
       "example": "skill=graph.island" }
   ],

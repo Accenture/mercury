@@ -450,8 +450,11 @@ island turns the graph into **living documentation of enterprise knowledge** —
 agent) reads the connected dictionaries and entities to discover the domain model, not just the
 execution path.
 
-**Convention (required): leave no node unconnected.** Wire every config node into the knowledge
-structure:
+**Convention: leave no node unconnected.** The island is **required** whenever the graph has
+config or data-entity nodes (Dictionary, Provider, domain entities) — wire every one of them into
+the knowledge structure. For a graph with none (e.g. a pure transformation), an island is
+**encouraged**: adding data-entity nodes that document the domain model (entities, fields, which
+fields are internal-only) turns even a small graph into discoverable enterprise knowledge.
 
 ```
 create node dictionary
