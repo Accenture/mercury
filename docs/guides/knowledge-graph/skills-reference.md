@@ -163,7 +163,9 @@ input[]=input.body.department_id -> id
 output[]=result.sales_performance -> output.body.sales_performance
 ```
 
-This is the seam between the semantic layer and the composable (Event Script) layer beneath it.
+This is the seam between the semantic layer and the composable (Event Script) layer beneath it —
+authoring the target flow: [Event Script AI agent guide](../event-script/ai-agent-guide.md) +
+[flow grammar](../event-script/flow-grammar.md).
 
 ## graph.task {#task}
 
@@ -198,7 +200,8 @@ and the body auto-converts when the function declares a PoJo input. The result l
 
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s). For multi-step orchestration, prefer [`graph.extension`](#extension) —
-`graph.task` is for a single function call.
+`graph.task` is for a single function call. Writing the function itself:
+[function AI agent guide](../event-driven/ai-agent-guide.md) (`#[preload]` + `ComposableFunction`).
 
 ## graph.join {#join}
 

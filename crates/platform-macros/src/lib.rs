@@ -42,6 +42,18 @@
 //! #[zero_tracing]              // this route never traces its own executions
 //! struct SystemService;
 //! ```
+//!
+//! `#[optional_service("condition")]` is a **first-class attribute** (the Java
+//! `@OptionalService` analog): it makes a composable function, a websocket
+//! server function, a `#[before_application]` or a `#[main_application]`
+//! conditional on application configuration, and works in **either stacking
+//! order** — above or below the primary attribute:
+//!
+//! ```ignore
+//! #[optional_service("app.env=dev")]   // Java order: the condition on top
+//! #[preload(route = "dev.only.service")]
+//! struct DevOnlyService;
+//! ```
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -66,12 +78,8 @@ use syn::{parse_macro_input, ItemStruct, LitInt, LitStr};
 ///   receives the raw envelope (`reply_to`/`cid` intact) and replies manually
 ///   via `po.send`; the worker sends no auto-reply on success (also available
 ///   as the `interceptor` flag parameter).
-/// - `#[optional_service("condition")]` — the Java `@OptionalService`: the
-///   route registers only when the configuration condition holds (evaluated at
-///   startup, Java `Feature.isRequired` semantics — comma-separated OR, `!key`
-///   negation, `key=value` / `key` / `key=` forms, case-insensitive). Example:
-///   `#[optional_service("app.env=dev")]` registers the route only in dev. Also
-///   available as the `optional_service = "condition"` parameter.
+/// - `#[optional_service("condition")]` — see [`optional_service`]: a
+///   first-class attribute that also works stacked *above* this one.
 ///
 /// The struct must be a unit struct or implement `Default`.
 #[proc_macro_attribute]
@@ -79,7 +87,6 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut route: Option<LitStr> = None;
     let mut instances: usize = 1;
     let mut env_instances: Option<LitStr> = None;
-    let mut optional_service: Option<LitStr> = None;
     let mut typed = false;
     let mut zero_tracing = false;
     let mut interceptor = false;
@@ -91,8 +98,6 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             instances = lit.base10_parse()?;
         } else if meta.path.is_ident("env_instances") {
             env_instances = Some(meta.value()?.parse()?);
-        } else if meta.path.is_ident("optional_service") {
-            optional_service = Some(meta.value()?.parse()?);
         } else if meta.path.is_ident("typed") {
             typed = true;
         } else if meta.path.is_ident("zero_tracing") {
@@ -102,7 +107,8 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
         } else {
             return Err(meta.error(
                 "unknown preload parameter (expected route, instances, env_instances, \
-                 optional_service, typed, zero_tracing, interceptor)",
+                 typed, zero_tracing, interceptor; a conditional registration is declared \
+                 with the separate #[optional_service(\"...\")] attribute)",
             ));
         }
         Ok(())
@@ -117,11 +123,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     // consume stacked marker attributes (Java annotation stacking)
     zero_tracing |= strip_marker(&mut item, "zero_tracing");
     interceptor |= strip_marker(&mut item, "event_interceptor");
-    // `#[optional_service("...")]` marker (arg-carrying) wins over the param form
-    if let Some(cond) = strip_optional_service(&mut item) {
-        optional_service = Some(cond);
-    }
-    let optional_expr = optional_service_expr(&optional_service);
+    let optional_expr = optional_service_expr(&strip_optional_service(&mut item));
     let construct = constructor(&item);
     let factory = if typed {
         quote!(::platform_core::TypedAdapter::arc(#construct))
@@ -231,6 +233,73 @@ pub fn before_application(args: TokenStream, input: TokenStream) -> TokenStream 
 #[proc_macro_attribute]
 pub fn main_application(args: TokenStream, input: TokenStream) -> TokenStream {
     entry_point_attribute(args, input, quote!(MainAppEntry), 10)
+}
+
+/// The Java `@OptionalService("condition")` analog — a **first-class**
+/// attribute that makes a composable function (`#[preload]`), a websocket
+/// server function (`#[websocket_service]`), a `#[before_application]` or a
+/// `#[main_application]` **conditional on application configuration**: the
+/// item registers only when the condition holds at startup (Java
+/// `Feature.isRequired` semantics — comma-separated OR, `!key` negation,
+/// `key=value` / `key` / `key=` forms, case-insensitive).
+///
+/// Works in **either stacking order**:
+///
+/// ```ignore
+/// #[optional_service("app.env=dev")]      // Java order — condition on top
+/// #[preload(route = "dev.only.service")]
+/// struct DevOnly;
+///
+/// #[preload(route = "also.dev.only")]     // marker order — condition below
+/// #[optional_service("app.env=dev")]
+/// struct AlsoDevOnly;
+/// ```
+///
+/// When written above the primary attribute, this macro expands first and
+/// re-attaches the condition below it, where the primary attribute consumes
+/// it; when written below, the primary attribute consumes it directly. Using
+/// it without one of the four primary attributes is a compile error.
+#[proc_macro_attribute]
+pub fn optional_service(args: TokenStream, input: TokenStream) -> TokenStream {
+    let condition = match syn::parse::<LitStr>(args) {
+        Ok(lit) if !lit.value().trim().is_empty() => lit,
+        _ => {
+            return syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "#[optional_service] requires a condition string, \
+                 e.g. #[optional_service(\"app.env=dev\")]",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+    let mut item = parse_macro_input!(input as ItemStruct);
+    // The condition must reach one of the primary attributes still on the item
+    // (they expand after this macro and consume the marker it re-attaches).
+    const PRIMARIES: [&str; 4] = [
+        "preload",
+        "websocket_service",
+        "before_application",
+        "main_application",
+    ];
+    let has_primary = item.attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .last()
+            .is_some_and(|seg| PRIMARIES.contains(&seg.ident.to_string().as_str()))
+    });
+    if !has_primary {
+        return syn::Error::new_spanned(
+            &item.ident,
+            "#[optional_service] must be stacked with #[preload], #[websocket_service], \
+             #[before_application] or #[main_application]",
+        )
+        .to_compile_error()
+        .into();
+    }
+    item.attrs
+        .push(syn::parse_quote!(#[optional_service(#condition)]));
+    quote!(#item).into()
 }
 
 fn entry_point_attribute(

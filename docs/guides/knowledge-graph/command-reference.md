@@ -414,5 +414,9 @@ Hard rules the engine enforces — violate them and generation fails:
 - [`minigraph-commands.json`](minigraph-commands.json) — the machine-readable form of this grammar.
 - [AI agent guide](ai-agent-guide.md) — driving the Playground via the companion endpoint.
 - [Built-in skills reference](skills-reference.md) — per-skill semantics and examples.
-- The mapping syntax (`source -> target`) and [constant set](#constants) are shared with Event
-  Script; this page is self-contained — the constants above are the full set.
+- The mapping syntax (`source -> target`) and [constant set](#constants) are shared with
+  [Event Script](../event-script/syntax.md#tasks-and-data-mapping); this page is self-contained —
+  the constants above are the full set.
+- [Event Script flow grammar](../event-script/flow-grammar.md) — authoring the flows a
+  `graph.extension` node calls via `flow://{flow-id}`; [function AI agent guide](../event-driven/ai-agent-guide.md)
+  — the composable functions a `graph.task` node calls.

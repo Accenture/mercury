@@ -47,6 +47,10 @@
 | 28 | knowledge-graph K-7b: the Playground (command grammar, traveler, companion API, dev-gating K9) | 2026-07-17 | KG K9 | 181 |
 | 29 | knowledge-graph K-8: React webapp + `minigraph-playground` app — **LAYER 3 MILESTONE CLOSED** | 2026-07-18 | KG K7/K8 | 181 |
 | 30 | `#[optional_service]` macro (Java `@OptionalService`) + dev mock data providers | 2026-07-18 | KG K9 | 188 |
+| 31 | full declarative dev-gating for the Playground (`#[optional_service]` on all registration kinds) | 2026-07-18 | KG K9 | — |
+| 32 | `inspect` docs: `{…}` is a placeholder, not literal (both repos) | 2026-07-18 | — | — |
+| 33 | `serializer.null.transport` (Java null-omission parity) | 2026-07-18 | D3 | — |
+| 34 | `#[optional_service]` promoted to a first-class, order-independent attribute | 2026-07-19 | KG K9 | 201 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -876,6 +880,31 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   omitted on success. Full workspace green (the only failure is the pre-existing two-`#[tokio::test]`-
   per-binary `graph_runtime` boot flake — reproduces on HEAD, unrelated). fmt + clippy clean.
 - **Java side:** unchanged — it is the source of truth this mirrors.
+
+---
+
+## Increment 34 — `#[optional_service]` promoted to a first-class attribute (2026-07-19)
+
+- **Maintainer direction:** `OptionalService` is a first-class citizen annotation — it makes a
+  composable function, a websocket server function, a `#[before_application]` or a
+  `#[main_application]` optional. It must not live only *inside* the `#[preload]` macro.
+- **Before:** `#[optional_service("…")]` was an **inert marker** consumed by the four registration
+  macros — it only compiled when written *below* them (attribute macros expand top-down), and
+  `#[preload]` additionally accepted an `optional_service = "…"` parameter. The Java annotation
+  order (`@OptionalService` on top) failed with *cannot find attribute*.
+- **After:** `platform-macros` gains a real `#[proc_macro_attribute] optional_service`:
+  written **above** a registration attribute it validates the condition, checks one of the four
+  primaries is present (helpful compile error otherwise), and re-attaches the condition below,
+  where the primary consumes it — so **both stacking orders work**. The redundant
+  `optional_service = "…"` `#[preload]` parameter is **removed** (nothing used it; one canonical
+  form, the Java way). Re-exported from `platform_core` alongside the other macros.
+- **Tests:** `annotations.rs` — condition-above registers (`anno.gated.on`), condition-below still
+  registers (`anno.gated.below`), unsatisfied condition skips (`anno.gated.off`), and a gated
+  `#[before_application]` never runs (proven by the exact journal-sequence assertion). Workspace:
+  **201 tests**, clippy 0, fmt clean.
+- **Docs:** `docs/guides/event-driven/ai-agent-guide.md` — `optional_service` removed from the
+  `#[preload]` parameter table; new first-class `#[optional_service]` subsection (all four kinds,
+  either order, condition semantics). `platform-macros` crate docs updated the same way.
 
 ---
 

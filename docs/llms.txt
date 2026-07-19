@@ -36,6 +36,28 @@ These are self-contained; you should not need the engine source or the tutorial 
   operators only — no bitwise operators, no function calls, no variables; `COMPUTE` yields a double
   (integers serialize as e.g. `8.0`).
 
+## Layer 2 — Event Script (composable orchestration): flows and tasks
+Needed when a graph composes onto flows (`graph.extension` with `flow://`) or when authoring flow
+YAML directly. **The flow YAML syntax is identical to the Java engine's** — flow files port
+unchanged; only the functions are written differently (Rust):
+
+- [Flow AI agent guide](guides/event-script/ai-agent-guide.md) — authoring flows deterministically:
+  compile contract, pre-write checklist, recipe, worked examples.
+- [Flow grammar](guides/event-script/flow-grammar.md) — the rules: flow structure, task fields, the
+  eight execution types, the data-mapping mini-language.
+- [`event-script-flow.json`](guides/event-script/event-script-flow.json) — the machine-readable flow
+  schema; ingest and validate against it.
+- [Event Script Syntax](guides/event-script/syntax.md) — the full reference with worked examples:
+  data-mapping catalog (constants, arrays, JSONPath, runtime model variables), all task types,
+  pipelines/loops, Simple Plugins (`f:` functions), exception handling, external state machine.
+
+## Layer 1 — platform-core: composable functions
+Needed when a flow task or a graph's `graph.task` calls a custom function:
+
+- [Function AI agent guide](guides/event-driven/ai-agent-guide.md) — the Rust authoring contract:
+  `#[preload]` attribute, `ComposableFunction`/`TypedFunction` traits, pre-write checklist,
+  PostOffice RPC patterns, serialization rules, worked example with rest.yaml wiring.
+
 ## Design & project docs (human-facing)
 - `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and
   `ai-companion-sync.md` for the synchronous companion endpoint).

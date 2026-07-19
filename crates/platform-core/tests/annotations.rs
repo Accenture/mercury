@@ -31,8 +31,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use platform_core::{
-    before_application, main_application, overrides, preload, resources, trace, AppError,
-    AutoStart, ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
+    before_application, main_application, optional_service, overrides, preload, resources, trace,
+    AppError, AutoStart, ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice,
+    TypedFunction,
 };
 
 static JOURNAL: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
@@ -146,6 +147,76 @@ impl ComposableFunction for AnnoInterceptor {
     }
 }
 
+/// `#[optional_service]` as a first-class attribute (Java `@OptionalService`),
+/// written ABOVE the primary attribute — Java stacking order. A satisfied
+/// condition registers the route.
+#[optional_service("profile.indicator=base")]
+#[preload(route = "anno.gated.on")]
+struct GatedOn;
+
+#[async_trait]
+impl ComposableFunction for GatedOn {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new().set_body("gated on")
+    }
+}
+
+/// An unsatisfied condition (above-order) skips registration silently.
+#[optional_service("profile.indicator=no-such-profile")]
+#[preload(route = "anno.gated.off")]
+struct GatedOff;
+
+#[async_trait]
+impl ComposableFunction for GatedOff {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new().set_body("never registered")
+    }
+}
+
+/// The marker order (condition BELOW the primary attribute) keeps working.
+#[preload(route = "anno.gated.below")]
+#[optional_service("profile.indicator=base")]
+struct GatedBelow;
+
+#[async_trait]
+impl ComposableFunction for GatedBelow {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new().set_body("gated below")
+    }
+}
+
+/// `#[optional_service]` gates entry points too: this hook must never run
+/// (its journal entry would break the exact-sequence assertion below).
+#[optional_service("profile.indicator=no-such-profile")]
+#[before_application(sequence = 7)]
+struct SkippedHook;
+
+#[async_trait]
+impl EntryPoint for SkippedHook {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        journal()
+            .lock()
+            .expect("journal mutex")
+            .push("before-7-skipped".into());
+        Ok(())
+    }
+}
+
 #[before_application(sequence = 5)]
 struct SecondHook;
 
@@ -209,6 +280,18 @@ async fn annotation_macros_end_to_end() {
     assert!(platform.has_route("anno.typed.echo"));
     assert!(platform.has_route("anno.untyped.echo"));
     assert!(platform.has_route("anno.zero.traced"));
+
+    // #[optional_service] is first-class and order-independent: a satisfied
+    // condition registers (both stacking orders); an unsatisfied one skips
+    assert!(platform.has_route("anno.gated.on"), "condition-above order");
+    assert!(
+        platform.has_route("anno.gated.below"),
+        "condition-below order"
+    );
+    assert!(
+        !platform.has_route("anno.gated.off"),
+        "unsatisfied condition must skip registration"
+    );
     // instance counts: the literal for the typed echo; env_instances (7 from
     // the override) beats the literal 2 for the untyped one
     assert_eq!(platform.instances("anno.typed.echo"), Some(4));
