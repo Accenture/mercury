@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 37 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 38 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-215701)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-223012)
 - **last_review:** 2026-07-19 | through 2026-07-19-165609
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -167,7 +167,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   companion chose the canonical's own "easier" `f:removeKey` route (form inferred → #28 FIXED
   same day with a code-verified syntax+example), and — with NO config nodes — volunteered an
   island with data-entity nodes documenting the domain (#22 shaping designs unprompted). Open:
-  #29 (graph.math for_each thinly specified — defer to a tutorial that exercises it) + #30
+  #29 (graph.math for_each thinly specified — CLOSED 2026-07-19, increment 38: engine-verified
+  probe `rust-foreach.json` + `#math-for-each` grammar section across all four doc surfaces;
+  the probe also surfaced that COMPUTE doubles don't feed the whole-number-only `f:add` —
+  accumulators stay in COMPUTE) + #30
   RESOLVED (maintainer agreed): island required with config/data-entity nodes, encouraged
   otherwise — landed in the grammar; `listOfMap`/JSONPath impedance-matching rationale captured
   in syntax.md. **Tut-9 (L8, reuse under governance: off-path `graph.math`

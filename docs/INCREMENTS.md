@@ -54,6 +54,7 @@
 | 35 | companion `/sync` ok-heuristic: whole-output classification (finding #40, both ports) | 2026-07-19 | ADR-0008 | — |
 | 36 | HTTP-boundary content-type dispatch: exact Java parity (no sniffing, binary path, form fields) | 2026-07-19 | D10 | — |
 | 37 | Spring config names retired: `APP_PROFILES_ACTIVE`/`app.profiles.active` rename + `application.name` alone for the app name | 2026-07-19 | §8 Q1 | 202 |
+| 38 | `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (finding #29) — probe fixture + grammar/catalog/help docs | 2026-07-19 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -976,6 +977,35 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   key, so the Rust port reads it alone; the default aligns to Java's `"application"`
   (was an unnoted `"untitled"` divergence). All repo configs already used
   `application.name`, so nothing else moved.
+
+---
+
+## Increment 38 — `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (2026-07-19)
+
+**Closes sweep finding #29 — the last thinly-specified corner of the statement grammar.**
+
+- **Verification first:** Java `GraphMath.executeNode`/`executeForEach`/`splitBlocks` read
+  side-by-side with the Rust port (line-for-line parity), then a probe fixture
+  (`tests/resources/graph/rust-foreach.json`) + permanent test
+  `math_for_each_blocks_and_iteration` (`graph_runtime.rs`) pinned every behavior empirically:
+  pre/each/post blocks around `BEGIN`/`END` (no `BEGIN` ⇒ the whole list loops — including any
+  accumulator seeding), strictly sequential in-order iteration inside **one** node execution
+  (no loop-guard interaction), lockstep parallel arrays (equal lengths enforced), scalar
+  `for_each` entries bind once at resolution, an unresolvable LHS **removes** the model key, a
+  taken `IF` jump breaks the loop and skips the post-block (and routes traversal), empty lists
+  run zero iterations but keep pre/post.
+- **New dialect truth surfaced by the probe:** `COMPUTE` yields doubles while `f:add`/… simple
+  plugins are whole-number-only (Java parity; *"Cannot convert the object to a whole number"*)
+  — numeric accumulators therefore stay inside `COMPUTE` (read the model key back into the
+  expression); `f:add` remains right for integer counters. The documented worked example (line
+  totals with a running sum, `total: 500.0`) is executed verbatim by the probe.
+- **Docs:** new [for_each section](guides/knowledge-graph/command-reference.md#math-for-each)
+  in the command grammar; a structured `for_each` object on the `graph.math` entry in
+  `minigraph-commands.json`; skills-reference paragraph; `help graph-math.md` "Iterating
+  lists" section (webapp bundle re-released — 124 webapp tests green).
+- **Tests:** workspace **202** (the probe runs inside the orchestrating
+  `graph_runtime_end_to_end` test), clippy 0, fmt clean. Rollup #29 → DONE in
+  `docs/AI-companion-test.md`.
 
 ---
 

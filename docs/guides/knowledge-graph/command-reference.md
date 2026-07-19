@@ -620,10 +620,77 @@ ELSE: lt-path
   before the `RESET`. This enables retry loops — see [Failure routing](#failure-routing) — but
   mind the engine's **loop guard**: a node executed too frequently (default >10 visits/second)
   aborts the traversal, so bound every retry loop and pace it with `DELAY:`.
-- `BEGIN` / `END` — delimit a statement block for **`for_each[]`** iterative execution; they are
-  **not** `IF`-block braces.
+- `BEGIN` / `END` — delimit the loop body for **`for_each[]`** iterative execution (they are
+  **not** `IF`-block braces) — see [for_each](#math-for-each).
 - `DELAY: {milliseconds}` — pause **after this node completes**, deferring the walk to the next
   node (paces retries; simulates a slow service).
+
+### `for_each[]` — iterate a statement block over lists {#math-for-each}
+
+The optional node property `for_each[]` turns part of the statement list into a **loop**. Each
+entry has the mapping form `source -> model.{var}` — the RHS **must** be a `model.*` key:
+
+- a **list-valued** source becomes an **iteration array**: its `model.{var}` is rebound to
+  element *i* on each pass. Multiple list entries advance **in lockstep** (parallel arrays) and
+  must all have the **same length** (engine error otherwise). At least one entry must resolve
+  to a list, or the node aborts (*"No data mapping resolved from 'for_each' entries. LHS must
+  be a list."*).
+- a **scalar** source binds its `model.{var}` **once**, at resolution time — before the loop
+  runs, even when the lists are empty.
+- an **unresolvable** source **removes** the `model.{var}` key (not left stale, not nulled).
+
+`BEGIN` / `END` lines split `statement[]` into three blocks:
+
+```
+statement[]=…      ← pre-block: runs ONCE, before the loop
+statement[]=BEGIN
+statement[]=…      ← each-block: runs once PER ELEMENT
+statement[]=END
+statement[]=…      ← post-block: runs ONCE, after the loop
+```
+
+Rules (engine-verified):
+
+- **No `BEGIN` ⇒ the whole statement list is the loop body.** Seed accumulators in a pre-block,
+  or the seeding re-runs on every iteration.
+- Iteration is **strictly sequential, in list order** — element 0 completes before element 1
+  starts. (Contrast: the [fetcher's `for_each`](#for-each) fans HTTP calls out concurrently and
+  only *aggregates* in order.) The whole loop is **one node execution**, so a long list does not
+  trip the traversal loop guard.
+- **A taken `IF` jump breaks the loop:** it ends the current iteration immediately, skips the
+  remaining elements **and the post-block**, and routes traversal to the named node. In the
+  pre-block it skips the loop and post-block the same way. (A `NEXT:` exits too, after its block
+  completes.) An `ELSE: next` falls through to the rest of the iteration.
+- **Empty lists are fine:** the each-block runs zero times; the pre- and post-blocks still run.
+- **Number dialect:** `COMPUTE` yields **doubles**, while the `f:add`/`f:subtract`/… simple
+  plugins are **whole-number-only** (*"Cannot convert the object to a whole number"*) — so a
+  numeric accumulator stays inside `COMPUTE` (read the model key back into the expression, as
+  below). `f:add` remains right for pure integer counters
+  (see [Failure routing](#failure-routing)).
+- `EXECUTE:` inlining happens **before** the blocks are split, so an executed module's
+  statements land at the `EXECUTE:` position and may contribute to (or delimit) the loop body.
+- Without `for_each[]`, `BEGIN`/`END` lines are accepted and ignored.
+
+Worked example (engine-verified) — line totals with a running sum:
+
+```
+create node totaler
+with type Loop
+with properties
+skill=graph.math
+for_each[]=input.body.prices -> model.price
+for_each[]=input.body.quantities -> model.qty
+statement[]=MAPPING: int(0) -> model.total
+statement[]=BEGIN
+statement[]=COMPUTE: total -> {model.total} + {model.price} * {model.qty}
+statement[]=MAPPING: totaler.result.total -> model.total
+statement[]=END
+statement[]=MAPPING: model.total -> output.body.total
+```
+
+With `prices=[10,20,30]` and `quantities=[7,8,9]` the run yields `total: 500.0`: the pre-block
+seeds the accumulator once, each pass computes `total + price*qty` and writes it back to
+`model.total`, and the post-block maps the final value out.
 
 ## Invariants {#invariants}
 

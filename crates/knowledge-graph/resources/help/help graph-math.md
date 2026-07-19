@@ -101,6 +101,63 @@ Traversal control
   wipe - an IF on a just-wiped variable (e.g. {fetcher.status} after
   RESET: fetcher) aborts the run, so a defensive status check goes before it.
 
+Iterating lists (for_each)
+--------------------------
+for_each[] turns part of the statement list into a loop. Each entry has the
+mapping form {source} -> model.{var}; the right-hand side MUST be a model.*
+key.
+
+- A LIST-valued source becomes an iteration array: model.{var} is rebound to
+  element i on each pass. Multiple list entries advance in LOCKSTEP (parallel
+  arrays) and must all have the same length. At least one entry must resolve
+  to a list, or the node aborts.
+- A SCALAR source binds its model.{var} once, before the loop - even when
+  the lists are empty.
+- An UNRESOLVABLE source REMOVES the model.{var} key.
+
+BEGIN and END split the statements into three blocks:
+
+```
+statement[]=...       <- pre-block: runs ONCE, before the loop
+statement[]=BEGIN
+statement[]=...       <- each-block: runs once PER ELEMENT
+statement[]=END
+statement[]=...       <- post-block: runs ONCE, after the loop
+```
+
+- Without BEGIN, the WHOLE statement list is the loop body - seed
+  accumulators in a pre-block, or the seeding re-runs on every iteration.
+- Iteration is strictly SEQUENTIAL, in list order, inside one node execution
+  (a long list does not trip the loop guard). Contrast: the API fetcher's
+  for_each fans HTTP calls out concurrently - see 'help graph-api-fetcher'.
+- A taken IF jump BREAKS the loop: it ends the current iteration, skips the
+  remaining elements and the post-block, and redirects traversal. An
+  "ELSE: next" falls through within the iteration.
+- Empty lists are fine: the each-block runs zero times; pre/post still run.
+- COMPUTE yields doubles, and the f:add family is whole-number-only - keep
+  numeric accumulators inside COMPUTE (read the model key back into the
+  expression), as below.
+
+```
+create node totaler
+with type Loop
+with properties
+skill=graph.math
+for_each[]=input.body.prices -> model.price
+for_each[]=input.body.quantities -> model.qty
+statement[]=MAPPING: int(0) -> model.total
+statement[]=BEGIN
+statement[]=COMPUTE: total -> {model.total} + {model.price} * {model.qty}
+statement[]=MAPPING: totaler.result.total -> model.total
+statement[]=END
+statement[]=MAPPING: model.total -> output.body.total
+```
+
+With prices=[10,20,30] and quantities=[7,8,9] the run yields total: 500.0 -
+the pre-block seeds the accumulator once, each pass computes
+total + price*qty and writes it back, and the post-block maps the final
+value out.
+
 Example
 -------
 ```
@@ -151,7 +208,8 @@ Notes
   with DELAY:.
 - for_each[]={array-source} -> model.{var} iterates a statement block over a
   runtime array; BEGIN / END delimit the block to iterate (they are for_each
-  delimiters, not IF braces).
+  delimiters, not IF braces) - see "Iterating lists" above. Without
+  for_each[], BEGIN/END lines are accepted and ignored.
 - The bounded-retry pattern (RESET the failing node and itself first, count
   attempts with f:defaultValue + f:add, exit at the bound via a taken IF
   jump, NEXT: back, DELAY: to pace) is shown under 'help graph-api-fetcher'.

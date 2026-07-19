@@ -25,3 +25,4 @@ graphs:
   - 'unit-test-task-3'
   - 'unit-test-task-4'
   - 'unit-test-task-5'
+  - 'rust-foreach'

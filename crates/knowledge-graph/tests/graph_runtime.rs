@@ -226,6 +226,113 @@ async fn graph_runtime_end_to_end() {
     companion_sync_returns_outcome_in_band(&platform).await;
     companion_sync_rejects_session_topology_commands(&platform).await;
     companion_sync_import_fallback_reports_ok(&platform).await;
+    math_for_each_blocks_and_iteration(&platform).await;
+}
+
+/// `graph.math` `for_each` + `BEGIN`/`END` semantics (finding #29 spec probe;
+/// Java `GraphMath.executeNode`/`executeForEach`/`splitBlocks` parity):
+/// pre-block once → each-block per element (strictly sequential, loop
+/// variables rebound each iteration) → post-block once; a taken IF jump
+/// breaks the loop and skips the post-block; without BEGIN the whole list is
+/// the loop body; scalar for_each entries bind once; an unresolvable LHS
+/// removes the model key; empty lists skip the body but keep pre/post.
+async fn math_for_each_blocks_and_iteration(platform: &Platform) {
+    // A) happy path: 3 elements, parallel arrays, scalar + unresolvable binds
+    let reply = run_graph(
+        platform,
+        "rust-foreach",
+        serde_json::json!({"items": [7, 8, 9], "prices": [10, 20, 30]}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "run A failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    // pre once, post once — in that order
+    assert_eq!(vec!["pre", "post"], str_list(&mm, "phases"));
+    // strictly sequential iteration; loop variables rebound per element
+    assert_eq!(vec![7, 8, 9], int_list(&mm, "seen"));
+    // parallel arrays bind in lockstep (same index each iteration)
+    assert_eq!(vec![10, 20, 30], int_list(&mm, "prices"));
+    // the each-block ran exactly once per element
+    assert_eq!(Some(Value::from(3)), mm.get_element("count"));
+    // a scalar for_each entry binds once (not per iteration)
+    assert_eq!(Some(Value::from("fixed")), mm.get_element("tag"));
+    // an unresolvable for_each LHS REMOVES the model key; the later mapping
+    // of the removed key is skipped (unresolvable source), so no output key
+    assert_eq!(None, mm.get_element("ghost"));
+    // no BEGIN: the whole statement list is the loop body (node `plain`) —
+    // the per-element COMPUTE ran three times (COMPUTE yields doubles)
+    assert_eq!(vec![7, 8, 9], int_list(&mm, "seen2"));
+    let Some(Value::Array(lines)) = mm.get_element("lines") else {
+        panic!("expected per-element line totals");
+    };
+    assert_eq!(
+        vec![70.0, 160.0, 270.0],
+        lines
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect::<Vec<_>>()
+    );
+    // the pure-COMPUTE accumulator (node `totaler`): read model.total back
+    // into the expression each iteration; f:add is whole-number-only and
+    // cannot consume a COMPUTE double, so accumulation stays in COMPUTE
+    assert_eq!(Some(Value::from(500.0)), mm.get_element("total"));
+
+    // B) early exit: the IF jump at element 99 breaks the loop, skips post
+    let reply = run_graph(
+        platform,
+        "rust-foreach",
+        serde_json::json!({"items": [7, 99, 13], "prices": [1, 2, 3]}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "run B failed: {:?}", reply.body());
+    let mm_b = body_map(&reply);
+    // the jump routed traversal to `bail`; the post-block never ran
+    assert_eq!(vec!["pre", "bailed"], str_list(&mm_b, "phases"));
+    // element 0 completed; element 1's IF fired before its mappings;
+    // element 2 never started — the taken jump BREAKS the loop
+    assert_eq!(vec![7], int_list(&mm_b, "seen"));
+    assert_eq!(vec![1], int_list(&mm_b, "prices"));
+    // post-block outputs (count/tag) skipped with it
+    assert_eq!(None, mm_b.get_element("count"));
+    // traversal continued from `bail`, so `plain`/`totaler` never executed
+    assert_eq!(None, mm_b.get_element("seen2"));
+    assert_eq!(None, mm_b.get_element("total"));
+
+    // C) empty lists: zero iterations, pre/post still run
+    let reply = run_graph(
+        platform,
+        "rust-foreach",
+        serde_json::json!({"items": [], "prices": []}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "run C failed: {:?}", reply.body());
+    let mm_c = body_map(&reply);
+    // zero iterations, but pre and post blocks still run
+    assert_eq!(vec!["pre", "post"], str_list(&mm_c, "phases"));
+    assert_eq!(Some(Value::from(0)), mm_c.get_element("count"));
+    // scalar entries bind during for_each RESOLUTION, even with empty lists
+    assert_eq!(Some(Value::from("fixed")), mm_c.get_element("tag"));
+    assert_eq!(None, mm_c.get_element("seen"));
+}
+
+fn str_list(mm: &MultiLevelMap, key: &str) -> Vec<String> {
+    let Some(Value::Array(items)) = mm.get_element(key) else {
+        panic!("expected a list at {key}");
+    };
+    items
+        .iter()
+        .map(|v| v.as_str().unwrap_or_default().to_string())
+        .collect()
+}
+
+fn int_list(mm: &MultiLevelMap, key: &str) -> Vec<i64> {
+    let Some(Value::Array(items)) = mm.get_element(key) else {
+        panic!("expected a list at {key}");
+    };
+    items.iter().map(|v| v.as_i64().unwrap_or(-1)).collect()
 }
 
 /// Java `GraphExecutionTest.testGraphExecutionMath/Js` + `GraphTests.tutorial113`

@@ -129,9 +129,20 @@
         "NEXT:/DELAY:/RESET: are ordinary statement[] lines (e.g. statement[]=NEXT: fetcher, statement[]=DELAY: 500)",
         "NEXT: takes a NODE NAME (not a connection/relation label) — unconditional jump applied AFTER the whole statement list completes (later statements still run; the last NEXT wins)",
         "DELAY: {ms} pauses AFTER this node completes, deferring the walk to the next node (paces retries)",
-        "BEGIN/END delimit a statement block for for_each[] iteration — they are NOT IF-block braces",
+        "BEGIN/END delimit the loop body for for_each[] iteration — they are NOT IF-block braces (without for_each[] they are accepted and ignored)",
         "a node with only MAPPING statements is rejected — use graph.data.mapper instead"
       ],
+      "for_each": {
+        "entry": "for_each[]=source -> model.{var}   (RHS MUST be a model.* key)",
+        "binding": "a LIST-valued source is an iteration array: model.{var} is rebound to element i each pass; multiple list entries advance in LOCKSTEP (parallel arrays) and must have the SAME length (engine error otherwise); at least one entry must resolve to a list ('No data mapping resolved from for_each entries. LHS must be a list.'); a SCALAR source binds once at resolution time (before the loop, even when lists are empty); an UNRESOLVABLE source REMOVES the model key",
+        "blocks": "BEGIN/END split statement[] into pre-block (runs ONCE before) / each-block (once PER ELEMENT) / post-block (ONCE after); NO BEGIN => the WHOLE statement list is the loop body (seed accumulators in a pre-block, or the seeding re-runs each iteration)",
+        "ordering": "strictly SEQUENTIAL in list order (element 0 completes before element 1 starts) — unlike the fetcher's for_each, which fans HTTP calls out concurrently and only aggregates in order; the whole loop is ONE node execution, so a long list does not trip the loop guard",
+        "early_exit": "a taken IF jump breaks the loop: ends the current iteration immediately, skips remaining elements AND the post-block, routes traversal to the named node (in the pre-block it skips loop+post the same way; NEXT: exits after its block completes; ELSE: next falls through within the iteration)",
+        "empty_lists": "zero iterations; pre- and post-blocks still run",
+        "numbers": "COMPUTE yields DOUBLES; f:add/f:subtract/... are WHOLE-NUMBER-ONLY ('Cannot convert the object to a whole number') — keep numeric accumulators inside COMPUTE (read the model key back into the expression); f:add stays right for pure integer counters",
+        "execute": "EXECUTE: inlining happens BEFORE blocks are split — an executed module's statements land at the EXECUTE position and may contribute to the loop body",
+        "example": "skill=graph.math\nfor_each[]=input.body.prices -> model.price\nfor_each[]=input.body.quantities -> model.qty\nstatement[]=MAPPING: int(0) -> model.total\nstatement[]=BEGIN\nstatement[]=COMPUTE: total -> {model.total} + {model.price} * {model.qty}\nstatement[]=MAPPING: totaler.result.total -> model.total\nstatement[]=END\nstatement[]=MAPPING: model.total -> output.body.total"
+      },
       "example": "skill=graph.math\nstatement[]=COMPUTE: sum -> {input.body.a} + {input.body.b}\nstatement[]='''\nIF: {input.body.a} >= {input.body.b}\nTHEN: ge-path\nELSE: lt-path\n'''" },
     { "route": "graph.js", "retired": true,
       "notes": ["RETIRED in this Rust port (disabled for security); the runtime rejects it: 'Skill graph.js is retired for security reasons - use graph.math or graph.task instead'", "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer"] },

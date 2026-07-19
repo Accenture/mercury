@@ -90,8 +90,17 @@ ELSE: low-price
 ```
 
 `{variable}` resolves a value from `input.*`, `model.*`, or a node property into the expression.
-An `IF` returning a node name **overrides** natural traversal; returning `next` keeps it. Optional
-`for_each[]` iterates a statement block; `NEXT:`/`DELAY:` control flow and timing.
+An `IF` returning a node name **overrides** natural traversal; returning `next` keeps it.
+`NEXT:`/`DELAY:` control flow and timing.
+
+**Iterating lists (`for_each[]`):** each `source -> model.{var}` entry whose source is a **list**
+becomes an iteration array (parallel lists advance in lockstep and must agree on length; scalars
+bind once; an unresolvable source removes the key). `BEGIN`/`END` split the statements into
+pre-block (once) / each-block (per element) / post-block (once) — **without `BEGIN` the whole
+list is the loop body**. Iteration is strictly sequential in list order, inside one node
+execution; a taken `IF` jump breaks the loop and skips the post-block. Numeric accumulators stay
+inside `COMPUTE` (its doubles don't feed the whole-number-only `f:add`). Full rules + worked
+example: [for_each](command-reference.md#math-for-each).
 
 **Gotchas:** a node runs **once** (guard against loops) unless you `RESET` it — an advanced,
 use-with-care feature; a node may not contain only `MAPPING` statements (use the data mapper). The
