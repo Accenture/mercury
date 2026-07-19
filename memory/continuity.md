@@ -153,9 +153,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `rest.rs`, test `companion_sync_rejects_session_topology_commands` (both endpoints) in
   `graph_runtime.rs`; workspace green (tests/clippy 0/fmt). Java: same guard in
   PostCompanionCommand/-Sync + shared statics in GraphCommandService, test
-  `companionEndpointsLimitSessionCommandToReadOnly`; 65-test module suite green; **committed on local
-  branch `fix/companion-session-readonly` (9aa34ea9) — push + PR are the maintainer's** (agent push
-  blocked by permissions, correctly). Note: the running dev server needs a restart to pick up the
+  `companionEndpointsLimitSessionCommandToReadOnly`; 65-test module suite green; **MERGED upstream as
+  [#194](https://github.com/Accenture/mercury-composable/pull/194) (2026-07-18)** — the fix is live in
+  BOTH engines. Note: the running dev server needs a restart to pick up the
   Rust guard (and to clear the in-memory poisoned subscriber entry). Related hygiene: `session reset`
   does not clear the draft graph and the UI restores drafts on reconnect (rollup #15 — verify a
   companion-test primary is EMPTY before briefing). Rollup #14 in `docs/AI-companion-test.md`.
