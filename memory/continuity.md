@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 34 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 37 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-181641)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-215701)
 - **last_review:** 2026-07-19 | through 2026-07-19-165609
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 36 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 39 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 39 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 42 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -194,8 +194,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   bounded retry + recovery) PASSED — 27/27, zero failures, ZERO lookups, both dry-runs first
   attempt** (2026-07-19, ws-783755-2; the hardest exercise yet): three-node retry machine with
   mutual RESETs, arguably cleaner than canonical. Pre-flight scratch-probe of canonical tut-12
-  surfaced #40 (`/sync` ok-heuristic false-negative on import's benign fallback line — caveat
-  documented; engine fix = maintainer call). Findings #41–#46 (exception= semantics, RESET truths
+  surfaced #40 (`/sync` ok-heuristic false-negative on import's benign fallback line — engine
+  fix landed 2026-07-19, see [[ot-sync-ok-heuristic-fix]]). Findings #41–#46 (exception= semantics, RESET truths
   incl. comma lists + loop guard, IF-jump-ends-list, NEXT/DELAY written forms + timing,
   unresolvable-source skip, dedup per-instance success-only) — ALL engine-verified and FIXED same
   day (new Failure-routing section with the canonical retry pattern). #38 saved as
@@ -205,8 +205,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   tutorials passed** — eight consecutive zero-lookup first-attempt passes from the tut-5 retest
   on; final scorecard in `docs/AI-companion-test.md` ("Sweep complete — the scorecard"). 48
   rollup findings all resolved or tracked. Follow-ups live in their own threads:
-  [[ot-help-pages-rewrite]], [[ot-discovery-commands-backlog]], and the `/sync` ok-heuristic
-  engine fix (#40, maintainer call).
+  [[ot-help-pages-rewrite]] (done), [[ot-discovery-commands-backlog]], and the `/sync`
+  ok-heuristic engine fix (#40 — done, [[ot-sync-ok-heuristic-fix]]).
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
@@ -214,7 +214,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 19 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 21 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -238,6 +238,45 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-subscribe-via-sync-bug | created: 2026-07-18 | last_used: 2026-07-19 | uses: 4 | tier: archive-candidate | origin: 2026-07-18-231641.md -->
 
+- [x] **Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign
+  fallback (rollup #40).** Found in the tut-12 pre-flight ([[ot-companion-validation-sweep]]):
+  `import graph from {deployed}` succeeds via the classpath fallback but returned `ok:false` —
+  the per-line `is_error_line` heuristic tripped on the benign "Graph model not found in /tmp/…"
+  line the engine prints before "Found deployed graph model…". Fix (identical design, both
+  engines): classification is now **whole-output-aware** — the not-found line is forgiven *only*
+  when the same output also carries the fallback's success marker; a genuine miss prints the
+  not-found line alone and stays `ok:false` (verified against both import handlers: a real miss
+  emits nothing after the not-found line, so the rule can't mask real failures). Rust:
+  `first_error_line()` in `rest.rs` + both-direction test in `graph_runtime.rs`
+  (workspace/clippy/fmt green). Java: mirrored in `PostCompanionCommandSync` +
+  `CompanionSyncTest` (66-test module suite green), committed on local branch
+  **`fix/companion-sync-ok-heuristic`**, pushed to origin at maintainer direction (push
+  worked this time) — **PR [#195](https://github.com/Accenture/mercury-composable/pull/195)
+  open, maintainer-reviewed ("All good"), merging after CI**. Both engines live-validated by
+  the maintainer. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
+  `minigraph-commands.json` sync_envelope note, rollup #40 → DONE. `/sync` contract stays
+  byte-identical across engines. → serves: vision-mercury
+  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 2 | tier: active | origin: 2026-07-19-205854.md -->
+
+- [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
+  2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
+  Java's `HttpRouter.handlePayload`. Three divergences fixed in `parse_body`
+  (`crates/platform-core/src/automation/server.rs`): JSON sniffing under non-JSON content types
+  removed (Java never parses outside `application/json`; bracket-guard + text fallback; empty JSON
+  body → `{}`); missing/unknown content type → **MsgPack binary** body (Java `byte[]`; empty → null);
+  `application/x-www-form-urlencoded` → fields into `parameters.query` with null body. Content-type
+  matched on the `;charset`-stripped value, case-sensitively like Java. **Key wire-verified fact: the
+  Java client sends NO default content-type** — a Map body POSTs out header-less (chunked), so POST
+  providers only work because the canonical fixtures map
+  `text(application/json) -> header.content-type` (tutorial-6, both repos; the AI grammar's POST
+  example #19 already teaches this — it is load-bearing in BOTH engines now). Remaining deliberate
+  divergence: `application/xml` arrives as raw text (no XML parser in the stack; same deferral as the
+  HTTP client response side) — noted in code + D10 (`docs/design/platform-core-port.md`). End-to-end
+  test `body_dispatch_mirrors_java_content_type_rules` (BodyProbe) in `tests/rest_automation.rs`;
+  workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
+  both engines, even mislabeled as JSON). → serves: vision-mercury
+  <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
+
 - [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:
   the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +
   event-driven AI guides, hardened by the validation sweep); the **human developer documentation
@@ -258,7 +297,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   and strengthen the graph-as-living-documentation story. Engine work (both ports; coordinate
   with `Accenture/mercury-composable`); document in the AI grammar when it lands. Rollup #38 in
   `docs/AI-companion-test.md`. → serves: vision-mercury
-  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 2 | tier: working | origin: 2026-07-19-171653.md -->
+  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: working | origin: 2026-07-19-171653.md -->
 
 - [x] **(backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19.** Maintainer decision
   2026-07-18 (post tut-5): the `crates/knowledge-graph/resources/help/*.md` pages are designed for
@@ -343,7 +382,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **The companion `/sync` feature is COMPLETE and MERGED in both ports** (Rust R&D main + Java upstream
   main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
-  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 20 | tier: working | origin: 2026-07-18-162832.md -->
+  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 22 | tier: working | origin: 2026-07-18-162832.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
@@ -357,11 +396,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
 
-- [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
+- [x] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**
   during migration for side-by-side comparison with the Java original; add a generic alias
-  once the foundation port is robust. Don't build until then. → serves: vision-mercury
-  <!-- id: ot-profiles-alias-backlog | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-224707.md -->
+  once the foundation port is robust. Don't build until then. **Superseded 2026-07-19: the
+  decision became a rename, not an alias — see [[profiles-renamed-app-active]].**
+  → serves: vision-mercury
+  <!-- id: ot-profiles-alias-backlog | created: 2026-07-15 | last_used: 2026-07-19 | uses: 1 | tier: superseded | superseded-by: profiles-renamed-app-active | origin: 2026-07-15-224707.md -->
+
+- [x] **Profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` — no alias
+  (increment 37).** Maintainer decision 2026-07-19 (supersedes the 2026-07-15 alias plan; its
+  "foundation robust" gate is met): Spring is irrelevant to the Rust port, so the generic names
+  replace `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` outright — the **one deliberate
+  exception to D9's verbatim-config rule** (a `spring.profiles.active` line in a ported config
+  file does NOT carry over). Mechanism/precedence unchanged (env → override registry →
+  consolidated key; `application-{profile}.yml` overlays). Code + manifest + tests + design doc
+  (§3, §8 Q1 DECIDED) + ledger updated; workspace 202 tests / clippy 0 / fmt clean. Flagged
+  follow-up (maintainer call): `spring.application.name` app-name fallback in `platform.rs` —
+  same rationale, separate key. → serves: vision-mercury
+  <!-- id: profiles-renamed-app-active | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | supersedes: ot-profiles-alias-backlog | origin: 2026-07-19-215701.md -->
 
 ## User Preferences
 

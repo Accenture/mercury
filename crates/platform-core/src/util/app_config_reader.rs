@@ -23,11 +23,12 @@
 //! the base configuration files merged **in order** (later files override
 //! earlier ones), and `profiles:` gives the overlay prefix for active profiles.
 //!
-//! Active profiles come from the `SPRING_PROFILES_ACTIVE` environment variable,
-//! the `spring.profiles.active` process override, or the consolidated config key
-//! — names kept **verbatim** from the Java original for side-by-side comparison
-//! during migration (Spring itself is not ported; a generic
-//! `app.profiles.active` alias may be added once the foundation is robust).
+//! Active profiles come from the `APP_PROFILES_ACTIVE` environment variable,
+//! the `app.profiles.active` process override, or the consolidated config key.
+//! Deliberate divergence from the Java original's `SPRING_PROFILES_ACTIVE` /
+//! `spring.profiles.active`: Spring is not ported, so the Rust port uses the
+//! generic names outright — a rename, not an alias (maintainer decision,
+//! 2026-07-19; the mechanism and precedence are unchanged).
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -38,8 +39,8 @@ use crate::util::overrides;
 
 const APP_CONFIG_READER_YML: &str = "classpath:/app-config-reader.yml";
 const DEFAULT_PROFILE_PREFIX: &str = "classpath:/application-";
-const SPRING_ACTIVE_PROFILES: &str = "spring.profiles.active";
-const ENV_SPRING_ACTIVE_PROFILES: &str = "SPRING_PROFILES_ACTIVE";
+const ACTIVE_PROFILES: &str = "app.profiles.active";
+const ENV_ACTIVE_PROFILES: &str = "APP_PROFILES_ACTIVE";
 
 /// Built-in default manifest, embedded so a consuming application works without
 /// shipping its own copy (the Java analog: the file inside platform-core.jar).
@@ -193,12 +194,12 @@ fn merge_config(consolidated: &mut BTreeMap<String, ConfigValue>, filename: &str
 /// Resolve the active profiles: environment variable → process override →
 /// consolidated config key (comma/space separated).
 fn active_profiles(consolidated: &BTreeMap<String, ConfigValue>) -> Vec<String> {
-    let raw = std::env::var(ENV_SPRING_ACTIVE_PROFILES)
+    let raw = std::env::var(ENV_ACTIVE_PROFILES)
         .ok()
-        .or_else(|| overrides::get(SPRING_ACTIVE_PROFILES))
+        .or_else(|| overrides::get(ACTIVE_PROFILES))
         .or_else(|| {
             consolidated
-                .get(SPRING_ACTIVE_PROFILES)
+                .get(ACTIVE_PROFILES)
                 .and_then(|v| v.as_text().map(str::to_string))
         });
     match raw {

@@ -51,6 +51,9 @@
 | 32 | `inspect` docs: `{…}` is a placeholder, not literal (both repos) | 2026-07-18 | — | — |
 | 33 | `serializer.null.transport` (Java null-omission parity) | 2026-07-18 | D3 | — |
 | 34 | `#[optional_service]` promoted to a first-class, order-independent attribute | 2026-07-19 | KG K9 | 201 |
+| 35 | companion `/sync` ok-heuristic: whole-output classification (finding #40, both ports) | 2026-07-19 | ADR-0008 | — |
+| 36 | HTTP-boundary content-type dispatch: exact Java parity (no sniffing, binary path, form fields) | 2026-07-19 | D10 | — |
+| 37 | profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` (Spring name retired) | 2026-07-19 | §8 Q1 | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -905,6 +908,72 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Docs:** `docs/guides/event-driven/ai-agent-guide.md` — `optional_service` removed from the
   `#[preload]` parameter table; new first-class `#[optional_service]` subsection (all four kinds,
   either order, condition semantics). `platform-macros` crate docs updated the same way.
+
+---
+
+## Increment 35 — companion `/sync` ok-heuristic: whole-output classification (2026-07-19)
+
+**Sweep finding #40; fixed in BOTH ports, `/sync` contract stays byte-identical.**
+
+- **Before:** the per-line `is_error_line` heuristic classified import's benign
+  "Graph model not found in /tmp/…" fallback line as a failure — `import graph from {deployed}`
+  succeeded via the classpath fallback yet returned `ok:false`, misleading an AI caller into
+  "fixing" a working command.
+- **After:** classification runs over the whole captured output (`first_error_line` /
+  `firstErrorLine`): the not-found line is forgiven **only** when the same output also carries
+  the fallback's success marker ("Found deployed graph model"); a genuine miss prints the
+  not-found line alone and stays `ok:false` (verified in both import handlers — a real miss
+  emits nothing after it, so the rule can't mask real failures).
+- **Tests:** Rust `companion_sync_import_fallback_reports_ok` (both directions) in
+  `graph_runtime.rs`; Java `companionSyncImportFallbackReportsOk` in `CompanionSyncTest`
+  (66-test module suite green). Both engines live-validated by the maintainer.
+- **Upstream:** Java PR [#195](https://github.com/Accenture/mercury-composable/pull/195).
+- **Docs:** `ai-agent-guide.md` caveat → fixed semantics; `minigraph-commands.json`
+  sync_envelope note; rollup #40 → DONE in `docs/AI-companion-test.md`.
+
+---
+
+## Increment 36 — HTTP-boundary content-type dispatch: exact Java parity (2026-07-19)
+
+**Maintainer-directed after a manual `/sync` probe; design D10 dispatch section updated.**
+
+- **Before:** the Rust boundary was laxer than Java's `HttpRouter.handlePayload` — it sniffed
+  JSON-looking bodies under any content type, text-decoded unknown/missing content types, and
+  mapped an empty `application/json` body to null.
+- **After:** `parse_body` mirrors Java exactly: `application/json` → bracket-guarded parse with
+  raw-text fallback (empty → `{}`); `application/xml` → raw text (XML parse deferred, as on the
+  client's response side); `application/x-www-form-urlencoded` (exact) → fields into
+  `parameters.query`, body null (new path); `text/html`/`text/plain` → raw text; anything else
+  incl. **missing content type → MsgPack binary** (Java `byte[]`; empty → null). Content-type
+  matched on the `;charset`-stripped value, case-sensitively like Java.
+- **Wire-verified fact:** the Java client sends **no default content-type** (raw-socket capture
+  of a fetcher-style Map POST: header-less + chunked) — POST providers work in both engines
+  because the canonical fixtures map `text(application/json) -> header.content-type`; the AI
+  grammar's POST example already teaches this (finding #19), so nothing grammar-conformant
+  relied on the sniffing.
+- **Tests:** rewritten `body_parsing` unit test + end-to-end
+  `body_dispatch_mirrors_java_content_type_rules` (`BodyProbe` reports the body *kind* reaching
+  a function: map / text / bytes / null / query-merge) in `tests/rest_automation.rs`.
+
+---
+
+## Increment 37 — profile selection renamed `APP_PROFILES_ACTIVE` (2026-07-19)
+
+**Maintainer decision closing the oldest backlog item (2026-07-15): a rename, not an alias.**
+
+- **Before:** `SPRING_PROFILES_ACTIVE` / `spring.profiles.active` kept verbatim for
+  side-by-side comparison with the Java original during migration (design §8 Q1 left the
+  rename open, gated on "once the foundation port is robust").
+- **After:** the gate is met — renamed outright to **`APP_PROFILES_ACTIVE`** (environment
+  variable) / **`app.profiles.active`** (override registry + consolidated config key), no
+  Spring alias: Spring is irrelevant to the Rust port. Precedence and the overlay mechanism
+  (`application-{profile}.yml` merged on top) are unchanged. Divergence noted in the module
+  doc and `app-config-reader.yml` (behavior-parity convention).
+- **Tests:** `config.rs` profile-overlay tests updated to the new name (18 pass); workspace
+  **202 tests**, clippy 0, fmt clean.
+- **Out of scope (flagged):** `spring.application.name` as an app-name fallback in
+  `platform.rs` — a separate key with the same rationale; maintainer call whether to rename it
+  in a follow-up.
 
 ---
 

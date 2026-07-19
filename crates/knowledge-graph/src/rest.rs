@@ -270,6 +270,27 @@ fn is_error_line(line: &str) -> bool {
         || line.contains("Please try 'help'")
 }
 
+/// Whole-output-aware error classification. `import graph from {deployed}`
+/// legitimately prints "Graph model not found in /tmp/…" before falling back
+/// to the deployed classpath copy — a benign line that must not mark the
+/// command failed. It is forgiven **only** when the same output also carries
+/// the fallback's success marker; a genuine miss prints the not-found line
+/// alone and stays an error.
+fn first_error_line(lines: &[String]) -> Option<String> {
+    let deployed_fallback = lines
+        .iter()
+        .any(|l| l.contains("Found deployed graph model"));
+    lines
+        .iter()
+        .find(|line| {
+            if deployed_fallback && line.starts_with("Graph model not found in") {
+                return false;
+            }
+            is_error_line(line)
+        })
+        .cloned()
+}
+
 /// The Playground's only **asynchronous** command: `run` launches the traveler,
 /// which streams its output *after* the command handler has already replied — so
 /// the sentinel drain (correct for synchronous commands) races the traversal
@@ -413,26 +434,24 @@ pub async fn post_companion_command_sync(
     }
     platform.release(&capture_route);
 
-    // Build the structured outcome.
+    // Build the structured outcome: collect the console lines first, then
+    // classify with whole-output context (see `first_error_line`).
     let items = buffer.lock().expect("capture buffer poisoned").clone();
-    let mut output: Vec<Value> = Vec::new();
+    let mut lines: Vec<String> = Vec::new();
     let mut result: Vec<Value> = Vec::new();
-    let mut error: Option<String> = None;
     for v in items {
         match &v {
             Value::String(s) => {
                 let line = s.as_str().unwrap_or_default().to_string();
-                if line == SYNC_SENTINEL {
-                    continue;
+                if line != SYNC_SENTINEL {
+                    lines.push(line);
                 }
-                if error.is_none() && is_error_line(&line) {
-                    error = Some(line.clone());
-                }
-                output.push(Value::from(line.as_str()));
             }
             _ => result.push(v),
         }
     }
+    let error = first_error_line(&lines);
+    let output: Vec<Value> = lines.iter().map(|l| Value::from(l.as_str())).collect();
     let ok = error.is_none();
 
     Ok(EventEnvelope::new()

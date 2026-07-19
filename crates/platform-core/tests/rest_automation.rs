@@ -114,6 +114,59 @@ impl ComposableFunction for SlowText {
     }
 }
 
+/// Reports the wire *kind* of the request body it receives (map, list, text,
+/// bytes, null) plus its content — proves the content-type dispatch of the
+/// HTTP boundary end to end, including the MsgPack-binary body an unknown
+/// content type produces (which a JSON view cannot represent).
+struct BodyProbe;
+
+#[async_trait]
+impl ComposableFunction for BodyProbe {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let mut kind = "missing";
+        let mut content = serde_json::Value::Null;
+        let mut query = serde_json::Value::Null;
+        if let rmpv::Value::Map(entries) = input.body() {
+            for (key, value) in entries {
+                match key.as_str() {
+                    Some("body") => {
+                        kind = match value {
+                            rmpv::Value::Nil => "null",
+                            rmpv::Value::String(_) => "text",
+                            rmpv::Value::Binary(_) => "bytes",
+                            rmpv::Value::Map(_) => "map",
+                            rmpv::Value::Array(_) => "list",
+                            _ => "other",
+                        };
+                        content = match value {
+                            rmpv::Value::Binary(bytes) => serde_json::Value::String(
+                                String::from_utf8_lossy(bytes).to_string(),
+                            ),
+                            other => serde_json::to_value(other).unwrap_or_default(),
+                        };
+                    }
+                    Some("parameters") => {
+                        let params: serde_json::Value =
+                            serde_json::to_value(value).unwrap_or_default();
+                        query = params["query"].clone();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        EventEnvelope::new().set_body(serde_json::json!({
+            "kind": kind,
+            "content": content,
+            "query": query,
+        }))
+    }
+}
+
 /// Authorizer: allows only when header x-api-key == "open-sesame".
 struct ApiKeyCheck;
 
@@ -147,6 +200,10 @@ rest:
   - service: "plain.text"
     methods: ['GET']
     url: "/api/text"
+    timeout: 5s
+  - service: "body.probe"
+    methods: ['POST']
+    url: "/api/probe"
     timeout: 5s
   - service: "slow.text"
     methods: ['GET']
@@ -219,6 +276,9 @@ async fn server() -> TestServer {
         .unwrap();
     platform
         .register("plain.text", Arc::new(PlainText), 1)
+        .unwrap();
+    platform
+        .register("body.probe", Arc::new(BodyProbe), 1)
         .unwrap();
     platform
         .register("slow.text", Arc::new(SlowText), 1)
@@ -319,6 +379,59 @@ async fn post_json_body_and_supplied_cid() {
     assert_eq!(json["echo_body"]["qty"], 2);
     // the caller's business correlation-id is preserved, not regenerated
     assert_eq!(json["my_cid"], "order-777");
+}
+
+/// The request-body dispatch mirrors Java `HttpRouter.handlePayload` exactly:
+/// no JSON sniffing outside `application/json`, no default content type, and
+/// each content type delivers the same body KIND the Java engine delivers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn body_dispatch_mirrors_java_content_type_rules() {
+    let server = server().await;
+    let probe = |headers: Vec<(&'static str, &'static str)>, body: &'static str| {
+        let port = server.port;
+        async move {
+            let (status, _, text) = http(port, "POST", "/api/probe", &headers, body).await;
+            assert_eq!(status, 200);
+            serde_json::from_str::<serde_json::Value>(&text).unwrap()
+        }
+    };
+    // application/json with a JSON object -> map
+    let json = probe(
+        vec![("Content-Type", "application/json")],
+        r#"{"item":"book"}"#,
+    )
+    .await;
+    assert_eq!(json["kind"], "map");
+    assert_eq!(json["content"]["item"], "book");
+    // plain text mislabeled application/json -> the raw text, not an error
+    let mislabeled = probe(
+        vec![("Content-Type", "application/json")],
+        "import graph from tutorial-1",
+    )
+    .await;
+    assert_eq!(mislabeled["kind"], "text");
+    assert_eq!(mislabeled["content"], "import graph from tutorial-1");
+    // an empty application/json body -> an empty map (Java parity)
+    let empty = probe(vec![("Content-Type", "application/json")], "").await;
+    assert_eq!(empty["kind"], "map");
+    assert_eq!(empty["content"], serde_json::json!({}));
+    // a JSON-looking body under text/plain stays text - no sniffing
+    let unsniffed = probe(vec![("Content-Type", "text/plain")], r#"{"item":"book"}"#).await;
+    assert_eq!(unsniffed["kind"], "text");
+    assert_eq!(unsniffed["content"], r#"{"item":"book"}"#);
+    // form fields decode into query parameters; the body stays null
+    let form = probe(
+        vec![("Content-Type", "application/x-www-form-urlencoded")],
+        "a=1&b=hello+world",
+    )
+    .await;
+    assert_eq!(form["kind"], "null");
+    assert_eq!(form["query"]["a"], "1");
+    assert_eq!(form["query"]["b"], "hello world");
+    // no content type -> raw bytes (Java handleBinaryContent), never sniffed
+    let bytes = probe(vec![], r#"{"item":"book"}"#).await;
+    assert_eq!(bytes["kind"], "bytes");
+    assert_eq!(bytes["content"], r#"{"item":"book"}"#);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -148,10 +148,11 @@ Process-wide singleton (`OnceLock`), the substitution base for all other readers
   consolidated flat map (later files override earlier) → **active profiles** resolved →
   `<prefix><profile>.properties` + `.yml` merged on top → keys **sorted** and normalized into a
   `MultiLevelMap` → loaded as the base config → references resolved once at the end.
-- **Active profiles** (precedence, ported): env `SPRING_PROFILES_ACTIVE` → override-registry
-  `spring.profiles.active` → consolidated config key `spring.profiles.active` (comma-separated
-  list). Names kept verbatim per D9 — config compatibility, though Spring itself is not ported
-  (§9 Q1 offers a rename option).
+- **Active profiles** (precedence, ported): env `APP_PROFILES_ACTIVE` → override-registry
+  `app.profiles.active` → consolidated config key `app.profiles.active` (comma-separated
+  list). **Renamed from the Java original's `SPRING_PROFILES_ACTIVE`/`spring.profiles.active`
+  (maintainer decision 2026-07-19, §8 Q1): Spring is irrelevant to the Rust port, so the
+  generic names are used outright — a rename, not an alias.** Mechanism/precedence unchanged.
 
 ### 4.5 Crate layout (increment 1)
 
@@ -190,7 +191,7 @@ Fixtures modeled on the Java module's own `src/test/resources`:
   `${config.key}` base-config reference, multi-segment reconstruction (`http://${host}:${port}/x`),
   **loop detection** (`a → b → a` warns, doesn't hang), override registry beats file value.
 - **AppConfigReader:** merge order (properties < yml on same key), profile overlay
-  (`SPRING_PROFILES_ACTIVE=test` merges `application-test.yml` on top), singleton identity,
+  (`APP_PROFILES_ACTIVE=test` merges `application-test.yml` on top), singleton identity,
   `get_property` string enforcement.
 
 `cargo build` + `cargo test` + `cargo clippy` clean = increment 1 done.
@@ -399,7 +400,17 @@ authoritative schema is the Java project's own `docs/guides/rest-automation/rest
   (request/response add/drop/keep). Parser invariants enforced per the grammar.
 - **Dispatch:** method+path match (exact literals > `{param}` captures > trailing wildcard),
   request mapped to the **`AsyncHttpRequest`** shape (`method`, `url`, `ip`, `headers`,
-  `parameters.path`/`parameters.query`, `body` [JSON→map/list, else text], `https`, `host`)
+  `parameters.path`/`parameters.query`, `body`, `https`, `host`). The body follows the Java
+  `handlePayload` content-type dispatch **exactly** (parity fix 2026-07-19; no JSON sniffing,
+  no default content type): `application/json` → map/list when bracket-wrapped, else raw text
+  (parse failure falls back to text; empty → `{}`); `application/xml` → raw text (XML parse
+  deferred, as on the client's response side); `application/x-www-form-urlencoded` (exact) →
+  fields into `parameters.query`, body null; `text/html`/`text/plain` → raw text; anything
+  else incl. a missing content type → MsgPack **binary** (Java `byte[]`; empty → null).
+  Content-type is matched on the `;charset`-stripped value, case-sensitively like Java.
+  N.B. the Java client sends **no default content-type** (wire-verified) — callers must
+  declare `application/json` to get a parsed map, which is why the canonical POST-provider
+  fixtures map `text(application/json) -> header.content-type`
   → `po.request(service, timeout)` → envelope mapped back (status; body: map/list→JSON,
   text→text/plain, bytes→octet-stream; response header transforms + CORS headers). Errors are
   the Java JSON shape `{status, message, type:"error"}`; timeout → 408; OPTIONS preflight →
@@ -592,10 +603,11 @@ event-script design E-3, `event-script-port.md` §5c.)*
 
 ## 8. Open questions for the maintainer
 
-1. **Profile env-var naming** — keep `SPRING_PROFILES_ACTIVE` / `spring.profiles.active`
-   verbatim (D9 config-compatibility; Java keeps them for Spring compat), or rename (e.g.
-   `MERCURY_PROFILES_ACTIVE`) with the Spring names as accepted aliases? *(Default assumption:
-   keep verbatim + alias-free, matching Java exactly.)*
+1. **Profile env-var naming** — ~~keep `SPRING_PROFILES_ACTIVE` / `spring.profiles.active`
+   verbatim, or rename with aliases?~~ **DECIDED (maintainer, 2026-07-19): renamed to
+   `APP_PROFILES_ACTIVE` / `app.profiles.active`, no alias** — Spring is irrelevant to the
+   Rust port, and the interim verbatim naming had served its side-by-side migration purpose
+   (the original gate “once the foundation port is robust” is met).
 2. **Resource-root defaults** — is `./resources` (runtime) + `tests/resources` (tests, shadowing)
    the right convention for apps built on the Rust port? *(Assumed yes — mirrors Java's
    main/test split.)*

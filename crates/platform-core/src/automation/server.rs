@@ -269,7 +269,24 @@ async fn process(
         .iter()
         .map(|(k, v)| (k.clone(), url_decode(v)))
         .collect();
-    let body_value = parse_body(&headers, &body_bytes);
+    let parsed = parse_body(&headers, &body_bytes);
+    // form fields become query parameters, on top of the URL's own
+    // (Java handleTextContent's url-encode branch: setQueryParameter each)
+    if let ParsedBody::Form(form) = &parsed {
+        for (name, value) in form {
+            query.insert(name.clone(), value.clone());
+        }
+    }
+    let body_value = match &parsed {
+        ParsedBody::Value(value) => value.clone(),
+        // a binary body can't ride the JSON shape — substituted as a
+        // MsgPack binary in build_event (Java: byte[] on AsyncHttpRequest)
+        ParsedBody::Form(_) | ParsedBody::Bytes(_) => serde_json::Value::Null,
+    };
+    let binary_body = match &parsed {
+        ParsedBody::Bytes(bytes) => Some(bytes.as_slice()),
+        _ => None,
+    };
     let http_request = serde_json::json!({
         "method": method,
         "url": path,
@@ -290,6 +307,7 @@ async fn process(
         let auth_event = build_event(
             auth_route,
             &http_request,
+            binary_body,
             &cid,
             &trace_id,
             &trace_path,
@@ -311,6 +329,7 @@ async fn process(
     let event = build_event(
         &info.service,
         &http_request,
+        binary_body,
         &cid,
         &trace_id,
         &trace_path,
@@ -344,6 +363,7 @@ async fn process(
 fn build_event(
     to: &str,
     http_request: &serde_json::Value,
+    binary_body: Option<&[u8]>,
     cid: &str,
     trace_id: &Option<String>,
     trace_path: &str,
@@ -354,6 +374,21 @@ fn build_event(
         .set_from("http.request")
         .set_correlation_id(cid)
         .set_body(http_request)?;
+    // a binary body (unknown content type) rides as MsgPack binary — the
+    // JSON-shaped request map can't carry bytes (Java: byte[] on the
+    // AsyncHttpRequest), so it is substituted after the map conversion
+    if let Some(bytes) = binary_body {
+        let mut root = event.body().clone();
+        if let rmpv::Value::Map(entries) = &mut root {
+            for (key, value) in entries.iter_mut() {
+                if key.as_str() == Some("body") {
+                    *value = rmpv::Value::Binary(bytes.to_vec());
+                    break;
+                }
+            }
+        }
+        event = event.set_raw_body(root);
+    }
     if let Some(trace_id) = trace_id {
         event = event.set_trace(trace_id, trace_path);
         if let Some(parent) = parent_span {
@@ -364,20 +399,77 @@ fn build_event(
     Ok(event)
 }
 
-/// Parse the request body by content type: JSON object/array when declared
-/// (or when it looks like JSON), else UTF-8 text; empty → null.
-fn parse_body(headers: &HashMap<String, String>, bytes: &Bytes) -> serde_json::Value {
-    if bytes.is_empty() {
-        return serde_json::Value::Null;
-    }
-    let text = String::from_utf8_lossy(bytes).to_string();
-    let declared_json = headers
+/// Outcome of the request-body dispatch (Java `HttpRouter.handlePayload`).
+enum ParsedBody {
+    /// JSON map/list, text, or null — representable in the JSON-shaped event.
+    Value(serde_json::Value),
+    /// `application/x-www-form-urlencoded` — fields become query parameters.
+    Form(HashMap<String, String>),
+    /// Unknown content type (Java `handleBinaryContent`) — raw bytes.
+    Bytes(Vec<u8>),
+}
+
+/// The content-type without any `;charset=...` suffix (Java
+/// `CustomContentTypeResolver.getContentType`; the optional
+/// `custom.content.types` mapping feature is deferred). Like Java, the
+/// value is matched case-sensitively — only the header name is normalized.
+fn base_content_type(headers: &HashMap<String, String>) -> Option<String> {
+    headers
         .get("content-type")
-        .is_some_and(|ct| ct.contains("application/json"));
-    if declared_json || text.trim_start().starts_with(['{', '[']) {
-        serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text))
+        .map(|ct| ct.split(';').next().unwrap_or(ct).trim().to_string())
+}
+
+/// Parse the request body by declared content type — the Java `HttpRouter`
+/// dispatch (`handlePayload` + its per-type handlers), mirrored exactly:
+///
+/// - `application/json`: empty → `{}`; a body wrapped in matching JSON
+///   brackets is parsed (a parse failure falls back to the raw text);
+///   anything else stays the raw text. There is **no** JSON sniffing under
+///   other content types.
+/// - `application/xml`: raw text (the XML-to-map parse is deferred with the
+///   rest of the XML surface, exactly like the HTTP client's response side).
+/// - `application/x-www-form-urlencoded` (exact match): fields decode into
+///   query parameters; the body stays null.
+/// - `text/html` / `text/plain`: raw text.
+/// - anything else — including a missing content type: raw bytes (Java
+///   `handleBinaryContent`; its no-content-length streaming variant is the
+///   existing response-streaming deferral — hyper hands us the aggregated
+///   body, matching Java's fixed-length path). An empty payload stays null.
+fn parse_body(headers: &HashMap<String, String>, bytes: &Bytes) -> ParsedBody {
+    let content_type = base_content_type(headers);
+    let ct = content_type.as_deref().unwrap_or("?");
+    if ct.starts_with("application/json") {
+        let text = String::from_utf8_lossy(bytes).to_string();
+        let trimmed = text.trim();
+        let parsed = if trimmed.is_empty() {
+            Some(serde_json::Value::Object(serde_json::Map::new()))
+        } else if (trimmed.starts_with('{') && trimmed.ends_with('}'))
+            || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+        {
+            serde_json::from_str(&text).ok()
+        } else {
+            None
+        };
+        ParsedBody::Value(parsed.unwrap_or(serde_json::Value::String(text)))
+    } else if ct == "application/x-www-form-urlencoded" {
+        let text = String::from_utf8_lossy(bytes);
+        let mut form = HashMap::new();
+        for pair in text.split('&').filter(|p| !p.is_empty()) {
+            let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+            form.insert(url_decode(name), url_decode(value));
+        }
+        ParsedBody::Form(form)
+    } else if ct.starts_with("application/xml")
+        || ct.starts_with("text/html")
+        || ct.starts_with("text/plain")
+    {
+        ParsedBody::Value(serde_json::Value::String(
+            String::from_utf8_lossy(bytes).to_string(),
+        ))
+    } else if bytes.is_empty() {
+        ParsedBody::Value(serde_json::Value::Null)
     } else {
-        serde_json::Value::String(text)
+        ParsedBody::Bytes(bytes.to_vec())
     }
 }
 
@@ -689,16 +781,68 @@ mod tests {
         assert_eq!(url_decode("bad%zz"), "bad%zz");
     }
 
+    fn headers_of(content_type: &str) -> HashMap<String, String> {
+        HashMap::from([("content-type".to_string(), content_type.to_string())])
+    }
+
+    fn value_of(parsed: ParsedBody) -> serde_json::Value {
+        match parsed {
+            ParsedBody::Value(value) => value,
+            ParsedBody::Form(_) => panic!("expected a value, got form fields"),
+            ParsedBody::Bytes(_) => panic!("expected a value, got bytes"),
+        }
+    }
+
+    /// The dispatch mirrors Java `HttpRouter.handlePayload` exactly — see the
+    /// `parse_body` doc for the per-content-type rules being asserted here.
     #[test]
     fn body_parsing() {
-        let json_headers =
-            HashMap::from([("content-type".to_string(), "application/json".to_string())]);
-        let value = parse_body(&json_headers, &Bytes::from(r#"{"a":1}"#));
+        // application/json: bracket-wrapped bodies parse; charset suffix ignored
+        let json = headers_of("application/json; charset=utf-8");
+        let value = value_of(parse_body(&json, &Bytes::from(r#"{"a":1}"#)));
         assert_eq!(value["a"], 1);
-        let text = parse_body(&HashMap::new(), &Bytes::from("hello"));
-        assert_eq!(text, serde_json::Value::String("hello".into()));
+        // a non-JSON body under application/json stays the raw text (no error)
+        let text = value_of(parse_body(&json, &Bytes::from("import graph from x")));
         assert_eq!(
-            parse_body(&HashMap::new(), &Bytes::new()),
+            text,
+            serde_json::Value::String("import graph from x".into())
+        );
+        // malformed JSON falls back to the raw text
+        let bad = value_of(parse_body(&json, &Bytes::from("{broken")));
+        assert_eq!(bad, serde_json::Value::String("{broken".into()));
+        // an empty application/json body is an empty map
+        let empty = value_of(parse_body(&json, &Bytes::new()));
+        assert_eq!(empty, serde_json::json!({}));
+        // no JSON sniffing under text/plain: a JSON-looking body stays text
+        let plain = headers_of("text/plain");
+        let unsniffed = value_of(parse_body(&plain, &Bytes::from(r#"{"a":1}"#)));
+        assert_eq!(unsniffed, serde_json::Value::String(r#"{"a":1}"#.into()));
+        // XML rides as raw text (parser deferral, like the client's response side)
+        let xml = value_of(parse_body(
+            &headers_of("application/xml"),
+            &Bytes::from("<a>1</a>"),
+        ));
+        assert_eq!(xml, serde_json::Value::String("<a>1</a>".into()));
+        // form fields decode into query parameters, not the body
+        let form = parse_body(
+            &headers_of("application/x-www-form-urlencoded"),
+            &Bytes::from("a=1&b=hello+world"),
+        );
+        match form {
+            ParsedBody::Form(fields) => {
+                assert_eq!(fields["a"], "1");
+                assert_eq!(fields["b"], "hello world");
+            }
+            _ => panic!("expected form fields"),
+        }
+        // unknown or missing content type: bytes (Java handleBinaryContent)
+        match parse_body(&HashMap::new(), &Bytes::from("hello")) {
+            ParsedBody::Bytes(bytes) => assert_eq!(bytes, b"hello"),
+            _ => panic!("expected bytes for a missing content type"),
+        }
+        // ...and an empty unknown-type payload leaves the body null
+        assert_eq!(
+            value_of(parse_body(&HashMap::new(), &Bytes::new())),
             serde_json::Value::Null
         );
     }

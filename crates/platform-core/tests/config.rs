@@ -32,7 +32,7 @@ fn setup() {
         // test resources shadow the main `resources/` root (Java behavior)
         resources::prepend_resource_root("tests/resources");
         // env vars must exist before the singleton resolves references at init
-        std::env::set_var("SPRING_PROFILES_ACTIVE", "test");
+        std::env::set_var("APP_PROFILES_ACTIVE", "test");
         std::env::set_var("PC_TEST_HOME", "/custom-home");
         let _ = AppConfigReader::get_instance();
     });
@@ -131,7 +131,7 @@ fn later_manifest_files_override_earlier_ones() {
 fn active_profile_overlays_the_base() {
     setup();
     let app = AppConfigReader::get_instance();
-    // SPRING_PROFILES_ACTIVE=test merges application-test.yml on top
+    // APP_PROFILES_ACTIVE=test merges application-test.yml on top
     assert_eq!(
         app.get_property("profile.indicator").as_deref(),
         Some("test-profile")

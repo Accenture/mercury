@@ -51,10 +51,10 @@ can self-correct without a human relaying the console:
    - NULL FIELDS ARE OMITTED from the wire (serializer null-omission): a success carries no
      "error" key and, unless the command yields data, no "result" key. Treat ABSENT as null —
      do not require the keys.
-   - The "ok" flag is a HEURISTIC over the console lines: a benign message containing e.g.
-     "not found" (such as import's normal "Graph model not found in /tmp/... Found deployed
-     graph model" fallback) can mark ok:false on a command that succeeded. When ok is false,
-     read the output lines before concluding failure.
+   - The "ok" flag is derived from the console lines with whole-output context (import's
+     normal "Graph model not found in /tmp/... Found deployed graph model" fallback is
+     correctly reported ok:true). When ok is false, the error field carries the first
+     failing line — still read the output for the full picture.
    - If ok is false, read error/output, fix it, and re-issue — self-correct; no human relay needed.
    - Use result to verify a run/inspect (e.g. output.body).
 4. The same output is ALSO teed to the human's WebSocket console, so a watcher — and any

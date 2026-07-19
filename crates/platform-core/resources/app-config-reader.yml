@@ -25,16 +25,14 @@ resources:
 
 #
 # the profile parameter is used to merge additional configuration files given in
-# spring.profiles.active (process override parameter) or SPRING_PROFILES_ACTIVE
+# app.profiles.active (process override parameter) or APP_PROFILES_ACTIVE
 # (Environment variable).
 #
 # By default, it is loading from the classpath. You can override it to load
 # from the local file system using the "file:/" syntax.
 #
-# For compatibility with Spring Boot configuration management, please
-# keep the default value unchanged.
-# (Kept verbatim from the Java original for side-by-side comparison during
-#  migration; a generic "app.profiles.active" alias may be added once the
-#  foundation port is robust — see docs/design/platform-core-port.md §8.)
+# (Deliberate divergence from the Java original's SPRING_PROFILES_ACTIVE /
+#  spring.profiles.active: Spring is not ported, so the Rust port uses the
+#  generic names — see docs/design/platform-core-port.md §8.)
 #
 profiles: 'classpath:/application-'

@@ -225,6 +225,7 @@ async fn graph_runtime_end_to_end() {
     // the shared HTTP server task) when the first finishes — the harness flake.
     companion_sync_returns_outcome_in_band(&platform).await;
     companion_sync_rejects_session_topology_commands(&platform).await;
+    companion_sync_import_fallback_reports_ok(&platform).await;
 }
 
 /// Java `GraphExecutionTest.testGraphExecutionMath/Js` + `GraphTests.tutorial113`
@@ -1155,5 +1156,89 @@ async fn companion_sync_rejects_session_topology_commands(platform: &Platform) {
     assert!(
         status_ok.is_ok(),
         "read-only 'session' stays allowed on the legacy endpoint: {status_ok:?}"
+    );
+}
+
+/// The `/sync` `ok` flag is derived from the console output — and `import
+/// graph from {deployed}` legitimately prints "Graph model not found in
+/// /tmp/…" before falling back to the deployed classpath copy (finding #40).
+/// The classification is whole-output-aware: the benign fallback pair reports
+/// `ok:true`, while a genuine miss (the not-found line alone) stays `ok:false`.
+async fn companion_sync_import_fallback_reports_ok(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770003-1";
+    let in_route = "ws.770003.1.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // 1) benign fallback: the deployed model imports; the "not found in /tmp"
+    //    line must NOT mark the command failed
+    let imported = sync_cmd(platform, sid, "import graph from tutorial-3").await;
+    let text = imported["output"].to_string();
+    assert!(
+        text.contains("Graph model not found in"),
+        "the benign fallback line is still reported: {imported}"
+    );
+    assert!(
+        text.contains("Found deployed graph model"),
+        "fallback success marker expected: {imported}"
+    );
+    assert_eq!(
+        imported["ok"],
+        serde_json::json!(true),
+        "benign import fallback must be ok:true: {imported}"
+    );
+    assert!(
+        imported["error"].is_null(),
+        "no error on success: {imported}"
+    );
+
+    // 2) genuine miss: the not-found line alone stays an error
+    let missing = sync_cmd(platform, sid, "import graph from no-such-graph-xyz").await;
+    assert_eq!(
+        missing["ok"],
+        serde_json::json!(false),
+        "a genuine miss must stay ok:false: {missing}"
+    );
+    assert!(
+        missing["error"]
+            .as_str()
+            .is_some_and(|e| e.contains("not found")),
+        "genuine miss carries the not-found error: {missing}"
     );
 }
