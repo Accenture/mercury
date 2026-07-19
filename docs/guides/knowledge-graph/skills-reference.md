@@ -148,10 +148,17 @@ output[]=result.name -> output.body.name
 output[]=result.address -> output.body.address
 ```
 
-The result lands at `{node}.result`. **Gotchas:** identical requests (same URL + method + input) are
-**deduplicated** into a single HTTP call; the `input[]` targets must **match the dictionary
-parameter names** exactly, or execution fails. The dictionary/provider setup this skill depends on
-is specified in [Provider & Dictionary](command-reference.md#provider-dictionary).
+The result lands at `{node}.result`. **Gotchas:** identical requests (same provider + input
+parameters) are **deduplicated within the graph instance** — the cache holds **successful
+responses only** (a failed call is never cached, so a retry after `RESET:` makes a real call;
+an identical *successful* call reuses the cached response); the `input[]` targets must **match
+the dictionary parameter names** exactly, or execution fails. The dictionary/provider setup this
+skill depends on is specified in [Provider & Dictionary](command-reference.md#provider-dictionary).
+
+**Failure routing:** with `exception={handler-node}`, a failed call (HTTP ≥ 400) sets
+`{node}.status`/`{node}.error`, skips the `output[]` mappings, and **jumps to the handler**
+instead of aborting — the building block for bounded retry loops
+([full pattern](command-reference.md#failure-routing)). Without it, the run aborts.
 
 ## graph.extension {#extension}
 

@@ -21,7 +21,7 @@
     "list_property": "a 'key[]=entry' line appends one entry to the list 'key'; repeat to add more",
     "multiline_value": "wrap a value in triple single quotes ''' ... ''' to span lines",
     "constant": "type(value) — the CLOSED set in the 'constants' object below; no other constant/coercion form exists (the legacy ':type' suffix is deprecated — never generate it)",
-    "mapping_operator": "source -> target (left is source, right is target)",
+    "mapping_operator": "source -> target (left is source, right is target); an UNRESOLVABLE source skips the entry (target left untouched, not nulled) - use f:defaultValue(...) or default-then-overlay for defaults",
     "variable_substitution": "{namespace.key} inside COMPUTE/IF expressions, e.g. {book.price}"
   },
   "constants": {
@@ -119,13 +119,15 @@
       "statement_types": ["COMPUTE", "IF", "MAPPING", "EXECUTE", "RESET"],
       "statement_syntax": {
         "COMPUTE": "COMPUTE: {var} -> {expr}   (JS-like; {namespace.key} substitution; result stored in this node's result namespace, read as {this-node}.result.{var})",
-        "IF": "multi-line decision — MUST include THEN and ELSE or the run aborts ('node X does not have if:, then: or else:'):\nIF: <boolean expression>\nTHEN: <node-name> | next\nELSE: <node-name> | next\n(THEN/ELSE name the node to jump to, or the keyword 'next' to fall through; append the triad as one '''...''' multi-line value)",
+        "IF": "multi-line decision — MUST include THEN and ELSE or the run aborts ('node X does not have if:, then: or else:'):\nIF: <boolean expression>\nTHEN: <node-name> | next\nELSE: <node-name> | next\n(THEN/ELSE name the node to jump to, or the keyword 'next' to fall through; append the triad as one '''...''' multi-line value. A taken NODE-JUMP ends the statement list immediately - later statements do not run; a 'next' branch falls through and processing continues)",
         "MAPPING": "MAPPING: source -> target   (identical to graph.data.mapper; no {} braces around source/target)",
         "EXECUTE": "EXECUTE: {node-name}   (run another graph.math node's statements inline, IN THE CALLING NODE'S CONTEXT: any COMPUTE results land in the INVOKING node's result namespace ({invoker}.result.{var}); the executed module's own namespace stays empty. This is the module-reuse mechanism: author a formula once in an off-path Module node reading neutral model.* operands; a caller marshals inputs with MAPPING, EXECUTEs the module, then maps ITS OWN result out - e.g. MAPPING: compute.result.sum -> output.body.sum, NOT addition.result.sum. Hang the module under the island (island -[module]-> {module}) so no node is left unconnected)",
-        "RESET": "RESET: {node-name}   (clear a node's run-once guard; advanced)"
+        "RESET": "RESET: {node-name}[, {node-name} ...]   (clear the run-once guard AND state of one or MORE nodes - comma/space list; resetting a never-executed node is a safe no-op; a node may reset ITSELF - the run-once mark is set BEFORE execution, so a self-reset survives and the node can run again - but a self-RESET also wipes the node's own in-flight state: place it BEFORE statements whose stored effects must persist (canonical order: RESET -> NEXT: -> DELAY: - the pending delay lives in node state); mind the loop guard: >10 visits/second aborts the traversal - bound retry loops and pace with DELAY:)"
       },
       "notes": [
-        "NEXT: takes a NODE NAME (not a connection/relation label) — unconditional jump",
+        "NEXT:/DELAY:/RESET: are ordinary statement[] lines (e.g. statement[]=NEXT: fetcher, statement[]=DELAY: 500)",
+        "NEXT: takes a NODE NAME (not a connection/relation label) — unconditional jump applied AFTER the whole statement list completes (later statements still run; the last NEXT wins)",
+        "DELAY: {ms} pauses AFTER this node completes, deferring the walk to the next node (paces retries)",
         "BEGIN/END delimit a statement block for for_each[] iteration — they are NOT IF-block braces",
         "a node with only MAPPING statements is rejected — use graph.data.mapper instead"
       ],
@@ -133,7 +135,7 @@
     { "route": "graph.js", "retired": true,
       "notes": ["RETIRED in this Rust port (disabled for security); the runtime rejects it: 'Skill graph.js is retired for security reasons - use graph.math or graph.task instead'", "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer"] },
     { "route": "graph.api.fetcher", "help": "help graph-api-fetcher.md", "required": ["dictionary[]"], "conditional": ["input[] (required whenever its dictionaries declare parameters - the usual case)"], "optional": ["output[] (the result set always lands at {node}.result for a later mapper)", "for_each[]", "concurrency", "exception"],
-      "notes": ["concurrency 1-30 (default 3); identical requests are deduplicated"],
+      "notes": ["concurrency 1-30 (default 3)", "dedup: identical requests (same provider + input parameters) are deduplicated WITHIN THE GRAPH INSTANCE; only SUCCESSFUL responses are cached (a failed call is never cached, so a retry after RESET: makes a real call)", "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set, output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); wire the handler back (connect handler to fetcher with retry) and bound the retry loop - full pattern in command-reference.md#failure-routing"],
       "for_each": {
         "syntax": "for_each[]={array-source} -> model.{var}",
         "source": "must resolve to a list - typically a prior fetcher's result ({fetcher}.result.{key}, the cross-node .result namespace) or any model.* array; multiple for_each[] lines iterate in lock-step",

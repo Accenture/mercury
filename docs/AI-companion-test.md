@@ -43,7 +43,8 @@
 | **L8 — reuse under governance** | 9 | author common logic **once** in an off-path library module; borrow it at run time from the execution path (`graph.math` `EXECUTE`) | problem statement only (reuse stated as an architectural requirement) | build whole graph, pause for dry-run | **behavioral** + structural: formula authored once, module off-path, borrower maps the result |
 | **L9 — composition by delegation** | 10 | delegate to a **deployed, governed graph model** (`graph.extension` sub-graph) instead of rebuilding its logic | problem statement only (deployed model's id + contract given as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: contract served with zero re-implementation (no own providers/dictionaries/fetchers) |
 | **L10 — cross-layer composition** | 11 | delegate to a deployed **Event Script flow** (`extension=flow://{flow-id}`) — the semantic layer composing onto layer 2 | problem statement only (flow id + contract as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: response produced by the flow (delegation visible in the traversal), zero echo logic in the graph |
-| **L11+ …** | 12–13 | escalate further (custom functions, tasks, …) | TBD per tutorial | TBD | TBD |
+| **L11 — resilience engineering** | 12 | custom error handling: `exception=` failure routing + a bounded retry loop (`RESET`/`NEXT`/`DELAY`, attempt counting) + a recovery path — under the engine's loop guard | problem statement only (failure-simulation header as an environment fact) | build whole graph, dry-run BOTH paths | **behavioral**: failing path retries with pauses, recovers at the bound, ends in success; happy path untouched |
+| **L12+ …** | 13 | custom composable functions (`graph.task`) | TBD | TBD | TBD |
 
 ---
 
@@ -417,6 +418,43 @@
   brief) — candidate, needs engine work; #39 — the `Described in /api/graph/model/{name}/{token}`
   reply from `export` referenced an undocumented endpoint — now noted in `#export`.
 
+### Tutorial 12 — L11 (resilience engineering: exception routing + bounded retry + recovery) — PASSED (first attempt)
+- **Task (problem only; the `X-Exception: true` failure-simulation header as an environment
+  fact):** a resilient person lookup — input `{person_id, exception?}`; with `exception=true` the
+  service call fails (401) and the graph must NOT abort: bounded retries (max 3) with a pause
+  between attempts, then a recovery path that clears the flag and fetches successfully; happy path
+  straight through. **The most demanding exercise of the sweep** — it composes `exception=`
+  failure routing, a `graph.math` retry loop (`f:defaultValue`/`f:add` counting, `IF` bound check,
+  `RESET`, `NEXT`, `DELAY`) and the engine's loop guard.
+- **Pre-flight:** the canonical `tutorial-12` was scratch-probed end-to-end first (retry machinery
+  verified live in the Rust engine — it is not among the fixture tests). The probe also surfaced
+  **#40**: `import graph from tutorial-12` returned `ok:false` on a command that succeeded — the
+  `/sync` `is_error_line` heuristic trips on import's benign "Graph model **not found** in
+  /tmp/…" fallback line.
+- **Result: PASSED — 27/27 commands `ok:true`, zero failures, ZERO in-band lookups, both dry-runs
+  first attempt** (session `ws-783755-2`). Failing path: 4 fetch executions (3 real failures —
+  the handler is reachable *only* via the exception route), two visible ~500 ms pauses,
+  `attempts: 3.0`, flag cleared, final success `{Peter, 100 World Blvd}`; happy path: one call,
+  7 ms, retry machinery untouched. Independently re-run with person 200 (4 executions → Mary).
+  Exported `resilient-profile`.
+- **Design judged vs canonical `tutorial-12.json`: equivalent mechanics, arguably cleaner
+  decomposition** — a three-node retry machine (`retry-control`: count + bound → `retry-pause`:
+  DELAY + resets + NEXT → `recover`: clear flag + refetch) using **mutual resets** instead of
+  canonical's comma-list self-reset; no defensive status check needed (the handler only runs on
+  failure); the same Dictionary `exception:false` default + Provider `header.x-exception`
+  pass-through as canonical; `init` used default-then-overlay in place of canonical's
+  `f:defaultValue` (both now documented idioms).
+- **Frictions — seven load-bearing behaviors were inferred, not documented (each "a gamble" that
+  paid off): #41–#46, all engine-verified and fixed same day.** `exception=` semantics (jump not
+  abort; `output[]` skipped; no-handler ⇒ abort) → new **Failure routing** section with the
+  canonical bounded-retry pattern; RESET truths (comma **list**, safe no-op on never-executed
+  nodes, self-reset allowed, loop-guard warning) → statement grammar; taken-`IF`-jump **ends the
+  statement list** while `next` falls through → statement grammar; `NEXT:`/`DELAY:` are
+  `statement[]` lines (NEXT applies after the list completes — last one wins; DELAY pauses after
+  the node) → keyword block rewritten; unresolvable mapping source **skips** the entry (target
+  untouched — enables default-then-overlay) → mapping rules; dedup scope = **per graph instance,
+  successful responses only** (failures never cached ⇒ retries re-call) → fetcher gotchas.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -462,3 +500,10 @@
 | 37 | Tut 11 | **whole-body `*` forwarding on `graph.extension` was unspecified** (`graph.task` documents the `input.body -> *` merge; extension didn't say) | **DONE** (same day, engine-verified: `extension.rs` stages named keys only — no `*` support) — stated in the delegation-contract block (`skills-reference.md#extension`) + `minigraph-commands.json`, incl. the flow:// case |
 | 38 | Tut 11 | **no discovery command for deployed flow/graph ids** — agents rely on the brief for `flow://`/`extension=` targets; nothing like `list flows` / `list graphs` exists in the command grammar | (candidate — needs engine work, maintainer call) a read-only discovery command would make delegation self-service |
 | 39 | Tut 11 | `export`'s reply references `Described in /api/graph/model/{name}/{token}` — an endpoint absent from the AI docs' endpoint table | **DONE** (same day) — noted in `command-reference.md#export` |
+| 40 | Tut 12 pre-flight | **`/sync` `ok` heuristic false-negative:** `import graph from {deployed}` succeeds but returns `ok:false` — `is_error_line` trips on the benign "Graph model **not found** in /tmp/… Found deployed graph model" fallback line (both ports share the heuristic) | **caveat documented** in `ai-agent-guide.md` (read the output lines before concluding failure); **engine-fix candidate** (teach the heuristic the benign message — maintainer call, both ports) |
+| 41 | Tut 12 | **`exception=` semantics were one matrix line** — jump-not-abort, `output[]` skipped on failure, no-handler ⇒ abort, handler wiring: all unstated | **DONE** (same day, engine-verified in `fetcher.rs`) — new [Failure routing](guides/knowledge-graph/command-reference.md#failure-routing) section with the canonical bounded-retry pattern; fetcher gotchas + `minigraph-commands.json` |
+| 42 | Tut 12 | **`RESET` edge cases unstated:** comma **lists** (`RESET: a, b` — canonical uses it), reset of a never-executed node (safe no-op), self-reset (allowed), and the loop guard (>10 visits/second aborts) | **DONE** (same day, engine-verified in `common.rs::reset_nodes` + traveler/executor seen-marking + maintainer follow-up): self-reset is **effective, not a no-op** — the run-once mark is set *before* execution, so a self-reset survives (canonical tut-12 relies on it; live-probed). Nuance: a self-`RESET` also wipes the node's own in-flight state — place it before `DELAY:` (whose pending pause lives in node state); canonical order `RESET → NEXT → DELAY` is the safe one. Statement grammar + JSON catalog |
+| 43 | Tut 12 | **whether statements after a taken `IF` jump run was unspecified** | **DONE** (same day, engine-verified in `skills.rs::execute_statements`): a taken node-jump **ends the statement list**; a `next` branch falls through — stated in the `IF` rules |
+| 44 | Tut 12 | **`NEXT:`/`DELAY:` presentation:** listed beside properties in the matrix, never shown as written `statement[]` lines; NEXT's apply-at-end (last-wins) and DELAY's after-node timing unstated | **DONE** (same day, engine-verified) — keyword block rewritten with written forms + timing semantics |
+| 45 | Tut 12 | **unresolvable mapping source behavior unstated** (skip vs null) — the companion invented default-then-overlay defensively | **DONE** (same day, engine-verified): an unresolvable source **skips** the entry (target untouched); both default idioms documented (`f:defaultValue`, default-then-overlay) |
+| 46 | Tut 12 | **dedup scope vs retry ambiguity:** "identical requests are deduplicated" left open whether a RESET re-execution would hit a cache and never re-call | **DONE** (same day, engine-verified in `fetcher.rs`): dedup is **per graph instance** and caches **successful responses only** — a failed call is never cached, so retries always re-call |

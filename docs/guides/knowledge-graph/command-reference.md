@@ -81,6 +81,11 @@ A **non-leaf (interior) path maps the entire subtree**, not just scalars: a sour
 `fetch-one.result.profile` above carries the whole profile object, and `response.accounts` in a
 Dictionary mapping carries the whole array.
 
+**An unresolvable source skips the entry** — when a mapping's source key does not exist, the
+target is left **untouched** (not nulled). Two idioms for defaults follow from this:
+`f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or default-then-overlay
+(`boolean(false) -> model.flag` followed by `input.body.flag -> model.flag`).
+
 ## Constants {#constants}
 
 A constant is valid wherever a mapping **source** is (a `mapping[]`/`input[]`/`output[]` source, an
@@ -444,6 +449,41 @@ output[]=result.detail -> model.account_details
   `concurrency`.
 - Identical requests are still deduplicated into one HTTP call.
 
+## Failure routing — `exception=` {#failure-routing}
+
+`graph.api.fetcher`, `graph.task`, and `graph.extension` accept an optional
+`exception={handler-node}` property. On a **failed** call (HTTP status ≥ 400, or a task error):
+
+- the node's `{node}.status` and `{node}.error` are set (the engine's error record);
+- the node's `output[]` mappings are **skipped**;
+- traversal **jumps to the named handler node** instead of aborting. Without `exception=`, the
+  run **aborts** on failure.
+
+Wire the handler back explicitly (e.g. `connect error-handler to fetcher with retry`) — no node
+left unconnected. The canonical **bounded-retry** pattern combines the pieces (see the
+[statement grammar](#math-statements)):
+
+```
+create node error-handler
+with type Decision
+with properties
+skill=graph.math
+statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
+statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
+statement[]='''
+IF: {model.attempts} >= 3
+THEN: recovery-node
+ELSE: next
+'''
+statement[]=RESET: fetcher, error-handler
+statement[]=NEXT: fetcher
+statement[]=DELAY: 50
+```
+
+The handler counts attempts (`f:defaultValue` + `f:add`), exits to a recovery node at the bound
+(a taken `IF` jump ends the list), otherwise resets the fetcher **and itself**, jumps back, and
+paces the retry with a delay — staying under the engine's loop guard.
+
 ## Island — the knowledge layer (required) {#island}
 
 A `graph.island` node is **isolated from graph traversal** — it executes only to sink (the run
@@ -542,6 +582,9 @@ ELSE: <node-name> | next
 
 - `THEN:` / `ELSE:` each name the **node to jump to**, or the keyword **`next`** (fall through to the
   natural graph traversal / next statement).
+- **A taken node-jump ends the statement list immediately** — statements after it do not run. A
+  branch that resolves to `next` **falls through**: processing continues with the following
+  statements. Order the list accordingly (e.g. an early-exit check first; the retry logic after).
 - Append the whole triad as one multi-line value with `'''` … `'''` (see [lexical](#lexical)).
 
 Worked example — compute the sum, then branch on a comparison so each branch fills the response:
@@ -556,13 +599,26 @@ ELSE: lt-path
 '''
 ```
 
-**Traversal-control keywords** (optional; conventionally placed last):
+**Traversal-control keywords** — these are ordinary `statement[]` lines (e.g.
+`statement[]=NEXT: fetcher`, `statement[]=DELAY: 500`), conventionally placed last:
 
 - `NEXT: {node-name}` — unconditionally jump to a node **by name** (it takes a *node name*, **not** a
-  connection/relation label).
+  connection/relation label). Unlike a taken `IF` jump, `NEXT:` does **not** stop processing: the
+  remaining statements still run, and the jump is applied **after the whole list completes**
+  (the last `NEXT:` wins).
+- `RESET: {node-name}[, {node-name} …]` — clear the run-once guard **and state** of one or **more**
+  nodes (comma/space-separated list). Resetting a never-executed node is a safe no-op. A node may
+  reset **itself** — the run-once mark is set *before* execution, so a self-reset survives and the
+  node can run again — but a self-`RESET` also wipes the node's own in-flight state, so place it
+  **before** statements whose stored effects must persist (canonical order:
+  `RESET` → `NEXT:` → `DELAY:` — the pending delay lives in node state and would be wiped by a
+  later self-reset). This enables retry loops — see [Failure routing](#failure-routing) — but mind
+  the engine's **loop guard**: a node executed too frequently (default >10 visits/second) aborts
+  the traversal, so bound every retry loop and pace it with `DELAY:`.
 - `BEGIN` / `END` — delimit a statement block for **`for_each[]`** iterative execution; they are
   **not** `IF`-block braces.
-- `DELAY: {milliseconds}` — defer completion (e.g. to simulate a slow service).
+- `DELAY: {milliseconds}` — pause **after this node completes**, deferring the walk to the next
+  node (paces retries; simulates a slow service).
 
 ## Invariants {#invariants}
 
