@@ -180,26 +180,32 @@
   recipe — and that is why it never issued a failing command. Legitimate under the rules (in-band is
   fair game, and the `/sync` channel is exactly this feedback loop), but it means doc completeness was
   rescued by the engine's own help surface.
-- **Doc frictions recorded by the companion (all candidates below, rollup #9–#13):** the dangling
+- **Doc frictions recorded by the companion (rollup #9–#13 — all fixed in the AI grammar the same
+  day, maintainer-directed):** the dangling
   links (`composing-the-layers.md`, `build-your-first-graph.md`, `playground-and-companion.md`,
   `index.md`, `../event-script/syntax.md` — the latter owed the **full constant-type set**, tut-4
   friction (a) again); `help {topic}` absent from the grammar docs; ai-agent-guide prose still calls
   the endpoint "`/command`" post-rename; the success envelope **omits** `error`/`result` (increment-33
   null-omission) though the docs write `error: null`, and carries an undocumented `id` field; fan-out
   concurrency (multiple outgoing connections = parallel branches) implied only by `graph.join`'s notes.
-- **Engine bug found by the orchestrator (not the companion): `session subscribe` issued via
-  `/sync` poisons the subscriber list.** The command registers its reply route as the subscriber —
-  through `/sync` that is the **ephemeral per-request capture route** (`companion.sync.<uuid>`,
-  released when the POST returns), not the session's real WS `.out`. Engine state confirmed it:
-  the primary reported `subscribed by ["companion.sync.3da2143d…"]` while the watcher session
-  believed `subscribed to ws-976371-7`; the orchestrator's headless watcher received mirrors for ~6
-  minutes, then the feed **died silently mid-test**. Java upstream mirrors the same `/sync` mechanism
-  (#189) — check both ports. Workaround: issue `session subscribe` over the WS connection itself.
-  Tracked as an Open Thread in `memory/continuity.md`.
-- **Session-hygiene aside:** the "fresh" primary session arrived carrying a complete leftover draft
-  of this very exercise (`session reset` does not clear the draft graph — it resets subscriptions);
-  the orchestrator deleted all 7 nodes before briefing the companion, or the exercise would have been
-  contaminated. Worth a UX note on `session reset` semantics.
+- **Engine finding by the orchestrator (not the companion): `session subscribe` issued via
+  `/sync` corrupts the subscriber registration.** The command registers its reply route as the
+  subscriber — through `/sync` that is the **ephemeral per-request capture route**
+  (`companion.sync.<uuid>`, released when the POST returns), not the session's real WS `.out`.
+  Engine state confirmed it: the primary reported `subscribed by ["companion.sync.3da2143d…"]`
+  while the watcher session believed `subscribed to ws-976371-7`. *(Post-mortem correction: the
+  watcher's mirror feed dying mid-test was **user-confirmed collateral of an accidental browser
+  restart** that closed/reopened the primary — not proven to be caused by this defect. The
+  capture-route-as-subscriber state remains objectively wrong and worth fixing.)* Java upstream
+  mirrors the same `/sync` mechanism (#189) — check both ports. Workaround: issue
+  `session subscribe` over the WS connection itself. Tracked as an Open Thread in
+  `memory/continuity.md`.
+- **Session-hygiene aside (cause understood):** the human's browser restarted accidentally before
+  the test; the primary session closed, a new one (`ws-976371-7`) was handed over — and it arrived
+  carrying a complete draft of this very exercise (the UI restores the local draft into the
+  reconnected session; `session reset` resets subscriptions, not the draft graph). The orchestrator
+  deleted all 7 nodes before briefing the companion, or the exercise would have been contaminated.
+  Lesson for the method: **always verify the primary is empty before briefing.**
 
 ---
 
@@ -215,10 +221,11 @@
 | 6 | Tut 4 | no example of a mapper reading another node's `.result`; `IF` jump ↔ `connect` relationship unspecified; skill-less terminal `End` only implied | (candidate) add small examples/notes to the skills/command reference |
 | 7 | Tut-4 live demo | **`graph.js` retired at runtime but still listed as available** in the AI docs → a fresh companion wasted three commands trying it (though it self-corrected each time via the in-band error) | **DONE** — AI docs **ported into this Rust repo** (`docs/guides/knowledge-graph/` + `docs/llms.txt`) and `graph.js` marked retired everywhere (command-reference, minigraph-commands.json, skills-reference); future tests reference the Rust repo's docs |
 | 8 | Tut-4 live demo | `graph.math`'s dialect is narrower than "JS-like" implies (no bitwise ops, no function calls) and serializes integers as floats (`8.0`) with no in-grammar coercion | **DONE** — documented in the ported command-reference + skills-reference |
-| 9 | Tut 5 | Provider URL `{name}` placeholder syntax and the Dictionary node's **bare** `input[]` shape are in none of the five AI docs — the page they delegate to (`composing-the-layers.md#data-dictionary`) doesn't exist in this repo; the recipe lives only in in-band `help data-dictionary` | (candidate) inline a Provider/Dictionary authoring subsection into `command-reference.md` + `minigraph-commands.json` |
-| 10 | Tut 5 | `help {topic}` is the engine's own discovery surface (in-band `describe skill` even points to it) but is absent from the AI grammar docs | (candidate) document `help {topic}` as a command in `command-reference.md` + `minigraph-commands.json` |
-| 11 | Tut 5 | `ai-agent-guide.md` prose still calls the synchronous endpoint "the `/command` endpoint" after the `/command` → `/sync` rename (tables/examples are correct) | (candidate) sweep the prose |
-| 12 | Tut 5 | the `/sync` success envelope **omits** `error`/`result` (increment-33 serializer null-omission) though the docs write `error: null | "..."`, and carries an undocumented `id` field — a strict parser trips | (candidate) doc note: absent ⇒ null; document `id` |
-| 13 | Tut 5 | fan-out concurrency (multiple outgoing connections fork **parallel** branches) is implied only by `graph.join`'s notes | (candidate) one explicit sentence in `command-reference.md` traversal/invariants |
-| 14 | Tut 5 (orchestrator) | **engine bug, both ports suspected:** `session subscribe` via `/sync` registers the ephemeral `companion.sync.<uuid>` capture route as a durable subscriber → dangling subscriber, silent mirror death, asymmetric session state | **Open Thread** in `memory/continuity.md` — fix subscribe (resolve to the session's real `.out`, or reject session commands on the sync path); workaround: subscribe over the WS connection |
-| 15 | Tut 5 (orchestrator) | `session reset` resets subscriptions but does **not** clear the draft graph — a "fresh" session can carry a stale (here: exercise-contaminating) draft | (candidate) UX note in `help session.md`; consider a `clear graph` affordance |
+| 9 | Tut 5 | Provider URL `{name}` placeholder syntax and the Dictionary node's **bare** `input[]` shape (incl. `:` = default value **only**) were in none of the five AI docs — the page they delegated to (`composing-the-layers.md#data-dictionary`) doesn't exist in this repo; the recipe lived only in in-band `help data-dictionary` | **DONE** (same day) — new [Provider & Dictionary](guides/knowledge-graph/command-reference.md#provider-dictionary) section in `command-reference.md`, enriched `config_nodes` in `minigraph-commands.json`, `skills-reference.md` retargeted; **all dangling links removed** and the **closed constant set** inlined (`#constants`; deprecated `:type` suffix explicitly excluded — maintainer confirmed) |
+| 10 | Tut 5 | `help {topic}` is the engine's own discovery surface (in-band `describe skill` even points to it) but was absent from the AI grammar docs | **DONE** (same day) — `help` documented as a command in `command-reference.md` + `minigraph-commands.json` (topics, aliases) |
+| 11 | Tut 5 | `ai-agent-guide.md` prose still called the synchronous endpoint "the `/command` endpoint" after the `/command` → `/sync` rename (tables/examples were correct) | **DONE** (same day) — prose swept to `/sync` |
+| 12 | Tut 5 | the `/sync` success envelope **omits** `error`/`result` (increment-33 serializer null-omission) though the docs wrote `error: null | "..."`, and carries an undocumented `id` field — a strict parser trips | **DONE** (same day) — envelope documented truthfully (absent ⇒ null, `id` field) in `ai-agent-guide.md` + a `sync_envelope` object in `minigraph-commands.json` |
+| 13 | Tut 5 | fan-out concurrency (multiple outgoing connections fork **parallel** branches) was implied only by `graph.join`'s notes | **DONE** (same day) — explicit fork/join/state-safety rules in `command-reference.md#connect`, `skills-reference.md#join`, and a `traversal` object in `minigraph-commands.json` |
+| 14 | Tut 5 (orchestrator) | **engine defect, both ports:** `session subscribe` via `/sync` registers the ephemeral `companion.sync.<uuid>` capture route as a durable subscriber → dangling subscriber + asymmetric session state. (The mirror death observed mid-test was later user-confirmed as collateral of an accidental browser restart — the wrong-registration defect stands on the engine-state evidence alone.) | **DONE (Rust, same day; maintainer decision):** both companion endpoints now limit `session` to the **read-only status query** — `subscribe`/`unsubscribe`/`reset` are rejected before dispatch (a companion is an *assistant to* a session, not a WS session of its own); refusal returned in-band (`ok:false` on `/sync`, 400 on fire-and-forget) **and** teed to the live console; deterministic test in `graph_runtime.rs`; AI docs updated. **Java fix prepared** (same guard in PostCompanionCommand/-Sync + shared statics in GraphCommandService, byte-identical refusal text, test `companionEndpointsLimitSessionCommandToReadOnly`, 65-test module suite green; local branch `fix/companion-session-readonly` — push/PR is the human's). |
+| 15 | Tut 5 (orchestrator) | `session reset` resets subscriptions but does **not** clear the draft graph, and the UI restores the local draft into a reconnected session — a "fresh" session can carry a stale (here: exercise-contaminating) draft | (candidate) UX note in `help session.md`; consider a `clear graph` affordance; method rule: verify-empty before briefing |
+| 16 | Tut 5 (maintainer) | the interactive `help/*.md` pages are written for **human operators** and double as the engine's in-band reference; after tut-5 the AI grammar is self-sufficient, so the help pages deserve a dedicated human-UX rewrite (clarity, structure, the #15 `session reset` note) | **Backlog** — Open Thread `ot-help-pages-rewrite` in `memory/continuity.md`; separate session; coordinate with the Java upstream (the pages are verbatim ports) |

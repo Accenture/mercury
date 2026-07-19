@@ -8,7 +8,7 @@ audience: [ai-agent, developer]
 keywords: [ai companion, companion endpoint, context engineering, deterministic, minigraph, websocket, graph generation]
 related:
   - guides/knowledge-graph/command-reference.md
-  - guides/knowledge-graph/playground-and-companion.md
+  - guides/knowledge-graph/minigraph-commands.json
   - guides/knowledge-graph/skills-reference.md
 ---
 
@@ -37,8 +37,8 @@ Playground.
 
 ## The companion contract {#contract}
 
-An **AI agent should use the synchronous `/command` endpoint** (Rust port) so it sees every outcome
-in-band and can self-correct without a human relaying the console:
+An **AI agent should use the synchronous `/sync` endpoint** so it sees every outcome in-band and
+can self-correct without a human relaying the console:
 
 ```
 1. A human opens the Playground (ws://{host}/ws/graph); the first WebSocket frame carries the
@@ -46,8 +46,11 @@ in-band and can self-correct without a human relaying the console:
 2. For each command:  POST /api/companion/{session-id}/sync   Content-Type: text/plain,
    exactly ONE command in the body.
 3. The HTTP response returns the outcome IN-BAND as JSON:
-     { "ok": bool, "command": "...", "output": ["...console lines..."],
-       "error": null | "...", "result": null | [ ... structured, e.g. a run's output.body ... ] }
+     { "ok": bool, "id": "ws-...", "command": "...", "output": ["...console lines..."],
+       "error": "...", "result": [ ... structured, e.g. a run's output.body ... ] }
+   - NULL FIELDS ARE OMITTED from the wire (serializer null-omission): a success carries no
+     "error" key and, unless the command yields data, no "result" key. Treat ABSENT as null —
+     do not require the keys.
    - If ok is false, read error/output, fix it, and re-issue — self-correct; no human relay needed.
    - Use result to verify a run/inspect (e.g. output.body).
 4. The same output is ALSO teed to the human's WebSocket console, so a watcher — and any
@@ -58,13 +61,17 @@ in-band and can self-correct without a human relaying the console:
 Status codes: `200` executed (read `ok`/`error` in the body); `400` missing/empty/non-text body;
 `404` no active session for that id.
 
-> **Legacy fire-and-forget** (`POST /api/companion/{session-id}`, no `/command`): returns only
+> **Legacy fire-and-forget** (`POST /api/companion/{session-id}`, no `/sync`): returns only
 > `{status:"accepted"}`; the outcome streams to the WS console, not the HTTP response, so the caller
-> is **blind to errors**. Prefer `/command`.
+> is **blind to errors**. Prefer `/sync`.
 
 **Rules of engagement:** one command per POST (multi-line commands are fine — see the grammar);
 the session must already be open (you do not create it); single operator — don't POST while a
 human is typing in the same instant; never expose this beyond a trusted dev host.
+**Session topology is off-limits:** a companion is an *assistant to* the session in the URL, not a
+WebSocket session of its own — both companion endpoints reject `session subscribe` /
+`session unsubscribe` / `session reset` (the read-only `session` status query is allowed).
+Subscriptions are managed from WebSocket-connected sessions only.
 
 ## Generate deterministically {#deterministic}
 
@@ -105,15 +112,17 @@ A reliable order for building a graph:
 
 ## Worked example {#example}
 
-Building the hello-world graph via the **synchronous** `/command` endpoint, one command per request.
-Each call returns `{ok, output, error, result}` — check `ok` and self-correct on failure:
+Building the hello-world graph via the **synchronous** `/sync` endpoint, one command per request.
+Each call returns `{ok, id, command, output}` plus `error`/`result` when non-null — check `ok` and
+self-correct on failure:
 
 ```bash
 SID="ws-384729-17"   # from the WebSocket welcome frame
 
 curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary $'create node root\nwith type Root\nwith properties\npurpose=demo'
-# → {"ok":true,"command":"create node root...","output":["> create node root","node root created"],"error":null,"result":null}
+# → {"ok":true,"id":"ws-384729-17","command":"create node root...","output":["> create node root...","node root created"]}
+#   (no "error"/"result" keys on success — null fields are omitted)
 
 curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: text/plain' \
   --data-binary $'create node end\nwith type End\nwith properties\nskill=graph.data.mapper\nmapping[]=text(hello world) -> output.body'
@@ -136,5 +145,4 @@ watcher (and any `session subscribe`d session) follows along live.
 ## See also {#see-also}
 
 - [MiniGraph command grammar](command-reference.md) + [`minigraph-commands.json`](minigraph-commands.json) — the source of truth.
-- [Playground & AI companion](playground-and-companion.md) — the human-facing view of the same surface.
 - [Built-in skills reference](skills-reference.md) — per-skill properties and examples.

@@ -9,8 +9,8 @@ audience: [developer, architect, ai-agent, reference]
 keywords: [minigraph, dsl, grammar, command syntax, companion endpoint, deterministic, data mapping]
 related:
   - guides/knowledge-graph/skills-reference.md
-  - guides/knowledge-graph/build-your-first-graph.md
-  - guides/event-script/syntax.md
+  - guides/knowledge-graph/ai-agent-guide.md
+  - guides/knowledge-graph/minigraph-commands.json
 ---
 
 # MiniGraph command grammar
@@ -34,7 +34,7 @@ related:
 | **Property** | `key=value`; keys may be composite (dot-bracket) | `url=http://...`, `mapping[]=a -> b` |
 | **List property** | a `key[]=entry` line *appends* one entry to the list `key` | repeat `mapping[]=...` per entry |
 | **Multi-line value** | wrap the value in triple single quotes | `statement[]='''` … `'''` |
-| **Constant** | Event Script constant syntax `type(value)` | `text(hello)`, `int(100)` — full set in [Event Script](../event-script/syntax.md) |
+| **Constant** | `type(value)` — the closed set in [Constants](#constants) | `text(hello)`, `int(100)`, `boolean(true)` |
 | **Mapping operator** | `source -> target` (left = source, right = target) | `input.body.id -> person_id` |
 | **Variable substitution** | `{namespace.key}` inside `COMPUTE`/`IF` expressions | `{book.price}`, `{input.body.discount}` |
 
@@ -53,6 +53,25 @@ mappings):
 | `{node-name}.status` / `.error` | a skill's execution status | ✓ | (set by the engine) |
 | `response.*` | a **data Provider's** raw HTTP response — used in a **Dictionary** node's `output[]` | ✓ (in a dictionary mapping) | (set by the fetch) |
 | `result.*` | a **Dictionary/Fetcher** result set | ✓ | (set by the skill) |
+
+## Constants {#constants}
+
+A constant is valid wherever a mapping **source** is (a `mapping[]`/`input[]`/`output[]` source, an
+`instantiate graph` seed line). This is the **closed set** — no other constant or coercion form
+exists (in particular, the legacy `:type` suffix — "simple type matching" — is **deprecated**; never
+generate it. A `:` inside a **Dictionary** node's `input[]` entry is a **default value**, nothing
+else — see [Provider & Dictionary](#provider-dictionary)):
+
+| Form | Produces |
+|---|---|
+| `text(hello world)` | string (verbatim, no quoting needed) |
+| `int(100)` / `long(10000000000)` | integer (non-numeric input → `-1`; a decimal part is dropped) |
+| `float(1.5)` / `double(1.5)` | floating-point number |
+| `boolean(true)` | boolean — `true` only for case-insensitive `true`; anything else is `false` |
+| `map(k1=v1, k2=v2)` | inline map literal (values are strings) |
+| `map(config.key)` | the value of an application-configuration key |
+| `file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)` | file content as text / parsed JSON / bytes |
+| `classpath(text:/data/f.txt)` | like `file()`, resolved against the app's resource roots |
 
 ## Commands {#commands}
 
@@ -86,6 +105,12 @@ connect {node-a} to {node-b} with {relation}
 The `{relation}` is a **descriptive label** (e.g. `done`, `fetch`, `provider`) — free-form, not
 interpreted for skill routing. For data-entity nodes, meaningful relationship names capture
 enterprise knowledge.
+
+A node may have **multiple outgoing connections** — traversal **forks into parallel branches**, one
+per connection, and the branches execute **concurrently**. Synchronize them with a
+[`graph.join`](skills-reference.md#join) barrier node; without one, traversal proceeds as each
+branch completes. Parallel branches must write to **disjoint** state keys (e.g. per-branch
+`model.*` variables) to avoid stepping on each other.
 
 ### delete {#delete}
 
@@ -162,6 +187,29 @@ session unsubscribe
 session reset
 ```
 
+The topology subcommands (`subscribe`/`unsubscribe`/`reset`) work only from a
+**WebSocket-connected session**. The companion REST endpoints reject them (a companion is an
+assistant to a session, not a session of its own) — only the read-only `session` status query is
+available there.
+
+### help {#help}
+
+One-line. Prints the engine's shipped help page for a command, a concept, or a skill — the same
+content `describe skill {route}` returns for a skill. Useful for in-band self-service when a
+detail is not in this grammar (and file an issue when that happens — this page is meant to be
+sufficient).
+
+```
+help                       # overview
+help {command}             # e.g. help connect, help instantiate
+help {topic}               # e.g. help data-dictionary, help session
+help {skill-topic}         # hyphenated skill form: help graph-api-fetcher, help graph-math
+```
+
+- Aliases: `help start` → `help instantiate`; `help clear` → `help delete`.
+- An unknown topic returns "not found" — topic names are lowercase (commands by name, skills as
+  `graph-…` hyphenated).
+
 ## Node types {#node-types}
 
 `root` and `end` are **structural** (entry/exit). All other types are **descriptive labels**
@@ -192,12 +240,104 @@ and examples; this is the at-a-glance contract.
 | `graph.join` | — | — |
 | `graph.island` | — | — |
 
-Configuration nodes used by `graph.api.fetcher` (see [Composing the layers](composing-the-layers.md#data-dictionary)):
+Configuration nodes used by `graph.api.fetcher` — full authoring rules in
+[Provider & Dictionary](#provider-dictionary):
 
 | Node | Properties |
 |---|---|
 | **Provider** | `url`, `method`, `feature[]`, `input[]` (targets: `header.*`, `query.*`, `path_parameter.*`, `body.*`) |
-| **Dictionary** | `provider`, `input[]`, `output[]` (→ `result.*`) |
+| **Dictionary** | `provider`, `input[]` (**bare** parameter names), `output[]` (`response.*` → `result.*`) |
+
+## Provider & Dictionary — the data-dictionary method {#provider-dictionary}
+
+`graph.api.fetcher` never holds a URL itself. It names one or more **Dictionary** nodes (data
+attributes); each Dictionary names the **Provider** node (endpoint definition) that supplies it.
+Both are **config nodes**: they never execute, are referenced **by name**, and need **no**
+connections (group them under a `graph.island` node purely for visual organization if you wish).
+
+**Provider** — defines the HTTP call:
+
+```
+create node {name}
+with type Provider
+with properties
+purpose={description}
+url={target url}
+method={GET | POST | PUT | PATCH | DELETE | HEAD}
+feature[]={feature flag}
+input[]={source} -> {target}
+```
+
+- The `url` may embed **`{name}` path placeholders** — each one is filled by an `input[]` line
+  targeting `path_parameter.{name}`. Standard `${config.key:default}` substitution also applies
+  (e.g. `url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}`).
+- `input[]` **source**: a [constant](#constants), a Dictionary **parameter name** (bare), or a
+  state-machine value (`model.*`). **Target**: `header.{name}`, `query.{name}`,
+  `path_parameter.{name}`, `body.{key}` — or the whole `body` (e.g. to send a string or array as
+  the request body).
+- `feature[]` entries declare capabilities the calling fetcher must support (e.g. an auth
+  mechanism). Built-ins: `log-request-headers` / `log-response-headers` — the fetcher logs the
+  request/response headers into its node's `header` section. An unsupported feature produces a
+  warning from `graph.api.fetcher` (a custom fetcher may enforce it).
+
+**Dictionary** — defines one data attribute retrievable through a Provider:
+
+```
+create node {name}
+with type Dictionary
+with properties
+purpose={description}
+provider={provider-node-name}
+input[]={parameter}
+input[]={parameter}:{default}
+output[]=response.{path} -> result.{key}
+```
+
+- `input[]` entries are **bare parameter names**, *not* `source -> target` mappings (the one
+  exception to the mapping rule). An optional `:{default}` suffix supplies a default value
+  (`input[]=detail:true`) — that is the **only** meaning of `:` here.
+- `output[]` maps the Provider's raw HTTP response body (the **`response.*`** namespace) into the
+  **result set** (`result.{key}`). The result set is what a fetcher exposes: as the `result.*`
+  source inside its own `output[]` mappings, and as `{fetcher-node}.result` to later nodes.
+- A fetcher's `input[]` **targets must match the dictionary parameter names** exactly, or execution
+  fails. Several Dictionary nodes may share one Provider; identical calls (same provider + same
+  input values) are **deduplicated** into a single HTTP request.
+
+Worked example — fetch a person's profile by id (path parameter + JSON accept header), then expose
+name and address:
+
+```
+create node mdm-profile
+with type Provider
+with properties
+purpose=MDM profile endpoint
+url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}
+method=GET
+input[]=text(application/json) -> header.accept
+input[]=person_id -> path_parameter.id
+```
+
+```
+create node person-profile
+with type Dictionary
+with properties
+purpose=full profile record of a person
+provider=mdm-profile
+input[]=person_id
+output[]=response.profile.name -> result.name
+output[]=response.profile.address -> result.address
+```
+
+```
+create node fetcher
+with type Fetcher
+with properties
+skill=graph.api.fetcher
+dictionary[]=person-profile
+input[]=input.body.person_id -> person_id
+output[]=result.name -> output.body.name
+output[]=result.address -> output.body.address
+```
 
 ## `graph.math` statement grammar {#math-statements}
 
@@ -274,4 +414,5 @@ Hard rules the engine enforces — violate them and generation fails:
 - [`minigraph-commands.json`](minigraph-commands.json) — the machine-readable form of this grammar.
 - [AI agent guide](ai-agent-guide.md) — driving the Playground via the companion endpoint.
 - [Built-in skills reference](skills-reference.md) — per-skill semantics and examples.
-- [Event Script Syntax](../event-script/syntax.md) — the shared data-mapping syntax and the full constant set.
+- The mapping syntax (`source -> target`) and [constant set](#constants) are shared with Event
+  Script; this page is self-contained — the constants above are the full set.

@@ -134,6 +134,12 @@ pub async fn post_companion_command(
     let route = id.replace('-', ".");
     let in_route = format!("{route}.in");
     let out_route = format!("{route}.out");
+    // Same restriction as the sync endpoint: only the read-only `session`
+    // status query is allowed from a companion (see `session_topology_subcommand`).
+    if let Some(sub) = session_topology_subcommand(&command) {
+        let error = refuse_session_topology(platform, &out_route, &command, sub).await;
+        return Err(AppError::new(400, error));
+    }
     let po = PostOffice::new(platform);
     let _ = po
         .send(
@@ -166,6 +172,54 @@ pub async fn post_companion_command(
 /// Sentinel appended after a synchronous command so the capture route knows the
 /// command's (FIFO) output is fully drained. Not part of the returned output.
 const SYNC_SENTINEL: &str = "__companion_sync_done__";
+
+/// Session-topology subcommands (`session subscribe|unsubscribe|reset`) are a
+/// WebSocket-session privilege on **both** companion endpoints (maintainer
+/// decision, 2026-07-18): a companion is an **assistant to** the session named
+/// in the URL, not a WebSocket session of its own. On the sync path they would
+/// also bind the per-request capture route — an ephemeral, released-on-return
+/// route — as a durable subscriber (observed live as
+/// `subscribed by ["companion.sync.<uuid>"]`). Only the read-only `session`
+/// status query is allowed.
+fn session_topology_subcommand(command: &str) -> Option<&'static str> {
+    let mut words = command.split_whitespace();
+    if !words.next()?.eq_ignore_ascii_case("session") {
+        return None;
+    }
+    match words.next()? {
+        w if w.eq_ignore_ascii_case("subscribe") => Some("subscribe"),
+        w if w.eq_ignore_ascii_case("unsubscribe") => Some("unsubscribe"),
+        w if w.eq_ignore_ascii_case("reset") => Some("reset"),
+        _ => None,
+    }
+}
+
+/// Refuse a session-topology command on a companion endpoint: echo the refusal
+/// to the session's live console (the watching human sees what the AI caller
+/// sees) and return the error text for the endpoint's own reply shape.
+async fn refuse_session_topology(
+    platform: &Platform,
+    out_route: &str,
+    command: &str,
+    sub: &str,
+) -> String {
+    let error = format!(
+        "session {sub} is not available on the companion endpoint - a companion is an \
+         assistant to this session, not a WebSocket session; use the read-only 'session' \
+         command here, and manage subscriptions from a WebSocket-connected session"
+    );
+    let po = PostOffice::new(platform);
+    for line in [format!("> {command}"), error.clone()] {
+        let _ = po
+            .send(
+                EventEnvelope::new()
+                    .set_to(out_route)
+                    .set_raw_body(Value::from(line.as_str())),
+            )
+            .await;
+    }
+    error
+}
 
 /// A private, per-call **capture route** used by [`post_companion_command_sync`]:
 /// the command pipeline's `say()` output is directed here and buffered so the
@@ -262,6 +316,30 @@ pub async fn post_companion_command_sync(
     let route = id.replace('-', ".");
     let in_route = format!("{route}.in");
     let out_route = format!("{route}.out");
+
+    // Reject session-topology commands before dispatch (see
+    // `session_topology_subcommand`); the refusal is returned in-band and echoed
+    // to the session's console so a watching human sees what the AI caller does.
+    if let Some(sub) = session_topology_subcommand(&command) {
+        let error = refuse_session_topology(platform, &out_route, &command, sub).await;
+        return Ok(EventEnvelope::new()
+            .set_header("Content-Type", "application/json")
+            .set_raw_body(Value::Map(vec![
+                (Value::from("ok"), Value::Boolean(false)),
+                (Value::from("id"), Value::from(id.as_str())),
+                (Value::from("command"), Value::from(command.as_str())),
+                (
+                    Value::from("output"),
+                    Value::Array(vec![
+                        Value::from(format!("> {command}").as_str()),
+                        Value::from(error.as_str()),
+                    ]),
+                ),
+                (Value::from("error"), Value::from(error.as_str())),
+                (Value::from("result"), Value::Nil),
+            ])));
+    }
+
     let capture_route = format!("companion.sync.{}", uuid::Uuid::new_v4().simple());
     let buffer = Arc::new(Mutex::new(Vec::<Value>::new()));
     platform.register(

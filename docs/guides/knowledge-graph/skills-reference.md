@@ -7,9 +7,9 @@ layer: knowledge-graph
 audience: [developer, reference]
 keywords: [graph.data.mapper, graph.math, graph.js, graph.api.fetcher, graph.task, graph.extension, graph.join, graph.island, skill]
 related:
-  - guides/knowledge-graph/index.md
-  - guides/knowledge-graph/build-your-first-graph.md
-  - guides/event-script/syntax.md
+  - guides/knowledge-graph/command-reference.md
+  - guides/knowledge-graph/ai-agent-guide.md
+  - guides/knowledge-graph/minigraph-commands.json
 ---
 
 # Built-in skills reference
@@ -18,8 +18,9 @@ related:
 >
 > - **What** — the eight skills shipped with the engine. Attach one to a node (`skill=<route>`)
 >   to make it *active*: it runs when traversal reaches the node.
-> - **They share** — Event Script [data-mapping syntax](../event-script/syntax.md#tasks-and-data-mapping)
->   (`source -> target`) and the same state-machine namespaces (`input.*`, `model.*`, `output.*`,
+> - **They share** — the `source -> target` mapping syntax with its
+>   [constant set](command-reference.md#constants), and the same state-machine
+>   [namespaces](command-reference.md#namespaces) (`input.*`, `model.*`, `output.*`,
 >   `{node}.result`).
 > - **One skill per node.** A node returns a **decision** to the engine — `next` (follow the
 >   connection), a **node name** (jump), or `.sink` (pause this path).
@@ -102,8 +103,11 @@ in-grammar integer coercion). For anything richer, use `graph.task` (a composabl
 
 ## graph.api.fetcher {#api-fetcher}
 
-Calls external HTTP APIs declaratively, driven by [data-dictionary and provider nodes](composing-the-layers.md#data-dictionary).
-Supports response caching and bounded fork-join concurrency.
+Calls external HTTP APIs declaratively, driven by **Dictionary and Provider config nodes** — the
+full authoring rules (Provider URL `{name}` placeholders, the Dictionary's bare `input[]`
+parameters with `:default`, `response.* -> result.*` output mapping) are in
+[Provider & Dictionary](command-reference.md#provider-dictionary). Supports response deduplication
+and bounded fork-join concurrency.
 
 ```
 skill=graph.api.fetcher
@@ -129,9 +133,10 @@ output[]=result.name -> output.body.name
 output[]=result.address -> output.body.address
 ```
 
-The result lands at `{node}.result`. **Gotcha:** identical requests (same URL + method + input) are
-**deduplicated** into a single HTTP call. See [Composing the layers](composing-the-layers.md#data-dictionary)
-for the dictionary/provider setup this skill depends on.
+The result lands at `{node}.result`. **Gotchas:** identical requests (same URL + method + input) are
+**deduplicated** into a single HTTP call; the `input[]` targets must **match the dictionary
+parameter names** exactly, or execution fails. The dictionary/provider setup this skill depends on
+is specified in [Provider & Dictionary](command-reference.md#provider-dictionary).
 
 ## graph.extension {#extension}
 
@@ -158,8 +163,7 @@ input[]=input.body.department_id -> id
 output[]=result.sales_performance -> output.body.sales_performance
 ```
 
-This is the seam between the semantic layer and the composable layer beneath it — see
-[Composing the layers](composing-the-layers.md#extension).
+This is the seam between the semantic layer and the composable (Event Script) layer beneath it.
 
 ## graph.task {#task}
 
@@ -212,7 +216,10 @@ connect join to combine with proceed
 ```
 
 **Gotchas:** needs at least two predecessors to be meaningful; it is the explicit fork-join
-mechanism — without it, traversal proceeds as branches complete.
+mechanism — without it, traversal proceeds as branches complete. The fork side needs no special
+node: **multiple outgoing connections from one node run their branches in parallel** (see
+[connect](command-reference.md#connect)); give each branch its own `model.*` scratch keys so
+concurrent writes don't collide.
 
 ## graph.island {#island}
 
@@ -232,6 +239,8 @@ connect dictionary to person-address with data
 
 ## See also {#see-also}
 
-- [Build your first Active Knowledge Graph](build-your-first-graph.md) — `graph.data.mapper` in a full walkthrough.
-- [Composing the layers](composing-the-layers.md) — the data-dictionary/provider model for `graph.api.fetcher`, and `graph.extension` into flows.
-- [Event Script Syntax](../event-script/syntax.md#tasks-and-data-mapping) — the shared data-mapping syntax.
+- [MiniGraph command grammar](command-reference.md) — the full command language, the
+  [constant set](command-reference.md#constants), and
+  [Provider & Dictionary authoring](command-reference.md#provider-dictionary).
+- [AI agent guide](ai-agent-guide.md) — driving the Playground via the companion endpoint.
+- [`minigraph-commands.json`](minigraph-commands.json) — the machine-readable command catalog.

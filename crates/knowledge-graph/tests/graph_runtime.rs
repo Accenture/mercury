@@ -224,6 +224,7 @@ async fn graph_runtime_end_to_end() {
     // server: a second `#[tokio::test]` gets its own runtime, which drops (killing
     // the shared HTTP server task) when the first finishes — the harness flake.
     companion_sync_returns_outcome_in_band(&platform).await;
+    companion_sync_rejects_session_topology_commands(&platform).await;
 }
 
 /// Java `GraphExecutionTest.testGraphExecutionMath/Js` + `GraphTests.tutorial113`
@@ -1014,5 +1015,145 @@ async fn companion_sync_returns_outcome_in_band(platform: &Platform) {
     assert!(
         teed.iter().any(|l| l.contains("node root created")),
         "sync output must be teed to the session's WS .out for live human view: {teed:?}"
+    );
+}
+
+/// A companion is an **assistant to** a session, not a WebSocket session of its
+/// own (maintainer decision, 2026-07-18) — so **both** companion endpoints limit
+/// the `session` command to the read-only status query: the topology subcommands
+/// (`subscribe`/`unsubscribe`/`reset`) are rejected before dispatch. Executed on
+/// the sync path they would durably register the per-request
+/// `companion.sync.<uuid>` capture route as a subscriber (observed live during
+/// the tutorial-5 companion test).
+async fn companion_sync_rejects_session_topology_commands(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770002-1";
+    let in_route = "ws.770002.1.in";
+    let peer = "ws-770001-1"; // the session opened by the previous helper
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    let tap = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register("ws.770002.1.out", Arc::new(OutTap { seen: tap.clone() }), 1)
+        .expect("register out tap");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // 1) every topology-mutating form is rejected in-band, without dispatch
+    for command in [
+        format!("session subscribe {peer}"),
+        "session unsubscribe".to_string(),
+        "session reset".to_string(),
+    ] {
+        let resp = sync_cmd(platform, sid, &command).await;
+        assert_eq!(resp["ok"], serde_json::json!(false), "rejected: {resp}");
+        assert!(
+            resp["error"]
+                .as_str()
+                .is_some_and(|e| e.contains("not available on the companion endpoint")),
+            "refusal reason returned in-band: {resp}"
+        );
+    }
+
+    // 2) no subscription was registered anywhere: the peer's status must not list
+    //    a subscriber (in particular no companion.sync.* capture route), and this
+    //    session must still be primary (not "subscribed to")
+    let peer_status = sync_cmd(platform, peer, "session").await;
+    let peer_text = peer_status["output"].to_string();
+    assert!(
+        !peer_text.contains("companion.sync") && !peer_text.contains("subscribed by"),
+        "no capture-route subscriber may be registered on the peer: {peer_status}"
+    );
+    let my_status = sync_cmd(platform, sid, "session").await;
+    assert_eq!(
+        my_status["ok"],
+        serde_json::json!(true),
+        "read-only 'session' status stays allowed: {my_status}"
+    );
+    assert!(
+        !my_status["output"].to_string().contains("subscribed to"),
+        "the rejected subscribe must not mark this session as subscribed: {my_status}"
+    );
+
+    // 3) the refusal is also teed to the session's WS console for the human
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let teed = tap.lock().expect("tap").clone();
+    assert!(
+        teed.iter()
+            .any(|l| l.contains("not available on the companion endpoint")),
+        "refusal must be visible on the live console: {teed:?}"
+    );
+
+    // 4) the legacy fire-and-forget endpoint enforces the same restriction (400),
+    //    while the read-only `session` status query still dispatches (accepted)
+    async fn legacy_cmd(
+        platform: &Platform,
+        sid: &str,
+        command: &str,
+    ) -> Result<EventEnvelope, AppError> {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        knowledge_graph::rest::post_companion_command(platform, event).await
+    }
+    let refused = legacy_cmd(platform, sid, &format!("session subscribe {peer}")).await;
+    match refused {
+        Err(e) => {
+            assert_eq!(e.status(), 400, "legacy endpoint refuses with 400");
+            assert!(
+                e.message()
+                    .contains("not available on the companion endpoint"),
+                "legacy refusal carries the reason: {}",
+                e.message()
+            );
+        }
+        Ok(resp) => panic!("legacy endpoint must refuse session subscribe: {resp:?}"),
+    }
+    let status_ok = legacy_cmd(platform, sid, "session").await;
+    assert!(
+        status_ok.is_ok(),
+        "read-only 'session' stays allowed on the legacy endpoint: {status_ok:?}"
     );
 }
