@@ -53,7 +53,7 @@
 | 34 | `#[optional_service]` promoted to a first-class, order-independent attribute | 2026-07-19 | KG K9 | 201 |
 | 35 | companion `/sync` ok-heuristic: whole-output classification (finding #40, both ports) | 2026-07-19 | ADR-0008 | — |
 | 36 | HTTP-boundary content-type dispatch: exact Java parity (no sniffing, binary path, form fields) | 2026-07-19 | D10 | — |
-| 37 | profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` (Spring name retired) | 2026-07-19 | §8 Q1 | 202 |
+| 37 | Spring config names retired: `APP_PROFILES_ACTIVE`/`app.profiles.active` rename + `application.name` alone for the app name | 2026-07-19 | §8 Q1 | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -971,9 +971,11 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   doc and `app-config-reader.yml` (behavior-parity convention).
 - **Tests:** `config.rs` profile-overlay tests updated to the new name (18 pass); workspace
   **202 tests**, clippy 0, fmt clean.
-- **Out of scope (flagged):** `spring.application.name` as an app-name fallback in
-  `platform.rs` — a separate key with the same rationale; maintainer call whether to rename it
-  in a follow-up.
+- **Follow-up (same day, maintainer-directed):** the flagged `spring.application.name`
+  fallback in `Platform::name()` is retired too — `application.name` is Java's own primary
+  key, so the Rust port reads it alone; the default aligns to Java's `"application"`
+  (was an unnoted `"untitled"` divergence). All repo configs already used
+  `application.name`, so nothing else moved.
 
 ---
 

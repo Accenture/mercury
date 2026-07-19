@@ -411,9 +411,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   exception to D9's verbatim-config rule** (a `spring.profiles.active` line in a ported config
   file does NOT carry over). Mechanism/precedence unchanged (env → override registry →
   consolidated key; `application-{profile}.yml` overlays). Code + manifest + tests + design doc
-  (§3, §8 Q1 DECIDED) + ledger updated; workspace 202 tests / clippy 0 / fmt clean. Flagged
-  follow-up (maintainer call): `spring.application.name` app-name fallback in `platform.rs` —
-  same rationale, separate key. → serves: vision-mercury
+  (§3, §8 Q1 DECIDED) + ledger updated; workspace 202 tests / clippy 0 / fmt clean.
+  **Follow-up DONE same day (maintainer-directed): `spring.application.name` retired too** —
+  `Platform::name()` reads `application.name` alone (Java's own primary key) and the default
+  aligns to Java's `"application"` (was an unnoted `"untitled"` divergence). No Spring-named
+  config key remains live anywhere in the port. → serves: vision-mercury
   <!-- id: profiles-renamed-app-active | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | supersedes: ot-profiles-alias-backlog | origin: 2026-07-19-215701.md -->
 
 ## User Preferences

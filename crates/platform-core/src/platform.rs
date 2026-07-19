@@ -123,14 +123,14 @@ impl Platform {
     }
 
     /// The application name (Java `platform.getName()`): `application.name`,
-    /// else `spring.application.name` (kept verbatim for side-by-side
-    /// comparison), else `untitled`.
+    /// else `application` — Java's primary key and default. The Java
+    /// `spring.application.name` fallback is retired with the other Spring
+    /// names (maintainer decision, 2026-07-19; Spring is not ported).
     pub fn name() -> String {
         let config = AppConfigReader::get_instance();
         config
             .get_property("application.name")
-            .or_else(|| config.get_property("spring.application.name"))
-            .unwrap_or_else(|| "untitled".to_string())
+            .unwrap_or_else(|| "application".to_string())
     }
 
     /// This process's unique origin id (Java `platform.getOrigin()`,

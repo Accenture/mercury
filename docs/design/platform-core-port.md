@@ -307,8 +307,9 @@ segments reclaimed after drain) + the increment-2 suite re-passing over the new 
 
 `EntryPoint` is one async trait for both hook kinds (Java parity). **Platform identity**
 lands here too: `Platform::get_instance()` (process-wide registry; `Platform::new()` stays
-for isolated tests), `Platform::name()` (`application.name` → `spring.application.name` →
-`untitled`), `Platform::origin()` (uuid per process) — the elastic store's holding-area
+for isolated tests), `Platform::name()` (`application.name` → `application` — the Java primary key and
+default; the `spring.application.name` fallback retired with the other Spring names,
+maintainer decision 2026-07-19), `Platform::origin()` (uuid per process) — the elastic store's holding-area
 naming now uses them. **Divergences (doc-commented):** no classpath scanning (D6) —
 `AppStarter` is an explicit builder (the `#[preload]` macro is the later ergonomic layer);
 Java's global run-once guard not ported (builder is consumed; framework phases idempotent);
