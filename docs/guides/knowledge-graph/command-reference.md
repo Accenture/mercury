@@ -224,6 +224,8 @@ import node {node} from {name}
 
 - `export` writes JSON to `location.graph.temp`; it adds `name={name}` to the root node and
   **fails if any node is an orphan** (every node must connect to ≥1 other).
+- The export reply includes `Described in /api/graph/model/{name}/{token}` — a read-only HTTP
+  view of the exported model.
 
 ### session {#session}
 

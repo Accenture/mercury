@@ -186,8 +186,12 @@ output[]=result.sales_performance -> output.body.sales_performance
   node fast at run time.
 - Each `input[]` **target** is a bare key that becomes the sub-graph's `input.body.{key}` (e.g.
   `input[]=input.body.person_id -> person_id` feeds the sub-graph's `input.body.person_id`).
+  There is **no whole-body `*` target** on `graph.extension` — map named keys (the `*` merge idiom
+  is [`graph.task`](#task)-only).
 - The node's **`result.*` namespace is the sub-graph's `output.body`**: `result` (bare) is the
   whole response body; `result.{key}` a field of it.
+- The same contract applies to a **flow** target (`extension=flow://{flow-id}`): the named keys
+  feed the flow's `input.body`, and `result.*` is the flow's `output.body`.
 
 This is the seam between the semantic layer and the composable (Event Script) layer beneath it —
 authoring the target flow: [Event Script AI agent guide](../event-script/ai-agent-guide.md) +

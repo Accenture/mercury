@@ -42,7 +42,8 @@
 | **L7 — reshaping toolbox** | 8 | choose the right transformation tool (JSONPath wildcard extraction, `f:listOfMap`, `f:removeKey`) for a data-driven list-reshaping contract | problem statement only | build whole graph, pause for dry-run | **behavioral**: contract met for any list length; internal field never exposed |
 | **L8 — reuse under governance** | 9 | author common logic **once** in an off-path library module; borrow it at run time from the execution path (`graph.math` `EXECUTE`) | problem statement only (reuse stated as an architectural requirement) | build whole graph, pause for dry-run | **behavioral** + structural: formula authored once, module off-path, borrower maps the result |
 | **L9 — composition by delegation** | 10 | delegate to a **deployed, governed graph model** (`graph.extension` sub-graph) instead of rebuilding its logic | problem statement only (deployed model's id + contract given as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: contract served with zero re-implementation (no own providers/dictionaries/fetchers) |
-| **L10+ …** | 11–13 | escalate further (error paths, flows, custom functions, …) | TBD per tutorial | TBD | TBD |
+| **L10 — cross-layer composition** | 11 | delegate to a deployed **Event Script flow** (`extension=flow://{flow-id}`) — the semantic layer composing onto layer 2 | problem statement only (flow id + contract as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: response produced by the flow (delegation visible in the traversal), zero echo logic in the graph |
+| **L11+ …** | 12–13 | escalate further (custom functions, tasks, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -392,6 +393,30 @@
   everywhere; the skill-less `End` was only implied ("usually with graph.data.mapper") — now
   explicitly valid.
 
+### Tutorial 11 — L10 (cross-layer composition: flow extension) — PASSED (first attempt)
+- **Task (problem only; flow id + contract as environment facts):** the platform hosts a deployed
+  Event Script flow `flow-11` (an echo service, maintained by another team). Build a graph that
+  hands its input to that flow and returns the flow's response — implementing the echo in the
+  graph is forbidden. Input `{hello, message}` → output = the flow's echo. Tutorial-11's focus is
+  **`extension=flow://{flow-id}`** — the semantic layer composing onto layer 2.
+- **Pre-flight:** `flow-11` verified live in the running app by an orchestrator scratch-session
+  probe before briefing (echoed `{"hello":"probe"}` through the flow).
+- **Result: PASSED — 15/15 commands `ok:true`, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass** (session `ws-783755-2`). Output verbatim:
+  `{"hello":"world","message":"this is a good day"}`; delegation proven in-band
+  (`Executed flow-delegate with skill graph.extension`; `inspect flow-delegate.result` = the
+  flow's response); independently re-run with a different payload. Exported `delegate-to-flow`.
+- **The feedback loop is compounding — the companion explicitly credited the prior fixes:** "the
+  island convention, the `flow://` prefix, the bare-key `input[]` semantics, and the
+  `result`-is-flow-output rule were all **stated as rules (not just examples), which is exactly
+  what made a zero-error first run possible**" (#22/#30, #34, #36 at work). The island documents
+  the flow dependency (`echo-flow` entity with `flow_id` + contract + ownership note).
+- **Frictions (minor):** #37 — whole-body `*` forwarding on `graph.extension` unspecified —
+  **engine-verified: not supported** (named keys only; the `*` merge idiom is `graph.task`-only)
+  and now stated; #38 — no discovery command for deployed flow/graph ids (agents rely on the
+  brief) — candidate, needs engine work; #39 — the `Described in /api/graph/model/{name}/{token}`
+  reply from `export` referenced an undocumented endpoint — now noted in `#export`.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -434,3 +459,6 @@
 | 34 | Tut 10 | **`graph.extension`'s data contract was example-implied, not rule-stated** — that bare `input[]` targets become the sub-graph's `input.body.{key}`, that the node's `result.*` **is** the sub-graph's `output.body`, and where `extension={graph-id}` resolves (deployed registry; drafts not addressable; missing-id failure mode) were all inferences from one example | **DONE** (same day, engine-verified in `extension.rs`/`graphs` registry) — "The delegation contract" rules block in `skills-reference.md#extension` + expanded notes in `minigraph-commands.json` |
 | 35 | Tut 10 | **the node-name lexical rule wrongly excluded digits** ("lowercase letters and hyphen only") — canonical fixtures themselves use `fetcher-1`/`fetcher-2`; engine-verified: no charset validation at create. Consequence: agents avoid natural names (e.g. one documenting `tutorial-3`) | **DONE** (same day, + maintainer confirmation): digits (0-9) are legal — "lowercase letters, digits and hyphen" aligned across the lexical table, `#create`, invariants, pre-send checklist, and `minigraph-commands.json`. Hyphenated names are **encouraged** (communicative); the `{node-name.key}` substitution syntax in `graph.math` expressions is robust to hyphens (never parsed as a minus) — a briefly-added hyphen-avoidance style note was withdrawn by the maintainer |
 | 36 | Tut 10 | **skill-less `End` legality was only implied** ("often `graph.data.mapper`") — used successfully in tut-9 and tut-10 when an upstream node already shaped `output.body` | **DONE** (same day) — explicitly blessed in the node-types table |
+| 37 | Tut 11 | **whole-body `*` forwarding on `graph.extension` was unspecified** (`graph.task` documents the `input.body -> *` merge; extension didn't say) | **DONE** (same day, engine-verified: `extension.rs` stages named keys only — no `*` support) — stated in the delegation-contract block (`skills-reference.md#extension`) + `minigraph-commands.json`, incl. the flow:// case |
+| 38 | Tut 11 | **no discovery command for deployed flow/graph ids** — agents rely on the brief for `flow://`/`extension=` targets; nothing like `list flows` / `list graphs` exists in the command grammar | (candidate — needs engine work, maintainer call) a read-only discovery command would make delegation self-service |
+| 39 | Tut 11 | `export`'s reply references `Described in /api/graph/model/{name}/{token}` — an endpoint absent from the AI docs' endpoint table | **DONE** (same day) — noted in `command-reference.md#export` |
