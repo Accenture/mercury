@@ -238,6 +238,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-subscribe-via-sync-bug | created: 2026-07-18 | last_used: 2026-07-19 | uses: 4 | tier: archive-candidate | origin: 2026-07-18-231641.md -->
 
+- [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:
+  the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +
+  event-driven AI guides, hardened by the validation sweep); the **human developer documentation
+  was deferred** and is now backlog. Source map: the Java upstream's human guides
+  (`~/sandbox/mercury-composable/docs/guides/` — getting-started, architecture, methodology,
+  event-driven walkthroughs like write-your-first-function / function-execution, rest-automation
+  human pages, api-overview, annotations/configuration/event-envelope references, observability,
+  index/home) — adapted to the Rust port the way the help pages were (2026-07-19): map don't
+  mirror, all code in the Rust API, port truths (tokio not virtual threads, `#[preload]` not
+  `@PreLoad`, no Kafka/Spring), verified against source. The AI docs stay agent-optimized and
+  separate; the in-app help pages are already done. → serves: vision-mercury
+  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-181641.md -->
+
 - [ ] **(backlog) Discovery commands for deployed flows and graph models.** Maintainer decision
   2026-07-19 (from tut-11 finding #38): agents (and humans) currently rely on out-of-band briefs
   for `extension={graph-id}` / `flow://{flow-id}` targets — a read-only discovery surface (e.g.
