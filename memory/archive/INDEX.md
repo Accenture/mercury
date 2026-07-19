@@ -15,3 +15,7 @@
 - bp-event-script — (blueprint) Port event-script to Rust (on top of platform-core). — faded (sslu 22 > archive_window 20; milestone closed 2026-07-17 — the shipped engine is the living record) — 2026-Q3.md
 - ot-design-platform-core — (design) Rust port of platform-core — COMPLETE (increments 1–10; milestone closed — completed thread swept (milestones closed 2026-07-16/17; sslu > archive_window 20; condensed summary retained in archive) — 2026-Q3.md
 - ot-design-event-script — (design) Rust port of event-script (layer 2) — COMPLETE (E-1…E-9 / repo increments — completed thread swept (milestones closed 2026-07-16/17; sslu > archive_window 20; condensed summary retained in archive) — 2026-Q3.md
+- ot-reverify-invariants-2026-07 — Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold. — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
+- bp-platform-core — (blueprint) Port platform-core to Rust — the foundation layer; everything else — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
+- bp-active-knowledge-graph — (blueprint) Port the active knowledge graph to Rust. — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
+- ot-design-knowledge-graph — (design) Rust port of the knowledge graph (layer 3) — COMPLETE (K-1…K-8 / repo — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md

@@ -83,7 +83,7 @@ Subscriptions are managed from WebSocket-connected sessions only.
 
 > **Pre-send checklist**
 > - [ ] The root node is named `root`; the end node is named `end`.
-> - [ ] Node names and types are **lowercase + hyphen** only.
+> - [ ] Node names are **lowercase letters, digits and hyphen** (types: descriptive labels, conventionally Capitalized).
 > - [ ] Each node has **0 or 1** skill (`skill={route}`); the skill's required properties are present
 >       (see the [skill→property matrix](command-reference.md#skill-matrix)).
 > - [ ] Every node *in the traversal path* connects to ≥1 node (or `export` fails).

@@ -41,7 +41,8 @@
 | **L6 — mapping-language depth** | 7 | the data-mapping mini-language end-to-end: constants, nested extraction, ordered array assembly, execution-time `f:` plugin values — pure transformation, no backends | problem statement only | build whole graph, pause for dry-run | **behavioral**: exact reshaped contract incl. a genuinely runtime-generated value |
 | **L7 — reshaping toolbox** | 8 | choose the right transformation tool (JSONPath wildcard extraction, `f:listOfMap`, `f:removeKey`) for a data-driven list-reshaping contract | problem statement only | build whole graph, pause for dry-run | **behavioral**: contract met for any list length; internal field never exposed |
 | **L8 — reuse under governance** | 9 | author common logic **once** in an off-path library module; borrow it at run time from the execution path (`graph.math` `EXECUTE`) | problem statement only (reuse stated as an architectural requirement) | build whole graph, pause for dry-run | **behavioral** + structural: formula authored once, module off-path, borrower maps the result |
-| **L9+ …** | 10–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
+| **L9 — composition by delegation** | 10 | delegate to a **deployed, governed graph model** (`graph.extension` sub-graph) instead of rebuilding its logic | problem statement only (deployed model's id + contract given as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: contract served with zero re-implementation (no own providers/dictionaries/fetchers) |
+| **L10+ …** | 11–13 | escalate further (error paths, flows, custom functions, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -366,6 +367,31 @@
   "never executed" phrasing corrected to match the run log ("executes only to sink") —
   **fixed same day**.
 
+### Tutorial 10 — L9 (composition by delegation: graph.extension sub-graph) — PASSED (first attempt)
+- **Task (problem only; the deployed model's id + contract given as environment facts):** the
+  organization operates a deployed, governed graph model `tutorial-3` (person_id → name+address,
+  maintained by another team). Build a NEW graph that **delegates** the lookup — rebuilding,
+  copying or re-implementing its internals is forbidden. Input `{person_id}` → output
+  `{name, address}`. Tutorial-10's focus is the **`graph.extension` sub-graph**.
+- **Result: PASSED — 16/16 commands `ok:true`, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass** (session `ws-783755-2`). Output verbatim:
+  `{"address":"100 World Blvd","name":"Peter"}`; independently re-run by the orchestrator with
+  `person_id=200` → Mary (genuine delegation, nothing hardcoded). Exported as `delegate-profile`.
+- **The delegation choice was correct and unprompted:** `graph.extension` with
+  `extension=tutorial-3` (not `import graph from tutorial-3`, which would have *copied* the
+  logic into the draft — exactly what the brief forbade); field-level result mapping
+  (`result.name/.address -> output.body.*`); zero own providers/dictionaries/fetchers. The
+  knowledge island (encouraged form, per #30) now documents **the delegation itself**: a
+  `person` entity plus a `person-lookup-model` node carrying `graph_id=tutorial-3` +
+  input/output contract properties — the external dependency captured as enterprise knowledge.
+- **Frictions (inference-only, all fixed same day → #34–#36):** `graph.extension`'s data contract
+  was example-implied (bare `input[]` targets = the sub-graph's `input.body` keys; the node's
+  `result.*` **is** the sub-graph's `output.body`; where `extension={graph-id}` resolves) — now
+  rule-stated; the node-name lexical rule ("lowercase letters and hyphen only") wrongly excluded
+  digits (canonical fixtures use `fetcher-1`; engine-verified: no charset validation) — corrected
+  everywhere; the skill-less `End` was only implied ("usually with graph.data.mapper") — now
+  explicitly valid.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -405,3 +431,6 @@
 | 31 | Tut 9 | **`EXECUTE` result-landing was unspecified** — "run another graph.math node inline" said nothing about where `COMPUTE` results land; they land on the **invoking** node (`{invoker}.result.{var}`), the module's namespace stays empty (the canonical walkthrough's own teaching point: "it just borrows the logic"). Cost the companion one self-corrected iteration | **DONE** (same day, engine behavior proven live by the companion's own inspects) — EXECUTE semantics + a full **reusable-module** worked example (module + caller + island anchoring) in `command-reference.md#math-statements`; mirrored in `minigraph-commands.json` `statement_syntax.EXECUTE` + `skills-reference.md` |
 | 32 | Tut 9 | **node-type case contradiction:** `#create` said "`{name}` and `{type}` are lowercase-and-hyphen" while the lexical table and every worked example Capitalize types (engine accepts them) | **DONE** (same day) — `#create` bullet + `minigraph-commands.json` note corrected: name lowercase+hyphen; type a descriptive label, conventionally Capitalized |
 | 33 | Tut 9 | **island scope didn't name module/library nodes** (examples showed only Dictionary/Provider/entities — a `graph.math` module under an island "worked but unstated"), and "never executed" contradicted the run log's `Executed … with skill graph.island` line | **DONE** (same day) — island convention now covers **off-path nodes: config, data-entity, and reusable Module** (`island -[module]-> module`); phrasing corrected to "executes only to sink; traversal never continues through it" |
+| 34 | Tut 10 | **`graph.extension`'s data contract was example-implied, not rule-stated** — that bare `input[]` targets become the sub-graph's `input.body.{key}`, that the node's `result.*` **is** the sub-graph's `output.body`, and where `extension={graph-id}` resolves (deployed registry; drafts not addressable; missing-id failure mode) were all inferences from one example | **DONE** (same day, engine-verified in `extension.rs`/`graphs` registry) — "The delegation contract" rules block in `skills-reference.md#extension` + expanded notes in `minigraph-commands.json` |
+| 35 | Tut 10 | **the node-name lexical rule wrongly excluded digits** ("lowercase letters and hyphen only") — canonical fixtures themselves use `fetcher-1`/`fetcher-2`; engine-verified: no charset validation at create. Consequence: agents avoid natural names (e.g. one documenting `tutorial-3`) | **DONE** (same day, + maintainer confirmation): digits (0-9) are legal — "lowercase letters, digits and hyphen" aligned across the lexical table, `#create`, invariants, pre-send checklist, and `minigraph-commands.json`. Hyphenated names are **encouraged** (communicative); the `{node-name.key}` substitution syntax in `graph.math` expressions is robust to hyphens (never parsed as a minus) — a briefly-added hyphen-avoidance style note was withdrawn by the maintainer |
+| 36 | Tut 10 | **skill-less `End` legality was only implied** ("often `graph.data.mapper`") — used successfully in tut-9 and tut-10 when an upstream node already shaped `output.body` | **DONE** (same day) — explicitly blessed in the node-types table |

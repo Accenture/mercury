@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 34 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep in progress (tutorials 1–5 passed; AI grammar self-sufficient as of 2026-07-18; layer-1/2 AI docs ported 2026-07-19). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-164200)
-- **last_review:** 2026-07-18 | through 2026-07-18-233807
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-165609)
+- **last_review:** 2026-07-19 | through 2026-07-19-165609
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 31 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 32 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -103,7 +103,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   + `command-reference.md` + `minigraph-commands.json` — never the tutorial walkthroughs), one node /
   one connection at a time with human screenshot validation, through the instantiate→run→inspect
   dry-run (from tut-4 on: L3 = problem-only brief, no syntax hints, build-whole-then-dry-run). Running
-  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4, 5, 6, 7, 8, 9.** Tut-3 surfaced + drove the
+  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.** Tut-3 surfaced + drove the
   `#[optional_service]` / dev-mock / Dictionary bare-`input[]` / inspect-doc-placeholder arc (increments
   30–32, both repos). **Tut-4** (decision node) found an AI-grammar gap — the AI docs listed
   `graph.math` statement keywords but gave no statement syntax, so a fresh agent invented wrong
@@ -178,7 +178,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   day (EXECUTE semantics + reusable-module worked example), plus #32 (type-case contradiction) and
   #33 (island scope now covers Module nodes; "executes only to sink" phrasing) FIXED. Maintainer
   correction absorbed: tut-9 = reusable module, NOT subgraphs (graph.extension comes later).
-  **Resume — NEXT: tutorial-10.** Same recipe: fresh primary (**verify EMPTY first**), brief =
+  **Tut-10 (L9, composition by delegation: `graph.extension`
+  sub-graph) PASSED — 16/16, zero failures, ZERO lookups, first attempt** (2026-07-19,
+  ws-783755-2): delegation chosen over import unprompted (`extension=tutorial-3`, zero
+  re-implementation); the island documents the delegation itself (entity + external-model node
+  with graph_id/contract properties). Findings #34–#36 FIXED same day (engine-verified):
+  graph.extension delegation contract rule-stated; node-name charset corrected to include DIGITS
+  (canonical uses fetcher-1; engine has no charset validation); skill-less End blessed.
+  **Resume — NEXT: tutorial-11.** Same recipe: fresh primary (**verify EMPTY first**), brief =
   llms.txt + its map, drive via `/sync`, watcher subscribes over the WS connection; tutorial help
   pages carry known errors (backlog [[ot-help-pages-rewrite]]) — derive contracts carefully.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
@@ -188,7 +195,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 14 | tier: working | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 15 | tier: working | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -224,13 +231,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/AI-companion-test.md`. → serves: vision-mercury
   <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 5 | tier: working | origin: 2026-07-18-231641.md -->
 
-- [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
-  `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
-  route-name + `EventEnvelope` only) and the **Vision** (`vision-mercury`, `memory/vision.md`)
-  re-confirmed unchanged. First invariant check since enable (cadence:
-  `verify_invariants_every: 40` sessions).
-  <!-- id: ot-reverify-invariants-2026-07 | created: 2026-07-18 | last_used: 2026-07-18 | uses: 1 | tier: archive-candidate | origin: 2026-07-18-061457.md -->
-
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
 > Vision↔reality gap that closes when delivered. Bottom-up order (foundation → UI). Detailed
@@ -238,22 +238,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > project (map, don't mirror); harvest it into per-layer Designs when a local checkout is
 > available and authorized (see the harvest thread below).
 
-- [x] **(blueprint)** Port **platform-core** to Rust — the foundation layer; everything else
-  builds on it. **MILESTONE CLOSED 2026-07-16** (increments 1–9; benchmarked vs the Java
-  original — see `docs/INCREMENTS.md` and `benchmark/benchmark-reporter/analysis/`). Remaining
-  §7 items (broadcast, streams, #[preload] macro, flow binding, relay, event-over-HTTP, …) are
-  enhancements to fold in as event-script needs them, not blockers. → serves: vision-mercury
-  <!-- id: bp-platform-core | created: 2026-07-15 | last_used: 2026-07-18 | uses: 27 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
-- [x] **(blueprint)** Port the **active knowledge graph** to Rust.
-  **MILESTONE CLOSED 2026-07-18** (increments K-1…K-8 / repo 21–29; design
-  `docs/design/knowledge-graph-port.md` K1–K9): MiniGraph property graph (platform-core
-  built-in) → math engine → graph compiler+registry → runtime + core skills (graph.js
-  retired) → platform-core HTTP client + graph.api.fetcher → graph.extension → the
-  WebSocket server + declarative `#[websocket_service]`/`#[fetch_feature]` macros → the
-  Playground (command grammar, traveler, companion API, dev-gating K9) → the React webapp +
-  `examples/minigraph-playground`, live-verified in the browser. **Three layers ported
-  bottom-up: platform-core → event-script → active knowledge graph.** → serves: vision-mercury
-  <!-- id: bp-active-knowledge-graph | created: 2026-07-15 | last_used: 2026-07-18 | uses: 20 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
   **Design drafted 2026-07-17** (`docs/design/knowledge-graph-port.md` v1) — gate pending.
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
   → serves: vision-mercury
@@ -312,7 +296,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **The companion `/sync` feature is COMPLETE and MERGED in both ports** (Rust R&D main + Java upstream
   main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
-  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 16 | tier: working | origin: 2026-07-18-162832.md -->
+  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 17 | tier: working | origin: 2026-07-18-162832.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
@@ -325,18 +309,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   WorkerHandler, serializers), then event-script and knowledge-graph specs + their ADRs.
   → serves: vision-mercury
   <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
-
-- [x] **(design) Rust port of the knowledge graph (layer 3) — COMPLETE (K-1…K-8 / repo
-  increments 21–29; milestone closed 2026-07-18).** Realizes `bp-active-knowledge-graph`. Design
-  doc: **`docs/design/knowledge-graph-port.md`** (K1–K9, gate approved 2026-07-17; `graph.js`
-  RETIRED for security — maintainer decision); per-increment detail: `docs/INCREMENTS.md` §21–§29 +
-  the session logs. Delivered: MiniGraph (platform-core built-in) → math engine → graph
-  compiler+registry → runtime + core skills → platform-core HTTP client + graph.api.fetcher →
-  graph.extension → WebSocket server + `#[websocket_service]`/`#[fetch_feature]` macros → the
-  Playground (grammar, traveler, companion API, dev-gating) → React webapp +
-  `examples/minigraph-playground`, live-verified. Notable platform-core contract fix: `AutoStart::main`
-  returns once booted; `AutoStart::run` serves until Ctrl-C. → serves: vision-mercury
-  <!-- id: ot-design-knowledge-graph | created: 2026-07-17 | last_used: 2026-07-18 | uses: 11 | tier: archive-candidate | origin: 2026-07-17-010622.md -->
 
 - [ ] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
   decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**

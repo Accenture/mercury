@@ -12,7 +12,7 @@
     ]
   },
   "lexical": {
-    "node_name": "lowercase letters and hyphen only",
+    "node_name": "lowercase letters, digits and hyphen (e.g. fetcher-1, person-name); hyphenated names are communicative and safe everywhere - the {node-name.key} substitution syntax in graph.math expressions is robust to hyphens (never parsed as a minus)",
     "node_type": "a descriptive label; examples capitalize structural types (Root, End, Provider, Dictionary, Fetcher, Island)",
     "reserved_names": { "root": "the root/entry node must be named 'root'", "end": "the end/exit node must be named 'end'" },
     "property": "key=value; keys may be composite using dot-bracket notation",
@@ -58,7 +58,7 @@
   "commands": [
     { "name": "create node", "multiline": true, "help": "help create.md",
       "syntax": "create node {name}\nwith type {type}\nwith properties\n{key}={value}",
-      "notes": ["properties optional (used as defaults)", "zero or one skill via skill={route}", "name lowercase+hyphen (root/end reserved); type is a descriptive label, conventionally Capitalized (Root, Fetcher, Module)"],
+      "notes": ["properties optional (used as defaults)", "zero or one skill via skill={route}", "name lowercase letters, digits and hyphen (root/end reserved); type is a descriptive label, conventionally Capitalized (Root, Fetcher, Module)"],
       "example": "create node end\nwith type End\nwith properties\nskill=graph.data.mapper\nmapping[]=text(hello world) -> output.body" },
     { "name": "update node", "multiline": true, "help": "help update.md",
       "syntax": "update node {name}\nwith type {type}\nwith properties\n{key}={value}",
@@ -143,7 +143,10 @@
       },
       "example": "skill=graph.api.fetcher\ndictionary[]=account-detail\nfor_each[]=profile-fetcher.result.accounts -> model.account_id\nconcurrency=3\ninput[]=input.body.person_id -> person_id\ninput[]=model.account_id -> account_id\noutput[]=result.detail -> model.account_details" },
     { "route": "graph.extension", "help": "help graph-extension.md", "required": ["extension", "input[]"], "optional": ["output[]", "for_each[]", "concurrency", "exception"],
-      "notes": ["extension={graph-id} for a sub-graph, or flow://{flow-id} for an Event Script flow"],
+      "notes": ["extension={graph-id} for a sub-graph, or flow://{flow-id} for an Event Script flow",
+                "{graph-id} resolves among the DEPLOYED graph models (compiled at startup from resources/graph - the same ids callable at POST /api/graph/{graph-id}); a session draft is NOT addressable - export and deploy first; a missing id fails the node fast",
+                "each input[] TARGET is a bare key that becomes the sub-graph's input.body.{key}",
+                "the node's result.* namespace IS the sub-graph's output.body: 'result' (bare) = the whole response body, 'result.{key}' = a field of it"],
       "example": "skill=graph.extension\nextension=evaluate-sales-performance\ninput[]=input.body.department_id -> id\noutput[]=result -> output.body" },
     { "route": "graph.task", "help": "help graph-task.md", "required": ["task"], "optional": ["input[]", "output[]", "for_each[]", "concurrency", "exception"],
       "notes": ["task={route} of a composable function (TypedLambdaFunction registered with @PreLoad)",
@@ -182,7 +185,7 @@
   "invariants": [
     "root node named 'root'; end node named 'end'",
     "a node has 0 or 1 skill",
-    "node names are lowercase + hyphen only (types are descriptive labels, commonly capitalized)",
+    "node names are lowercase letters, digits and hyphen (types are descriptive labels, commonly capitalized)",
     "every node in the traversal path must connect to >=1 node or export fails",
     "Dictionary/Provider config nodes are referenced by name and not traversed - but the required convention is NO NODE LEFT UNCONNECTED: wire them under a graph.island (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), the graph's entity-relationship knowledge layer",
     "a node is executed once per run (a graph.math RESET statement is the only escape)",

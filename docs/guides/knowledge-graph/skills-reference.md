@@ -178,6 +178,17 @@ input[]=input.body.department_id -> id
 output[]=result.sales_performance -> output.body.sales_performance
 ```
 
+**The delegation contract (rules, not just the example):**
+
+- `extension={graph-id}` resolves among the **deployed graph models** (compiled at startup from
+  the app's `resources/graph` folder — the same ids callable at `POST /api/graph/{graph-id}`).
+  A session draft is **not** addressable — export and deploy it first. A missing id fails the
+  node fast at run time.
+- Each `input[]` **target** is a bare key that becomes the sub-graph's `input.body.{key}` (e.g.
+  `input[]=input.body.person_id -> person_id` feeds the sub-graph's `input.body.person_id`).
+- The node's **`result.*` namespace is the sub-graph's `output.body`**: `result` (bare) is the
+  whole response body; `result.{key}` a field of it.
+
 This is the seam between the semantic layer and the composable (Event Script) layer beneath it —
 authoring the target flow: [Event Script AI agent guide](../event-script/ai-agent-guide.md) +
 [flow grammar](../event-script/flow-grammar.md).

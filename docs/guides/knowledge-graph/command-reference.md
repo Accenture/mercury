@@ -28,7 +28,7 @@ related:
 
 | Element | Rule | Example |
 |---|---|---|
-| **Node name** | lowercase letters and hyphen only | `person-name`, `mdm-profile` |
+| **Node name** | lowercase letters, digits and hyphen | `person-name`, `mdm-profile`, `fetcher-1` |
 | **Node type** | a descriptive label; shipped examples **capitalize** structural types | `Root`, `End`, `Provider`, `Dictionary`, `Fetcher`, `Island` |
 | **Reserved names** | the root node **must** be named `root`; the end node **must** be `end` | — |
 | **Property** | `key=value`; keys may be composite (dot-bracket) | `url=http://...`, `mapping[]=a -> b` |
@@ -127,7 +127,7 @@ with properties
 
 - `with properties` and the key lines are **optional** (properties act as defaults).
 - A node has **zero or one** skill, set with `skill={route}`.
-- `{name}` is lowercase-and-hyphen (`root`/`end` reserved); `{type}` is a descriptive label,
+- `{name}` is lowercase letters, digits and hyphen (`root`/`end` reserved); `{type}` is a descriptive label,
   conventionally **Capitalized** (`Root`, `Fetcher`, `Module` — see [lexical](#lexical)).
 
 ### connect {#connect}
@@ -264,7 +264,7 @@ validated by the node's skill, if any. Common conventional types:
 
 | Type | Role | Typical skill |
 |---|---|---|
-| `Root` / `End` | entry / exit | — / often `graph.data.mapper` |
+| `Root` / `End` | entry / exit | — / often `graph.data.mapper`; a **skill-less `End`** is valid when an upstream node already shaped `output.body` |
 | data-entity | passive data holder | none |
 | `Dictionary` | external attribute definition | none (config) |
 | `Provider` | external endpoint definition | none (config) |
@@ -496,7 +496,9 @@ A `graph.math` node runs an ordered list of `statement[]` lines. Five statement 
 | `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below) |
 | `RESET` | `RESET: {node-name}` | clear a node's run-once guard so it can execute again (advanced) |
 
-Expressions use `{namespace.key}` substitution (`{input.body.a}`, `{book.price}`, `{model.x}`). A node
+Expressions use `{namespace.key}` substitution (`{input.body.a}`, `{book.price}`, `{model.x}`) —
+the `{…}` substitution syntax is robust to hyphenated names (`{unit-price}` is the value of
+`unit-price`, never a subtraction), so use communicative hyphenated names freely. A node
 with **only** `MAPPING` statements is rejected — use `graph.data.mapper` instead. Statements run in order.
 
 **Reusable modules.** A `graph.math` node can serve as a governed **library module**: author the
@@ -566,7 +568,7 @@ Hard rules the engine enforces — violate them and generation fails:
 
 1. The root node is named `root`; the end node is named `end`.
 2. A node has **0 or 1** skill.
-3. Node **names** are **lowercase + hyphen** only (`root`/`end` reserved). Node **types** are
+3. Node **names** are **lowercase letters, digits and hyphen** (`root`/`end` reserved). Node **types** are
    descriptive labels — shipped examples capitalize structural types (see [lexical](#lexical)).
 4. Every node **in the traversal path** must connect to ≥1 node, or `export` fails.
    `Dictionary` and `Provider` configuration nodes are referenced *by name* (`dictionary[]=`,
