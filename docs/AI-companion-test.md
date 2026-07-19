@@ -40,7 +40,8 @@
 | **L5 — data-driven iteration** | 6 | chained multi-step fetch where the fan-out set is **runtime data** (`for_each` inside a fetcher), incl. a POST provider | problem statement only | build whole graph, pause for dry-run | **behavioral**: every element of the runtime list fetched + assembled; nothing hardcoded |
 | **L6 — mapping-language depth** | 7 | the data-mapping mini-language end-to-end: constants, nested extraction, ordered array assembly, execution-time `f:` plugin values — pure transformation, no backends | problem statement only | build whole graph, pause for dry-run | **behavioral**: exact reshaped contract incl. a genuinely runtime-generated value |
 | **L7 — reshaping toolbox** | 8 | choose the right transformation tool (JSONPath wildcard extraction, `f:listOfMap`, `f:removeKey`) for a data-driven list-reshaping contract | problem statement only | build whole graph, pause for dry-run | **behavioral**: contract met for any list length; internal field never exposed |
-| **L8+ …** | 9–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
+| **L8 — reuse under governance** | 9 | author common logic **once** in an off-path library module; borrow it at run time from the execution path (`graph.math` `EXECUTE`) | problem statement only (reuse stated as an architectural requirement) | build whole graph, pause for dry-run | **behavioral** + structural: formula authored once, module off-path, borrower maps the result |
+| **L9+ …** | 10–13 | escalate further (error paths, extensions, sub-graphs, …) | TBD per tutorial | TBD | TBD |
 
 ---
 
@@ -337,6 +338,34 @@
   tutorial exercises it). Verified-by-use with no issues: nested/indexed `instantiate` seeds
   (#27's fix), `double(…)` constants, the `/sync` envelope contract.
 
+### Tutorial 9 — L8 (reuse under governance: off-path modules + EXECUTE) — PASSED (one self-corrected iteration)
+- **Task (problem only; reuse stated architecturally, no mechanism named):** input `{a, b}` →
+  output `{sum: a+b}`, with the formula authored **exactly once** in a reusable **library node off
+  the execution path**, borrowed at run time by a node on the path, and the graph readable as
+  documentation (library distinguishable from flow). Tutorial-9's focus is the **reusable module**
+  (`graph.math` + `EXECUTE`) — *not* subgraphs (`graph.extension` comes in later tutorials).
+- **Result: PASSED — 19/19 commands `ok:true`, zero failed commands, ZERO in-band grammar
+  lookups; one functional defect self-corrected in-band** (session `ws-783755-2`). First `run`
+  produced an empty output; the companion diagnosed it purely with three `inspect`s
+  (`model` ✓ → `add-formula.result` empty → `adder.result` has the sum), identified the rule —
+  **`EXECUTE` results land on the invoking node, not the module** — fixed with one `update node`,
+  re-ran: `{"sum": 30.0}`. Independently re-verified by the orchestrator with different operands
+  (`7+35 → 42.0`). Exported as `reusable-addition`.
+- **Design matches canonical `tutorial-9.json` in every structural idea:** off-path `Module`
+  (`add-formula`, neutral `model.*` operands so any caller can feed it), execution-path caller
+  (`MAPPING`×2 → `EXECUTE` → `MAPPING` result out), island anchoring the module
+  (`root -[contains]-> library -[module]-> add-formula`) — the island applied to a **module** node
+  unprompted, extending the #22/#30 convention exactly as the maintainer intends.
+- **Findings:** #31 — the `EXECUTE` result-landing rule (the canonical walkthrough's own teaching
+  point: "it just borrows the logic") was absent from the AI grammar and cost the iteration —
+  **fixed same day** (EXECUTE semantics + a full reusable-module worked example in
+  `command-reference.md#math-statements`, mirrored in `minigraph-commands.json` +
+  `skills-reference.md`). #32 — `#create`'s "`{name}` and `{type}` are lowercase-and-hyphen"
+  contradicted the lexical table and every example (types Capitalized; engine accepts them) —
+  **fixed same day**. #33 — island scope now explicitly includes **module/library** nodes, and the
+  "never executed" phrasing corrected to match the run log ("executes only to sink") —
+  **fixed same day**.
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -373,3 +402,6 @@
 | 28 | Tut 8 | **`f:removeKey` had no syntax line or worked example anywhere** (the plugin table only said "remove one or more keys from a map or list of maps") — the companion inferred `f:removeKey(source, text(key))` from the generic pattern; this is the natural idiom for hiding internal fields | **DONE** (same day, code-verified in `plugins_e8.rs`: map or list-of-maps, N key args, non-map list elements pass through, returns a copy) — syntax in the plugin table + a worked *removeKey* example in `syntax.md`; `removeKey`/`listOfMap` added to the KG grammar's `f:` examples + JSONPath wildcard note in `minigraph-commands.json` |
 | 29 | Tut 8 | **`graph.math` `for_each[]`/`BEGIN`/`END` is thinly specified** — no worked example, loop-variable binding / iteration order / interaction with the "MAPPING-only rejected" rule unstated (the fetcher's `for_each` got full rules in #17/#18; the math skill's didn't) | (candidate) document with engine verification — best addressed when a later tutorial exercises `graph.math` iteration |
 | 30 | Tut 8 | **island-scope crispness for graphs with *no* config nodes:** the recipe said wire an island "if the graph has Dictionary/Provider (or data-entity) nodes" — for a pure-transformation graph, is a knowledge layer expected? (The tut-8 companion volunteered one with data-entity nodes documenting the domain) | **DONE** (maintainer ruling, 2026-07-19): island **required** whenever config/data-entity nodes exist; **encouraged** otherwise as ER documentation — wording landed in `command-reference.md#island`, `ai-agent-guide.md` recipe, `minigraph-commands.json`. Bonus context captured in `syntax.md`: `listOfMap`/JSONPath serve **impedance matching** between external (3rd-party) and internal API contracts |
+| 31 | Tut 9 | **`EXECUTE` result-landing was unspecified** — "run another graph.math node inline" said nothing about where `COMPUTE` results land; they land on the **invoking** node (`{invoker}.result.{var}`), the module's namespace stays empty (the canonical walkthrough's own teaching point: "it just borrows the logic"). Cost the companion one self-corrected iteration | **DONE** (same day, engine behavior proven live by the companion's own inspects) — EXECUTE semantics + a full **reusable-module** worked example (module + caller + island anchoring) in `command-reference.md#math-statements`; mirrored in `minigraph-commands.json` `statement_syntax.EXECUTE` + `skills-reference.md` |
+| 32 | Tut 9 | **node-type case contradiction:** `#create` said "`{name}` and `{type}` are lowercase-and-hyphen" while the lexical table and every worked example Capitalize types (engine accepts them) | **DONE** (same day) — `#create` bullet + `minigraph-commands.json` note corrected: name lowercase+hyphen; type a descriptive label, conventionally Capitalized |
+| 33 | Tut 9 | **island scope didn't name module/library nodes** (examples showed only Dictionary/Provider/entities — a `graph.math` module under an island "worked but unstated"), and "never executed" contradicted the run log's `Executed … with skill graph.island` line | **DONE** (same day) — island convention now covers **off-path nodes: config, data-entity, and reusable Module** (`island -[module]-> module`); phrasing corrected to "executes only to sink; traversal never continues through it" |

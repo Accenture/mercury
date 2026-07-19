@@ -76,7 +76,7 @@ five types:
 | `COMPUTE` | evaluate a math expression → the node's `result` |
 | `IF` | boolean decision → jump to a node (`THEN`/`ELSE`) |
 | `MAPPING` | data-map source → target (no curly braces) |
-| `EXECUTE` | run another `graph.math` node |
+| `EXECUTE` | run another `graph.math` node inline — results land on the **caller** (`{invoker}.result.*`), making this the module-reuse mechanism ([details](command-reference.md#math-statements)) |
 | `RESET` | clear a node's "seen" flag so it can run again |
 
 ```

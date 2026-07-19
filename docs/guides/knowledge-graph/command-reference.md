@@ -127,7 +127,8 @@ with properties
 
 - `with properties` and the key lines are **optional** (properties act as defaults).
 - A node has **zero or one** skill, set with `skill={route}`.
-- `{name}` and `{type}` are lowercase-and-hyphen; `root`/`end` are reserved (see [lexical](#lexical)).
+- `{name}` is lowercase-and-hyphen (`root`/`end` reserved); `{type}` is a descriptive label,
+  conventionally **Capitalized** (`Root`, `Fetcher`, `Module` — see [lexical](#lexical)).
 
 ### connect {#connect}
 
@@ -443,18 +444,20 @@ output[]=result.detail -> model.account_details
 
 ## Island — the knowledge layer (required) {#island}
 
-A `graph.island` node is **isolated from graph traversal** (it always sinks — never executed),
-but it is **not optional decoration**: the island subgraph is the graph's
-**entity-relationship diagram**. Connecting Dictionary, Provider, and data-entity nodes under an
-island turns the graph into **living documentation of enterprise knowledge** — a new joiner (or an
-agent) reads the connected dictionaries and entities to discover the domain model, not just the
-execution path.
+A `graph.island` node is **isolated from graph traversal** — it executes only to sink (the run
+log shows one `Executed … with skill graph.island` line), so traversal never continues through it.
+It is **not optional decoration**: the island subgraph is the graph's
+**entity-relationship diagram**. Connecting Dictionary, Provider, data-entity, and reusable
+**module** nodes under an island turns the graph into **living documentation of enterprise
+knowledge** — a new joiner (or an agent) reads the connected dictionaries, entities, and modules
+to discover the domain model, not just the execution path.
 
 **Convention: leave no node unconnected.** The island is **required** whenever the graph has
-config or data-entity nodes (Dictionary, Provider, domain entities) — wire every one of them into
-the knowledge structure. For a graph with none (e.g. a pure transformation), an island is
-**encouraged**: adding data-entity nodes that document the domain model (entities, fields, which
-fields are internal-only) turns even a small graph into discoverable enterprise knowledge.
+off-path nodes — config (Dictionary, Provider), data-entity, or reusable
+[module](#math-statements) nodes — wire every one of them into the knowledge structure. For a
+graph with none (e.g. a pure transformation), an island is **encouraged**: adding data-entity
+nodes that document the domain model (entities, fields, which fields are internal-only) turns
+even a small graph into discoverable enterprise knowledge.
 
 ```
 create node dictionary
@@ -490,11 +493,39 @@ A `graph.math` node runs an ordered list of `statement[]` lines. Five statement 
 | `COMPUTE` | `COMPUTE: {var} -> {expr}` | evaluate a JS-like math/boolean expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING` |
 | `IF` | multi-line (see below) | a boolean **decision** that redirects traversal to a named node |
 | `MAPPING` | `MAPPING: source -> target` | data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target) |
-| `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node inline |
+| `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below) |
 | `RESET` | `RESET: {node-name}` | clear a node's run-once guard so it can execute again (advanced) |
 
 Expressions use `{namespace.key}` substitution (`{input.body.a}`, `{book.price}`, `{model.x}`). A node
 with **only** `MAPPING` statements is rejected — use `graph.data.mapper` instead. Statements run in order.
+
+**Reusable modules.** A `graph.math` node can serve as a governed **library module**: author the
+formula once, reading neutral `model.*` operands, keep the node **off the execution path**, and
+let any traversal node borrow it with `EXECUTE`. The caller marshals inputs into the module's
+expected `model.*` keys, executes, then maps **its own** result out:
+
+```
+create node addition             # the library — authored once, not traversed
+with type Module
+with properties
+skill=graph.math
+statement[]=COMPUTE: sum -> {model.a} + {model.b}
+```
+
+```
+create node compute              # the execution-path caller
+with type Compute
+with properties
+skill=graph.math
+statement[]=MAPPING: input.body.a -> model.a
+statement[]=MAPPING: input.body.b -> model.b
+statement[]=EXECUTE: addition
+statement[]=MAPPING: compute.result.sum -> output.body.sum
+```
+
+Note `compute.result.sum` — **not** `addition.result.sum`: the caller borrows the logic, so the
+result belongs to the caller. Hang the module under the [Island knowledge layer](#island)
+(`island -[module]-> addition`) so it is documented and no node is left unconnected.
 
 **`IF` is a multi-line statement — this is the decision construct.** An `IF` **must** be paired with
 `THEN:` and `ELSE:`, or the engine aborts the run (`node {name} does not have if:, then: or else:`):

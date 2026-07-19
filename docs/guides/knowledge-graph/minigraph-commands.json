@@ -58,7 +58,7 @@
   "commands": [
     { "name": "create node", "multiline": true, "help": "help create.md",
       "syntax": "create node {name}\nwith type {type}\nwith properties\n{key}={value}",
-      "notes": ["properties optional (used as defaults)", "zero or one skill via skill={route}", "name/type lowercase+hyphen; root/end reserved"],
+      "notes": ["properties optional (used as defaults)", "zero or one skill via skill={route}", "name lowercase+hyphen (root/end reserved); type is a descriptive label, conventionally Capitalized (Root, Fetcher, Module)"],
       "example": "create node end\nwith type End\nwith properties\nskill=graph.data.mapper\nmapping[]=text(hello world) -> output.body" },
     { "name": "update node", "multiline": true, "help": "help update.md",
       "syntax": "update node {name}\nwith type {type}\nwith properties\n{key}={value}",
@@ -121,7 +121,7 @@
         "COMPUTE": "COMPUTE: {var} -> {expr}   (JS-like; {namespace.key} substitution; result stored in this node's result namespace, read as {this-node}.result.{var})",
         "IF": "multi-line decision — MUST include THEN and ELSE or the run aborts ('node X does not have if:, then: or else:'):\nIF: <boolean expression>\nTHEN: <node-name> | next\nELSE: <node-name> | next\n(THEN/ELSE name the node to jump to, or the keyword 'next' to fall through; append the triad as one '''...''' multi-line value)",
         "MAPPING": "MAPPING: source -> target   (identical to graph.data.mapper; no {} braces around source/target)",
-        "EXECUTE": "EXECUTE: {node-name}   (run another graph.math node inline)",
+        "EXECUTE": "EXECUTE: {node-name}   (run another graph.math node's statements inline, IN THE CALLING NODE'S CONTEXT: any COMPUTE results land in the INVOKING node's result namespace ({invoker}.result.{var}); the executed module's own namespace stays empty. This is the module-reuse mechanism: author a formula once in an off-path Module node reading neutral model.* operands; a caller marshals inputs with MAPPING, EXECUTEs the module, then maps ITS OWN result out - e.g. MAPPING: compute.result.sum -> output.body.sum, NOT addition.result.sum. Hang the module under the island (island -[module]-> {module}) so no node is left unconnected)",
         "RESET": "RESET: {node-name}   (clear a node's run-once guard; advanced)"
       },
       "notes": [
@@ -154,8 +154,8 @@
       "notes": ["returns next only when all upstream nodes complete, else .sink (pause)"],
       "example": "skill=graph.join" },
     { "route": "graph.island", "help": "help graph-island.md", "required": [], "optional": [],
-      "notes": ["always returns .sink - isolated from traversal, never executed",
-                "CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - REQUIRED whenever the graph has Dictionary/Provider/data-entity nodes: wire every one under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), leave no node unconnected; ENCOURAGED for graphs with none (add data-entity nodes documenting the domain model)",
+      "notes": ["executes only to sink - isolated from traversal, which never continues through it",
+                "CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - REQUIRED whenever the graph has off-path nodes (Dictionary/Provider config, data-entity, or reusable Module nodes): wire every one under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider; island -[module]-> module), leave no node unconnected; ENCOURAGED for graphs with none (add data-entity nodes documenting the domain model)",
                 "relation labels are descriptive/free-form; contains/data/provider are the shipped conventions"],
       "example": "skill=graph.island" }
   ],

@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 34 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep in progress (tutorials 1–5 passed; AI grammar self-sufficient as of 2026-07-18; layer-1/2 AI docs ported 2026-07-19). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-161507)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-164200)
 - **last_review:** 2026-07-18 | through 2026-07-18-233807
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 30 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 31 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -103,7 +103,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   + `command-reference.md` + `minigraph-commands.json` — never the tutorial walkthroughs), one node /
   one connection at a time with human screenshot validation, through the instantiate→run→inspect
   dry-run (from tut-4 on: L3 = problem-only brief, no syntax hints, build-whole-then-dry-run). Running
-  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4, 5, 6, 7, 8.** Tut-3 surfaced + drove the
+  log: `docs/AI-companion-test.md`. **Done: 1, 2, 3, 4, 5, 6, 7, 8, 9.** Tut-3 surfaced + drove the
   `#[optional_service]` / dev-mock / Dictionary bare-`input[]` / inspect-doc-placeholder arc (increments
   30–32, both repos). **Tut-4** (decision node) found an AI-grammar gap — the AI docs listed
   `graph.math` statement keywords but gave no statement syntax, so a fresh agent invented wrong
@@ -170,10 +170,17 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   #29 (graph.math for_each thinly specified — defer to a tutorial that exercises it) + #30
   RESOLVED (maintainer agreed): island required with config/data-entity nodes, encouraged
   otherwise — landed in the grammar; `listOfMap`/JSONPath impedance-matching rationale captured
-  in syntax.md. **Resume — NEXT: tutorial-9.** Same recipe:
-  fresh primary (**verify EMPTY first**), brief = llms.txt + its map, drive via `/sync`, watcher
-  subscribes over the WS connection; tutorial help pages carry known errors (backlog
-  [[ot-help-pages-rewrite]]) — derive contracts carefully.
+  in syntax.md. **Tut-9 (L8, reuse under governance: off-path `graph.math`
+  Module + `EXECUTE`) PASSED with ONE self-corrected iteration** (2026-07-19, ws-783755-2):
+  19/19 ok, zero lookups; the first functional defect of the sweep (empty output) was
+  self-diagnosed in-band via three `inspect`s — the EXECUTE result-landing rule (results belong to
+  the INVOKER; the module "just lends the logic") was missing from the grammar → #31 FIXED same
+  day (EXECUTE semantics + reusable-module worked example), plus #32 (type-case contradiction) and
+  #33 (island scope now covers Module nodes; "executes only to sink" phrasing) FIXED. Maintainer
+  correction absorbed: tut-9 = reusable module, NOT subgraphs (graph.extension comes later).
+  **Resume — NEXT: tutorial-10.** Same recipe: fresh primary (**verify EMPTY first**), brief =
+  llms.txt + its map, drive via `/sync`, watcher subscribes over the WS connection; tutorial help
+  pages carry known errors (backlog [[ot-help-pages-rewrite]]) — derive contracts carefully.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
@@ -181,7 +188,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 13 | tier: working | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 14 | tier: working | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -215,7 +222,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (`map, don't mirror` still applies to behavior docs) — coordinate the rewrite with
   `Accenture/mercury-composable` so the two engines' in-band help doesn't drift apart. Rollup #16 in
   `docs/AI-companion-test.md`. → serves: vision-mercury
-  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 4 | tier: working | origin: 2026-07-18-231641.md -->
+  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 5 | tier: working | origin: 2026-07-18-231641.md -->
 
 - [x] **Re-verify invariants — CONFIRMED 2026-07-18 (maintainer): both still hold.**
   `inv-never-couple-functions` (the sole Architectural Invariant — inter-function coupling stays
@@ -305,7 +312,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **The companion `/sync` feature is COMPLETE and MERGED in both ports** (Rust R&D main + Java upstream
   main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
-  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 15 | tier: working | origin: 2026-07-18-162832.md -->
+  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 16 | tier: working | origin: 2026-07-18-162832.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
