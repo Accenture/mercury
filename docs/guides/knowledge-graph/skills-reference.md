@@ -77,7 +77,7 @@ five types:
 | `IF` | boolean decision → jump to a node (`THEN`/`ELSE`) |
 | `MAPPING` | data-map source → target (no curly braces) |
 | `EXECUTE` | run another `graph.math` node inline — results land on the **caller** (`{invoker}.result.*`), making this the module-reuse mechanism ([details](command-reference.md#math-statements)) |
-| `RESET` | clear a node's "seen" flag so it can run again |
+| `RESET` | forget a node completely (guard, completion mark, state) so it can run again |
 
 ```
 skill=graph.math
@@ -256,7 +256,10 @@ and the body auto-converts when the function declares a PoJo input. The result l
 ## graph.join {#join}
 
 A synchronization barrier for parallel branches. It returns `next` **only when all** connected
-upstream nodes have completed, and `.sink` (pause) until then.
+upstream nodes have completed, and `.sink` (pause) until then. **Completion is success-only and
+current**: a branch that failed into its `exception=` route does not count while it retries, and
+a `RESET` node stops counting until it re-executes successfully — so a retry loop feeding a join
+holds the barrier instead of firing it prematurely.
 
 ```
 skill=graph.join

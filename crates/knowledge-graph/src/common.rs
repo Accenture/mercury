@@ -329,15 +329,28 @@ fn properties_to_value(properties: HashMap<String, Value>) -> Value {
     )
 }
 
-/// `RESET:` command — forget listed nodes so they can run again
-/// (Java `resetNodes`).
+/// `RESET:` command — forget listed nodes COMPLETELY so they can run again
+/// (Java `resetNodes`): the run-once guard, the completion mark, and the
+/// node's state. Clearing `skill_run` matters for join barriers — a reset
+/// (retrying) branch must not satisfy the barrier until it re-executes
+/// successfully.
 pub fn reset_nodes(command: &str, instance: &GraphInstance, state: &mut MultiLevelMap) {
     let names = split(command, "[],; ");
-    let mut seen = instance.node_seen.lock().expect("node seen");
-    for name in names {
-        seen.remove(&name);
-        if let Ok(Some(_)) = instance.graph.find_node_by_alias(&name) {
-            state.remove_element(&name);
+    {
+        let mut seen = instance.node_seen.lock().expect("node seen");
+        for name in &names {
+            seen.remove(name);
+        }
+    }
+    {
+        let mut run = instance.skill_run.lock().expect("skill run");
+        for name in &names {
+            run.remove(name);
+        }
+    }
+    for name in &names {
+        if let Ok(Some(_)) = instance.graph.find_node_by_alias(name) {
+            state.remove_element(name);
         }
     }
 }

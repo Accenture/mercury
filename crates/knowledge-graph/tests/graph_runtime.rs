@@ -227,6 +227,30 @@ async fn graph_runtime_end_to_end() {
     companion_sync_rejects_session_topology_commands(&platform).await;
     companion_sync_import_fallback_reports_ok(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
+    join_barrier_waits_for_a_retrying_branch(&platform).await;
+}
+
+/// Join + RESET interplay (backlog probe): a join barrier must not count a
+/// branch whose skill FAILED into its `exception=` route (skill_run is
+/// success-only), and `RESET` clears the completion mark along with the
+/// run-once guard and state. Fork: fetch-a fails on the exception flag and
+/// retries through pause (300 ms) → recover-a, while br-b reaches the join
+/// almost immediately — before the fix, the join fired prematurely off
+/// fetch-a's failed-run mark and the output silently lost branch A.
+async fn join_barrier_waits_for_a_retrying_branch(platform: &Platform) {
+    let reply = run_graph(
+        platform,
+        "rust-join-retry",
+        serde_json::json!({"person_id": 100, "exception": true}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "join-retry failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    // the join waited for fetch-a's successful retry: branch A's data is
+    // present in the assembled output (premature fire would have lost it)
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("a-name"));
+    assert_eq!(Some(Value::from("B")), mm.get_element("b"));
 }
 
 /// `graph.math` `for_each` + `BEGIN`/`END` semantics (finding #29 spec probe;

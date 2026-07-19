@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 39 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 40 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-225257)
-- **last_review:** 2026-07-19 | through 2026-07-19-165609
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-233602)
+- **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 39 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 42 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 42 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 45 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -217,7 +217,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 21 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 24 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -258,7 +258,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (2026-07-19)**. Both engines live-validated by the maintainer; the fix is live in BOTH. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
   `minigraph-commands.json` sync_envelope note, rollup #40 → DONE. `/sync` contract stays
   byte-identical across engines. → serves: vision-mercury
-  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 2 | tier: active | origin: 2026-07-19-205854.md -->
+  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: active | origin: 2026-07-19-205854.md -->
 
 - [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
   2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
@@ -287,16 +287,35 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   all-integral ⇒ exact long incl. integer division (**strictly widening**: no previously-working
   call changes). Covers add/subtract/multiply/div/mod + increment/decrement + gt/lt (whole pairs
   compare exact). Rust: `plugins_e8.rs` + mixed-type unit cases + the `f:add`-on-doubles
-  accumulator in the `rust-foreach` probe (workspace 202/clippy 0/fmt). Java: upstream branch
-  **`feat/simple-plugin-number-promotion`** pushed (`SimplePluginUtils.reduceNumbers`, 7
-  arithmetic classes, gt/lt, `SimplePluginNumberPromotionTest`; 140+67 module tests green) —
-  maintainer opens the PR. Docs relaxed across all surfaces (grammar/#math-for-each, JSON
+  accumulator in the `rust-foreach` probe (workspace 202/clippy 0/fmt). Java: upstream
+  **PR [#196](https://github.com/Accenture/mercury-composable/pull/196) MERGED** (2026-07-19;
+  `SimplePluginUtils.reduceNumbers`, 7 arithmetic classes, gt/lt, promotion test + `f:round`,
+  142+67 module tests green; incl. the maintainer's unused-import review touch-up). Docs relaxed across all surfaces (grammar/#math-for-each, JSON
   catalog, skills-reference, help page + bundle, event-script syntax.md matrix). Boundary
   documented: once a double enters, IEEE-754 (ints exact to 2^53). **Follow-up same session:
   new `f:round(number[, places])` plugin (both ports, second commit `80e64166` on the branch)**
   — half-up on the shortest DECIMAL representation (1.005 → 1.01 at 2 places; binary error
   never leaks into the decision); whole inputs pass through. → serves: vision-mercury
   <!-- id: plugin-numeric-promotion | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-225257.md -->
+
+- [x] **LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40).**
+  Backlog probe #3 confirmed it: `skill_run` (the join's completion source) meant "ran" not
+  "completed" — stamped even when a skill failed into its `exception=` route — and `RESET`
+  cleared `node_seen`+state but left the stale mark, so a fork whose failing branch retries
+  could fire the join **prematurely** and silently lose that branch's data (empirically proven:
+  probe test red on old code in BOTH engines, `expected: Peter, got: null`). Fix (maintainer
+  decision + companion tightening; **traveler ≡ executor**, both ports): `skill_run` is
+  **success-only** (not marked when `{node}.status`+`{node}.error` are set) and `RESET` clears
+  it with the guard and state — join completion is now "success-only and current" (a
+  permanently failing branch times out visibly instead of corrupting output). Probes:
+  `rust-join-retry.json` + `join_barrier_waits_for_a_retrying_branch` (Rust),
+  `unit-test-join-retry.json` + `joinBarrierWaitsForRetryingBranch` (Java, 68-test suite
+  green, branch **`fix/join-barrier-retry-interplay`** pushed — maintainer opens the PR).
+  Docs updated across grammar/catalog/skills-reference/help pages + bundle. **Open
+  observation (maintainer's call):** chained joins can count a *sank* upstream join as
+  complete (same root cause via the join's own mark); candidate fix = check the recorded
+  outcome value in `node_completed`. → serves: vision-mercury
+  <!-- id: join-barrier-valid-completions | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-233602.md -->
 
 - [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:
   the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +
@@ -416,14 +435,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   WorkerHandler, serializers), then event-script and knowledge-graph specs + their ADRs.
   → serves: vision-mercury
   <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
-
-- [x] **(backlog) Generic `app.profiles.active` alias for profile selection.** Maintainer
-  decision 2026-07-15: keep `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` **verbatim**
-  during migration for side-by-side comparison with the Java original; add a generic alias
-  once the foundation port is robust. Don't build until then. **Superseded 2026-07-19: the
-  decision became a rename, not an alias — see [[profiles-renamed-app-active]].**
-  → serves: vision-mercury
-  <!-- id: ot-profiles-alias-backlog | created: 2026-07-15 | last_used: 2026-07-19 | uses: 1 | tier: superseded | superseded-by: profiles-renamed-app-active | origin: 2026-07-15-224707.md -->
 
 - [x] **Profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` — no alias
   (increment 37).** Maintainer decision 2026-07-19 (supersedes the 2026-07-15 alias plan; its

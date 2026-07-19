@@ -19,3 +19,4 @@
 - bp-platform-core — (blueprint) Port platform-core to Rust — the foundation layer; everything else — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
 - bp-active-knowledge-graph — (blueprint) Port the active knowledge graph to Rust. — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
 - ot-design-knowledge-graph — (design) Rust port of the knowledge graph (layer 3) — COMPLETE (K-1…K-8 / repo — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
+- ot-profiles-alias-backlog — (backlog) Generic `app.profiles.active` alias for profile selection. Maintainer — superseded by profiles-renamed-app-active — 2026-Q3.md

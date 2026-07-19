@@ -56,6 +56,7 @@
 | 37 | Spring config names retired: `APP_PROFILES_ACTIVE`/`app.profiles.active` rename + `application.name` alone for the app name | 2026-07-19 | §8 Q1 | 202 |
 | 38 | `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (finding #29) — probe fixture + grammar/catalog/help docs | 2026-07-19 | — | 202 |
 | 39 | numeric promotion for the simple-plugin arithmetic family + new `f:round` half-up decimal rounding (both ports) | 2026-07-19 | — | 202 |
+| 40 | join barrier counts only valid completions: success-only `skill_run` + `RESET` clears the completion mark (latent premature-join bug, both ports) | 2026-07-19 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1048,6 +1049,42 @@ simple-plugin can do the job."**
   through unchanged. Registered in both engines (`RoundNumbers` + `plugin_round`), tested in
   both suites (Java 142, Rust mixed-type cases), documented in the syntax.md matrix, the KG
   grammar/catalog/help page.
+
+---
+
+## Increment 40 — join barrier counts only valid completions (2026-07-19)
+
+**Backlog probe item #3 (Join + RESET interplay) — confirmed a LATENT BUG in both engines,
+fixed identically in both ports.** The join barrier consults `skill_run` to decide whether an
+upstream branch completed, but the mark meant "ran", not "completed": the traveler stamped it
+even when the skill **failed** into its `exception=` route, and `RESET` cleared `node_seen` +
+node state while leaving the stale completion mark. A fork whose failing branch retries could
+fire the join prematurely off the stale mark — the assembled output **silently lost the
+retrying branch's data** (empirically demonstrated: both engines' new probe test fails on the
+old code with `expected: Peter, got: null`).
+
+- **Fix (two complementary rules, identical in the traveler [dry-run] and the executor
+  [deployed graphs] — the maintainer's parity requirement):**
+  1. `skill_run` is marked **only when the skill did not fail** (no `{node}.status` +
+     `{node}.error` pair) — closing the window between a failure and its handler's `RESET`;
+  2. `reset_nodes` clears `skill_run` along with `node_seen` and node state — a deliberately
+     reset branch stops satisfying the barrier until it re-executes successfully.
+- **Probe:** `rust-join-retry.json` (Rust) / `unit-test-join-retry.json` (Java) — root forks
+  into a paced branch B (100 ms) and a fetcher branch A that fails on the exception flag,
+  pauses 300 ms, then recovers via `RESET` + retry; branch B reaches the join squarely inside
+  the failed-but-not-reset window. Test `join_barrier_waits_for_a_retrying_branch`
+  (`graph_runtime.rs`) / `joinBarrierWaitsForRetryingBranch` (`GraphTests`). Verified **red on
+  old code, green on new** in both engines.
+- **Java upstream:** branch `fix/join-barrier-retry-interplay` pushed (68-test module suite
+  green); Rust workspace 202 tests / clippy 0 / fmt clean (manifest gate 28 graphs).
+- **Docs:** `RESET` semantics (guard + completion mark + state) and the join's
+  "success-only and current" completion rule across `command-reference.md`,
+  `minigraph-commands.json`, `skills-reference.md`, `help graph-math.md`, `help graph-join.md`
+  (webapp bundle re-released, 124 tests green).
+- **Recorded observation (not fixed, maintainer's call):** a chained-join topology can count a
+  *sank* upstream join as complete (same "ran ≠ completed" root cause via the join's own
+  `skill_run` mark); fix would be checking the recorded join outcome value in
+  `node_completed`.
 
 ---
 

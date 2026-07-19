@@ -539,7 +539,7 @@ A `graph.math` node runs an ordered list of `statement[]` lines. Five statement 
 | `IF` | multi-line (see below) | a boolean **decision** that redirects traversal to a named node |
 | `MAPPING` | `MAPPING: source -> target` | data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target) |
 | `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below) |
-| `RESET` | `RESET: {node-name}` | clear a node's run-once guard so it can execute again (advanced) |
+| `RESET` | `RESET: {node-name}` | forget a node completely — guard, completion mark, state — so it can execute again (advanced; see the rules below) |
 
 Expressions use `{namespace.key}` substitution (`{input.body.a}`, `{book.price}`, `{model.x}`) —
 the `{…}` substitution syntax is robust to hyphenated names (`{unit-price}` is the value of
@@ -609,8 +609,11 @@ ELSE: lt-path
   connection/relation label). Unlike a taken `IF` jump, `NEXT:` does **not** stop processing: the
   remaining statements still run, and the jump is applied **after the whole list completes**
   (the last `NEXT:` wins).
-- `RESET: {node-name}[, {node-name} …]` — clear the run-once guard **and state** of one or **more**
-  nodes (comma/space-separated list). Resetting a never-executed node is a safe no-op. A node may
+- `RESET: {node-name}[, {node-name} …]` — clear the run-once guard, the **completion mark**, and
+  the **state** of one or **more** nodes (comma/space-separated list). The completion mark matters
+  for [join barriers](skills-reference.md#join): a reset (retrying) branch stops satisfying the
+  barrier until it re-executes successfully — and a branch that **failed** into its `exception=`
+  route never satisfies it in the first place (completion is success-only). Resetting a never-executed node is a safe no-op. A node may
   reset **itself** — the run-once mark is set *before* execution, so a self-reset survives and the
   node can run again. **Placement rule: put `RESET` first among the action statements** — it then
   runs on every path (a later taken `IF` jump would skip it) and everything the node stores

@@ -46,9 +46,11 @@ Statements
   ({invoker}.result.{var}); the executed module's own namespace stays empty.
   This is the module-reuse mechanism - author a formula once in an off-path
   Module node reading neutral model.* operands, and any node borrows it.
-- RESET: {node-name}[, ...] - clear the run-once guard and state of one or
-  MORE nodes (comma/space-separated list). Resetting a never-executed node
-  is a safe no-op. Advanced - see Notes.
+- RESET: {node-name}[, ...] - forget one or MORE nodes completely (the
+  run-once guard, the completion mark, and the node state; comma/space
+  list). A reset node stops satisfying a graph.join barrier until it
+  re-executes successfully. Resetting a never-executed node is a safe
+  no-op. Advanced - see Notes.
 
 Expressions
 -----------

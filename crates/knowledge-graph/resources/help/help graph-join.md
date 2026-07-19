@@ -5,6 +5,11 @@ returns "next" only when ALL upstream nodes connected to it have completed;
 until then it returns ".sink" (the arriving path pauses). Use it to bring
 forked branches back together before continuing.
 
+Completion is success-only and current: a branch that failed into its
+"exception=" route does not count while it retries, and a RESET node stops
+counting until it re-executes successfully - so a retry loop feeding a join
+holds the barrier instead of firing it prematurely.
+
 Route name
 ----------
 "graph.join"

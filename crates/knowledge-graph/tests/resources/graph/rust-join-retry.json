@@ -1,0 +1,150 @@
+{
+  "nodes": [
+    {
+      "types": ["Root"],
+      "alias": "root",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "f:defaultValue(input.body.exception, boolean(false)) -> model.exception"
+        ],
+        "purpose": "join barrier + exception-retry interplay probe",
+        "name": "rust-join-retry"
+      }
+    },
+    {
+      "types": ["Fetcher"],
+      "alias": "fetch-a",
+      "properties": {
+        "skill": "graph.api.fetcher",
+        "dictionary": ["person-name"],
+        "exception": "pause",
+        "input": [
+          "input.body.person_id -> person_id",
+          "model.exception -> exception"
+        ],
+        "output": [
+          "result.name -> model.a-name"
+        ]
+      }
+    },
+    {
+      "types": ["Pacer"],
+      "alias": "br-b",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(B) -> model.b-value",
+          "DELAY: 100"
+        ]
+      }
+    },
+    {
+      "types": ["Pause"],
+      "alias": "pause",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "NEXT: recover-a",
+          "DELAY: 300"
+        ]
+      }
+    },
+    {
+      "types": ["Recovery"],
+      "alias": "recover-a",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "RESET: fetch-a, pause, recover-a",
+          "MAPPING: boolean(false) -> model.exception",
+          "NEXT: fetch-a"
+        ]
+      }
+    },
+    {
+      "types": ["Join"],
+      "alias": "join-ab",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": ["Mapper"],
+      "alias": "assemble",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.a-name -> output.body.a-name",
+          "model.b-value -> output.body.b"
+        ]
+      }
+    },
+    {
+      "types": ["Dictionary"],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.name"
+        ],
+        "input": [
+          "person_id",
+          "exception:false"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "name of a person"
+      }
+    },
+    {
+      "types": ["Provider"],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "exception -> header.x-exception",
+          "person_id -> path_parameter.id"
+        ],
+        "method": "GET",
+        "purpose": "Master Data Management's profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": ["End"],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [{ "type": "branch-a", "properties": {} }],
+      "target": "fetch-a"
+    },
+    {
+      "source": "root",
+      "relations": [{ "type": "branch-b", "properties": {} }],
+      "target": "br-b"
+    },
+    {
+      "source": "fetch-a",
+      "relations": [{ "type": "arrive", "properties": {} }],
+      "target": "join-ab"
+    },
+    {
+      "source": "br-b",
+      "relations": [{ "type": "arrive", "properties": {} }],
+      "target": "join-ab"
+    },
+    {
+      "source": "join-ab",
+      "relations": [{ "type": "joined", "properties": {} }],
+      "target": "assemble"
+    },
+    {
+      "source": "assemble",
+      "relations": [{ "type": "done", "properties": {} }],
+      "target": "end"
+    }
+  ]
+}

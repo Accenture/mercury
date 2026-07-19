@@ -155,11 +155,6 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
     let Ok(Some(node)) = instance.graph.find_node_by_alias(node_name) else {
         return;
     };
-    instance
-        .skill_run
-        .lock()
-        .expect("skill run")
-        .insert(node_name.to_string(), true);
     check_frequency(po, &instance, node_name).await;
     // advise the operator that the node has been executed
     let skill = node
@@ -184,6 +179,20 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             state.get_element(&format!("{node_name}.error")),
         )
     };
+    // mark the skill complete only when it did NOT fail (status + error set,
+    // e.g. an exception-routed fetcher): a join barrier counts skill_run, so
+    // a failed branch must not satisfy the barrier while it retries.
+    // GraphExecutor (deployed graphs) keeps identical semantics.
+    if !matches!(
+        (&process_status, &result_error),
+        (Some(Value::Integer(_)), Some(_))
+    ) {
+        instance
+            .skill_run
+            .lock()
+            .expect("skill run")
+            .insert(node_name.to_string(), true);
+    }
     let error_handler = node.get_property(EXCEPTION);
     if let (Some(Value::Integer(rc)), Some(error), None) =
         (&process_status, &result_error, &error_handler)
