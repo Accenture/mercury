@@ -169,7 +169,7 @@
                 "request body auto-converts when the function declares a PoJo input; concurrency 1-30 (default 3)"],
       "example": "skill=graph.task\ntask=v1.hello.task\ninput[]=input.body -> *\ninput[]=text(minigraph) -> header.x-app\noutput[]=result -> output.body" },
     { "route": "graph.join", "help": "help graph-join.md", "required": [], "optional": [],
-      "notes": ["returns next only when all upstream nodes complete, else .sink (pause)"],
+      "notes": ["returns next only when all upstream nodes complete, else .sink (pause)", "completion is SUCCESS-ONLY and CURRENT: a branch that failed into its exception= route does not count while it retries; a RESET node stops counting until it re-executes successfully; a chained upstream join counts only once it actually FIRED (a sunk evaluation does not count)"],
       "example": "skill=graph.join" },
     { "route": "graph.island", "help": "help graph-island.md", "required": [], "optional": [],
       "notes": ["executes only to sink - isolated from traversal, which never continues through it",

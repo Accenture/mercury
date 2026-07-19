@@ -698,18 +698,23 @@ pub async fn join(
 
 fn node_completed(predecessor: &Arc<SimpleNode>, instance: &GraphInstance) -> bool {
     let name = predecessor.get_alias();
-    if predecessor.get_property(SKILL).is_some() {
-        instance
+    let skill = predecessor.get_property(SKILL).map(|v| display(&v));
+    match skill.as_deref() {
+        // a chained upstream JOIN is complete only when it actually FIRED:
+        // its skill runs (and is marked in skill_run) on every arriving
+        // branch, including evaluations that sink — the outcome it records
+        // in node_seen is the truth (Java GraphJoin parity)
+        Some(JOIN_ROUTE) => instance.node_seen.lock().expect("node seen").get(name) == Some(&true),
+        Some(_) => instance
             .skill_run
             .lock()
             .expect("skill run")
-            .contains_key(name)
-    } else {
-        instance
+            .contains_key(name),
+        None => instance
             .node_seen
             .lock()
             .expect("node seen")
-            .contains_key(name)
+            .contains_key(name),
     }
 }
 

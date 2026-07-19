@@ -228,6 +228,30 @@ async fn graph_runtime_end_to_end() {
     companion_sync_import_fallback_reports_ok(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
+    chained_join_counts_only_a_fired_upstream_join(&platform).await;
+}
+
+/// Chained joins: an upstream join that evaluated and SANK is still marked in
+/// skill_run (its skill ran fine), so a downstream join must judge it by the
+/// OUTCOME it recorded, not the run mark. Topology: slow-x (200 ms) and
+/// fast-y feed j-one; j-one chains into j-two alongside pace-z (100 ms).
+/// fast-y makes j-one evaluate-and-sink at ~1 ms; pace-z reaches j-two at
+/// ~100 ms — before the fix, j-two counted the sunk j-one off its run mark
+/// and fired prematurely, losing branch X from the output.
+async fn chained_join_counts_only_a_fired_upstream_join(platform: &Platform) {
+    let reply = run_graph(
+        platform,
+        "rust-join-chain",
+        serde_json::json!({}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "join-chain failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    // j-two waited for j-one to actually FIRE: all three branches present
+    assert_eq!(Some(Value::from("X")), mm.get_element("x"));
+    assert_eq!(Some(Value::from("Y")), mm.get_element("y"));
+    assert_eq!(Some(Value::from("Z")), mm.get_element("z"));
 }
 
 /// Join + RESET interplay (backlog probe): a join barrier must not count a

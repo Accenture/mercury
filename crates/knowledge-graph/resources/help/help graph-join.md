@@ -8,7 +8,9 @@ forked branches back together before continuing.
 Completion is success-only and current: a branch that failed into its
 "exception=" route does not count while it retries, and a RESET node stops
 counting until it re-executes successfully - so a retry loop feeding a join
-holds the barrier instead of firing it prematurely.
+holds the barrier instead of firing it prematurely. A chained upstream join
+counts only once it actually FIRED (an evaluation that sank does not count),
+so multi-stage joins compose safely.
 
 Route name
 ----------

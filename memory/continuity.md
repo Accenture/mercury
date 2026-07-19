@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 40 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 41 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-233602)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-235251)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -311,10 +311,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `rust-join-retry.json` + `join_barrier_waits_for_a_retrying_branch` (Rust),
   `unit-test-join-retry.json` + `joinBarrierWaitsForRetryingBranch` (Java, 68-test suite
   green, branch **`fix/join-barrier-retry-interplay`** pushed — maintainer opens the PR).
-  Docs updated across grammar/catalog/skills-reference/help pages + bundle. **Open
-  observation (maintainer's call):** chained joins can count a *sank* upstream join as
-  complete (same root cause via the join's own mark); candidate fix = check the recorded
-  outcome value in `node_completed`. → serves: vision-mercury
+  Docs updated across grammar/catalog/skills-reference/help pages + bundle. Upstream: PR
+  [#197](https://github.com/Accenture/mercury-composable/pull/197) created by the maintainer
+  (CI pending). **Follow-on observation FIXED same day (increment 41, both ports):** chained
+  joins now judge an upstream join by its recorded OUTCOME (`node_seen[join] == true` = fired)
+  instead of the run mark — probe `rust-join-chain.json`/`unit-test-join-chain.json` red on
+  old code in both engines (`expected: X, got: null`); Java branch
+  **`fix/chained-join-outcome`** pushed, STACKED on #197's branch (both touch
+  `GraphTests.java`) — open its PR only after #197 merges (rebase onto main first, per the
+  squash-merge stacked-PR lesson). → serves: vision-mercury
   <!-- id: join-barrier-valid-completions | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-233602.md -->
 
 - [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:

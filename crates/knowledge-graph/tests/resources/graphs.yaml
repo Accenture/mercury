@@ -27,3 +27,4 @@ graphs:
   - 'unit-test-task-5'
   - 'rust-foreach'
   - 'rust-join-retry'
+  - 'rust-join-chain'

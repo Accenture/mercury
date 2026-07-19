@@ -57,6 +57,7 @@
 | 38 | `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (finding #29) — probe fixture + grammar/catalog/help docs | 2026-07-19 | — | 202 |
 | 39 | numeric promotion for the simple-plugin arithmetic family + new `f:round` half-up decimal rounding (both ports) | 2026-07-19 | — | 202 |
 | 40 | join barrier counts only valid completions: success-only `skill_run` + `RESET` clears the completion mark (latent premature-join bug, both ports) | 2026-07-19 | — | 202 |
+| 41 | chained join judges an upstream join by its recorded outcome (fired vs sank; both ports) | 2026-07-19 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1081,10 +1082,35 @@ old code with `expected: Peter, got: null`).
   "success-only and current" completion rule across `command-reference.md`,
   `minigraph-commands.json`, `skills-reference.md`, `help graph-math.md`, `help graph-join.md`
   (webapp bundle re-released, 124 tests green).
-- **Recorded observation (not fixed, maintainer's call):** a chained-join topology can count a
-  *sank* upstream join as complete (same "ran ≠ completed" root cause via the join's own
-  `skill_run` mark); fix would be checking the recorded join outcome value in
-  `node_completed`.
+- **Recorded observation → fixed same day as increment 41** (chained joins judged by
+  recorded outcome).
+
+---
+
+## Increment 41 — chained join judges an upstream join by its recorded outcome (2026-07-19)
+
+**The follow-on observation from increment 40, maintainer-directed — fixed in both ports.**
+A join's own skill runs (and lands in `skill_run`) on every arriving branch, **including
+evaluations that sink** — so a downstream join in a chained-join topology counted a sunk
+upstream join as complete and fired prematurely, dropping the slow branch's data.
+
+- **Fix:** `node_completed` / `nodeCompleted` judges a **join predecessor** by the outcome the
+  join records in `node_seen` (`true` = fired) instead of the run mark. Regular skill nodes
+  keep the success-only `skill_run` check (increment 40); skill-less nodes keep `node_seen`
+  presence.
+- **Probe:** `rust-join-chain.json` / `unit-test-join-chain.json` — `slow-pre` (200 ms) →
+  `slow-x` and `fast-y` feed `j-one`; `j-one` chains into `j-two` alongside `pace-z` (100 ms).
+  `fast-y` makes `j-one` evaluate-and-sink at ~1 ms; `pace-z` reaches `j-two` at ~100 ms.
+  **Red on old code in both engines** (`expected: X, got: null`), green on new. The probe
+  design itself surfaced a documentation-worthy subtlety: `DELAY:` pauses *inside* the math
+  skill but its `MAPPING` writes state *before* the pause — so pacing a genuinely incomplete
+  branch requires the delay and the write on separate nodes.
+- **Gates:** Rust workspace 202 tests / clippy 0 / fmt clean (manifest gate 29 graphs); Java
+  module suite **69 tests** green, branch **`fix/chained-join-outcome`** pushed (stacked on
+  `fix/join-barrier-retry-interplay` — rebase onto main after PR #197 merges, per the #191
+  auto-close lesson).
+- **Docs:** the "multi-stage joins compose safely" clause added to `skills-reference.md`,
+  `help graph-join.md`, and the JSON catalog's join entry (webapp bundle re-released).
 
 ---
 

@@ -44,11 +44,11 @@ fn manifest_listed_graphs_are_compiled() {
     // a graph id that is not listed in graphs.yaml must not be compiled -
     // the graph executor falls back to lazy loading for it
     assert!(!graphs::graph_exists("tutorial-99"));
-    // every graph in the manifest is valid: 13 tutorials + 15 test fixtures
+    // every graph in the manifest is valid: 13 tutorials + 16 test fixtures
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        28,
+        29,
         all.len(),
         "expected all manifest graphs to compile: {all:?}"
     );
