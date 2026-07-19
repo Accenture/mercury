@@ -1,17 +1,17 @@
 Tutorial 6
 ----------
-In this session, we will create a graph model that would fetch an array list from one service and iterate
-the elements in the array to fetch more details from another service. We will examine the use of the
-"for_each" keyword.
+In this tutorial, you will create a graph model that fetches an array list from one
+service and iterates over the elements of the array to fetch more details from
+another service, using the "for_each" keyword.
 
 Exercise
 --------
-You will import the graph model from tutorial-3 as a template and expand it to handle a multi-step
-data fetch use case.
+You will import the graph model from tutorial-3 as a template and expand it to handle
+a multi-step data fetch use case.
 
 Import a graph model
 --------------------
-Enter 'import graph from tutorial-3'
+Enter 'import graph from tutorial-3'.
 
 ```
 > import graph from tutorial-3
@@ -20,11 +20,11 @@ Found deployed graph model in classpath:/graph
 Please export an updated version and re-import to instantiate an instance model
 ```
 
-If you have not exported tutorial-3 earlier, the system will import it from a demo graph.
+If you have not exported tutorial-3 earlier, the system imports it from a demo graph.
 
 Examine the graph model
 -----------------------
-You can examine the graph model with the 'list nodes' and 'list connections' commands.
+Examine the graph model with the 'list nodes' and 'list connections' commands.
 
 ```
 > list nodes
@@ -41,8 +41,9 @@ fetcher -[complete]-> end
 
 Create a new data dictionary node
 ---------------------------------
-Enter the following to create a new data dictionary node "person-accounts". This uses the same data provider
-"mdm-profile" to retrieve a list of accounts for the user. The list of accounts is an array of account numbers.
+Enter the following to create a new data dictionary node "person-accounts". It uses
+the same data provider "mdm-profile" to retrieve the list of accounts for a person —
+an array of account numbers.
 
 ```
 create node person-accounts
@@ -56,7 +57,7 @@ purpose=accounts of a person
 
 Update the fetcher
 ------------------
-Add the dictionary item "person-accounts" in the original fetcher.
+Add the dictionary item "person-accounts" to the original fetcher.
 
 ```
 update node fetcher
@@ -73,8 +74,9 @@ skill=graph.api.fetcher
 
 Create one more data dictionary node
 ------------------------------------
-Create a data dictionary node "account-details" that is associated with the data provider "account-details-provider"
-to retrieve account details based on person_id and account_id.
+Create a data dictionary node "account-details", associated with the data provider
+"account-details-provider", to retrieve account details based on person_id and
+account_id.
 
 ```
 create node account-details
@@ -89,14 +91,16 @@ purpose=Account details
 
 Create a new data provider
 --------------------------
-Enter the following to create a data provider that retrieves account details.
-In the feature section, there are oauth2-bearer, log-request-headers and log-response-headers.
-The "oauth2-bearer" is a placeholder and you should implement according to your organization
-security guideline. Functionally, it would acquire OAuth2 bearer token from a security authority 
-using client-id and secret configured in the deployed environment. It should cache and refresh
-the access token as required and insert the "authorization" header in a pre-processing step
-for the Graph API Fetcher. The log-request-headers and log-response-headers can be used as
-templates to implement your own pre-processing and post-processing features.
+Enter the following to create the data provider that retrieves account details.
+
+Its feature section declares oauth2-bearer, log-request-headers and
+log-response-headers. The "oauth2-bearer" entry is a placeholder — implement it
+according to your organization's security guidelines. Functionally, it would acquire
+an OAuth2 bearer token from a security authority using a client id and secret
+configured in the deployed environment, cache and refresh the access token as
+required, and insert the "authorization" header in a pre-processing step of the Graph
+API Fetcher. The log-request-headers and log-response-headers features can serve as
+templates for implementing your own pre-processing and post-processing features.
 
 ```
 create node account-details-provider
@@ -114,12 +118,18 @@ purpose=Account Management Endpoint
 url=http://127.0.0.1:${rest.server.port}/api/account/details
 ```
 
+Note that this is a POST provider: the `body.{key}` input targets build the JSON
+request body, and the parameters travel in the body rather than the URL.
+
 Create a second fetcher
 -----------------------
-You will create a second fetcher as follows. You will apply the `for_each` statement to iterate
-the array in the fetcher's result set and map each element into "model.account_number".
+Create a second fetcher as follows. The `for_each` statement iterates over the array
+in the first fetcher's result set (`fetcher.result.account_numbers`), mapping each
+element into "model.account_number".
 
-For each element, the input statement block will be executed to populate the input parameter "account_id".
+For each element, the input statement block runs to populate the input parameters:
+"person_id" is passed unchanged to every call, while "account_id" takes the current
+element.
 
 ```
 create node fetcher-2
@@ -133,12 +143,16 @@ output[]=result.accounts -> output.body.accounts
 skill=graph.api.fetcher
 ```
 
+Each iteration's `result.accounts` value is appended into a single array on this
+node's result set — with five account numbers, "output.body.accounts" becomes an
+array of five account detail records.
+
 Rearrange the connections
 -------------------------
-You will connect the first fetcher to the second fetcher, delete the original connection between fetcher and
-the end node. Then connect the second fetcher to the end node.
+Connect the first fetcher to the second fetcher, delete the original connection
+between the fetcher and the end node, then connect the second fetcher to the end node.
 
-Then enter 'list connections' to show the updated connections.
+Enter 'list connections' to show the updated connections.
 
 ```
 > connect fetcher to fetcher-2 with details
@@ -155,8 +169,8 @@ fetcher-2 -[complete]-> end
 
 Update the root node
 --------------------
-Since you are using tutorial-3 graph model as a template, it is a good practice to update the root node
-to describe the new purpose of tutorial-6. Enter the following.
+Since you are using the tutorial-3 graph model as a template, it is good practice to
+update the root node to describe the new purpose of tutorial-6. Enter the following.
 
 ```
 update node root
@@ -168,16 +182,14 @@ purpose=Demonstrate multi-step API fetching and the "for_each" method
 
 Perform a dry-run
 -----------------
-Enter the following to mock the input parameter of "person_id = 100".
+Enter the following to mock the input parameter "person_id = 100".
 
 ```
 start graph
 int(100) -> input.body.person_id
 ```
 
-Then enter `run` to do a dry-run.
-
-You will see the following:
+Then enter `run` to do a dry-run. You will see the following:
 
 ```
 > start graph...
@@ -229,15 +241,26 @@ Graph traversal completed in 28 ms
 
 Parallelism
 -----------
-When using the "for_each" method, the system will perform parallel API fetching. The default concurrency is 3.
-If you want to change this value, set "concurrency" in "fetcher-2" to try.
+With the "for_each" method, the system performs the API fetches in parallel. The
+default concurrency is 3; set "concurrency" in "fetcher-2" (1-30) to try other
+values.
 
-With concurrency of 3 and there are 5 accounts, the system will perform a batch of 3 and a batch of 2 API requests.
-When you changed the concurrency setting, you will see the batch size will be adjusted accordingly.
+With a concurrency of 3 and five accounts, the system makes a batch of 3 followed by
+a batch of 2 API requests. When you change the concurrency setting, the batch size
+adjusts accordingly.
 
-Create an island to hold data dictionary
-----------------------------------------
-You will create an island node to organize the data dictionary and provider nodes.
+Aggregation order is guaranteed: batches execute in source-list order and responses
+join in request order, so the aggregated result array preserves the order of the
+source account numbers — regardless of the concurrency setting. You can see this in
+the dry-run above: the account details appear in the same order as the account
+numbers (a101 to e500).
+
+Create an island to hold the data dictionary
+--------------------------------------------
+Wire the data dictionary and provider nodes into the graph's knowledge layer with an
+island node. This is the required convention — leave no node unconnected: the island
+subgraph is the graph's entity-relationship diagram, turning the graph into living
+documentation of enterprise knowledge.
 
 ```
 create node dictionary
@@ -246,7 +269,7 @@ with properties
 skill=graph.island
 ```
 
-Then you can connect the data dictionary nodes and provider node to it.
+Then connect the data dictionary nodes and provider nodes to it.
 
 ```
 > connect root to dictionary with contains
@@ -265,7 +288,7 @@ node person-address connected to mdm-profile
 node person-accounts connected to mdm-profile
 > connect dictionary to account-details with data
 node dictionary connected to account-details
-> connect account-details to account-details-provider with data
+> connect account-details to account-details-provider with provider
 node account-details connected to account-details-provider
 > list connections
 root -[contains]-> dictionary
@@ -284,7 +307,7 @@ fetcher-2 -[complete]-> end
 
 Export the graph model
 ----------------------
-You may save the graph model by exporting it.
+Save the graph model by exporting it.
 
 ```
 > export graph as tutorial-6
@@ -294,11 +317,11 @@ Described in /api/graph/model/tutorial-6/775-18
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-6.json" to your application's `main/resources/graph` folder.
-You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-6.json" to your application's
+resources/graph folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-6 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-6 \
   -H "Content-Type: application/json" \
   -d '{
     "person_id": 100
@@ -307,6 +330,7 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-6 \
 
 Summary
 -------
-In this session, you have created a graph model that performs 2 steps of API fetching. The first one gets the
-name, address and list of account numbers. The second one uses the account numbers to fetch the account details
-for each account using the "for_each" method.
+In this tutorial, you created a graph model that performs two steps of API fetching.
+The first step gets the name, address and list of account numbers. The second step
+uses the "for_each" method to fetch the account details for each account number, and
+aggregates the results into a single array in source-list order.

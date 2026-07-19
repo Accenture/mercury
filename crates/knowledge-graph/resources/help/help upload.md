@@ -1,7 +1,8 @@
-Upload mock data to current graph instance
-------------------------------------------
-When the following command is entered, the system will print out a URL for you to upload
-a JSON payload to the current graph instance.
+Upload mock data
+----------------
+Print a URL for uploading a JSON payload as the mock 'input.body' of the
+current graph instance - convenient when the mock input is too large to seed
+line by line.
 
 Syntax
 ------
@@ -9,8 +10,19 @@ Syntax
 upload mock data
 ```
 
-Upon receiving a HTTP POST request to the given URL, the JSON request payload will be used
-as mock "input.body".
+Example
+-------
+```
+> upload mock data
+You may upload JSON payload -> POST /api/mock/{name}
+```
 
-If you want to mock some input headers or the state machine, please use the "instantiate graph" command
-before uploading.
+Notes
+-----
+- Requires a graph instance (see 'help instantiate').
+- An HTTP POST of a JSON payload to the given URL replaces the instance's
+  'input.body'; the console confirms with "Mock data loaded into
+  'input.body' namespace".
+- Only 'input.body' can be uploaded. To mock input headers or model
+  variables, seed them with the 'instantiate graph' command before
+  uploading.

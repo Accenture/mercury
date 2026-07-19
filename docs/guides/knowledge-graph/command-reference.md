@@ -468,6 +468,7 @@ create node error-handler
 with type Decision
 with properties
 skill=graph.math
+statement[]=RESET: fetcher, error-handler
 statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
 statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
 statement[]='''
@@ -475,14 +476,16 @@ IF: {model.attempts} >= 3
 THEN: recovery-node
 ELSE: next
 '''
-statement[]=RESET: fetcher, error-handler
 statement[]=NEXT: fetcher
 statement[]=DELAY: 50
 ```
 
-The handler counts attempts (`f:defaultValue` + `f:add`), exits to a recovery node at the bound
-(a taken `IF` jump ends the list), otherwise resets the fetcher **and itself**, jumps back, and
-paces the retry with a delay — staying under the engine's loop guard.
+The handler **resets the fetcher and itself first** (the placement rule above — it then runs on
+every path, including the recovery jump), counts attempts (`f:defaultValue` + `f:add` on the
+`model.*` namespace, which `RESET` never touches), exits to a recovery node at the bound (a taken
+`IF` jump ends the list), otherwise jumps back and paces the retry with a delay — staying under
+the engine's loop guard. If the handler also carries a defensive check on the failed node's
+status, that check must come **before** the `RESET` (it reads state the reset wipes).
 
 ## Island — the knowledge layer (required) {#island}
 
@@ -609,12 +612,14 @@ ELSE: lt-path
 - `RESET: {node-name}[, {node-name} …]` — clear the run-once guard **and state** of one or **more**
   nodes (comma/space-separated list). Resetting a never-executed node is a safe no-op. A node may
   reset **itself** — the run-once mark is set *before* execution, so a self-reset survives and the
-  node can run again — but a self-`RESET` also wipes the node's own in-flight state, so place it
-  **before** statements whose stored effects must persist (canonical order:
-  `RESET` → `NEXT:` → `DELAY:` — the pending delay lives in node state and would be wiped by a
-  later self-reset). This enables retry loops — see [Failure routing](#failure-routing) — but mind
-  the engine's **loop guard**: a node executed too frequently (default >10 visits/second) aborts
-  the traversal, so bound every retry loop and pace it with `DELAY:`.
+  node can run again. **Placement rule: put `RESET` first among the action statements** — it then
+  runs on every path (a later taken `IF` jump would skip it) and everything the node stores
+  afterwards (such as `DELAY:`'s pending pause) survives the self-wipe. The one exception: keep it
+  **after** any statement that reads state it would wipe — an `IF` on a just-wiped variable (e.g.
+  `{fetcher.status}` after `RESET: fetcher`) **aborts the run**, so a defensive status check goes
+  before the `RESET`. This enables retry loops — see [Failure routing](#failure-routing) — but
+  mind the engine's **loop guard**: a node executed too frequently (default >10 visits/second)
+  aborts the traversal, so bound every retry loop and pace it with `DELAY:`.
 - `BEGIN` / `END` — delimit a statement block for **`for_each[]`** iterative execution; they are
   **not** `IF`-block braces.
 - `DELAY: {milliseconds}` — pause **after this node completes**, deferring the walk to the next

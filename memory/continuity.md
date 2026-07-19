@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 34 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-175117)
+- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-181641)
 - **last_review:** 2026-07-19 | through 2026-07-19-165609
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 35 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 36 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 38 | tier: archive-candidate | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 39 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -214,7 +214,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 18 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 19 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -247,17 +247,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/AI-companion-test.md`. → serves: vision-mercury
   <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 2 | tier: working | origin: 2026-07-19-171653.md -->
 
-- [ ] **(backlog) Rewrite the interactive help pages for human operators.** Maintainer decision
+- [x] **(backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19.** Maintainer decision
   2026-07-18 (post tut-5): the `crates/knowledge-graph/resources/help/*.md` pages are designed for
   human operators, while AI agents must get **everything deterministically from the AI grammar**
   (which tut-5's fixes made self-sufficient — rollup #9–#13 DONE). The help pages now deserve a
   dedicated human-UX polish pass in a **separate session**: clarity/structure/consistency, the
   `session reset` semantics note (rollup #15), and pruning agent-oriented duplication where the AI
-  grammar is now authoritative. **Constraint:** the pages are verbatim ports from the Java upstream
-  (`map, don't mirror` still applies to behavior docs) — coordinate the rewrite with
-  `Accenture/mercury-composable` so the two engines' in-band help doesn't drift apart. Rollup #16 in
+  grammar is now authoritative. **DONE (2026-07-19, maintainer-directed):** all 39 pages rewritten
+  (17 command + 9 skill + 13 tutorials) by four parallel agents against the engine-verified AI
+  grammar, then reviewed file-by-file: all 8085→8100, all Java code → real Rust (tut-13 shows the
+  shipped `HelloTask`), all github.io links removed, `graph.js` page → retirement notice quoting
+  the engine, tut-12 bug cluster fixed (title, deploy filename, ≥400), plus false legacy claims
+  corrected (run-once-per-instance, module-needs-no-connection, `Math.sin` example, bogus
+  transcripts). Net −67 lines; playground help-serving test green. **Divergence from the Java
+  upstream's help pages is now INTENTIONAL for code examples/port specifics (maintainer
+  direction); behavior semantics stay aligned with the shared grammar.** Rollup #16 in
   `docs/AI-companion-test.md`. → serves: vision-mercury
-  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 6 | tier: working | origin: 2026-07-18-231641.md -->
+  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 7 | tier: active | origin: 2026-07-18-231641.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a

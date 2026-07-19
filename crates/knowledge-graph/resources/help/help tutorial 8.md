@@ -1,13 +1,16 @@
 Tutorial 8
 ----------
-In this session, we will use JSON-Path search feature to retrieve key-values from input payload.
+In this tutorial, you will use the JSON-Path search feature to retrieve key-values from the input
+payload, then reshape the result with the f:listOfMap() and f:removeKey() plugins. Reshaping a
+third-party API response into your own internal data contract — "impedance matching" — is one of
+the most common jobs for a data mapper, and these tools let you do it without writing code.
 
 Exercise
 --------
 You will import tutorial-7 and replace some data mapping statements with JSON-Path search requests.
 
-To clear the previous graph session, click the Tools button in the top-right corner and click the "Stop" and "Start"
-toggle button. A new graph session will start.
+To clear the previous graph session, click the Tools button in the top-right corner and click the
+"Stop" and "Start" toggle button. A new graph session will start.
 
 Import tutorial-7
 -----------------
@@ -22,9 +25,9 @@ Graph model imported as draft
 
 Input payload
 -------------
-The account holder "Peter" has 2 accounts.
-We will assume the following input payload data structure. You would copy-n-paste this JSON dataset
-when using the "upload mock data" dialog box in this tutorial exercise.
+The account holder "Peter" has 2 accounts. We will assume the following input payload data
+structure. You will copy-n-paste this JSON dataset when the "upload mock data" dialog box opens
+later in this exercise.
 
 ```json
 { 
@@ -63,13 +66,13 @@ mapping[]=$.input.body.profile.account[*].amount -> model.amount
 skill=graph.data.mapper
 ```
 
-The above data mapping statements extract the type, id and amount from the account list in the
-input payload using JSON-Path search syntax.
+A mapping source that starts with "$." is a JSON-Path expression evaluated over the state machine.
+The three JSON-Path statements above use the [*] wildcard to extract the type, id and amount from
+every element of the account list in the input payload. For a simple key, prefer the plain
+dot-bracket form (like the first statement) and save JSON-Path for queries that need it.
 
 Test the data mapper
 --------------------
-Let's test the data mapper first.
-
 Enter the following to instantiate the graph and open a dialog box to enter the mock input data.
 
 ```
@@ -79,14 +82,14 @@ Graph instance created. Loaded 0 mock entries, model.ttl = 30000 ms
 Mock data loaded into 'input.body' namespace
 ```
 
-The first data mapping statement maps the input.body.profile.name into the "name" field of the output body.
-The subsequent data mapping statements extract the type, id and amount key-values form the account list and
-map them into the model variables type, id and amount accordingly.
+The first data mapping statement maps input.body.profile.name into the "name" field of the output
+body. The JSON-Path statements extract the type, id and amount key-values from the account list
+and map them into the model variables type, id and amount accordingly.
 
-When you enter the "upload mock data" command, an input dialog box will be opened. Please paste the sample
-input payload listed above.
+When you enter the "upload mock data" command, an input dialog box will open. Please paste the
+sample input payload listed above.
 
-To confirm that you have uploaded the mock input. Enter "inspect input".
+To confirm that you have uploaded the mock input, enter "inspect input".
 
 ```
 > inspect input
@@ -116,7 +119,7 @@ To confirm that you have uploaded the mock input. Enter "inspect input".
 }
 ```
 
-You can now test the data mapper by "executing" it. Enter "execute data-mapper".
+You can now test the data mapper by executing it. Enter "execute data-mapper".
 
 ```
 > execute data-mapper
@@ -159,16 +162,15 @@ You can inspect the model and the output key-values to see what values are mappe
 }
 ```
 
-This confirms that the JSON-Path commands have extracted the key-values from the account list successfully.
-However, presenting data in list of key-values in maps is usually not a good schema design. It may be easier
-for an application to parse the key-values but it reduces readability for a human operator.
-
-This is just a demo to illustrate that we can use JSON-Path retrieval syntax.
+This confirms that the JSON-Path statements have extracted the key-values from the account list
+successfully. However, three parallel lists — a "map of lists" — is usually not a good schema
+design: easy for an application to parse, but harder for a human to read. Let's turn it into a
+proper list of maps.
 
 Using the listOfMap plugin
 --------------------------
-For proper data structure representation, we can use the plugin "f:listOfMap()" to consolidate the map of lists.
-You can add a data mapping statement to use the listOfMap plugin like this:
+For proper data structure representation, use the plugin f:listOfMap() to consolidate the maps of
+lists into a list of maps. Update the data mapper like this:
 
 ```
 update node data-mapper
@@ -182,10 +184,11 @@ mapping[]=f:listOfMap(model.account) -> output.body.account
 skill=graph.data.mapper
 ```
 
-Note that you add one level of key called "account" to hold the 3 maps of lists for type, id and amount.
-Then you apply the plugin "f:listOfMap()" to consolidate the maps of lists into a list of maps.
+Note the extra level of key called "account" that holds the 3 lists for type, id and amount. The
+f:listOfMap() plugin then consolidates the maps of lists into a list of maps.
 
-When you enter 'inspect model' and 'inspect output', you will see:
+Instantiate the graph, upload the same mock data and execute the data-mapper again. When you enter
+'inspect model' and 'inspect output', you will see:
 
 ```
 > inspect model
@@ -231,21 +234,28 @@ When you enter 'inspect model' and 'inspect output', you will see:
 }
 ```
 
-This illustrates that the `listOfMap` plugin can perform simple data transformation.
-This is handy when your graph model uses API fetchers to retrieve data from multiple sources.
-Without writing code, you can group data from different data structures.
+This illustrates that the listOfMap plugin can perform simple data transformation. It is handy
+when your graph model uses API fetchers to retrieve data from multiple sources: without writing
+code, you can group data from different data structures into the shape your consumers expect.
 
 Using the removeKey plugin
 --------------------------
-For a single data source, it is indeed easier to use the plugin `f:removeKey()` to remove one or more keys
-from the data structure.
+When the data comes from a single source, it is even easier to use the f:removeKey() plugin to
+drop the unwanted keys directly. Its form is:
+
+```
+f:removeKey(source, text(key1), text(key2), ...)
+```
+
+It removes the named keys from a map — or from every map in a list — and returns a copy of the
+data structure. Here it strips the "description" field from every account:
 
 ```
 mapping[]=f:removeKey(input.body.profile.account, text(description)) -> output.body.account
 ```
 
-Let's prove this by editing the data-mapper again. We add a new data mapping statement at the end to map
-the alternative solution to the "account2" field in the output payload.
+Let's prove this by editing the data-mapper again. We add a new data mapping statement at the end
+to map the alternative solution to the "account2" field in the output payload.
 
 ```
 update node data-mapper
@@ -260,8 +270,8 @@ mapping[]=f:removeKey(input.body.profile.account, text(description)) -> output.b
 skill=graph.data.mapper
 ```
 
-You will do 'instantiate graph' and 'upload mock data' with the same input payload.
-Then 'execute data-mapper' and 'inspect output' to see the outcome.
+Do 'instantiate graph' and 'upload mock data' with the same input payload. Then
+'execute data-mapper' and 'inspect output' to see the outcome.
 
 ```
 > execute data-mapper
@@ -302,7 +312,7 @@ node data-mapper run for 2.826 ms with exit path 'next'
 ```
 
 Note that "account" and "account2" have the same key-values and data structure. This confirms that
-the "description" key-value has been removed from each map in a list successfully.
+the "description" key-value has been removed from each map in the list successfully.
 
 Export the graph model
 ----------------------
@@ -316,11 +326,11 @@ Described in /api/graph/model/tutorial-8/315-6
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-8.json" to your application's `main/resources/graph` folder.
-You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-8.json" to your application's
+`resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-8 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-8 \
   -H "Content-Type: application/json" \
   -d '{ 
   "profile": {
@@ -345,9 +355,10 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-8 \
 
 Summary
 -------
-In this session, you have created a graph model that uses JSON-Path retrieval and search features. 
-You have applied the plugin "f:listOfMap()" to consolidate maps of lists into a list of maps.
-You have also tested the plugin "f:removeKey()" to remove unwanted key-values from a list of maps.
+In this tutorial, you have used JSON-Path retrieval to extract key-values from a list, applied the
+f:listOfMap() plugin to consolidate maps of lists into a list of maps, and used the f:removeKey()
+plugin to remove unwanted key-values from a list of maps — the building blocks for reshaping a
+third-party API response into your internal data contract.
 
-Note that JSON-Path retrieval and search syntax supports value comparison for selective key-value retrieval.
-Please refer to JSON-Path syntax on the web for more details.
+Note that JSON-Path also supports value comparison for selective key-value retrieval. Please refer
+to a JSON-Path syntax reference on the web for more details.

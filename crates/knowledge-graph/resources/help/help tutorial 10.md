@@ -1,22 +1,27 @@
 Tutorial 10
 -----------
-In this session, you will create a graph model to use an extension.
+In this tutorial, you will create a graph model that uses another graph model as an extension.
 
 Exercise
 --------
-You will use an existing graph model as an extension. Then create a new graph model to use the extension.
+You will use an existing graph model as an extension, then create a new graph model that calls it.
 
-To clear the previous graph session, click the Tools button in the top-right corner and click the "Stop" and "Start"
-toggle button. A new graph session will start.
+To clear the previous graph session, click the Tools button in the top-right corner and click the
+"Stop" and "Start" toggle button. A new graph session will start.
 
 What is a graph extension?
 --------------------------
-A graph extension is a graph model that is built to serve some logic that can be reused by another graph model.
+A graph extension is a graph model built to serve some logic that another graph model can reuse.
+
+The `extension` property of a graph.extension node names a **deployed** graph model — one compiled
+at application startup from the `resources/graph` folder (the same ids callable at
+POST /api/graph/{graph-id}). A session draft is not addressable as an extension: export and deploy
+it first.
 
 Import tutorial 3 as an extension
 ---------------------------------
-Enter the following to import tutorial 3. Note that tutorial-3.json is preloaded into the main/resources/graph
-folder.
+Enter the following to import tutorial 3. Note that tutorial-3.json is preloaded into the
+`resources/graph` folder.
 
 ```
 > import graph from tutorial-3
@@ -33,7 +38,7 @@ start graph
 int(100) -> input.body.person_id
 ```
 
-Then do a 'dry-run'
+Then do a 'dry-run'.
 
 ```
 > run
@@ -52,16 +57,17 @@ Walk to end
 Graph traversal completed in 2 ms
 ```
 
-You see that it fetches data using the input parameter (person_id=100) and return name and address of the person.
+You can see that it fetches data using the input parameter (person_id=100) and returns the name
+and address of the person. This is the behavior your new graph will reuse.
 
 Restart playground session
 --------------------------
-You will clear the current graph session - click the Tools button in the top-right corner and click the "Stop" 
-and "Start" toggle button. A new graph session will start.
+You will clear the current graph session — click the Tools button in the top-right corner and
+click the "Stop" and "Start" toggle button. A new graph session will start.
 
 Create a root node and an end node
 ----------------------------------
-You will create a new graph model with root node and end node.
+You will create a new graph model with a root node and an end node.
 
 ```
 create node root
@@ -78,9 +84,10 @@ with type End
 
 Create a node to use an extension
 ---------------------------------
-Enter the following to create an extension node. The skill is 'extension' and the extension is 'tutorial-3'.
+Enter the following to create an extension node. The skill is 'graph.extension' and the
+'extension' property names the deployed graph model 'tutorial-3'.
 
-The input mapping sets the input parameter(s) to an extension which is also a graph model.
+The input mapping sets the input parameter(s) of the extension, which is itself a graph model.
 The output mapping sets the result from the extension to the output payload.
 
 ```
@@ -129,8 +136,8 @@ Walk to end
 Graph traversal completed in 20 ms
 ```
 
-The input for the current graph instance is mapped as input parameter to the extension 'tutorial-3'.
-The result is mapped as output for the graph.
+The input of the current graph instance is mapped as an input parameter to the extension
+'tutorial-3', and the result is mapped as the output of the graph.
 
 If you inspect the extension node, you will see:
 
@@ -162,22 +169,22 @@ If you inspect the extension node, you will see:
 
 Check the application log
 -------------------------
-Complete telemetry information is shown in the application log. You will see that 'tutorial-3' is invoked
-as an extension and it fetches data from the data provider with the input parameter 'person_id'.
+Complete telemetry information is shown in the application log. You will see that 'tutorial-3' is
+invoked as an extension and that it fetches data from the data provider with the input parameter
+'person_id'.
 
 ```
-GraphExtension:202 - Call extension tutorial-3, ttl=30000
-GraphApiFetcher:410 - GET http://127.0.0.1:8085/api/mdm/profile/100, with [person_id], ttl=30000
+Call extension tutorial-3, ttl=30000
+GET http://127.0.0.1:8100/api/mdm/profile/100, with [person_id], ttl=30000
 ```
 
-This is a trivial example to demonstrate that you can call an extension from a graph instance.
-A typical use case is that the main graph model would use one or more extensions for API data fetching and perform
-decision-making using the retrieved data.
+This is a small example, but it demonstrates the pattern: a typical main graph model uses one or
+more extensions for API data fetching, then performs decision-making using the retrieved data.
 
 Reusability
 -----------
-Graph extension promotes reusability. Common use cases can be built using graph models that are available as
-"extensions" for another graph model to use.
+Graph extension promotes reusability. Common use cases can be built as graph models and made
+available as "extensions" for other graph models to use.
 
 Export the graph model
 ----------------------
@@ -191,11 +198,11 @@ Described in /api/graph/model/tutorial-10/286-8
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-10.json" to your application's `main/resources/graph` folder.
-You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-10.json" to your application's
+`resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-10 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-10 \
   -H "Content-Type: application/json" \
   -d '{ 
     "person_id": 100
@@ -204,4 +211,6 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-10 \
 
 Summary
 -------
-In this session, you have created a graph model that uses a graph extension.
+In this tutorial, you have created a graph model that uses a graph extension: the 'extension'
+property names a deployed graph model, input mappings feed its input.body, and the extension's
+output.body comes back as the node's result.

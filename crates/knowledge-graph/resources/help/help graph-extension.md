@@ -1,62 +1,61 @@
 Skill: Graph Extension
 ----------------------
-When a node is configured with this skill of "graph extension", it will make an API call to another graph model
-(or flow) and collect result set into the "result" property of the node. In case of exception, the "status" and
-"result.error" fields will be set to the node's properties and the graph execution will stop.
-
-Execution will start when the GraphExecutor reaches the node containing this skill.
+Delegates to another graph model (a sub-graph) or to an Event Script flow,
+so larger capabilities compose from smaller ones. The node passes named
+inputs to the target, and the target's response body becomes this node's
+result. This is the seam between the knowledge-graph layer and the Event
+Script layer beneath it.
 
 Route name
 ----------
 "graph.extension"
 
-Setup
------
-To enable this skill for a node, set "skill=graph.extension" as a property in a node.
-
-The following parameters are required in the properties of the node:
-
-1. extension - this should be a valid graph model name or flow identifier in the same memory space
-2. input - this should include one or more data mapping as input parameters to invoke the API call
-
-A flow identifier is prefixed by a flow protocol signature "flow://". e.g. "flow://hello-world".
-
-The system uses the same syntax of Event Script for data mapping.
-
 Properties
 ----------
 ```
 skill=graph.extension
-extension=graph-id or flow-id
-input[]={mapping of key-value from input or another node to input parameter(s) of the data dictionary item(s)}
-output[]={optional mapping of result set to one or more variables in the 'model.' or 'output.' namespace}
+extension={graph-id}           (a deployed sub-graph ...)
+extension=flow://{flow-id}     (... or an Event Script flow)
+input[]={source} -> {key}
+output[]={source} -> {target}
 ```
 
-Optional properties
--------------------
+- extension (required) - the target. A graph id resolves among DEPLOYED
+  graph models only (compiled at startup from the app's resources/graph
+  folder - the same ids callable at POST /api/graph/{graph-id}). A session
+  draft is NOT addressable: export and deploy it first. A missing id fails
+  the node fast at run time. A flow target takes the flow:// prefix, e.g.
+  extension=flow://hello-world.
+- input[] (required) - each entry's TARGET is a bare key that becomes the
+  target's input.body.{key}. There is NO whole-body "*" target on this
+  skill - map named keys (the "*" merge idiom is graph.task-only; see
+  'help graph-task').
+- output[] (optional) - maps the result onward; the result always lands at
+  {node}.result regardless.
+
+Optional:
+
 ```
-for_each[]={map an array parameter for iterative API execution}
-concurrency={controls parallel API calls for an "iterative API request". Default 3, max 30}
-exception={error-handler-node-name}
+for_each[]={array-source} -> model.{var}   (iterate over a runtime list)
+concurrency={1-30}                         (parallel fan-out, default 3)
+exception={error-handler-node}             (jump on failure instead of abort)
 ```
 
 Result set
 ----------
-Upon successful execution, the result set will be stored in the "result" parameter in the properties of
-the node. A subsequent data mapper can then map the key-values in the result set to one or more nodes.
+This node's result namespace IS the target's output.body:
 
-Input Data mapping
-------------------
-source.composite.key -> target.composite.key
+- bare "result" in an output[] mapping is the whole response body
+- result.{key} is a field of it
 
-For input data mapping, the source can use a key-value from the `input.` namespace or another node.
-The target can be a key-value in the state machine (`model.` namespace) or an input parameter name of the
-data dictionary.
+The same contract applies to both target kinds: the named input keys feed
+the sub-graph's or flow's input.body, and result.* is its output.body.
 
 Example
 -------
 ```
 create node performance-evaluator
+with type Extension
 with properties
 skill=graph.extension
 extension=evaluate-sales-performance
@@ -64,28 +63,19 @@ input[]=input.body.department_id -> id
 output[]=result.sales_performance -> output.body.sales_performance
 ```
 
-Iterative API call
-------------------
-Using the optional `for_each` statement, you can tell the "Extension" skill to do "fork-n-join" of API requests.
+Here input.body.department_id feeds the sub-graph's input.body.id, and the
+sub-graph's output.body.sales_performance comes back as
+result.sales_performance.
 
-A "for_each" statement extracts the next array element from a node result set into a model variable.
-You can then put the model variable in the "left-hand-side" of the mapping statement. The skill will then
-issue multiple API calls using an iterative stream of the model variable.
-
-If your API call needs more than one parameter, you can configure more than one "for_each" statement.
-
-The concurrency property tells the skill to limit parallelism to avoid overwhelming the target service.
-
-The "[]" syntax is used to create and append a list of one or more data mapping entries
-The "->" signature indicates the direction of mapping where the left-hand-side is source and right-hand-side is target
-
-Custom error handling
----------------------
-By default, when an API request fails, the system will abort the graph execution and return the error code
-and message to the caller.
-
-If you want to handle the exception in your graph model, you can set the node-name of the error-handler in
-the "exception" property to tell the system to traverse to the error-handler node.
-
-To handle an exception, the error-handler node should be a decision-making node using the graph.math or graph.js skill.
-It can evaluate the status code and error in the API fetcher node to determine the next step.
+Notes
+-----
+- Failure routing: on failure, {node}.status and {node}.error are set and
+  the output[] mappings are skipped. With exception={handler-node},
+  traversal jumps to the handler instead of aborting; without it, the run
+  aborts. The bounded-retry pattern is shown under 'help graph-api-fetcher'.
+- for_each[]={array-source} -> model.{var} invokes the target once per
+  element of a runtime list, with bounded parallel fan-out (concurrency
+  1-30, default 3). The shared iteration rules are under
+  'help graph-api-fetcher'.
+- Use graph.extension for multi-step orchestration; use graph.task for a
+  single composable-function call.

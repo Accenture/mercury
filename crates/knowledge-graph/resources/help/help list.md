@@ -1,18 +1,20 @@
 List nodes or connections
 -------------------------
-The "list nodes" and "list connections" commands list all the nodes and connections of the current graph model
-respectively.
+Show all nodes or all connections of the current graph model.
 
 Syntax
 ------
-List all nodes
---------------
 ```
 list nodes
-```
-
-List all connections
---------------------
-```
 list connections
 ```
+
+Notes
+-----
+- 'list nodes' prints each node with its type: the root node first, the end
+  node last, and the other nodes in alphabetical order. A missing root or
+  end node is flagged with "(does not exist)".
+- 'list connections' prints one line per connection with its relation
+  label(s).
+- Use 'describe node {name}' for the full detail of a single node (see
+  'help describe').

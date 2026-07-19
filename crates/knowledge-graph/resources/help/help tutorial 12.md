@@ -1,18 +1,18 @@
-Tutorial 10
+Tutorial 12
 -----------
-In this session, you will create a graph model with custom error handling.
+In this tutorial, you will create a graph model with custom error handling.
 
 Exercise
 --------
-You will import tutorial 3 and add an error-handler node to retry an API failure.
+You will import tutorial 3 and add an error-handler node that retries an API failure.
 
-To clear the previous graph session, click the Tools button in the top-right corner and click the "Stop" and "Start"
-toggle button. A new graph session will start.
+To clear the previous graph session, click the Tools button in the top-right corner and click the
+"Stop" and "Start" toggle button. A new graph session will start.
 
 Import tutorial 3 as a template
 -------------------------------
-Enter the following to import tutorial 3. Note that tutorial-3.json is preloaded into the main/resources/graph
-folder.
+Enter the following to import tutorial 3. Note that tutorial-3.json is preloaded into the
+`resources/graph` folder.
 
 ```
 > import graph from tutorial-3
@@ -24,13 +24,14 @@ Graph model imported as draft
 
 Update the root node
 --------------------
-Enter the following to update the root node. It assigns the skill "graph.data.mapper" to the node and
-maps the input parameter "exception" to the model variable with the same name.
+Enter the following to update the root node. It assigns the skill "graph.data.mapper" to the node
+and maps the input parameter "exception" to the model variable with the same name.
 
 The `f:defaultValue()` plugin function sets the variable "model.exception" to false when the input
 parameter is not given.
 
-We will use the model.exception parameter to trigger a simulated exception for the mdm-profile service.
+We will use the model.exception parameter to trigger a simulated exception in the mdm-profile
+service.
 
 ```
 update node root
@@ -44,8 +45,8 @@ skill=graph.data.mapper
 
 Update the dictionary
 ---------------------
-For person-address, you will add the input parameter `exception:false` where ":false" is the default value of
-the parameter if not given.
+For person-address, you will add the input parameter `exception:false`, where ":false" is the
+default value of the parameter when it is not given.
 
 ```
 update node person-address
@@ -73,8 +74,8 @@ purpose=name of a person
 
 Update the data provider
 ------------------------
-You will add the input data mapping `exception -> header.x-exception` to the mdm-profile node. The input parameter
-"exception" is used to set the HTTP request header "X-Exception".
+You will add the input data mapping `exception -> header.x-exception` to the mdm-profile node. The
+input parameter "exception" is used to set the HTTP request header "X-Exception".
 
 ```
 update node mdm-profile
@@ -92,11 +93,11 @@ url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}
 
 Update the fetcher node
 -----------------------
-You will add the input data mapping `model.exception -> exception` to set the parameter exception to retrieve
-the two data dictionary items (person-name and person-address).
+You will add the input data mapping `model.exception -> exception` to set the parameter
+"exception" when retrieving the two data dictionary items (person-name and person-address).
 
-You also add the property `exception=error-handler`. This tells the system to route the flow to the "error-handler"
-node.
+You also add the property `exception=error-handler`. This tells the system to route the flow to
+the "error-handler" node when a call fails, instead of aborting the graph traversal.
 
 ```
 update node fetcher
@@ -112,39 +113,47 @@ output[]=result.address -> output.body.address
 skill=graph.api.fetcher
 ```
 
-The mock endpoint contains this:
+The dev-mode mock endpoint contains this:
 
-```java
-@Override
-public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
-    if ("true".equals(input.getHeader("x-exception"))) {
-        throw new AppException(401, "simulated exception");
-    }
-    // for simplicity, business logic not shown here
+```rust
+// extract of the dev mock endpoint (mock.mdm.profile)
+if request["headers"]["x-exception"] == "true" {
+    return Err(AppError::new(401, "simulated exception"));
 }
+// business logic not shown
 ```
 
-Create Error-Handler node
--------------------------
-You will then create the error-handler node that is referenced in the fetcher node above.
+Create the error-handler node
+-----------------------------
+You will now create the error-handler node referenced by the fetcher above.
 
-When the "exception" property is configured in a fetcher, the system will not abort the graph traversal, it will
-route it to the given error handler.
+When the "exception" property is configured on a fetcher, a failed call — an error status is
+always a value of 400 or higher — does not abort the graph traversal: the engine sets the node's
+"status" and "error" variables, skips its output mappings, and routes the flow to the named error
+handler.
 
-In the handler, you test the "fetcher.status" variable to see if it is HTTP-200. While an error status is always
-a value equals or larger than 200, it is a good practice to do simple validation to avoid unintended configuration
-error.
+The handler's statements run in order:
 
-If it is not 200, the statement block will execute. The first 2 mapping statements increment the variable
-"model.attempts". The next evaluation statement checks if the maximum attempts have reached, it will clear
-the simulated exception by routing to the "clear-exception" node.
-
-The "NEXT: fetcher" statement tells the system to connect to the fetcher again. Since a node cannot be executed twice,
-you use the "RESET:" command to clear its states so that it can be executed again.
-
-The "DELAY: 50" means that it will pause for 50 milliseconds before the next retry. This is a best practice because
-it avoids very rapid retries that may contribute to a side effect called "recovery storm" or 
-"unintended denial-of-service attack".
+1. The first IF tests "fetcher.status". It is good practice to test for exactly 200 so an
+   unintended configuration error cannot slip through. On HTTP-200 the THEN branch jumps to the
+   end node — a taken node-jump ends the statement list immediately. Otherwise the ELSE branch
+   resolves to "next" and falls through to the following statements.
+2. RESET comes **first among the action statements**: it clears the run-once guard and state of a
+   comma-separated list of nodes so they can be executed again — here the fetcher and the
+   error-handler itself (a node may reset itself because the run-once mark is set before its
+   statements execute). Placing RESET early guarantees it runs on every path — a later taken IF
+   jump would skip it — and everything the node stores afterwards (such as the pending DELAY)
+   survives the self-wipe. Keep RESET **after** any check that reads state it would wipe: the
+   status IF above must run first, because RESET clears "fetcher.status" and an IF on a wiped
+   variable aborts the run.
+3. The two MAPPING statements increment the retry counter "model.attempts" (`f:defaultValue()`
+   seeds it to 0 on the first pass). The "model" namespace is not touched by RESET.
+4. The second IF bounds the retry loop: after 3 attempts it jumps to the "clear-exception" node.
+5. "NEXT: fetcher" tells the traversal system to jump to the fetcher node. Unlike a taken IF jump,
+   NEXT does not stop the statement list — the jump is applied after the whole list completes.
+6. "DELAY: 50" pauses for 50 milliseconds after this node completes, before the next retry. Pacing
+   retries is a best practice: it avoids very rapid retries that can cause a "recovery storm" — an
+   unintended denial-of-service attack on the target service.
 
 ```
 create node error-handler
@@ -156,6 +165,7 @@ IF: {fetcher.status} == 200
 THEN: end
 ELSE: next
 '''
+statement[]=RESET: fetcher, error-handler
 statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
 statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
 statement[]='''
@@ -163,31 +173,30 @@ IF: {model.attempts} >= 3
 THEN: clear-exception
 ELSE: next
 '''
-statement[]=RESET: fetcher, error-handler
 statement[]=NEXT: fetcher
 statement[]=DELAY: 50
 ```
 
 Create the clear-exception node
 -------------------------------
-In the clear-exception node, you add statements to set the variable "model.exception" to false so that
-the mock service will return normal response instead of an exception. You also clear the "model.attempts" to zero
-and reset the fetcher and the clear-exception nodes so that the system can execute them again.
-
-You will then create new connections to complete the exercise.
+In the clear-exception node, the RESET comes first (nothing before it reads node state), clearing
+the fetcher and the clear-exception node itself so that the system can execute them again. You
+then set the variable "model.exception" to false so that the mock service returns a normal
+response instead of an exception, and clear "model.attempts" to zero.
 
 ```
 create node clear-exception
 with type Decision
 with properties
 skill=graph.math
+statement[]=RESET: fetcher, clear-exception
 statement[]=MAPPING: boolean(false) -> model.exception
 statement[]=MAPPING: int(0) -> model.attempts
-statement[]=RESET: fetcher, clear-exception
 ```
 
 Connections for error-handler and clear-exception nodes
 -------------------------------------------------------
+Create the connections to complete the retry loop.
 
 ```
 connect error-handler to fetcher with retry
@@ -196,8 +205,8 @@ connect clear-exception to fetcher with reset
 
 Do a dry-run
 ------------
-Enter the following to start the graph with mock input data. You are setting integer of 100 to person_id
-and boolean value of "true" to exception in the input payload.
+Enter the following to start the graph with mock input data. You are setting the integer 100 to
+person_id and the boolean value "true" to exception in the input payload.
 
 ```
 start graph
@@ -205,7 +214,7 @@ int(100) -> input.body.person_id
 boolean(true) -> input.body.exception
 ```
 
-Execute the run command
+Execute the run command.
 
 ```
 > run
@@ -241,9 +250,9 @@ Walk to end
 Graph traversal completed in 201 ms
 ```
 
-The graph traversal log shows that the "error-handler" node has been executed for 3 times before
-the clear-exception node is executed. After clearing the exception, the mock service returns
-a correct result set as "output".
+The graph traversal log shows that the "error-handler" node executed 3 times before the
+clear-exception node ran. After the exception is cleared, the mock service returns a correct
+result set as "output".
 
 Export the graph model
 ----------------------
@@ -257,11 +266,11 @@ Described in /api/graph/model/tutorial-12/591-5
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-10.json" to your application's `main/resources/graph` folder.
-You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-12.json" to your application's
+`resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-12 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-12 \
   -H "Content-Type: application/json" \
   -d '{ 
     "person_id": 100,
@@ -271,25 +280,28 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-12 \
 
 Summary
 -------
-In this session, you have used tutorial-3 as a template and enhanced it with custom error handling.
+In this tutorial, you have used tutorial-3 as a template and enhanced it with custom error
+handling.
 
-You have used the keywords "RESET", "NEXT" and "DELAY" to reset the states of the nodes visited, to tell the
-graph traversal system to route to a specific node and to introduce an artificial delay to avoid overwhelming
-the target service.
+You have used the keywords "RESET", "NEXT" and "DELAY" to clear the state of visited nodes, to
+tell the graph traversal system to route to a specific node, and to introduce an artificial delay
+that avoids overwhelming the target service.
 
 IMPORTANT: Graph traversal loops
 --------------------------------
-The graph traversal system is designed to allow a node to be executed only once.
+The graph traversal system is designed to allow a node to be executed only once per run.
 
-When using the keyword "RESET: node-name", the "seen" status and all state information are cleared so that the node
-can be executed again. This would create a potential endless loop in graph traversal.
+When you use the keyword "RESET: node-name", the "seen" status and all state information are
+cleared so that the node can be executed again. This creates the potential for an endless loop in
+graph traversal.
 
-Therefore, please pay attention to have some decision logic to stop looping or retries.
+Therefore, always include decision logic that bounds the looping or retries — like the
+"model.attempts" counter in this tutorial.
 
-As a protection mechanism, the system has a built-in loop detection logic. When a node is executed too frequently,
-the graph traversal will be aborted.
+As a protection mechanism, the system has built-in loop detection. When a node is executed too
+frequently, the graph traversal is aborted.
 
-The default parameters in `application.properties` are 10 visits per second for the same node.
+The default parameters in `application.properties` allow 10 visits per second for the same node.
 
 ```properties
 graph.max.loop.interval=1000

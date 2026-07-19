@@ -1,21 +1,22 @@
 Tutorial 13
 -----------
-In this session, you will create a graph model that invokes a composable function using the
+In this tutorial, you will create a graph model that invokes a composable function using the
 "graph.task" skill.
 
 Pre-requisite
 -------------
-You would need some working knowledge of composable functions. A composable function is a
-TypedLambdaFunction registered with the PreLoad annotation. For more details, please refer to the
-[Developer Guide](https://accenture.github.io/mercury-composable/).
+You would need some working knowledge of composable functions. A composable function is a struct
+implementing ComposableFunction, registered with the #[preload] attribute. For more details, see
+docs/guides/event-driven/ai-agent-guide.md in this repository (the composable-function authoring
+guide).
 
 What is a task?
 ---------------
-A task is a node that invokes a composable function through its route name. MiniGraph is designed to be
-zero-code with built-in skills for data mapping, decision-making and API fetching. More complex business
-logic is delegated to a flow extension or a subgraph (tutorials 10 and 11). A task node sits in between -
-it provides a lightweight method to extend a knowledge graph's capability with a small piece of business
-logic, without writing a new skill.
+A task is a node that invokes a composable function through its route name. MiniGraph is designed
+to be zero-code with built-in skills for data mapping, decision-making and API fetching. More
+complex business logic is delegated to a flow extension or a subgraph (tutorials 10 and 11). A
+task node sits in between: it provides a lightweight method to extend a knowledge graph's
+capability with a small piece of business logic, without writing a new skill.
 
 Create the graph model
 ----------------------
@@ -62,35 +63,45 @@ About the input data mapping
 The input data mapping follows the Event Script syntax and is applied in declaration order:
 
 1. `input.body -> *` maps the whole request body as the request body of the composable function.
-   Since data mapping entries are processed in order, later entries can merge additional key-values
-   into a request body that was seeded with `*`.
+   Since data mapping entries are processed in order, later entries can merge additional
+   key-values into a request body that was seeded with `*`.
 2. `text(minigraph) -> header.x-app` sets a request header of the function call. You can also map
-   individual fields, e.g. `input.body.amount -> amount` would set one key-value in the request body.
+   individual fields, e.g. `input.body.amount -> amount` would set one key-value in the request
+   body.
 
-If the composable function is declared with a PoJo input class, the request body map is automatically
-converted to the PoJo at the function boundary.
+If the composable function declares a typed input, the request body is automatically converted at
+the function boundary.
 
 About v1.hello.task
 -------------------
-For your convenience, the composable function "v1.hello.task" is preloaded in dev mode. It composes a
-greeting from the "name" field, doubles the "amount" field and echoes the "x-app" request header.
-Below is an extract of the function:
+For your convenience, the composable function "v1.hello.task" is preloaded in dev mode. It
+composes a greeting from the "name" field, doubles the "amount" field and echoes the "x-app"
+request header. Below is an extract of the function:
 
-```java
-@PreLoad(route = "v1.hello.task", instances = 50)
-public class HelloTask implements TypedLambdaFunction<Map<String, Object>, Object> {
+```rust
+/// The tutorial-13 demo task invoked through the graph.task skill.
+#[preload(route = "v1.hello.task", instances = 50)]
+#[optional_service("app.env=dev")]
+pub struct HelloTask;
 
-    @Override
-    public Object handleEvent(Map<String, String> headers, Map<String, Object> input, int instance) {
-        var result = new HashMap<String, Object>();
-        result.put("greeting", "Hello, " + input.getOrDefault("name", "stranger"));
-        if (input.get("amount") instanceof Number n) {
-            result.put("doubled", n.doubleValue() * 2);
+#[async_trait]
+impl ComposableFunction for HelloTask {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: JsonValue = input.body_as().unwrap_or(JsonValue::Null);
+        let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("stranger");
+        let mut result = serde_json::json!({"greeting": format!("Hello, {name}")});
+        if let Some(amount) = body.get("amount").and_then(|v| v.as_f64()) {
+            result["doubled"] = serde_json::json!(amount * 2.0);
         }
-        if (headers.containsKey("x-app")) {
-            result.put("app", headers.get("x-app"));
+        if let Some(app) = headers.get("x-app") {
+            result["app"] = serde_json::json!(app);
         }
-        return result;
+        EventEnvelope::new().set_body(result)
     }
 }
 ```
@@ -127,25 +138,35 @@ Walk to end
 Graph traversal completed in 6 ms
 ```
 
-You can also check the application log. Telemetry and tracing information are shown, proving that the
-composable function was executed by the graph instance with full trace propagation.
+You can also check the application log. Telemetry and tracing information are shown, proving that
+the composable function was executed by the graph instance with full trace propagation.
 
 ```
-GraphTask:144 - Call task v1.hello.task, ttl=30000
-Telemetry:81 - {trace={path=/graph/playground, service=graph.task...
-Telemetry:81 - {trace={path=/graph/playground, service=v1.hello.task...
+Call task v1.hello.task, ttl=30000
+{trace={path=/graph/playground, service=graph.task...
+{trace={path=/graph/playground, service=v1.hello.task...
 ```
 
 Error handling
 --------------
-If the composable function throws an exception (e.g. AppException with a status code) or the call times
-out, the "error" and "status" parameters of the node are set. You can add an "exception" property to the
-task node to route the error to a handler node, e.g. `exception=on-error`.
+If the composable function returns an error (e.g. an AppError with a status code) or the call
+times out, the "error" and "status" parameters of the node are set. You can add an "exception"
+property to the task node to route the error to a handler node, e.g. `exception=on-error`
+(tutorial 12 shows the full retry pattern).
 
 Iterative execution
 -------------------
-Like the API fetcher and the flow extension, a task node supports iterative fork-join execution with the
-"for_each" and "concurrency" properties. Please enter 'describe skill graph.task' for details.
+Like the API fetcher and the flow extension, a task node supports iterative fork-join execution
+with the "for_each" and "concurrency" properties. Please enter 'describe skill graph.task' for
+details.
+
+Why invoke a composable function from a graph?
+----------------------------------------------
+The built-in skills cover data mapping, decision-making, computation and API fetching without
+writing any code, and flow extensions or subgraphs handle complex orchestration. A task node
+completes the picture: any custom business logic can be packaged as a composable function and
+plugged into a graph as if it were a custom skill. You can extend a knowledge graph's capability
+with the full power of the Mercury Composable programming model, one small function at a time.
 
 Export the graph model
 ----------------------
@@ -159,11 +180,11 @@ Described in /api/graph/model/tutorial-13/431-3
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-13.json" to your application's `main/resources/graph`
-folder. You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-13.json" to your application's
+`resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-13 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-13 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "world",
@@ -173,13 +194,5 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-13 \
 
 Summary
 -------
-In this session, we have discussed the use of the "graph.task" skill to invoke a composable function
-through its route name, with Event Script style input and output data mapping.
-
-Why invoke a composable function from a graph?
-----------------------------------------------
-The built-in skills cover data mapping, decision-making, computation and API fetching without writing
-any code, and flow extensions or subgraphs handle complex orchestration. A task node completes the
-picture - any custom business logic can now be packaged as a composable function and plugged into a
-graph as if it were a custom skill. This means you can extend a knowledge graph's capability with the
-full power of the Mercury Composable programming model, one small function at a time.
+In this tutorial, you have used the "graph.task" skill to invoke a composable function through its
+route name, with Event Script style input and output data mapping.

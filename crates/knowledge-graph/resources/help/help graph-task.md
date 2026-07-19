@@ -1,102 +1,96 @@
 Skill: Graph Task
 -----------------
-When a node is configured with this skill of "graph task", it will invoke a composable function
-through its route name and collect the function's response into the "result" property of the node.
-In case of exception, the "status" and "error" fields will be set to the node's properties and the
-graph execution will stop unless an exception handler node is configured.
-
-A composable function is a TypedLambdaFunction registered using the PreLoad annotation. This provides
-a lightweight method to extend a knowledge graph's capability with a small piece of business logic,
-without writing a new skill - more complex business logic should be delegated to a flow extension
-or a subgraph using the "graph.extension" skill.
-
-Execution will start when the GraphExecutor reaches the node containing this skill.
+Invokes a composable function through its route name and collects the
+function's response into the node's "result" property. This is the
+lightweight way to plug a small piece of custom business logic into a graph:
+your own function becomes, in effect, a custom skill. For multi-step
+orchestration, prefer a sub-graph or an Event Script flow via graph.extension
+(see 'help graph-extension').
 
 Route name
 ----------
 "graph.task"
 
-Setup
------
-To enable this skill for a node, set "skill=graph.task" as a property in a node.
-
-The following parameters are required in the properties of the node:
-
-1. task - the route name of the composable function to invoke
-2. input - one or more data mapping entries as input to the composable function
-
-The system uses the same syntax of Event Script for data mapping.
-
 Properties
 ----------
 ```
 skill=graph.task
-task=route.name.of.composable.function
-input[]={mapping of key-values from input, model or another node to the function's request}
-output[]={optional mapping of result set to one or more variables in the 'model.' or 'output.' namespace}
+task={function-route}
+input[]={source} -> {target}
+output[]={source} -> {target}
 ```
 
-Optional properties
--------------------
+- task (required) - the route name of a composable function registered in
+  this application.
+- input[] (optional) - maps values into the function's request; entries
+  apply IN ORDER (see below).
+- output[] (optional) - maps the function's result onward; the result always
+  lands at {node}.result regardless.
+
+Optional:
+
 ```
-for_each[]={map an array parameter for iterative function execution}
-concurrency={controls parallel function calls for an "iterative task request". Default 3, max 30}
-exception={error-handler-node-name}
+for_each[]={array-source} -> model.{var}   (iterate over a runtime list)
+concurrency={1-30}                         (parallel fan-out, default 3)
+exception={error-handler-node}             (jump on failure instead of abort)
 ```
 
 Input data mapping
 ------------------
-source.composite.key -> target
+input[] entries apply in order. The target addresses the function's request:
 
-The source (LHS) can use a key-value from the `input.` namespace, the `model.` namespace, another
-node or a constant such as text(hello). The target (RHS) addresses the function's request:
+- "*" - the mapped value is MERGED into the whole request body. Because
+  entries apply in order, later entries can merge additional fields into a
+  body seeded with "*".
+- header.{name} - sets a request header of the function call.
+- any other key - sets that field in the request body (composite dot-bracket
+  keys supported).
 
-1. `*` - the LHS value becomes the whole request body (same as Event Script). Data mapping entries
-   are processed in order, so later entries can merge additional key-values into a request body
-   that was seeded with `*`.
-2. `header.{name}` - sets a request header of the function call
-3. any other composite key - a key-value in the request body
+Sources are the usual mapping sources: input.*, model.*, another node,
+constants such as text(hello), or f:plugin(...) calls. If the function
+declares a typed (PoJo) input, the request body converts automatically at
+the function boundary.
 
-Example:
+Output data mapping
+-------------------
+The function's response body is stored at {node}.result, the response status
+at {node}.status, and response headers at {node}.header. In output[]
+mappings, bare "result" is the WHOLE function result; result.{key} is a
+field of it (same rule as graph.extension):
+
 ```
-input[]=input.body -> *
-input[]=input.header.hello -> header.hello
-input[]=input.body.amount -> amount
+output[]=result -> output.body
+output[]=result.total -> model.total
 ```
-
-If the function is declared as a TypedLambdaFunction with a PoJo input class, the request body map
-is automatically converted to the PoJo at the function boundary.
-
-Result set
-----------
-Upon successful execution, the function's response body is stored in the "result" parameter, the
-response status in "status" and the response headers in "header" in the properties of the node.
-The optional output data mapping can copy them to the 'model.' or 'output.' namespace.
-
-Example:
-```
-output[]=result -> model.soap_request_payload
-```
-
-Timeout
--------
-The function call uses the graph instance's time-to-live from "model.ttl" (default 30000 ms).
-
-Exception handling
-------------------
-If the function throws an exception (e.g. AppException with a status code) or the call times out,
-the "error" and "status" parameters of the node are set. When the node has an "exception" property,
-the graph jumps to that error handler node. Otherwise, the error is returned as the graph output.
 
 Example
 -------
 ```
-create node prepare-soap-request
+create node hello-task
 with type Task
 with properties
-task=v1.prepare.soap.request
-input[]=input.body -> *
-input[]=input.header.hello -> header.hello
-output[]=result -> model.soap_request_payload
 skill=graph.task
+task=v1.hello.task
+input[]=input.body -> *
+input[]=text(minigraph) -> header.x-app
+output[]=result -> output.body
 ```
+
+Notes
+-----
+- The task route must exist at runtime, or the node fails fast.
+- A call is bounded by the graph instance's time-to-live (model.ttl,
+  default 30000 ms).
+- Failure routing: on a function error (or timeout), {node}.status and
+  {node}.error are set and the output[] mappings are skipped. With
+  exception={handler-node}, traversal jumps to the handler instead of
+  aborting; without it, the run aborts. The bounded-retry pattern is shown
+  under 'help graph-api-fetcher'.
+- for_each[]={array-source} -> model.{var} invokes the function once per
+  element of a runtime list (the source must resolve to a list; wire the
+  element in with an ordinary input[] mapping from model.{var}), with
+  bounded parallel fan-out (concurrency 1-30, default 3). The shared
+  iteration rules are under 'help graph-api-fetcher'.
+- Writing the composable function itself is a development task done in Rust
+  with the #[preload] attribute; from the Playground you only reference its
+  route name.

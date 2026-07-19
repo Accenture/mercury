@@ -1,15 +1,16 @@
 Tutorial 5
 ----------
-In this session, we will explore parallel processing and sophisticated graph navigation using a node
-with the skill 'graph.join'.
+In this tutorial, you will explore parallel processing and graph navigation using a
+node with the skill 'graph.join'.
 
 Exercise
 --------
-You will import the graph model from tutorial-3 and update it to fetch two user profiles at the same time.
+You will import the graph model from tutorial-3 and update it to fetch two user
+profiles at the same time.
 
 Import a graph model
 --------------------
-Enter 'import graph from tutorial-3'
+Enter 'import graph from tutorial-3'.
 
 ```
 > import graph from tutorial-3
@@ -18,11 +19,11 @@ Found deployed graph model in classpath:/graph
 Please export an updated version and re-import to instantiate an instance model
 ```
 
-If you have not exported tutorial-3 earlier, the system will import it from a demo graph.
+If you have not exported tutorial-3 earlier, the system imports it from a demo graph.
 
 Examine the graph model
 -----------------------
-You can examine the graph model with the 'list nodes' and 'list connections' commands.
+Examine the graph model with the 'list nodes' and 'list connections' commands.
 
 ```
 > list nodes
@@ -39,7 +40,8 @@ fetcher -[complete]-> end
 
 Review the fetcher node
 -----------------------
-Enter 'edit node fetcher' to review the configuration of the node. The system displays the following:
+Enter 'edit node fetcher' to review the configuration of the node. The system
+displays the following:
 
 ```
 update node fetcher
@@ -55,8 +57,8 @@ skill=graph.api.fetcher
 
 Create two new fetchers
 -----------------------
-Assume the use case that we want to fetch two user profiles at the same time. You will create two fetchers
-like this:
+Assume the use case is to fetch two user profiles at the same time. Create two
+fetchers like this:
 
 ```
 create node fetcher-1
@@ -84,17 +86,18 @@ output[]=model.fetcher-2 -> output.body.profile[]
 skill=graph.api.fetcher
 ```
 
-When two skilled nodes are executed in parallel, we must pay attention to avoid one execution stepping
-on the memory space of another one. In this case, we can use two temporary variables in the "state machine".
+When two skilled nodes execute in parallel, pay attention to how they share the state
+machine. Data mapping itself is thread-safe — state-machine operations are
+serialized — but parallel branches must not write to the same scalar key: the last
+writer wins, nondeterministically. Write to disjoint keys instead. Here, each fetcher
+assembles its profile under its own temporary variable in the "model" namespace:
+`model.fetcher-1` and `model.fetcher-2`.
 
-The state machine uses the namespace "model", we therefore use two variables `model.fetcher-1` and `model.fetcher-2`
-to avoid concurrent updates to the same variable.
-
-The final step of output data mapping is the use of array append syntax `[]`. This tells the system to append
-the map containing name and address to the variable 'profile'.
-
-Due to parallelism, the order of the array is undetermined. If you want to guarantee person1's result go to array
-element-0 and person2 to element-1, set the array element index directly. e.g.
+The final output mapping uses the array append syntax `[]`, which appends the map
+containing name and address to the 'profile' array. Appending with `[]` from parallel
+branches is race-free, but the element order follows completion order — undetermined
+across parallel branches. If you must guarantee that person1's result goes to array
+element 0 and person2's to element 1, set the array element index directly:
 
 ```
 output[]=model.fetcher-1 -> output.body.profile[0]
@@ -104,11 +107,11 @@ output[]=model.fetcher-1 -> output.body.profile[0]
 output[]=model.fetcher-2 -> output.body.profile[1]
 ```
 
-Since profile order does not matter in this tutorial, we will use the array append feature `[]`.
+Since profile order does not matter in this tutorial, we will use the append form `[]`.
 
 Create a join node
 ------------------
-You can now create a "join" node like this:
+Create a "join" node to synchronize the two parallel branches:
 
 ```
 create node join
@@ -126,11 +129,12 @@ Enter 'delete node fetcher' to remove the original fetcher node.
 node fetcher deleted
 ```
 
-After you have deleted the original fetcher, its connections to the root node and end node will be removed too.
+When the original fetcher is deleted, its connections to the root node and end node
+are removed too.
 
 Connect the new fetchers
 ------------------------
-Please enter the following to define the graph navigation.
+Enter the following to define the graph navigation.
 
 ```
 connect root to fetcher-1 with one
@@ -153,7 +157,7 @@ join -[done]-> end
 
 Perform a dry-run
 -----------------
-You may start the graph model with this mock input:
+Start the graph model with this mock input:
 
 ```
 start graph
@@ -194,18 +198,19 @@ Executed join with skill graph.join in 0.017 ms
 Graph traversal completed in 6 ms
 ```
 
-If you check the application log, you will see the two fetchers are executed in parallel.
+If you check the application log, you will see the two fetchers executed in parallel.
 
 ```
-2026-04-02 16:47:32.633 INFO  com.accenture.minigraph.skills.GraphApiFetcher:410 - 
-           GET http://127.0.0.1:8085/api/mdm/profile/100, with [person_id], ttl=30000
-2026-04-02 16:47:32.633 INFO  com.accenture.minigraph.skills.GraphApiFetcher:410 - 
-           GET http://127.0.0.1:8085/api/mdm/profile/200, with [person_id], ttl=30000
+2026-04-02T23:47:32.633Z INFO  [knowledge_graph::fetcher] GET http://127.0.0.1:8100/api/mdm/profile/100, with ["person_id"], ttl=30000
+2026-04-02T23:47:32.633Z INFO  [knowledge_graph::fetcher] GET http://127.0.0.1:8100/api/mdm/profile/200, with ["person_id"], ttl=30000
 ```
 
-Create an island to hold data dictionary
-----------------------------------------
-Just like tutorial 3, you will create an island node to hold the data dictionary and provider nodes.
+Create an island to hold the data dictionary
+--------------------------------------------
+Just like tutorial 3, wire the data dictionary and provider nodes into the graph's
+knowledge layer with an island node. This is the required convention — leave no node
+unconnected: the island subgraph is the graph's entity-relationship diagram, turning
+the graph into living documentation of enterprise knowledge.
 
 ```
 create node dictionary
@@ -214,7 +219,7 @@ with properties
 skill=graph.island
 ```
 
-Then you can connect the data dictionary nodes and provider node to it.
+Then connect the data dictionary nodes and the provider node to it.
 
 ```
 > connect root to dictionary with contains
@@ -242,7 +247,7 @@ join -[done]-> end
 
 Export the graph model
 ----------------------
-You may save the graph model by exporting it.
+Save the graph model by exporting it.
 
 ```
 > export graph as tutorial-5
@@ -252,11 +257,11 @@ Described in /api/graph/model/tutorial-5/920-28
 
 Deploy the graph model
 ----------------------
-To deploy the graph model, copy "/tmp/graph/tutorial-5.json" to your application's `main/resources/graph` folder.
-You can then test the deployed model with a curl command.
+To deploy the graph model, copy "/tmp/graph/tutorial-5.json" to your application's
+resources/graph folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8085/api/graph/tutorial-5 \
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-5 \
   -H "Content-Type: application/json" \
   -d '{
     "person1": 100,
@@ -266,10 +271,11 @@ curl -X POST http://127.0.0.1:8085/api/graph/tutorial-5 \
 
 Summary
 -------
-In this session, you have created a graph model that is capable of doing parallel processing. It makes two
-API requests to fetch data at the same time. The two nodes then converge into a "join" node before reaching
-the "end" node.
+In this tutorial, you created a graph model capable of parallel processing. It makes
+two API requests at the same time; the two branches then converge into a "join" node
+before reaching the "end" node.
 
-The execution of a graph instance is guided by "graph traversal". It will follow the connections that you define
-for the nodes. If a node has a skill assigned, the graph executor will run the composable function that provides
-the skill. If the node does not have a skill, the graph executor will find the next 'downstream' node from there.
+The execution of a graph instance is guided by graph traversal: it follows the
+connections you define between nodes. If a node has a skill, the graph executor runs
+the composable function that provides the skill; if not, the graph executor continues
+to the next downstream node.

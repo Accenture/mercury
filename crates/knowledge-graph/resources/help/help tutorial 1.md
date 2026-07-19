@@ -1,25 +1,23 @@
 Tutorial 1
 ----------
-Welcome to the MiniGraph Playground, the self-service user interface for creating amazing applications
-using [Active Knowledge Graph](https://accenture.github.io/mercury-composable/guides/CHAPTER-11/)
-(*right-click to open new tab*).
+Welcome to the MiniGraph Playground, the self-service user interface for creating
+applications with the Active Knowledge Graph.
 
-Let's get started.
-
-In this session, you will create the simplest application that returns a "hello world" message.
+In this tutorial, you will create the simplest possible application: a graph model
+that returns a "hello world" message.
 
 Exercise
 --------
-If you can see this page, this means you have successfully started the MiniGraph Playground from a browser
-and connected to a designer workbench session.
+If you can see this page, you have successfully started the MiniGraph Playground in a
+browser and connected to a designer workbench session.
 
-If your session is disconnected, select the "Tools" dropdown in the top-right corner, click MiniGraph's start
-and select "MiniGraph".
+If your session is disconnected, select the "Tools" dropdown in the top-right corner,
+click MiniGraph's start toggle and select "MiniGraph".
 
-Create a starting point of a graph
-----------------------------------
-**Create a root node** that is the starting point for a graph model.
-Select multiline and enter the following command in the bottom-right inbox box.
+Create the starting point of a graph
+------------------------------------
+**Create a root node** — the starting point of every graph model.
+Select multiline and enter the following command in the bottom-right input box.
 
 ```
 create node root
@@ -35,18 +33,15 @@ The console displays:
 Graph with 1 node described in /api/graph/model/ws-875677-2/165-1
 ```
 
-A drawing will be shown on the right hand side under the "Graph" tab.
-
-This means a graph with a single node called "root" has been created.
+A drawing appears on the right-hand side under the "Graph" tab: a graph with a single
+node called "root" has been created.
 
 `ws-875677-2` is the session ID of the workbench.
 `165-1` is a random number for the session that you can ignore.
 
 Create an end node
 ------------------
-An end node is the exit point of a graph model.
-
-Enter the following to create an end node.
+An end node is the exit point of a graph model. Enter the following to create one.
 
 ```
 create node end
@@ -63,20 +58,19 @@ The console displays:
 Graph with 2 nodes described in /api/graph/model/ws-875677-2/061-2
 ```
 
-The "skill=graph.data.mapper" assigns the data mapper function to the end node.
-In a data mapper, you can do data mapping. 
+The `skill=graph.data.mapper` line assigns the data mapper skill to the end node.
+A data mapper node performs data mapping when it executes.
 
-The mapping statement `mapping[]=text(hello world) -> output.body` tells the
-system to map the constant "hello world" to `output.body` that is the response
-payload when the graph is executed. The `[]` syntax means it is a list of statements.
+The mapping statement `mapping[]=text(hello world) -> output.body` maps the constant
+"hello world" to `output.body` — the response payload when the graph is executed.
+The `[]` suffix means `mapping` is a list: each `mapping[]=` line appends one statement.
 
-The MiniGraph system uses the same Event Script's data mapping syntax. For more details, please refer to
-[Data Mapping Syntax](https://accenture.github.io/mercury-composable/guides/CHAPTER-4/#tasks-and-data-mapping)
-(*right-click to open new tab*).
+MiniGraph uses the same data mapping syntax as Event Script. For a quick reference,
+enter "help graph-data-mapper" in the console.
 
-First attempt to run a graph
-----------------------------
-To run a graph model, you can use the `instantiate graph` command.
+First attempt to run the graph
+------------------------------
+To run a graph model, first create an instance of it with the `instantiate graph` command.
 
 The console displays:
 
@@ -85,10 +79,7 @@ The console displays:
 Graph instance created. Loaded 0 mock entries, model.ttl = 30000 ms
 ```
 
-When you enter "instantiate graph", you ask the system to create an "instance"
-from a graph model.
-
-You can now try to run the graph by entering the "run" command.
+Now try to run the graph by entering the `run` command.
 
 The console displays:
 
@@ -97,23 +88,21 @@ The console displays:
 Walk to root
 ```
 
-The system will start running the graph from the starting point. i.e. the root node.
-However, nothing happens after that.
+The system starts graph traversal from the starting point, i.e. the root node —
+and then nothing happens.
 
 What is missing?
 ----------------
-Active Knowledge Graph is a "property graph" that contains one or more "active" nodes.
-An active node is associated with a "skill" that is backed by a composable function.
+An Active Knowledge Graph is a "property graph" that contains one or more "active"
+nodes. An active node carries a "skill" that is backed by a composable function.
 
-The system performs graph traversal from the root node. There is nothing happened
-because there are no further nodes to reach after the root node.
-
-Graph traversal will stop when running in the MiniGraph Playground because the graph
-model is incomplete without an "end" node.
+The system traverses the graph from the root node. Nothing happened because there is
+no further node to reach after the root node: the two nodes are not yet connected,
+so traversal stops before it can reach the end node.
 
 Connecting nodes
 ----------------
-Please enter the following command to connect the root node to the end node.
+Enter the following command to connect the root node to the end node.
 
 ```
 connect root to end with done
@@ -127,14 +116,14 @@ node root connected to end
 Graph with 2 nodes described in /api/graph/model/ws-875677-2/551-3
 ```
 
-The graph model drawing is updated on the right panel.
+The graph drawing on the right panel is updated.
 
 Running the graph
 -----------------
-Now you have a graph that has a start and an ending point where one node contains a skill to do something.
-i.e. the end node with a data mapping statement.
+You now have a graph with a starting point and an ending point, where one node
+carries a skill — the end node with its data mapping statement.
 
-You can now instantiate the graph again and run it by entering the following commands.
+Instantiate the graph again and run it by entering the following commands.
 
 ```
 instantiate graph
@@ -158,12 +147,12 @@ Executed end with skill graph.data.mapper in 1.736 ms
 Graph traversal completed in 9 ms
 ```
 
-Congratulations. You have create your first MiniGraph that works.
+Congratulations — you have created your first working MiniGraph.
 It returns "hello world" when it runs.
 
 Export the graph
 ----------------
-You may now export the graph so that you can deploy it to production.
+You may now export the graph so that you can deploy it later.
 
 Enter the export command below:
 
@@ -171,8 +160,8 @@ Enter the export command below:
 export graph as tutorial-1
 ```
 
-This will export the graph model in JSON format with the name `tutorial-1`
-in "/tmp/graph/helloworld.json"
+This exports the graph model in JSON format with the name `tutorial-1`
+as "/tmp/graph/tutorial-1.json".
 
 The console displays:
 
@@ -183,13 +172,12 @@ Graph exported to /tmp/graph/tutorial-1.json
 Described in /api/graph/model/tutorial-1/436-4
 ```
 
-Note that the system will add the graph name (i.e. unique "id") to the root node.
-This avoids the user from accidentally overwriting an existing graph model.
+Note that the system adds the graph name (its unique "id") to the root node.
+This prevents you from accidentally overwriting a different graph model.
 
 Help pages
 ----------
-To display more information about each command that you use in this tutorial,
-enter the following:
+To learn more about each command used in this tutorial, enter:
 
 ```
 help create
@@ -201,7 +189,7 @@ help export
 
 Summary
 -------
-In this session, you have created the simplest graph model to return a "hello world" message when the graph
-API endpoint is called. You have exported the graph model and tested some help pages.
+In this tutorial, you created the simplest graph model — it returns a "hello world"
+message when its graph API endpoint is called — exported it, and tried some help pages.
 
 Well done. Let's move on to "Tutorial 2".

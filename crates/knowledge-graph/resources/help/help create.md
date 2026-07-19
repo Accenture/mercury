@@ -1,14 +1,7 @@
-Create a new node
------------------
-1. Root node must use the name 'root' and end node must use 'end'.
-2. Skill is a property with the name 'skill'. A node has zero or one skill.
-3. The 'create node' is a multi-line command 
-4. Properties are optional for a graph model. If present, they are used as default value. 
-5. For each property, you can use the "triple single quotes" to enter a multi-line value if needed. 
-6. Node name and type should use lower case characters and hyphen only
-7. Type and key-values will be used and validated by the node's skill function if any
-8. The key of a property can be a composable key using the dot-bracket format.
-   The value may use Event Script's constant syntax.
+Create a node
+-------------
+Add a node to the current graph model. This is a multi-line command: enter
+all lines as one block.
 
 Syntax
 ------
@@ -18,13 +11,7 @@ with type {type}
 with properties
 {key1}={value1}
 {key2}={value2}
-...
 ```
-
-Best practice
--------------
-For root node, we recommend adding a "name" property as the graph name and "purpose" property to describe
-the use case as a one-liner.
 
 Example
 -------
@@ -34,5 +21,23 @@ with type Root
 with properties
 name=helloworld
 purpose=Demo graph
-...
 ```
+
+Notes
+-----
+- Node names use lowercase letters, digits and hyphen. The names 'root' and
+  'end' are reserved: the root node must be named 'root' and the end node
+  must be named 'end'.
+- Types are descriptive labels, conventionally Capitalized (e.g. Root, End,
+  Provider, Dictionary, Fetcher, Island). The type and properties are used
+  and validated by the node's skill, if any.
+- A node has zero or one skill, set with skill={route}.
+- 'with properties' and the key lines are optional. Property values act as
+  defaults for the instance model.
+- A property key may be composite, using the dot-bracket format; a
+  key[]=entry line appends one entry to the list "key" (repeat per entry).
+  Values may use the Event Script constant syntax, e.g. text(hello),
+  int(100), boolean(true).
+- Wrap a multi-line value in triple single quotes (''').
+- Best practice: give the root node a "name" property (the graph name) and a
+  "purpose" property describing the use case as a one-liner.

@@ -1,63 +1,80 @@
 Skill: Graph Data Mapper
 ------------------------
-When a node is configured with this skill of "data mapping", it will execute a set of data mapping entries
-to populate data attributes into one or more nodes where each node represents a data entity.
-
-Execution will start when the GraphExecutor reaches the node containing this skill.
+Copies and transforms data between state-machine namespaces. Each mapping[]
+entry moves one value from a source to a target when the node executes. This
+is the workhorse skill for shaping inputs, staging intermediate values in
+model.*, and assembling the response in output.body.
 
 Route name
 ----------
 "graph.data.mapper"
 
-Setup
------
-To enable this skill for a node, set "skill=graph.data.mapper" as a property in a node.
-One or more data mapping entries can be added to the property "mapping".
-
 Properties
 ----------
 ```
 skill=graph.data.mapper
-mapping[]=source -> target
+mapping[]={source} -> {target}
 ```
 
-The system uses the same syntax of Event Script for data mapping.
+- mapping[] (required) - one entry per line; entries execute in order.
 
-Execution
----------
-Upon successful execution, key-values will be populated to one or more nodes.
-
-Syntax for mapping
-------------------
-source.composite.key -> target.composite.key
-
-The source composite key can use the following namespaces:
-1. "input." namespace to map key-values from the input header or body of an incoming request
-2. Node name (aka 'alias') to map key-values of a node's properties
-3. "model." namespace for holding intermediate key-values for simple data transformation
-
-The target composite key can use the following namespaces:
-1. "output." namespace to map key-values to the result set to be returned as response to the calling party
-2. Node name (aka 'alias') to map key-values of a node's properties
-3. "model." namespace for holding intermediate key-values for simple data transformation
+Sources: input.body / input.header, model.*, a node name (its properties),
+{node}.result, a constant, an f:plugin(...) call, or a $. JSONPath
+expression. Targets: output.body / output.header, model.*, or a node name.
 
 Example
 -------
 ```
-create node my-simple-mapper
+create node shape-response
+with type Mapper
 with properties
 skill=graph.data.mapper
 mapping[]=input.body.hr_id -> employee.id
-mapping[]=input.body.join_date -> employee.join_date
+mapping[]=fetch-one.result.profile -> output.body.profile[0]
+mapping[]=fetch-two.result.profile -> output.body.profile[1]
+mapping[]=f:now(text(local)) -> output.body.timestamp
 ```
 
-The "[]" syntax is used to create and append a list of one or more data mapping entries
-The "->" signature indicates the direction of mapping where the left-hand-side is source and right-hand-side is target
+Constants
+---------
+A constant is valid wherever a source is. This is the full set:
 
-Deprecated syntax
------------------
-Event Script's "simple type matching" syntax (e.g. `model.someKey:text`) is deprecated. Use "simple plugin"
-syntax instead (e.g. `f:text(model.someKey)`). If you (or an AI agent) submit a "create node" or "update node"
-command that still uses the deprecated colon-type syntax, the system will automatically convert it to the
-simple plugin syntax and return a deprecation notice - it will not silently fail, but please switch to the
-new syntax going forward.
+- text(hello world) - string, verbatim (no quoting needed)
+- int(100) / long(10000000000) - integer (non-numeric input yields -1; a
+  decimal part is dropped)
+- float(1.5) / double(1.5) - floating-point number
+- boolean(true) - true only for case-insensitive "true"; anything else false
+- map(k1=v1, k2=v2) - inline map literal (values are strings)
+- map(config.key) - the value of an application-configuration key
+- file(text:/tmp/f.txt) / file(json:...) / file(binary:...) - file content
+  as text / parsed JSON / bytes
+- classpath(text:/data/f.txt) - like file(), resolved against the app's
+  resource roots
+
+Beyond constants, two non-constant source forms are valid:
+
+- f:plugin(args...) - a simple-plugin call, e.g. f:uuid(),
+  f:now(text(local)), f:concat(model.a, text(!)), f:add(model.n, int(1)),
+  f:ternary(...), f:defaultValue(input.body.flag, boolean(false)),
+  f:removeKey(model.list, text(key)), f:listOfMap(...).
+- $.  - a JSONPath expression over the state machine. Prefer plain
+  dot-bracket keys; use JSONPath only when the query needs it.
+
+Notes
+-----
+- Composite keys use dot-bracket form on both sides. A numeric index in a
+  target creates/sets that list slot (profile[0], profile[1]) - the idiom
+  for assembling a JSON list deterministically, e.g. after a fork/join. An
+  empty index "[]" appends one element to the end of the list (and creates
+  the list with that first element when it does not yet exist).
+- An interior (non-leaf) source path maps the ENTIRE subtree, not just
+  scalars - fetch-one.result.profile above carries the whole profile object.
+- An unresolvable source SKIPS the entry: the target is left untouched (not
+  nulled). Two idioms for defaults follow from this:
+  f:defaultValue(input.body.flag, boolean(false)) -> model.flag, or
+  default-then-overlay (boolean(false) -> model.flag followed by
+  input.body.flag -> model.flag).
+- The legacy colon-type suffix ("simple type matching") is deprecated - use
+  the f:plugin forms instead.
+- Inside a graph.math node, MAPPING: statements use exactly this syntax; see
+  'help graph-math'.
