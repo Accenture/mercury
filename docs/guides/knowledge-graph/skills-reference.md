@@ -218,7 +218,7 @@ input[]=text(minigraph) -> header.x-app  # 'header.{name}' sets a request header
 output[]=result -> output.body
 ```
 
-Worked example (Tutorial 13):
+Worked example (invoking a deployed demo function):
 
 ```
 create node hello-task
@@ -232,8 +232,11 @@ output[]=result -> output.body
 
 `input[]` entries apply **in order**, so field mappings after a `*` merge into the request body,
 and the body auto-converts when the function declares a PoJo input. The result lands at
-`{node}.result` and response headers at `{node}.header`. Optional `for_each[]` with `concurrency`
-(1–30, default 3) iterates with bounded fork-join; `exception=<node>` routes failures.
+`{node}.result` and response headers at `{node}.header` — in `output[]` mappings, **`result`
+(bare) is the function's whole result** and `result.{key}` a field of it (same rule as
+`graph.extension`). Optional `for_each[]` with `concurrency`
+(1–30, default 3) iterates with bounded fork-join; `exception=<node>` routes failures
+([failure routing](command-reference.md#failure-routing)).
 
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s). For multi-step orchestration, prefer [`graph.extension`](#extension) —

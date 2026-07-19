@@ -44,7 +44,7 @@
 | **L9 — composition by delegation** | 10 | delegate to a **deployed, governed graph model** (`graph.extension` sub-graph) instead of rebuilding its logic | problem statement only (deployed model's id + contract given as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: contract served with zero re-implementation (no own providers/dictionaries/fetchers) |
 | **L10 — cross-layer composition** | 11 | delegate to a deployed **Event Script flow** (`extension=flow://{flow-id}`) — the semantic layer composing onto layer 2 | problem statement only (flow id + contract as environment facts) | build whole graph, pause for dry-run | **behavioral** + structural: response produced by the flow (delegation visible in the traversal), zero echo logic in the graph |
 | **L11 — resilience engineering** | 12 | custom error handling: `exception=` failure routing + a bounded retry loop (`RESET`/`NEXT`/`DELAY`, attempt counting) + a recovery path — under the engine's loop guard | problem statement only (failure-simulation header as an environment fact) | build whole graph, dry-run BOTH paths | **behavioral**: failing path retries with pauses, recovers at the bound, ends in success; happy path untouched |
-| **L12+ …** | 13 | custom composable functions (`graph.task`) | TBD | TBD | TBD |
+| **L12 — the custom-logic seam** | 13 | plug a deployed **composable function** into a graph (`graph.task`): whole-body pass-through, request headers, result mapping | problem statement only (function route + contract as environment facts; header value differs from the doc example) | build whole graph, pause for dry-run | **behavioral**: the function's exact result returned; zero re-implementation |
 
 ---
 
@@ -455,6 +455,45 @@
   untouched — enables default-then-overlay) → mapping rules; dedup scope = **per graph instance,
   successful responses only** (failures never cached ⇒ retries re-call) → fetcher gotchas.
 
+### Tutorial 13 — L12 (the custom-logic seam: graph.task) — PASSED (first attempt) — **SWEEP COMPLETE**
+- **Task (problem only; the function's route + contract as environment facts):** plug the deployed
+  composable function `v1.hello.task` (greeting from `name`, doubles `amount`, echoes the `x-app`
+  header) into a graph — whole input payload as its request body, the `x-app` header set to
+  **`portfolio-app`** (deliberately different from the docs' example value, so the header idiom
+  must be understood, not copied), the function's result as `output.body`. Pre-flight: the demo
+  function verified **ported** (`mock.rs`, `#[preload]` + first-class `#[optional_service]`,
+  Java-contract parity, fixture-tested).
+- **Result: PASSED — 16/16 commands `ok:true`, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass** (session `ws-783755-2`). Output verbatim:
+  `{"app":"portfolio-app","doubled":42.0,"greeting":"Hello, world"}`; independently re-run with
+  different values (`Eric`/`50` → `Hello, Eric` / `100.0`). Exported `hello-task-app`. The island
+  documents the capability (`hello-service` node: route + contract) and the response entity.
+- **Frictions (both fixed same day → #47/#48):** bare-`result` semantics for `graph.task` were
+  shown-not-stated (now the explicit rule, aligned with `graph.extension`); the example's
+  "(Tutorial 13)" label pointed outside the self-sufficient doc set (relabeled).
+
+---
+
+## Sweep complete — the scorecard (2026-07-19)
+
+**All 13 tutorials passed** (plus the tutorial-5 retest), every one by a **fresh agent with no
+prior context**, from the AI docs alone, over the synchronous companion endpoint, with a human
+watching live. The arc:
+
+| Phase | Tutorials | Outcome |
+|---|---|---|
+| Java-docs era | 1–4 | mechanics → comprehension → synthesis; 2 doc-fix cycles (incl. the tut-4 FAIL → statement-grammar fix → re-verified PASS) |
+| This repo's docs, first runs | 5–6 | first-attempt passes; 2 then 1 in-band lookups — gaps #9–#22 fixed |
+| Self-sufficiency proven | 5-retest, 7–13 | **eight consecutive zero-lookup, first-attempt passes** (tut-9's single functional defect self-corrected in-band) |
+
+What the sweep produced beyond validation: **48 rollup findings** (all resolved or tracked);
+the synchronous companion endpoint (`/sync`, both ports, byte-identical); the read-only companion
+session rule (#194); `#[optional_service]` as a first-class attribute (increment 34); the
+layer-1/2 AI-doc port; the island knowledge-layer mandate; and an AI grammar hardened to the
+point where fresh agents design *cleaner-than-canonical* solutions and cite the rules they
+build on. Open follow-ups live in `memory/continuity.md`: the help-pages rewrite backlog, the
+flow/graph discovery-command backlog, and the `/sync` ok-heuristic engine fix (#40).
+
 ---
 
 ## Findings → documentation & grammar improvements (rollup)
@@ -507,3 +546,5 @@
 | 44 | Tut 12 | **`NEXT:`/`DELAY:` presentation:** listed beside properties in the matrix, never shown as written `statement[]` lines; NEXT's apply-at-end (last-wins) and DELAY's after-node timing unstated | **DONE** (same day, engine-verified) — keyword block rewritten with written forms + timing semantics |
 | 45 | Tut 12 | **unresolvable mapping source behavior unstated** (skip vs null) — the companion invented default-then-overlay defensively | **DONE** (same day, engine-verified): an unresolvable source **skips** the entry (target untouched); both default idioms documented (`f:defaultValue`, default-then-overlay) |
 | 46 | Tut 12 | **dedup scope vs retry ambiguity:** "identical requests are deduplicated" left open whether a RESET re-execution would hit a cache and never re-call | **DONE** (same day, engine-verified in `fetcher.rs`): dedup is **per graph instance** and caches **successful responses only** — a failed call is never cached, so retries always re-call |
+| 47 | Tut 13 | **bare-`result` semantics for `graph.task` were shown, not stated** — the explicit whole-result rule existed only for `graph.extension`; the companion inferred it by analogy | **DONE** (same day) — the rule now stated in `skills-reference.md#task`, aligned with `graph.extension` |
+| 48 | Tut 13 | the `graph.task` example was labeled "(Tutorial 13)" — a pointer outside the self-sufficient doc set | **DONE** (same day) — relabeled |
