@@ -1,0 +1,41 @@
+flow:
+  id: 'decision-test'
+  description: 'Simple Decision leading to true or false'
+  ttl: 10s
+
+first.task: 'simple.decision'
+
+tasks:
+  - input:
+      - 'input.query.decision -> decision'
+    process: 'simple.decision'
+    output:
+      - 'result -> model.decision'
+      - 'result -> decision'
+    description: 'Simple decision test'
+    execution: decision
+    next:
+      - 'decision.case.one'
+      - 'decision.case.two'
+
+  - name: 'decision.case.one'
+    input:
+      - 'model.decision -> decision'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(one) -> output.body.from'
+      - 'result.decision -> output.body.decision'
+    description: 'Just a test'
+    execution: end
+
+  - name: 'decision.case.two'
+    input:
+      - 'model.decision -> decision'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(two) -> output.body.from'
+      - 'result.decision -> output.body.decision'
+    description: 'Just a test'
+    execution: end

@@ -1,0 +1,30 @@
+flow:
+  id: 'dynamic-reserved-key'
+  description: 'a dynamic model target that resolves to a reserved key must be rejected at runtime'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # the dynamic RHS passes compile-time validation because the pointer is only known at
+      # runtime; TaskExecutor re-checks the resolved form ('model.none') and aborts the task
+      - 'text(none) -> model.pointer'
+      - 'text(hijack) -> model.{model.pointer}'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Exception handler'
+    execution: end

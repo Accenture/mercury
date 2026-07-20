@@ -1,0 +1,7 @@
+# Rust-side supplemental flows (NOT Java fixtures — see README.md):
+# dynamic-fork coverage until the canonical fixture's sub-flow + ext:
+# dependencies arrive with increment E-7.
+flows:
+  - 'dynamic-fork-test.yml'
+
+location: 'classpath:/flows-rust/'

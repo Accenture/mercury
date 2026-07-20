@@ -1,0 +1,6 @@
+This project uses the agent-memory shared memory system.
+
+Read AGENTS.md first — it is the hub: it carries the memory protocol and what to read
+under memory/.
+
+Identify yourself as Cursor in all session logs.

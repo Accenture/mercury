@@ -1,0 +1,12 @@
+#
+# Parser exception test - duplicated flow.id
+#
+
+flow:
+  id: 'missing-tasks'
+  description: 'Test missing tasks'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks: []

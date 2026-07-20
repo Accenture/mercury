@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>mercury — hello flow</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; color: #222; }
+    code { background: #f2f2f2; padding: 0.15rem 0.4rem; border-radius: 4px; }
+    li { margin: 0.4rem 0; }
+  </style>
+</head>
+<body>
+  <h1>mercury — event script</h1>
+  <p>A Rust port of <strong>mercury-composable</strong> — this transaction is a
+     <em>flow</em> defined in <code>resources/flows/hello-flow.yml</code>; the page
+     you are reading is static HTML served from <code>resources/public</code>.</p>
+  <ul>
+    <li><a href="/api/hello/eric?lang=fr">/api/hello/eric?lang=fr</a> — the flow, French branch</li>
+    <li><a href="/api/hello/eric?lang=en">/api/hello/eric?lang=en</a> — the flow, English branch</li>
+    <li><a href="/info">/info</a> — application information</li>
+    <li><a href="/env">/env</a> — selected environment &amp; configuration</li>
+    <li><a href="/health">/health</a> — health checks (includes the flow engine)</li>
+    <li><a href="/livenessprobe">/livenessprobe</a> — liveness</li>
+  </ul>
+</body>
+</html>

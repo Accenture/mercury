@@ -1,0 +1,68 @@
+.menu {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popover);
+  padding: 0.25rem;
+  position: fixed;
+  width: min(240px, calc(100vw - 32px));
+  z-index: 70;
+}
+
+.menuItem {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.875rem;
+  justify-content: flex-start;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  width: 100%;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--autocomplete-highlight);
+}
+
+.menuItem:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
+.dangerItem {
+  color: var(--danger-color);
+}
+
+.dangerItem:hover,
+.dangerItem:focus-visible {
+  background: var(--danger-08);
+}
+
+.dangerItem:focus-visible {
+  outline-color: var(--danger-color);
+}
+
+.confirmation {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.25rem;
+}
+
+.confirmationText {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  padding: 0.25rem 0.4rem;
+  word-break: break-word;
+}
+
+.confirmationActions {
+  display: grid;
+  gap: 0.25rem;
+}

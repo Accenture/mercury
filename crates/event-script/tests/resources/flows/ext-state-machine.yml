@@ -1,0 +1,16 @@
+flow:
+  id: 'ext-state-machine'
+  description: 'Flow to execute an external state machine'
+  ttl: 10s
+
+first.task: 'v1.ext.state.machine'
+
+tasks:
+  - input:
+      - 'input.header.key -> header.key'
+      - 'input.header.type -> header.type'
+      - 'input.body.data -> data'
+    process: 'v1.ext.state.machine'
+    output: []
+    description: 'Execute external state machine'
+    execution: end

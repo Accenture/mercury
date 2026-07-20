@@ -1,0 +1,14 @@
+[
+  {
+    "name": "import graph from name",
+    "raw": "> import graph from my-graph-name",
+    "expectedKinds": ["command.echo", "command.importGraph"],
+    "expectedProps": { "graphName": "my-graph-name" }
+  },
+  {
+    "name": "import graph from name with hyphens",
+    "raw": "> import graph from my-complex-graph-v2",
+    "expectedKinds": ["command.echo", "command.importGraph"],
+    "expectedProps": { "graphName": "my-complex-graph-v2" }
+  }
+]

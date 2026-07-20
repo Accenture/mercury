@@ -1,0 +1,74 @@
+flow:
+  id: 'for-loop-test-single-task'
+  description: 'Test the flow of a pipeline task that has only one task'
+  ttl: 20s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+      - 'int(5) -> model.n'
+      # the empty index syntax '[]' tells the system to append an element to a list
+      - 'text(item1) -> model.list[]'
+      - 'text(item2) -> model.list[]'
+      - 'text(item3) -> model.list[]'
+      - 'model.list:length -> model.iteration'
+    description: 'Pass a pojo to another task'
+    execution: pipeline
+    #
+    # 'loop' feature is optional
+    #
+    # 1. loop.statement is evaluated before the loop
+    # 2. loop.condition are evaluated after each function returns from the pipeline
+    # 3. The condition is a 'if' statement to evaluate a model value to decide to break or continue
+    #
+    loop:
+      statement: 'for (model.n = 0; model.n < model.iteration; model.n++)'
+    pipeline:
+      - 'item.picker'
+    next:
+      - 'echo.four'
+
+  # show that the system can read a list element using dynamic model variable (model.n)
+  - name: 'item.picker'
+    input:
+      - 'model.n -> n'
+      - 'model.n -> header.idx'
+      - 'model.pojo -> data'
+      - 'model.list[model.n] -> item'
+    process: 'no.op'
+    output:
+      - 'result -> model.latest'
+    description: 'first step of a pipeline'
+    execution: sink
+
+  # demonstrate setting list element using dynamic model variable (model.n)
+  # model.n = 3 at this step so we add 3 values to fill the gap for unit test
+  # the following validates input and output data mapping
+  - name: 'echo.four'
+    input:
+      - 'model.n -> n'
+      - 'model.pojo -> data'
+      - 'text(x) -> latest[]'
+      - 'text(y) -> latest[]'
+      - 'text(z) -> latest[]'
+      # testing control character in text constant of input data mapping
+      - 'text(x -> y) -> formula'
+      - 'model.latest -> latest[model.n]'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'text(a) -> output.body.items[]'
+      # text constant supports special characters including the mapping control signature "->"
+      - 'text(b -> x(b)) -> output.body.items[]'
+      - 'text(c) -> output.body.items[]'
+      - 'model.latest -> output.body.items[model.n]'
+      - 'model.none -> model.pojo'
+    description: 'Final step to take result from the pipeline'
+    execution: end

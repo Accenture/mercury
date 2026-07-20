@@ -1,0 +1,133 @@
+:root {
+  /* ── Semantic colours ── */
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color:  #ef4444;
+  --error-color:   #f87171;   /* red-400 — lighter than --danger-color; for reviewable delete actions */
+
+  /* ── Surfaces ── */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-dark:      #1e293b;
+
+  /* ── Neutral overlays ── */
+  --grey-50: rgba(0, 0, 0, 0.5);
+  --grey-40: rgba(0, 0, 0, 0.4);
+  --grey-30: rgba(0, 0, 0, 0.3);
+  --grey-20: rgba(0, 0, 0, 0.2);
+  --grey-10: rgba(0, 0, 0, 0.1);
+
+  /* ── Warning overlays ── */
+  --warning-06: color-mix(in srgb, var(--warning-color)  6%, transparent);
+  --warning-08: color-mix(in srgb, var(--warning-color)  8%, transparent);
+  --warning-10: color-mix(in srgb, var(--warning-color) 10%, transparent);
+  --warning-20: color-mix(in srgb, var(--warning-color) 20%, transparent);
+  --warning-25: color-mix(in srgb, var(--warning-color) 25%, transparent);
+  --warning-30: color-mix(in srgb, var(--warning-color) 30%, transparent);
+  --warning-60: color-mix(in srgb, var(--warning-color) 60%, transparent);
+  --warning-80: color-mix(in srgb, var(--warning-color) 80%, transparent);
+  --warning-85: color-mix(in srgb, var(--warning-color) 85%, transparent);
+  --warning-90: color-mix(in srgb, var(--warning-color) 90%, transparent);
+
+  /* ── Danger overlays ── */
+  --danger-08: color-mix(in srgb, var(--danger-color)  8%, transparent);
+  --danger-30: color-mix(in srgb, var(--danger-color) 30%, transparent);
+
+  /* ── Primary overlays ── */
+  --primary-20: color-mix(in srgb, var(--primary-color) 20%, transparent);
+  --primary-40: color-mix(in srgb, var(--primary-color) 40%, transparent);
+
+  /* ── Text ── */
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --text-muted:     #94a3b8;
+
+  /* ── Borders ── */
+  --border-color: #e2e8f0;
+
+  /* ── Corner radii ── */
+  --radius:    0.5rem;    /* cards, dialogs */
+  --radius-sm: 0.25rem;  /* controls, inputs */
+  --radius-xs: 3px;      /* command palette rows, inline code badges, scrollbar thumb/track */
+
+  /* ── Shadows ── */
+  --shadow-sm:      0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:      0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg:      0 10px 15px -3px rgb(0 0 0 / 0.1);      /* elevated floating elements (Toast) */
+  --shadow-popover: 0 6px 18px rgba(0, 0, 0, 0.12);          /* command palette popover */
+
+  /* ── Hover backgrounds ── */
+  --hover-bg: rgba(0, 0, 0, 0.04);    /* neutral dropdown row hover */
+
+  /* ── Typography — stacks ── */
+  --font-mono-terminal: 'Courier New', Courier, monospace;
+  --font-mono-code:     ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+
+  /* ── Form / input ── */
+  --input-focus-border: var(--primary-color);
+  --disabled-bg:        #e9ecef;
+
+  /* ── Focus ── */
+  /* --focus-ring was removed after Phase 3. Use outline: 2px solid var(--primary-color) */
+
+  /* ── Autocomplete / selection ── */
+  --autocomplete-highlight: rgba(37, 99, 235, 0.1);  /* blue-600 at 10% — matches --primary-color */
+
+  /* ── Console / code surfaces ── */
+  --console-bg:   var(--bg-dark);
+  --console-text: #e2e8f0;
+  --code-text:    #86efac;   /* green-300 — success/confirmation text on dark surfaces */
+  --error-text:   #fca5a5;   /* red-300  — error message text on dark surfaces */
+
+  /* ── JSON syntax (dark background) ── */
+  --json-key:    #93c5fd;   /* blue-300  — object keys */
+  --json-string: #86efac;   /* green-300 — string values */
+  --json-number: #fbbf24;   /* amber-300 — number values */
+  --json-bool:   #c084fc;   /* purple-400 — boolean values */
+  --json-null:   #94a3b8;   /* slate-400  — null values */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 20% opacity passes WCAG SC 1.4.11 Non-text Contrast on --bg-dark: #1e293b */
+    --autocomplete-highlight: rgba(37, 99, 235, 0.2);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+code,
+pre {
+  font-family: var(--font-mono-terminal);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+#root {
+  min-height: 100vh;
+}

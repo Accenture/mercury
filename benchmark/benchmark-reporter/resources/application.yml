@@ -1,0 +1,10 @@
+# benchmark-reporter — headless: no REST automation, only the in-process
+# event bus. All bench.* parameters are optional and can be overridden at
+# launch with the -D runtime arguments (the JVM -D analog), e.g.
+#   cargo run -r -p benchmark-reporter -- -Dbench.ops=50000 -Dbench.report=/tmp/report.html
+application.name: benchmark-reporter
+info.app.version: '1.0.0'
+info.app.description: 'Self-contained end-to-end performance reporter (callback + RPC)'
+
+rest.automation: false
+log.format: text

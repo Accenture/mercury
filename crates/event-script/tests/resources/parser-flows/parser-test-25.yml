@@ -1,0 +1,42 @@
+flow:
+  id: 'parser-test-25'
+  description: 'test invalid input mapping that output namespace cannot be used in left-hand-side'
+  ttl: 10s
+
+first.task: 'greeting.test.alias'
+
+tasks:
+  - name: 'greeting.test.alias'
+    input:
+      - 'input.header -> header'
+      - 'input.path_parameter.user -> header.user'
+      - 'output.something -> something'
+    process: 'greeting.test'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'map(test.map) -> output.body.map1'
+      - 'model.map -> output.body.map2'
+      - 'map(test.map3) -> output.body.map3'
+      # invalid HTTP status will be rejected
+      - 'text(20000) -> output.status'
+      - 'status -> output.status'
+      # mapping rejected because "output header" expects a map instead of text
+      - 'text(invalid) -> output.header'
+      - 'header -> output.header'
+      - 'header.demo -> output.header.x-demo'
+      - 'text(${application.name}) -> output.body.name'
+    description: 'Hello World'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

@@ -1,0 +1,119 @@
+{
+  "nodes": [
+    {
+      "types": ["Root"],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.math for_each BEGIN/END probe",
+        "name": "rust-foreach"
+      }
+    },
+    {
+      "types": ["Loop"],
+      "alias": "looper",
+      "properties": {
+        "skill": "graph.math",
+        "for_each": [
+          "input.body.items -> model.item",
+          "input.body.prices -> model.price",
+          "text(fixed) -> model.tag",
+          "input.body.missing -> model.ghost"
+        ],
+        "statement": [
+          "MAPPING: int(0) -> model.count",
+          "MAPPING: text(pre) -> output.body.phases[]",
+          "BEGIN",
+          "IF: {model.item} == 99\nTHEN: bail\nELSE: next",
+          "MAPPING: model.item -> output.body.seen[]",
+          "MAPPING: model.price -> output.body.prices[]",
+          "MAPPING: f:add(model.count, int(1)) -> model.count",
+          "END",
+          "MAPPING: text(post) -> output.body.phases[]",
+          "MAPPING: model.count -> output.body.count",
+          "MAPPING: model.tag -> output.body.tag",
+          "MAPPING: model.ghost -> output.body.ghost"
+        ]
+      }
+    },
+    {
+      "types": ["Loop"],
+      "alias": "plain",
+      "properties": {
+        "skill": "graph.math",
+        "for_each": [
+          "input.body.items -> model.qty2",
+          "input.body.prices -> model.price2"
+        ],
+        "statement": [
+          "COMPUTE: line -> {model.price2} * {model.qty2}",
+          "MAPPING: f:defaultValue(model.lsum, int(0)) -> model.lsum",
+          "MAPPING: f:add(model.lsum, plain.result.line) -> model.lsum",
+          "MAPPING: plain.result.line -> output.body.lines[]",
+          "MAPPING: model.qty2 -> output.body.seen2[]",
+          "MAPPING: model.lsum -> output.body.lsum"
+        ]
+      }
+    },
+    {
+      "types": ["Loop"],
+      "alias": "totaler",
+      "properties": {
+        "skill": "graph.math",
+        "for_each": [
+          "input.body.prices -> model.price3",
+          "input.body.items -> model.qty3"
+        ],
+        "statement": [
+          "MAPPING: int(0) -> model.total",
+          "BEGIN",
+          "COMPUTE: total -> {model.total} + {model.price3} * {model.qty3}",
+          "MAPPING: totaler.result.total -> model.total",
+          "END",
+          "MAPPING: model.total -> output.body.total"
+        ]
+      }
+    },
+    {
+      "types": ["Recovery"],
+      "alias": "bail",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(bailed) -> output.body.phases[]"
+        ]
+      }
+    },
+    {
+      "types": ["End"],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [{ "type": "start", "properties": {} }],
+      "target": "looper"
+    },
+    {
+      "source": "looper",
+      "relations": [{ "type": "loop-done", "properties": {} }],
+      "target": "plain"
+    },
+    {
+      "source": "plain",
+      "relations": [{ "type": "sum-up", "properties": {} }],
+      "target": "totaler"
+    },
+    {
+      "source": "totaler",
+      "relations": [{ "type": "done", "properties": {} }],
+      "target": "end"
+    },
+    {
+      "source": "bail",
+      "relations": [{ "type": "done", "properties": {} }],
+      "target": "end"
+    }
+  ]
+}

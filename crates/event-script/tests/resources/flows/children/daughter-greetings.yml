@@ -1,0 +1,33 @@
+flow:
+  id: 'daughter-greetings'
+  description: 'This is a sub-flow'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'input.header -> header'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+      - 'status -> output.status'
+      - 'header -> output.header'
+      - 'header.demo -> output.header.x-demo'
+      - 'text(${application.name}) -> model.parent.name'
+      - 'text(hello) -> model.parent.hello'
+    description: 'Hello World'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

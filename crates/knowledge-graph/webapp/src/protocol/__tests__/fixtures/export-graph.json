@@ -1,0 +1,28 @@
+[
+  {
+    "name": "export success emits graph.exported and graph.link",
+    "raw": "Graph exported to /tmp/graph/my-graph.json\nDescribed in /api/graph/model/my-graph/1",
+    "expectedKinds": ["graph.exported", "graph.link"],
+    "expectedLength": 2,
+    "expectedProps": {
+      "graphName": "my-graph",
+      "apiPath": "/api/graph/model/my-graph/1"
+    }
+  },
+  {
+    "name": "invalid filename emits graph.export.failed",
+    "raw": "Invalid filename - must be a-z, A-Z, 0-9 with optional hyphen",
+    "expectedKinds": ["graph.export.failed", "docs.response"],
+    "expectedProps": {
+      "reason": "invalid-name"
+    }
+  },
+  {
+    "name": "root name conflict emits graph.export.failed",
+    "raw": "Expect root node name=hello, Actual: world\nUpdate root node to overwrite existing graph model",
+    "expectedKinds": ["graph.export.failed", "docs.response"],
+    "expectedProps": {
+      "reason": "root-name-conflict"
+    }
+  }
+]

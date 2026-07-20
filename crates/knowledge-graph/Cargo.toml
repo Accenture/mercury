@@ -1,0 +1,28 @@
+[package]
+name = "knowledge-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+platform-core = { path = "../platform-core" }
+# layer 3 rides layer 2: the data-mapping mini-language (converter, rmpv
+# MultiLevelMap) is shared with event-script, and deployed graphs are
+# exposed through event-script flows
+event-script = { path = "../event-script" }
+knowledge-graph-macros = { path = "../knowledge-graph-macros" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+# OS entropy for the math engine's random() — the SecureRandom analog
+getrandom = "0.4"
+thiserror = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+serde = { version = "1", features = ["derive"] }

@@ -1,0 +1,25 @@
+flow:
+  id: 'body-test'
+  description: 'Test input data mapping of body and headers'
+  ttl: 10s
+
+first.task: 'pojo.echo'
+
+tasks:
+  - input:
+      - 'input.body.pojoHolder -> *'
+      - 'input.body.pojoHolder.sequence -> header.sequence'
+      # input header is case-insensitive
+      - 'input.header.User-Agent -> header.agent'
+      - 'text(AAA) -> header.tag'
+    process: 'pojo.echo'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      # demonstrate that we can extract values from the result envelope's headers
+      - 'header.tag -> output.header.x-tag'
+      - 'header.sequence -> output.header.x-sequence'
+      - 'header.agent -> output.header.x-agent'
+      - 'datatype -> output.header.x-datatype'
+    description: 'Return result'
+    execution: end

@@ -1,0 +1,88 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "decision",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: c -> {input.body.a} + {input.body.b}",
+          "IF: {input.body.a} > {input.body.b}\nTHEN: next\nELSE: less-than",
+          "MAPPING: text(a >= b) -> output.body.message",
+          "MAPPING: boolean(false) -> output.body.less_than"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "mapping": [
+          "input.body.a -> output.body.a",
+          "input.body.b -> output.body.b",
+          "decision.result.c -> output.body.sum"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Reject"
+      ],
+      "alias": "less-than",
+      "properties": {
+        "mapping": [
+          "text(a < b) -> output.body.message",
+          "boolean(true) -> output.body.less_than"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate decision making using mathematics and boolean operations",
+        "name": "tutorial-4"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "decision",
+      "relations": [
+        {
+          "type": "positive",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "less-than",
+      "relations": [
+        {
+          "type": "negative",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "evaluate",
+          "properties": {}
+        }
+      ],
+      "target": "decision"
+    }
+  ]
+}

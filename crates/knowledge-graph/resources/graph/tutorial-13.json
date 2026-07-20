@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "hello-task",
+      "properties": {
+        "task": "v1.hello.task",
+        "input": [
+          "input.body -> *",
+          "text(minigraph) -> header.x-app"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "purpose": "Invoke the composable function v1.hello.task with the request body and a custom header",
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate the graph.task skill - invoking a composable function through its route name",
+        "name": "tutorial-13"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "hello-task",
+      "relations": [
+        {
+          "type": "finish",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "hello-task"
+    }
+  ]
+}

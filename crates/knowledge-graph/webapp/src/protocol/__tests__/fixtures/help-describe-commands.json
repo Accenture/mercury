@@ -1,0 +1,32 @@
+[
+  {
+    "name": "help command",
+    "raw": "> help",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedProps": { "commandText": "help" }
+  },
+  {
+    "name": "help with topic",
+    "raw": "> help create",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedProps": { "commandText": "help create" }
+  },
+  {
+    "name": "describe skill",
+    "raw": "> describe skill my-skill",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedProps": { "commandText": "describe skill my-skill" }
+  },
+  {
+    "name": "describe node",
+    "raw": "> describe node my-node",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedProps": { "commandText": "describe node my-node" }
+  },
+  {
+    "name": "describe connection",
+    "raw": "> describe connection a and b",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedProps": { "commandText": "describe connection a and b" }
+  }
+]

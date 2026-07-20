@@ -1,0 +1,21 @@
+[
+  {
+    "name": "graph described in path",
+    "raw": "Graph with 5 nodes described in /api/graph/model/my-graph/1",
+    "expectedKinds": ["graph.link"],
+    "expectedProps": { "apiPath": "/api/graph/model/my-graph/1" }
+  },
+  {
+    "name": "graph exported then described",
+    "raw": "Graph exported to '/tmp/abc'\nDescribed in /api/graph/model/my-graph",
+    "expectedKinds": ["graph.link", "graph.exported"],
+    "expectedProps": { "apiPath": "/api/graph/model/my-graph" },
+    "expectedLength": 2
+  },
+  {
+    "name": "graph described with session id",
+    "raw": "Graph described in /api/graph/model/ws-122189-1",
+    "expectedKinds": ["graph.link"],
+    "expectedProps": { "apiPath": "/api/graph/model/ws-122189-1" }
+  }
+]

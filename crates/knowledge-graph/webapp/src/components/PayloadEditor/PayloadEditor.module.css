@@ -1,0 +1,167 @@
+/* ── PayloadEditor root (flex column, fills panel height) ───────── */
+.payloadRoot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── Controls row (counter, badge, format button) ───────────────── */
+.payloadControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.charCounter {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono-terminal);
+}
+
+.typeIndicator {
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--success-color);
+  color: white;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.validationIcon {
+  font-size: 1rem;
+}
+
+.formatButton {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.formatButton:hover:not(:disabled) { background: var(--primary-hover); }
+.formatButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.uploadButton {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--success-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.uploadButton:hover:not(:disabled) { filter: brightness(1.1); }
+.uploadButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Textarea (grows to fill remaining space) ───────────────────── */
+.textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 0;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-color: var(--input-focus-border);
+}
+
+.textarea:disabled {
+  background-color: var(--disabled-bg);
+  cursor: not-allowed;
+}
+
+.textareaError { border-color: var(--danger-color); }
+
+.errorMessage {
+  color: var(--danger-color);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  flex: 0 0 auto;
+}
+
+/* ── Sample buttons row ─────────────────────────────────────────── */
+.sampleButtonsRow {
+  flex: 0 0 auto;
+  padding-top: 0.5rem;
+}
+
+.sampleButtons {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sampleLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sampleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sampleGroupLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sampleButton {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: capitalize;
+}
+
+.sampleButton:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}

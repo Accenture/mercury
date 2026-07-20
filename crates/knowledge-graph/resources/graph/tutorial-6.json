@@ -1,0 +1,301 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "account-details",
+      "properties": {
+        "output": [
+          "response.account.details -> result.accounts"
+        ],
+        "input": [
+          "person_id",
+          "account_id"
+        ],
+        "provider": "account-details-provider",
+        "purpose": "Account details"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "account-details-provider",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "text(application/json) -> header.content-type",
+          "person_id -> body.person_id",
+          "account_id -> body.account_id"
+        ],
+        "feature": [
+          "oauth2-bearer",
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "POST",
+        "purpose": "Account Management Endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/account/details"
+      }
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "dictionary",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "output": [
+          "result.name -> output.body.name",
+          "result.address -> output.body.address"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address",
+          "person-accounts"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher-2",
+      "properties": {
+        "output": [
+          "result.accounts -> output.body.accounts"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "model.account_number -> account_id"
+        ],
+        "dictionary": [
+          "account-details"
+        ],
+        "skill": "graph.api.fetcher",
+        "for_each": [
+          "fetcher.result.account_numbers -> model.account_number"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "Master Data Management's profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-accounts",
+      "properties": {
+        "output": [
+          "response.accounts -> result.account_numbers"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "accounts of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.address"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "purpose": "address of a person",
+        "provider": "mdm-profile"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.name"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "name of a person"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate multi-step API fetching and the \"for_each\" method",
+        "name": "tutorial-6"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "account-details",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "account-details-provider"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "account-details"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-accounts"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-address"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-name"
+    },
+    {
+      "source": "fetcher-2",
+      "relations": [
+        {
+          "type": "complete",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "details",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-2"
+    },
+    {
+      "source": "person-accounts",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "person-address",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "person-name",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "dictionary"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    }
+  ]
+}

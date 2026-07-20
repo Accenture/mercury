@@ -1,0 +1,35 @@
+# REST automation (increment 6): declarative HTTP endpoints — no controller
+# code. The route string ("greeting.api") is the only link to the function.
+rest:
+  - service: "greeting.api"
+    methods: ['GET']
+    url: "/api/greeting/{user}"
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+cors:
+  - id: cors_1
+    options:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, OPTIONS"
+      - "Access-Control-Allow-Headers: Content-Type, X-Correlation-Id, traceparent"
+    headers:
+      - "Access-Control-Allow-Origin: *"
+
+headers:
+  - id: header_1
+    response:
+      add:
+        - "x-served-by: mercury-rust"
+
+# static-content protocol (increment 8): etag/304 caching with no-cache entry
+# pages, plus a request filter — a composable function inspecting HTTP
+# requests for the configured paths (the SSO-redirection hook for UI bundles)
+static-content:
+  no-cache-pages: ["/", "/index.html"]
+  filter:
+    path: ["/", "/assets/*", "*.html", "*.js"]
+    exclusion: ["*.css"]
+    service: "http.request.filter"

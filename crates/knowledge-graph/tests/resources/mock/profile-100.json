@@ -1,0 +1,8 @@
+{
+  "profile": {
+    "id": "100",
+    "name": "Peter",
+    "address": "100 World Blvd"
+  },
+  "accounts": ["a101", "b202", "c303", "d400", "e500"]
+}

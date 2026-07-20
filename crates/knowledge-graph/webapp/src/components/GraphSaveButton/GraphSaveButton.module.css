@@ -1,0 +1,85 @@
+/* ── Save graph button ── */
+
+.saveBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.saveBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+/* ── Inline save form (replaces the button while naming) ── */
+
+.saveForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.saveInput {
+  width: 180px;
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.saveInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.saveInputWarn {
+  border-color: var(--warning-color, #f59e0b);
+}
+
+.saveWarnLabel {
+  font-size: 0.7rem;
+  color: var(--warning-color, #f59e0b);
+  white-space: nowrap;
+}
+
+.saveActionBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.saveActionBtn:hover:not(:disabled) {
+  background: var(--grey-10);
+  border-color: var(--primary-color);
+}
+
+.saveActionBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

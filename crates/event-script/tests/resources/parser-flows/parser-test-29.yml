@@ -1,0 +1,18 @@
+flow:
+  id: 'parser-test-29'
+  description: 'test invalid INPUT data mapping that overwrites a reserved metadata model key'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # invalid: model.instance is reserved engine metadata (also covers nested writes
+      # such as model.ttl.x or model.flow[0] that would replace the scalar)
+      - 'text(hacked) -> model.instance'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end

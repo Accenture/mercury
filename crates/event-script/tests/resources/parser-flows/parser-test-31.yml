@@ -1,0 +1,18 @@
+flow:
+  id: 'parser-test-31'
+  description: 'test invalid INPUT data mapping that overwrites the model.none null constant'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # invalid: model.none is the null constant - it works because the 'none' key is never
+      # set, so a write would turn every later 'model.none -> X' clear-operation into a copy
+      - 'text(not-null-anymore) -> model.none'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end

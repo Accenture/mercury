@@ -1,0 +1,25 @@
+# hello-world example configuration — read through the platform-core config
+# layer (increment 1): the resources/ convention, composite keys, overrides.
+application.name: hello-world
+
+# structured logging (increment 5): text = plain console line (default),
+# json = pretty-print JSON, compact = single-line jsonl (no CR/LF per record).
+# Both JSON forms carry the app-log-context block. Override at launch with the
+# -D runtime argument (the JVM -D analog): hello_world -- -Dlog.format=compact
+log.format: json
+
+greeting:
+  user: '${GREETING_USER:world}'
+  instances: 10
+
+# REST automation (increment 6): serve rest.yaml endpoints over HTTP
+rest.automation: true
+rest.server.port: 8085
+
+# actuators (increment 7): /info /env /health /livenessprobe are added
+# automatically when rest.yaml does not define them; "/" serves
+# resources/public/index.html
+info.app.description: 'mercury hello-world example'
+show.env.variables: 'GREETING_USER, ENV_NAME'
+show.application.properties: 'application.name, log.format, rest.server.port, greeting.instances'
+mandatory.health.dependencies: 'demo.health'

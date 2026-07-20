@@ -1,0 +1,1270 @@
+//
+// Copyright 2018-2026 Accenture Technology
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+//! Increment E-4 end-to-end: real flows from the **canonical Java fixtures**
+//! run through the full engine — `AutoStart::main` collects the engine
+//! interceptors (compiler → manager → executor) AND the Java-parity task
+//! functions below from the annotation inventory, exactly as a user
+//! application would.
+//!
+//! One test function on purpose (the global platform's workers live on this
+//! test's runtime); scenarios run sequentially inside it.
+
+use std::collections::HashMap;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use event_script::conversions::from_json;
+use event_script::FlowExecutor;
+use platform_core::{
+    main_application, preload, trace, AppError, AutoStart, ComposableFunction, EntryPoint,
+    EventEnvelope, Platform, PostOffice,
+};
+use rmpv::Value;
+
+// ---- Java-parity task functions (ports of the Java test tasks) ----
+
+/// Java `Greetings` (`greeting.test` ×10): echo user+greeting with status 201
+/// and a demo header; the `exception` input triggers error scenarios.
+#[preload(route = "greeting.test", instances = 10)]
+struct Greetings;
+
+#[async_trait]
+impl ComposableFunction for Greetings {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        match body["exception"].as_str() {
+            Some("409") => return Err(AppError::new(409, "Just a demo")),
+            Some("timeout") => {
+                // outlive the flow TTL so the watcher fires
+                tokio::time::sleep(Duration::from_millis(2500)).await;
+                return EventEnvelope::new().set_body("late");
+            }
+            _ => {}
+        }
+        let (Some(user), Some(greeting)) = (body["user"].as_str(), body["greeting"].as_str())
+        else {
+            return Err(AppError::new(400, "Missing user or greeting"));
+        };
+        let result = serde_json::json!({
+            "user": user,
+            "greeting": greeting,
+            "message": format!("I got your greeting message - {greeting}"),
+            "original": body,
+            // the framework-injected read-only business correlation-id
+            "my_cid": headers.get("my_correlation_id"),
+        });
+        EventEnvelope::new()
+            .set_header("demo", "test-header")
+            .set_status(201)
+            .set_body(result)
+    }
+}
+
+/// Java `HelloExceptionHandler` (`v1.hello.exception`): echoes the error map.
+#[preload(route = "v1.hello.exception")]
+struct HelloExceptionHandler;
+
+#[async_trait]
+impl ComposableFunction for HelloExceptionHandler {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `SimpleDecision`: boolean from the `decision` input.
+#[preload(route = "simple.decision")]
+struct SimpleDecision;
+
+#[async_trait]
+impl ComposableFunction for SimpleDecision {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as()?;
+        match body["decision"].as_str() {
+            Some(text) => EventEnvelope::new().set_body(text == "true"),
+            None => Err(AppError::new(400, "Missing decision")),
+        }
+    }
+}
+
+/// Java `NumericDecision`: integer from the `decision` input.
+#[preload(route = "numeric.decision")]
+struct NumericDecision;
+
+#[async_trait]
+impl ComposableFunction for NumericDecision {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as()?;
+        let n = body["decision"]
+            .as_str()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        EventEnvelope::new().set_body(n)
+    }
+}
+
+/// Java `DecisionCase` (`decision.case`) — the loop workhorse: echoes its
+/// input, optionally increments `n`, and raises the quit/jump/continue flags
+/// when `n` hits the configured thresholds.
+#[preload(route = "decision.case", instances = 2)]
+struct DecisionCase;
+
+#[async_trait]
+impl ComposableFunction for DecisionCase {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let mut body: serde_json::Value = input.body_as()?;
+        if let Some(reason) = body["exception"].as_str() {
+            return Err(AppError::new(400, reason));
+        }
+        let as_int = |v: &serde_json::Value| -> i64 {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                .unwrap_or(-1)
+        };
+        let mut n = as_int(&body["n"]);
+        if !body["increment"].is_null() {
+            n += 1;
+            body["n"] = serde_json::json!(n);
+        }
+        if !body["continue"].is_null() && n == as_int(&body["continue"]) {
+            body["continue"] = serde_json::json!(true);
+        }
+        if !body["break"].is_null() && n == as_int(&body["break"]) {
+            body["quit"] = serde_json::json!(true);
+        }
+        if !body["jump"].is_null() && n == as_int(&body["jump"]) {
+            body["jump"] = serde_json::json!(true);
+        }
+        Ok(EventEnvelope::new().set_raw_body(from_json(&body)))
+    }
+}
+
+/// Java `SequentialOne`: returns the pojo built from its inputs.
+#[preload(route = "sequential.one")]
+struct SequentialOne;
+
+#[async_trait]
+impl ComposableFunction for SequentialOne {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `ParallelTask` (`parallel.task`): a shared counter detects when both
+/// parallel branches have run; the second one reports decision=true (done).
+#[preload(route = "parallel.task", instances = 2)]
+struct ParallelTask;
+
+#[async_trait]
+impl ComposableFunction for ParallelTask {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let done = n == 2;
+        if done {
+            // let the first branch finish its model writes (Java parity)
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        let mut body: serde_json::Value = input.body_as()?;
+        body["decision"] = serde_json::Value::Bool(done);
+        EventEnvelope::new().set_body(body)
+    }
+}
+
+/// Setup step of the parallel fixture (`begin.parallel.test`): echo.
+#[preload(route = "begin.parallel.test")]
+struct BeginParallel;
+
+#[async_trait]
+impl ComposableFunction for BeginParallel {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `ExceptionSimulator` (`exception.simulator`): the `exception` header
+/// throws with that status code; `accept`/`attempt` inputs model a service
+/// that recovers on the accepted attempt (the circuit-breaker scenario).
+#[preload(route = "exception.simulator", instances = 2)]
+struct ExceptionSimulator;
+
+#[async_trait]
+impl ComposableFunction for ExceptionSimulator {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(reason) = headers.get("exception") {
+            let code = reason.parse::<i32>().unwrap_or(400);
+            return Err(AppError::new(code, "Simulated Exception"));
+        }
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        if let Some(accept) = body["accept"].as_str().and_then(|s| s.parse::<i64>().ok()) {
+            let attempt = body["attempt"]
+                .as_i64()
+                .or_else(|| body["attempt"].as_str().and_then(|s| s.parse().ok()))
+                .unwrap_or(0);
+            if attempt == accept {
+                return EventEnvelope::new().set_body(serde_json::json!({
+                    "attempt": attempt,
+                    "message": "Task completed successfully",
+                }));
+            }
+            return Err(AppError::new(400, "Simulated Exception"));
+        }
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `AbortRequest` (`abort.request`): logs and echoes the error context.
+#[preload(route = "abort.request")]
+struct AbortRequest;
+
+#[async_trait]
+impl ComposableFunction for AbortRequest {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
+/// Java `ExternalStateMachine` (`v1.ext.state.machine`): a trace-scoped
+/// key-value store honoring the ext-state-machine contract — headers
+/// `type` (put/get/remove) + `key`, body `{data}`; the `append` key appends
+/// to a list.
+#[preload(route = "v1.ext.state.machine", instances = 4)]
+struct ExternalStateMachine;
+
+static EXT_STORE: std::sync::OnceLock<
+    std::sync::Mutex<HashMap<String, serde_json::Map<String, serde_json::Value>>>,
+> = std::sync::OnceLock::new();
+
+#[async_trait]
+impl ComposableFunction for ExternalStateMachine {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&Platform::get_instance());
+        let trace_id = po.my_trace_id().ok_or_else(|| {
+            AppError::new(400, "Tracing must be enabled for external state machine")
+        })?;
+        let store = EXT_STORE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let action = headers.get("type").map(String::as_str).unwrap_or("");
+        let key = headers.get("key").map(String::as_str).unwrap_or("*");
+        let mut guard = store.lock().expect("ext store");
+        let map = guard.entry(trace_id).or_default();
+        match action {
+            "put" if key != "*" => {
+                let data = body["data"].clone();
+                if key == "append" {
+                    let list = map
+                        .entry("append")
+                        .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+                    if let serde_json::Value::Array(items) = list {
+                        items.push(data);
+                    }
+                } else {
+                    map.insert(key.to_string(), data);
+                }
+                EventEnvelope::new().set_body(true)
+            }
+            "remove" if key != "*" => {
+                map.remove(key);
+                EventEnvelope::new().set_body(true)
+            }
+            "get" => {
+                let value = if key == "*" {
+                    serde_json::Value::Object(map.clone())
+                } else {
+                    map.get(key).cloned().unwrap_or(serde_json::Value::Null)
+                };
+                Ok(EventEnvelope::new().set_raw_body(from_json(&value)))
+            }
+            _ => Err(AppError::new(400, format!("unknown type '{action}'"))),
+        }
+    }
+}
+
+/// A USER-DEFINED plugin registered by the `#[simple_plugin]` macro (Java
+/// `@SimplePlugin` analog): collected by the `SimplePluginLoader` at
+/// sequence 3, so it is available to compile-time `f:` validation and
+/// runtime resolution alike.
+#[event_script::simple_plugin]
+fn shout(args: &[rmpv::Value]) -> Result<rmpv::Value, String> {
+    match args {
+        [one] => Ok(rmpv::Value::from(
+            event_script::conversions::get_text_value(one).to_uppercase(),
+        )),
+        _ => Err("shout expects one argument".to_string()),
+    }
+}
+
+/// The wire-echo endpoint for the http-client fixtures (Java
+/// `echo.endpoint`): returns the parameters, body and headers exactly as
+/// received over HTTP, so tests can assert what really went on the wire.
+#[preload(route = "echo.endpoint", instances = 10)]
+struct EchoEndpoint;
+
+#[async_trait]
+impl ComposableFunction for EchoEndpoint {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "parameters": request["parameters"],
+            "body": request["body"],
+            "headers": request["headers"],
+            "method": request["method"],
+        }))
+    }
+}
+
+#[main_application]
+struct FlowTestApp;
+
+#[async_trait]
+impl EntryPoint for FlowTestApp {
+    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
+        Ok(())
+    }
+}
+
+// ---- helpers ----
+
+fn http_dataset(path_user: Option<&str>, query: &[(&str, &str)]) -> Value {
+    let query_map: serde_json::Map<String, serde_json::Value> = query
+        .iter()
+        .map(|(k, v)| (k.to_string(), serde_json::Value::String(v.to_string())))
+        .collect();
+    let mut dataset = serde_json::json!({
+        "body": {},
+        "header": {"accept": "application/json"},
+        "query": query_map,
+        "method": "GET",
+    });
+    if let Some(user) = path_user {
+        dataset["path_parameter"] = serde_json::json!({"user": user});
+    }
+    from_json(&dataset)
+}
+
+async fn run_flow(platform: &Platform, flow_id: &str, dataset: Value, cid: &str) -> EventEnvelope {
+    FlowExecutor::request(
+        platform,
+        flow_id,
+        dataset,
+        cid,
+        Duration::from_secs(8),
+        Some((&trace::new_trace_id(), &format!("FLOW /{flow_id}"))),
+    )
+    .await
+    .unwrap_or_else(|e| panic!("flow {flow_id} failed: {} {}", e.status(), e.message()))
+}
+
+fn json_body(reply: &EventEnvelope) -> serde_json::Value {
+    reply.body_as().expect("json body")
+}
+
+// ---- the E2E scenarios ----
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn flows_run_end_to_end_like_java() {
+    platform_core::resources::prepend_resource_root("tests/resources");
+    let holding = std::env::temp_dir().join(format!("mercury-flow-test-{}", std::process::id()));
+    platform_core::overrides::set("transient.data.store", &holding.display().to_string());
+    // the one-liner lifecycle collects the engine (compiler/manager/executor)
+    // and every task function above from the annotation inventory
+    AutoStart::main(vec![]).await.expect("lifecycle");
+    let platform = Platform::get_instance();
+
+    // --- greetings: end task with type conversions and the exception handler wired
+    let reply = run_flow(
+        &platform,
+        "greetings",
+        http_dataset(Some("12345"), &[]),
+        "biz-cid-1",
+    )
+    .await;
+    assert_eq!(
+        reply.status(),
+        201,
+        "'status -> output.status' maps the function's 201"
+    );
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "12345");
+    assert_eq!(body["greeting"], "hello world");
+    assert_eq!(body["message"], "I got your greeting message - hello world");
+    // the function saw the read-only business correlation-id header
+    assert_eq!(body["my_cid"], "biz-cid-1");
+    // 'model.cid -> output.body.cid' exposes the business correlation-id
+    assert_eq!(body["cid"], "biz-cid-1");
+    // 'map(direction=right, ...) -> model.map' then 'model.map -> output.body.map2'
+    assert_eq!(body["map2"]["direction"], "right");
+    // 'model.bool -> !model.bool -> output.body.positive' (double negation)
+    assert_eq!(body["positive"], true);
+    // 'header.demo -> output.header.x-demo' copies the function's result
+    // header; note 'header -> output.header' REPLACED the earlier
+    // content-type mapping with the whole result-header map (Java parity)
+    assert_eq!(
+        reply.headers().get("x-demo").map(String::as_str),
+        Some("test-header")
+    );
+    assert_eq!(
+        reply.headers().get("demo").map(String::as_str),
+        Some("test-header")
+    );
+
+    // --- decision: boolean branching
+    let reply = run_flow(
+        &platform,
+        "decision-test",
+        http_dataset(None, &[("decision", "true")]),
+        "biz-cid-2",
+    )
+    .await;
+    assert_eq!(json_body(&reply)["from"], "one");
+    let reply = run_flow(
+        &platform,
+        "decision-test",
+        http_dataset(None, &[("decision", "false")]),
+        "biz-cid-3",
+    )
+    .await;
+    assert_eq!(json_body(&reply)["from"], "two");
+
+    // --- numeric decision: 1-indexed multi-way branching
+    let reply = run_flow(
+        &platform,
+        "numeric-decision-test",
+        http_dataset(None, &[("decision", "3")]),
+        "biz-cid-4",
+    )
+    .await;
+    assert_eq!(json_body(&reply)["from"], "three");
+    // out-of-range decision aborts the flow with 500
+    let reply = run_flow(
+        &platform,
+        "numeric-decision-test",
+        http_dataset(None, &[("decision", "4")]),
+        "biz-cid-5",
+    )
+    .await;
+    assert_eq!(reply.status(), 500);
+    let body = json_body(&reply);
+    assert_eq!(body["type"], "error");
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("invalid decision"));
+
+    // --- sequential chaining through a no-op with the '*' wildcard body
+    let reply = run_flow(
+        &platform,
+        "sequential-test",
+        http_dataset(Some("alice"), &[("seq", "5")]),
+        "biz-cid-6",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["pojo"]["user"], "alice");
+    assert_eq!(body["pojo"]["sequence"], "5");
+    assert_eq!(body["integer"], 12345);
+    assert_eq!(body["double"], 12.345);
+
+    // --- response task answers early; the end task's output is NOT delivered
+    let reply = run_flow(
+        &platform,
+        "response-test",
+        http_dataset(Some("bob"), &[("seq", "1")]),
+        "biz-cid-7",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "bob", "the response task's body wins");
+    assert_eq!(
+        reply.headers().get("content-type").map(String::as_str),
+        Some("application/json"),
+        "the end task's text/plain override must never reach the caller"
+    );
+
+    // --- exception routing: task error → the flow's exception handler
+    let reply = run_flow(
+        &platform,
+        "greetings",
+        http_dataset(Some("12345"), &[("ex", "409")]),
+        "biz-cid-8",
+    )
+    .await;
+    assert_eq!(reply.status(), 409);
+    let body = json_body(&reply);
+    assert_eq!(
+        body["status"], 409,
+        "'error.code -> status' reaches the handler"
+    );
+    assert_eq!(body["message"], "Just a demo");
+
+    // --- TTL: the watcher aborts a stuck flow with 408
+    let mut dataset = http_dataset(Some("12345"), &[("ex", "timeout")]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.push((Value::from("ttl"), Value::from(500)));
+    }
+    let reply = run_flow(&platform, "timeout-test", dataset, "biz-cid-9").await;
+    assert_eq!(reply.status(), 408);
+    let body = json_body(&reply);
+    assert_eq!(body["type"], "error");
+    assert_eq!(body["message"], "Flow timeout for 500 ms");
+
+    // --- dynamic reserved-key rejection at runtime (Java FlowTests parity):
+    // 'model.{model.pointer}' resolves to model.none only at runtime; the
+    // executor re-checks and aborts
+    let reply = run_flow(
+        &platform,
+        "dynamic-reserved-key",
+        from_json(&serde_json::json!({"body": {"hello": "world"}, "header": {}})),
+        "biz-cid-10",
+    )
+    .await;
+    let body = json_body(&reply);
+    let message = body["message"].as_str().unwrap_or("");
+    assert!(
+        message.contains("reserved state-machine key"),
+        "unexpected error: {body}"
+    );
+    assert!(
+        message.contains("model.none"),
+        "the error should name the key: {body}"
+    );
+
+    // --- fire-and-forget launch works (no reply expected)
+    FlowExecutor::launch(
+        &platform,
+        "greetings",
+        http_dataset(Some("fire-and-forget"), &[]),
+        "biz-cid-11",
+        None,
+    )
+    .await
+    .expect("launch");
+    // give the flow a beat to complete (nothing to assert — no reply address)
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    // --- concurrent flows: the engine runs directly on the event core
+    // (reserved-route optimization), so orchestration never queues behind
+    // itself — 20 simultaneous transactions all complete correctly
+    let mut handles = Vec::new();
+    for i in 0..20 {
+        let platform = platform.clone();
+        handles.push(tokio::spawn(async move {
+            let reply = FlowExecutor::request(
+                &platform,
+                "greetings",
+                http_dataset(Some(&format!("user-{i}")), &[]),
+                &format!("concurrent-cid-{i}"),
+                Duration::from_secs(8),
+                None,
+            )
+            .await
+            .expect("concurrent flow");
+            let body: serde_json::Value = reply.body_as().expect("json");
+            assert_eq!(body["user"], format!("user-{i}"));
+            assert_eq!(body["cid"], format!("concurrent-cid-{i}"));
+        }));
+    }
+    for handle in handles {
+        handle.await.expect("concurrent flow task");
+    }
+
+    // --- fork/join: both branches run, the join barrier fires once
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-test",
+        http_dataset(Some("carol"), &[("seq", "9")]),
+        "biz-cid-12",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(
+        body["user"], "carol",
+        "the '*' pojo mapping seeds the join input"
+    );
+    assert_eq!(body["key1"], "hello-world-one");
+    assert_eq!(body["key2"], "hello-world-two");
+
+    // --- fork/join: a failing branch (no handler in the flow) aborts
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-test",
+        http_dataset(Some("dave"), &[("exception", "boom")]),
+        "biz-cid-13",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    assert!(json_body(&reply)["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("Simulated Exception"));
+
+    // --- parallel: both branches run concurrently; the second to finish
+    // (decision=true) routes to the response task with both model keys set
+    let reply = run_flow(
+        &platform,
+        "parallel-test",
+        http_dataset(None, &[]),
+        "biz-cid-14",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["key1"], "hello-world-one");
+    assert_eq!(body["key2"], "hello-world-two");
+
+    // --- dynamic fork: the single branch replicates per list element with
+    // .ITEM/.INDEX; concurrent [] appends into the state machine stay safe
+    let reply = run_flow(
+        &platform,
+        "dynamic-fork-test",
+        http_dataset(Some("erin"), &[]),
+        "biz-cid-15",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "erin");
+    let mut serialized: Vec<String> = body["serialized"]
+        .as_array()
+        .expect("serialized list")
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
+    serialized.sort();
+    assert_eq!(
+        serialized,
+        vec!["one", "three", "two"],
+        "every ITEM processed exactly once"
+    );
+    let mut indexes: Vec<i64> = body["indexes"]
+        .as_array()
+        .expect("index list")
+        .iter()
+        .map(|v| v.as_i64().unwrap_or(-1))
+        .collect();
+    indexes.sort();
+    assert_eq!(indexes, vec![0, 1, 2], "every INDEX seen exactly once");
+
+    // --- pipeline without a loop: three steps run once, then the exit task
+    let reply = run_flow(
+        &platform,
+        "pipeline-test",
+        http_dataset(Some("frank"), &[("seq", "1")]),
+        "biz-cid-16",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(
+        body["data"]["user"], "frank",
+        "the pojo travelled the pipeline"
+    );
+
+    // --- for loop: 3 iterations × 3 steps, file append/read/delete included
+    let reply = run_flow(
+        &platform,
+        "for-loop-test",
+        http_dataset(Some("gina"), &[("seq", "2")]),
+        "biz-cid-17",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["n"], 3, "the loop counter finished at model.iteration");
+    assert_eq!(
+        body["content"], "one,two,three,one,two,three,one,two,three,",
+        "each iteration appended its steps to the file"
+    );
+    assert!(
+        !std::path::Path::new("/tmp/for-loop-test.txt").exists(),
+        "the end task's null mapping deletes the file"
+    );
+
+    // --- for loop with a break condition (query break=1 → quit at n==1)
+    let reply = run_flow(
+        &platform,
+        "for-loop-break",
+        http_dataset(Some("hank"), &[("break", "1")]),
+        "biz-cid-18",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["n"], 1, "the loop broke on the quit flag at n==1");
+
+    // --- while loop: echo.three flips model.running via boolean(3=false)
+    let reply = run_flow(
+        &platform,
+        "while-loop",
+        http_dataset(Some("iris"), &[("seq", "3")]),
+        "biz-cid-19",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(
+        body["n"], 3,
+        "the while loop ran until model.running turned false"
+    );
+
+    // --- pipeline step failure routes to the step's own exception handler
+    let reply = run_flow(
+        &platform,
+        "pipeline-exception",
+        http_dataset(Some("jack"), &[("seq", "4")]),
+        "biz-cid-20",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    assert_eq!(json_body(&reply)["message"], "just a test");
+
+    // --- sub-flow: the daughter writes model.parent.*, the parent reads it
+    // back through the model.root.* alias (one shared tree)
+    let reply = run_flow(
+        &platform,
+        "parent-greetings",
+        http_dataset(Some("kate"), &[]),
+        "biz-cid-21",
+    )
+    .await;
+    assert_eq!(reply.status(), 201, "the sub-flow's status maps through");
+    let body = json_body(&reply);
+    assert_eq!(
+        body["user"], "kate",
+        "the greeting ran inside the daughter flow"
+    );
+    assert_eq!(
+        body["my_cid"], "biz-cid-21",
+        "the business cid is inherited by the sub-flow"
+    );
+    assert_eq!(
+        body["name"], "event-script-test",
+        "model.root.name reads the daughter's model.parent.name"
+    );
+    assert_eq!(body["hello"], "hello");
+    assert_eq!(
+        reply.headers().get("x-demo").map(String::as_str),
+        Some("test-header")
+    );
+
+    // --- a dangling sub-flow reference aborts at runtime
+    let reply = run_flow(
+        &platform,
+        "missing-sub-flow",
+        http_dataset(Some("liam"), &[]),
+        "biz-cid-22",
+    )
+    .await;
+    assert_eq!(reply.status(), 500);
+    assert!(json_body(&reply)["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("flow://flow-not-found not defined"));
+
+    // --- external state machine: put (with ${app.id} key), then read back in
+    // a second flow under the SAME trace (the store is trace-scoped)
+    let shared_trace = trace::new_trace_id();
+    let reply = FlowExecutor::request(
+        &platform,
+        "externalize-put-key-value",
+        http_dataset(Some("mia"), &[]),
+        "biz-cid-23",
+        Duration::from_secs(8),
+        Some((&shared_trace, "FLOW /ext/put")),
+    )
+    .await
+    .expect("put flow");
+    assert_eq!(reply.status(), 200);
+    // give the fire-and-forget ext: sends a beat to land
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let reply = FlowExecutor::request(
+        &platform,
+        "externalize-get-key-value",
+        http_dataset(None, &[]),
+        "biz-cid-24",
+        Duration::from_secs(8),
+        Some((&shared_trace, "FLOW /ext/get")),
+    )
+    .await
+    .expect("get flow");
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "mia", "ext:/A12/user held the path parameter");
+    // 'text(world) -> ext:hello' then 'model.none -> ext:hello' removed it
+    assert!(body["hello"].is_null(), "removed key must be gone: {body}");
+
+    // --- fork/join over SUB-FLOW branches with parent-model coordination
+    let reply = run_flow(
+        &platform,
+        "fork-n-join-flows",
+        http_dataset(Some("noah"), &[("seq", "7")]),
+        "biz-cid-25",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "noah", "the '*' pojo seeds the join input");
+    assert_eq!(
+        body["key1"], "hello-world-one",
+        "child-one wrote model.parent.key1"
+    );
+    assert_eq!(
+        body["key2"].as_str().unwrap_or(""),
+        "hello-world-two",
+        "child-two read model.parent.hello and completed the value"
+    );
+
+    // --- the CANONICAL dynamic-fork fixture (activated by E-7): five
+    // flow://echo-flow sub-flows, each appending to the shared parent state
+    // and the external state machine
+    let dynamic_trace = trace::new_trace_id();
+    let reply = FlowExecutor::request(
+        &platform,
+        "fork-n-join-with-dynamic-model-test",
+        http_dataset(Some("olga"), &[("seq", "8")]),
+        "biz-cid-26",
+        Duration::from_secs(15),
+        Some((&dynamic_trace, "FLOW /dynamic")),
+    )
+    .await
+    .expect("canonical dynamic fork");
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "olga");
+    let mut parent_items: Vec<String> = body["parent_items"]
+        .as_array()
+        .expect("parent_items")
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
+    parent_items.sort();
+    assert_eq!(
+        parent_items,
+        vec!["five", "four", "one", "three", "two"],
+        "each sub-flow appended its ITEM to the shared parent state exactly once"
+    );
+    let mut parent_indexes: Vec<i64> = body["parent_indexes"]
+        .as_array()
+        .expect("parent_indexes")
+        .iter()
+        .map(|v| v.as_i64().unwrap_or(-1))
+        .collect();
+    parent_indexes.sort();
+    assert_eq!(parent_indexes, vec![0, 1, 2, 3, 4]);
+
+    // --- E-8: arithmetic plugins through a flow (canonical fixture)
+    let reply = run_flow(
+        &platform,
+        "arithmetic",
+        http_dataset(None, &[]),
+        "biz-cid-27",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["sum"], 11);
+    assert_eq!(body["difference"], 1);
+    assert_eq!(body["product"], 12);
+    assert_eq!(body["quotient"], 3);
+    assert_eq!(body["incremented"], 7);
+    assert_eq!(body["decremented"], 5);
+
+    // --- E-8: the type-conversion catalog (canonical fixture). The body
+    // contains REAL bytes (f:binary), so assert on the rmpv tree, not JSON
+    let reply = run_flow(
+        &platform,
+        "type-conversion",
+        http_dataset(None, &[]),
+        "biz-cid-28",
+    )
+    .await;
+    let body = event_script::mlm::MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(body.get_element("integer_convert"), Some(Value::from(256)));
+    assert_eq!(
+        body.get_element("long_convert"),
+        Some(Value::from(9223372036854775807i64))
+    );
+    assert_eq!(body.get_element("bool_convert"), Some(Value::Boolean(true)));
+    assert_eq!(
+        body.get_element("positive_ternary"),
+        Some(Value::from("Hello"))
+    );
+    assert_eq!(
+        body.get_element("negative_ternary"),
+        Some(Value::from(" World!"))
+    );
+    assert_eq!(
+        body.get_element("greater_than_positive"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("less_than_positive"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("substring_two"),
+        Some(Value::from("World"))
+    );
+    assert_eq!(
+        body.get_element("concat"),
+        Some(Value::from("Hello World!"))
+    );
+    assert_eq!(body.get_element("isNull"), Some(Value::Boolean(true)));
+    assert_eq!(body.get_element("isNotNull"), Some(Value::Boolean(true)));
+    // binary conversion produced real bytes (Java byte[] parity)
+    assert_eq!(
+        body.get_element("binary"),
+        Some(Value::Binary(b"Hello".to_vec()))
+    );
+    // b64 round trip: "SGVsbG8=" decodes to bytes, re-encoding restores it
+    assert_eq!(
+        body.get_element("to_bytestring"),
+        Some(Value::from("SGVsbG8="))
+    );
+
+    // --- E-8: string operators (canonical fixture; body {text: "Hello..."})
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"text": "Hello this is a test World"})),
+        ));
+    }
+    let reply = run_flow(&platform, "string-util", dataset, "biz-cid-29").await;
+    let body = json_body(&reply);
+    assert_eq!(body["starts_with"], true);
+    assert_eq!(body["ends_with"], true);
+    assert_eq!(body["not_starts_with"], false);
+    assert_eq!(body["includes"], true);
+    assert_eq!(body["not_includes"], false);
+
+    // --- E-8: date parsing (canonical fixtures)
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"date": "01/15/2026"})),
+        ));
+    }
+    let reply = run_flow(&platform, "parse-date", dataset, "biz-cid-30").await;
+    let body = json_body(&reply);
+    assert!(body["ms"].as_i64().unwrap_or(0) > 1_700_000_000_000);
+
+    // --- E-8: input validation — pass and range-violation → handler
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"user": "12345"})),
+        ));
+    }
+    let reply = run_flow(&platform, "input-validation-1", dataset, "biz-cid-31").await;
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "12345");
+    assert_eq!(body["greeting"], "hello world");
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.retain(|(k, _)| k.as_str() != Some("body"));
+        entries.push((
+            Value::from("body"),
+            from_json(&serde_json::json!({"user": "ABC"})),
+        ));
+    }
+    let reply = run_flow(&platform, "input-validation-2", dataset, "biz-cid-32").await;
+    assert_eq!(reply.status(), 400);
+    assert_eq!(json_body(&reply)["message"], "user (ABC) < CCC");
+
+    // --- E-8: the user-defined #[simple_plugin] is registered by the loader
+    // (sequence 3) and callable through the f: resolution path
+    assert!(event_script::plugins::contains_simple_plugin("shout"));
+    let mut probe = event_script::mlm::MultiLevelMap::new();
+    probe
+        .set_element("model.word", rmpv::Value::from("mercury"))
+        .unwrap();
+    let shouted = event_script::mapping::get_lhs_element("f:shout(model.word)", &probe)
+        .expect("user plugin resolution");
+    assert_eq!(shouted, Some(rmpv::Value::from("MERCURY")));
+
+    // --- E-9: resilience handler — gatekeeper (200) passes straight through
+    let _ = std::fs::remove_dir_all("/tmp/resilience");
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[]),
+        "biz-cid-33",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    assert_eq!(json_body(&reply)["hello"], "world");
+
+    // --- E-9: retries exhaust max_attempts → abort with the original error
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[("exception", "400")]),
+        "biz-cid-34",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    let body = json_body(&reply);
+    assert_eq!(body["type"], "error");
+    assert_eq!(body["message"], "Simulated Exception");
+
+    // --- E-9: a 401 reroutes to the alternative path (codes '401, 403-404')
+    let reply = run_flow(
+        &platform,
+        "resilience-demo",
+        http_dataset(None, &[("exception", "401")]),
+        "biz-cid-35",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    assert_eq!(json_body(&reply)["path"], "alternative");
+
+    // --- E-9: circuit breaker recovers when the service accepts attempt 2
+    let mut dataset = http_dataset(None, &[]);
+    if let Value::Map(entries) = &mut dataset {
+        entries.push((
+            Value::from("path_parameter"),
+            from_json(&serde_json::json!({"accept": "2"})),
+        ));
+    }
+    let reply = run_flow(&platform, "simple-circuit-breaker", dataset, "biz-cid-36").await;
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(body["attempt"], 2);
+    assert_eq!(body["message"], "Task completed successfully");
+
+    // --- E-9: the HTTP flow adapter — an AsyncHttpRequest-shaped event with
+    // x-flow-id launches the flow and the response completes the request
+    let po_adapter = PostOffice::new(&platform);
+    let http_event = from_json(&serde_json::json!({
+        "method": "GET",
+        "url": "/api/greetings/petra",
+        "ip": "127.0.0.1",
+        "timeout": 10,
+        "headers": {"x-flow-id": "greetings", "x-correlation-id": "biz-cid-37",
+                     "accept": "application/json"},
+        "parameters": {"path": {"user": "petra"}, "query": {}},
+        "body": {},
+    }));
+    let reply = po_adapter
+        .request(
+            EventEnvelope::new()
+                .set_to("http.flow.adapter")
+                .set_trace(&trace::new_trace_id(), "GET /api/greetings/petra")
+                .set_raw_body(http_event),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("adapter flow");
+    assert_eq!(reply.status(), 201);
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "petra");
+    assert_eq!(
+        body["my_cid"], "biz-cid-37",
+        "the edge correlation header becomes model.cid"
+    );
+    // missing x-flow-id is a 400 from the adapter
+    let bad_event = from_json(&serde_json::json!({
+        "method": "GET", "url": "/x", "headers": {}, "parameters": {}, "body": {},
+    }));
+    let reply = po_adapter
+        .request(
+            EventEnvelope::new()
+                .set_to("http.flow.adapter")
+                .set_raw_body(bad_event),
+            Duration::from_secs(3),
+        )
+        .await
+        .expect("adapter error envelope");
+    assert_eq!(reply.status(), 400);
+
+    // --- E-9: EventScriptMock reassigns a task's function route
+    let mock = event_script::EventScriptMock::new("sequential-test").expect("flow exists");
+    assert_eq!(
+        mock.get_function_route("sequential.one").unwrap(),
+        "sequential.one"
+    );
+    mock.assign_function_route("sequential.one", "greeting.test")
+        .unwrap();
+    assert_eq!(
+        mock.get_function_route("sequential.one").unwrap(),
+        "greeting.test"
+    );
+    // greeting.test rejects the pojo input (no user/greeting) → 400 through the mock
+    let reply = run_flow(
+        &platform,
+        "sequential-test",
+        http_dataset(Some("quinn"), &[("seq", "1")]),
+        "biz-cid-38",
+    )
+    .await;
+    assert_eq!(reply.status(), 400, "the mock rerouted the first task");
+    mock.restore_function_route("sequential.one");
+    let reply = run_flow(
+        &platform,
+        "sequential-test",
+        http_dataset(Some("quinn"), &[("seq", "1")]),
+        "biz-cid-39",
+    )
+    .await;
+    assert_eq!(
+        json_body(&reply)["pojo"]["user"],
+        "quinn",
+        "restored route works again"
+    );
+
+    // --- async.http.request (increment K-5 activates the E-9 deferral):
+    // the http-client-by-config flow calls the real HTTP client against this
+    // test's own REST server, which echoes what arrived on the wire
+    let addr = platform_core::automation::start_http_server(&platform)
+        .await
+        .expect("rest server");
+    assert_eq!(8102, addr.port(), "fixture port (server.port) expected");
+    let reply = run_flow(
+        &platform,
+        "http-client-by-config",
+        from_json(&serde_json::json!({
+            "body": {"hello": "world"},
+            "path_parameter": {"demo": "test"},
+            "method": "POST",
+        })),
+        "cid-http-client",
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "http-client flow failed: {:?}",
+        reply.body()
+    );
+    let echoed = json_body(&reply);
+    assert_eq!("test", echoed["parameters"]["path"]["demo"]);
+    assert_eq!("world", echoed["parameters"]["query"]["hello"]);
+    assert_eq!(serde_json::json!({"hello": "world"}), echoed["body"]);
+    // classpath(text:/files/token.txt) resolved the bearer token
+    assert_eq!("Bearer demo123", echoed["headers"]["authorization"]);
+    assert_eq!("application/json", echoed["headers"]["accept"]);
+    assert_eq!("application/json", echoed["headers"]["content-type"]);
+    assert_eq!("async-http-client", echoed["headers"]["user-agent"]);
+
+    // --- declarative trace propagation (Java parity): the outer request
+    // enters through the REAL HTTP edge carrying a W3C traceparent; the
+    // adapter adopts it, the flow's task calls async.http.request, and the
+    // downstream echo must observe the SAME distributed trace on the wire
+    let trace_id = "4bf92f3577b34da6a3ce929d0e0e4736";
+    let traceparent = format!("00-{trace_id}-00f067aa0ba902b7-01");
+    let outer = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/http/client/by/config/trace-case")
+        .set_header("accept", "application/json")
+        .set_header("content-type", "application/json")
+        .set_header("traceparent", &traceparent)
+        .set_body(from_json(&serde_json::json!({"hello": "trace"})));
+    let po = PostOffice::new(&platform);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(outer.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("traced http flow");
+    let echoed = json_body(&reply);
+    assert_eq!(
+        trace_id, echoed["headers"]["x-trace-id"],
+        "X-Trace-Id on the wire; headers: {}",
+        echoed["headers"]
+    );
+    let wire_traceparent = echoed["headers"]["traceparent"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        wire_traceparent.contains(trace_id),
+        "W3C traceparent carries the trace id: {wire_traceparent}"
+    );
+
+    // sanity: the RPC inbox is still healthy after all scenarios
+    let po = PostOffice::new(&platform);
+    let ping = po
+        .request(
+            EventEnvelope::new()
+                .set_to("no.op")
+                .set_body("ping")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("direct rpc");
+    assert_eq!(ping.body_as::<String>().unwrap(), "ping");
+}

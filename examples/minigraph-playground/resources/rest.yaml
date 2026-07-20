@@ -1,0 +1,92 @@
+#
+# The Playground REST endpoints (ported from the Java minigraph engine's
+# rest.yaml). The dev workbench itself loads over WebSocket (/ws/graph,
+# /ws/json — handled by the upgrade path, not routed here); these are the
+# companion/API hops. The compiled React bundle is served as static content
+# from the engine crate's resources/public at "/".
+#
+# The demo-mock data providers (mock.mdm.profile, mock.account.details) are
+# dev-only engine services (#[optional_service("app.env=dev")]); the tutorials'
+# data-dictionary / API-fetcher exercises call them over HTTP.
+#
+rest:
+  - service: 'get.index.html'
+    methods: ['GET']
+    url: '/index.html'
+    timeout: 10s
+
+  - service: 'get.ws.html'
+    methods: ['GET']
+    url: '/api/ws/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    methods: ['POST', 'GET']
+    url: '/api/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    tracing: true
+
+  - service: 'show.graph.model'
+    methods: ['GET']
+    url: '/api/graph/model/{graph_id}/{sequence}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'get.live.graph'
+    methods: ['GET']
+    url: '/api/graph/session/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.json.content'
+    methods: ['POST']
+    url: '/api/json/content/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.mock.content'
+    methods: ['POST']
+    url: '/api/mock/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'inspect.state.machine'
+    methods: ['GET']
+    url: '/api/inspect/{id}/{key}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'post.companion.command'
+    methods: ['POST']
+    url: '/api/companion/{id}'
+    timeout: 30s
+    tracing: true
+
+  # synchronous companion (design/ai-companion-sync.md) — returns the command
+  # outcome in-band {ok, output, error, result}; additive sibling of the above
+  - service: 'post.companion.command.sync'
+    methods: ['POST']
+    url: '/api/companion/{id}/sync'
+    timeout: 30s
+    tracing: true
+
+  # dev-only mock data providers (app.env=dev) — the tutorials' API-fetcher exercises
+  - service: 'mock.mdm.profile'
+    methods: ['POST']
+    url: '/api/mdm/profile'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.mdm.profile'
+    methods: ['GET']
+    url: '/api/mdm/profile/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.account.details'
+    methods: ['POST']
+    url: '/api/account/details'
+    timeout: 10s
+    tracing: true

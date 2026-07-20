@@ -1,0 +1,17 @@
+[
+  {
+    "name": "plain text response",
+    "raw": "This is a plain text server response.",
+    "expectedKinds": ["docs.response"]
+  },
+  {
+    "name": "markdown formatted response",
+    "raw": "# Help\n\nAvailable commands:\n- help\n- describe",
+    "expectedKinds": ["docs.response"]
+  },
+  {
+    "name": "multi-line text response",
+    "raw": "Skill my-skill:\n  Description: Does something useful\n  Input: none\n  Output: string",
+    "expectedKinds": ["docs.response"]
+  }
+]

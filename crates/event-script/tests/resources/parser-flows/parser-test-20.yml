@@ -1,0 +1,48 @@
+flow:
+  id: 'parser-test-20'
+  description: 'hierarchy of flows'
+  ttl: 10s
+
+first.task: 'no.op'
+
+tasks:
+  - input: []
+    process: 'no.op'
+    output: []
+    description: 'Just a dummy step'
+    execution: sequential
+    next:
+      - 'flow://daughter-greetings'
+
+  - name: 'flow://daughter-greetings'
+    input:
+      - 'input.path_parameter.user -> body.user'
+      - 'text(hello world) -> body.greeting'
+      - 'long(12345) -> body.long_number'
+      - 'float(12.345) -> body.float_number'
+      - 'double(12.345) -> body.double_number'
+      - 'boolean(true) -> body.boolean_value'
+      - 'input.header -> header'
+      - 'input.path_parameter.user -> header.user'
+      - 'text(ok) -> header.demo'
+    # when process is a flow URL, function route is not allowed
+    process: 'sub.flow'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'header -> output.header'
+      - 'status -> output.status'
+    description: 'Hello World'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

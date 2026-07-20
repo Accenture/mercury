@@ -1,0 +1,18 @@
+flow:
+  id: 'parser-test-30'
+  description: 'test invalid OUTPUT data mapping that overwrites the model.trace metadata'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+      # invalid: model.trace is seeded by the engine from the distributed trace context
+      # and must not be overwritten by a data mapping
+      - 'result.user -> model.trace'
+    description: 'Hello World'
+    execution: end

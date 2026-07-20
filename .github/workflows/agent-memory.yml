@@ -1,0 +1,47 @@
+name: agent-memory
+# Vendor-neutral ritual floor (v4.19.0). Runs server-side on every push/PR with ZERO per-user setup —
+# the untrained-user-proof layer (a git hook needs per-clone activation; CI does not). Advisory by
+# default (annotates, never fails the build). Set repo/Actions variable AGENT_MEMORY_STRICT=1 to gate.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  memory:
+    runs-on: ubuntu-latest
+    env:
+      AGENT_MEMORY_STRICT: ${{ vars.AGENT_MEMORY_STRICT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for the diff-based session-log check
+
+      - name: memory-lint (deterministic integrity check)
+        run: |
+          if [ -f agent-skills/memory-lint/scripts/memory-lint.py ]; then
+            python3 agent-skills/memory-lint/scripts/memory-lint.py || {
+              echo "::warning title=memory-lint::memory-lint reported issues (see log above)"
+              [ "${AGENT_MEMORY_STRICT:-0}" = "1" ] && exit 1 || true
+            }
+          else
+            echo "memory-lint not installed; skipping."
+          fi
+
+      - name: session-log presence (advisory)
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          [ -n "$base" ] || base="${{ github.event.before }}"
+          case "$base" in ''|0000000000000000000000000000000000000000) base="$(git rev-parse HEAD~1 2>/dev/null || echo '')";; esac
+          [ -n "$base" ] || { echo "no base ref; skipping ritual check"; exit 0; }
+          changed="$(git diff --name-only "$base" HEAD 2>/dev/null || true)"
+          work="$(printf '%s\n' "$changed" | grep -vE '^(memory/|\.agent/)' | grep -v '^$' || true)"
+          logged="$(printf '%s\n' "$changed" | grep -E '^memory/sessions/.*\.md$' || true)"
+          if [ -n "$work" ] && [ -z "$logged" ]; then
+            echo "::warning title=agent-memory ritual::changes touched tracked files but added no memory/sessions/ log — write or enrich a session log per AGENTS.md \"After Every Session\"."
+            [ "${AGENT_MEMORY_STRICT:-0}" = "1" ] && exit 1 || true
+          else
+            echo "ritual check: ok"
+          fi

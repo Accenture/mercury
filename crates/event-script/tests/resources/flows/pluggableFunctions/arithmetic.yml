@@ -1,0 +1,37 @@
+flow:
+  id: 'arithmetic'
+  description: 'Arithmetic operation using simple plugins f:function()'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'my.arithmetic.task'
+
+tasks:
+  - name: 'my.arithmetic.task'
+    input:
+      - 'int(6) -> model.first'
+      - 'int(2) -> model.second'
+      - 'int(3) -> model.third'
+      - 'f:add(model.first, model.second, model.third) -> sum'
+      - 'f:subtract(model.first, model.second, model.third) -> difference'
+      - 'f:multiply(model.first, model.second) -> product'
+      - 'f:div(model.first, model.second) -> quotient'
+      - 'f:increment(model.first) -> incremented'
+      - 'f:decrement(model.first) -> decremented'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Arithmetic Operations'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

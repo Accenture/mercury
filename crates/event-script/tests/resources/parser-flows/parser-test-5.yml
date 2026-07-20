@@ -1,0 +1,19 @@
+flow:
+  id: 'missing-pipeline-steps'
+  description: 'Test missing pipeline steps'
+  ttl: 10s
+
+first.task: 'sequential.one'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
+    execution: pipeline
+    pipeline: []
+    next:
+      - 'sequential.two'
