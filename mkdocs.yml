@@ -1,0 +1,116 @@
+site_name: mercury
+site_description: >-
+  Rust port of mercury-composable — Accenture's event-driven, composable
+  application platform: platform-core, Event Script, and the active
+  knowledge graph, delivered bottom-up in Rust.
+site_url: https://accenture.github.io/mercury/
+site_author: Eric Law
+
+repo_name: Accenture/mercury
+repo_url: https://github.com/Accenture/mercury
+edit_uri: edit/main/docs/
+
+copyright: >-
+  Apache-2.0 &middot; mercury is the Rust port of
+  <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/atom
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+# Internal / working material stays out of the built site.
+exclude_docs: |
+  design/
+  INCREMENTS.md
+  AI-companion-test.md
+
+# These files live in docs/ but aren't part of the nav on purpose
+# (machine-readable artifacts linked from the AI docs).
+not_in_nav: |
+  llms.txt
+  guides/knowledge-graph/minigraph-commands.json
+  guides/event-script/event-script-flow.json
+
+validation:
+  nav:
+    omitted_files: info
+  links:
+    not_found: warn
+    absolute_links: ignore
+
+nav:
+  - Home: index.md
+  - Getting Started: guides/getting-started.md
+  - Reference:
+      - AI Agent Docs:
+          - Knowledge-Graph Agent Guide: guides/knowledge-graph/ai-agent-guide.md
+          - MiniGraph Command Grammar: guides/knowledge-graph/command-reference.md
+          - Built-in Skills: guides/knowledge-graph/skills-reference.md
+          - Event Script Agent Guide: guides/event-script/ai-agent-guide.md
+          - Flow Grammar: guides/event-script/flow-grammar.md
+          - Event Script Syntax: guides/event-script/syntax.md
+          - Composable Functions Agent Guide: guides/event-driven/ai-agent-guide.md
+  - Background:
+      - Architecture Decisions: arch-decisions/ADR.md

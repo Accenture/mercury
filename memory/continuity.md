@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 42 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-003131)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-011625)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -331,7 +331,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: join-barrier-valid-completions | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-233602.md -->
 
-- [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:
+- [ ] **(backlog) Prepare `docs/guides` for the human reader.** **Design approved (implicitly,
+  via the uv toolchain go-ahead) + PHASE 1 SHIPPED 2026-07-20 (increment 43)**: scaffold +
+  Home + Getting Started + strict-build CI, all green. Remaining: phases 2–4 (concepts +
+  layer guides; reference conversions under D-H2; background + integration). Design
+  (`docs/design/human-docs.md` v1): MkDocs+Material per the agent-memory
+  recipe; core rule D-H2 = no wide reference tables (entry-per-heading, the maintainer's
+  presentation critique); human pages under `docs/guides-human/` (AI-doc paths untouched);
+  AI set surfaced under Reference (link, never restate); 18 Java pages mapped, 8 skipped
+  (out of port scope); 4 increments; 4 open questions. Maintainer decision 2026-07-19:
   the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +
   event-driven AI guides, hardened by the validation sweep); the **human developer documentation
   was deferred** and is now backlog. Source map: the Java upstream's human guides
@@ -351,7 +359,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `extension=flow://` targets discoverable without an out-of-band brief, on the console AND both
   companion endpoints. Rust: `commands.rs` + `playground.rs` assertions (workspace 202/clippy
   0/fmt). Java: `GraphCommandService` + `/sync` test in `CompanionSyncTest` (70-test suite
-  green); branch **`feat/discovery-commands`** pushed — maintainer opens the PR. AI grammar +
+  green); **PR [#199](https://github.com/Accenture/mercury-composable/pull/199) MERGED (2026-07-20)**
+  (3 commits: feature + description/purpose refinements + webapp-bundle refresh) — discovery
+  is live in BOTH engines. AI grammar +
   catalog + agent-guide recipe + skills-reference + `help list.md` all updated; rollup #38 →
   DONE. Design note: discovery rides the command surface (no new REST endpoints — `/sync`
   already gives agents REST access to every command). → serves: vision-mercury

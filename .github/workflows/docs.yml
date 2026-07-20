@@ -1,0 +1,45 @@
+name: docs
+
+# Build-only check for the MkDocs documentation site (design D-H1): a broken
+# link or a missing nav page fails the build via --strict. Publication (GitHub
+# Pages) is deliberately deferred until the repo graduates to its public home —
+# swap the build step for gh-deploy at that point.
+on:
+  push:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "docs-requirements.txt"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "docs-requirements.txt"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: docs-requirements.txt
+
+      - name: Install MkDocs toolchain
+        run: pip install -r docs-requirements.txt
+
+      - name: Build the site (strict)
+        run: mkdocs build --strict

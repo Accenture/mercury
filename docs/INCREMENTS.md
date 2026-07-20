@@ -59,6 +59,7 @@
 | 40 | join barrier counts only valid completions: success-only `skill_run` + `RESET` clears the completion mark (latent premature-join bug, both ports) | 2026-07-19 | — | 202 |
 | 41 | chained join judges an upstream join by its recorded outcome (fired vs sank; both ports) | 2026-07-19 | — | 202 |
 | 42 | discovery commands `list graphs` / `list flows` — self-service `extension=` delegation targets (finding #38, both ports) | 2026-07-20 | — | 202 |
+| 43 | human docs site phase 1: MkDocs+Material scaffold, Home + Getting Started, strict-build CI | 2026-07-20 | D-H1/D-H2 | — |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1141,6 +1142,29 @@ upstream join as complete and fired prematurely, dropping the slow branch's data
   root node lacks a non-empty `purpose` is rejected (`rust-no-purpose` fixture proves it;
   `unit-test-1` gained a purpose in both repos); `help.md` overview + `help list.md` updated
   in both engines. Java suites: event-script **142**, playground **70**.
+
+---
+
+## Increment 43 — human docs site, phase 1 (2026-07-20)
+
+**First increment of the human-documentation design (`docs/design/human-docs.md` D-H1/D-H2;
+realizes `ot-human-guides-backlog`).** The maintainer approved the toolchain by providing the
+`uv` environment; remaining design questions ride on later phases.
+
+- **Scaffold:** `mkdocs.yml` (Material, pinned via `docs-requirements.txt`) reusing the
+  agent-memory recipe — tabs/sections/indexes navigation, def_list + admonitions + mermaid
+  (superfences) + tabbed content + snippets, strict link validation; `docs/` is the docs tree
+  with internal material excluded (`design/`, `INCREMENTS.md`, `AI-companion-test.md`) and the
+  machine artifacts (`llms.txt`, the two JSON catalogs) kept out of nav; the engine-verified
+  **AI docs surface under Reference as-is**; ADR ledger under Background.
+- **Pages:** `docs/index.md` (the three layers with a mermaid overview, why-Rust, port-truth
+  admonition convention) + `docs/getting-started.md` (build/test, all three example apps with
+  **source-verified** endpoints and code — hello-world 8085 `/api/greeting/{user}` +
+  `#[preload]` snippets from the real `main.rs`, hello-flow 8086, Playground 8100 with the
+  new `list graphs`; configuration in one paragraph incl. the increment-37 renames).
+- **CI:** `.github/workflows/docs.yml` — build-only `mkdocs build --strict` on docs changes
+  (Pages deployment deferred until graduation); `site/` gitignored.
+- Local build: `mkdocs build --strict` green on the venv (`uv venv /tmp/mkdocs-venv`).
 
 ---
 
