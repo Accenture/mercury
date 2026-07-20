@@ -1,0 +1,50 @@
+flow:
+  id: 'externalize-get-key-value'
+  description: 'Test externalization of state machine values'
+  ttl: 10s
+
+first.task: 'ext.state.machine.1'
+
+#
+# you should implement a user function as the external state machine.
+#
+# The input interface contract to the external state machine for reading a key-value is:
+# header.type = 'get'
+# header.key = key
+#
+# The output interface contract is:
+# result = value
+#
+# Your function should read the input key-value from a persistent store.
+#
+# In the unit tests, these two flows work together:
+# externalize-put-key-value
+# externalize-get-key-value
+#
+
+tasks:
+  - name: 'ext.state.machine.1'
+    input:
+      - 'text(get) -> header.type'
+      - 'text(/${app.id}/user) -> header.key'
+    process: 'v1.ext.state.machine'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body.user'
+      - 'result -> model.user'
+    description: 'Retrieve a key-value from an external state machine'
+    execution: sequential
+    next:
+      - 'ext.state.machine.2'
+
+  - name: 'ext.state.machine.2'
+    input:
+      - 'text(get) -> header.type'
+      - 'text(/${app.id}/body) -> header.key'
+    process: 'v1.ext.state.machine'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'model.user -> output.body.user'
+      - 'result -> output.body.payload'
+    description: 'Retrieve a key-value from an external state machine'
+    execution: end

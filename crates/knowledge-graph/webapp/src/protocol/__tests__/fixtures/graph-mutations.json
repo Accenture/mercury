@@ -1,0 +1,50 @@
+[
+  {
+    "name": "node created",
+    "raw": "Node my-node created",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "node updated",
+    "raw": "Node my-node updated",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "node deleted",
+    "raw": "Node my-node deleted",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "node connected to another",
+    "raw": "Node foo connected to bar",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "node imported from file",
+    "raw": "Node foo imported from bar",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "node overwritten by node from",
+    "raw": "Node foo overwritten by node from bar",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "connection removed",
+    "raw": "foo -> bar removed",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "node-mutation" }
+  },
+  {
+    "name": "import graph success",
+    "raw": "Graph model imported as draft",
+    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedProps": { "mutationType": "import-graph" }
+  }
+]

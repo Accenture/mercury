@@ -1,0 +1,10 @@
+{
+  "account": {
+    "holder": "100",
+    "details": {
+      "id": "d400",
+      "type": "apple",
+      "balance": 6000.00
+    }
+  }
+}

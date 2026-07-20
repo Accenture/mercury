@@ -1,0 +1,168 @@
+/* ── Page wrapper ── */
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+/* ── Page header ── */
+.header {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.25rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  height: 2.125rem;
+}
+
+.title {
+  color: var(--primary-color);
+  font-size: 1.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Resizable panel group (fills remaining viewport height) ── */
+.panelGroup {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+}
+
+/* ── Clipboard toggle button ── */
+.clipboardToggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.clipboardToggle:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.clipboardToggle[aria-pressed="true"] {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+/* ── Help toggle button ── */
+.helpToggle {
+  background: none;
+  width: 2.125rem;
+  height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.33rem;
+  font-weight: bold;
+  line-height: 1rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.helpToggle:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.helpToggle[aria-pressed="true"] {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+/* ── Help hint popover (first-visit onboarding) ── */
+.helpButtonWrapper {
+  position: relative;
+}
+
+.helpTogglePulsing {
+  animation: helpPulse 1.5s ease-in-out infinite;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+@keyframes helpPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
+  }
+}
+
+.helpHint {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-dark);
+  color: var(--console-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.helpHint::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 10px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--bg-dark);
+}
+
+.helpHintFading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.helpHintKbd {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-xs);
+  padding: 0.1rem 0.3rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+/* ── Drag handle between panels ── */
+.resizeHandle {
+  width: 1px;
+  cursor: col-resize;
+  background: var(--border-color);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.resizeHandle:hover {
+  background: var(--primary-20);
+}
+
+.resizeHandle[data-separator="active"] {
+  background: var(--primary-40);
+}
+

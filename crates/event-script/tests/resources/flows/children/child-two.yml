@@ -1,0 +1,30 @@
+flow:
+  id: 'child-two'
+  description: 'This is a first-level sub-flow'
+  ttl: 10s
+
+first.task: 'task.one'
+
+#
+# Show that a sub-flow can access the model.parent namespace.
+# The following demonstrates that it can mix-n-match its own state machine
+# with the parent's state machine so that sub-flows run from a primary
+# flow work together as a single use case.
+#
+# 1. concat "two" with model.parent.hello to model.temp
+# 2. copy model.temp to model.parent.key
+# 3. sub-flow "child-three" executes and set model.parent.temp
+# 4. when sub-flow child-three finishes, this "task.one" copies model.parent.temp to model.parent.key2
+#
+tasks:
+  - name: 'task.one'
+    input:
+      - 'input.body -> *'
+      - 'input.header -> header'
+      - 'model.parent.hello:concat(text(two)) -> model.temp'
+      - 'model.temp -> model.parent.key'
+    process: 'flow://child-three'
+    output:
+      - 'model.parent.temp -> model.parent.key2'
+    description: 'Read and write variables in the model.parent namespace'
+    execution: end

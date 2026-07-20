@@ -1,0 +1,306 @@
+/* ── Console root (flex column, fills panel height) ─────────────── */
+.consoleRoot {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+.consoleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  flex: 0 0 auto;
+}
+
+.consoleTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.consoleControls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.controlButton {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.125rem 0.25rem;
+    cursor: pointer;
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.controlButton:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+}
+
+.controlButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ── Scrollable message list ────────────────────────────────────── */
+.console {
+  background-color: var(--console-bg);
+  color: var(--console-text);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  flex: 1 1 auto;
+  min-height: 150px;
+  overflow-y: auto;
+  font-family: var(--font-mono-terminal);
+  font-size: 0.875rem;
+  font-weight: bold;
+  line-height: 1.5;
+}
+
+.emptyConsole {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ── Individual message row ─────────────────────────────────────── */
+/*
+ * Column layout:  [icon]  [message body]  [copy button]  [send-to-json-path]  [upload-mock]  [timestamp]
+ * Action buttons are sized to their content and stay hidden until the row
+ * is hovered or focused-within, so they do not consume horizontal space
+ * in the normal reading state.
+ */
+.consoleMessage {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s;
+  /* Establish a stacking context so the copy button can be positioned
+     relative to this row without escaping the scroll container. */
+  position: relative;
+}
+
+.consoleMessage:not(.consoleMessageActivatable):hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Activatable graph-link row — teal accent, pointer cursor */
+.consoleMessageActivatable {
+  cursor: pointer;
+}
+
+.consoleMessageActivatable:hover,
+.consoleMessageGraphLink.consoleMessageActivatable:hover {
+  background-color: rgba(20, 184, 166, 0.12);
+  outline: 1px solid rgba(20, 184, 166, 0.35);
+}
+
+.consoleMessageActivatable:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Large-payload download link — amber accent */
+.consoleMessageLargePayload {
+  background-color: var(--warning-06);
+  outline: 1px solid var(--warning-25);
+  border-radius: var(--radius-sm);
+}
+
+/* Mock-upload invitation row — amber accent (pairs with ⬇️ large-payload style) */
+.consoleMessageMockUpload {
+  background-color: var(--warning-06);
+  outline: 1px solid var(--warning-25);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Upload-mock re-open button ───────────────────────────────────── */
+/* Same hide/reveal pattern as copyButton; uses an amber accent to
+ * match the invitation row highlight. Only rendered on mock-upload rows. */
+.uploadMockButton {
+  appearance: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  align-self: start;
+  font-weight: 600;
+  background-color: var(--warning-10);
+  border: 1px solid var(--warning-30);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.4rem;
+  color: var(--warning-85);
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.consoleMessage:hover .uploadMockButton,
+.consoleMessage:focus-within .uploadMockButton {
+  opacity: 1;
+}
+
+.uploadMockButton:hover {
+  background-color: var(--warning-20);
+  border-color: var(--warning-60);
+  color: var(--warning-color);
+}
+
+.uploadMockButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--warning-80);
+  outline-offset: 2px;
+}
+
+/* ── Copy-to-clipboard button ───────────────────────────────────── */
+/*
+ * The button lives in the third grid column of every message row.
+ * It is invisible by default and revealed only when the parent row
+ * is hovered or contains keyboard focus — keeping the console tidy
+ * during normal reading while remaining fully accessible via Tab.
+ */
+.copyButton {
+  /* Reset browser button defaults */
+  appearance: none;
+  cursor: pointer;
+
+  /*
+   * Sizing: use a larger font-size than the surrounding console text so the
+   * icon glyph is legible, but keep line-height:1 and align-self:center so
+   * the button never inflates the row height.
+   */
+  font-size: 1rem;
+  line-height: 1;
+  align-self: start;
+  font-weight: bold;
+
+  /*
+   * Visual pill: a semi-transparent dark background + visible border gives
+   * the icon contrast against the dark console background without being
+   * distracting in its resting (hovered) state.
+   */
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.4rem;
+  color: rgba(255, 255, 255, 0.75);
+
+  /* Hidden until the row is interacted with */
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+/* Show the button when the parent row is hovered or focused-within */
+.consoleMessage:hover .copyButton,
+.consoleMessage:focus-within .copyButton {
+  opacity: 1;
+}
+
+/* Brighter on direct hover — makes it feel interactive */
+.copyButton:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+
+.copyButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* "✓" confirmation state — briefly shown after a successful copy.
+ * The toast notification is the primary feedback; this is a subtle
+ * in-row reinforcement only. */
+.copyButtonCopied {
+  opacity: 1;
+  color: var(--code-text);
+  border-color: rgba(134, 239, 172, 0.5);
+}
+
+/* ── Send-to-JSON-Path button ────────────────────────────────────── */
+/* Same hide/reveal pattern as copyButton; uses a green accent to
+ * distinguish it from copy. Only rendered on JSON message rows. */
+.sendToJsonPathButton {
+  appearance: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  align-self: start;
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.4rem;
+  color: rgba(255, 255, 255, 0.75);
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.consoleMessage:hover .sendToJsonPathButton,
+.consoleMessage:focus-within .sendToJsonPathButton {
+  opacity: 1;
+}
+
+.sendToJsonPathButton:hover {
+  background-color: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.6);
+  color: var(--code-text);
+}
+
+.sendToJsonPathButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--success-color);
+  outline-offset: 2px;
+}
+
+.messageIcon {
+  font-size: 1rem;
+}
+
+.messageContent {
+  word-wrap: break-word;
+  color: var(--console-text);
+  flex: 1;
+}
+
+.messageText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.messageTime {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Message type colour overrides ─────────────────────────────── */
+.messageType-error .messageContent   { color: var(--error-text); }
+.messageType-info .messageContent    { color: var(--json-key); }
+.messageType-welcome .messageContent { color: var(--code-text); }
+
+/* ── JSON tree viewer ───────────────────────────────────────────── */
+.jsonViewWrapper {
+  font-family: var(--font-mono-terminal);
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+.jsonContainer { background: transparent !important; padding: 0 !important; }
+.jsonLabel     { color: var(--json-key);    }
+.jsonString    { color: var(--json-string); }
+.jsonNumber    { color: var(--json-number); }
+.jsonBoolean   { color: var(--json-bool);   }
+.jsonNull      { color: var(--json-null);   }

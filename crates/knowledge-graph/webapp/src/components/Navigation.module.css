@@ -1,0 +1,196 @@
+/* ── Toolbar row ── */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Shared menu list ── */
+
+.menuList {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+}
+
+/* ── Plain menu item (Quick Links) ── */
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.menuItem:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.menuItem:focus-visible {
+  background: var(--primary-color);
+  color: white;
+  outline: 2px solid var(--bg-primary);
+  outline-offset: -2px;
+}
+
+/* ── Tool row (combined nav + connect) ── */
+
+/*
+ * Each row is a flex container:
+ *   [dot + label NavLink ──────────────── flex-grow] [Start/Stop button]
+ *
+ * The NavLink fills the available width so the whole left area is clickable
+ * for navigation, while the button on the right is independently clickable
+ * for the WebSocket connection.
+ */
+
+.toolRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.toolRow:last-child {
+  border-bottom: none;
+}
+
+.toolLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  padding: 0.55rem 0.75rem 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.toolLink:hover {
+  background: var(--bg-secondary);
+}
+
+.toolLink:focus-visible {
+  background: var(--bg-secondary);
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.toolLinkActive {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ── Status dot inside tool link ── */
+
+.toolDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.toolDotIdle       { background: var(--danger-color); }
+.toolDotConnecting { background: var(--warning-color); animation: pulse 1.5s infinite; }
+.toolDotConnected  { background: var(--success-color); animation: pulse 2s infinite; }
+
+/* ── Connect All / Disconnect All row ── */
+
+.connectAllRow {
+  display: flex;
+  padding: 0.45rem 0.75rem 0.45rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.connectAllBtn {
+  flex: 1 1 auto;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.connectAllBtn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.connectAllBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.connectAllBtnStop {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.connectAllBtnStop:hover:not(:disabled) {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* ── Connect / stop button ── */
+
+.toolConnectBtn {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0.35rem 0.5rem 0.35rem 0;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.toolConnectBtn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.toolConnectBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolConnectBtnStop {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.toolConnectBtnStop:hover:not(:disabled) {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* ── External link arrow ── */
+
+.externalIcon {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-left: 0.4rem;
+}

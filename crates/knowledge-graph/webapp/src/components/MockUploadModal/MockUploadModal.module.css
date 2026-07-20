@@ -1,0 +1,345 @@
+/* ── Native <dialog> element ────────────────────────────────────────────── */
+/* The browser supplies focus-trap and backdrop rendering via showModal(). */
+
+.dialog {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0;
+  width: min(560px, 94vw);
+  max-height: 90vh;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+
+  /* Override browser's default dialog positioning */
+  margin: auto;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+/* Inner wrapper — stops click propagation from content to backdrop */
+.modalInner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  flex: 0 0 auto;
+}
+
+.modalTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.modalTitle {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.modalPath {
+  font-family: var(--font-mono-terminal);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.closeButton {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.closeButton:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.closeButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.modalBody {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── Drop zone ───────────────────────────────────────────────────────────── */
+.dropZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+  /* Prevent text selection while dragging */
+  user-select: none;
+}
+
+.dropZone:focus-within {
+  border-color: var(--primary-color);
+}
+
+/* Active drag-over state — amber to match the modal's accent colour */
+.dropZoneActive {
+  border-color: var(--warning-80);
+  background: var(--warning-06);
+  color: var(--text-primary);
+}
+
+.dropZoneIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.dropZoneText {
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+.dropZoneText code {
+  font-family: var(--font-mono-terminal);
+  font-size: 0.825rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xs);
+  padding: 0 3px;
+}
+
+.dropZoneOr {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ── Browse file button ──────────────────────────────────────────────────── */
+.browseButton {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.65rem;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.browseButton:hover:not(:disabled) {
+  background: var(--warning-08);
+  border-color: var(--warning-60);
+  color: var(--text-primary);
+}
+
+.browseButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.browseButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Hidden native file input — triggered programmatically */
+.fileInputHidden {
+  display: none;
+}
+
+/* File-type / read error — warning colour, not danger */
+.fileError {
+  color: var(--warning-color);
+  font-size: 0.8rem;
+}
+
+.textareaLabel {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-dark);
+  color: var(--console-text);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-family: var(--font-mono-terminal);
+  font-size: 0.875rem;
+  resize: vertical;
+  min-height: 180px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-color: var(--primary-color);
+}
+
+.validationError {
+  color: var(--warning-color);
+  font-size: 0.8rem;
+}
+
+.keyboardHint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.errorBanner {
+  color: var(--danger-color);
+  background: var(--danger-08);
+  border: 1px solid var(--danger-30);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* ── Shared button base ──────────────────────────────────────────────────── */
+.formatButton,
+.cancelButton,
+.uploadButton {
+  appearance: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.formatButton:focus-visible,
+.cancelButton:focus-visible,
+.uploadButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.formatButton:disabled,
+.cancelButton:disabled,
+.uploadButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Format button — secondary ───────────────────────────────────────────── */
+.formatButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.formatButton:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+/* ── Cancel button — ghost ───────────────────────────────────────────────── */
+.cancelButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ── Upload button — primary amber accent ────────────────────────────────── */
+.uploadButton {
+  background: var(--warning-85);
+  border: 1px solid var(--warning-90);
+  color: #1c1917;
+  font-weight: 600;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: var(--warning-color);
+  border-color: #d97706;  /* intentional darker border accent — one step below --warning-color */
+}
+
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid rgba(28, 25, 23, 0.3);
+  border-top-color: #1c1917;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

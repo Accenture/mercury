@@ -1,0 +1,173 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "dictionary",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "output": [
+          "result.name -> output.body.name",
+          "result.address -> output.body.address"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "Master Data Management's profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.address"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "purpose": "address of a person",
+        "provider": "mdm-profile"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.name"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "name of a person"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate data sourcing using the Data Dictionary method - fetch one person profile (name and address) by person_id",
+        "name": "tutorial-3"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-address"
+    },
+    {
+      "source": "dictionary",
+      "relations": [
+        {
+          "type": "data",
+          "properties": {}
+        }
+      ],
+      "target": "person-name"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "complete",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "person-address",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "person-name",
+      "relations": [
+        {
+          "type": "provider",
+          "properties": {}
+        }
+      ],
+      "target": "mdm-profile"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "dictionary"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    }
+  ]
+}

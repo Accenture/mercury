@@ -1,0 +1,50 @@
+[
+  {
+    "name": "> help produces echo + helpOrDescribe",
+    "raw": "> help",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedLength": 2
+  },
+  {
+    "name": "> import graph from X produces echo + importGraph",
+    "raw": "> import graph from my-graph",
+    "expectedKinds": ["command.echo", "command.importGraph"],
+    "expectedLength": 2
+  },
+  {
+    "name": "> describe skill X produces echo + helpOrDescribe",
+    "raw": "> describe skill my-skill",
+    "expectedKinds": ["command.echo", "command.helpOrDescribe"],
+    "expectedLength": 2
+  },
+  {
+    "name": "graph link is NOT docs.response (rule 11 exclusion)",
+    "raw": "Graph described in /api/graph/model/ws-122189-1",
+    "expectedKinds": ["graph.link"],
+    "notExpectedKinds": ["docs.response"]
+  },
+  {
+    "name": "mock upload is NOT docs.response (rule 11 exclusion)",
+    "raw": "You may upload JSON payload -> POST /api/mock/ws-417669-24",
+    "expectedKinds": ["upload.invitation"],
+    "notExpectedKinds": ["docs.response"]
+  },
+  {
+    "name": "upload.contentPath is NOT docs.response (rule 11 exclusion)",
+    "raw": "Please upload XML/JSON text to /api/json/content/ws-123-4",
+    "expectedKinds": ["upload.contentPath"],
+    "notExpectedKinds": ["docs.response"]
+  },
+  {
+    "name": "payload.large is NOT docs.response (rule 11 exclusion)",
+    "raw": "Large payload (254922) -> GET /api/inspect/ws-734563-3/input.body",
+    "expectedKinds": ["payload.large"],
+    "notExpectedKinds": ["docs.response"]
+  },
+  {
+    "name": "node mutation IS also docs.response (intentional — not in exclusion set)",
+    "raw": "Node my-node created",
+    "expectedKinds": ["graph.mutation", "minigraph.nodeAction.textResult", "minigraph.createNode.textResult", "docs.response"],
+    "expectedLength": 4
+  }
+]

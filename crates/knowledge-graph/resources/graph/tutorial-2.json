@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "mapping": [
+          "input.body -> output.body"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Tutorial two to echo a user message",
+        "name": "tutorial-2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

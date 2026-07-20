@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "data-mapper",
+      "properties": {
+        "mapping": [
+          "text(world) -> output.body.hello",
+          "input.body.profile.name -> output.body.name",
+          "model.none -> model.address",
+          "input.body.profile.address1 -> model.address[]",
+          "input.body.profile.address2 -> model.address[]",
+          "model.address -> output.body.address",
+          "f:now(text(local)) -> output.body.time"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate various data mapping methods",
+        "name": "tutorial-7"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "data-mapper",
+      "relations": [
+        {
+          "type": "complete",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "mapping",
+          "properties": {}
+        }
+      ],
+      "target": "data-mapper"
+    }
+  ]
+}

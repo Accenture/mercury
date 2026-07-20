@@ -1,0 +1,15 @@
+[package]
+name = "platform-macros"
+description = "Attribute macros emulating mercury-composable's Java annotations (@PreLoad, @BeforeApplication, @MainApplication, @ZeroTracing) for the Rust platform-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

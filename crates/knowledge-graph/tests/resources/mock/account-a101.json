@@ -1,0 +1,10 @@
+{
+  "account": {
+    "holder": "100",
+    "details": {
+      "id": "a101",
+      "type": "Saving",
+      "balance": 25032.13
+    }
+  }
+}

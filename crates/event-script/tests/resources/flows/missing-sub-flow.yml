@@ -1,0 +1,39 @@
+flow:
+  id: 'missing-sub-flow'
+  description: 'Demonstrate broken flow'
+  ttl: 10s
+
+first.task: 'flow://flow-not-found'
+
+tasks:
+  - input:
+      - 'input.body -> body'
+      - 'input.path_parameter.user -> user'
+      - 'text(hello world) -> greeting'
+      - 'long(12345) -> long_number'
+      - 'float(12.345) -> float_number'
+      - 'double(12.345) -> double_number'
+      - 'boolean(true) -> boolean_value'
+      - 'input.header -> header'
+      - 'input.path_parameter.user -> header.user'
+      - 'text(ok) -> header.demo'
+    process: 'flow://flow-not-found'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'header -> output.header'
+      - 'status -> output.status'
+    description: 'The sub-flow is intentionally not found'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

@@ -1,0 +1,68 @@
+flow:
+  id: 'fork-n-join-with-dynamic-model-test'
+  description: 'Test fork-n-join flow'
+  ttl: 30s
+
+first.task: 'my.first.task'
+external.state.machine: 'v1.ext.state.machine'
+
+tasks:
+  - name: 'my.first.task'
+    input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+      - 'text(one) -> model.dataList[]'
+      - 'text(two) -> model.dataList[]'
+      - 'text(three) -> model.dataList[]'
+      - 'text(four) -> model.dataList[]'
+      - 'text(five) -> model.dataList[]'
+    description: 'Pass a pojo to another task'
+    execution: fork
+    source: 'model.dataList'
+    next:
+      - 'echo.flow'
+    join: 'join.task'
+
+  - name: 'echo.flow'
+    input:
+      - 'text(hello-world-one) -> key1'
+      - 'text(hello-world-two) -> key2'
+      - 'model.dataList.ITEM -> item'
+      - 'model.dataList.INDEX -> index'
+      - 'model.dataList.INDEX -> model.index[]'
+      - 'model.key:uuid -> uuid'
+      - 'text(world) -> header.hello'
+    process: 'flow://echo-flow'
+    output:
+      - 'result.key1 -> model.key1'
+      - 'result.key2 -> model.key2'
+      - 'result.item -> model.item'
+      - 'result.item -> ext:append'
+      # test thread safety for state machine in a flow instance
+      - 'result.item -> model.serialized[]'
+    description: 'Hello world'
+    execution: sink
+
+  #
+  # the "*" pojo mapping entry must be the first one in the input mapping
+  # so that the subsequent update to the pojo is possible.
+  #
+  - name: 'join.task'
+    input:
+      - 'model.pojo -> *'
+      - 'model.key1 -> key1'
+      - 'model.key2 -> key2'
+      - 'model.serialized -> serialized'
+      # test thread safety for parent state machine in subflows
+      - 'model.parent.serialized -> parent_items'
+      - 'model.parent.index -> parent_indexes'
+      - 'model.index -> indexes'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Return result'
+    execution: end

@@ -1,0 +1,113 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "fork-join supplement",
+        "name": "rust-join"
+      }
+    },
+    {
+      "types": [
+        "mapper"
+      ],
+      "alias": "branch-a",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(alpha) -> model.a"
+        ]
+      }
+    },
+    {
+      "types": [
+        "mapper"
+      ],
+      "alias": "branch-b",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(beta) -> model.b"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Join"
+      ],
+      "alias": "converge",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.a -> output.body.a",
+          "model.b -> output.body.b",
+          "text(joined) -> output.body.message"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fork",
+          "properties": {}
+        }
+      ],
+      "target": "branch-a"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fork",
+          "properties": {}
+        }
+      ],
+      "target": "branch-b"
+    },
+    {
+      "source": "branch-a",
+      "relations": [
+        {
+          "type": "join",
+          "properties": {}
+        }
+      ],
+      "target": "converge"
+    },
+    {
+      "source": "branch-b",
+      "relations": [
+        {
+          "type": "join",
+          "properties": {}
+        }
+      ],
+      "target": "converge"
+    },
+    {
+      "source": "converge",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

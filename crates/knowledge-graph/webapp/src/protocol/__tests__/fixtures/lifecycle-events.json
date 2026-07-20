@@ -1,0 +1,44 @@
+[
+  {
+    "name": "info lifecycle event",
+    "raw": "{\"type\":\"info\",\"message\":\"connected\",\"time\":\"Mon Mar 25 2026 10:00:00\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "info", "knownType": true, "message": "connected" }
+  },
+  {
+    "name": "error lifecycle event",
+    "raw": "{\"type\":\"error\",\"message\":\"already disconnected\",\"time\":\"Mon Mar 25 2026 10:00:01\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "error", "knownType": true, "message": "already disconnected" }
+  },
+  {
+    "name": "welcome lifecycle event",
+    "raw": "{\"type\":\"welcome\",\"message\":\"Welcome to Minigraph\",\"time\":\"Mon Mar 25 2026 10:00:00\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "welcome", "knownType": true }
+  },
+  {
+    "name": "ping lifecycle event",
+    "raw": "{\"type\":\"ping\",\"message\":\"keep alive\",\"time\":\"Mon Mar 25 2026 10:01:00\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "ping", "knownType": true }
+  },
+  {
+    "name": "unknown lifecycle type",
+    "raw": "{\"type\":\"custom\",\"message\":\"something\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "custom", "knownType": false, "time": null }
+  },
+  {
+    "name": "disconnected lifecycle event (frontend-injected)",
+    "raw": "{\"type\":\"info\",\"message\":\"disconnected - (1000) Normal Closure\",\"time\":\"Mon Mar 25 2026 10:05:00\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "info", "knownType": true }
+  },
+  {
+    "name": "lifecycle missing time field",
+    "raw": "{\"type\":\"info\",\"message\":\"test\"}",
+    "expectedKinds": ["lifecycle"],
+    "expectedProps": { "type": "info", "knownType": true, "time": null }
+  }
+]

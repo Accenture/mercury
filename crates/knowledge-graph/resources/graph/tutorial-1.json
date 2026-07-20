@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {
+        "mapping": [
+          "text(hello world) -> output.body"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Tutorial one to return a 'hello world' message",
+        "name": "tutorial-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

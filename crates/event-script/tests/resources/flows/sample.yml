@@ -1,0 +1,206 @@
+#
+# Defines a "hello world" use case
+#
+# This is a hypothetical user profile service use case
+# that demonstrate data mapping so that individual functions do not need to be custom-built for specific context
+# of a platform or infrastructure.
+#
+# It also illustrates decision-making and rendering of immediate response
+# so that the use does not wait for computational intensive task to finish.
+#
+# This example flow works like this:
+# 1. Validate the input and decide if it is a retrieval or save request.
+# 2. If retrieval, get the record according to profile ID. If there are encrypted fields, decrypt them.
+# 3. If save, check if there are fields that require encryption.
+#    Immediate return result and then asynchronously persist the record.
+#    After saving the encrypted profile, it demonstrates the use of "fork-n-join" where
+#    two subsequent tasks are executed in parallel before running the "join" task
+#    that in turn invokes the "end" task and the flow is completed.
+#
+# A user function is called a task.
+#
+# Type of tasks
+# -------------
+# 1. Decision task - execution=decision, decision value can be obtained from the model or function output.
+#    The default decision source is 'result.decision'.
+#    Boolean value will be evaluated as true or false. Numeric value will be evaluated as 1 to n.
+# 2. Response task - execution=response. Responds to the caller immediately and continue next steps asynchronously
+# 3. End task - execution=end. This indicates end of a transaction flow.
+#    If output dataset is available, it will send response to the caller.
+# 4. Normal task - execution=sequential or execution=parallel. If "sequential", the next task will run.
+#    If "parallel", all "next" tasks will be executed in parallel using the same mapped dataset.
+# 5. Pipeline task - execution=pipeline. Tasks in the list of "next tasks" are executed one by one.
+# 6. Fork task - execution=fork. This is the "fork" part of a "fork-n-join" task set. It must specify a "join" task.
+#    When this task is reached, the next tasks will be executed in parallel. Upon execution of all next tasks,
+#    the "join" task will be invoked.
+# 7. Sink task - execution=sink. This is a normal task without any next tasks.
+#    This task type is used in the next task list of a "parallel" or a "fork" task.
+#
+# Data mapping and variable name-spacing
+# --------------------------------------
+# Input dataset - variable names that start with "input."
+# Function result-set - variable names that start with "result."
+# Transaction states - variable names that start with "model."
+# Output dataset - variable names that start with "output."
+# Header key-values - variable names that start with "header." for both task input and output
+# Status code from a task output - variable name "status"
+#
+# A function's return value is its result set (aka "body")
+# It may return an EventEnvelope object that contains a "body", a "status" code and one or more "header key-values".
+#
+# Datasets are map objects that are addressable using the "dot-bracket" convention.
+# e.g.
+# "input.header.x-api-id" is the header "x-api-id" of the input dataset.
+# "input.header" contains all headers of the input dataset.
+# "model.data.some_array[0]" will return the first element of "model.data.some_array".
+#
+# Input mapping
+# -------------
+# User functions take 2 types of input arguments: headers and body.
+# Note that the input body does not need any namespacing.
+# The input headers are mapped when the right-hand-side (RHS) key starts with the
+# "header." namespace.
+#
+# Constants
+# ---------
+# Constant values are qualified by types:
+# text(some message) is a text string of "some message"
+# int(n) represents integer value
+# long(n) represents long value
+# float(n) represent floating value
+# double(n) represent double floating value
+# boolean(true | false) is a boolean value
+#
+# Environment variables
+# ---------------------
+# text(${ENV_VARIABLE_NAME:defaultValue}) will get an environment variable value using the ENV_VARIABLE_NAME key
+#
+# Time to live (TTL)
+# ------------------
+# TTL specifies the expiry timer for the flow
+#
+# Optional exception handlers
+# ---------------------------
+# User defined exception handlers can be setup at the flow level or at the task level.
+#
+# Handling PoJo
+# -------------
+# The system can perform automatic PoJo serialization using the "*" symbol in the right-hand-side
+# in input data mapping.
+#
+flow:
+  id: 'hello-world'
+  description: 'Demonstrate task execution, decision and exit'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'v1.validate.request'
+
+tasks:
+  - input:
+      - 'input.method -> method'
+      - 'input.header -> header'
+      - 'input.header.content-type -> content-type'
+      - 'input.path_parameter.profile_id -> header.profile_id'
+      - 'input.body -> body'
+      - 'text(id, name, address, telephone) -> required_fields'
+    process: 'v1.validate.request'
+    output:
+      - 'result.profile_id -> model.profile_id'
+      - 'result.decision -> decision'
+    description: 'Validate incoming request and determine next steps'
+    execution: decision
+    next:
+      - 'v1.get.profile'
+      - 'v1.create.profile'
+
+  - input:
+      - 'model.profile_id -> profile_id'
+    process: 'v1.get.profile'
+    output:
+      - 'result -> model.profile'
+    description: 'Retrieve user profile from database using profile_id'
+    execution: sequential
+    next:
+      - 'v1.decrypt.fields'
+
+  - input:
+      - 'model.profile -> dataset'
+      - 'text(telephone, address) -> protected_fields'
+    process: 'v1.decrypt.fields'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Decrypt fields'
+    execution: end
+
+  - input:
+      - 'input.body -> *'
+      - 'text(address, telephone) -> header.protected_fields'
+    process: 'v1.create.profile'
+    output:
+      - 'int(201) -> output.status'
+      - 'result -> output.body'
+    description: 'Inform the user that a profile will be created'
+    execution: response
+    next:
+      - 'v1.encrypt.fields'
+
+  - input:
+      - 'input.body -> dataset'
+      - 'text(address, telephone) -> protected_fields'
+    process: 'v1.encrypt.fields'
+    output:
+      - 'result -> model.profile'
+    description: 'Encrypt fields'
+    execution: sequential
+    next:
+      - 'v1.save.profile'
+
+  - input:
+      - 'model.profile -> *'
+      - 'text(id) -> id_field'
+    process: 'v1.save.profile'
+    output: []
+    description: 'Perform field encryption and save user profile record'
+    execution: fork
+    next:
+      - v1.hello.world.1
+      - v1.hello.world.2
+    join: v1.hello.end
+
+  - input:
+      - 'text(hello-world-one) -> demo'
+    process: 'v1.hello.world.1'
+    output:
+      - 'result.hello -> model.var1'
+    description: 'Hello world'
+    execution: sink
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'text(hello-world-two) -> demo'
+    process: 'v1.hello.world.2'
+    output:
+      - 'result.hello -> model.var2'
+    description: 'Hello world'
+    execution: sink
+
+  - input:
+      - 'model.var1 -> one'
+      - 'model.var2 -> two'
+    process: 'v1.hello.end'
+    output: []
+    description: 'This completes the flow'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

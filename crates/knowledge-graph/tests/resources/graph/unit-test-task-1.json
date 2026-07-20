@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "demo-task",
+      "properties": {
+        "task": "v1.demo.task",
+        "input": [
+          "input.body -> *",
+          "int(100) -> amount",
+          "input.header.x-demo -> header.hello"
+        ],
+        "output": [
+          "result -> output.body",
+          "demo-task.header.x-task -> output.header.x-task"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task with whole body '*', field merge, request and response headers",
+        "name": "unit-test-task-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "demo-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "demo-task"
+    }
+  ]
+}

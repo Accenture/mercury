@@ -1,0 +1,204 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "chained join barriers probe",
+        "name": "rust-join-chain"
+      }
+    },
+    {
+      "types": [
+        "Slow"
+      ],
+      "alias": "slow-pre",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "DELAY: 200"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "slow-x",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(X) -> model.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "fast-y",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(Y) -> model.y"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Pacer"
+      ],
+      "alias": "pace-z",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(Z) -> model.z",
+          "DELAY: 100"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Join"
+      ],
+      "alias": "j-one",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": [
+        "Join"
+      ],
+      "alias": "j-two",
+      "properties": {
+        "skill": "graph.join"
+      }
+    },
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "assemble",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.x -> output.body.x",
+          "model.y -> output.body.y",
+          "model.z -> output.body.z"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "branch-x",
+          "properties": {}
+        }
+      ],
+      "target": "slow-pre"
+    },
+    {
+      "source": "slow-pre",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "slow-x"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "branch-y",
+          "properties": {}
+        }
+      ],
+      "target": "fast-y"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "branch-z",
+          "properties": {}
+        }
+      ],
+      "target": "pace-z"
+    },
+    {
+      "source": "slow-x",
+      "relations": [
+        {
+          "type": "arrive",
+          "properties": {}
+        }
+      ],
+      "target": "j-one"
+    },
+    {
+      "source": "fast-y",
+      "relations": [
+        {
+          "type": "arrive",
+          "properties": {}
+        }
+      ],
+      "target": "j-one"
+    },
+    {
+      "source": "j-one",
+      "relations": [
+        {
+          "type": "chain",
+          "properties": {}
+        }
+      ],
+      "target": "j-two"
+    },
+    {
+      "source": "pace-z",
+      "relations": [
+        {
+          "type": "arrive",
+          "properties": {}
+        }
+      ],
+      "target": "j-two"
+    },
+    {
+      "source": "j-two",
+      "relations": [
+        {
+          "type": "joined",
+          "properties": {}
+        }
+      ],
+      "target": "assemble"
+    },
+    {
+      "source": "assemble",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

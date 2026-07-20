@@ -1,0 +1,28 @@
+# minigraph-playground example — active knowledge graph (layer 3) on
+# event-script (layer 2) on platform-core (layer 1).
+application.name: minigraph-playground
+
+# REST automation serves rest.yaml + the static webapp bundle; app.env=dev
+# turns on the dev-gated Playground services (each declared with
+# #[optional_service("app.env=dev")]). Env-overridable (Java parity:
+# ${APP_ENV:dev}) — set APP_ENV=prod to run graphs only through
+# POST /api/graph/{graph-id}, with the Playground UI/WS/mocks not loaded.
+app.env: ${APP_ENV:dev}
+rest.automation: true
+rest.server.port: 8100
+
+# Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
+location.graph.temp: file:/tmp/graph
+
+# Serializer null handling (Java parity). Default false: null MAP key-values are
+# omitted from JSON and MsgPack output (e.g. a successful /sync response drops the
+# null `error` field), mirroring Gson's default + MsgPack packMap null-skip.
+# Rationale: PoJos rarely initialize every field, so their nulls are output noise;
+# omitting them keeps the payload clean. Set true when a downstream must tell
+# "key present with null value" from "key absent". Only map key-values are
+# affected — array elements (including nulls) are always kept so ordering is
+# preserved, and an empty [] or {} is a real value, never treated as null.
+serializer.null.transport: false
+
+info.app.description: 'mercury MiniGraph Playground (active knowledge graph)'
+show.application.properties: 'application.name, app.env, rest.server.port'

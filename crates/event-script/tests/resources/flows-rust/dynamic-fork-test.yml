@@ -1,0 +1,54 @@
+#
+# Rust-side supplement (increment E-5): dynamic fork over a model list with
+# .ITEM / .INDEX iteration. The canonical Java fixture for this feature
+# (fork-n-join-with-dynamic-model-test) additionally requires flow:// sub-flows
+# and the external state machine — both increment E-7 — so this trimmed flow
+# provides E2E coverage of the dynamic-fork machinery until then.
+#
+flow:
+  id: 'dynamic-fork-test'
+  description: 'Dynamic fork over a model list with ITEM/INDEX iteration'
+  ttl: 10s
+
+first.task: 'my.first.task'
+
+tasks:
+  - name: 'my.first.task'
+    input:
+      - 'input.path_parameter.user -> user'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+      - 'text(one) -> model.dataList[]'
+      - 'text(two) -> model.dataList[]'
+      - 'text(three) -> model.dataList[]'
+    description: 'Seed the dynamic list'
+    execution: fork
+    source: 'model.dataList'
+    next:
+      - 'echo.item'
+    join: 'join.task'
+
+  - name: 'echo.item'
+    input:
+      - 'model.dataList.ITEM -> item'
+      - 'model.dataList.INDEX -> index'
+      - 'model.dataList.INDEX -> model.index[]'
+    process: 'no.op'
+    output:
+      # test thread safety for the state machine under concurrent branches
+      - 'result.item -> model.serialized[]'
+    description: 'Echo one list item'
+    execution: sink
+
+  - name: 'join.task'
+    input:
+      - 'model.pojo -> *'
+      - 'model.serialized -> serialized'
+      - 'model.index -> indexes'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Return result'
+    execution: end

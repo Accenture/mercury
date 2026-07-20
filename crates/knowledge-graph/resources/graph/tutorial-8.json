@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "data-mapper",
+      "properties": {
+        "mapping": [
+          "input.body.profile.name -> output.body.name",
+          "$.input.body.profile.account[*].type -> model.account.type",
+          "$.input.body.profile.account[*].id -> model.account.id",
+          "$.input.body.profile.account[*].amount -> model.account.amount",
+          "f:listOfMap(model.account) -> output.body.account",
+          "f:removeKey(input.body.profile.account, text(description)) -> output.body.account2"
+        ],
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate data mapping using JSON-Path",
+        "name": "tutorial-8"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "data-mapper",
+      "relations": [
+        {
+          "type": "complete",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "mapping",
+          "properties": {}
+        }
+      ],
+      "target": "data-mapper"
+    }
+  ]
+}

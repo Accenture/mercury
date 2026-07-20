@@ -1,0 +1,5 @@
+# agent-memory — keep executable scripts + git hooks LF so bash runs them on Windows (Git Bash / WSL).
+# Git for Windows defaults to core.autocrlf=true; without this, *.sh and .githooks/* would be rewritten
+# to CRLF on checkout and bash would fail with "bad interpreter: /usr/bin/env bash^M".
+*.sh        text eol=lf
+.githooks/* text eol=lf

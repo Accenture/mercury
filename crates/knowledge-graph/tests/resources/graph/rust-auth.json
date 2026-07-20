@@ -1,0 +1,95 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "declarative fetch-feature supplement",
+        "name": "rust-auth"
+      }
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "skill": "graph.api.fetcher",
+        "dictionary": [
+          "auth-check"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "output": [
+          "result.auth -> output.body.auth"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "auth-check",
+      "properties": {
+        "provider": "auth-provider",
+        "input": [
+          "person_id"
+        ],
+        "output": [
+          "response.auth -> result.auth"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "auth-provider",
+      "properties": {
+        "method": "POST",
+        "url": "http://127.0.0.1:${rest.server.port}/api/echo/auth",
+        "feature": [
+          "demo-auth",
+          "log-request-headers"
+        ],
+        "input": [
+          "text(application/json) -> header.accept",
+          "text(application/json) -> header.content-type",
+          "person_id -> body.person_id"
+        ]
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "check",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

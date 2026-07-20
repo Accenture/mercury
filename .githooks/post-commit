@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# agent-memory post-commit hook — vendor-neutral, advisory ritual reinforcement.
+# (Introduced v4.19.0; auto-stub made per-session in v4.22.1, window retuned to 30 min in v4.22.3.)
+#
+# Activated by `git config core.hooksPath .githooks` (the agent runs this at enable — no manual
+# user step). Fires after every commit; NEVER blocks (post-commit exit codes are ignored by git).
+# The tool runs nothing itself — git invokes this in the user's env at their opt-in
+# (`no-build-step-agent-run`). Bash 3.2-compatible.
+#
+# What it does, only in an agent-memory repo:
+#   1) keep skill adapters current when a skill changed (idempotent, gitignored-only);
+#   2) if the commit did real work but no session log exists within the active-session window
+#      (default 30 min; override AGENT_MEMORY_SESSION_WINDOW_MINUTES), auto-stub one; if a recent
+#      log already covers this session, nudge to enrich it instead — at most ONE stub per session,
+#      not per commit. Capture only; the thoughtful summary stays the agent's job (no silent gap).
+
+[ -f memory/continuity.md ] || exit 0          # only act in an agent-memory repo
+git rev-parse -q --verify HEAD^2 >/dev/null 2>&1 && exit 0   # skip merge commits
+
+changed="$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null)"
+
+# (1) re-sync adapters if a skill changed in this commit
+if printf '%s\n' "$changed" | grep -qE '^agent-skills/'; then
+  bash   agent-skills/sync-adapters/scripts/sync-adapters.sh  >/dev/null 2>&1 \
+    || node   agent-skills/sync-adapters/scripts/sync-adapters.mjs >/dev/null 2>&1 \
+    || python3 agent-skills/sync-adapters/scripts/sync-adapters.py  >/dev/null 2>&1 || true
+fi
+
+# (2) auto-stub the session log if real work landed without one
+work="$(printf '%s\n' "$changed" | grep -vE '^(memory/|\.agent/)' | grep -v '^$' || true)"
+logged="$(printf '%s\n' "$changed" | grep -E '^memory/sessions/.*\.md$' || true)"
+
+if [ -n "$work" ] && [ -z "$logged" ]; then
+  # A "session" is a *burst of work within a window*, not a single commit. A session log added
+  # earlier in this same session — whether already committed OR still an untracked stub — must
+  # suppress a NEW stub, or a multi-commit session piles up one near-identical stub per commit
+  # (and inflates the decay session-count). Detect it by the newest session-log FILENAME
+  # timestamp: it is immutable and clone-safe (unlike mtime, which `git clone`/checkout resets
+  # to now — that would wrongly suppress the first stub for hours after every clone). Compare,
+  # lexicographically, against a "window-ago" stamp in the same YYYY-MM-DD-HHMMSS form (which
+  # sorts chronologically). Window default 30 min — long enough to span a working session's commit
+  # cadence (incl. a short test/think gap), short enough that a genuinely NEW session (a longer pause)
+  # still gets its own stub. Override with AGENT_MEMORY_SESSION_WINDOW_MINUTES (integer minutes).
+  # Primary guard: if a session log is already uncommitted (staged, modified, or untracked),
+  # the agent has an in-flight log for this session — skip the stub regardless of its age.
+  # This handles the recommended two-commit pattern (feature commit → chore(memory) commit) where
+  # the log is written but not yet committed, and long sessions where the write→commit gap exceeds
+  # the time window.
+  if git status --porcelain -- memory/sessions/ 2>/dev/null | grep -qE '\.md$'; then
+    echo "agent-memory: this commit changed tracked files but added no session log; an uncommitted" >&2
+    echo "              session log already covers this session — enrich/commit it (one log per" >&2
+    echo "              session, not per commit)." >&2
+    exit 0
+  fi
+
+  win="${AGENT_MEMORY_SESSION_WINDOW_MINUTES:-30}"
+  newest="$(ls memory/sessions/ 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}\.md$' | sort | tail -n1)"
+  newest="${newest%.md}"
+  threshold="$(date -u -v-"${win}"M +%Y-%m-%d-%H%M%S 2>/dev/null \
+            || date -u -d "${win} minutes ago" +%Y-%m-%d-%H%M%S 2>/dev/null || true)"
+
+  if [ -n "$newest" ] && [ -n "$threshold" ] && [[ "$newest" > "$threshold" ]]; then
+    # a session log already exists for the current working session — don't pile on another stub
+    echo "agent-memory: this commit changed tracked files but added no session log; a recent one" >&2
+    echo "              (memory/sessions/$newest.md, within ${win} min) covers this session — enrich/update" >&2
+    echo "              it if this commit added something noteworthy (one log per session, not per commit)." >&2
+  else
+    # genuinely new session (no session log within the window) — stub one so the ledger never gaps
+    ts="$(date -u +%Y-%m-%d-%H%M%S)"
+    stub="memory/sessions/$ts.md"
+    {
+      printf '# Session (%s)\n\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+      printf '**Agent:** (auto-stub — replace with your agent name and enrich)\n'
+      printf '**Lightweight:** auto-captured by the post-commit hook; summary pending.\n\n'
+      printf 'Commit `%s` — %s\n\n' "$(git rev-parse --short HEAD)" "$(git log -1 --pretty=%s)"
+      printf '```\n%s\n```\n\n' "$(git diff-tree --no-commit-id --stat -r HEAD 2>/dev/null)"
+      printf '## Memory References\n'
+      printf '(none — auto-stub; enrich per AGENTS.md "After Every Session", or leave as a lite log)\n'
+    } > "$stub"
+    echo "agent-memory: auto-stubbed a session log → $stub" >&2
+    echo "              enrich it (or keep it as a lite log) and commit it, per AGENTS.md." >&2
+  fi
+fi
+exit 0

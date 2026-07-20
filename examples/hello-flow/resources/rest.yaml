@@ -1,0 +1,9 @@
+# One declarative endpoint bound to a FLOW (not a function): REST automation
+# injects the x-flow-id header and http.flow.adapter launches the flow.
+rest:
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/hello/{user}"
+    flow: 'hello-flow'
+    timeout: 10s
+    tracing: true

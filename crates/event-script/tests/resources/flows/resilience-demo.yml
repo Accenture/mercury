@@ -1,0 +1,93 @@
+flow:
+  id: 'resilience-demo'
+  description: 'Demonstrate resilience handler features'
+  ttl: 10s
+
+#
+# This resilience demo employs the "backoff period" feature
+#
+# This requires using the resilience handler as a gatekeeper to the simulated user function "exception.simulator".
+# Therefore, first task is the resilience handler instead of the user function.
+first.task: 'resilience.handler'
+
+tasks:
+  - name: 'my.task'
+    input:
+      - 'input.query.exception -> header.exception'
+      - 'text(world) -> hello'
+    process: 'exception.simulator'
+    output:
+      # Reset number of attempt, backoff and cumulative failure count if any
+      # (note that when LHS is null and RHS is a file, the file will be deleted)
+      - 'int(0) -> model.attempt'
+      - 'model.none -> file(/tmp/resilience/backoff)'
+      - 'model.none -> file(/tmp/resilience/cumulative)'
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'This function will throw exception according to the query parameter'
+    execution: end
+    exception: 'resilience.handler'
+
+  #
+  # Demonstrate using the temp file system as a data store for the cumulative failure count and backoff control.
+  # the key-values 'cumulative' and 'backoff' will be set during output data mapping after the resilience handler
+  # makes a decision.
+  #
+  # In a concurrent situation, multiple flow instances would increment the cumulative failure count,
+  # thus making it more accurate to decide if a backoff period is needed.
+  #
+  # Backoff is an essential feature to avoid overwhelming a failed target service. It would avoid recovery storm.
+  #
+  # Testing alternative path - when return code is 401 or between 403 and 404, the 3rd task "alternative.task"
+  #                            will be executed.
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'model.attempt -> attempt'
+      - 'int(3) -> max_attempts'
+      - 'text(401, 403-404) -> alternative'
+      - 'file(text:/tmp/resilience/cumulative) -> cumulative'
+      - 'file(text:/tmp/resilience/backoff) -> backoff'
+      - 'int(5) -> backoff_trigger'
+      - 'int(2) -> backoff_seconds'
+      - 'int(500) -> delay'
+    process: 'resilience.handler'
+    output:
+      - 'result.status -> model.status'
+      - 'result.message -> model.message'
+      - 'result.attempt -> model.attempt'
+      - 'result.decision -> decision'
+      - 'result.backoff -> file(/tmp/resilience/backoff)'
+      - 'result.cumulative -> file(/tmp/resilience/cumulative)'
+    description: 'Resilience handler with alternative path and backoff features'
+    execution: decision
+    next: # "my.task | @retry" means that when it cannot resolve the original task using @retry, use "my.task"
+      - 'my.task | @retry'
+      - 'abort.request'
+      - 'alternative.task'
+
+  - input:
+      - 'text(error) -> type'
+      - 'model.status -> status'
+      - 'model.message -> message'
+    process: 'abort.request'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'This function aborts a request'
+    execution: end
+
+  - name: 'alternative.task'
+    input:
+      - 'text(alternative) -> path'
+    process: 'no.op'
+    output:
+      # Reset number of attempt, backoff and cumulative if any
+      - 'int(0) -> model.attempt'
+      - 'model.none -> file(/tmp/resilience/backoff)'
+      - 'model.none -> file(/tmp/resilience/cumulative)'
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'This function will just return ok'
+    execution: end

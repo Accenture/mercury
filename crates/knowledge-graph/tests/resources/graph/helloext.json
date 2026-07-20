@@ -1,0 +1,102 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "account-details",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.person_name",
+          "response.account.details -> result.account_details"
+        ],
+        "input": [
+          "person_id",
+          "account_id"
+        ],
+        "provider": "account-details-provider",
+        "purpose": "Account details"
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "account-details-provider",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "text(application/json) -> header.content-type",
+          "person_id -> body.person_id",
+          "account_id -> body.account_id"
+        ],
+        "feature": [
+          "oauth-bearer",
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "POST",
+        "purpose": "Account Management Endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/account/details"
+      }
+    },
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher-account-details",
+      "properties": {
+        "output": [
+          "result.account_details -> output.body.account_details"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "input.body.account_id -> account_id"
+        ],
+        "dictionary": [
+          "account-details"
+        ],
+        "skill": "graph.api.fetcher"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demo Extension Graph with one fetcher to Account Details",
+        "name": "helloext"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "fetcher-account-details",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-account-details"
+    }
+  ]
+}

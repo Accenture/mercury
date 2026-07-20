@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "pojo-task",
+      "properties": {
+        "task": "v1.pojo.task",
+        "input": [
+          "input.body.name -> name",
+          "input.body.amount -> amount"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task with field mapping to a PoJo composable function",
+        "name": "unit-test-task-2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "pojo-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "pojo-task"
+    }
+  ]
+}

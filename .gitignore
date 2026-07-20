@@ -1,32 +1,55 @@
-*.class
+# === agent-memory: AI infrastructure (personal / per-machine — do not commit) ===
+# Steering files (CLAUDE.md, GEMINI.md, AGENTS.md, .cursorrules, .windsurfrules,
+# .github/copilot-instructions.md), the shared memory layer (memory/, .agent/,
+# legacy/), and the shared skills layer (agent-skills/) are intentionally TRACKED — they
+# are committed and shared across the team, so do NOT ignore them. Only personal
+# AI-IDE runtime directories and local history/caches are ignored below (the
+# "infrastructure", not the steering). The vendor dirs below also hold per-machine
+# skill *adapters* (.claude/skills/, .gemini/commands/, .cursor/rules/, .kiro/skills/,
+# .github/skills/, .agents/skills/) regenerated from agent-skills/ — local only; the neutral
+# agent-skills/ is the shared source of truth. NOTE: GitHub Copilot's skill adapter lives at
+# .github/skills/, so it is ignored path-scoped (below) — never ignore all of .github/, which holds
+# the tracked copilot-instructions.md and workflows/. .agents/skills/ is the Agent Skills standard dir
+# read by Google Antigravity (agy, the Gemini CLI successor — it ignores .gemini/commands).
+.kiro/
+.claude/
+.cursor/
+.continue/
+.windsurf/
+.codeium/
+.gemini/
+.github/skills/
+.agents/
+.cline/
+.roo/
+.zed/
+.codex/
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache*
+
+# Fresh-context review scratch (second-opinion / apply-critique skills) — personal,
+# per-machine snapshots & critiques; sharing one is a conscious human decision, never committed.
+review-scratch/
+
+# Python bytecode cache — the bundled memory-lint helper script generates this on run;
+# it is a build artifact, never committed (the .py source under agent-skills/ stays tracked).
+__pycache__/
+*.py[cod]
+
+# === Rust (stack-aware — build output & tool artifacts; Cargo.lock stays TRACKED) ===
+target/
+**/*.rs.bk
+*.pdb
+
+# === MiniGraph Playground webapp (K-8) ===
+# node_modules/dist are ignored by webapp/.gitignore. The DEPLOYED bundle in
+# resources/public IS committed (so a fresh clone serves the Playground without
+# npm — Java parity), EXCEPT the source maps: 3+ MB of regenerable debug
+# artifacts (`npm run release` rebuilds them). Map, don't mirror.
+crates/knowledge-graph/resources/public/**/*.map
+
+# === OS / editor ===
 .DS_STORE
-# ignore sbt because we are using maven
-build.sbt
-maven-publish.xml
-# maven shade left over
-dependency-reduced-pom.xml
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp
-
-# Package Files #
-*.jar
-*.war
-*.ear
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-bin
-target
-logs
-project
-.project
-.classpath
-.settings
 .vscode/
-
-# IntelliJ specific ignores
-.idea
-.history
-*.iml
+site/

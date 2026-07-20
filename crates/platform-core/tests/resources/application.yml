@@ -1,0 +1,29 @@
+# base configuration — merged after application.properties (later overrides earlier)
+merge.order: yaml
+
+profile:
+  indicator: base
+
+typed:
+  int: 42
+  bool: true
+
+subst:
+  env: '${PC_TEST_HOME:none}'
+  default: '${PC_TEST_MISSING:fallback-value}'
+  ref: 'http://${server.host}:${server.port}/x'
+
+looptest:
+  a: '${looptest.b}'
+  b: '${looptest.a}'
+
+override:
+  demo: file
+
+deep:
+  list:
+    - name: first
+    - name: second
+
+demo:
+  instances: 3

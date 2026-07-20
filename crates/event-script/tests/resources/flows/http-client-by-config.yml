@@ -1,0 +1,27 @@
+flow:
+  id: 'http-client-by-config'
+  description: 'Demonstrate use of the Async HTTP client using configuration means'
+  ttl: 10s
+
+first.task: 'http.client'
+
+tasks:
+  - name: 'http.client'
+    input:
+      - 'input.path_parameter.demo -> model.demo'
+      - 'text(/api/echo/) -> model.uri'
+      - 'model.uri:concat(model.demo)-> url'
+      - 'text(POST) -> method'
+      - 'text(http://127.0.0.1:${server.port}) -> host'
+      - 'input.body -> body'
+      - 'text(application/json) -> headers.content-type'
+      - 'text(application/json) -> headers.accept'
+      - 'classpath(text:/files/token.txt) -> model.token'
+      - 'text(Bearer {model.token}) -> headers.Authorization'
+      - 'text(world) -> parameters.query.hello'
+    process: 'async.http.request'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Return result'
+    execution: end

@@ -1,0 +1,29 @@
+flow:
+  id: 'parser-test-incomplete-mappings'
+  description: 'Test incomplete mapping entry'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      # "user." is an incomplete mapping
+      - 'input.path_parameter.user -> user.'
+    process: 'greeting.test'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Greeting test'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

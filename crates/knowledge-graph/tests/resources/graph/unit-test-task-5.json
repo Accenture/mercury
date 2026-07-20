@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "bad-task",
+      "properties": {
+        "task": "no.such.route",
+        "input": [
+          "input.body -> *"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task fails fast when the task route does not exist",
+        "name": "unit-test-task-5"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "bad-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "bad-task"
+    }
+  ]
+}

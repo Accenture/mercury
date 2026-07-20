@@ -1,0 +1,227 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Fetcher"
+      ],
+      "alias": "fetcher",
+      "properties": {
+        "output": [
+          "result.person_name -> output.body.name",
+          "result.person_address -> output.body.address",
+          "result.person_accounts -> output.body.accounts",
+          "text(world) -> output.header.x-hello"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "dictionary": [
+          "person-name",
+          "person-address",
+          "person-accounts"
+        ],
+        "skill": "graph.api.fetcher",
+        "error": "break"
+      }
+    },
+    {
+      "types": [
+        "Extension"
+      ],
+      "alias": "fetcher-ext",
+      "properties": {
+        "output": [
+          "$.result[*].account_details -> output.body.account_details"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "model.account_number -> account_id"
+        ],
+        "extension": "helloext",
+        "skill": "graph.extension",
+        "for_each": [
+          "fetcher.result.person_accounts -> model.account_number"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Test"
+      ],
+      "alias": "hello",
+      "properties": {
+        "hello": "world"
+      }
+    },
+    {
+      "types": [
+        "Test"
+      ],
+      "alias": "helloworld",
+      "properties": {
+        "x": {
+          "y": {
+            "z": "100"
+          }
+        }
+      }
+    },
+    {
+      "types": [
+        "Math"
+      ],
+      "alias": "js-1",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "EXECUTE: js-2",
+          "COMPUTE: sum -> 3 + 555",
+          "COMPUTE: multiply -> {helloworld.x.y.z} * 500",
+          "MAPPING: js-1.result.sum -> output.body.sum",
+          "MAPPING: js-1.result.multiply -> output.body.multiply",
+          "MAPPING: js-1.result.value -> output.body.value"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Math"
+      ],
+      "alias": "js-2",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: value -> {helloworld.x.y.z} / 3.0",
+          "MAPPING: js-2.result.value -> helloworld.value"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Provider"
+      ],
+      "alias": "mdm-profile",
+      "properties": {
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "feature": [
+          "oauth-bearer",
+          "log-request-headers",
+          "log-response-headers"
+        ],
+        "method": "GET",
+        "purpose": "profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/mdm/profile/{id}"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-accounts",
+      "properties": {
+        "output": [
+          "response.accounts -> result.person_accounts"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "accounts of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-address",
+      "properties": {
+        "output": [
+          "response.profile.address -> result.person_address"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "provider": "mdm-profile",
+        "purpose": "address of a person"
+      }
+    },
+    {
+      "types": [
+        "Dictionary"
+      ],
+      "alias": "person-name",
+      "properties": {
+        "output": [
+          "response.profile.name -> result.person_name"
+        ],
+        "input": [
+          "person_id"
+        ],
+        "purpose": "name of a person",
+        "provider": "mdm-profile"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demo Graph Model to use helloext",
+        "name": "helloworld2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "fetcher-ext",
+      "relations": [
+        {
+          "type": "compute",
+          "properties": {}
+        }
+      ],
+      "target": "js-1"
+    },
+    {
+      "source": "fetcher",
+      "relations": [
+        {
+          "type": "ext-call",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher-ext"
+    },
+    {
+      "source": "js-1",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "fetch",
+          "properties": {}
+        }
+      ],
+      "target": "fetcher"
+    }
+  ]
+}

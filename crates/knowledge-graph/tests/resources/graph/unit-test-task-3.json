@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "each-task",
+      "properties": {
+        "task": "v1.demo.task",
+        "for_each": [
+          "input.body.items -> model.each_item"
+        ],
+        "input": [
+          "model.each_item -> amount"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "concurrency": "2",
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task iterative execution with for_each and fork-join",
+        "name": "unit-test-task-3"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "each-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "each-task"
+    }
+  ]
+}

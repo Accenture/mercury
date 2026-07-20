@@ -1,0 +1,155 @@
+:global(.react-flow.dark) {
+  --xy-edge-stroke-default: #fff;
+  --xy-edge-stroke-width-default: 4px;
+  --xy-connectionline-stroke-width-default: 4px;
+  --xy-edge-stroke-selected-default: var(--primary-color);
+}
+
+:global(.react-flow) {
+  /* --xy-edge-stroke-default: #fff; */
+  --xy-edge-stroke-width-default: 5px;
+  --xy-connectionline-stroke-width-default: 5px;
+  --xy-edge-stroke-selected-default: var(--primary-color);
+}
+
+.graphWrapper {
+  position: relative; /* anchors absolute children inside the shared graph surface */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary, #1a1a2e);
+}
+
+.graphSurface {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.5rem;
+  color: var(--text-secondary, #7f849c);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  opacity: 0.4;
+}
+
+.emptyCreateButton {
+  appearance: none;
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.emptyCreateButton:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.emptyCreateButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.emptyHint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+
+:global(.react-flow__node-default) {
+  text-align: initial;
+}
+
+/* ReactFlow attribution link — keep but de-emphasise */
+:global(.react-flow__attribution) {
+  opacity: 0.35;
+  font-size: 0.65rem;
+}
+
+/* Edge labels */
+:global(.react-flow__edge-textbg) {
+  fill: var(--bg-secondary, #1e1e2e);
+}
+
+:global(.react-flow__edge-text) {
+  fill: var(--text-secondary, #7f849c);
+  font-size: 0.65rem;
+}
+
+/* ── Auto-refresh loading overlay ────────────────────────────────────────── */
+
+/*
+ * Covers the graph area while an auto-refresh is in-flight.
+ * Anchored to .graphWrapper via its `position: relative` (Step 5a).
+ * Semi-transparent so the stale graph remains visible under the overlay,
+ * giving the user visual continuity while the fetch completes.
+ */
+.refreshingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  background: rgba(26, 26, 46, 0.55);
+  pointer-events: none;    /* allow pan/zoom events to pass through */
+  z-index: 10;
+  padding: 0.75rem;
+}
+
+.clipboardDropOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(21, 128, 61, 0.14);
+  border: 2px dashed rgba(134, 239, 172, 0.75);
+  pointer-events: none;
+  z-index: 20;
+  padding: 1rem;
+}
+
+.clipboardDropMessage {
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(134, 239, 172, 0.55);
+  border-radius: var(--radius-sm);
+  color: #dcfce7;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.7rem 0.95rem;
+}
+
+/*
+ * Small spinner in the bottom-right corner of the graph.
+ * Keeps the indicator unobtrusive — the graph remains fully visible.
+ */
+.refreshingSpinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  animation: graphRefreshSpin 0.75s linear infinite;
+}
+
+@keyframes graphRefreshSpin {
+  to { transform: rotate(360deg); }
+}

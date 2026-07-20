@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>MiniGraph Playground</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" >
+
+    <script type="text/javascript">
+        /*
+         * This is a sample javascript code to connect to the demo websocket endpoint
+         * Please note that your browser application must implement the following:
+         * 1. Connection URL is /ws/minigraph/playground
+         * 2. Keep-alive protocol.
+         */
+        const MAX_ITEMS = 30;
+        const MAX_BUFFER = 64000;
+        var inputs = [];
+        var setupEnterKey = true;
+        var msg = [];
+
+        var connected = false;
+        var ws = null;
+        var ping = null;
+        /*
+         * KEEP-ALIVE PROTOCOL
+         *
+         * WebSocket connection is persistent and it is important to tell the backend that your browser application
+         * is not stalled. Keep-alive protocol also allows your browser app to detect if notification backend service
+         * is offline. When backend is offline, the browser app can inform the user and retry the connection later.
+         *
+         * The standard websocket timeout is 60 seconds. We recommend setting the keep-alive interval
+         * between 20-30 seconds.
+         */
+        var pingInterval = 30000;
+
+        function show(input) {
+            // push input as the first item in the array
+            msg.unshift(input);
+            while (msg.length > MAX_ITEMS) {
+                msg.pop();
+            }
+            var s = ''
+            for (i in msg) {
+                s += msg[i];
+                s += '\n';
+            }
+            document.getElementById('message').innerHTML = s;
+        }
+
+        function disconnectFromEdge() {
+            if (connected) {
+                ws.close();
+            } else {
+                show(eventWithTimestamp("error", "already disconnected"));
+            }
+        }
+
+        function keepAlive() {
+            if (connected) {
+                ws.send(eventWithTimestamp("ping", "keep alive"));
+            }
+        }
+
+        function eventWithTimestamp(msg_type, message) {
+            var s = {}
+            s['type'] = msg_type;
+            s['message'] = message;
+            s['time'] = getTimestamp();
+            return JSON.stringify(s);
+        }
+
+        function getTimestamp() {
+            var s = (new Date())+"";
+            var gmt = s.indexOf('GMT');
+            return gmt > 0? s.substring(0, gmt).trim() : s;
+        }
+
+        function resume() {
+            document.getElementById('message').style.display = "none";
+            document.getElementById('resume').style.display = "none";
+            document.getElementById('connect').style.display = "inline"
+        }
+
+        function saveInput(input) {
+            // push input as the first item in the array
+            inputs.unshift(input);
+            while (inputs.length > MAX_ITEMS) {
+                inputs.pop();
+            }
+        }
+
+        function rotateInput(up) {
+            if (up) {
+                const first = inputs.shift();
+                inputs.push(first);
+                return first;
+            } else {
+                const last = inputs.pop();
+                inputs.unshift(last);
+                return last;
+            }
+        }
+
+        function connectToEdge() {
+            if (setupEnterKey) {
+                setupEnterKey = false;
+                var data = document.getElementById('instruction');
+                var query = document.getElementById('app');
+                query.addEventListener("keyup", ({key}) => {
+                    if (connected) {
+                        if (key == 'ArrowUp') {
+                            query.value = rotateInput(true);
+                        }
+                        if (key == 'ArrowDown') {
+                            query.value = rotateInput(false);
+                        }
+                        if (key === "Enter") {
+                            var text = query.value.trim();
+                            if (text.length > 0) {
+                                if (text == 'send') {
+                                    if (data.value.length == 0) {
+                                        show("Please enter instruction in input text area\n");
+                                    } else if (data.value.length > MAX_BUFFER) {
+                                        show("Please reduce instruction size. It must be less than "+MAX_BUFFER+" characters\n");
+                                    } else {
+                                        ws.send(data.value);
+                                    }
+                                } else {
+                                    ws.send(text);
+                                    saveInput(text);
+                                }
+                            }
+                            query.value = "";
+                        }
+                    } else {
+                        show("Not connected - input ("+query.value+") ignored");
+                    }
+                });
+            }
+            if ("WebSocket" in globalThis) {
+                document.getElementById('message').style.display = "block";
+                var wsUrl = '$WS_URL';
+                if (connected) {
+                    show(eventWithTimestamp("error", "already connected"));
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    return;
+                }
+                var req = {}
+                req['type'] = 'welcome';
+                // open a web socket
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    show(eventWithTimestamp("info", "connected"));
+                    connected = true;
+                    ws.send(JSON.stringify(req));
+                    document.getElementById('connect').style.display = "none";
+                    document.getElementById('disconnect').style.display = "inline";
+                    document.getElementById('target_url').innerHTML = "Connected to "+wsUrl;
+                    ping = setInterval(keepAlive, pingInterval);
+                };
+
+                ws.onmessage = function(evt) {
+                    if (evt.data.startsWith('{') && evt.data.endsWith('}') && evt.data.includes('"')) {
+                        var j = JSON.parse(evt.data);
+                        if (j.type == 'ping' || j.type == 'pong') {
+                            // hide ping/pong protocol
+                            return;
+                        }
+                    }
+                    show(evt.data);
+                };
+
+                ws.onclose = function(evt) {
+                    connected = false;
+                    clearInterval(ping);
+                    show(eventWithTimestamp("info", "disconnected - ("+evt.code+") "+evt.reason));
+                    document.getElementById('message').style.display = "block";
+                    document.getElementById('resume').style.display = "inline";
+                    document.getElementById('connect').style.display = "none"
+                    document.getElementById('disconnect').style.display = "none";
+                    document.getElementById('target_url').innerHTML = "Disconnected from "+wsUrl;
+                    ws = null;
+                };
+
+            }  else {
+                show("WebSocket NOT supported by your Browser");
+            }
+        }
+      </script>
+
+</head>
+<body>
+
+<div class="container">
+    <br/>
+    <h4 style="color: #3cb371">MiniGraph Playground</h4>
+    <div id="target_url"></div>
+    <br/>
+    <div class="input-group">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label for="app"><span class="input-group-text">Command</span></label>
+            </div>
+            <input id="app" type="text" class="form-control" name="app" placeholder="Enter your test message once it is connected">
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label for="instruction"><span class="input-group-text">Text</span></label>
+            </div>
+            <textarea id="instruction" class="form-control" name="instruction" rows="3" cols="50" placeholder="Enter your instruction here and enter a 'send' command"></textarea>
+        </div>
+    </div>
+    <div id="connect" class="input-group">
+        <button type="button" class="btn btn-primary" onclick="javascript:connectToEdge()">Start</button>
+    </div>
+    <button id="disconnect" style="display: none" type="button" class="btn btn-warning" onclick="javascript:disconnectFromEdge()">Stop Service</button>
+    <button id="resume" style="display: none" type="button" class="btn btn-warning" onclick="javascript:resume()">Continue</button>
+    <hr>
+    <pre id="message" class="border border-success rounded" style="background-color: #3c3c3c; color: white; display: none;"></pre>
+</div>
+
+</body>
+</html>

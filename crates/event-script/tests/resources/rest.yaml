@@ -1,0 +1,17 @@
+#
+# Test REST endpoints for the http-client flow fixtures (Java parity):
+# the echo endpoint returns what it received on the wire.
+#
+rest:
+  - service: "echo.endpoint"
+    methods: ['POST', 'GET']
+    url: "/api/echo/{demo}"
+    timeout: 10s
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/http/client/by/config/{demo}"
+    flow: 'http-client-by-config'
+    timeout: 10s
+    tracing: true

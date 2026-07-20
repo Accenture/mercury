@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "End"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Extension"
+      ],
+      "alias": "extension",
+      "properties": {
+        "output": [
+          "result -> output.body"
+        ],
+        "input": [
+          "input.body.person_id -> person_id"
+        ],
+        "extension": "tutorial-3",
+        "skill": "graph.extension"
+      }
+    },
+    {
+      "types": [
+        "Root"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "Demonstrate the use of graph extension",
+        "name": "tutorial-10"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "extension",
+      "relations": [
+        {
+          "type": "finish",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "extension"
+    }
+  ]
+}

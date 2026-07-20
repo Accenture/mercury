@@ -1,0 +1,49 @@
+#
+# The transaction as configuration: route by language, compose a greeting,
+# answer the HTTP request — no orchestration code anywhere.
+#
+flow:
+  id: 'hello-flow'
+  description: 'Greet a user in their language'
+  ttl: 10s
+
+first.task: 'language.router'
+
+tasks:
+  - input:
+      - 'input.query.lang -> lang'
+    process: 'language.router'
+    output:
+      - 'result -> decision'
+    description: 'Choose the greeting language'
+    execution: decision
+    next:
+      - 'greet.french'
+      - 'greet.english'
+
+  - name: 'greet.french'
+    input:
+      - 'input.path_parameter.user -> user'
+      - 'text(Bonjour) -> greeting'
+      # the business correlation-id, ensured at the HTTP edge
+      - 'model.cid -> cid'
+    process: 'greeting.composer'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'status -> output.status'
+    description: 'French greeting'
+    execution: end
+
+  - name: 'greet.english'
+    input:
+      - 'input.path_parameter.user -> user'
+      - 'text(Hello) -> greeting'
+      - 'model.cid -> cid'
+    process: 'greeting.composer'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+      - 'status -> output.status'
+    description: 'English greeting'
+    execution: end

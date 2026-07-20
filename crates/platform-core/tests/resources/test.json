@@ -1,0 +1,6 @@
+{
+  "hello": {
+    "world": "some value",
+    "list": [1, 2, 3]
+  }
+}

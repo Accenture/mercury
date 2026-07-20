@@ -1,0 +1,10 @@
+{
+  "account": {
+    "holder": "100",
+    "details": {
+      "id": "e500",
+      "type": "google",
+      "balance": 8200.00
+    }
+  }
+}

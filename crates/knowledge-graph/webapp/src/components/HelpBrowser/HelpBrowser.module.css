@@ -1,0 +1,343 @@
+/* ── Root — bare flex column, fills tab body ─────────────────────── */
+.helpRoot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Category tab strip ──────────────────────────────────────────── */
+.categoryNav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ── Scrollable inner wrapper for category tabs ──────────────────── */
+.categoryTabScroller {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.categoryTabScroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Right-edge fade hint when tabs overflow the scroll area */
+.categoryTabScroller::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  width: 1.5rem;
+  background: linear-gradient(to right, transparent, var(--bg-secondary));
+  pointer-events: none;
+}
+
+.categoryTab {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.categoryTab:hover {
+  color: var(--text-primary);
+}
+
+.categoryTab:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.categoryTabActive {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ── Maximize / restore button ───────────────────────────────────── */
+.maximizeButton {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.375rem 0.375rem;
+  transition: color 0.15s;
+}
+
+.maximizeButton:hover {
+  color: var(--text-primary);
+}
+
+.maximizeButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* ── Close button (pinned right, always visible) ─────────────────── */
+.closeButton {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.375rem 0.625rem;
+  transition: color 0.15s;
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* ── Scrollable body ─────────────────────────────────────────────── */
+.helpBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 1.25rem 1rem 1.25rem;
+}
+
+/* ── Empty / fallback state ──────────────────────────────────────── */
+.emptyFallback {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.emptyFallback code {
+  font-family: var(--font-mono-terminal);
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+/* ── Markdown typography ─────────────────────────────────────────── */
+.helpContent {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.helpContent h1,
+.helpContent h2,
+.helpContent h3,
+.helpContent h4,
+.helpContent h5,
+.helpContent h6 {
+  color: var(--primary-color);
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+
+.helpContent h1 { font-size: 1.5rem;  border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+.helpContent h2 { font-size: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.2em; }
+.helpContent h3 { font-size: 1.1rem; }
+
+.helpContent p {
+  margin-top: 0;
+  margin-bottom: 0.75em;
+}
+
+.helpContent a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.helpContent a:hover {
+  opacity: 0.8;
+}
+
+.helpContent code {
+  padding: 0.15em 0.35em;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono-terminal);
+  font-size: 1em;
+  font-weight: bolder;
+  color: var(--primary-color);
+}
+
+.helpContent pre {
+  background: var(--console-bg);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+}
+
+.helpContent pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--console-text);
+}
+
+.helpContent blockquote {
+  border-left: 3px solid var(--primary-color);
+  margin: 0 0 0.75em 0;
+  padding: 0.25em 0 0.25em 1em;
+  color: var(--text-secondary);
+}
+
+.helpContent ul,
+.helpContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.helpContent li {
+  margin-bottom: 0.25em;
+}
+
+/* ── Interactive topic link button ───────────────────────────────── */
+/* Renders inline, looks like a link, but is accessible as a button. */
+.topicLink {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-align: left;
+}
+
+.topicLink:hover {
+  opacity: 0.8;
+}
+
+.topicLink:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── GFM tables ──────────────────────────────────────────────────── */
+.helpContent table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.75em;
+  font-size: 0.875rem;
+}
+
+.helpContent th,
+.helpContent td {
+  border: 1px solid var(--border-color);
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+
+.helpContent th {
+  background: var(--console-bg);
+  font-weight: 600;
+}
+
+/* ── Rubber-band inner wrapper ───────────────────────────────────── */
+/*    transform is applied via DOM directly by useHelpScrollNavigation */
+.helpBodyContent {
+  /* No special layout — fills the scroll container naturally */
+}
+
+/* ── Scoped topic chip strip ─────────────────────────────────────── */
+.chipStrip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chipStrip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Chip strip prefix label (e.g. 'Chapters') ───────────────────── */
+/* Non-interactive, visually muted; separated from the chips by a     */
+/* right border so the chips read as a discrete group.                */
+.chipStripLabel {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding-right: 0.5rem;
+  margin-right: 0.125rem;
+  border-right: 1px solid var(--border-color);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.topicChip {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  /* text-transform: capitalize; */
+  line-height: 1;
+  padding: 0.25rem 0.625rem;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.topicChip:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+  background: var(--autocomplete-highlight);
+}
+
+.topicChip:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
+.topicChipActive {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: var(--autocomplete-highlight);
+  font-weight: 600;
+}

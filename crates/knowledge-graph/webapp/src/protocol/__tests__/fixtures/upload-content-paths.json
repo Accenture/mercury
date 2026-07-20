@@ -1,0 +1,14 @@
+[
+  {
+    "name": "upload content path",
+    "raw": "Please upload XML/JSON text to /api/json/content/ws-123-4",
+    "expectedKinds": ["upload.contentPath"],
+    "expectedProps": { "uploadPath": "/api/json/content/ws-123-4" }
+  },
+  {
+    "name": "upload content path with different id",
+    "raw": "Please upload XML/JSON text to /api/json/content/ws-999-1",
+    "expectedKinds": ["upload.contentPath"],
+    "expectedProps": { "uploadPath": "/api/json/content/ws-999-1" }
+  }
+]

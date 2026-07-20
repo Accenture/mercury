@@ -1,0 +1,74 @@
+flow:
+  id: 'fork-n-join-flows'
+  description: 'Test fork-n-join with sub-flows'
+  ttl: 5s
+  exception: 'simple.exception.handler'
+
+first.task: 'my.first.task'
+
+tasks:
+  - name: 'my.first.task'
+    input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.seq -> sequence'
+      - 'input.query.exception -> model.parent.exception'
+    process: 'sequential.one'
+    output:
+      - 'result -> model.pojo'
+    description: 'Pass a pojo to another task'
+    execution: fork
+    next:
+      - 'flow.one'
+      - 'flow.two'
+    join: 'join.task'
+
+  #
+  # Usually you should have input data mapping to set header and body for a sub-flow.
+  # This is used for a unit test to validate the use of parent model variable so
+  # we skip the input data mapping.
+  #
+  - name: 'flow.one'
+    input: []
+    process: 'flow://child-one'
+    output: []
+    description: 'skip input/output data mapping because child-one uses only parent model variables'
+    execution: sink
+
+  #
+  # demonstrate passing a key-value in the state machine to the sub-flow "child-two"
+  #
+  - name: 'flow.two'
+    input:
+      - 'text(hello-world-) -> model.parent.hello'
+    process: 'flow://child-two'
+    output: []
+    description: 'skip input/output data mapping because child-two uses only parent model variables'
+    execution: sink
+
+  #
+  # the "*" pojo mapping entry must be the first one in the input mapping
+  # so that the subsequent update to the pojo is possible.
+  #
+  - name: 'join.task'
+    input:
+      - 'model.pojo -> *'
+      - 'model.parent.key1 -> key1'
+      - 'model.parent.key2 -> key2'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Return result'
+    execution: end
+
+  - input:
+      - 'error.task -> task'
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'simple.exception.handler'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

@@ -1,0 +1,53 @@
+flow:
+  id: 'numeric-decision-test'
+  description: 'Simple Decision that returns a decision number'
+  ttl: 10s
+
+first.task: 'numeric.decision'
+
+tasks:
+  - input:
+      - 'input.query.decision -> decision'
+    process: 'numeric.decision'
+    output:
+      - 'result -> model.decision'
+      - 'result -> decision'
+    description: 'Simple decision test'
+    execution: decision
+    next:
+      - 'decision.case.one'
+      - 'decision.case.two'
+      - 'decision.case.three'
+
+  - name: 'decision.case.one'
+    input:
+      - 'model.decision -> decision'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(one) -> output.body.from'
+      - 'result.decision -> output.body.decision'
+    description: 'Just a test'
+    execution: end
+
+  - name: 'decision.case.two'
+    input:
+      - 'model.decision -> decision'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(two) -> output.body.from'
+      - 'result.decision -> output.body.decision'
+    description: 'Just a test'
+    execution: end
+
+  - name: 'decision.case.three'
+    input:
+      - 'model.decision -> decision'
+    process: 'decision.case'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(three) -> output.body.from'
+      - 'result.decision -> output.body.decision'
+    description: 'Just a test'
+    execution: end

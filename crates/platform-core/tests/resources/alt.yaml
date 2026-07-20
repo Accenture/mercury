@@ -1,0 +1,3 @@
+# exists only as .yaml — loading "classpath:/alt.yml" must fall back here
+alternative:
+  extension: works
