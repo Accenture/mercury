@@ -17,7 +17,8 @@ Notes
 - 'list graphs' (discovery, read-only) enumerates the deployable graph
   models - the valid extension={graph-id} delegation targets - each with
   its root node's "purpose" property, so the listing reads as living
-  documentation of the enterprise knowledge on this server.
+  documentation of the enterprise knowledge on this server. Follow up
+  with 'describe graph {graph-id}' for a model's input/output contract.
 - 'list flows' (discovery, read-only) enumerates the Event Script flows -
   the valid extension=flow://{flow-id} delegation targets.
 - 'list nodes' prints each node with its type: the root node first, the end

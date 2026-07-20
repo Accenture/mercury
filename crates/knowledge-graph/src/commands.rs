@@ -820,9 +820,10 @@ fn list_graphs() -> String {
         }
     }
     sb.push_str(&format!(
-        "Total {total} graph model{}",
+        "Total {total} graph model{}\n",
         if total == 1 { "" } else { "s" }
     ));
+    sb.push_str("Use 'describe graph {graph-id}' for a model's input/output contract");
     sb
 }
 
@@ -872,12 +873,126 @@ fn deployed_dirs() -> Vec<PathBuf> {
         .collect()
 }
 
+/// A deployed/compiled graph model as JSON (compiled registry first, then
+/// the deployed location).
+fn deployed_model_json(graph_id: &str) -> Option<serde_json::Value> {
+    match crate::graphs::get_graph(graph_id) {
+        Some(model) => serde_json::to_value(&*model).ok(),
+        None => serde_json::from_str(&deployed_graph_as_text(graph_id)?).ok(),
+    }
+}
+
+/// Discovery: the CONTRACT view of a deployed graph model — purpose, size,
+/// and the input/output surface derived from the model's node properties —
+/// so an agent can wire `extension=` delegation without out-of-band
+/// knowledge or trial execution.
+async fn describe_deployed_graph(
+    po: &PostOffice,
+    out_route: &str,
+    graph_id: &str,
+) -> Result<(), AppError> {
+    let Some(json) = deployed_model_json(graph_id) else {
+        say(
+            po,
+            out_route,
+            format!("Graph model '{graph_id}'{NOT_FOUND}"),
+        )
+        .await;
+        return Ok(());
+    };
+    let nodes = match json.get("nodes").and_then(|n| n.as_array()) {
+        Some(nodes) => nodes.len(),
+        None => 0,
+    };
+    let connections = match json.get("connections").and_then(|c| c.as_array()) {
+        Some(connections) => connections.len(),
+        None => 0,
+    };
+    let mut sb = format!("Deployed graph model '{graph_id}'\n");
+    if let Some(purpose) = graph_purpose(graph_id) {
+        sb.push_str(&format!("Purpose: {purpose}\n"));
+    }
+    sb.push_str(&format!("Nodes: {nodes}, connections: {connections}\n"));
+    let (inputs, outputs) = model_data_surface(&json);
+    sb.push_str("Input surface:\n");
+    if inputs.is_empty() {
+        sb.push_str("  (none referenced)\n");
+    }
+    for path in &inputs {
+        sb.push_str(&format!("  {path}\n"));
+    }
+    sb.push_str("Output surface:\n");
+    if outputs.is_empty() {
+        sb.push_str("  (none referenced)\n");
+    }
+    for path in &outputs {
+        sb.push_str(&format!("  {path}\n"));
+    }
+    sb.push_str("(derived from the model's data mappings)");
+    say(po, out_route, sb).await;
+    Ok(())
+}
+
+/// Scan every node-property string of a model for `input.*` / `output.*`
+/// path tokens — the model's externally visible data surface.
+fn model_data_surface(
+    json: &serde_json::Value,
+) -> (
+    std::collections::BTreeSet<String>,
+    std::collections::BTreeSet<String>,
+) {
+    let mut inputs = std::collections::BTreeSet::new();
+    let mut outputs = std::collections::BTreeSet::new();
+    let Some(nodes) = json.get("nodes").and_then(|n| n.as_array()) else {
+        return (inputs, outputs);
+    };
+    for node in nodes {
+        let Some(properties) = node.get("properties") else {
+            continue;
+        };
+        collect_path_tokens(&properties.to_string(), "input.", &mut inputs);
+        collect_path_tokens(&properties.to_string(), "output.", &mut outputs);
+    }
+    (inputs, outputs)
+}
+
+/// Collect dotted-path tokens starting with `prefix` from free text
+/// (mapping entries, plugin args, `{...}` substitutions in statements).
+fn collect_path_tokens(text: &str, prefix: &str, found: &mut std::collections::BTreeSet<String>) {
+    let bytes = text.as_bytes();
+    let mut start = 0;
+    while let Some(pos) = text[start..].find(prefix) {
+        let begin = start + pos;
+        // must not be part of a longer identifier (e.g. "xinput.")
+        if begin > 0 {
+            let prev = bytes[begin - 1] as char;
+            if prev.is_ascii_alphanumeric() || prev == '_' || prev == '.' {
+                start = begin + prefix.len();
+                continue;
+            }
+        }
+        let mut end = begin + prefix.len();
+        while end < bytes.len() {
+            let c = bytes[end] as char;
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '[' | ']') {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        let token = text[begin..end]
+            .trim_end_matches(['.', '-', '['])
+            .to_string();
+        if token.len() > prefix.len() {
+            found.insert(token);
+        }
+        start = end;
+    }
+}
+
 /// The root node's `purpose` property of a deployed/compiled graph model.
 fn graph_purpose(graph_id: &str) -> Option<String> {
-    let json: serde_json::Value = match crate::graphs::get_graph(graph_id) {
-        Some(model) => serde_json::to_value(&*model).ok()?,
-        None => serde_json::from_str(&deployed_graph_as_text(graph_id)?).ok()?,
-    };
+    let json: serde_json::Value = deployed_model_json(graph_id)?;
     let nodes = json.get("nodes")?.as_array()?;
     let root = nodes
         .iter()
@@ -981,7 +1096,9 @@ async fn handle_describe(
     out_route: &str,
     words: &[String],
 ) -> Result<(), AppError> {
-    if words.len() > 1 && words[1].eq_ignore_ascii_case("graph") {
+    if words.len() == 3 && words[1].eq_ignore_ascii_case("graph") {
+        describe_deployed_graph(po, out_route, &words[2]).await
+    } else if words.len() > 1 && words[1].eq_ignore_ascii_case("graph") {
         describe_graph(po, in_route, out_route).await
     } else if words.len() == 3 && words[1].eq_ignore_ascii_case("skill") {
         let command = format!("help {}", words[2].replace('.', "-"));

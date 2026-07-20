@@ -124,7 +124,7 @@
       ],
       "alias": "root",
       "properties": {
-        "purpose": "Demonstrate data sourcing using the Data Dictionary method",
+        "purpose": "Demonstrate parallel data sourcing composition - fan out two profile fetches and join the results into a profile list",
         "name": "tutorial-5"
       }
     }

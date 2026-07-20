@@ -93,7 +93,7 @@
       ],
       "alias": "root",
       "properties": {
-        "purpose": "Demonstrate data sourcing using the Data Dictionary method",
+        "purpose": "Demonstrate data sourcing using the Data Dictionary method - fetch one person profile (name and address) by person_id",
         "name": "tutorial-3"
       }
     }

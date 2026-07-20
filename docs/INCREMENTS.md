@@ -63,6 +63,7 @@
 | 44 | human docs site phase 2: Foundations trio + Layer 1/2 guides; layer-organized nav (human + AI docs per layer) | 2026-07-20 | D-H2 | — |
 | 45 | human docs site phase 3: KG human pages + REST automation + the six D-H2 reference conversions (12 pages) | 2026-07-20 | D-H2 | — |
 | 46 | human docs site phase 4 — COMPLETE: port-scope page, Home/Getting-Started polish, final strict pass (20 nav pages) | 2026-07-20 | D-H1/D-H2 | — |
+| 47 | `describe graph {graph-id}` — a deployed model's contract view (finding #53) + differentiated tutorial purposes (#54); both ports | 2026-07-20 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1244,6 +1245,31 @@ gate for the repo's graduation to `github.com/Accenture/mercury` is done.**
 - The site totals ~4,600 lines of new human documentation across phases 1–4, every code
   sample and configuration key verified against this repository's source, with ~40
   `!!! note "Rust port"` divergence boxes — no silent divergence anywhere.
+
+---
+
+## Increment 47 — `describe graph {graph-id}`: the deployed-model contract view (2026-07-20)
+
+**Closes discovery-drive findings #53 and #54 — self-service delegation is now complete.**
+
+- **#53:** the new read-only **`describe graph {graph-id}`** shows a deployed model's
+  **contract view**: purpose, node/connection counts, and the `input.*` / `output.*` data
+  surface derived by scanning the model's own node properties (mapping entries, plugin args,
+  statement substitutions). An agent wires `extension=` delegation `input[]`/`output[]` from
+  it — no out-of-band brief, no trial execution. Plain `describe graph` still describes the
+  draft; the `list graphs` footer advertises the new form.
+- **#54:** tutorial-3 and tutorial-5 carried identical purposes, defeating purpose-based
+  discovery — now differentiated in BOTH repos (single fetch-by-id vs parallel fan-out
+  composition); the tutorial-3 help transcript synced.
+- **Rust:** `describe_deployed_graph`/`deployed_model_json`/`model_data_surface`/
+  `collect_path_tokens` in `commands.rs`; `playground.rs` assertions (contract view +
+  not-found). Workspace 202 tests / clippy 0 / fmt clean; webapp bundle re-released.
+- **Java:** mirrored in `GraphCommandService` (+ `deployedModel` shared with `graphPurpose`);
+  `/sync` coverage in `CompanionSyncTest`; module suite **70 tests** green; branch
+  **`feat/describe-deployed-graph`** pushed for the upstream PR.
+- **Docs:** grammar `#describe` + discovery paragraph, catalog entry, `help describe.md` +
+  `help list.md`, the AI agent guide's recipe (discover → **contract** → delegate). Rollups
+  #53/#54 → DONE.
 
 ---
 

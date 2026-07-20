@@ -191,6 +191,30 @@ async fn playground_command_grammar_and_companion() {
         ),
         "flow listing carries the mandatory flow.description"
     );
+    assert!(
+        console_has(&lines, "describe graph {graph-id}"),
+        "list graphs advertises the contract command"
+    );
+
+    // --- discovery: the contract view of a deployed model (finding #53)
+    command(&po, in_route, out_route, "describe graph tutorial-3").await;
+    assert!(
+        console_has(&lines, "Deployed graph model 'tutorial-3'"),
+        "deployed-model header expected"
+    );
+    assert!(
+        console_has(&lines, "input.body.person_id"),
+        "derived input surface expected"
+    );
+    assert!(
+        console_has(&lines, "output.body.name"),
+        "derived output surface expected"
+    );
+    command(&po, in_route, out_route, "describe graph no-such-model-xyz").await;
+    assert!(
+        console_has(&lines, "Graph model 'no-such-model-xyz' not found"),
+        "unknown model reported not found"
+    );
 
     // --- build a graph: root, end, a mapper, and connections
     command(&po, in_route, out_route, "create node root").await;

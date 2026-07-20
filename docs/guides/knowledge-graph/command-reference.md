@@ -214,6 +214,7 @@ inspect output.body.name     # a specific composite key
 
 ```
 describe graph
+describe graph {graph-id}        # DISCOVERY: a deployed model's contract view
 describe node {name}
 describe connection {node-a} and {node-b}
 describe skill {skill.route}     # prints the shipped help for a skill
@@ -228,8 +229,10 @@ seen                             # nodes visited in the last run
 [`graph.extension`](skills-reference.md#extension) node can delegate to — the compiled registry
 united with the deployed location's models — each with its root node's `purpose`, so the listing
 reads as living documentation. `list flows` enumerates the Event Script flows for
-`extension=flow://{flow-id}`. Use them to find delegation targets **without an out-of-band
-brief**.
+`extension=flow://{flow-id}`. **`describe graph {graph-id}`** then shows a deployed model's
+**contract view** — its purpose, size, and the `input.*` / `output.*` data surface derived
+from the model's own mappings — so an agent can wire the delegation's `input[]`/`output[]`
+without out-of-band knowledge or trial execution.
 
 ### export / import {#export}
 

@@ -7,10 +7,18 @@ Syntax
 ------
 ```
 describe graph
+describe graph {graph-id}
 describe node {name}
 describe connection {node-A} and {node-B}
 describe skill {skill.route.name}
 ```
+
+- 'describe graph' (no id) describes the CURRENT DRAFT of this session.
+- 'describe graph {graph-id}' (discovery, read-only) shows a DEPLOYED
+  model's contract view: its purpose, node/connection counts, and the
+  input.*/output.* data surface derived from the model's own mappings -
+  everything needed to wire an extension= delegation without trial
+  execution. Find the available ids with 'list graphs'.
 
 Example
 -------

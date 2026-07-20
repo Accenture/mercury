@@ -20,7 +20,7 @@ create node root
 with type Root
 with properties
 name=tutorial-3
-purpose=Demonstrate data sourcing using the Data Dictionary method
+purpose=Demonstrate data sourcing using the Data Dictionary method - fetch one person profile (name and address) by person_id
 ```
 
 ```
