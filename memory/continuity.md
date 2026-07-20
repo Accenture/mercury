@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 48 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-051617)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-154247)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 50 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 53 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +92,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 53 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 55 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -241,7 +241,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 30 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 33 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign
   fallback (rollup #40).** Found in the tut-12 pre-flight ([[ot-companion-validation-sweep]]):
@@ -490,20 +490,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
 
-- [ ] **(backlog) HTTP redirection processing for the outbound HTTP client (both ports) —
-  maintainer-requested 2026-07-20 (post drive #3, which surfaced the no-redirect behavior).**
-  Investigate whether the Java client has redirection enabled and whether the Rust client can
-  support the same. **Preliminary evidence (to confirm when picked up):** `followRedirect`
-  appears NOWHERE in the Java repo — Reactor-Netty's default is `followRedirect(false)`, so
-  the capability exists in Netty but is NOT enabled in mercury-composable today (drive #3's
-  301-capture behavior is therefore *shared* engine behavior, and finding #61's "never
-  follows" doc holds for both ports). Rust: hyper is deliberately low-level — redirection
-  would be an explicit loop (3xx + `Location`, bounded hops, 301/302/303-vs-307/308 method
-  semantics, http→https only never the reverse). Design questions for the maintainer:
-  opt-in flag (per-request like `trust_all_cert`, or per-Provider `feature[]`?) vs default-on;
-  parity requires enabling Java's `followRedirect` and implementing the Rust loop in the same
-  increment, plus doc updates (#61 wording). → serves: vision-mercury
-  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
+- [x] **HTTP redirection backlog — RESOLVED 2026-07-20: story WITHDRAWN (parity confirmed
+  empirically; maintainer's stated criterion met).** A temporary JUnit probe in the Java
+  repo (`RedirectProbeTest`, PostOffice → `async.http.request`, live `https://google.com`)
+  returned **301 / location: www.google.com / 220-char body — byte-identical to the Rust
+  port's drive-#3 result**. Reactor-Netty supports `followRedirect` but mercury-composable
+  never enables it, so raw-3xx-to-the-caller is canonical behavior in BOTH engines; finding
+  #61's grammar rule ("the fetcher never follows redirects; point the Provider url at the
+  target") documents the shared contract. Nothing to port. Probe file removed after
+  evidence capture (live-endpoint dependency — not CI material); verbatim transcript +
+  decision record now in `docs/design/platform-core-port.md` §5j. **Maintainer rationale
+  (2026-07-20): deliberate design, not an omission** — the engines target BACKEND
+  applications; redirect-following is browser-side automation; a backend needing it (e.g.
+  SSO) handles it programmatically (layer 1) or declaratively via `{node}.status` routing
+  (layers 2/3); years of Java production confirm it is not normally required. The raw 3xx
+  IS the correct answer for a backend client. → serves: vision-mercury
+  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-051617.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

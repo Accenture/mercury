@@ -580,10 +580,59 @@ application declares itself the way a Java mercury app does with annotations:
   marker suppressing the bracket. Live verification: `cargo run -p hello-world` + curl
   against REST, etag/304, no-cache + filter headers, `/info`, `/health`.
 
+## 5j. Outbound HTTP client (`async.http.request`) — HTTPS + redirect semantics
+
+**HTTPS (increment 48, 2026-07-20).** TLS via `tokio-rustls` (`ring` provider) +
+`rustls-native-certs`: strict mode verifies against the **OS certificate store** (the
+JDK-default-truststore analog the Java client uses); per-request `trust_all_cert` skips
+chain validation only (handshake signatures still verified) — mirroring Java's
+`InsecureTrustManagerFactory` escape hatch. `validate_url` accepts `https` (default 443);
+TLS failures surface in-band (500). Tests: `tests/http_client_tls.rs` (local self-signed
+server — trust-all 200 + strict rejection); field-validated end-to-end against the live
+google.com CA chain by companion drive #3 (`docs/AI-companion-test.md`).
+
+**Redirect semantics (decision record, 2026-07-20 — Rust redirect story WITHDRAWN).**
+Neither engine follows redirects: Reactor-Netty supports `followRedirect` but
+mercury-composable never enables it (the flag appears nowhere in the Java repo), so the
+raw 3xx reaching the caller is **canonical shared behavior** — nothing to port. Verified
+empirically with a temporary JUnit probe in the Java repo (`RedirectProbeTest`, modeled on
+`HttpsTest`: `EventEmitter → async.http.request` against live `https://google.com`;
+removed after evidence capture — a live-endpoint test is not CI material). Captured
+stdout (surefire, `tests: 1, failures: 0, time: 6.005`):
+
+```
+=== REDIRECT PROBE ===
+status   = 301
+location = https://www.google.com/
+body     = <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8"> <TITLE>301 Moved</TITLE></HEAD><BODY> <H1>301 Moved</H1> The document has moved <A HREF="https://www.google.com/">here</A>. </BODY></HTML>
+body.len = 220
+======================
+```
+
+The Rust port's result for the same call (companion drive #3) is byte-identical:
+`{status: 301, page_size: 220}` with the same 220-character body. The documented contract
+(AI grammar finding #61) — "the fetcher never follows redirects; point the Provider `url`
+at the redirect target" — therefore holds for **both** engines.
+
+**Design rationale (maintainer, 2026-07-20): this is deliberate, not an omission.** The
+engines are designed for developers writing **backend applications**; automatic HTTP
+redirection is a **browser-side automation**. Where a backend genuinely must handle a
+redirect flow (e.g. SSO), it does so **programmatically at layer 1** (a composable
+function reads the 3xx status + `location` header and issues the follow-up call) or
+**declaratively at layers 2/3** (an Event Script flow / graph routes on `{node}.status`
+and re-fetches — exactly the failure-routing/decision machinery the grammar already
+documents). Years of the Java engine in production confirm that automatic
+redirect-following is not normally required. Any future revisiting would be a new
+shared-design feature for both engines in one increment — but the default stance is: the
+raw 3xx **is** the correct answer for a backend client.
+
 ## 6. Out of scope (confirmed)
 
-- **Kafka service mesh** — `minimalist-kafka`, `twin-kafka`, all of `connectors/` (enable-time
-  decision).
+- **Kafka service mesh** (service discovery + sync-over-Kafka) — all of `connectors/`
+  (enable-time decision). **Refined 2026-07-20:** `minimalist-kafka` and `twin-kafka` are
+  *lightweight cloud-native connectors*, NOT part of the mesh exclusion — future-port
+  backlog together with `sync-over-async` (see `memory/continuity.md` +
+  `docs/background/port-scope.md`).
 - **Spring adapters** (`rest-spring-3/-4`) — Spring is Java-only (maintainer, 2026-07-15).
   platform-core's own Vert.x-based REST automation (`automation/` package) **is** in scope,
   as a later increment (§8).

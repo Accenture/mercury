@@ -162,6 +162,14 @@ chain validation per request with `set_trust_all_cert(true)` — the same escape
 Java client's `trust_all_cert` flag. Use it only for endpoints you control: it disables
 certificate validation for that call.
 
+**Redirects are never followed** — one request is one HTTP call, and a `3xx` answer comes
+back to you like any other response (status, `location` header, body). This is deliberate,
+in both the Java and Rust engines: the client serves **backend** applications, and
+automatic redirection is a browser-side behavior. Where a backend genuinely needs to
+follow a redirect flow (e.g. SSO), handle it in your function — read the status and
+`location` from the reply and issue the follow-up call — or declaratively in a flow or
+graph that routes on the returned status.
+
 !!! note "Rust port"
     TLS uses [rustls](https://github.com/rustls/rustls) with the OS certificate store
     (increment 48) — behavior matches the Java client, including the `trust_all_cert`
