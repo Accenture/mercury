@@ -58,6 +58,7 @@
 | 39 | numeric promotion for the simple-plugin arithmetic family + new `f:round` half-up decimal rounding (both ports) | 2026-07-19 | — | 202 |
 | 40 | join barrier counts only valid completions: success-only `skill_run` + `RESET` clears the completion mark (latent premature-join bug, both ports) | 2026-07-19 | — | 202 |
 | 41 | chained join judges an upstream join by its recorded outcome (fired vs sank; both ports) | 2026-07-19 | — | 202 |
+| 42 | discovery commands `list graphs` / `list flows` — self-service `extension=` delegation targets (finding #38, both ports) | 2026-07-20 | — | 202 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1111,6 +1112,35 @@ upstream join as complete and fired prematurely, dropping the slow branch's data
   auto-close lesson).
 - **Docs:** the "multi-stage joins compose safely" clause added to `skills-reference.md`,
   `help graph-join.md`, and the JSON catalog's join entry (webapp bundle re-released).
+
+---
+
+## Increment 42 — discovery commands: `list graphs` / `list flows` (2026-07-20)
+
+**Closes sweep finding #38 (tut-11) — the read-only discovery surface that makes
+`extension=` delegation self-service, in both ports.**
+
+- **Commands:** the `list` command grows two forms. `list graphs` enumerates the deployable
+  graph models — the compiled registry **united** with the deployed location's `*.json` files
+  (Rust: every resource root; Java: exploded classpath directories, with the compiled registry
+  covering packaged-jar models) — each with its root node's `purpose`, so the listing reads as
+  **living documentation of enterprise knowledge**. `list flows` enumerates the Event Script
+  flows for `extension=flow://{flow-id}`. Both are read-only and available on the WS console
+  and both companion endpoints.
+- **Rust:** `list_graphs`/`list_flows`/`deployed_dirs`/`graph_purpose` in `commands.rs`;
+  assertions in `tests/playground.rs`. Workspace 202 tests / clippy 0 / fmt clean.
+- **Java:** mirrored in `GraphCommandService` (+ `CompiledGraphs`/`Flows` registries); tested
+  via `/sync` in `CompanionSyncTest` (the agent-facing path); module suite **70 tests** green;
+  branch **`feat/discovery-commands`** pushed for the upstream PR.
+- **Docs:** grammar `#describe` section + discovery paragraph, JSON catalog entries, the AI
+  agent guide's recipe step 1 (discover before delegating), `skills-reference.md#extension`
+  pointer, `help list.md` (webapp bundle re-released, 124 tests green). Rollup #38 → DONE.
+- **Browser-test refinements (maintainer, same session):** the `Flow` model now **retains the
+  mandatory `flow.description`** (validated at compile, previously discarded) and `list flows`
+  shows it; the graph compiler **enforces the discovery contract** — a manifest graph whose
+  root node lacks a non-empty `purpose` is rejected (`rust-no-purpose` fixture proves it;
+  `unit-test-1` gained a purpose in both repos); `help.md` overview + `help list.md` updated
+  in both engines. Java suites: event-script **142**, playground **70**.
 
 ---
 

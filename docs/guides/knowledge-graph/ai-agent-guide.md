@@ -108,7 +108,10 @@ Subscriptions are managed from WebSocket-connected sessions only.
 
 A reliable order for building a graph:
 
-1. **Plan** the nodes and the connections (root → … → end) before issuing commands.
+1. **Plan** the nodes and the connections (root → … → end) before issuing commands. Composing
+   by delegation? **Discover the valid targets first**: `list graphs` (deployed graph models,
+   with each root's purpose) and `list flows` (Event Script flows) — read-only commands, so no
+   out-of-band brief is needed for `extension=` targets.
 2. **Create nodes:** `create node root` (type `Root`), the active/skill nodes, and `create node end`
    (type `End`, usually with `graph.data.mapper` to shape `output.body`).
 3. **Connect** them so traversal flows root → end, with no orphans.

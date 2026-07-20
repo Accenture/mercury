@@ -175,7 +175,8 @@ instead of aborting — the building block for bounded retry loops
 ## graph.extension {#extension}
 
 Delegates to another **graph model** or an **Event Script flow**, so you can compose larger
-capabilities and reuse logic.
+capabilities and reuse logic. **Discover the valid targets with `list graphs` / `list flows`**
+([discovery commands](command-reference.md#describe)) — no out-of-band brief needed.
 
 ```
 skill=graph.extension

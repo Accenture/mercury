@@ -30,7 +30,7 @@ For graph model
 - help edit (node)
 - help delete (node, connection or cache)
 - help connect (node-A to node-B)
-- help list (nodes or connections)
+- help list (nodes, connections, graphs, flows)
 - help export (graph model as JSON for deployment)
 - help import (graph or node)
 - help describe (graph, node, connection or skill)

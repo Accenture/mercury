@@ -28,3 +28,4 @@ graphs:
   - 'rust-foreach'
   - 'rust-join-retry'
   - 'rust-join-chain'
+  - 'rust-no-purpose'

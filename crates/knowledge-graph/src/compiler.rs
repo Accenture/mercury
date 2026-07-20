@@ -105,7 +105,28 @@ fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, Str
     MiniGraph::new()
         .import_graph(&model)
         .map_err(|e| e.message().to_string())?;
+    // discovery contract: every deployable graph documents itself - the root
+    // node's 'purpose' is what `list graphs` shows as living documentation
+    if !has_root_purpose(&model) {
+        return Err("root node must define a non-empty 'purpose' property".to_string());
+    }
     Ok(model)
+}
+
+fn has_root_purpose(model: &Value) -> bool {
+    let mm = MultiLevelMap::from_value(model.clone());
+    let Some(Value::Array(nodes)) = mm.get_element("nodes") else {
+        return false;
+    };
+    for i in 0..nodes.len() {
+        if mm.get_element(&format!("nodes[{i}].alias")) == Some(Value::from("root")) {
+            return matches!(
+                mm.get_element(&format!("nodes[{i}].properties.purpose")),
+                Some(Value::String(text)) if !text.as_str().unwrap_or_default().trim().is_empty()
+            );
+        }
+    }
+    false
 }
 
 fn convert_data_mapping_entries(graph_id: &str, model: &mut Value) {

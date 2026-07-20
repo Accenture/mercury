@@ -105,7 +105,7 @@ fn create_flow(prefix: &str, name: &str) -> Result<(), String> {
     match (id, description, ttl, first_task) {
         (
             Some(ConfigValue::Text(flow_id)),
-            Some(ConfigValue::Text(_)),
+            Some(ConfigValue::Text(description)),
             Some(ConfigValue::Text(ttl)),
             Some(ConfigValue::Text(first)),
         ) => {
@@ -122,7 +122,14 @@ fn create_flow(prefix: &str, name: &str) -> Result<(), String> {
             };
             // minimum 1 second for TTL
             let ttl_seconds = duration_in_seconds(&ttl).max(1) as u64;
-            let mut entry = Flow::new(&flow_id, &first, ext_state, ttl_seconds * 1000, exception);
+            let mut entry = Flow::new(
+                &flow_id,
+                &description,
+                &first,
+                ext_state,
+                ttl_seconds * 1000,
+                exception,
+            );
             let task_count = match reader.get("tasks") {
                 Some(ConfigValue::List(list)) => list.len(),
                 _ => 0,
@@ -319,7 +326,10 @@ fn finalize_entry(entry: &mut Flow) -> Result<(), String> {
     } else if incomplete {
         Err("flow has invalid data mappings".to_string())
     } else {
-        flows::add_flow(std::mem::replace(entry, Flow::new("", "", None, 0, None)));
+        flows::add_flow(std::mem::replace(
+            entry,
+            Flow::new("", "", "", None, 0, None),
+        ));
         Ok(())
     }
 }

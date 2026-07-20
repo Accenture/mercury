@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    { "types": ["Root"], "alias": "root", "properties": { "name": "rust-no-purpose" } },
+    { "types": ["End"], "alias": "end", "properties": {} }
+  ],
+  "connections": [
+    { "source": "root", "relations": [{ "type": "done", "properties": {} }], "target": "end" }
+  ]
+}

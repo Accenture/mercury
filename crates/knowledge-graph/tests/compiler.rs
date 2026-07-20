@@ -44,6 +44,9 @@ fn manifest_listed_graphs_are_compiled() {
     // a graph id that is not listed in graphs.yaml must not be compiled -
     // the graph executor falls back to lazy loading for it
     assert!(!graphs::graph_exists("tutorial-99"));
+    // the discovery contract is enforced at compile: a manifest graph whose
+    // root node has no 'purpose' is rejected (rust-no-purpose fixture)
+    assert!(!graphs::graph_exists("rust-no-purpose"));
     // every graph in the manifest is valid: 13 tutorials + 16 test fixtures
     let mut all = graphs::get_all_graphs();
     all.sort();

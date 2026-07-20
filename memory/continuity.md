@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 41 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 42 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-001528)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-003131)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -66,7 +66,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-19 | uses: 42 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 45 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-19 | uses: 45 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 48 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -225,7 +225,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-19 | uses: 24 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 26 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only.** Found
   during tut-5 ([[ot-companion-validation-sweep]]): `session subscribe` via `/sync` registered the
@@ -344,14 +344,18 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   separate; the in-app help pages are already done. → serves: vision-mercury
   <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-181641.md -->
 
-- [ ] **(backlog) Discovery commands for deployed flows and graph models.** Maintainer decision
-  2026-07-19 (from tut-11 finding #38): agents (and humans) currently rely on out-of-band briefs
-  for `extension={graph-id}` / `flow://{flow-id}` targets — a read-only discovery surface (e.g.
-  `list graphs` / `list flows` commands, or REST equivalents) would make delegation self-service
-  and strengthen the graph-as-living-documentation story. Engine work (both ports; coordinate
-  with `Accenture/mercury-composable`); document in the AI grammar when it lands. Rollup #38 in
-  `docs/AI-companion-test.md`. → serves: vision-mercury
-  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: working | origin: 2026-07-19-171653.md -->
+- [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
+  BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
+  `list graphs` (compiled registry ∪ deployed-folder models, each with the root's `purpose`:
+  living documentation) and `list flows` (Event Script flows) — valid `extension=` /
+  `extension=flow://` targets discoverable without an out-of-band brief, on the console AND both
+  companion endpoints. Rust: `commands.rs` + `playground.rs` assertions (workspace 202/clippy
+  0/fmt). Java: `GraphCommandService` + `/sync` test in `CompanionSyncTest` (70-test suite
+  green); branch **`feat/discovery-commands`** pushed — maintainer opens the PR. AI grammar +
+  catalog + agent-guide recipe + skills-reference + `help list.md` all updated; rollup #38 →
+  DONE. Design note: discovery rides the command surface (no new REST endpoints — `/sync`
+  already gives agents REST access to every command). → serves: vision-mercury
+  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-19-171653.md -->
 
 - [x] **(backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19.** Maintainer decision
   2026-07-18 (post tut-5): the `crates/knowledge-graph/resources/help/*.md` pages are designed for
@@ -369,7 +373,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   upstream's help pages is now INTENTIONAL for code examples/port specifics (maintainer
   direction); behavior semantics stay aligned with the shared grammar.** Rollup #16 in
   `docs/AI-companion-test.md`. → serves: vision-mercury
-  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 7 | tier: active | origin: 2026-07-18-231641.md -->
+  <!-- id: ot-help-pages-rewrite | created: 2026-07-18 | last_used: 2026-07-19 | uses: 7 | tier: archive-candidate | origin: 2026-07-18-231641.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a

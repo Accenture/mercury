@@ -107,6 +107,8 @@ impl Task {
 #[derive(Debug)]
 pub struct Flow {
     pub id: String,
+    /// The mandatory `flow.description` (retained for discovery listings).
+    pub description: String,
     /// Time-to-live in milliseconds (compile floor: 1s).
     pub ttl: u64,
     pub first_task: String,
@@ -121,6 +123,7 @@ pub struct Flow {
 impl Flow {
     pub fn new(
         id: &str,
+        description: &str,
         first_task: &str,
         external_state_machine: Option<String>,
         ttl_ms: u64,
@@ -128,6 +131,7 @@ impl Flow {
     ) -> Self {
         Flow {
             id: id.to_string(),
+            description: description.to_string(),
             ttl: ttl_ms,
             first_task: first_task.to_string(),
             external_state_machine,

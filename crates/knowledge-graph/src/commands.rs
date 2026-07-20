@@ -777,11 +777,118 @@ async fn handle_list(
         list_nodes(&graph)?
     } else if kind.eq_ignore_ascii_case("connections") {
         list_connections(&graph)
+    } else if kind.eq_ignore_ascii_case("graphs") {
+        list_graphs()
+    } else if kind.eq_ignore_ascii_case("flows") {
+        list_flows()
     } else {
-        "Please use 'list nodes' or 'list connections'".to_string()
+        "Please use 'list nodes', 'list connections', 'list graphs' or 'list flows'".to_string()
     };
     say(po, out_route, text).await;
     Ok(())
+}
+
+/// Discovery: the graph models a `graph.extension` node can delegate to
+/// (`extension={graph-id}`) — the compiled registry united with the deployed
+/// location's `*.json` files — each with its root `purpose` so the listing
+/// reads as living documentation.
+fn list_graphs() -> String {
+    let mut ids: std::collections::BTreeSet<String> =
+        crate::graphs::get_all_graphs().into_iter().collect();
+    for dir in deployed_dirs() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Some(stem) = name.strip_suffix(".json") {
+                    ids.insert(stem.to_string());
+                }
+            }
+        }
+    }
+    if ids.is_empty() {
+        return "No graph models deployed".to_string();
+    }
+    let mut sb = String::from("Deployed graph models - extension={graph-id} targets:\n");
+    let total = ids.len();
+    for id in ids {
+        match graph_purpose(&id) {
+            Some(purpose) => sb.push_str(&format!("{id} - {purpose}\n")),
+            None => {
+                sb.push_str(&id);
+                sb.push('\n');
+            }
+        }
+    }
+    sb.push_str(&format!(
+        "Total {total} graph model{}",
+        if total == 1 { "" } else { "s" }
+    ));
+    sb
+}
+
+/// Discovery: the Event Script flows a `graph.extension` node can call
+/// (`extension=flow://{flow-id}`).
+fn list_flows() -> String {
+    let ids = event_script::flows::get_all_flows();
+    if ids.is_empty() {
+        return "No flows deployed".to_string();
+    }
+    let mut sb = String::from("Event Script flows - extension=flow://{flow-id} targets:\n");
+    let total = ids.len();
+    for id in &ids {
+        match event_script::flows::get_flow(id) {
+            Some(flow) if !flow.description.trim().is_empty() => {
+                sb.push_str(&format!("{id} - {}\n", flow.description.trim()));
+            }
+            _ => {
+                sb.push_str(id);
+                sb.push('\n');
+            }
+        }
+    }
+    sb.push_str(&format!(
+        "Total {total} flow{}",
+        if total == 1 { "" } else { "s" }
+    ));
+    sb
+}
+
+/// The deployed location as enumerable directories: a `file:` location
+/// directly; a `classpath:` location through every resource root (listing is
+/// the union, matching resolve semantics where any root can satisfy a load).
+fn deployed_dirs() -> Vec<PathBuf> {
+    let location = deployed_location();
+    if let Some(path) = location.strip_prefix("file:") {
+        return vec![PathBuf::from(path)];
+    }
+    let Some(sub) = location.strip_prefix("classpath:") else {
+        return Vec::new();
+    };
+    let rel = sub.trim_start_matches('/');
+    platform_core::resources::resource_roots()
+        .into_iter()
+        .map(|root| root.join(rel))
+        .filter(|dir| dir.is_dir())
+        .collect()
+}
+
+/// The root node's `purpose` property of a deployed/compiled graph model.
+fn graph_purpose(graph_id: &str) -> Option<String> {
+    let json: serde_json::Value = match crate::graphs::get_graph(graph_id) {
+        Some(model) => serde_json::to_value(&*model).ok()?,
+        None => serde_json::from_str(&deployed_graph_as_text(graph_id)?).ok()?,
+    };
+    let nodes = json.get("nodes")?.as_array()?;
+    let root = nodes
+        .iter()
+        .find(|n| n.get("alias").and_then(|a| a.as_str()) == Some("root"))?;
+    let purpose = root.get("properties")?.get("purpose")?.as_str()?;
+    let trimmed = purpose.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn types_text(node: &Arc<SimpleNode>) -> String {

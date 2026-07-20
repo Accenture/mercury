@@ -216,8 +216,17 @@ describe connection {node-a} and {node-b}
 describe skill {skill.route}     # prints the shipped help for a skill
 list nodes
 list connections
+list graphs                      # DISCOVERY: deployable graph models (extension= targets)
+list flows                       # DISCOVERY: Event Script flows (extension=flow:// targets)
 seen                             # nodes visited in the last run
 ```
+
+**Discovery (read-only).** `list graphs` enumerates the graph models a
+[`graph.extension`](skills-reference.md#extension) node can delegate to — the compiled registry
+united with the deployed location's models — each with its root node's `purpose`, so the listing
+reads as living documentation. `list flows` enumerates the Event Script flows for
+`extension=flow://{flow-id}`. Use them to find delegation targets **without an out-of-band
+brief**.
 
 ### export / import {#export}
 

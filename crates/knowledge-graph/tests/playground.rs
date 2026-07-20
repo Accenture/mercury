@@ -160,6 +160,38 @@ async fn playground_command_grammar_and_companion() {
         "graph.math help expected"
     );
 
+    // --- discovery: deployed graph models (with root purpose) and flows —
+    // the read-only surface that makes extension= delegation self-service
+    command(&po, in_route, out_route, "list graphs").await;
+    assert!(
+        console_has(&lines, "extension={graph-id} targets"),
+        "list graphs header expected"
+    );
+    assert!(
+        console_has(&lines, "tutorial-1"),
+        "deployed tutorial-1 expected in the listing"
+    );
+    assert!(
+        console_has(&lines, "rust-join-chain"),
+        "manifest-compiled fixture expected in the listing"
+    );
+    command(&po, in_route, out_route, "list flows").await;
+    assert!(
+        console_has(&lines, "extension=flow://{flow-id} targets"),
+        "list flows header expected"
+    );
+    assert!(
+        console_has(&lines, "graph-executor"),
+        "the engine's own flow is a flow and must be listed"
+    );
+    assert!(
+        console_has(
+            &lines,
+            "flow-11 - This event flow will echo all input parameters"
+        ),
+        "flow listing carries the mandatory flow.description"
+    );
+
     // --- build a graph: root, end, a mapper, and connections
     command(&po, in_route, out_route, "create node root").await;
     assert!(console_has(&lines, "node root created"));
