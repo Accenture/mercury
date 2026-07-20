@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 47 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 48 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-040852)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-044500)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -33,7 +33,9 @@ swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4 (std fe
 tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
 async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
 **hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
-deliberately not a web framework: rest.yaml IS the router). Stack rationale:
+deliberately not a web framework: rest.yaml IS the router), **tokio-rustls 0.26 (ring) +
+rustls-native-certs 0.8** (increment 48 — outbound HTTPS with OS-trust-store verification +
+`trust_all_cert`; rcgen dev-dep for the self-signed TLS test). Stack rationale:
 `platform-core-stack` + design doc D1–D10. `.gitignore` is stack-aware (Rust section:
 `target/`, `**/*.rs.bk`, `*.pdb`; Cargo.lock tracked).
 
@@ -225,7 +227,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-20 (increment 47, both ports)** — new `describe graph {graph-id}` contract view
   (purpose + derived input/output surface; list → contract → delegate, all read-only) +
   differentiated tutorial-3/5 purposes; Java upstream PR
-  [#200](https://github.com/Accenture/mercury-composable/pull/200) created (CI pending).
+  [#200](https://github.com/Accenture/mercury-composable/pull/200) MERGED (2026-07-20) —
+  the discovery arc (list → contract → delegate) is live in BOTH engines.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`

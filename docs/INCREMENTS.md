@@ -64,6 +64,7 @@
 | 45 | human docs site phase 3: KG human pages + REST automation + the six D-H2 reference conversions (12 pages) | 2026-07-20 | D-H2 | — |
 | 46 | human docs site phase 4 — COMPLETE: port-scope page, Home/Getting-Started polish, final strict pass (20 nav pages) | 2026-07-20 | D-H1/D-H2 | — |
 | 47 | `describe graph {graph-id}` — a deployed model's contract view (finding #53) + differentiated tutorial purposes (#54); both ports | 2026-07-20 | — | 202 |
+| 48 | outbound HTTPS for the async HTTP client (rustls + OS trust store, `trust_all_cert` parity) — Rust-only parity work | 2026-07-20 | — | 206 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1270,6 +1271,36 @@ gate for the repo's graduation to `github.com/Accenture/mercury` is done.**
 - **Docs:** grammar `#describe` + discovery paragraph, catalog entry, `help describe.md` +
   `help list.md`, the AI agent guide's recipe (discover → **contract** → delegate). Rollups
   #53/#54 → DONE.
+
+---
+
+## Increment 48 — outbound HTTPS for the async HTTP client (2026-07-20)
+
+**Maintainer requirement: systems of record in the field require HTTPS** for outbound calls
+by `async.http.request` — directly or via MiniGraph's API Fetcher (which rides the same
+route and already passed `https://` Provider URLs through). Java has supported this from the
+start (Reactor-Netty `secure()` + `InsecureTrustManagerFactory` escape hatch), so this is
+**Rust-only parity work** that closes the module's documented `https` deferral.
+
+- **TLS stack:** [rustls](https://github.com/rustls/rustls) via `tokio-rustls` (`ring`
+  provider — no native cmake/asm toolchain) + `rustls-native-certs`. Strict mode verifies
+  against the **OS certificate store** (the JDK-default-truststore analog — corporate CAs
+  honored); client configs are built once per mode and cached.
+- **`trust_all_cert` parity** on `AsyncHttpRequest`: parsed from the map, fluent
+  `set_trust_all_cert`, emitted alongside `host` in `to_value` (Java `toMap` shape). The
+  trust-all verifier skips chain validation only — handshake signatures still verify —
+  mirroring Java's `InsecureTrustManagerFactory` semantics for self-signed endpoints.
+- **`validate_url`** accepts `https` (default port 443); the host header omits the scheme's
+  default port (80/443). TLS failures surface **in-band** (500 `TLS handshake failed …`),
+  like every other client error.
+- **Tests** (`tests/http_client_tls.rs`, no external network): a local rustls server with an
+  `rcgen` self-signed cert proves both modes — `trust_all_cert` → 200 + decoded JSON body;
+  strict → in-band certificate rejection; plus `to_value` round-trip and protocol-rejection
+  cases. Workspace **206 tests** / clippy 0 / fmt clean.
+- **Docs:** `actuators-and-http-client.md` target-host section rewritten (HTTPS + the
+  trust-all caveat); module doc deferral note replaced. The REST-automation *server-side*
+  HTTP(S) relay (`rest.yaml` URL services) remains deferred — unrelated to this client-side
+  support.
 
 ---
 

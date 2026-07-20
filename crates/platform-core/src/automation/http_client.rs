@@ -26,15 +26,23 @@
 //! Deliberate deferrals from the Java original (documented, not silent):
 //! object streams (up/download) and multipart file upload wait for the
 //! platform-core streams port; XML request/response bodies pass through as
-//! text (the `SimpleXmlParser`/writer pair is not ported); `https` targets
-//! are rejected with an explicit error until a TLS stack is adopted.
+//! text (the `SimpleXmlParser`/writer pair is not ported).
+//!
+//! `https` targets are supported (increment 48): certificates verify against
+//! the OS trust store (the JDK-truststore analog), and `trust_all_cert` on
+//! the request skips chain validation for self-signed endpoints — the same
+//! escape hatch as Java's `InsecureTrustManagerFactory` path.
 
 use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
 use rmpv::Value;
+use tokio_rustls::rustls;
+use tokio_rustls::rustls::pki_types::ServerName;
+use tokio_rustls::TlsConnector;
 
 use crate::envelope::EventEnvelope;
 use crate::function::AppError;
@@ -78,6 +86,7 @@ pub struct AsyncHttpRequest {
     path_parameters: Vec<(String, String)>,
     cookies: Vec<(String, String)>,
     session: Vec<(String, String)>,
+    trust_all_cert: bool,
 }
 
 impl Default for AsyncHttpRequest {
@@ -99,6 +108,7 @@ impl AsyncHttpRequest {
             path_parameters: Vec::new(),
             cookies: Vec::new(),
             session: Vec::new(),
+            trust_all_cert: false,
         }
     }
 
@@ -118,6 +128,9 @@ impl AsyncHttpRequest {
         request.method = get("method").and_then(|v| v.as_str()).map(str::to_string);
         request.url = get("url").and_then(|v| v.as_str()).map(str::to_string);
         request.target_host = get("host").and_then(|v| v.as_str()).map(str::to_string);
+        request.trust_all_cert = get("trust_all_cert")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         request.body = get("body").cloned().unwrap_or(Value::Nil);
         if let Some(Value::Map(headers)) = get("headers") {
             for (k, v) in headers {
@@ -177,6 +190,11 @@ impl AsyncHttpRequest {
         }
         if let Some(host) = &self.target_host {
             map.push((Value::from("host"), Value::from(host.as_str())));
+            // Java toMap: trust_all_cert travels with the relay target
+            map.push((
+                Value::from("trust_all_cert"),
+                Value::from(self.trust_all_cert),
+            ));
         }
         if !self.headers.is_empty() {
             map.push((Value::from("headers"), string_pairs(&self.headers)));
@@ -227,6 +245,13 @@ impl AsyncHttpRequest {
         self
     }
 
+    /// Java `setTrustAllCert`: skip certificate-chain validation for an
+    /// `https` target (self-signed endpoints). Ignored for plain `http`.
+    pub fn set_trust_all_cert(mut self, trust_all_cert: bool) -> Self {
+        self.trust_all_cert = trust_all_cert;
+        self
+    }
+
     /// Set (or replace, case-insensitively) a request header.
     pub fn set_header(mut self, key: &str, value: &str) -> Self {
         self.headers.retain(|(k, _)| !k.eq_ignore_ascii_case(key));
@@ -263,6 +288,10 @@ impl AsyncHttpRequest {
 
     pub fn target_host(&self) -> Option<&str> {
         self.target_host.as_deref()
+    }
+
+    pub fn trust_all_cert(&self) -> bool {
+        self.trust_all_cert
     }
 
     /// All request headers in insertion order.
@@ -408,7 +437,7 @@ async fn process_request(
     event: &EventEnvelope,
 ) -> Result<EventEnvelope, AppError> {
     let request = AsyncHttpRequest::from_value(event.body());
-    let (host, port) = validate_url(&request)?;
+    let (secure, host, port) = validate_url(&request)?;
     let uri = request.finalized_url();
     po.annotate_trace(
         "destination",
@@ -434,17 +463,45 @@ async fn process_request(
     .await
     .map_err(|_| AppError::new(408, format!("Connection timeout for {host}:{port}")))?
     .map_err(|e| AppError::new(500, format!("Unable to connect to {host}:{port} - {e}")))?;
-    let io = hyper_util::rt::TokioIo::new(stream);
-    let (mut sender, connection) = hyper::client::conn::http1::handshake(io)
-        .await
-        .map_err(|e| AppError::new(500, format!("HTTP handshake failed - {e}")))?;
-    tokio::spawn(async move {
-        let _ = connection.await;
-    });
+    // http and https produce different stream types but the same SendRequest
+    let mut sender = if secure {
+        let connector = tls_connector(request.trust_all_cert())?;
+        let server_name = ServerName::try_from(host.clone())
+            .map_err(|e| AppError::new(400, format!("Invalid TLS server name {host} - {e}")))?;
+        let tls_stream = connector
+            .connect(server_name, stream)
+            .await
+            .map_err(|e| AppError::new(500, format!("TLS handshake failed for {host} - {e}")))?;
+        let io = hyper_util::rt::TokioIo::new(tls_stream);
+        let (sender, connection) = hyper::client::conn::http1::handshake(io)
+            .await
+            .map_err(|e| AppError::new(500, format!("HTTP handshake failed - {e}")))?;
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        sender
+    } else {
+        let io = hyper_util::rt::TokioIo::new(stream);
+        let (sender, connection) = hyper::client::conn::http1::handshake(io)
+            .await
+            .map_err(|e| AppError::new(500, format!("HTTP handshake failed - {e}")))?;
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        sender
+    };
     let mut builder = hyper::Request::builder()
         .method(method.as_str())
         .uri(if uri.is_empty() { "/" } else { &uri });
-    builder = apply_headers(builder, invocation_headers, &request, event, &host, port);
+    builder = apply_headers(
+        builder,
+        invocation_headers,
+        &request,
+        event,
+        &host,
+        port,
+        secure,
+    );
     let body_bytes = request_body_bytes(&request, &method)?;
     let http_request = builder
         .body(Full::new(Bytes::from(body_bytes)))
@@ -497,10 +554,9 @@ fn connect_timeout_ms() -> u64 {
         .max(2000)
 }
 
-/// Java `validateUrl`: the target host must be `http://host[:port]` with no
-/// URI path. `https` is rejected with an explicit not-yet-supported error
-/// (a documented deferral of the Rust port).
-fn validate_url(request: &AsyncHttpRequest) -> Result<(String, u16), AppError> {
+/// Java `validateUrl`: the target host must be `http(s)://host[:port]` with
+/// no URI path. Default ports follow the scheme (80 / 443).
+fn validate_url(request: &AsyncHttpRequest) -> Result<(bool, String, u16), AppError> {
     let Some(target) = request.target_host() else {
         return Err(AppError::new(
             400,
@@ -514,23 +570,18 @@ fn validate_url(request: &AsyncHttpRequest) -> Result<(String, u16), AppError> {
     } else {
         return Err(AppError::new(400, "Protocol must be http or https"));
     };
-    if secure {
-        return Err(AppError::new(
-            400,
-            "https targets are not yet supported by this port - use http",
-        ));
-    }
     let authority = rest.trim_end_matches('/');
     if authority.contains('/') {
         return Err(AppError::new(400, "Target host must not contain URI path"));
     }
+    let default_port = if secure { 443 } else { 80 };
     let (host, port) = match authority.rsplit_once(':') {
         Some((h, p)) => (
             h.to_string(),
             p.parse::<u16>()
                 .map_err(|_| AppError::new(400, "Invalid port number in target host"))?,
         ),
-        None => (authority.to_string(), 80),
+        None => (authority.to_string(), default_port),
     };
     if host.trim().is_empty() {
         return Err(AppError::new(
@@ -538,9 +589,109 @@ fn validate_url(request: &AsyncHttpRequest) -> Result<(String, u16), AppError> {
             "Unable to resolve target host as domain or IP address",
         ));
     }
-    Ok((host, port))
+    Ok((secure, host, port))
 }
 
+/// TLS client config, built once per verification mode. The strict config
+/// trusts the OS certificate store (the closest analog of the JDK's default
+/// truststore that the Java client uses); the trust-all config skips chain
+/// validation only — TLS signatures are still verified — mirroring Java's
+/// `InsecureTrustManagerFactory` escape hatch for self-signed endpoints.
+fn tls_connector(trust_all_cert: bool) -> Result<TlsConnector, AppError> {
+    static STRICT: OnceLock<Result<Arc<rustls::ClientConfig>, String>> = OnceLock::new();
+    static TRUST_ALL: OnceLock<Arc<rustls::ClientConfig>> = OnceLock::new();
+    let config = if trust_all_cert {
+        TRUST_ALL
+            .get_or_init(|| {
+                let config = rustls::ClientConfig::builder()
+                    .dangerous()
+                    .with_custom_certificate_verifier(Arc::new(TrustAllVerifier))
+                    .with_no_client_auth();
+                Arc::new(config)
+            })
+            .clone()
+    } else {
+        STRICT
+            .get_or_init(|| {
+                let loaded = rustls_native_certs::load_native_certs();
+                let mut roots = rustls::RootCertStore::empty();
+                for cert in loaded.certs {
+                    // tolerate individual unparsable certs (OS stores carry
+                    // legacy entries); fail only if nothing loads at all
+                    let _ = roots.add(cert);
+                }
+                if roots.is_empty() {
+                    return Err(format!(
+                        "No usable certificates in the OS trust store - {:?}",
+                        loaded.errors
+                    ));
+                }
+                Ok(Arc::new(
+                    rustls::ClientConfig::builder()
+                        .with_root_certificates(roots)
+                        .with_no_client_auth(),
+                ))
+            })
+            .clone()
+            .map_err(|e| AppError::new(500, e))?
+    };
+    Ok(TlsConnector::from(config))
+}
+
+/// Certificate verifier that accepts any server certificate (chain
+/// validation skipped; handshake signatures still verified) — the rustls
+/// mirror of Java's `InsecureTrustManagerFactory`.
+#[derive(Debug)]
+struct TrustAllVerifier;
+
+impl rustls::client::danger::ServerCertVerifier for TrustAllVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &rustls::crypto::ring::default_provider().signature_verification_algorithms,
+        )
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &rustls::pki_types::CertificateDer<'_>,
+        dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &rustls::crypto::ring::default_provider().signature_verification_algorithms,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn apply_headers(
     mut builder: hyper::http::request::Builder,
     invocation_headers: &HashMap<String, String>,
@@ -548,8 +699,11 @@ fn apply_headers(
     event: &EventEnvelope,
     host: &str,
     port: u16,
+    secure: bool,
 ) -> hyper::http::request::Builder {
-    let authority = if port == 80 {
+    // omit the scheme's default port from the host header (80 / 443)
+    let default_port = if secure { 443 } else { 80 };
+    let authority = if port == default_port {
         host.to_string()
     } else {
         format!("{host}:{port}")

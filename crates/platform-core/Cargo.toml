@@ -28,6 +28,14 @@ tokio-tungstenite = "0.24"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 # --- increment 8: etag protocol (Java parity: SHA-256 content hash) ---
 sha2 = "0.10"
+# --- increment 48: outbound HTTPS for the async HTTP client (rustls; ring provider
+# avoids a native cmake/asm toolchain; OS trust store mirrors the JDK default) ---
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls-native-certs = "0.8"
 # --- increment 10: annotation macros (Java @PreLoad/@BeforeApplication/@MainApplication) ---
 inventory = "0.3"
 platform-macros = { path = "../platform-macros" }
+
+[dev-dependencies]
+# self-signed certificates for the HTTPS client integration test (increment 48)
+rcgen = "0.13"

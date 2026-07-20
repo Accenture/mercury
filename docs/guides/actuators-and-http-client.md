@@ -148,20 +148,28 @@ The builder covers the full request contract: `set_method`, `set_url`, `set_targ
 failed call comes back **in-band** as a reply with an error status — check
 `response.has_error()` / `response.status()` like any other RPC.
 
-### Target host validation
+### Target host validation and HTTPS
 
-`set_target_host` takes `http://host` or `http://host:port` — protocol and authority only.
-A target with a URI path, a missing host, or an unknown protocol is rejected with status 400
-(put the path in `set_url`). Allowed methods are `GET`, `HEAD`, `PUT`, `POST`, `PATCH`,
-`DELETE`, and `OPTIONS`; anything else returns **405**.
+`set_target_host` takes `http(s)://host` or `http(s)://host:port` — protocol and authority
+only (default ports 80/443). A target with a URI path, a missing host, or an unknown
+protocol is rejected with status 400 (put the path in `set_url`). Allowed methods are `GET`,
+`HEAD`, `PUT`, `POST`, `PATCH`, `DELETE`, and `OPTIONS`; anything else returns **405**.
+
+For `https` targets, server certificates verify against the **operating-system trust
+store** — corporate CAs installed on the host are honored, matching the Java client's
+default-truststore behavior. For a self-signed endpoint (a dev or test system), opt out of
+chain validation per request with `set_trust_all_cert(true)` — the same escape hatch as the
+Java client's `trust_all_cert` flag. Use it only for endpoints you control: it disables
+certificate validation for that call.
 
 !!! note "Rust port"
-    **`https` targets are rejected** with an explicit error (`https targets are not yet
-    supported by this port - use http`) until a TLS stack is adopted. The Java client's
-    streaming surface is also deferred: object streams for upload/download, multipart file
-    upload, and the `X-Small-Payload-As-Bytes` optimization are not ported — request and
-    response bodies are always aggregated in memory (the client adds an `x-content-length`
-    response header when the origin did not send `content-length`).
+    TLS uses [rustls](https://github.com/rustls/rustls) with the OS certificate store
+    (increment 48) — behavior matches the Java client, including the `trust_all_cert`
+    escape hatch. The Java client's streaming surface is still deferred: object streams
+    for upload/download, multipart file upload, and the `X-Small-Payload-As-Bytes`
+    optimization are not ported — request and response bodies are always aggregated in
+    memory (the client adds an `x-content-length` response header when the origin did
+    not send `content-length`).
 
 ### Timeouts
 
