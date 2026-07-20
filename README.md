@@ -1,14 +1,17 @@
 # mercury
 
-A **Rust port of [mercury-composable](https://github.com/accenture)** — Accenture's
-event-driven, composable application platform (canonical Java implementation, v4.8.6),
-carrying the same vision: build applications from small, fully-decoupled functions wired by
-route name, orchestrated as configuration, and modeled as an executable knowledge graph.
+A **Rust port of [mercury-composable](https://github.com/Accenture/mercury-composable)** —
+Accenture's event-driven, composable application platform (canonical Java implementation,
+v4.8.6), carrying the same vision: build applications from small, fully-decoupled functions
+wired by route name, orchestrated as configuration, and modeled as an executable knowledge
+graph.
 
-> **Status: v0.1.0 — the first port ready for manual end-to-end testing.** The three
-> foundational layers are ported bottom-up across 29 verified increments; 181 workspace
-> tests green, `clippy` and `fmt` clean. This is a private prototyping repo. See
-> [`CHANGELOG.md`](CHANGELOG.md).
+> **Status: all three layers ported and milestone-closed** across 49 verified increments;
+> 206 workspace tests green, `clippy` and `fmt` clean; benchmarked (RPC ~155K ops/s @ 6µs).
+> The AI-agent documentation is battle-tested — twelve consecutive fresh-agent exercises
+> passed with zero documentation lookups, across both engines. This is a private
+> prototyping repo pending graduation to its public home. See
+> [`CHANGELOG.md`](CHANGELOG.md) and [`docs/INCREMENTS.md`](docs/INCREMENTS.md).
 
 ## The three paradigm layers
 
@@ -57,15 +60,25 @@ cargo fmt --all --check
 | `docs/arch-decisions/ADR.md` | the durable architecture decisions |
 | `memory/` | the shared cross-session AI-memory layer |
 
+## Documentation
+
+The human developer guide is a 20-page MkDocs site under [`docs/`](docs/) (Getting Started,
+per-layer guides, references, port scope) — build it locally with `mkdocs serve`, or browse
+the published site once the repo reaches its public home. AI agents start at
+[`docs/llms.txt`](docs/llms.txt): the machine-readable map of the AI-agent documentation
+that the fresh-agent validation sweep was driven from.
+
 ## Non-goals
 
-The Kafka service mesh (`minimalist-kafka`, `twin-kafka`, connectors) and Spring
-(`rest-spring-3/-4`) are out of scope. `graph.js` is deliberately retired (an arbitrary-code
-interpreter is an attack surface); `graph.math` and `graph.task` cover its use cases.
+The Kafka **service mesh** (service discovery + sync-over-Kafka, the `connectors/` tree) and
+Spring (`rest-spring-3/-4`) are out of scope. `minimalist-kafka` and `twin-kafka` are
+lightweight cloud-native connectors — not part of the mesh exclusion — planned for future
+iterations together with `sync-over-async` (see
+[`docs/background/port-scope.md`](docs/background/port-scope.md)). `graph.js` is deliberately
+retired in this port (an arbitrary-code interpreter is an attack surface); `graph.math` and
+`graph.task` cover its use cases.
 
 ## Contributing & license
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 Licensed under the [Apache License 2.0](LICENSE).
-
-> Proper end-user documentation will follow; this README is a brief orientation for now.
