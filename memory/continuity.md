@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-185216)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-213830)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -522,6 +522,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   back-ported docs alone. Java human-doc bugs also parked: flow-schema `error.status` →
   engine's `error.code`. → serves: vision-mercury
   <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-20-163856.md -->
+
+- [ ] **`describe graph` trailing-`]` in the derived surface — JAVA-only bug; Rust hardened
+  preventively (2026-07-20).** The maintainer's screenshot (:8085 = Java playground) showed
+  `output.body]`; the Rust engine prints clean (probe-verified — its scan runs over
+  JSON-quoted text, while Java's `describeDeployedGraph` scans `Map.toString()` text whose
+  unquoted list form leaks the closing `]` into a path token ending a mapping list; both
+  ports' tokenizers accept `[`/`]` for array indices and trimmed only `.`/`-`/`[`). Rust
+  hardening landed (maintainer-directed): `collect_path_tokens` drops an unbalanced trailing
+  `]` + 3 unit tests + playground assertions tightened to exact indented lines (substring
+  `contains` is how both suites missed it); workspace 38 binaries green/clippy 0/fmt.
+  **Pending: the Java fix** — handed off to the mercury-composable agent session via
+  `/tmp/describe-graph-trailing-bracket-finding.md` (recommended: JSON-serialize properties
+  before scanning for byte-identical contract output + same tokenizer guard + exact-line
+  test). Close when the Java PR merges. → serves: vision-mercury
+  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-213830.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
