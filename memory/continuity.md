@@ -481,7 +481,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (repeats always execute; WS path unchanged); `Syntax:` usage hints classify `ok:false`
   with the hint in-band. Red/green-verified in Rust (`companion_sync_contract_gaps_closed`,
   workspace 206/clippy 0/fmt); Java mirror in `CompanionSyncTest` (71-test suite green,
-  PR [#201](https://github.com/Accenture/mercury-composable/pull/201) created, CI pending; test note:
+  PR [#201](https://github.com/Accenture/mercury-composable/pull/201) MERGED 2026-07-20 —
+  the /sync contract fixes are live in BOTH engines; test note:
   the WS-guard pair must dispatch via the 1-instance singleton — `graph.command.service`
   runs 50 instances and races). Envelope contract documented (agent guide + catalog).
   Original finding text:** **#62:** the command surface silently drops an identical
