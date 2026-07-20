@@ -47,7 +47,9 @@ mapping[]=source -> target
 ```
 
 Sources/targets use `input.*`, `model.*`, `output.*`, or a node name (its properties); `text(...)`,
-`int(...)` etc. inject constants. Example:
+`int(...)` etc. inject constants. **`mapping[]` entries apply in order** within the node, so a
+later entry may read an earlier entry's target — the chain idiom (ingest → transform → publish
+inside one mapper). Example:
 
 ```
 create node my-mapper

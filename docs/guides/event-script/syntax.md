@@ -1435,7 +1435,7 @@ For example:
 | **Type Conversion** | int             | A list of variables that can evaluate to an integer                                                                   |
 | **Type Conversion** | long            | A list of variables that can evaluate to a long integer                                                               |
 | **Type Conversion** | text            | A list of variables that can evaluate to a String                                                                     |
-| **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps"                                                                          |
+| **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps" — **order-preserving**: list order follows array index order (guaranteed) |
 | **Type Conversion** | updateListOfMap | Update "a list of maps" with "maps of lists"                                                                          |
 | **Type Conversion** | removeKey       | Remove one or more keys from a map or "list of maps". Syntax: `f:removeKey(source, text(key1), text(key2), …)` — see the worked example below. |
 | **Type Conversion** | defaultValue    | If the first argument is null, return the 2nd argument                                                                |
@@ -1512,6 +1512,8 @@ third-party response's data structure does not fit your internal schema, JSON-Pa
 extraction plus these consolidation plugins reshape it declaratively — no custom code.
 
 The `listOfMap(map1, map2, ...)` plugin re-arranges one or more maps of lists back to a list of maps.
+The conversion is **order-preserving and length-agnostic**: row *i* of the output is built from index
+*i* of every array (engine-guaranteed), for however many rows arrive.
 
 JSON-Path wildcard search would generate a list of elements.
 When multiple JSON-Path searches are conducted, the result is a combined map of lists.

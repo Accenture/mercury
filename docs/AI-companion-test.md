@@ -497,6 +497,47 @@ engine fix (#40 — closed 2026-07-19, both ports).
 
 ---
 
+## Post-sweep forced test-drive: `f:listOfMap` (2026-07-19)
+
+The one reshaping plugin the sweep never exercised (tut-8's agent chose the "easier"
+`f:removeKey` route) got its own fresh-agent validation — a custom exercise whose contract
+**requires** real impedance matching and cannot be solved with hard-coded indices.
+
+- **Setup (fully headless — no human session needed):** orchestrator started the dev server,
+  opened a Playground session over a zero-dep raw-WebSocket client (`ws-301207-1`,
+  `/ws/graph/playground`), verified the draft empty, and dropped a column-oriented export at
+  `/tmp/columnar-catalog.json` (`{title[], price[], sku[], internal_cost[]}` — 4 rows).
+- **Brief (L3, problem-only):** ingest the nightly columnar export; answer row-oriented
+  (`output.body.books` = row objects with EXACTLY `title`/`price`/`sku`, in row order);
+  `internal_cost` is confidential and must not appear; `output.body.count`; **the export
+  length varies run to run** (kills any hard-coded-index bypass). No plugin names, no syntax.
+- **Result: PASSED — 17/17 commands ok, ZERO in-band lookups, first-attempt dry-run pass.**
+  The design is arguably *better than the intended solution*: one `normalizer` mapper chains
+  `file(json:…) -> model.catalog` → `f:removeKey(…, text(internal_cost))` →
+  `f:listOfMap(…) -> model.books` — dropping the confidential column **before rows are ever
+  formed** — and the `end` mapper adds `f:length(…) -> output.body.count`. The island
+  knowledge layer was volunteered unprompted with data-entity nodes documenting the export
+  and the public-vs-confidential field split (#22/#30 shaping designs again).
+- **Judged first-hand (not from the agent's report):** orchestrator re-ran
+  instantiate/run/inspect — rows ordered, field sets exact, `internal_cost` absent from the
+  whole `output` namespace, count 4; then **swapped the export to 2 books and re-ran**:
+  count 2, new titles — proving length-agnosticism AND that `file(json:…)` is read at
+  execution time. The WS console tee carried all 45 lines live.
+- **Findings #49–#52** (all engine-verified and FIXED same day, below). The agent's four
+  "inferences that held" were exactly the four rules the docs didn't state.
+
+| # | From | Insight | Action |
+|---|---|---|---|
+| 49 | listOfMap drive | **`mapping[]` in-order application is implied, not rule-stated** — the chain idiom (a later entry reads an earlier entry's target) rests on it | **DONE** (same day, engine-verified: sequential entry loop in the mapper) — rule stated in `skills-reference.md#data-mapper`, the JSON catalog's mapper entry, and `help graph-data-mapper.md` |
+| 50 | listOfMap drive | **`f:listOfMap` order preservation shown, never guaranteed** in the text | **DONE** (same day, engine-verified: `normalize_map_of_lists` builds row *i* from index *i*) — "order-preserving, length-agnostic" stated in `syntax.md` (matrix row + prose) and the KG catalog |
+| 51 | listOfMap drive | **`file(…)` resolution time unstated** — matters for a "varies run to run" ingest | **DONE** (same day, **empirically verified**: swapped the file between runs, next run picked it up) — "read at mapping-evaluation time (each execution)" stated in the constants table + catalog |
+| 52 | listOfMap drive | `f:length` only discoverable in the Layer-2 catalog (cosmetic; cross-layer discovery via llms.txt worked as designed) | **DONE** (same day) — added to the KG grammar's `f:` examples cell |
+
+The self-sufficiency streak extends: **nine consecutive zero-lookup first-attempt passes**
+(tut-5 retest → tut-13, plus this forced drive).
+
+---
+
 ## Findings → documentation & grammar improvements (rollup)
 
 | # | From | Insight | Action |

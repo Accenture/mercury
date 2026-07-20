@@ -32,11 +32,11 @@
     "boolean(true)": "boolean — true only for case-insensitive 'true'; anything else is false",
     "map(k1=v1, k2=v2)": "inline map literal (string values)",
     "map(config.key)": "the value of an application-configuration key",
-    "file(text:/tmp/f.txt) | file(json:...) | file(binary:...)": "file content as text / parsed JSON / bytes",
+    "file(text:/tmp/f.txt) | file(json:...) | file(binary:...)": "file content as text / parsed JSON / bytes - read at MAPPING-EVALUATION time (each execution), so a changed file is picked up by the next run",
     "classpath(text:/data/f.txt)": "like file(), resolved against the app's resource roots",
     "_valid_where": "any mapping SOURCE: mapping[]/input[]/output[] left-hand side, instantiate seed lines",
     "_deprecated": "the ':type' suffix (simple type matching) is deprecated and must not be generated; a ':' in a Dictionary input[] entry is a DEFAULT VALUE only",
-    "_non_constant_sources": "two further source forms are valid in mappings (shared Event Script mapping engine): 'f:plugin(args...)' simple-plugin invocations (the modern :type replacement - e.g. generators f:uuid() and f:now(text(local)) for the current date-time at execution (iso/local/ms), arithmetic f:add(...) and f:round(value, int(2)) for half-up decimal rounding, logic f:ternary(...), list/map reshapers f:removeKey(list, text(key)) to strip fields from every map in a list and f:listOfMap(...) for maps-of-lists -> list-of-maps; FULL catalog in guides/event-script/syntax.md#simple-plugins) and '$....' JSONPath (prefer plain dot-bracket keys; a wildcard search like $.input.body.items[*].price yields a LIST of the matched values)"
+    "_non_constant_sources": "two further source forms are valid in mappings (shared Event Script mapping engine): 'f:plugin(args...)' simple-plugin invocations (the modern :type replacement - e.g. generators f:uuid() and f:now(text(local)) for the current date-time at execution (iso/local/ms), arithmetic f:add(...) and f:round(value, int(2)) for half-up decimal rounding, logic f:ternary(...), list/map reshapers f:removeKey(list, text(key)) to strip fields from every map in a list and f:listOfMap(...) for maps-of-lists -> list-of-maps (ORDER-PRESERVING: row i is built from index i of every array) and f:length(...) for element counts; FULL catalog in guides/event-script/syntax.md#simple-plugins) and '$....' JSONPath (prefer plain dot-bracket keys; a wildcard search like $.input.body.items[*].price yields a LIST of the matched values)"
   },
   "traversal": {
     "fork": "a node with multiple outgoing connections forks traversal into PARALLEL branches (one per connection, executed concurrently)",
@@ -115,6 +115,7 @@
   ],
   "skills": [
     { "route": "graph.data.mapper", "help": "help graph-data-mapper.md", "required": ["mapping[]"], "optional": [],
+      "notes": ["mapping[] entries apply IN ORDER within the node - a later entry may read an earlier entry's target (the chain idiom: ingest -> transform -> publish inside one mapper)"],
       "example": "skill=graph.data.mapper\nmapping[]=input.body.hr_id -> employee.id" },
     { "route": "graph.math", "help": "help graph-math.md", "required": ["statement[]"], "optional": ["for_each[]", "NEXT:", "DELAY:", "BEGIN", "END"],
       "statement_types": ["COMPUTE", "IF", "MAPPING", "EXECUTE", "RESET"],

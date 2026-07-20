@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 41 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-19 | agent: Claude Code (2026-07-19-235251)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-001528)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -210,6 +210,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   rollup findings all resolved or tracked. Follow-ups live in their own threads:
   [[ot-help-pages-rewrite]] (done), [[ot-discovery-commands-backlog]], and the `/sync`
   ok-heuristic engine fix (#40 — done, [[ot-sync-ok-heuristic-fix]]).
+  **Post-sweep forced test-drive: `f:listOfMap` (2026-07-20) PASSED — 17/17, ZERO lookups,
+  first attempt** (headless orchestrator-owned session ws-301207-1 — raw-WS client + /sync, no
+  human session needed): columnar→row impedance-matching exercise with a confidential column
+  and variable export length; the agent chained file(json:) → f:removeKey → f:listOfMap
+  (drops the column BEFORE rows exist) + f:length + an unprompted island. Findings #49–#52
+  (mapping[] in-order rule, listOfMap order guarantee, file() read-at-execution — empirically
+  proven by swapping the file between runs — f:length discoverability) all FIXED same day.
+  Streak: NINE consecutive zero-lookup first-attempt passes.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
@@ -316,10 +324,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (CI pending). **Follow-on observation FIXED same day (increment 41, both ports):** chained
   joins now judge an upstream join by its recorded OUTCOME (`node_seen[join] == true` = fired)
   instead of the run mark — probe `rust-join-chain.json`/`unit-test-join-chain.json` red on
-  old code in both engines (`expected: X, got: null`); Java branch
-  **`fix/chained-join-outcome`** pushed, STACKED on #197's branch (both touch
-  `GraphTests.java`) — open its PR only after #197 merges (rebase onto main first, per the
-  squash-merge stacked-PR lesson). → serves: vision-mercury
+  old code in both engines (`expected: X, got: null`); Java: #197
+  MERGED, then `fix/chained-join-outcome` rebased onto post-#197 main and **PR
+  [#198](https://github.com/Accenture/mercury-composable/pull/198) MERGED (2026-07-20)** —
+  the full join-barrier arc (increments 40+41) is live in BOTH engines.
+  → serves: vision-mercury
   <!-- id: join-barrier-valid-completions | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-233602.md -->
 
 - [ ] **(backlog) Prepare `docs/guides` for the human reader.** Maintainer decision 2026-07-19:

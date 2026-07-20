@@ -16,7 +16,9 @@ skill=graph.data.mapper
 mapping[]={source} -> {target}
 ```
 
-- mapping[] (required) - one entry per line; entries execute in order.
+- mapping[] (required) - one entry per line; entries execute in order,
+  so a later entry may read an earlier entry's target (the chain idiom:
+  ingest -> transform -> publish inside one mapper).
 
 Sources: input.body / input.header, model.*, a node name (its properties),
 {node}.result, a constant, an f:plugin(...) call, or a $. JSONPath

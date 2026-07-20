@@ -102,7 +102,7 @@ else — see [Provider & Dictionary](#provider-dictionary)):
 | `boolean(true)` | boolean — `true` only for case-insensitive `true`; anything else is `false` |
 | `map(k1=v1, k2=v2)` | inline map literal (values are strings) |
 | `map(config.key)` | the value of an application-configuration key |
-| `file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)` | file content as text / parsed JSON / bytes |
+| `file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)` | file content as text / parsed JSON / bytes — read at **mapping-evaluation time** (each execution), so a changed file is picked up by the next run |
 | `classpath(text:/data/f.txt)` | like `file()`, resolved against the app's resource roots |
 
 Beyond constants, two further **non-constant source forms** are valid in mappings (the graph
@@ -110,7 +110,7 @@ skills share Event Script's mapping engine):
 
 | Form | Meaning |
 |---|---|
-| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list) and `f:listOfMap(...)` (maps-of-lists → list-of-maps). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
+| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (element count of a list). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
 | `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it) |
 
 ## Commands {#commands}
