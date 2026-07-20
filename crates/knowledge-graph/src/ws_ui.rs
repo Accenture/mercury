@@ -88,14 +88,9 @@ impl ComposableFunction for GraphUserInterface {
                     .strip_suffix(IN_SUFFIX)
                     .unwrap_or(&route)
                     .replace('.', "-");
-                say(
-                    &po,
-                    &tx_path,
-                    format!(
-                        "session {public_id} started\nCompanion endpoint: /api/companion/{public_id}"
-                    ),
-                )
-                .await;
+                // the session id is all a human needs to share with an AI agent;
+                // the companion REST endpoints live in the AI docs, not the UI
+                say(&po, &tx_path, format!("session {public_id} started")).await;
             }
             "close" => {
                 let route = get("route");

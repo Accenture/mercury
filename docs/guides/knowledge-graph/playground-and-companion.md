@@ -34,11 +34,11 @@ command — including the [thirteen tutorials](build-your-first-graph.md#where-t
 ## Sessions
 
 Each open Playground connection is a **session**. The console's welcome message carries its
-public id and, conveniently, the companion URL an agent will need:
+public id — the one thing a human shares with an AI agent (the agent derives the companion
+REST endpoints from the id, per the AI docs):
 
 ```
 session ws-100001-1 started
-Companion endpoint: /api/companion/ws-100001-1
 ```
 
 The `session` command shows the current status at any time:
