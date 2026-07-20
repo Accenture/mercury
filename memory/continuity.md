@@ -224,8 +224,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   first-attempt passes**. Findings #55–#57 fixed same day; **#53 + #54 IMPLEMENTED
   2026-07-20 (increment 47, both ports)** — new `describe graph {graph-id}` contract view
   (purpose + derived input/output surface; list → contract → delegate, all read-only) +
-  differentiated tutorial-3/5 purposes; Java branch `feat/describe-deployed-graph` pushed —
-  maintainer opens the PR.
+  differentiated tutorial-3/5 purposes; Java upstream PR
+  [#200](https://github.com/Accenture/mercury-composable/pull/200) created (CI pending).
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
