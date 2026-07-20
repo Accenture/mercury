@@ -110,7 +110,7 @@ skills share Event Script's mapping engine):
 
 | Form | Meaning |
 |---|---|
-| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. **Arguments accept any mapping source**: constants and any state-machine path — `model.*`, `input.*`, `output.*`, and node namespaces such as `{node}.result.{key}` (engine-verified). Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (element count of a list). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
+| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. **Arguments accept any mapping source**: constants and any state-machine path — `model.*`, `input.*`, `output.*`, and node namespaces such as `{node}.result.{key}` (engine-verified). Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (length by type: list → element count, string → **character** count, bytes → byte count, null → 0). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
 | `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it) |
 
 ## Commands {#commands}
@@ -373,7 +373,19 @@ output[]=response.{path} -> result.{key}
   The source path may be a **leaf or an interior node** — an interior path maps the **whole
   subtree**: `response.profile.name -> result.name` extracts one field, while
   `response.profile -> result.profile` captures the entire profile object and
-  `response.accounts -> result.account_numbers` an entire array.
+  `response.accounts -> result.account_numbers` an entire array. The namespace root itself is
+  also valid: **`response -> result.{key}` captures the entire raw body** — the way to keep a
+  non-JSON body (an HTML page, plain text) whole.
+- **`response.*` addresses the response body only.** The HTTP **status** of every executed
+  fetch is recorded at **`{fetcher-node}.status`** (success included — a `200` or a `301` is
+  readable there, not just failures); response **headers** are captured on request with
+  `feature[]=log-response-headers` on the Provider, landing at
+  `{fetcher-node}.header.response.{name}` (request headers: `log-request-headers` →
+  `{fetcher-node}.header.request.{name}`).
+- **The fetcher never follows redirects** — one Provider call is exactly one HTTP request. A
+  `3xx` answer is a non-failure: its status and body are captured like any other response and
+  traversal proceeds (only ≥ 400 triggers [failure routing](#failure-routing)). To land on the
+  redirect target, point the Provider `url` at it directly.
 - A fetcher's `input[]` **targets must match the dictionary parameter names** exactly, or execution
   fails. Several Dictionary nodes may share one Provider; identical calls (same provider + same
   input values) are **deduplicated** into a single HTTP request.

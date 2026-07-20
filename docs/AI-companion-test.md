@@ -573,6 +573,50 @@ Streak: **ten consecutive zero-lookup first-attempt passes.**
 
 ---
 
+## Post-sweep forced test-drive #3: live HTTPS fetch (2026-07-20)
+
+The field-validation of **increment 48** (outbound HTTPS for the async HTTP client): the
+strict OS-trust-store path can't be proven with a self-signed unit fixture, so a fresh agent
+drives the whole stack — Fetcher → `async.http.request` → rustls → a **real CA-signed chain**
+on the public internet (maintainer-proposed: systems of record in the field require HTTPS).
+
+- **Setup:** headless orchestrator-owned session (`ws-192994-1`), empty draft verified.
+  **Pre-flight** (scratch session `ws-655120-2`, per the tut-7 `f:now` precedent): the
+  transport was probed once before briefing — `https://www.google.com/` returned 200 with an
+  82,777-byte page through the graph, proving TLS against the live chain; the naked domain
+  answers 301 (body captured, traversal proceeds). The scratch session was closed before the
+  brief.
+- **Brief (L3, problem-only):** "build a graph that fetches the page at `https://google.com`
+  and returns, in the graph's output, the HTTP status of the fetch and the size of the page;
+  prove it with a dry-run." No skill names, no redirect hint, no syntax.
+- **Result: PASSED — 16/16 commands ok, ZERO in-band lookups, first-attempt dry-run.**
+  Textbook data-dictionary design (Provider + Dictionary + fetcher + island, all unprompted):
+  `output[]=response -> result.page` (whole raw HTML body), `page-fetcher.status ->
+  output.body.status`, `f:length(model.page) -> output.body.page_size`. The agent handled the
+  redirect **truthfully**: `https://google.com` answers `301` with a 220-char body, and that
+  is exactly what its graph reports (`{status: 301, page_size: 220}`) — it reasoned in its
+  report that 301 < 400 is a non-failure and the fetcher reports the actual fetch. It even
+  re-counted the body characters outside the engine to verify `f:length`.
+- **Judged first-hand:** the WS console tee carried the full transcript; the orchestrator's
+  own pre-flight independently confirmed both the 200/www and 301/naked behaviors. **HTTPS is
+  field-validated end-to-end in the Rust port.**
+- **Findings #58–#61** (agent ambiguity reports — all engine-verified and doc-FIXED same
+  day) **+ #62–#63** (orchestrator pre-flight, engine-behavior candidates for the
+  maintainer, both ports).
+
+| # | From | Insight | Action |
+|---|---|---|---|
+| 58 | https drive | **bare `response` root as a Dictionary output source was undocumented** — examples showed `response.{path}` only; the whole-raw-body form is the natural way to keep a non-JSON body (HTML/text) whole; the agent inferred it | **DONE** (same day, engine-verified: `fetcher.rs` explicitly allows `lhs == "response"`) — stated in `command-reference.md#provider-dictionary`, the catalog's Dictionary `output` note, `skills-reference.md#api-fetcher`, `help graph-api-fetcher.md` |
+| 59 | https drive | **`f:length` semantics beyond lists unstated** ("element count of a list") — string behavior was an inference; chars-vs-bytes undocumented | **DONE** (same day, engine-verified in `conversions.rs::get_length`, Java-parity doc comment): list → element count, string → **character** count, bytes → byte count, null → 0 — stated in the KG grammar's `f:` examples cell |
+| 60 | https drive | **`{node}.status` on success was unguaranteed in the docs** — the namespaces table said "set by the engine" but only failure routing (≥ 400) documented it concretely; whether a 200/301 sets it was unverified | **DONE** (same day, engine-verified: `fetcher.rs` sets `{node}.status` unconditionally for every executed fetch, before the ≥ 400 branch) — guarantee stated in the namespaces table, fetcher docs, and catalog |
+| 61 | https drive | **redirect behavior + response-metadata reachability undocumented** — the fetcher never follows redirects (one Provider call = one HTTP request); `response.*` is body-only; status lives at `{node}.status`, headers at `{node}.header.response.*` via `feature[]=log-response-headers` | **DONE** (same day, engine-verified in `fetcher.rs` + `features.rs`) — "HTTP semantics" block in `skills-reference.md#api-fetcher` + rules in `command-reference.md#provider-dictionary`, catalog, `help graph-api-fetcher.md` |
+| 62 | https drive (orchestrator) | **silent 1-second identical-command dedup on the command surface, BOTH engines** (`is_duplicate` / `GraphCommandService`): an identical command repeated within 1s on the same session is dropped with only a debug log — a `/sync` caller gets `ok:true` with EMPTY `output` and no explanation, violating the documented envelope (echo always present). A scripted AI caller pipelining commands hits this; LLM pacing masked it through the whole sweep | **OPEN (engine decision, both ports):** options — (a) `/sync` bypasses the dedup (an RPC caller is not a flaky WS client), (b) return an explicit "duplicate ignored" line, (c) document the guard. Orchestrator recommends (a)+(b) |
+| 63 | https drive (orchestrator) | **`/sync` `ok:true` on syntax-usage rejections** — a malformed command (e.g. `connect a to b with type x`) answers with the `Syntax: …` usage line, which `first_error_line` doesn't classify as an error → false-positive `ok:true` (the command did nothing). Mirror image of #40's false-negative | **OPEN (engine decision, both ports):** classify the `Syntax:` usage-response as an error line (`ok:false` + `error` = the usage hint) so AI callers detect the no-op deterministically |
+
+Streak: **eleven consecutive zero-lookup first-attempt passes.**
+
+---
+
 ## Findings → documentation & grammar improvements (rollup)
 
 | # | From | Insight | Action |

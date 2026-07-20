@@ -167,6 +167,13 @@ an identical *successful* call reuses the cached response); the `input[]` target
 the dictionary parameter names** exactly, or execution fails. The dictionary/provider setup this
 skill depends on is specified in [Provider & Dictionary](command-reference.md#provider-dictionary).
 
+**HTTP semantics:** one Provider call is exactly **one HTTP request** — redirects are never
+followed (a `3xx` is a non-failure: status and body are captured and traversal proceeds).
+`{node}.status` **always** carries the HTTP status of the fetch, success included.
+`response.*` in Dictionary `output[]` addresses the **body only** (the bare root
+`response -> result.{key}` captures a whole non-JSON body); response headers are available
+via `feature[]=log-response-headers` at `{node}.header.response.{name}`.
+
 **Failure routing:** with `exception={handler-node}`, a failed call (HTTP ≥ 400) sets
 `{node}.status`/`{node}.error`, skips the `output[]` mappings, and **jumps to the handler**
 instead of aborting — the building block for bounded retry loops

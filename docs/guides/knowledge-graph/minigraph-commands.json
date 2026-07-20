@@ -51,9 +51,9 @@
     { "name": "output.header", "read": true, "write": true, "meaning": "response headers" },
     { "name": "{node}", "read": true, "write": true, "meaning": "a node's own properties" },
     { "name": "{node}.result", "read": true, "write": "by skill", "meaning": "a skill's output" },
-    { "name": "{node}.status", "read": true, "write": "by engine", "meaning": "skill execution status" },
+    { "name": "{node}.status", "read": true, "write": "by engine", "meaning": "skill execution status; for graph.api.fetcher ALWAYS the HTTP status of the fetch, success included (a 200 or a 301 is readable here, not just failures)" },
     { "name": "{node}.error", "read": true, "write": "by engine", "meaning": "skill error, if any" },
-    { "name": "response.*", "read": "in a Dictionary output[]", "write": "by fetch", "meaning": "a data Provider's raw HTTP response body" },
+    { "name": "response.*", "read": "in a Dictionary output[]", "write": "by fetch", "meaning": "a data Provider's raw HTTP response body - BODY ONLY (status lives at {node}.status; response headers at {node}.header.response.* when the Provider declares feature[]=log-response-headers)" },
     { "name": "result.*", "read": true, "write": "by skill", "meaning": "a Dictionary/Fetcher result set" }
   ],
   "commands": [
@@ -157,7 +157,8 @@
     { "route": "graph.js", "retired": true,
       "notes": ["RETIRED in this Rust port (disabled for security); the runtime rejects it: 'Skill graph.js is retired for security reasons - use graph.math or graph.task instead'", "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer"] },
     { "route": "graph.api.fetcher", "help": "help graph-api-fetcher.md", "required": ["dictionary[]"], "conditional": ["input[] (required whenever its dictionaries declare parameters - the usual case)"], "optional": ["output[] (the result set always lands at {node}.result for a later mapper)", "for_each[]", "concurrency", "exception"],
-      "notes": ["concurrency 1-30 (default 3)", "dedup: identical requests (same provider + input parameters) are deduplicated WITHIN THE GRAPH INSTANCE; only SUCCESSFUL responses are cached (a failed call is never cached, so a retry after RESET: makes a real call)", "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set, output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); wire the handler back (connect handler to fetcher with retry) and bound the retry loop - full pattern in command-reference.md#failure-routing"],
+      "notes": ["concurrency 1-30 (default 3)", "dedup: identical requests (same provider + input parameters) are deduplicated WITHIN THE GRAPH INSTANCE; only SUCCESSFUL responses are cached (a failed call is never cached, so a retry after RESET: makes a real call)",
+      "HTTP semantics: one Provider call is exactly ONE HTTP request - redirects are NEVER followed (a 3xx is a non-failure: status and body are captured and traversal proceeds; point the Provider url at the redirect target to land on it); {node}.status ALWAYS carries the HTTP status of the fetch, success included", "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set, output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); wire the handler back (connect handler to fetcher with retry) and bound the retry loop - full pattern in command-reference.md#failure-routing"],
       "for_each": {
         "syntax": "for_each[]={array-source} -> model.{var}",
         "source": "must resolve to a list - typically a prior fetcher's result ({fetcher}.result.{key}, the cross-node .result namespace) or any model.* array; multiple for_each[] lines iterate in lock-step",
@@ -201,7 +202,7 @@
     "Dictionary": {
       "properties": ["purpose", "provider", "input[]", "output[]"],
       "input": "BARE parameter names, NOT source->target mappings (the one exception to the mapping rule); optional ':{default}' suffix supplies a default value (input[]=detail:true) — the ONLY meaning of ':' here",
-      "output": "maps the Provider's raw HTTP response body (response.*) into the result set (result.{key}) exposed by the fetcher; the source may be a leaf ('response.profile.name -> result.name') or an INTERIOR path mapping the whole subtree ('response.profile -> result.profile' = the entire object, 'response.accounts -> result.account_numbers' = the entire array)",
+      "output": "maps the Provider's raw HTTP response body (response.*) into the result set (result.{key}) exposed by the fetcher; the source may be a leaf ('response.profile.name -> result.name') or an INTERIOR path mapping the whole subtree ('response.profile -> result.profile' = the entire object, 'response.accounts -> result.account_numbers' = the entire array); the namespace ROOT itself is valid: 'response -> result.page' captures the ENTIRE raw body (the way to keep a non-JSON body such as an HTML page whole)",
       "notes": ["a fetcher's input[] targets must MATCH the dictionary parameter names or execution fails",
                 "several Dictionary nodes may share one Provider; identical calls (same provider + same input values) are deduplicated into one HTTP request"],
       "example": "create node person-profile\nwith type Dictionary\nwith properties\npurpose=full profile record of a person\nprovider=mdm-profile\ninput[]=person_id\noutput[]=response.profile.name -> result.name\noutput[]=response.profile.address -> result.address"

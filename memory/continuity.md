@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 48 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-044500)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-051617)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -228,7 +228,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (purpose + derived input/output surface; list → contract → delegate, all read-only) +
   differentiated tutorial-3/5 purposes; Java upstream PR
   [#200](https://github.com/Accenture/mercury-composable/pull/200) MERGED (2026-07-20) —
-  the discovery arc (list → contract → delegate) is live in BOTH engines.
+  the discovery arc (list → contract → delegate) is live in BOTH engines. **Drive #3
+  (2026-07-20): live HTTPS fetch — PASSED 16/16, zero lookups, first attempt** — increment
+  48's TLS transport field-validated end-to-end against the real google.com CA chain
+  (truthful 301 + f:length page size; unprompted island); findings #58–#61 doc-FIXED same
+  day, #62–#63 (shared /sync contract gaps) → [[ot-sync-companion-contract-gaps]] —
+  **ELEVEN consecutive zero-lookup first-attempt passes**.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
@@ -470,6 +475,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
   <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-030615.md -->
+
+- [ ] **`/sync` contract gaps found by drive #3's pre-flight (findings #62–#63, BOTH engines) —
+  maintainer decision pending.** **#62:** the command surface silently drops an identical
+  command repeated within 1s on the same session (`is_duplicate`, `commands.rs`; Java
+  `GraphCommandService:178` — a UI double-submit guard) — a `/sync` caller gets `ok:true`
+  with EMPTY output, violating the documented envelope (echo always present); LLM pacing
+  masked it for the whole sweep, but scripted/pipelining AI callers hit it. Recommend:
+  `/sync` bypasses the dedup (an RPC caller is not a flaky WS client) + an explicit
+  "duplicate ignored" line. **#63:** malformed commands answer with a `Syntax: …` usage line
+  that `first_error_line` doesn't classify → false-positive `ok:true` for a command that did
+  nothing (mirror of #40's false-negative). Recommend: usage response ⇒ `ok:false` + `error`.
+  Both fixes are small and shared-design (identical in both ports, like #40).
+  → serves: vision-mercury
+  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

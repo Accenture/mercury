@@ -132,6 +132,15 @@ grammar and the engine's loop guard.
 
 Notes
 -----
+- One Provider call is exactly one HTTP request - redirects are never
+  followed. A 3xx answer is a non-failure: its status and body are captured
+  and traversal proceeds (only >= 400 triggers failure routing). Point the
+  Provider url at the redirect target to land on it.
+- {node}.status always carries the HTTP status of the fetch, success
+  included (a 200 or a 301 is readable there, not just failures). The
+  response.* namespace in a Dictionary output[] addresses the BODY only;
+  the bare root (response -> result.page) captures a whole non-JSON body
+  such as an HTML page.
 - Deduplication: identical requests (same provider + same input values)
   within one graph instance are deduplicated into a single HTTP call. Only
   SUCCESSFUL responses are cached - a failed call is never cached, so a
