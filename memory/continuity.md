@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** — regular PR process from here on.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-174741)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-185216)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 57 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 58 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +92,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 56 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 57 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -360,7 +360,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   mirror, all code in the Rust API, port truths (tokio not virtual threads, `#[preload]` not
   `@PreLoad`, no Kafka/Spring), verified against source. The AI docs stay agent-optimized and
   separate; the in-app help pages are already done. → serves: vision-mercury
-  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 7 | tier: active | origin: 2026-07-19-181641.md -->
+  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 7 | tier: archive-candidate | origin: 2026-07-19-181641.md -->
 
 - [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
   BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
@@ -397,7 +397,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   history intact).
   Thereafter the regular PR process applies (no more direct pushes to main). The private
   R&D repo (acn-ericlaw/mercury) freezes as the prototyping archive. → serves: vision-mercury
-  <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 5 | tier: active | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** **Synchronous AI-companion feedback** — make the companion a real AI *tool*, not
   a write-then-poll bus. The current `POST /api/companion/{id}` is fire-and-forget (`{status:accepted}`);
   command outcome + errors stream WS-only, so an AI caller is blind (Tut-4: HTTP 200 while the run had
@@ -521,7 +521,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   port notes. Validation: a fresh-agent drive against the JAVA Playground from the
   back-ported docs alone. Java human-doc bugs also parked: flow-schema `error.status` →
   engine's `error.code`. → serves: vision-mercury
-  <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 3 | tier: active | origin: 2026-07-20-163856.md -->
+  <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-20-163856.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
@@ -534,20 +534,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   WorkerHandler, serializers), then event-script and knowledge-graph specs + their ADRs.
   → serves: vision-mercury
   <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
-
-- [x] **Profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` — no alias
-  (increment 37).** Maintainer decision 2026-07-19 (supersedes the 2026-07-15 alias plan; its
-  "foundation robust" gate is met): Spring is irrelevant to the Rust port, so the generic names
-  replace `SPRING_PROFILES_ACTIVE`/`spring.profiles.active` outright — the **one deliberate
-  exception to D9's verbatim-config rule** (a `spring.profiles.active` line in a ported config
-  file does NOT carry over). Mechanism/precedence unchanged (env → override registry →
-  consolidated key; `application-{profile}.yml` overlays). Code + manifest + tests + design doc
-  (§3, §8 Q1 DECIDED) + ledger updated; workspace 202 tests / clippy 0 / fmt clean.
-  **Follow-up DONE same day (maintainer-directed): `spring.application.name` retired too** —
-  `Platform::name()` reads `application.name` alone (Java's own primary key) and the default
-  aligns to Java's `"application"` (was an unnoted `"untitled"` divergence). No Spring-named
-  config key remains live anywhere in the port. → serves: vision-mercury
-  <!-- id: profiles-renamed-app-active | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: archive-candidate | supersedes: ot-profiles-alias-backlog | origin: 2026-07-19-215701.md -->
 
 ## User Preferences
 
