@@ -13,12 +13,12 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** — regular PR process from here on.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-172205)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-174741)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
-- **repo:** ~/sandbox/mercury
+- **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
 ## Stack & Tools
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 56 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 57 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -388,13 +388,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
   → serves: vision-mercury
   <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
-- [ ] **(blueprint)** **Graduate to the official Accenture repo** once the foundation is
-  sufficient (this private repo is the prototyping stage). **Maintainer 2026-07-20: the
-  destination is `https://github.com/Accenture/mercury` — the official Rust home — and the
-  move happens AFTER the human-docs update; thereafter the regular PR process applies (no
-  more direct pushes to main).** The docs site identity already points there
-  (`mkdocs.yml`: repo_url + site_url accenture.github.io/mercury). → serves: vision-mercury
-  <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 3 | tier: working | origin: 2026-07-15-215538.md -->
+- [x] **(blueprint)** **Graduate to the official Accenture repo — DONE 2026-07-20.** The
+  maintainer repurposed `github.com/Accenture/mercury` (the original Java v1–v3 repo; legacy
+  releases kept as branches) as the official Rust home; the full R&D history (122 commits)
+  was merged onto it (`--allow-unrelated-histories`, branch `graduation`), README
+  de-privatized + legacy section preserved, MkDocs publishing automated (gh-deploy on main).
+  Thereafter the regular PR process applies (no more direct pushes to main). The private
+  R&D repo (acn-ericlaw/mercury) freezes as the prototyping archive. → serves: vision-mercury
+  <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** **Synchronous AI-companion feedback** — make the companion a real AI *tool*, not
   a write-then-poll bus. The current `POST /api/companion/{id}` is fire-and-forget (`{status:accepted}`);
   command outcome + errors stream WS-only, so an AI caller is blind (Tut-4: HTTP 200 while the run had
@@ -498,8 +499,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-051617.md -->
 
 - [x] **Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED
-  2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) created,
-  CI pending; fresh-agent report maintainer-reviewed).** Gold
+  2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) MERGED 2026-07-20 —
+  the battle-tested grammar is live in BOTH engines).** Gold
   test PASSED: a fresh agent drove the JAVA Playground from the back-ported docs alone —
   17/17, ZERO lookups, first attempt (columnar listOfMap exercise + unprompted
   variable-length proof) — **streak 12, the twelfth on the Java engine** (grammar is
@@ -518,7 +519,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   port notes. Validation: a fresh-agent drive against the JAVA Playground from the
   back-ported docs alone. Java human-doc bugs also parked: flow-schema `error.status` →
   engine's `error.code`. → serves: vision-mercury
-  <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-163856.md -->
+  <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 3 | tier: active | origin: 2026-07-20-163856.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

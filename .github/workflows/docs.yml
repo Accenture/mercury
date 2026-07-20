@@ -1,9 +1,10 @@
 name: docs
 
-# Build-only check for the MkDocs documentation site (design D-H1): a broken
-# link or a missing nav page fails the build via --strict. Publication (GitHub
-# Pages) is deliberately deferred until the repo graduates to its public home —
-# swap the build step for gh-deploy at that point.
+# Strict build check on every push/PR that touches the docs; on a push to
+# main the site is additionally PUBLISHED to GitHub Pages via
+# `mkdocs gh-deploy` (the gh-pages branch) — the graduation flip of the
+# previously build-only workflow (design D-H1). Repo setting required once:
+# Settings → Pages → deploy from the gh-pages branch.
 on:
   push:
     paths:
@@ -43,3 +44,29 @@ jobs:
 
       - name: Build the site (strict)
         run: mkdocs build --strict
+
+  deploy:
+    # publish only from main (push or manual dispatch); PRs get the strict
+    # build above and never deploy
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh-deploy pushes the gh-pages branch
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: docs-requirements.txt
+
+      - name: Install MkDocs toolchain
+        run: pip install -r docs-requirements.txt
+
+      - name: Publish to GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force
