@@ -11,6 +11,56 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Version 4.9.0, 7/20/2026
+
+**Graduation release — and the adoption of the canonical version line.** The version jumps
+from 0.1.0 to **4.9.0** to track `mercury-composable` (Java), with which this engine is
+behavior-synced: the companion REST contract is byte-identical, the graph/flow DSLs are
+shared, and every engine fix since the port began landed in both implementations
+(mercury-composable PRs #187–#204, released there as 4.9.0 the same day). One version, two
+languages.
+
+Everything since 0.1.0, in brief (increments 30–49 — the full record in
+[`docs/INCREMENTS.md`](docs/INCREMENTS.md)):
+
+### Added
+
+1. **The synchronous AI-companion endpoint** `POST /api/companion/{id}/sync` (ADR-0008) —
+   command outcomes in-band (`{ok, output, error, result}`, whole-traversal capture, WS tee
+   for real-time human+AI collaboration), with a truthful contract: whole-output-aware `ok`
+   classification, no silent dedup for RPC callers, `Syntax:` usage hints classify as
+   failures.
+2. **Discovery + contract commands**: `list graphs` / `list flows` / `describe graph
+   {graph-id}` — self-service delegation (list → contract → delegate) with the root
+   `purpose` enforced at compile as living documentation.
+3. **Outbound HTTPS for the async HTTP client** (rustls + OS trust store, per-request
+   `trust_all_cert`) — field-validated end-to-end against a live CA chain. Redirects are
+   deliberately not followed (backend design; documented decision record in
+   `docs/design/platform-core-port.md` §5j).
+4. **Numeric promotion + `f:round`** for the simple-plugin arithmetic family.
+5. **The battle-tested AI-agent documentation**: hardened by 25 fresh-agent exercises
+   across both engines (the last thirteen passing with zero documentation lookups) and
+   kept in lock-step with the Java repo (back-port #203 there).
+6. **The human documentation site** — 20 pages, published at
+   [accenture.github.io/mercury](https://accenture.github.io/mercury/) (automated via
+   `mkdocs gh-deploy` on pushes to main).
+7. **Rust CI quality gates** — fmt + clippy (zero warnings) + the full workspace test
+   suite on every PR.
+
+### Fixed
+
+1. **Join barrier: only valid completions count** — success-only completion marks cleared
+   by `RESET`, and chained joins judged by recorded outcome (latent data-loss bugs found by
+   probe, fixed in both engines).
+2. **Companion `session` limited to the read-only status query** (topology subcommands are
+   a WebSocket-session privilege).
+3. **HTTP-boundary content-type dispatch** mirrors the Java `handlePayload` rules exactly.
+4. Spring-named configuration keys retired: `app.profiles.active` / `application.name`.
+
+**Verified:** 206 workspace tests green, `clippy` zero warnings, `fmt` clean — enforced in
+CI from this release on.
+
+---
 ## Version 0.1.0, 7/18/2026
 
 The first end-to-end port of `mercury-composable` (Java, canonical v4.8.6) to Rust: the three
