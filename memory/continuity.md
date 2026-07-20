@@ -392,7 +392,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   maintainer repurposed `github.com/Accenture/mercury` (the original Java v1–v3 repo; legacy
   releases kept as branches) as the official Rust home; the full R&D history (122 commits)
   was merged onto it (`--allow-unrelated-histories`, branch `graduation`), README
-  de-privatized + legacy section preserved, MkDocs publishing automated (gh-deploy on main).
+  de-privatized + legacy section preserved, MkDocs publishing automated (gh-deploy on main);
+  **PR [#147](https://github.com/Accenture/mercury/pull/147) MERGED** (true merge commit —
+  history intact).
   Thereafter the regular PR process applies (no more direct pushes to main). The private
   R&D repo (acn-ericlaw/mercury) freezes as the prototyping archive. → serves: vision-mercury
   <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
