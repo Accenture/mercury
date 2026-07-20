@@ -21,3 +21,4 @@
 - ot-design-knowledge-graph — (design) Rust port of the knowledge graph (layer 3) — COMPLETE (K-1…K-8 / repo — completed threads swept (sslu > archive_window 20; milestones closed and confirmed) — 2026-Q3.md
 - ot-profiles-alias-backlog — (backlog) Generic `app.profiles.active` alias for profile selection. Maintainer — superseded by profiles-renamed-app-active — 2026-Q3.md
 - ot-subscribe-via-sync-bug — Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only. Found — faded (completed 2026-07-18, fixed in both engines via PR #194; sslu > archive_window) — 2026-Q3.md
+- ot-help-pages-rewrite — (backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19. Mainta… — faded — 2026-Q3.md
