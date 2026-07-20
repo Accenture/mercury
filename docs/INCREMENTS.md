@@ -65,6 +65,7 @@
 | 46 | human docs site phase 4 — COMPLETE: port-scope page, Home/Getting-Started polish, final strict pass (20 nav pages) | 2026-07-20 | D-H1/D-H2 | — |
 | 47 | `describe graph {graph-id}` — a deployed model's contract view (finding #53) + differentiated tutorial purposes (#54); both ports | 2026-07-20 | — | 202 |
 | 48 | outbound HTTPS for the async HTTP client (rustls + OS trust store, `trust_all_cert` parity) — Rust-only parity work | 2026-07-20 | — | 206 |
+| 49 | `/sync` contract gaps (findings #62–#63): dedup bypass for direct RPC + `Syntax:` usage classified as failure; both ports | 2026-07-20 | — | 206 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1301,6 +1302,38 @@ start (Reactor-Netty `secure()` + `InsecureTrustManagerFactory` escape hatch), s
   trust-all caveat); module doc deferral note replaced. The REST-automation *server-side*
   HTTP(S) relay (`rest.yaml` URL services) remains deferred — unrelated to this client-side
   support.
+
+---
+
+## Increment 49 — `/sync` contract gaps: findings #62–#63 (2026-07-20, BOTH ports)
+
+Both gaps were found by the HTTPS drive's **orchestrator pre-flight** (not the fresh agent —
+LLM pacing masked them through the whole sweep); both are shared engine behavior, fixed with
+the identical design in both ports (like #40).
+
+- **#62 — silent identical-command dedup vs the `/sync` contract:** the 1-second dedup guard
+  (a WS double-submit protection; `is_duplicate` / `cachedMessage`) silently swallowed a
+  repeated identical command from the synchronous companion endpoint — `ok:true` with EMPTY
+  output, violating the documented envelope (echo always present). Fix: `/sync` marks its
+  singleton dispatch **`direct`** (an RPC caller is not a flaky WS client) and the guard
+  does not apply; the WS path keeps the guard unchanged. Rust: `rest.rs` +
+  `commands.rs`; Java: `PostCompanionCommandSync` + `GraphCommandService` (+ the shared
+  `DIRECT` constant).
+- **#63 — `Syntax:` usage hint classified `ok:true`:** a malformed command (e.g.
+  `connect a to b with type x`) answers with a usage hint and does nothing — the mirror
+  image of #40's false-negative. Fix: `Syntax:` classifies as the error line → `ok:false`
+  with the hint in-band. Safe: no help page starts a line with `Syntax:` (verified), so no
+  inverse false-positive.
+- **Tests:** Rust `companion_sync_contract_gaps_closed` in `graph_runtime.rs` —
+  **red/green-verified** (on old code the second repeat returned the empty envelope
+  verbatim); asserts repeats execute, usage → `ok:false`, and the **WS-path guard still
+  drops a duplicate** (via the 1-instance singleton for a deterministic pair). Java mirror
+  `companionSyncContractGapsClosed` in `CompanionSyncTest` (the same guard case initially
+  raced through the 50-instance `graph.command.service` route — dispatched via the
+  singleton instead). Rust workspace **206 tests** / clippy 0 / fmt; Java module **71
+  tests** green; branch **`fix/companion-sync-contract-gaps`** pushed for the upstream PR.
+- **Docs:** the sync-envelope contract now states both rules (agent guide bullets +
+  `sync_envelope` notes in the catalog); rollups #62/#63 → DONE.
 
 ---
 

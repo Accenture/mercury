@@ -55,6 +55,10 @@ can self-correct without a human relaying the console:
      normal "Graph model not found in /tmp/... Found deployed graph model" fallback is
      correctly reported ok:true). When ok is false, the error field carries the first
      failing line — still read the output for the full picture.
+   - A malformed command answered with a "Syntax: ..." usage hint is a FAILURE: ok:false
+     with the hint as the error (the command did nothing).
+   - Repeating an identical command back-to-back is safe: /sync commands are never
+     dedup-dropped (the engine's 1-second duplicate guard protects only the WS UI path).
    - If ok is false, read error/output, fix it, and re-issue — self-correct; no human relay needed.
    - Use result to verify a run/inspect (e.g. output.body).
 4. The same output is ALSO teed to the human's WebSocket console, so a watcher — and any

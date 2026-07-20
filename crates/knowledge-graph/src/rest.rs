@@ -268,6 +268,10 @@ fn is_error_line(line: &str) -> bool {
         || line.starts_with("Invalid")
         || line.contains("not found")
         || line.contains("Please try 'help'")
+        // a usage hint is the engine's rejection of a malformed command — the
+        // command did nothing, so the caller must see ok:false (finding #63;
+        // no help page starts a line with "Syntax:", so no false positive)
+        || line.starts_with("Syntax:")
 }
 
 /// Whole-output-aware error classification. `import graph from {deployed}`
@@ -385,6 +389,10 @@ pub async fn post_companion_command_sync(
                     (Value::from("in"), Value::from(in_route.as_str())),
                     (Value::from("out"), Value::from(capture_route.as_str())),
                     (Value::from("message"), Value::from(command.as_str())),
+                    // an RPC caller is not a flaky WS client: bypass the
+                    // 1-second identical-command dedup guard (finding #62) so
+                    // a deliberate repeat is never silently swallowed
+                    (Value::from("direct"), Value::Boolean(true)),
                 ])),
             Duration::from_secs(30),
         )

@@ -212,8 +212,11 @@ pub async fn handle(
     let out_route = get("out").unwrap_or_default();
     let message = get("message").unwrap_or_default();
     let forwarded = get("forwarded").map(|v| v == "true").unwrap_or(false);
+    // "direct" marks a synchronous companion RPC (finding #62): not a flaky
+    // WS client, so the identical-command dedup guard does not apply
+    let direct = get("direct").map(|v| v == "true").unwrap_or(false);
     let outcome = handle_request(
-        platform, &po, &kind, &in_route, &out_route, &message, forwarded,
+        platform, &po, &kind, &in_route, &out_route, &message, forwarded, direct,
     )
     .await;
     if let Err(e) = outcome {
@@ -224,6 +227,7 @@ pub async fn handle(
     EventEnvelope::new().set_body("done")
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_request(
     platform: &Platform,
     po: &PostOffice,
@@ -232,6 +236,7 @@ async fn handle_request(
     out_route: &str,
     message: &str,
     forwarded: bool,
+    direct: bool,
 ) -> Result<(), AppError> {
     start_housekeeping();
     match kind {
@@ -259,12 +264,16 @@ async fn handle_request(
             if command.is_empty() {
                 return Ok(());
             }
-            handle_command(platform, po, command, in_route, out_route, forwarded).await
+            handle_command(
+                platform, po, command, in_route, out_route, forwarded, direct,
+            )
+            .await
         }
         _ => Ok(()),
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_command(
     platform: &Platform,
     po: &PostOffice,
@@ -272,6 +281,7 @@ async fn handle_command(
     in_route: &str,
     out_route: &str,
     forwarded: bool,
+    direct: bool,
 ) -> Result<(), AppError> {
     if command.starts_with('{') && command.ends_with('}') {
         return handle_json_command(po, out_route, command).await;
@@ -279,7 +289,9 @@ async fn handle_command(
     if command.to_lowercase().starts_with("session") || forwarded {
         return single_or_multi_line(platform, po, command, in_route, out_route).await;
     }
-    if is_duplicate(in_route, command) {
+    // the dedup guard protects the WS UI from double-submits; a synchronous
+    // companion RPC (`direct`) is a deliberate request — never dropped (#62)
+    if !direct && is_duplicate(in_route, command) {
         log::debug!("Duplicated message - {command} for {in_route}");
         return Ok(());
     }

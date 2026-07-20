@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 48 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages) — graduation to github.com/Accenture/mercury is next.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-154247)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-161237)
 - **last_review:** 2026-07-20 | through 2026-07-20-040852
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 53 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 54 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +92,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 55 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 56 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -241,7 +241,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 33 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 34 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign
   fallback (rollup #40).** Found in the tut-12 pre-flight ([[ot-companion-validation-sweep]]):
@@ -476,8 +476,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
   <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-030615.md -->
 
-- [ ] **`/sync` contract gaps found by drive #3's pre-flight (findings #62–#63, BOTH engines) —
-  maintainer decision pending.** **#62:** the command surface silently drops an identical
+- [x] **`/sync` contract gaps (findings #62–#63) — FIXED 2026-07-20 (increment 49, BOTH
+  ports).** `/sync` marks its dispatch `direct` → the 1s dedup guard does not apply
+  (repeats always execute; WS path unchanged); `Syntax:` usage hints classify `ok:false`
+  with the hint in-band. Red/green-verified in Rust (`companion_sync_contract_gaps_closed`,
+  workspace 206/clippy 0/fmt); Java mirror in `CompanionSyncTest` (71-test suite green,
+  branch `fix/companion-sync-contract-gaps` pushed — maintainer opens the PR; test note:
+  the WS-guard pair must dispatch via the 1-instance singleton — `graph.command.service`
+  runs 50 instances and races). Envelope contract documented (agent guide + catalog).
+  Original finding text:** **#62:** the command surface silently drops an identical
   command repeated within 1s on the same session (`is_duplicate`, `commands.rs`; Java
   `GraphCommandService:178` — a UI double-submit guard) — a `/sync` caller gets `ok:true`
   with EMPTY output, violating the documented envelope (echo always present); LLM pacing
@@ -488,7 +495,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   nothing (mirror of #40's false-negative). Recommend: usage response ⇒ `ok:false` + `error`.
   Both fixes are small and shared-design (identical in both ports, like #40).
   → serves: vision-mercury
-  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
+  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-051617.md -->
 
 - [x] **HTTP redirection backlog — RESOLVED 2026-07-20: story WITHDRAWN (parity confirmed
   empirically; maintainer's stated criterion met).** A temporary JUnit probe in the Java

@@ -8,6 +8,8 @@
     "notes": [
       "null fields are OMITTED from the wire (serializer null-omission): a success carries no 'error' key and, unless the command yields data, no 'result' key — treat absent as null",
       "the ok flag is derived from the console lines with whole-output context: import's benign 'Graph model not found in /tmp/... Found deployed graph model' fallback reports ok:true; a genuine miss stays ok:false",
+  "a malformed command answered with a 'Syntax: ...' usage hint is a FAILURE: ok:false with the hint as the error (the command did nothing)",
+  "sync commands are never dedup-dropped: repeating an identical command back-to-back executes every time (the 1-second duplicate guard protects only the WebSocket UI path)",
       "status codes: 200 executed (read ok/error in the body); 400 missing/empty/non-text body; 404 no active session for that id",
       "session-topology commands (session subscribe/unsubscribe/reset) are rejected on both companion endpoints: sync returns ok:false with the reason, the fire-and-forget endpoint returns 400"
     ]

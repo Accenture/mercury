@@ -226,9 +226,147 @@ async fn graph_runtime_end_to_end() {
     companion_sync_returns_outcome_in_band(&platform).await;
     companion_sync_rejects_session_topology_commands(&platform).await;
     companion_sync_import_fallback_reports_ok(&platform).await;
+    companion_sync_contract_gaps_closed(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
+}
+
+/// Findings #62/#63 (HTTPS drive pre-flight): the `/sync` contract gaps.
+/// #62 — a synchronous companion RPC is a deliberate request: the 1-second
+/// identical-command dedup guard (a WS double-submit protection) must NOT
+/// silently swallow a repeat; the guard stays intact for the WS path.
+/// #63 — a malformed command answered with a `Syntax: …` usage hint did
+/// nothing: the envelope must say `ok:false` with the hint as the error.
+async fn companion_sync_contract_gaps_closed(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770004-1";
+    let in_route = "ws.770004.1.in";
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session ready");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // #62 — the same command twice, back-to-back (well inside the 1s window):
+    // both must execute and both envelopes must carry the echo + output
+    let first = sync_cmd(platform, sid, "list nodes").await;
+    let second = sync_cmd(platform, sid, "list nodes").await;
+    for (label, envelope) in [("first", &first), ("second", &second)] {
+        assert_eq!(
+            envelope["ok"],
+            serde_json::json!(true),
+            "{label} repeat must execute: {envelope}"
+        );
+        assert!(
+            envelope["output"].as_array().is_some_and(|a| a
+                .iter()
+                .any(|l| l.as_str().is_some_and(|s| s.contains("list nodes")))),
+            "{label} envelope must carry the echo (not silently dropped): {envelope}"
+        );
+    }
+
+    // #63 — a malformed command answered with the usage hint is a failed
+    // command: ok:false, the hint in-band as the error
+    let bad = sync_cmd(platform, sid, "connect a to b with type x").await;
+    assert_eq!(
+        bad["ok"],
+        serde_json::json!(false),
+        "usage response must classify as failure: {bad}"
+    );
+    assert!(
+        bad["error"]
+            .as_str()
+            .is_some_and(|e| e.starts_with("Syntax:")),
+        "the usage hint must be the in-band error: {bad}"
+    );
+
+    // the WS-path guard is untouched: two identical NON-direct commands within
+    // the window — the second is dropped, so the console sees exactly one echo
+    let sid2 = "ws-770005-1";
+    let in2 = "ws.770005.1.in";
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in2)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid2) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let tap = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register("ws.770005.1.out", Arc::new(OutTap { seen: tap.clone() }), 1)
+        .expect("register out tap");
+    for _ in 0..2 {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in2)),
+                    (
+                        rmpv::Value::from("out"),
+                        rmpv::Value::from("ws.770005.1.out"),
+                    ),
+                    (
+                        rmpv::Value::from("message"),
+                        rmpv::Value::from("list nodes"),
+                    ),
+                ])),
+        )
+        .await
+        .expect("ws command dispatched");
+    }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let echoes = tap
+        .lock()
+        .expect("tap")
+        .iter()
+        .filter(|l| l.contains("list nodes"))
+        .count();
+    assert_eq!(
+        1, echoes,
+        "WS double-submit guard must still drop the duplicate (saw {echoes} echoes)"
+    );
 }
 
 /// Chained joins: an upstream join that evaluated and SANK is still marked in
