@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 42 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-021249)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-030615)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -244,7 +244,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (2026-07-19)**. Both engines live-validated by the maintainer; the fix is live in BOTH. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
   `minigraph-commands.json` sync_envelope note, rollup #40 → DONE. `/sync` contract stays
   byte-identical across engines. → serves: vision-mercury
-  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: active | origin: 2026-07-19-205854.md -->
+  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: archive-candidate | origin: 2026-07-19-205854.md -->
 
 - [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
   2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
@@ -344,7 +344,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   mirror, all code in the Rust API, port truths (tokio not virtual threads, `#[preload]` not
   `@PreLoad`, no Kafka/Spring), verified against source. The AI docs stay agent-optimized and
   separate; the in-app help pages are already done. → serves: vision-mercury
-  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 5 | tier: active | origin: 2026-07-19-181641.md -->
+  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 6 | tier: active | origin: 2026-07-19-181641.md -->
 
 - [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
   BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
@@ -449,6 +449,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
   <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 22 | tier: working | origin: 2026-07-18-162832.md -->
+
+- [ ] **(backlog) Port the lightweight cloud-native connectors + sync-over-async.** Maintainer
+  scope refinement 2026-07-20 (stated while reviewing the docs site): `minimalist-kafka` and
+  `twin-kafka` are **lightweight, cloud-native connectors** — distinct from the Kafka service
+  mesh (service discovery + sync-over-Kafka, which stays permanently out of scope) — and will
+  be ported in future iterations, along with **`sync-over-async`** (the request/response
+  bridge over async transports). This is also why HTTP config keys keep their `http.` prefix
+  (connector counterparts arrive later). Vision non-goals + instructions + the public
+  `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
+  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-030615.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

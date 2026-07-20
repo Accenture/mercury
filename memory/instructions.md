@@ -68,10 +68,12 @@ authoritative behavior spec is that repo + its `docs/guides/` — we **map, don'
 - `system/event-script-engine` → the YAML flow DSL + engine.
 - `system/minigraph-playground-engine` (+ `core/graph`) → the active knowledge graph.
 
-**Out of scope** (confirmed by maintainer):
-- Kafka service mesh & distribution: `system/minimalist-kafka`, `system/twin-kafka`, all of
-  `connectors/` (`cloud-connector`, `service-monitor`, `kafka-connector`, `kafka-presence`),
+**Out of scope** (confirmed by maintainer; refined 2026-07-20):
+- Kafka service mesh (service discovery + sync-over-Kafka): all of `connectors/`
+  (`cloud-connector`, `service-monitor`, `kafka-connector`, `kafka-presence`),
   `helpers/*-standalone`.
+- NOTE: `system/minimalist-kafka` and `system/twin-kafka` are lightweight cloud-native
+  connectors, NOT mesh — reclassified to future-port backlog (with `sync-over-async`).
 - **Spring adapters** (`rest-spring-3/-4`) — Spring is Java-only. Note: platform-core's *own*
   REST automation (`automation/` package, Vert.x-based, no Spring) **is** in scope as a later
   increment — the Rust port gets its HTTP boundary from there.

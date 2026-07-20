@@ -68,10 +68,13 @@ treat the Java project as canonical rather than copying its docs here.
 
 ## Non-goals (what it must never become)
 
-- **The Kafka service mesh is NOT ported** — deliberately out of scope, for simplicity. In
-  mercury-composable terms this excludes `minimalist-kafka`, `twin-kafka`, and the whole
-  `connectors/` tree (`cloud-connector`, `service-monitor`, `kafka-connector`,
-  `kafka-presence`). Single-runtime, in-memory event bus only.
+- **The Kafka service mesh is NOT ported** — deliberately out of scope, for simplicity: the
+  service-discovery and sync-over-Kafka layer, i.e. the whole `connectors/` tree
+  (`cloud-connector`, `service-monitor`, `kafka-connector`, `kafka-presence`). The core stays
+  single-runtime on the in-memory event bus. **Refined by the maintainer 2026-07-20:**
+  `minimalist-kafka` and `twin-kafka` are *lightweight, cloud-native connectors* — NOT part of
+  the mesh exclusion — and will be ported in future iterations, along with `sync-over-async`
+  (tracked as backlog in `continuity.md`).
 - Inherited from mercury-composable (confirm against the Java project as the port matures):
   - **Never couples functions directly** — coupling stays route-name + `EventEnvelope` only.
     (This is an Architectural Invariant, tracked in `continuity.md`.)

@@ -34,10 +34,10 @@ The two engines keep **byte-identical REST contracts** where they share surfaces
 
 These are **scope decisions**, not gaps — they will not be ported:
 
-- **The Kafka service mesh and distribution layer** — `minimalist-kafka`, `twin-kafka`, and
-  the whole connector tree (cloud connector, service monitor, Kafka presence). mercury is a
-  **single-runtime** platform: one process, one in-memory event bus. Consequences ripple
-  predictably: no broadcast/multicast, no event-over-HTTP bridge, no mesh configuration keys.
+- **The Kafka service mesh** — the service-discovery and sync-over-Kafka layer: the connector
+  tree (cloud connector, service monitor, Kafka connector, Kafka presence). mercury's core is
+  a **single-runtime** platform: one process, one in-memory event bus. Consequences ripple
+  predictably: no broadcast/multicast, no mesh configuration keys, no presence protocol.
 - **Spring adapters** (`rest-spring-3/-4`) — Spring is a Java framework. The port's HTTP
   boundary is platform-core's own REST automation, on [hyper](https://hyper.rs) — deliberately
   not a web framework, because `rest.yaml` *is* the router.
@@ -49,6 +49,11 @@ These are **scope decisions**, not gaps — they will not be ported:
 
 Present in the Java platform, absent here today, and candidates for future increments:
 
+- **`minimalist-kafka` and `twin-kafka`** — the **lightweight, cloud-native Kafka
+  connectors**. Unlike the mesh above, these are planned ports: they carry events between
+  runtimes without the mesh's discovery layer. (This is why HTTP-specific configuration keys
+  keep their `http.` prefix — connector-specific counterparts arrive with them.)
+- **sync-over-async** — the request/response bridge over asynchronous transports.
 - HTTPS in the async HTTP client (a TLS stack), HTTP relay / `url_rewrite`, A/B dual service.
 - Multipart file upload and request/response streaming at the REST boundary.
 - `/info/lib` and `/info/routes` actuators; the ready-made OpenTelemetry OTLP forwarder
