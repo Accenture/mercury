@@ -531,7 +531,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   ports' tokenizers accept `[`/`]` for array indices and trimmed only `.`/`-`/`[`). Rust
   hardening landed (maintainer-directed): `collect_path_tokens` drops an unbalanced trailing
   `]` + 3 unit tests + playground assertions tightened to exact indented lines (substring
-  `contains` is how both suites missed it); workspace 38 binaries green/clippy 0/fmt.
+  `contains` is how both suites missed it); workspace 38 binaries green/clippy 0/fmt —
+  **PR [#150](https://github.com/Accenture/mercury/pull/150) MERGED 2026-07-20** (true merge,
+  CI green: test + memory gates).
   **Pending: the Java fix** — handed off to the mercury-composable agent session via
   `/tmp/describe-graph-trailing-bracket-finding.md` (recommended: JSON-serialize properties
   before scanning for byte-identical contract output + same tokenizer guard + exact-line
