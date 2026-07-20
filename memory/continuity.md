@@ -490,6 +490,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
 
+- [ ] **(backlog) HTTP redirection processing for the outbound HTTP client (both ports) —
+  maintainer-requested 2026-07-20 (post drive #3, which surfaced the no-redirect behavior).**
+  Investigate whether the Java client has redirection enabled and whether the Rust client can
+  support the same. **Preliminary evidence (to confirm when picked up):** `followRedirect`
+  appears NOWHERE in the Java repo — Reactor-Netty's default is `followRedirect(false)`, so
+  the capability exists in Netty but is NOT enabled in mercury-composable today (drive #3's
+  301-capture behavior is therefore *shared* engine behavior, and finding #61's "never
+  follows" doc holds for both ports). Rust: hyper is deliberately low-level — redirection
+  would be an explicit loop (3xx + `Location`, bounded hops, 301/302/303-vs-307/308 method
+  semantics, http→https only never the reverse). Design questions for the maintainer:
+  opt-in flag (per-request like `trust_all_cert`, or per-Provider `feature[]`?) vs default-on;
+  parity requires enabling Java's `followRedirect` and implementing the Rust loop in the same
+  increment, plus doc updates (#61 wording). → serves: vision-mercury
+  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-051617.md -->
+
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
   authorized reading it (read-only reference). **Harvested this session:** the north-star
