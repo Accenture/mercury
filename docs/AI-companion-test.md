@@ -617,6 +617,38 @@ Streak: **eleven consecutive zero-lookup first-attempt passes.**
 
 ---
 
+## Back-port validation: the JAVA engine on the back-ported docs (2026-07-20)
+
+Graduation prep: the survey found the Java AI docs frozen at the pre-tut-5 state (31/40
+grammar-hardening markers absent), so the hardened grammar was back-ported to the Java repo
+(branch `docs/ai-grammar-backport`: 4 KG AI docs + llms.txt + event-script syntax.md +
+`help graph-api-fetcher.md` + the parked `error.status`→`error.code` flow-schema fix;
+graph.js restored as a live skill — its retirement is Rust-only). The gold test: a fresh
+agent drives the **Java** Playground (example app :8085, built from the branch) from the
+**back-ported Java docs alone**, on the columnar `f:listOfMap` exercise (drive-#1 design).
+
+- **Result: PASSED — 17/17 commands ok, zero failures, ZERO in-band lookups, first-attempt
+  dry-run — the first fresh-agent validation of the JAVA engine on the hardened grammar.**
+- Same design quality as the Rust drives: allowlist projection (rows exact by construction —
+  stronger than the removeKey route), in-order chain idiom, `f:listOfMap` order guarantee,
+  `f:length` on the published list, skill-less End, **island volunteered** with entities
+  documenting the confidentiality split and a `published-as` relation.
+- The agent ran the **variable-length proof unprompted**: appended a 5th row, re-instantiated
+  the unchanged graph → count 5 in order; export restored byte-identically (`cmp`) —
+  exercising the documented "file() read at mapping-evaluation time" rule for real.
+- Observations (no fixes filed; agent's own judgment: "no doc-gap issue worth filing"):
+  the `f:listOfMap` worked example's nested-wrapper input reads ambiguously; row-object JSON
+  key order is unspecified (correctly inferred as unconstrained).
+- **Orchestrator side-finding (headless-client authors):** the Java WS server counts only
+  application-level text frames as activity — a client sending protocol-level pings alone is
+  idle-closed (~60 s); the Java UI's `{"type":"ping","message":"keep alive"}` text frame is
+  the keepalive contract. The Rust port tolerates protocol pings (more lenient, not a bug).
+
+The streak is now **twelve consecutive zero-lookup first-attempt passes — the twelfth on the
+Java engine**, proving the hardened grammar is engine-neutral.
+
+---
+
 ## Findings → documentation & grammar improvements (rollup)
 
 | # | From | Insight | Action |
