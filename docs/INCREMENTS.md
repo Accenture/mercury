@@ -60,6 +60,7 @@
 | 41 | chained join judges an upstream join by its recorded outcome (fired vs sank; both ports) | 2026-07-19 | — | 202 |
 | 42 | discovery commands `list graphs` / `list flows` — self-service `extension=` delegation targets (finding #38, both ports) | 2026-07-20 | — | 202 |
 | 43 | human docs site phase 1: MkDocs+Material scaffold, Home + Getting Started, strict-build CI | 2026-07-20 | D-H1/D-H2 | — |
+| 44 | human docs site phase 2: Foundations trio + Layer 1/2 guides; layer-organized nav (human + AI docs per layer) | 2026-07-20 | D-H2 | — |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1165,6 +1166,33 @@ realizes `ot-human-guides-backlog`).** The maintainer approved the toolchain by 
 - **CI:** `.github/workflows/docs.yml` — build-only `mkdocs build --strict` on docs changes
   (Pages deployment deferred until graduation); `site/` gitignored.
 - Local build: `mkdocs build --strict` green on the venv (`uv venv /tmp/mkdocs-venv`).
+
+---
+
+## Increment 44 — human docs site, phase 2 (2026-07-20)
+
+**Seven pages, all source-verified; the nav adopts the Java site's layer organization** —
+each layer section carries its human pages AND its AI agent guide side by side (the
+maintainer's "the repo is AI-enabled" navigation statement).
+
+- **Foundations:** `guides/architecture.md` (actor lineage → three layers, one mermaid
+  pipeline), `guides/methodology.md` (decoupling, zero-code default + escape hatches,
+  human+AI co-authoring via `/sync`), `guides/observability.md` — the telemetry record and
+  context-block log line are **verbatim from a live hello-world run** (matching
+  trace/span ids prove the join-up).
+- **Layer 1:** `guides/event-driven/{index, write-your-first-function, function-execution}.md`
+  — typed/untyped authoring, `#[preload]` parameter reference as definition lists, worker
+  pools/elastic queue/back-pressure, send/request/send_later/interceptors, per-call tracing.
+- **Layer 2:** `guides/event-script/index.md` — orchestration-as-configuration + the real
+  hello-flow walkthrough.
+- **Divergence honesty (17 `!!! note "Rust port"` boxes):** no broadcast/multicast, no
+  fork-n-join RPC, no execution strategies (one async model), no `round_trip` telemetry
+  metric, task-local trace propagation (no per-request PostOffice rule), OTLP forwarder
+  extension not ported, MsgPack only on the spill path, plus two engine truths the Java
+  docs never state (`send_later` doesn't stamp the ambient trace; an interceptor failure
+  still auto-routes to `reply_to`).
+- Nav restructured: Foundations / Layer 1 / Layer 2 / Layer 3 (AI docs fill Layer 3 until
+  phase 3). `mkdocs build --strict` green.
 
 ---
 
