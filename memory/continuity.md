@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 42 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 8 consecutive zero-lookup first-attempt passes). Companion `/sync` complete and byte-identical in both ports (Java upstream PRs #188–#194 merged).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-030615)
+- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-033300)
 - **last_review:** 2026-07-19 | through 2026-07-19-233602
 - **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
 - **repo:** ~/sandbox/mercury
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 51 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 52 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -217,7 +217,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (drops the column BEFORE rows exist) + f:length + an unprompted island. Findings #49–#52
   (mapping[] in-order rule, listOfMap order guarantee, file() read-at-execution — empirically
   proven by swapping the file between runs — f:length discoverability) all FIXED same day.
-  Streak: NINE consecutive zero-lookup first-attempt passes.
+  Streak extended by **drive #2
+  (2026-07-20): discovery-driven delegation** — brief named NO graph/flow id; the agent found
+  its target via `list graphs` + empirical probes, delegated to tutorial-3, island documented
+  the delegation (21/21, zero lookups, first attempt) — **TEN consecutive zero-lookup
+  first-attempt passes**. Findings #55–#57 fixed same day; #53 (deployed-model contract
+  visibility — engine candidate, both ports) + #54 (differentiate tutorial-3/5 purposes —
+  canonical fixtures) are maintainer calls.
   **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
   `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
   flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
@@ -225,7 +231,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 28 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 29 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign
   fallback (rollup #40).** Found in the tut-12 pre-flight ([[ot-companion-validation-sweep]]):
@@ -282,7 +288,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   new `f:round(number[, places])` plugin (both ports, second commit `80e64166` on the branch)**
   — half-up on the shortest DECIMAL representation (1.005 → 1.01 at 2 places; binary error
   never leaks into the decision); whole inputs pass through. → serves: vision-mercury
-  <!-- id: plugin-numeric-promotion | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: active | origin: 2026-07-19-225257.md -->
+  <!-- id: plugin-numeric-promotion | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: archive-candidate | origin: 2026-07-19-225257.md -->
 
 - [x] **LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40).**
   Backlog probe #3 confirmed it: `skill_run` (the join's completion source) meant "ran" not
@@ -344,7 +350,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   mirror, all code in the Rust API, port truths (tokio not virtual threads, `#[preload]` not
   `@PreLoad`, no Kafka/Spring), verified against source. The AI docs stay agent-optimized and
   separate; the in-app help pages are already done. → serves: vision-mercury
-  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 6 | tier: active | origin: 2026-07-19-181641.md -->
+  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 7 | tier: active | origin: 2026-07-19-181641.md -->
 
 - [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
   BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
@@ -359,7 +365,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   catalog + agent-guide recipe + skills-reference + `help list.md` all updated; rollup #38 →
   DONE. Design note: discovery rides the command surface (no new REST endpoints — `/sync`
   already gives agents REST access to every command). → serves: vision-mercury
-  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-19-171653.md -->
+  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 5 | tier: active | origin: 2026-07-19-171653.md -->
 
 - [x] **(backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19.** Maintainer decision
   2026-07-18 (post tut-5): the `crates/knowledge-graph/resources/help/*.md` pages are designed for

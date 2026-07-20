@@ -538,6 +538,41 @@ The self-sufficiency streak extends: **nine consecutive zero-lookup first-attemp
 
 ---
 
+## Post-sweep forced test-drive #2: discovery-driven delegation (2026-07-20)
+
+The capstone for increment 42's discovery commands **and** the completed human-docs site: a
+delegation brief that names **no graph or flow id** — the agent must find its `extension=`
+target itself.
+
+- **Setup:** headless orchestrator-owned session (`ws-575720-1`), empty draft verified.
+- **Brief (L3+, problem-only):** "a teammate already deployed a profile-lookup capability
+  somewhere on this server — you don't know its name; delegate to it (no own
+  Provider/Dictionary/fetcher) and answer `greeting: Hello {name} of {address}`; validate for
+  person 100 AND 200." The public execution endpoint was explicitly allowed for
+  investigation.
+- **Result: PASSED — 21/21 commands ok, ZERO in-band lookups, first-attempt dry-runs for
+  both persons.** Discovery loop exactly as designed: `list graphs` → two candidates by
+  purpose (tutorial-3/tutorial-5 share the same text) → empirical contract probes via
+  `POST /api/graph/{id}` → `extension=tutorial-3` delegation with `f:concat` greeting
+  assembly, plus an **unprompted island documenting the delegation contract itself**
+  (DataEntity + ExternalModel node with graph_id/contract properties).
+- **Judged first-hand:** orchestrator re-ran the dry-run (greeting exact for person 100) and
+  inspected the exported model (`extension=tutorial-3`, zero own fetchers). Then probed the
+  agent's defensive inference #56 empirically: `f:` args DO resolve `{node}.result.*` — the
+  staging through `model.*` was unnecessary caution, now documented away.
+
+| # | From | Insight | Action |
+|---|---|---|---|
+| 53 | discovery drive | **No contract visibility for deployed models** — `list graphs` gives id+purpose but not input/output contracts; the model view needs an exporter-only token, so the agent probed `POST /api/graph/{id}` empirically (worked, but trial-and-error) | (candidate — engine work, both ports, maintainer call): a read-only `describe graph {graph-id}` for deployed models, or contract lines in `list graphs` |
+| 54 | discovery drive | **Identical purposes don't disambiguate** — tutorial-3 and tutorial-5 carry the same purpose text | (candidate — touches canonical fixtures, maintainer call): differentiate the shipped tutorial purposes in both repos |
+| 55 | discovery drive | `text()` whitespace preservation was undocumented (the agent trusted it for `text(Hello )`) | **DONE** (same day) — "spaces preserved exactly" stated in the constants table + catalog |
+| 56 | discovery drive | whether `f:` plugin args can read `{node}.result.*` was unstated (agent staged defensively through `model.*`) | **DONE** (same day, **empirically verified**: `f:concat(text(Hi ), profile-lookup.result.name)` works) — "args accept any state-machine path" stated in grammar + catalog |
+| 57 | discovery drive | re-`instantiate` semantics unstated (does it reset prior run state?) | **DONE** (same day, verified across repeated cycles) — "replaces the current instance: fresh state machine, cleared run marks" stated in grammar + catalog |
+
+Streak: **ten consecutive zero-lookup first-attempt passes.**
+
+---
+
 ## Findings → documentation & grammar improvements (rollup)
 
 | # | From | Insight | Action |
