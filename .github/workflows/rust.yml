@@ -1,0 +1,46 @@
+name: rust
+
+# The workspace quality gates, exactly as the port's convention defines
+# "done" (memory/continuity.md → Conventions): cargo fmt clean, clippy with
+# zero warnings across all targets, and the full workspace test suite.
+#
+# Deliberately unfiltered by paths: this workflow is intended as a required
+# check under branch protection, and a path-filtered required check leaves
+# docs-only PRs stuck waiting for a run that never starts. The cargo cache
+# keeps docs-only runs cheap.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable + clippy + rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy (zero warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test workspace
+        run: cargo test --workspace
