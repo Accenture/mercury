@@ -52,9 +52,15 @@ no Kafka service mesh, no Spring).
 ## Where to go next
 
 - **[Getting Started](guides/getting-started.md)** — build the workspace and run the examples.
+- **[Architecture](guides/architecture.md)** — how the pieces fit, from the actor model up.
+- **Pick your layer:** [event-driven functions](guides/event-driven/index.md) ·
+  [Event Script flows](guides/event-script/index.md) ·
+  [the knowledge graph](guides/knowledge-graph/index.md).
 - **AI agents** start at [`docs/llms.txt`](llms.txt) — the machine-readable map of the
   agent-optimized documentation set (engine-verified; a fresh agent can build graphs from it
-  with zero out-of-band context).
+  with zero out-of-band context). Every layer section carries its own AI agent guide.
+- **[Port Scope & Fidelity](background/port-scope.md)** — what is ported, what deliberately
+  is not, and how fidelity is kept honest.
 - **[Architecture Decisions](arch-decisions/ADR.md)** — the durable design record.
 
 !!! note "Rust port"

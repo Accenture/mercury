@@ -162,8 +162,10 @@ Spring-specific key names are retired in the Rust port (`APP_PROFILES_ACTIVE`,
 
 ## Next steps
 
-- Explore the thirteen Playground tutorials (`help tutorial 1` … `help tutorial 13`).
-- Read the [event-driven functions guide](event-driven/ai-agent-guide.md) for the
-  full function-authoring surface (`#[preload]` parameters, typed functions, interceptors,
-  lifecycle hooks).
+- Write your own function: [the authoring walkthrough](event-driven/write-your-first-function.md)
+  covers typed/untyped functions, `#[preload]` parameters, and the application lifecycle.
+- Explore the thirteen Playground tutorials (`help tutorial 1` … `help tutorial 13`), then
+  [build your first graph](knowledge-graph/build-your-first-graph.md).
+- Understand the whole: [Architecture](architecture.md) and
+  [Composing the Layers](knowledge-graph/composing-the-layers.md).
 - Point an AI agent at [`docs/llms.txt`](../llms.txt) and let it build a graph for you.

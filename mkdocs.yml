@@ -135,4 +135,5 @@ nav:
       - Reserved Names & Headers: guides/reserved-names-and-headers.md
       - Actuators & HTTP Client: guides/actuators-and-http-client.md
   - Background:
+      - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md

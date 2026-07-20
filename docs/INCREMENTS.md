@@ -62,6 +62,7 @@
 | 43 | human docs site phase 1: MkDocs+Material scaffold, Home + Getting Started, strict-build CI | 2026-07-20 | D-H1/D-H2 | — |
 | 44 | human docs site phase 2: Foundations trio + Layer 1/2 guides; layer-organized nav (human + AI docs per layer) | 2026-07-20 | D-H2 | — |
 | 45 | human docs site phase 3: KG human pages + REST automation + the six D-H2 reference conversions (12 pages) | 2026-07-20 | D-H2 | — |
+| 46 | human docs site phase 4 — COMPLETE: port-scope page, Home/Getting-Started polish, final strict pass (20 nav pages) | 2026-07-20 | D-H1/D-H2 | — |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1223,6 +1224,26 @@ three layers plus a Reference tab.** `mkdocs build --strict` green across 19 nav
   content-length streams the body is not how either boundary path behaves here.
 - Review fixes: the stale "Java upstream pending" discovery notes corrected to cite the
   merged [#199](https://github.com/Accenture/mercury-composable/pull/199).
+
+---
+
+## Increment 46 — human docs site, phase 4: COMPLETE (2026-07-20)
+
+**The human-documentation backlog (`ot-human-guides-backlog`) is closed — the documentation
+gate for the repo's graduation to `github.com/Accenture/mercury` is done.**
+
+- **`background/port-scope.md`** — the public-facing scope statement: map-don't-mirror, fully
+  ported / deliberately out (Kafka mesh, Spring, `graph.js`) / deferred-not-never, the
+  upstream-contribution relationship (features that originated here and merged into the Java
+  engine), the fidelity mechanisms, and the performance posture.
+- **Polish:** Home's "Where to go next" now fans out to Architecture, the three layer
+  overviews, port-scope; Getting Started's next steps point at the human walkthroughs first.
+- **Final pass:** site-wide sweep clean (no TODOs, no stale repo URLs, no phantom paths);
+  `mkdocs build --strict` green across **20 nav pages** (Home, Getting Started, 3
+  Foundations, 5+5+7 layer pages, 6 references, 2 background).
+- The site totals ~4,600 lines of new human documentation across phases 1–4, every code
+  sample and configuration key verified against this repository's source, with ~40
+  `!!! note "Rust port"` divergence boxes — no silent divergence anywhere.
 
 ---
 
