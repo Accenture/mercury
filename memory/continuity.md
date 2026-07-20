@@ -397,7 +397,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** **Graduate to the official Accenture repo** once the foundation is
-  sufficient (this private repo is the prototyping stage). → serves: vision-mercury
+  sufficient (this private repo is the prototyping stage). **Maintainer 2026-07-20: the
+  destination is `https://github.com/Accenture/mercury` — the official Rust home — and the
+  move happens AFTER the human-docs update; thereafter the regular PR process applies (no
+  more direct pushes to main).** The docs site identity already points there
+  (`mkdocs.yml`: repo_url + site_url accenture.github.io/mercury). → serves: vision-mercury
   <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** **Synchronous AI-companion feedback** — make the companion a real AI *tool*, not
   a write-then-poll bus. The current `POST /api/companion/{id}` is fire-and-forget (`{status:accepted}`);
