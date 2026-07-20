@@ -202,12 +202,14 @@ async fn playground_command_grammar_and_companion() {
         console_has(&lines, "Deployed graph model 'tutorial-3'"),
         "deployed-model header expected"
     );
+    // exact indented lines: a stray trailing character (e.g. the Java
+    // engine's `output.body]` toString leak, 2026-07-20) must fail here
     assert!(
-        console_has(&lines, "input.body.person_id"),
+        console_has(&lines, "  input.body.person_id\n"),
         "derived input surface expected"
     );
     assert!(
-        console_has(&lines, "output.body.name"),
+        console_has(&lines, "  output.body.name\n"),
         "derived output surface expected"
     );
     command(&po, in_route, out_route, "describe graph no-such-model-xyz").await;

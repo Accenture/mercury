@@ -992,9 +992,17 @@ fn collect_path_tokens(text: &str, prefix: &str, found: &mut std::collections::B
                 break;
             }
         }
-        let token = text[begin..end]
+        let mut token = text[begin..end]
             .trim_end_matches(['.', '-', '['])
             .to_string();
+        // a trailing `]` with no matching `[` is the enclosing list's closing
+        // bracket (e.g. Java-style `{mapping=[... -> output.body]}` text),
+        // not an array index — trim until the brackets balance
+        while token.ends_with(']') && token.matches('[').count() < token.matches(']').count() {
+            token.pop();
+            let trimmed = token.trim_end_matches(['.', '-', '[']).len();
+            token.truncate(trimmed);
+        }
         if token.len() > prefix.len() {
             found.insert(token);
         }
@@ -2277,9 +2285,47 @@ pub fn download_graph(id: &str) -> Option<Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::convert_mapping_properties;
+    use super::{collect_path_tokens, convert_mapping_properties};
     use event_script::mlm::MultiLevelMap;
     use rmpv::Value;
+
+    fn tokens(text: &str, prefix: &str) -> Vec<String> {
+        let mut found = std::collections::BTreeSet::new();
+        collect_path_tokens(text, prefix, &mut found);
+        found.into_iter().collect()
+    }
+
+    #[test]
+    fn path_tokens_terminate_at_json_string_quotes() {
+        // the describe-graph surface scan runs over JSON-serialized properties
+        let text =
+            r#"{"mapping":["text(hello world) -> output.body"],"skill":"graph.data.mapper"}"#;
+        assert_eq!(tokens(text, "output."), vec!["output.body"]);
+    }
+
+    #[test]
+    fn path_tokens_drop_an_unbalanced_trailing_bracket() {
+        // hardening: Java-style Map.toString() text has no quotes, so a path
+        // ending a mapping list would otherwise absorb the list's closing `]`
+        // (the Java engine's describe-graph bug, found 2026-07-20)
+        let text = "{mapping=[text(hello world) -> output.body], skill=graph.data.mapper}";
+        assert_eq!(tokens(text, "output."), vec!["output.body"]);
+    }
+
+    #[test]
+    fn path_tokens_keep_genuine_array_indices() {
+        // balanced brackets are an array index, not an enclosing list
+        assert_eq!(
+            tokens("input.profile[0] -> model.name", "input."),
+            vec!["input.profile[0]"]
+        );
+        // an index at the end of an unquoted list keeps the index and drops
+        // only the enclosing bracket
+        assert_eq!(
+            tokens("{mapping=[a -> output.body[0]]}", "output."),
+            vec!["output.body[0]"]
+        );
+    }
 
     fn map_with(property: &str, entries: &[&str]) -> MultiLevelMap {
         let mut m = MultiLevelMap::new();
