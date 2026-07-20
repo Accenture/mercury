@@ -1,0 +1,191 @@
+# Reserved Names & Headers
+
+The platform reserves some route names, event headers, and HTTP headers for its own
+routing. Overloading a reserved name can silently break system behavior — this is the
+do-not-collide list. Every name on this page was enumerated from this repository's source
+(the constants and `#[preload]` declarations in `crates/*/src`), so the list reflects what
+this port actually registers.
+
+!!! note "Rust port"
+    The Java list includes many names from unported subsystems, absent here: the connector
+    and service-mesh routes (`cloud.connector`, `presence.*`, `system.service.*`,
+    `*.multiplex.*`), the scheduler (`cron.scheduler`, `run.scheduled.job`), the Kafka and
+    sync-over-async extensions, `event.api.service` / `async.http.response`
+    (event-over-HTTP is not ported), `temporary.inbox` (RPC inboxes use the `inbox.`
+    prefix here), `actuator.services` / `lib.actuator.service` / `routes.actuator.service`
+    (`/info/lib` and `/info/routes` are deferred), and `http.auth.handler` — a rest.yaml
+    `authentication` entry names your authentication function's route directly here (the
+    simple route form; the tag-based auth router is not ported).
+
+## Reserved route names
+
+### platform-core
+
+| Route | Purpose |
+|---|---|
+| `distributed.tracing` | Telemetry sink — traced executions send their performance-metrics dataset here |
+| `info.actuator.service` | `/info` actuator endpoint |
+| `env.actuator.service` | `/env` actuator endpoint |
+| `health.actuator.service` | `/health` actuator endpoint |
+| `liveness.actuator.service` | `/livenessprobe` actuator endpoint |
+| `no.op` | Echo placeholder function for skeletons and simple flow decisions (500 instances, tunable via `worker.instances.no.op`) |
+| `async.http.request` | The built-in async HTTP client (an event interceptor) |
+| `ws.server.housekeeper` | Websocket server cleanup service |
+
+Two route **prefixes** are also reserved by platform-core:
+
+- **`inbox.`** — temporary one-shot RPC inboxes. `PostOffice::request` opens one per call;
+  they are addressable like any destination (so a function replying manually via
+  `po.send(reply_to)` works) but bypass the queue machinery, and any route starting with
+  `inbox.` is excluded from trace recording.
+- **`ws.`** — websocket connections. Each live connection gets a session id of the form
+  `ws.{random}.{n}` with a `{session}.in` route (delivers lifecycle events to your
+  `#[websocket_service]` function) and a `{session}.out` route (sends frames back to the
+  client).
+
+### event-script
+
+| Route | Purpose |
+|---|---|
+| `event.script.manager` | Instantiates a new flow instance |
+| `task.executor` | Performs the event choreography of a running flow |
+| `http.flow.adapter` | The built-in HTTP-to-flow adapter (rest.yaml `flow:` endpoints) |
+| `resilience.handler` | Retry / alternative-path / circuit-breaker handler for flows |
+| `simple.exception.handler` | Placeholder exception handler for rapid prototyping |
+
+`event.script.manager` and `task.executor` are **reserved engine routes**: events to them
+execute directly on a fresh task, bypassing the manager-worker queue, so orchestration
+never waits on its own mailbox. This bypass is an engine privilege — it is deliberately not
+exposed through registration options or the annotation macros, so application functions
+always stay on the reactive back-pressure path.
+
+The **`flow://` prefix** is a reserved addressing scheme, not a route: a flow task's
+`process`, an external-state-machine target, or a graph node's `extension` property may
+name `flow://{flow-id}` to launch a flow instead of calling a function.
+
+### knowledge-graph
+
+Registered whenever the knowledge-graph crate is part of the application:
+
+| Route | Purpose |
+|---|---|
+| `graph.executor` | Runs a deployed graph (`POST /api/graph/{graph-id}`) |
+| `graph.traveler`* | The interactive graph walker (dev) |
+| `graph.api.fetcher` | The `graph.api-fetcher` skill — provider HTTP calls |
+| `graph.data.mapper` | The `graph.data-mapper` skill |
+| `graph.math` | The `graph.math` skill — statements and branching |
+| `graph.task` | The `graph.task` skill — custom-logic seam to a composable function |
+| `graph.join` | The `graph.join` skill — parallel fan-in |
+| `graph.island` | The `graph.island` skill — the knowledge/entity layer |
+| `graph.extension` | Delegation to another graph or a `flow://` flow |
+| `graph.exception.handler` | Graph failure routing |
+| `graph.housekeeper` | Graph instance cleanup |
+| `graph.health` | Health probe for the graph engine |
+| `get.index.html` | The home page (serves `/public` in dev, `/template` otherwise) |
+
+Routes marked * — and the whole Playground developer surface below — are gated by
+`#[optional_service("app.env=dev")]` and exist only when `app.env` is `dev`:
+
+| Route | Purpose |
+|---|---|
+| `graph.command.service` | The Playground command grammar |
+| `graph.command.singleton` | Single-worker command handler (orderly AI-companion requests) |
+| `post.companion.command` | AI-companion endpoint (fire-and-forget) |
+| `post.companion.command.sync` | AI-companion `/sync` endpoint (in-band outcome) |
+| `show.graph.model`, `get.live.graph`, `inspect.state.machine` | Model and state inspection |
+| `upload.json.content`, `upload.mock.content` | Playground uploads |
+| `get.ws.html` | The raw websocket workbench pages |
+| `mock.mdm.profile`, `mock.account.details`, `v1.hello.task` | Dev mock functions for the tutorials |
+
+The **`companion.sync.` prefix** is reserved in dev: the `/sync` endpoint opens an
+ephemeral capture route (`companion.sync.{uuid}`) per request. The websocket service names
+`/ws/graph/{token}` and `/ws/json/{token}` are likewise dev-gated.
+
+## Optional user-defined routes
+
+The system detects these route names for additional user-defined features — register your
+own function under them to opt in:
+
+| Route | Purpose |
+|---|---|
+| `distributed.trace.forwarder` | Receives a copy of every telemetry dataset (e.g. an OpenTelemetry exporter) |
+| `transaction.journal.recorder` | Receives request/response journals when journaling is enabled — payloads may contain PII/PHI/PCI; handle per your organization's security policy |
+
+Both are part of the telemetry plumbing and are never themselves traced.
+
+!!! note "Rust port"
+    Java's optional `additional.info` function (merged into the `/info` response) is not
+    ported.
+
+## Reserved event headers
+
+`my_correlation_id`
+:   Injected by the REST automation edge into the HTTP request event's headers as
+    **read-only metadata**: the business correlation-id of the request (captured from the
+    configured header or freshly generated). Do not set it yourself. Inside a function,
+    prefer `po.my_correlation_id()` — it works at any depth of the call graph, not just on
+    the HTTP-facing function.
+
+`flow_id`, `correlation_id`
+:   Engine-internal headers on events addressed to `event.script.manager` (flow selection
+    and the business correlation-id handoff). Application code never sets these — the flow
+    adapter and the task executor own them.
+
+!!! note "Rust port"
+    Java also injects `my_route`, `my_trace_id`, and `my_trace_path` as read-only event
+    headers; this port does not. The equivalent data is on the task-local trace context —
+    read it through `po.my_trace_id()` / `po.my_trace_path()`, and the worker `instance`
+    number is a `handle_event` parameter.
+
+## Reserved HTTP headers
+
+| Header | Purpose |
+|---|---|
+| `X-Trace-Id` | Carries the trace id — recognized inbound at the REST edge, emitted outbound by the async HTTP client. The header **name** is configurable (`http.trace.id.header`; per-endpoint `trace.id.header` in rest.yaml) |
+| `traceparent` | W3C Trace Context: `00-{trace-id}-{parent-span-id}-01` (32-hex trace id, 16-hex span id). Inbound it **takes precedence** over `X-Trace-Id` and contributes the caller's span as this hop's parent; outbound it is emitted alongside `X-Trace-Id`, built from this hop's own span |
+| `X-Correlation-Id` | The business correlation-id (configurable: `http.correlation.id.header`; per-endpoint `correlation.id.header`). Captured at the edge; a fresh dash-less UUID is generated when absent |
+| `x-flow-id` | Selects the flow a request launches. A rest.yaml entry's `flow:` value becomes this header on the request event; `http.flow.adapter` rejects a request without it |
+| `x-ttl` | Time-to-live in **milliseconds** for an async HTTP client call (`AsyncHttpRequest::set_timeout_seconds` writes it; default 30 seconds when absent) |
+| `x-content-length` | Set by the async HTTP client on the **response** event when the origin response carried no `content-length` (chunked transfer) — the actual body length in bytes |
+| `x-stream-id` | Reserved but inert: it is on the client's strip list (headers that may interfere with the underlying HTTP client), and object streams are not yet ported |
+
+When a call is traced, the platform stamps `X-Trace-Id` and `traceparent` on every outbound
+HTTP request from the current trace context — do not set them in application code. The
+framework does not echo the trace id or the correlation-id back to the HTTP client.
+
+!!! note "Rust port"
+    Java headers with no counterpart here (their features are unported):
+    `X-Small-Payload-As-Bytes`, `X-Event-Api`, `X-Async` (event-over-HTTP),
+    `X-Raw-Xml` (the XML parser/writer pair is not ported — XML bodies pass through as
+    text), and `X-App-Instance` (`protect.info.endpoints` is not ported).
+
+## Reserved graph node names and properties
+
+Every knowledge-graph model has exactly two framework-created nodes, addressed by alias:
+
+`root`
+:   The traversal entry point. Connections written *from* `root` anchor the flow
+    (`root -[contains]-> ...`).
+
+`end`
+:   The traversal sink. Nodes route *to* `end` to finish
+    (`... -[then]-> end`).
+
+Do not name your own nodes `root` or `end`. In addition, these node **property** names are
+owned by the engine — they configure a node's skill and are never copied into the state
+machine or usable as data-mapping sources:
+
+```text
+skill  mapping  statement  input  output  feature  exception
+extension  status  error  dictionary  for_each  concurrency  purpose  task
+```
+
+## Transient data store
+
+The elastic queue spills event bursts to `/tmp/reactive` (per-instance subdirectory unless
+`running.in.cloud=true`). The location is configurable — see
+[`transient.data.store`](configuration-reference.md#transientdatastore).
+
+---
+
+*Adapted from the mercury-composable guide `docs/guides/reserved-names-and-headers.md`; keys/APIs enumerated from this repository's source.*

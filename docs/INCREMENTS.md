@@ -61,6 +61,7 @@
 | 42 | discovery commands `list graphs` / `list flows` — self-service `extension=` delegation targets (finding #38, both ports) | 2026-07-20 | — | 202 |
 | 43 | human docs site phase 1: MkDocs+Material scaffold, Home + Getting Started, strict-build CI | 2026-07-20 | D-H1/D-H2 | — |
 | 44 | human docs site phase 2: Foundations trio + Layer 1/2 guides; layer-organized nav (human + AI docs per layer) | 2026-07-20 | D-H2 | — |
+| 45 | human docs site phase 3: KG human pages + REST automation + the six D-H2 reference conversions (12 pages) | 2026-07-20 | D-H2 | — |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1193,6 +1194,35 @@ maintainer's "the repo is AI-enabled" navigation statement).
   still auto-routes to `reply_to`).
 - Nav restructured: Foundations / Layer 1 / Layer 2 / Layer 3 (AI docs fill Layer 3 until
   phase 3). `mkdocs build --strict` green.
+
+---
+
+## Increment 45 — human docs site, phase 3 (2026-07-20)
+
+**Twelve pages by three parallel writers, reviewed and integrated; the site now covers all
+three layers plus a Reference tab.** `mkdocs build --strict` green across 19 nav pages.
+
+- **Layer 3 human pages:** `knowledge-graph/{index, build-your-first-graph,
+  playground-and-companion, composing-the-layers}.md` — the property-graph concepts folded
+  into the overview; the Playground/companion page documents `/sync`, the read-only session
+  rule, the live tee and discovery; **`composing-the-layers` closes sweep finding #9's
+  dangling link** with the full delegation story (sub-graph, `flow://`, `graph.task`) and a
+  mermaid composition diagram.
+- **Layer 1/2 additions:** `rest-automation.md` (rest.yaml grammar entry-per-heading, the
+  exact increment-36 content-type dispatch, deferral boxes derived from source) and
+  `flow-schema-reference.md` (all 13 task fields the compiler actually parses).
+- **The D-H2 showcase:** `configuration-reference.md` (31 keys **enumerated from source
+  greps**, grouped by area, entry-per-heading — the direct fix for the Java site's
+  overflowing table), `macros-reference.md` (8 macros + 2 stacked markers),
+  `event-envelope-reference.md` (27 methods), `api-overview.md` (Platform 9 + PostOffice 10 +
+  AppError), `reserved-names-and-headers.md` (routes/headers/node names, dev-gating noted).
+- **Java-doc bugs found by source verification (upstream doc-fix candidates):** the Java
+  flow-schema reference documents **`error.status`, but the engine key is `error.code`** in
+  both implementations (a null mapping if followed); `error.stack` resolves null in this
+  port; the Java timeout doc understates accepted units; the Java claim that missing
+  content-length streams the body is not how either boundary path behaves here.
+- Review fixes: the stale "Java upstream pending" discovery notes corrected to cite the
+  merged [#199](https://github.com/Accenture/mercury-composable/pull/199).
 
 ---
 

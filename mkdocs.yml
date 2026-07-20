@@ -111,15 +111,28 @@ nav:
       - Overview: guides/event-driven/index.md
       - Write Your First Function: guides/event-driven/write-your-first-function.md
       - Function Execution: guides/event-driven/function-execution.md
+      - REST Automation: guides/rest-automation.md
       - Function AI Agent Guide: guides/event-driven/ai-agent-guide.md
   - "Layer 2 — Event Script":
       - Overview: guides/event-script/index.md
       - Event Script Syntax: guides/event-script/syntax.md
       - Flow Grammar: guides/event-script/flow-grammar.md
+      - Flow Schema Reference: guides/flow-schema-reference.md
       - Flow AI Agent Guide: guides/event-script/ai-agent-guide.md
   - "Layer 3 — Knowledge Graph":
+      - Overview: guides/knowledge-graph/index.md
+      - Build Your First Graph: guides/knowledge-graph/build-your-first-graph.md
+      - Playground & AI Companion: guides/knowledge-graph/playground-and-companion.md
+      - Composing the Layers: guides/knowledge-graph/composing-the-layers.md
       - Graph AI Agent Guide: guides/knowledge-graph/ai-agent-guide.md
       - MiniGraph Command Grammar: guides/knowledge-graph/command-reference.md
       - Built-in Skills: guides/knowledge-graph/skills-reference.md
+  - Reference:
+      - Configuration Keys: guides/configuration-reference.md
+      - Macros: guides/macros-reference.md
+      - EventEnvelope: guides/event-envelope-reference.md
+      - Platform & PostOffice API: guides/api-overview.md
+      - Reserved Names & Headers: guides/reserved-names-and-headers.md
+      - Actuators & HTTP Client: guides/actuators-and-http-client.md
   - Background:
       - Architecture Decisions: arch-decisions/ADR.md
