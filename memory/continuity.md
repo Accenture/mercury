@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-050117)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-051629)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -33,7 +33,9 @@ swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4 (std fe
 tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
 async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
 **hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
-deliberately not a web framework: rest.yaml IS the router), **tokio-rustls 0.26 (ring) +
+deliberately not a web framework: rest.yaml IS the router), **chrono 0.4 + chrono-tz 0.10 +
+iana-time-zone 0.1** (event-script date/time plugins; chrono-tz = the ZoneId.of analog,
+increment 53), **tokio-rustls 0.26 (ring) +
 rustls-native-certs 0.8** (increment 48 — outbound HTTPS with OS-trust-store verification +
 `trust_all_cert`; rcgen dev-dep for the self-signed TLS test). Stack rationale:
 `platform-core-stack` + design doc D1–D10. `.gitignore` is stack-aware (Rust section:
@@ -68,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 63 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 64 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 62 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 63 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -519,8 +521,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   enforced on dynamic RHS indices (Java resolveModelIndex order + message; docs
   contradiction fixed — configuration-reference.md now documents the key), flow-launch
   `body` precondition ("Missing body in dataset", 400, both launch+request); red/green
-  fixture dynamic-index-cap + body-precondition test; workspace 217/clippy 0/fmt; (4) date/time plugins: full Java pattern support + the
-  silently-dropped zone arg of `f:dateTime`; (5) fetcher cache key = dictionary-declared
+  fixture dynamic-index-cap + body-precondition test; workspace 217/clippy 0/fmt; (4) date/time plugins — DONE 2026-07-21
+  (increment 53): real pattern tokenizer (names/12h/AM-PM/SSS/quoted literals/offsets;
+  unsupported letters fail loudly), `f:dateTime` zone arg via chrono-tz + ISO_DATE_TIME
+  no-arg form with [zone-id] suffix; parse plugins ride the same converter; deterministic
+  zone tests; workspace 218/clippy 0/fmt; deps + micro-divergences documented; (5) fetcher cache key = dictionary-declared
   inputs only (Rust keys the whole staged fetch map → re-fires POSTs Java reuses;
   single-request path only); (6) registration semantics (Java replaces on re-register,
   clamps instances 1..=1000), config resolver false-cycle on repeated `${a} ${a}`,
@@ -534,7 +539,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
   consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 4 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 5 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded
