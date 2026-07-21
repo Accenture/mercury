@@ -33,6 +33,7 @@ Registers a composable function at startup and binds it to a route — the Java
 | `typed` | The struct implements `TypedFunction<I, O>` instead of `ComposableFunction`. |
 | `zero_tracing` | Flag form of the stacked `#[zero_tracing]` marker (below). |
 | `interceptor` | Flag form of the stacked `#[event_interceptor]` marker (below). |
+| `is_private = false` | Opt into **public** visibility — callable from another application instance through Event over HTTP. Preloaded functions are **private by default**, exactly like Java `@PreLoad` (`isPrivate` defaults to `true`); private functions stay reachable by everything inside the instance (REST automation, flows, graphs) and are rejected only at the `/api/event` boundary. The programmatic pair is `platform.register_private(...)` — plain `register(...)` creates public functions (Java parity). |
 
 Without `typed`, the struct must implement `ComposableFunction` (raw `EventEnvelope` in and
 out). With `typed`, it implements `TypedFunction<I, O>` with your own `serde` types and the
@@ -72,7 +73,8 @@ configured value when the key is set:
 struct UntypedEcho;
 ```
 
-An invalid route name or a duplicate route fails the application at startup, so wiring
+An invalid route name fails the application at startup (a duplicate route RELOADS the
+existing one, exactly like Java `Platform.register` — see increment 55), so wiring
 mistakes never reach runtime.
 
 !!! note "Rust port"

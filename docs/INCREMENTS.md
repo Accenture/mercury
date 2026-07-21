@@ -76,6 +76,7 @@
 | 57 | parity remediation 8 (final) — nested `[]` append recursion, list→text List.toString, UTF-16 length/substring, launch-failure 500, session-guard case, `-0` concat rendering, HostUri lastIndexOf split | 2026-07-21 | — | 230 |
 | 58 | F2 resolution (maintainer: NORMALIZE) — Nil map entries strip deterministically on every hop incl. the in-process fast path; the load-dependent null visibility is gone | 2026-07-21 | — | 231 |
 | 59 | Event over HTTP phase 2, increment 1 — standard envelope wire-format conformance: body absent-as-nil default, round_trip field, unset-field omission; Java golden vectors decode + round-trip | 2026-07-21 | — | 233 |
+| 60 | Event over HTTP phase 2, increment 2 — private functions, both Java paths: `#[preload]` private-by-default with `is_private = false` opt-out + `register_private` API + `is_private()` query; engine internals registered private | 2026-07-21 | — | 233 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1645,6 +1646,33 @@ design decision D4's "revisit if interop is ever required" clause in the port's 
   paths — a `#[preload]` attribute for the declarative form and a programmatic
   `register_private` API), then the `/api/event` service + client and the live
   cross-language interop pairing.
+
+---
+
+## Increment 60 — Event over HTTP phase 2 / 2: private functions (2026-07-21)
+
+The security gate before `/api/event` ships — Java's private-function concept, ported on
+BOTH declaration paths per the maintainer's directive:
+
+- **Declarative** (`platform-macros`): `#[preload]` gains `is_private` — and mirrors
+  Java's crucial default: `@PreLoad` functions are **private by default**
+  (`isPrivate() default true`); `is_private = false` opts into public visibility. Every
+  existing `#[preload]` function (engine internals included) therefore becomes private
+  with no per-site changes — exactly the Java posture, and behavior-neutral today since
+  only the `/api/event` boundary (increment 3) consumes the flag.
+- **Programmatic** (`platform.rs`): `register_private(route, function, instances)`
+  (Java `registerPrivate`); plain `register(...)` stays public (Java parity).
+  `is_private(route) -> Option<bool>` is the query surface the `/api/event` 403 gate
+  will use (Java `ServiceDef.isPrivateFunction`).
+- **Engine internals registered private** like Java's `EssentialServiceLoader` +
+  `WsRequestHandler`: `distributed.tracing`, the four actuators, `no.op`,
+  `async.http.request`, and the per-connection websocket routes.
+- **Tests** (`annotations.rs`): preload default-private, `is_private = false` opt-out,
+  `register` = public / `register_private` = private, unregistered → `None`, and the
+  engine internals' private status. Docs: macros-reference + the event-driven AI guide
+  gain the attribute row (and macros-reference's stale "duplicate route fails at
+  startup" claim corrected to the increment-55 reload semantics). Workspace 233 tests /
+  clippy 0 / fmt.
 
 ---
 

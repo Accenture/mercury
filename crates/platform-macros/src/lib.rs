@@ -67,6 +67,10 @@ use syn::{parse_macro_input, ItemStruct, LitInt, LitStr};
 /// - `instances = N` (default 1)
 /// - `env_instances = "config.key"` — read the instance count from application
 ///   configuration at startup, falling back to `instances` (Java `envInstances`)
+/// - `is_private = false` — a PUBLIC function, callable from another
+///   application instance through Event over HTTP. Java `@PreLoad` parity:
+///   preloaded functions are **private by default** (in-instance only);
+///   opt into public visibility explicitly (Java `isPrivate = false`)
 /// - `typed` — the struct implements `TypedFunction<I, O>`; it is wrapped in a
 ///   `TypedAdapter` (without this flag the struct must implement
 ///   `ComposableFunction`)
@@ -90,6 +94,9 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut typed = false;
     let mut zero_tracing = false;
     let mut interceptor = false;
+    // Java @PreLoad: isPrivate() default TRUE — a preloaded function is
+    // private unless it explicitly opts into public visibility
+    let mut is_private = true;
     let parser = syn::meta::parser(|meta| {
         if meta.path.is_ident("route") {
             route = Some(meta.value()?.parse()?);
@@ -104,11 +111,14 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             zero_tracing = true;
         } else if meta.path.is_ident("interceptor") {
             interceptor = true;
+        } else if meta.path.is_ident("is_private") {
+            let lit: syn::LitBool = meta.value()?.parse()?;
+            is_private = lit.value();
         } else {
             return Err(meta.error(
                 "unknown preload parameter (expected route, instances, env_instances, \
-                 typed, zero_tracing, interceptor; a conditional registration is declared \
-                 with the separate #[optional_service(\"...\")] attribute)",
+                 typed, zero_tracing, interceptor, is_private; a conditional registration \
+                 is declared with the separate #[optional_service(\"...\")] attribute)",
             ));
         }
         Ok(())
@@ -144,6 +154,7 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
                 optional_service: #optional_expr,
                 zero_tracing: #zero_tracing,
                 interceptor: #interceptor,
+                is_private: #is_private,
                 factory: || #factory,
             }
         }

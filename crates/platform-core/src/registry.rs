@@ -36,6 +36,10 @@ pub struct PreloadEntry {
     /// that must hold at startup for this route to register; `None` = always
     /// register. Evaluated by [`crate::util::feature::is_required`].
     pub optional_service: Option<&'static str>,
+    /// Java `@PreLoad.isPrivate` (default true): a private function is
+    /// reachable only inside this application instance — Event over HTTP
+    /// rejects it with 403.
+    pub is_private: bool,
     /// Java `@ZeroTracing`: this route's executions are excluded from
     /// distributed-trace recording.
     pub zero_tracing: bool,

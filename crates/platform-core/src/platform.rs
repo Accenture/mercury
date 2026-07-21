@@ -70,6 +70,8 @@ enum MailboxMessage {
 }
 
 struct RouteEntry {
+    /// Java ServiceDef.isPrivateFunction (see FunctionOptions::private).
+    private: bool,
     mailbox: mpsc::Sender<MailboxMessage>,
     stop: Arc<Notify>,
     instances: usize,
@@ -110,6 +112,11 @@ const MAX_INSTANCES: usize = 1000;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FunctionOptions {
     pub zero_traced: bool,
+    /// Java `isPrivate`: a private function is reachable only inside this
+    /// application instance — Event over HTTP rejects it with 403. `register`
+    /// creates PUBLIC functions (Java parity); use `register_private` or the
+    /// `#[preload]` macro (private by default, like Java `@PreLoad`).
+    pub private: bool,
     pub interceptor: bool,
 }
 
@@ -156,6 +163,36 @@ impl Platform {
         self.register_with_options(route, function, instances, FunctionOptions::default())
     }
 
+    /// Register a PRIVATE function (Java `platform.registerPrivate`): callable
+    /// only inside this application instance — Event over HTTP rejects it
+    /// with 403. Engine internals register this way (increment 60).
+    pub fn register_private(
+        &self,
+        route: &str,
+        function: Arc<dyn ComposableFunction>,
+        instances: usize,
+    ) -> Result<(), AppError> {
+        self.register_with_options(
+            route,
+            function,
+            instances,
+            FunctionOptions {
+                private: true,
+                ..FunctionOptions::default()
+            },
+        )
+    }
+
+    /// Whether a registered route is private (Java `ServiceDef.isPrivateFunction`);
+    /// `None` when the route is not registered.
+    pub fn is_private(&self, route: &str) -> Option<bool> {
+        self.routes
+            .read()
+            .expect("route registry poisoned")
+            .get(route)
+            .map(|entry| entry.private)
+    }
+
     /// Register with explicit options (increment E-3 extends the increment-10
     /// zero-trace flag with the event-interceptor mode).
     pub fn register_with_options(
@@ -185,6 +222,7 @@ impl Platform {
             routes.insert(
                 route.to_string(),
                 RouteEntry {
+                    private: options.private,
                     mailbox: mailbox_tx.clone(),
                     stop: stop.clone(),
                     instances,
