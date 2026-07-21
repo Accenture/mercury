@@ -126,6 +126,7 @@ impl ComposableFunction for Capture {
 const INTERCEPTOR: FunctionOptions = FunctionOptions {
     zero_traced: false,
     interceptor: true,
+    private: false,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -143,7 +143,7 @@ impl AppStarter {
         elastic_queue::start_housekeeping();
         let platform = Platform::get_instance();
         if !platform.has_route(crate::telemetry::DISTRIBUTED_TRACING) {
-            if let Err(e) = platform.register(
+            if let Err(e) = platform.register_private(
                 crate::telemetry::DISTRIBUTED_TRACING,
                 std::sync::Arc::new(crate::telemetry::Telemetry::new(&platform)),
                 1,
@@ -167,7 +167,7 @@ impl AppStarter {
                 (crate::actuator::LIVENESS_ACTUATOR, ActuatorKind::Liveness),
             ];
             for (route, kind) in actuators {
-                if let Err(e) = platform.register(
+                if let Err(e) = platform.register_private(
                     route,
                     Arc::new(ActuatorServices::new(kind, context.clone())),
                     1,
@@ -187,7 +187,7 @@ impl AppStarter {
                 .get_property("worker.instances.no.op")
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(500);
-            if let Err(e) = platform.register(
+            if let Err(e) = platform.register_private(
                 "no.op",
                 Arc::new(crate::function::NoOpFunction),
                 no_op_instances,
@@ -207,6 +207,8 @@ impl AppStarter {
                 FunctionOptions {
                     zero_traced: false,
                     interceptor: true,
+                    // Java EssentialServiceLoader: registerPrivate
+                    private: true,
                 },
             ) {
                 if !platform.has_route(crate::automation::ASYNC_HTTP_REQUEST) {
@@ -391,6 +393,7 @@ impl AutoStart {
                 FunctionOptions {
                     zero_traced: entry.zero_tracing,
                     interceptor: entry.interceptor,
+                    private: entry.is_private,
                 },
             );
         }

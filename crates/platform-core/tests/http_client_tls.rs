@@ -51,6 +51,7 @@ fn register_http_client(platform: &Platform) {
             FunctionOptions {
                 zero_traced: false,
                 interceptor: true,
+                private: false,
             },
         )
         .expect("http client route");

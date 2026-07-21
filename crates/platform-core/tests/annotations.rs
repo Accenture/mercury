@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -118,6 +118,24 @@ impl ComposableFunction for ZeroTracedFn {
             Ordering::SeqCst,
         );
         EventEnvelope::new().set_body("ok")
+    }
+}
+
+/// Increment 60 (Event over HTTP phase 2): a function that opts into PUBLIC
+/// visibility — Java `@PreLoad(isPrivate = false)`. Preloaded functions are
+/// private by default, exactly like Java.
+#[preload(route = "anno.public.echo", is_private = false)]
+struct AnnoPublicEcho;
+
+#[async_trait]
+impl ComposableFunction for AnnoPublicEcho {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
     }
 }
 
@@ -282,6 +300,29 @@ async fn annotation_macros_end_to_end() {
     assert!(platform.has_route("anno.typed.echo"));
     assert!(platform.has_route("anno.untyped.echo"));
     assert!(platform.has_route("anno.zero.traced"));
+
+    // increment 60: #[preload] functions are PRIVATE by default (Java
+    // @PreLoad isPrivate default true); is_private = false opts into public
+    assert_eq!(platform.is_private("anno.typed.echo"), Some(true));
+    assert_eq!(platform.is_private("anno.zero.traced"), Some(true));
+    assert!(platform.has_route("anno.public.echo"));
+    assert_eq!(platform.is_private("anno.public.echo"), Some(false));
+    // programmatic paths: register() = public, register_private() = private
+    platform
+        .register("anno.prog.public", Arc::new(AnnoPublicEcho), 1)
+        .unwrap();
+    assert_eq!(platform.is_private("anno.prog.public"), Some(false));
+    platform
+        .register_private("anno.prog.private", Arc::new(AnnoPublicEcho), 1)
+        .unwrap();
+    assert_eq!(platform.is_private("anno.prog.private"), Some(true));
+    assert_eq!(platform.is_private("no.such.route"), None);
+    // engine internals are private (Java EssentialServiceLoader parity)
+    assert_eq!(platform.is_private("no.op"), Some(true));
+    assert_eq!(
+        platform.is_private(platform_core::automation::ASYNC_HTTP_REQUEST),
+        Some(true)
+    );
 
     // #[optional_service] is first-class and order-independent: a satisfied
     // condition registers (both stacking orders); an unsatisfied one skips

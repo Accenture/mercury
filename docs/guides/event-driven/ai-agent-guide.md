@@ -67,6 +67,7 @@ struct MyFunction;
 | `typed` | flag | off | The struct implements `TypedFunction<I, O>` instead of `ComposableFunction`; the engine bridges it with a `TypedAdapter`. |
 | `zero_tracing` | flag | off | Exclude this route from distributed tracing (also stackable as `#[zero_tracing]`). |
 | `interceptor` | flag | off | Event-interceptor mode: the function sees the raw incoming `EventEnvelope` and the engine does **not** auto-reply on success (failures still route to the caller). Also stackable as `#[event_interceptor]`. |
+| `is_private` | bool | `true` | Preloaded functions are **private by default** (in-instance only — Java `@PreLoad` parity); set `is_private = false` to make the function callable from another application instance through Event over HTTP. Everything inside the instance (REST automation, flows, graphs) reaches private functions normally. Programmatic pair: `platform.register_private(...)`; plain `register(...)` = public. |
 
 *(The Java engine's `isPrivate`, `inputPojoClass`, `customSerializer`, and
 `inputStrategy`/`outputStrategy` parameters have no Rust equivalent — everything is process-local,

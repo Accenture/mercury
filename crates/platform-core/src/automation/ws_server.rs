@@ -315,6 +315,8 @@ fn ensure_housekeeper(platform: &Platform) {
             1,
             FunctionOptions {
                 zero_traced: true,
+                // Java WsRequestHandler: registerPrivate
+                private: true,
                 interceptor: true,
             },
         );
@@ -390,6 +392,8 @@ async fn run_session<S>(
         1,
         FunctionOptions {
             zero_traced: true,
+            // Java WsRequestHandler: registerPrivate
+            private: true,
             interceptor: false,
         },
     );
