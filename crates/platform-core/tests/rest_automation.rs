@@ -167,6 +167,31 @@ impl ComposableFunction for BodyProbe {
     }
 }
 
+/// Increment 56: exposes the Java request-model keys — repeated query
+/// values, the parsed cookies map, the raw query string, and the https flag.
+struct RequestView;
+
+#[async_trait]
+impl ComposableFunction for RequestView {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "q": request["parameters"]["query"]["q"],
+            "single": request["parameters"]["query"]["single"],
+            "cookie_first": request["cookies"]["first"],
+            "cookie_second": request["cookies"]["second"],
+            "cookie_header": request["headers"]["cookie"],
+            "query": request["query"],
+            "https": request["https"],
+        }))
+    }
+}
+
 /// Authorizer: allows only when header x-api-key == "open-sesame".
 struct ApiKeyCheck;
 
@@ -223,6 +248,22 @@ rest:
     url: "/api/headers"
     timeout: 5s
     headers: header_1
+  - service: "request.view"
+    methods: ['GET']
+    url: "/api/request/view"
+    timeout: 5s
+  - service: "plain.text"
+    methods: ['GET']
+    url: "/api/files/*"
+    timeout: 5s
+  - service: "plain.text"
+    methods: ['GET']
+    url: "/api/v*/ping"
+    timeout: 5s
+  - service: "plain.text"
+    methods: ['GET']
+    url: "/api/mid/*/end"
+    timeout: 5s
   - service: "trace.probe"
     methods: ['GET']
     url: "/api/traced"
@@ -319,6 +360,9 @@ async fn server() -> TestServer {
         .unwrap();
     platform
         .register("header.probe", Arc::new(HeaderProbe), 1)
+        .unwrap();
+    platform
+        .register("request.view", Arc::new(RequestView), 1)
         .unwrap();
     let addr = automation::start_http_server(&platform).await.unwrap();
     TestServer {
@@ -438,11 +482,13 @@ async fn get_with_path_query_and_generated_cid() {
         server.port,
         "GET",
         "/api/echo/eric?q=hello%20world",
-        &[],
+        &[("Accept", "application/json")],
         "",
     )
     .await;
     assert_eq!(status, 200);
+    // increment 56: the fallback content type is negotiated from Accept
+    // (Java updateContentType), no longer derived from the body shape
     assert_eq!(headers["content-type"], "application/json");
     // response header transform + CORS headers applied
     assert_eq!(headers["x-served-by"], "mercury");
@@ -610,7 +656,7 @@ async fn edge_starts_trace_and_traceparent_parent_is_adopted() {
     let (status, _, _) = http(
         server.port,
         "GET",
-        "/api/traced",
+        "/api/traced?flag=on",
         &[
             ("traceparent", traceparent.as_str()),
             ("X-Correlation-Id", "biz-9"),
@@ -627,7 +673,8 @@ async fn edge_starts_trace_and_traceparent_parent_is_adopted() {
         .clone()
         .expect("probe ran");
     assert_eq!(seen.0.as_deref(), Some(upstream_trace));
-    assert_eq!(seen.1.as_deref(), Some("GET /api/traced"));
+    // Java appends the query string to the trace path (increment 56)
+    assert_eq!(seen.1.as_deref(), Some("GET /api/traced?flag=on"));
     assert_eq!(seen.2.as_deref(), Some("biz-9"));
     // and the telemetry span adopted the caller's span as parent
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
@@ -641,7 +688,7 @@ async fn edge_starts_trace_and_traceparent_parent_is_adopted() {
             );
             assert_eq!(
                 dataset["trace"]["path"],
-                serde_json::json!("GET /api/traced")
+                serde_json::json!("GET /api/traced?flag=on")
             );
             assert_eq!(dataset["trace"]["from"], serde_json::json!("http.request"));
             break;
@@ -657,10 +704,135 @@ async fn edge_starts_trace_and_traceparent_parent_is_adopted() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn text_response_maps_to_text_plain() {
     let server = server().await;
-    let (status, headers, body) = http(server.port, "GET", "/api/text", &[], "").await;
+    // increment 56 (Java updateContentType): text/plain is the negotiated
+    // fallback for an Accept that is not html/xml/json/any
+    let (status, headers, body) = http(
+        server.port,
+        "GET",
+        "/api/text",
+        &[("Accept", "text/plain")],
+        "",
+    )
+    .await;
     assert_eq!(status, 200);
     assert_eq!(headers["content-type"], "text/plain");
     assert_eq!(body, "plain response");
+}
+
+/// Increment 56 — the Java content negotiation (updateContentType +
+/// handleMapContent): the fallback type comes from Accept, `*/*` negotiates
+/// JSON even for a text body, text/html wraps a map body in an HTML shell,
+/// and NO Accept means NO content-type header at all.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_content_negotiation_matches_java() {
+    let server = server().await;
+    // */* on a TEXT body: content-type application/json, body raw (Java quirk)
+    let (_, headers, body) = http(server.port, "GET", "/api/text", &[("Accept", "*/*")], "").await;
+    assert_eq!(headers["content-type"], "application/json");
+    assert_eq!(body, "plain response");
+    // text/html on a MAP body: HTML-wrapped JSON
+    let (_, headers, body) = http(
+        server.port,
+        "GET",
+        "/api/echo/html?q=1",
+        &[("Accept", "text/html")],
+        "",
+    )
+    .await;
+    assert_eq!(headers["content-type"], "text/html");
+    assert!(
+        body.starts_with("<html><body><pre>\n") && body.ends_with("\n</pre></body></html>"),
+        "{body}"
+    );
+    // NO Accept: no content-type header at all (Java's "?" marker)
+    let (_, head, _) = http_raw(server.port, "GET", "/api/text").await;
+    assert!(!head.contains("content-type"), "{head}");
+}
+
+/// Increment 56 (parity F14a/d) — the request model: repeated query values
+/// become a list, cookies arrive as a parsed map (the raw header withheld),
+/// the raw query string and https flag ride the Java keys, and the trace
+/// path carries the query string.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn request_model_matches_java_keys() {
+    let server = server().await;
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        "/api/request/view?q=a&q=b&single=1",
+        &[
+            ("Accept", "application/json"),
+            ("Cookie", "first=alpha; second=beta"),
+            ("X-Forwarded-Proto", "https"),
+        ],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // repeated query parameter -> list; single stays a string (Java getAll)
+    assert_eq!(json["q"], serde_json::json!(["a", "b"]));
+    assert_eq!(json["single"], "1");
+    // cookies parsed into a map; the raw cookie header withheld
+    assert_eq!(json["cookie_first"], "alpha");
+    assert_eq!(json["cookie_second"], "beta");
+    assert_eq!(json["cookie_header"], serde_json::Value::Null);
+    // Java top-level keys: raw query string + https from x-forwarded-proto
+    assert_eq!(json["query"], "q=a&q=b&single=1");
+    assert_eq!(json["https"], true);
+}
+
+/// Increment 56 (parity F14b) — the full Java wildcard grammar: mid-path `*`
+/// (one segment), segment prefix `v*`, and the trailing `*` that no longer
+/// matches an EMPTY remainder.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wildcard_grammar_matches_java() {
+    let server = server().await;
+    let ok = |status: u16| assert_eq!(status, 200);
+    // trailing * requires at least one remaining segment (Java matchRoute)
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/files/a/b",
+        &[("Accept", "*/*")],
+        "",
+    )
+    .await;
+    ok(status);
+    let (status, _, _) = http(server.port, "GET", "/api/files", &[("Accept", "*/*")], "").await;
+    assert_eq!(status, 404, "trailing * must NOT match an empty remainder");
+    // segment prefix wildcard v*
+    let (status, _, _) = http(server.port, "GET", "/api/v2/ping", &[("Accept", "*/*")], "").await;
+    ok(status);
+    // mid-path bare * matches exactly one segment
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/mid/x/end",
+        &[("Accept", "*/*")],
+        "",
+    )
+    .await;
+    ok(status);
+    let (status, _, _) = http(server.port, "GET", "/api/mid/end", &[("Accept", "*/*")], "").await;
+    assert_eq!(status, 404, "mid-path * consumes exactly one segment");
+}
+
+/// Increment 56 (parity F14c) — a known path under a wrong method is 405,
+/// and OPTIONS without a CORS block is 405, never a bare 204.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn known_path_wrong_method_is_405() {
+    let server = server().await;
+    let (status, _, body) = http(server.port, "PUT", "/api/text", &[("Accept", "*/*")], "").await;
+    assert_eq!(status, 405);
+    assert!(body.contains("Method not allowed"), "{body}");
+    // OPTIONS on a route WITH cors options: 204 + the options headers
+    let (status, headers, _) = http(server.port, "OPTIONS", "/api/echo/x", &[], "").await;
+    assert_eq!(status, 204);
+    assert_eq!(headers["access-control-allow-origin"], "*");
+    // OPTIONS on a route WITHOUT cors: 405 (Java handleOptionsMethod)
+    let (status, _, _) = http(server.port, "OPTIONS", "/api/text", &[], "").await;
+    assert_eq!(status, 405);
 }
 
 /// Increment E-3: a rest.yaml `flow:` binding injects the x-flow-id request

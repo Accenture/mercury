@@ -166,6 +166,11 @@ async fn handle(
         Err(_) => Bytes::new(),
     };
     let Some(assigned) = state.table.find(&method, &path) else {
+        // Java HttpRequestHandler: a known path under a WRONG method is 405,
+        // never 404 (increment 56, parity F14c — the getSimilarRoute marker)
+        if state.table.path_matches_any_method(&path) {
+            return Ok(error_response(405, "Method not allowed"));
+        }
         // static HTML content from resources/public — including "/" →
         // index.html — served only when rest.yaml claims no route (a "/"
         // entry in rest.yaml always wins)
@@ -178,13 +183,22 @@ async fn handle(
         }
         return Ok(error_response(404, "Resource not found"));
     };
-    // CORS preflight (OPTIONS is auto-added per the grammar)
+    // CORS preflight (OPTIONS is auto-added per the grammar). Java
+    // handleOptionsMethod: without a CORS block (or with empty options) the
+    // answer is 405 "Method not allowed", never a bare 204 (increment 56,
+    // parity F14c)
     if method == "OPTIONS" {
+        let Some(cors) = assigned
+            .info
+            .cors
+            .as_ref()
+            .filter(|c| !c.options.is_empty())
+        else {
+            return Ok(error_response(405, "Method not allowed"));
+        };
         let mut response = Response::builder().status(StatusCode::NO_CONTENT);
-        if let Some(cors) = &assigned.info.cors {
-            for (name, value) in &cors.options {
-                response = response.header(name, value);
-            }
+        for (name, value) in &cors.options {
+            response = response.header(name, value);
         }
         return Ok(response
             .body(Full::new(Bytes::new()))
@@ -258,23 +272,56 @@ async fn process(
         }
     });
     headers.insert(MY_CORRELATION_ID.to_string(), cid.clone());
-    // AsyncHttpRequest-shaped event body (Java parity keys)
-    let mut query: HashMap<String, String> = HashMap::new();
+    // AsyncHttpRequest-shaped event body (Java parity keys).
+    // Repeated query parameters keep EVERY value — one occurrence is a
+    // string, more become a list (Java HttpRouter: params.getAll;
+    // increment 56, parity F14a — previously last-wins)
+    let mut query: HashMap<String, serde_json::Value> = HashMap::new();
     for pair in query_text.split('&').filter(|p| !p.is_empty()) {
         let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
-        query.insert(url_decode(name), url_decode(value));
+        let (name, value) = (url_decode(name), url_decode(value));
+        match query.get_mut(&name) {
+            None => {
+                query.insert(name, serde_json::Value::String(value));
+            }
+            Some(serde_json::Value::Array(values)) => {
+                values.push(serde_json::Value::String(value));
+            }
+            Some(existing) => {
+                let first = existing.clone();
+                *existing = serde_json::Value::Array(vec![first, serde_json::Value::String(value)]);
+            }
+        }
     }
     let path_params: HashMap<String, String> = assigned
         .path_params
         .iter()
         .map(|(k, v)| (k.clone(), url_decode(v)))
         .collect();
+    // the cookie header becomes a parsed cookies map and is WITHHELD from
+    // the request headers (Java setRequestCookies; increment 56, parity
+    // F14d — previously the raw header rode through and no map existed)
+    let cookies: HashMap<String, String> = headers
+        .remove("cookie")
+        .map(|header| {
+            header
+                .split(';')
+                .filter_map(|item| item.split_once('='))
+                .map(|(name, value)| (name.trim().to_string(), value.trim().to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    // the request's Accept header drives the response's fallback content
+    // negotiation (Java AsyncContextHolder.accept), captured before the
+    // headers map moves into the event body
+    let accept = headers.get("accept").cloned();
     let parsed = parse_body(&headers, &body_bytes);
     // form fields become query parameters, on top of the URL's own
-    // (Java handleTextContent's url-encode branch: setQueryParameter each)
+    // (Java handleTextContent's url-encode branch: setQueryParameter each —
+    // single values, replacing)
     if let ParsedBody::Form(form) = &parsed {
         for (name, value) in form {
-            query.insert(name.clone(), value.clone());
+            query.insert(name.clone(), serde_json::Value::String(value.clone()));
         }
     }
     let body_value = match &parsed {
@@ -287,11 +334,13 @@ async fn process(
         ParsedBody::Bytes(bytes) => Some(bytes.as_slice()),
         _ => None,
     };
-    let http_request = serde_json::json!({
+    let mut http_request = serde_json::json!({
         "method": method,
         "url": path,
         "ip": peer.ip().to_string(),
-        "https": false,
+        // Java: setSecure(x-forwarded-proto == "https") — increment 56,
+        // parity F14d (previously hardcoded false)
+        "https": headers.get("x-forwarded-proto").map(String::as_str) == Some("https"),
         "host": headers.get("host").cloned().unwrap_or_default(),
         "headers": headers,
         "parameters": {"path": path_params, "query": query},
@@ -300,8 +349,21 @@ async fn process(
         // the flow TTL from it)
         "timeout": info.timeout.as_secs(),
     });
+    // the raw query string rides as Java's top-level "query" key; cookies
+    // appear only when present (Java toMap omits empty)
+    if !query_text.is_empty() {
+        http_request["query"] = serde_json::Value::String(query_text.clone());
+    }
+    if !cookies.is_empty() {
+        http_request["cookies"] = serde_json::to_value(&cookies).unwrap_or_default();
+    }
     let po = PostOffice::new(&state.platform);
-    let trace_path = format!("{method} {path}");
+    // Java appends the query string to the trace path (HttpRouter)
+    let trace_path = if query_text.is_empty() {
+        format!("{method} {path}")
+    } else {
+        format!("{method} {path}?{query_text}")
+    };
     // optional authentication before dispatch (simple route form)
     if let Some(auth_route) = &info.authentication {
         let auth_event = build_event(
@@ -340,8 +402,7 @@ async fn process(
     // updateHeadersAndContentType + updateHeaders)
     let status = status_of(result.status());
     let is_head = method == "HEAD";
-    let (derived_type, payload) = envelope_payload(&result);
-    let mut content_type = derived_type.map(str::to_string);
+    let mut content_type: Option<String> = None;
     let mut set_cookies: Vec<String> = Vec::new();
     let mut response_headers: HashMap<String, String> = HashMap::new();
     for (name, value) in result.headers() {
@@ -352,7 +413,7 @@ async fn process(
             // and withheld from the wire, never leaked as literal headers
             "x-stream-id" if value.starts_with("stream.") && value.contains(".in") => {}
             "x-ttl" => {}
-            // a function-set content type overrides the body-derived one
+            // a function-set content type overrides negotiation
             // (Java: response.putHeader directly, lowercased; skipped for HEAD)
             "content-type" => {
                 if !is_head {
@@ -369,6 +430,14 @@ async fn process(
             }
         }
     }
+    // Without a function-set type, the fallback comes from the request's
+    // Accept header (Java updateContentType — increment 56, the negotiation
+    // sub-item queued at increment 50; previously derived from body shape),
+    // and map/list bodies render per the negotiated type (handleMapContent).
+    if content_type.is_none() && !is_head {
+        content_type = accept_fallback_type(accept.as_deref(), result.body());
+    }
+    let payload = render_payload(result.body(), content_type.as_deref());
     // the rest.yaml response transform filters the merged header map (Java
     // filterHeaders); content-type and cookies bypass it, as in Java
     if let Some(header_info) = &info.headers {
@@ -753,6 +822,51 @@ async fn run_static_filter(
 
 /// Map an envelope body to HTTP payload + content type (shared by the normal
 /// dispatch and the filter pass-through).
+/// The fallback response content type from the request's Accept header —
+/// Java `AsyncHttpResponse.updateContentType` (increment 56): html → html,
+/// json or `*/*` → json, no Accept → NO content-type header at all; anything
+/// else → text/plain. Java's `application/xml` branch renders XML, which this
+/// port defers (D10) — an xml Accept negotiates JSON instead, never claiming
+/// xml on the wire.
+fn accept_fallback_type(accept: Option<&str>, _body: &rmpv::Value) -> Option<String> {
+    let accept = accept?;
+    if accept.contains("text/html") {
+        Some("text/html".to_string())
+    } else if accept.contains("application/json")
+        || accept.contains("*/*")
+        || accept.contains("application/xml")
+    {
+        Some("application/json".to_string())
+    } else {
+        Some("text/plain".to_string())
+    }
+}
+
+/// Render the response body per the effective content type — Java
+/// `AsyncHttpResponse.handleContent`: strings and bytes ride raw regardless
+/// of the negotiated type; map/list bodies render as JSON, wrapped in
+/// `<html><body><pre>` when the effective type is text/html
+/// (`handleMapContent`/`handleArrayContent`).
+fn render_payload(body: &rmpv::Value, content_type: Option<&str>) -> Bytes {
+    match body {
+        rmpv::Value::Nil => Bytes::new(),
+        rmpv::Value::String(text) => Bytes::from(text.as_str().unwrap_or_default().to_string()),
+        rmpv::Value::Binary(bytes) => Bytes::from(bytes.clone()),
+        _ => {
+            // Omit Nil map entries unless serializer.null.transport=true (Java Gson parity).
+            let stripped = crate::serializer::strip_nulls(body);
+            let json = serde_json::to_value(&stripped).unwrap_or_default();
+            if content_type.is_some_and(|t| t.starts_with("text/html"))
+                && matches!(body, rmpv::Value::Map(_) | rmpv::Value::Array(_))
+            {
+                Bytes::from(format!("<html><body><pre>\n{json}\n</pre></body></html>"))
+            } else {
+                Bytes::from(json.to_string())
+            }
+        }
+    }
+}
+
 fn envelope_payload(result: &EventEnvelope) -> (Option<&'static str>, Bytes) {
     match result.body() {
         rmpv::Value::Nil => (None, Bytes::new()),

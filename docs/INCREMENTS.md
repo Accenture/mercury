@@ -72,6 +72,7 @@
 | 53 | parity remediation 4 — date/time plugins: full Java-pattern tokenizer (names, 12h/AM-PM, SSS, quoted literals, offsets; loud failure on unsupported letters), `f:dateTime` zone argument + ISO_DATE_TIME no-arg form | 2026-07-21 | — | 218 |
 | 54 | parity remediation 5 — fetcher cache key = dictionary-declared inputs only (`{node}.dd.{alias}.*`, Java makeRegularHttpCall parity); call-counting red/green regression | 2026-07-21 | — | 218 |
 | 55 | parity remediation 6 — registration replaces + clamps 1..=1000 (Java Platform.register/ServiceDef), config resolver per-segment loop chain (no false cycles), .properties full java.util.Properties syntax | 2026-07-21 | — | 220 |
+| 56 | parity remediation 7 — REST routing/request/response parity: full wildcard grammar, 405 + OPTIONS semantics, multi-value query params, cookies map, raw query + https flag, trace-path query, Accept-negotiated content type | 2026-07-21 | — | 224 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1510,6 +1511,38 @@ Sixth increment of the parity-remediation program — three Medium findings (F10
   `repeated_references_are_not_false_cycles` (+ new fixture keys);
   `properties_syntax_matches_java_util_properties` (+ `props-syntax.properties` fixture
   covering every syntax form). Workspace 220 tests / clippy 0 / fmt.
+
+---
+
+## Increment 56 — parity remediation 7: REST routing + request/response model (2026-07-21)
+
+Seventh increment of the parity-remediation program (finding F14, all sub-claims, plus the
+Accept-negotiation sub-item queued at increment 50):
+
+- **Wildcard grammar** (`routing.rs`): the full Java `RoutingEntry` rules — mid-path `*`
+  (one segment), `foo*` segment prefixes, and open-ended trailing wildcards that let the
+  URL run longer but never shorter (the Rust-only empty-remainder match is gone:
+  `/api/files/*` no longer matches `/api/files`).
+- **405 + OPTIONS** (`server.rs`): a known path under a wrong method answers 405 "Method
+  not allowed" (Java's getSimilarRoute marker), and OPTIONS without a CORS block (or with
+  empty options) is 405, never a bare 204.
+- **Request model**: repeated query parameters keep every value (one → string, more →
+  list, Java `params.getAll`); the cookie header becomes a parsed `cookies` map and is
+  withheld from the request headers; the raw query string rides Java's top-level `query`
+  key; `https` derives from `x-forwarded-proto` (was hardcoded false); the trace path
+  carries the query string.
+- **Response negotiation** (Java `updateContentType` + `handleMapContent`): without a
+  function-set content type, the fallback comes from the Accept header — html →
+  text/html with map/list bodies HTML-wrapped, json or `*/*` → application/json (even for
+  text bodies — the Java quirk), NO Accept → no content-type header at all, else
+  text/plain; an xml Accept negotiates JSON (the port's XML deferral, never claiming xml
+  on the wire). The actuator endpoints now set explicit envelope content types exactly
+  like Java `ActuatorServices` (they were riding the body-shape fallback).
+- **Tests (red/green-verified):** `request_model_matches_java_keys`,
+  `wildcard_grammar_matches_java`, `known_path_wrong_method_is_405`,
+  `response_content_negotiation_matches_java`, the trace-path query assertion, and the
+  existing suite updated to send explicit Accept headers (real clients do). Workspace 224
+  tests / clippy 0 / fmt.
 
 ---
 
