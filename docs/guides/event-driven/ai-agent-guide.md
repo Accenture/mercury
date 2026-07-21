@@ -330,7 +330,7 @@ boundaries). The Java engine's Gson/MsgPack integer-downcast gotchas do not carr
 | Reading the body | `body_as::<T>()` converts numbers per serde rules; deserialize into the type you want (`i64`, `f64`, your struct) rather than matching raw `rmpv::Value` variants |
 | Header values | always `String` — parse numerics explicitly (`str::parse`), defaulting on failure |
 | Map keys | always strings on the wire — never rely on non-string keys |
-| Null handling | map entries with null values are **omitted** on the wire by default (`serializer.null.transport=false`, Java parity) — treat absent as null when reading |
+| Null handling | map entries with null values are **omitted** by default on the wire AND on every in-memory hop (`serializer.null.transport=false`, Java parity — deterministic on every delivery path) — treat absent as null when reading |
 | Field-name style | put `#[serde(rename_all = "…")]` on your own types; there are no engine-level snake/camel switches |
 
 ---
