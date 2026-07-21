@@ -1,0 +1,31 @@
+flow:
+  id: 'dynamic-index-cap'
+  description: 'a dynamic RHS array index above max.model.array.size must be rejected at runtime'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'text(cap-tester) -> user'
+      - 'text(hello world) -> greeting'
+      # the dynamic RHS index resolves only at runtime; the executor caps it at
+      # max.model.array.size (default 1000) exactly like Java resolveModelIndex
+      - 'input.body.n -> model.n'
+      - 'text(x) -> model.list[model.n]'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Exception handler'
+    execution: end

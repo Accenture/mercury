@@ -34,6 +34,7 @@ flows:
   - 'parser-test-30.yml'
   - 'parser-test-31.yml'
   - 'dynamic-reserved-key.yml'
+  - 'dynamic-index-cap.yml'
   # duplicated filename is intentional for unit test
   - 'parser-test-17.yml'
 

@@ -226,7 +226,14 @@ mutexes, not worker serialization, are the thread-safety story, matching Java.)*
   output/decision/error — stripped afterwards), so `model.*` writes persist exactly
   like Java's shared-reference map with zero model copies. The dynamic-index
   substitution re-checks runtime-resolved RHS targets against the reserved-key guard
-  (Java `substituteDynamicIndex`), proven by the dynamic-reserved-key fixture.
+  (Java `substituteDynamicIndex`), proven by the dynamic-reserved-key fixture, and —
+  increment 52 (parity F4) — enforces the `max.model.array.size` cap (default 1000,
+  read once like Java's `TaskExecutor` constructor) on a dynamically resolved RHS
+  index before the negative check, exactly as Java `resolveModelIndex`; literal
+  numeric indices stay uncapped in both engines (dynamic-index-cap fixture).
+  `FlowExecutor::launch`/`request` enforce Java's precondition (increment 52, parity
+  F18): the dataset must carry a top-level `body` key — "Missing body in dataset"
+  (400) — so a malformed dataset never starts a flow or executes side effects.
 - **E2E tests** (canonical fixtures + Java-parity task functions, all registered
   through the annotation inventory exactly as a user app would): greetings (type
   conversions, business-cid exposure, result-header copying, status mapping),
