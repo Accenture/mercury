@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-212346)
-- **last_review:** 2026-07-21 | through 2026-07-21-021231
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-214043)
+- **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 65 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 66 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 64 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 65 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -263,21 +263,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
   both engines, even mislabeled as JSON). → serves: vision-mercury
   <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
-
-- [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
-  BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
-  `list graphs` (compiled registry ∪ deployed-folder models, each with the root's `purpose`:
-  living documentation) and `list flows` (Event Script flows) — valid `extension=` /
-  `extension=flow://` targets discoverable without an out-of-band brief, on the console AND both
-  companion endpoints. Rust: `commands.rs` + `playground.rs` assertions (workspace 202/clippy
-  0/fmt). Java: `GraphCommandService` + `/sync` test in `CompanionSyncTest` (70-test suite
-  green); **PR [#199](https://github.com/Accenture/mercury-composable/pull/199) MERGED (2026-07-20)**
-  (3 commits: feature + description/purpose refinements + webapp-bundle refresh) — discovery
-  is live in BOTH engines. AI grammar +
-  catalog + agent-guide recipe + skills-reference + `help list.md` all updated; rollup #38 →
-  DONE. Design note: discovery rides the command surface (no new REST endpoints — `/sync`
-  already gives agents REST access to every command). → serves: vision-mercury
-  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 6 | tier: archive-candidate | origin: 2026-07-19-171653.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -493,9 +478,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (declared inputs only, Java makeRegularHttpCall parity; log + trace annotation now
   report dd-scoped keys); call-counting red/green regression (rust-cache-key fixture +
   mock.cache.counter — pre-fix 2 calls, fixed 1; Java repo can adopt the same fixture);
-  workspace 218/clippy 0/fmt; (6) registration semantics (Java replaces on re-register,
-  clamps instances 1..=1000), config resolver false-cycle on repeated `${a} ${a}`,
-  .properties full syntax; (7) REST routing parity (multi-value query params, 405-vs-404 +
+  workspace 218/clippy 0/fmt; (6) registration + config semantics — DONE
+  2026-07-21 (increment 55): register replaces (Java "Reloading" + release) + clamps
+  1..=1000 (ServiceDef.setConcurrency; zero no longer 400), resolver loop guard = true
+  push/pop chain (repeated/diamond refs resolve; genuine cycles still warn+empty),
+  .properties = full java.util.Properties.load (separators/continuations/escapes/
+  trailing-whitespace; malformed \u errors); red/green tests incl. reworked
+  registration contract test; workspace 220/clippy 0/fmt; (7) REST routing parity (multi-value query params, 405-vs-404 +
   OPTIONS, cookies map/raw query/https flag — https is hardcoded false; wildcard deltas both
   directions incl. Rust-only empty-remainder match); (8) remaining mappings: nested `[]`
   append recursion, list→text `List.toString()` parity, UTF-16 length/substring semantics,
@@ -505,7 +494,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
   consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 6 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 7 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

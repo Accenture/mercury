@@ -71,6 +71,7 @@
 | 52 | parity remediation 3 — Event Script safety: `max.model.array.size` cap enforced on dynamic RHS indices (+ docs contradiction fixed), flow-launch `body` precondition | 2026-07-21 | — | 217 |
 | 53 | parity remediation 4 — date/time plugins: full Java-pattern tokenizer (names, 12h/AM-PM, SSS, quoted literals, offsets; loud failure on unsupported letters), `f:dateTime` zone argument + ISO_DATE_TIME no-arg form | 2026-07-21 | — | 218 |
 | 54 | parity remediation 5 — fetcher cache key = dictionary-declared inputs only (`{node}.dd.{alias}.*`, Java makeRegularHttpCall parity); call-counting red/green regression | 2026-07-21 | — | 218 |
+| 55 | parity remediation 6 — registration replaces + clamps 1..=1000 (Java Platform.register/ServiceDef), config resolver per-segment loop chain (no false cycles), .properties full java.util.Properties syntax | 2026-07-21 | — | 220 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1480,6 +1481,35 @@ provider call Java reuses — including side-effecting POSTs.
   response. (The assessment recommended exactly this call-counting regression in each
   repository — the Java repo can adopt the same fixture.) Workspace 218 tests /
   clippy 0 / fmt.
+
+---
+
+## Increment 55 — parity remediation 6: registration + configuration semantics (2026-07-21)
+
+Sixth increment of the parity-remediation program — three Medium findings (F10/F11/F13):
+
+- **F10 — registration semantics** (`platform.rs`): re-registering an existing route now
+  RELOADS it exactly like Java `Platform.register` — warn "Reloading", release the old
+  service, register the new one (previously rejected with "already exists"); the worker
+  count clamps to `1..=1000` like `ServiceDef.setConcurrency` (zero → 1, excess capped —
+  previously zero was a 400 and there was no ceiling). The lifecycle's repeat-execution
+  no-op is Atomic-guarded, unaffected.
+- **F11 — config resolver false cycles** (`config_reader.rs`): the `${...}` loop guard is
+  now a true resolution CHAIN (push, resolve, pop) — the Java per-segment equivalent — so
+  `x: "${a} ${a}"` and diamond references resolve fully instead of blanking the repeat
+  with a spurious "Config loop" warning. Genuine `a→b→a` cycles still resolve to empty
+  with the warning (existing test unchanged).
+- **F13 — `.properties` full syntax** (`config_reader.rs`): the loader now implements
+  `java.util.Properties.load` — `=`/`:`/whitespace separators, backslash line
+  continuations (odd-backslash rule), `\t`/`\n`/`\r`/`\f`/`\uXXXX`/`\x` escapes in
+  keys and values, malformed `\u` errors like Java, and the value's trailing whitespace
+  preserved (previously only trimmed `key=value` parsed; other separators were silently
+  dropped).
+- **Tests (red/green-verified — all fail on the pre-fix source):** the registration test
+  reworked to the Java contract (replacement function serves, clamp 0→1 and 5000→1000);
+  `repeated_references_are_not_false_cycles` (+ new fixture keys);
+  `properties_syntax_matches_java_util_properties` (+ `props-syntax.properties` fixture
+  covering every syntax form). Workspace 220 tests / clippy 0 / fmt.
 
 ---
 

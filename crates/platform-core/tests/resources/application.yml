@@ -12,6 +12,9 @@ subst:
   env: '${PC_TEST_HOME:none}'
   default: '${PC_TEST_MISSING:fallback-value}'
   ref: 'http://${server.host}:${server.port}/x'
+  # increment 55 (parity F11): repeated references are NOT cycles
+  repeated: '${server.host} ${server.host}'
+  diamond: '${subst.ref} on ${server.host}'
 
 looptest:
   a: '${looptest.b}'

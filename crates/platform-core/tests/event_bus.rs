@@ -175,16 +175,46 @@ fn envelope_round_trips_through_msgpack() {
 // ---- registry ----
 
 #[tokio::test]
-async fn route_validation_and_duplicates_are_rejected() {
+async fn route_validation_replacement_and_worker_clamp_match_java() {
     setup_config();
     let platform = Platform::new();
     assert!(platform.register("badroute", Arc::new(Echo), 1).is_err());
     assert!(platform.register("UPPER.case", Arc::new(Echo), 1).is_err());
-    assert!(platform.register("v1.echo", Arc::new(Echo), 0).is_err());
+    // Java ServiceDef.setConcurrency clamps to 1..=1000 (increment 55,
+    // parity F10): zero is accepted (→ 1), excess is capped
+    platform
+        .register("v1.echo.clamped", Arc::new(Echo), 0)
+        .unwrap();
+    assert_eq!(platform.instances("v1.echo.clamped"), Some(1));
+    platform
+        .register("v1.echo.capped", Arc::new(Echo), 5000)
+        .unwrap();
+    assert_eq!(platform.instances("v1.echo.capped"), Some(1000));
     platform.register("v1.echo", Arc::new(Echo), 1).unwrap();
     assert!(platform.has_route("v1.echo"));
-    // duplicate registration is refused
-    assert!(platform.register("v1.echo", Arc::new(Echo), 1).is_err());
+    // Java Platform.register RELOADS an existing route (replace, not reject) —
+    // the replacement function serves subsequent requests
+    let replaced = Arc::new(AtomicUsize::new(0));
+    let counter = Counter {
+        calls: replaced.clone(),
+        in_flight: Arc::new(AtomicUsize::new(0)),
+        max_in_flight: Arc::new(AtomicUsize::new(0)),
+        delay: Duration::ZERO,
+    };
+    platform.register("v1.echo", Arc::new(counter), 1).unwrap();
+    let po = PostOffice::new(&platform);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.echo")
+                .set_body("x")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("reloaded route serves");
+    assert!(!reply.has_error());
+    assert_eq!(replaced.load(Ordering::SeqCst), 1, "the REPLACEMENT ran");
     // release closes the route
     assert!(platform.release("v1.echo"));
     assert!(!platform.has_route("v1.echo"));

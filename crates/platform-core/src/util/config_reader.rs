@@ -273,9 +273,17 @@ impl ConfigReader {
             log::warn!("Config loop for '{key}' detected");
             Some(String::new())
         } else {
+            // `visited` is the CURRENT resolution chain, not an ever-seen
+            // set: pop after the segment resolves so a repeated reference
+            // (`${a} ${a}`, or a diamond) is not a false cycle — the Java
+            // resolver keeps a fresh per-segment chain (F11 parity fix,
+            // 2026-07-21); a genuine a→b→a cycle is still on the chain
             visited.push(name.to_string());
-            self.base_get(name, default, visited)
-                .map(|v| v.to_display_string())
+            let resolved = self
+                .base_get(name, default, visited)
+                .map(|v| v.to_display_string());
+            visited.pop();
+            resolved
         };
         from_base.or_else(|| middle_default.map(str::to_string))
     }
@@ -386,22 +394,35 @@ impl ConfigReader {
         Ok(())
     }
 
-    /// Minimal `.properties` support: `key=value` lines, `#`/`!` comments.
-    /// Values are strings (Java `Properties` semantics); composite keys expand
-    /// into the nested tree via `set_element`, sorted first (Java behavior).
+    /// `.properties` with `java.util.Properties.load` semantics (increment 55,
+    /// parity F13 — previously only trimmed `key=value` lines parsed):
+    /// `=`/`:`/whitespace separators, backslash line continuations, `\uXXXX`
+    /// and single-character escapes, and the value's trailing whitespace
+    /// PRESERVED. Values are strings; composite keys expand into the nested
+    /// tree via `set_element`, sorted first (Java behavior).
     fn load_properties_text(&mut self, data: &str) -> Result<(), ConfigError> {
         let mut pairs: Vec<(String, String)> = Vec::new();
-        for line in data.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('!') {
+        let mut lines = data.lines();
+        while let Some(line) = lines.next() {
+            // leading whitespace never counts; blank + comment lines skipped
+            let stripped = line.trim_start();
+            if stripped.is_empty() || stripped.starts_with('#') || stripped.starts_with('!') {
                 continue;
             }
-            if let Some(eq) = trimmed.find('=') {
-                let key = trimmed[..eq].trim();
-                let value = trimmed[eq + 1..].trim();
-                if !key.is_empty() {
-                    pairs.push((key.to_string(), value.to_string()));
+            // fold backslash continuations into one logical line (a line
+            // ending with an ODD number of backslashes continues; the next
+            // line's leading whitespace is stripped)
+            let mut logical = stripped.to_string();
+            while ends_with_odd_backslashes(&logical) {
+                logical.pop();
+                match lines.next() {
+                    Some(next) => logical.push_str(next.trim_start()),
+                    None => break,
                 }
+            }
+            let (key, value) = split_properties_line(&logical).map_err(ConfigError::Invalid)?;
+            if !key.is_empty() {
+                pairs.push((key, value));
             }
         }
         pairs.sort_by(|a, b| a.0.cmp(&b.0));
@@ -411,6 +432,89 @@ impl ConfigReader {
                 .map_err(ConfigError::Invalid)?;
         }
         Ok(())
+    }
+}
+
+/// True when the line ends with an odd number of backslashes — the
+/// `java.util.Properties` line-continuation rule (an even count is pairs of
+/// escaped backslashes, not a continuation).
+fn ends_with_odd_backslashes(line: &str) -> bool {
+    line.bytes().rev().take_while(|b| *b == b'\\').count() % 2 == 1
+}
+
+/// Split one logical `.properties` line into (key, value) with
+/// `java.util.Properties` rules: the key ends at the first unescaped `=`,
+/// `:` or whitespace (whitespace may be followed by one optional `=`/`:`);
+/// escapes decode in both key and value; the value keeps trailing whitespace.
+fn split_properties_line(line: &str) -> Result<(String, String), String> {
+    let chars: Vec<char> = line.chars().collect();
+    let mut key = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\\' {
+            let (decoded, used) = decode_properties_escape(&chars[i..])?;
+            key.push(decoded);
+            i += used;
+            continue;
+        }
+        if c == '=' || c == ':' {
+            i += 1;
+            break;
+        }
+        if c.is_whitespace() {
+            while i < chars.len() && chars[i].is_whitespace() {
+                i += 1;
+            }
+            if i < chars.len() && (chars[i] == '=' || chars[i] == ':') {
+                i += 1;
+            }
+            break;
+        }
+        key.push(c);
+        i += 1;
+    }
+    while i < chars.len() && chars[i].is_whitespace() {
+        i += 1;
+    }
+    let mut value = String::new();
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\\' {
+            let (decoded, used) = decode_properties_escape(&chars[i..])?;
+            value.push(decoded);
+            i += used;
+            continue;
+        }
+        value.push(c);
+        i += 1;
+    }
+    Ok((key, value))
+}
+
+/// Decode one backslash escape (`chars[0]` is the backslash):
+/// `\t` `\n` `\r` `\f`, `\uXXXX`, and `\x` → `x` for any other character —
+/// exactly `java.util.Properties.loadConvert` (malformed `\u` is an error,
+/// as in Java).
+fn decode_properties_escape(chars: &[char]) -> Result<(char, usize), String> {
+    match chars.get(1) {
+        Some('t') => Ok(('\t', 2)),
+        Some('n') => Ok(('\n', 2)),
+        Some('r') => Ok(('\r', 2)),
+        Some('f') => Ok(('\u{000C}', 2)),
+        Some('u') => {
+            let hex: String = chars.iter().skip(2).take(4).collect();
+            if hex.len() == 4 {
+                if let Ok(code) = u32::from_str_radix(&hex, 16) {
+                    if let Some(c) = char::from_u32(code) {
+                        return Ok((c, 6));
+                    }
+                }
+            }
+            Err("Malformed \\uxxxx encoding in .properties".to_string())
+        }
+        Some(&other) => Ok((other, 2)),
+        None => Ok(('\\', 1)),
     }
 }
 

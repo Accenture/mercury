@@ -260,3 +260,56 @@ fn composite_key_values_view_is_substituted_and_cached() {
     let again = app.get_composite_key_values();
     assert_eq!(view as *const _, again as *const _);
 }
+
+// ---- increment 55: config parity (findings F11 / F13) ----
+
+/// F11: a repeated `${ref}` in one value — or a diamond through a nested
+/// reference — is NOT a cycle (Java keeps a fresh per-segment chain; the old
+/// shared visited-list blanked the repeat and warned "Config loop").
+#[test]
+fn repeated_references_are_not_false_cycles() {
+    setup();
+    let app = AppConfigReader::get_instance();
+    assert_eq!(
+        app.get_property("subst.repeated").as_deref(),
+        Some("localhost localhost")
+    );
+    assert_eq!(
+        app.get_property("subst.diamond").as_deref(),
+        Some("http://localhost:8085/x on localhost")
+    );
+}
+
+/// F13: `.properties` follows java.util.Properties.load — `:`/whitespace
+/// separators, backslash continuations, escapes, trailing whitespace kept.
+#[test]
+fn properties_syntax_matches_java_util_properties() {
+    setup();
+    let props = ConfigReader::load("classpath:/props-syntax.properties").unwrap();
+    assert_eq!(
+        props.get_property("colon.key").as_deref(),
+        Some("colon value")
+    );
+    assert_eq!(
+        props.get_property("space.key").as_deref(),
+        Some("value with space separator")
+    );
+    assert_eq!(
+        props.get_property("multi.line").as_deref(),
+        Some("first second")
+    );
+    assert_eq!(props.get_property("escaped.tab").as_deref(), Some("a\tb"));
+    assert_eq!(props.get_property("unicode.key").as_deref(), Some("ABC"));
+    assert_eq!(
+        props.get_property("slash.path").as_deref(),
+        Some("C:\\temp")
+    );
+    // Java preserves the value's trailing whitespace (no trimming)
+    assert_eq!(
+        props.get_property("trailing.space").as_deref(),
+        Some("keep   ")
+    );
+    // both comment forms skipped
+    assert!(!props.exists("!"));
+    assert!(!props.exists("#"));
+}
