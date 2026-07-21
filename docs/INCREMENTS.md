@@ -75,6 +75,7 @@
 | 56 | parity remediation 7 — REST routing/request/response parity: full wildcard grammar, 405 + OPTIONS semantics, multi-value query params, cookies map, raw query + https flag, trace-path query, Accept-negotiated content type | 2026-07-21 | — | 224 |
 | 57 | parity remediation 8 (final) — nested `[]` append recursion, list→text List.toString, UTF-16 length/substring, launch-failure 500, session-guard case, `-0` concat rendering, HostUri lastIndexOf split | 2026-07-21 | — | 230 |
 | 58 | F2 resolution (maintainer: NORMALIZE) — Nil map entries strip deterministically on every hop incl. the in-process fast path; the load-dependent null visibility is gone | 2026-07-21 | — | 231 |
+| 59 | Event over HTTP phase 2, increment 1 — standard envelope wire-format conformance: body absent-as-nil default, round_trip field, unset-field omission; Java golden vectors decode + round-trip | 2026-07-21 | — | 233 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1613,6 +1614,37 @@ maintainer chose normalization over documentation.**
   nondeterminism this increment removes). Workspace 231 tests / clippy 0 / fmt.
 
 **The parity-remediation program is COMPLETE: all 8 items plus the F2 decision.**
+
+---
+
+## Increment 59 — Event over HTTP phase 2 / 1: wire-format conformance (2026-07-21)
+
+First increment of the cross-language **Event over HTTP** feature (phase-2 handoff from the
+Java session; Java reference PR #212). The Java engine adopted a named-key **standard**
+wire format that matches this port's existing `rmp_serde::to_vec_named` output — resolving
+design decision D4's "revisit if interop is ever required" clause in the port's favor.
+
+- **Envelope conformance** (`envelope.rs`): `body` now decodes absent-as-Nil
+  (`serde(default)`) — Java omits an unset body, and previously such an envelope FAILED
+  to deserialize; a `round_trip: Option<f32>` field joins the struct (Java `roundTrip`;
+  the full-metadata golden vector expects it) with a builder + getter; unset optional
+  fields are now OMITTED on the wire (`skip_serializing_if`) per the spec's encoder
+  guidance ("id and headers always; everything else only when set") — decoders treat
+  absent and nil identically, so both directions stay compatible with older Rust wire.
+- **Golden vectors** copied VERBATIM from the Java repo
+  (`tests/resources/envelope-vectors/vectors.json`): five standard vectors decode and
+  round-trip semantically (unicode CJK/Greek, a beyond-f64 integer surviving exactly,
+  f32 timings, ISO timestamp, portable-error shape); the compact (legacy) vector is
+  deliberately skipped — v1 accepts the standard format only, per the handoff decision.
+  A second test locks the encoder contract (a fresh envelope encodes as exactly
+  id + headers) and the absent-body decode rule.
+- **Review findings sent back to the Java session:** the vectors never exercise
+  `span_id` (cross-language trace parenting rides on it — coverage gap), and
+  `round_trip`'s presence in a vector makes it conformance-required, not optional.
+- **Next in this thread:** private-function registration (maintainer directive: BOTH Java
+  paths — a `#[preload]` attribute for the declarative form and a programmatic
+  `register_private` API), then the `/api/event` service + client and the live
+  cross-language interop pairing.
 
 ---
 

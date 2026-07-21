@@ -1,0 +1,114 @@
+{
+  "comment": "Golden vectors for the event envelope wire format. Decode base64 as MsgPack and compare with 'expect' semantically. Shared with the Rust port for cross-language verification.",
+  "vectors": [
+    {
+      "name": "standard-minimal",
+      "format": "standard",
+      "base64": "gqdoZWFkZXJzgKJpZKVlMDAwMQ==",
+      "expect": {
+        "headers": {},
+        "id": "e0001"
+      }
+    },
+    {
+      "name": "standard-scalar-body",
+      "format": "standard",
+      "base64": "hadoZWFkZXJzgaVoZWxsb6V3b3JsZKJpZKVlMDAwMqJ0b6toZWxsby53b3JsZKRib2R5q2hlbGxvIHdvcmxkpnN0YXR1c8zI",
+      "expect": {
+        "headers": {
+          "hello": "world"
+        },
+        "id": "e0002",
+        "to": "hello.world",
+        "body": "hello world",
+        "status": 200
+      }
+    },
+    {
+      "name": "standard-full-metadata",
+      "format": "standard",
+      "base64": "jqdoZWFkZXJzgqJrMaJ2MaJrMqJ2Mqh0cmFjZV9pZKp0cmFjZS0yMDAyq2Fubm90YXRpb25zgaRub3Rlom4xpGJvZHmobWV0YWRhdGGkdGFnc4Gncm91dGluZ6RkZW1vqHJlcGx5X3Rvq3JlcGx5LnJvdXRlqWV4ZWNfdGltZco/wAAApGZyb22sc291cmNlLnJvdXRlomlkpWUwMDAzonRvrHRhcmdldC5yb3V0Zap0cmFjZV9wYXRorUdFVCAvYXBpL2RlbW+qcm91bmRfdHJpcMpAIAAAo2NpZKhjaWQtMTAwMaZzdGF0dXPMyA==",
+      "expect": {
+        "headers": {
+          "k1": "v1",
+          "k2": "v2"
+        },
+        "trace_id": "trace-2002",
+        "annotations": {
+          "note": "n1"
+        },
+        "body": "metadata",
+        "tags": {
+          "routing": "demo"
+        },
+        "reply_to": "reply.route",
+        "exec_time": 1.5,
+        "from": "source.route",
+        "id": "e0003",
+        "to": "target.route",
+        "trace_path": "GET /api/demo",
+        "round_trip": 2.5,
+        "cid": "cid-1001",
+        "status": 200
+      }
+    },
+    {
+      "name": "standard-nested-body",
+      "format": "standard",
+      "base64": "hKdoZWFkZXJzgKJpZKVlMDAwNKJ0b6xuZXN0ZWQucm91dGWkYm9keYikdGV4dKtoZWxsbyB3b3JsZKd1bmljb2Rls+S9oOWlveS4lueVjCDOuyDimLqnaW50ZWdlcs0wOaRsb25nzwAgAAAAAAABp2RlY2ltYWzLQAwAAAAAAACkZmxhZ8OkbGlzdJMBAgOmbmVzdGVkgahpc29fdGltZbgyMDI2LTA3LTIxVDEyOjAwOjAwLjAwMFo=",
+      "expect": {
+        "headers": {},
+        "id": "e0004",
+        "to": "nested.route",
+        "body": {
+          "text": "hello world",
+          "unicode": "你好世界 λ ☺",
+          "integer": 12345,
+          "long": 9007199254740993,
+          "decimal": 3.5,
+          "flag": true,
+          "list": [
+            1,
+            2,
+            3
+          ],
+          "nested": {
+            "iso_time": "2026-07-21T12:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "standard-portable-error",
+      "format": "standard",
+      "base64": "hqdoZWFkZXJzgKVzdGFja7FsaW5lIG9uZQpsaW5lIHR3b6JpZKVlMDAwNaJ0b6tlcnJvci5yb3V0ZaRib2R5r3JvdXRlIG5vdCBmb3VuZKZzdGF0dXPNAZQ=",
+      "expect": {
+        "headers": {},
+        "stack": "line one\nline two",
+        "id": "e0005",
+        "to": "error.route",
+        "body": "route not found",
+        "status": 404
+      }
+    },
+    {
+      "name": "compact-full-metadata",
+      "format": "compact",
+      "base64": "iqEwpWUwMDA2oXCtR0VUIC9hcGkvZGVtb6FSq3JlcGx5LnJvdXRloUKmbGVnYWN5oVPMyKFUrHRhcmdldC5yb3V0ZaF0qnRyYWNlLTIwMDKhRqxzb3VyY2Uucm91dGWhWKhjaWQtMTAwMaFIgaJrMaJ2MQ==",
+      "expect": {
+        "headers": {
+          "k1": "v1"
+        },
+        "trace_id": "trace-2002",
+        "reply_to": "reply.route",
+        "from": "source.route",
+        "id": "e0006",
+        "to": "target.route",
+        "trace_path": "GET /api/demo",
+        "body": "legacy",
+        "cid": "cid-1001",
+        "status": 200
+      }
+    }
+  ]
+}

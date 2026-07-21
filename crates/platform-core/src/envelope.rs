@@ -36,23 +36,53 @@ use crate::function::AppError;
 
 /// The immutable message container between functions. Build with the fluent
 /// setters (`EventEnvelope::new().set_to("v1.echo").set_body(...)`).
+/// Wire format (increment 59): the **standard event envelope wire format** —
+/// one MsgPack map with these descriptive string keys, shared verbatim with
+/// the Java engine for Event over HTTP (normative spec:
+/// `docs/guides/event-envelope-wire-format.md` in the Java repo; golden
+/// vectors under `tests/resources/envelope-vectors/`). Encoders emit `id` and
+/// `headers` always and other fields only when set; decoders treat absent and
+/// nil identically and ignore unknown keys (Java may add `tags`,
+/// `annotations`, `stack`, `obj_type`, `exception`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EventEnvelope {
     id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     to: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     from: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     reply_to: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     cid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     trace_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     trace_path: Option<String>,
     /// The sender's OTel span id, carried so the receiver knows its own
     /// parent span (Java parity — the `s` flag on the wire).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     span_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     status: Option<i32>,
     headers: HashMap<String, String>,
+    /// Java omits an unset body on the wire, so absent decodes as `Nil`.
+    #[serde(default = "nil_value", skip_serializing_if = "is_nil")]
     body: rmpv::Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     exec_time: Option<f32>,
+    /// RPC round-trip milliseconds (Java `roundTrip`) — carried for the wire
+    /// format; stamped by callers that measure it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    round_trip: Option<f32>,
+}
+
+fn nil_value() -> rmpv::Value {
+    rmpv::Value::Nil
+}
+
+fn is_nil(value: &rmpv::Value) -> bool {
+    matches!(value, rmpv::Value::Nil)
 }
 
 impl Default for EventEnvelope {
@@ -70,6 +100,7 @@ impl Default for EventEnvelope {
             headers: HashMap::new(),
             body: rmpv::Value::Nil,
             exec_time: None,
+            round_trip: None,
         }
     }
 }
@@ -216,6 +247,18 @@ impl EventEnvelope {
     /// Function execution time in milliseconds, when stamped by a worker.
     pub fn exec_time(&self) -> Option<f32> {
         self.exec_time
+    }
+
+    /// RPC round-trip milliseconds (Java `getRoundTrip`), when measured.
+    pub fn round_trip(&self) -> Option<f32> {
+        self.round_trip
+    }
+
+    /// Stamp the RPC round-trip time (Java parity: the requester measures
+    /// the full request/response cycle).
+    pub fn set_round_trip(mut self, ms: f32) -> Self {
+        self.round_trip = Some(ms);
+        self
     }
 
     // ---- crate-internal mutators (worker bookkeeping) ----

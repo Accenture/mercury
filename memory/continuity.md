@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-225928)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-233234)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 69 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 70 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 68 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 69 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -348,28 +348,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
   <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: working | origin: 2026-07-20-030615.md -->
 
-- [x] **`/sync` contract gaps (findings #62–#63) — FIXED 2026-07-20 (increment 49, BOTH
-  ports).** `/sync` marks its dispatch `direct` → the 1s dedup guard does not apply
-  (repeats always execute; WS path unchanged); `Syntax:` usage hints classify `ok:false`
-  with the hint in-band. Red/green-verified in Rust (`companion_sync_contract_gaps_closed`,
-  workspace 206/clippy 0/fmt); Java mirror in `CompanionSyncTest` (71-test suite green,
-  PR [#201](https://github.com/Accenture/mercury-composable/pull/201) MERGED 2026-07-20 —
-  the /sync contract fixes are live in BOTH engines; test note:
-  the WS-guard pair must dispatch via the 1-instance singleton — `graph.command.service`
-  runs 50 instances and races). Envelope contract documented (agent guide + catalog).
-  Original finding text:** **#62:** the command surface silently drops an identical
-  command repeated within 1s on the same session (`is_duplicate`, `commands.rs`; Java
-  `GraphCommandService:178` — a UI double-submit guard) — a `/sync` caller gets `ok:true`
-  with EMPTY output, violating the documented envelope (echo always present); LLM pacing
-  masked it for the whole sweep, but scripted/pipelining AI callers hit it. Recommend:
-  `/sync` bypasses the dedup (an RPC caller is not a flaky WS client) + an explicit
-  "duplicate ignored" line. **#63:** malformed commands answer with a `Syntax: …` usage line
-  that `first_error_line` doesn't classify → false-positive `ok:true` for a command that did
-  nothing (mirror of #40's false-negative). Recommend: usage response ⇒ `ok:false` + `error`.
-  Both fixes are small and shared-design (identical in both ports, like #40).
-  → serves: vision-mercury
-  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-051617.md -->
-
 - [x] **Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED
   2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) MERGED 2026-07-20 —
   the battle-tested grammar is live in BOTH engines).** Gold
@@ -504,6 +482,28 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `moka` crate (the Rust Caffeine analog) or a small hand-rolled TTL+LRU; the WS dedup
   cache should adopt it and gain bounded eviction. → serves: vision-mercury
   <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
+
+- [ ] **(blueprint) Event over HTTP — phase 2, cross-language envelope interop.** Handoff
+  from the Java session 2026-07-21 (`/tmp/event-envelope-rust-handoff.md`; Java reference
+  PR #212, branch `feature/event-envelope-standard-format`): Java adopted a named-key
+  "standard" wire format matching this port's `to_vec_named` output (D4's revisit clause
+  resolved in the port's favor); normative spec = Java repo
+  `docs/guides/event-envelope-wire-format.md`. Handoff REVIEWED (verdict: sound; findings:
+  the 403 gate assumes a private-function concept the Rust platform lacks — security
+  gate required before /api/event; the vectors never exercise span_id though
+  cross-language trace parenting rides on it — flagged to the Java session; round_trip is
+  vector-required, not optional). **Increment 1 DONE 2026-07-21 (increment 59):** envelope
+  wire-format conformance — body absent-as-nil default (previously FAILED to decode),
+  round_trip field, unset-field omission; the five Java golden vectors (copied verbatim)
+  decode + round-trip; encoder contract locked (fresh envelope = id + headers only).
+  Compact (legacy) format deliberately NOT decoded — v1 standard-only, 400 on compact
+  peers. **Next: increment 2 = private functions (MAINTAINER DIRECTIVE: both Java paths —
+  a `private` attribute on the `#[preload]` macro for the declarative form AND a
+  programmatic `register_private` API; engine internals then registered private);
+  increment 3 = /api/event service + client (x-ttl/x-async semantics, trace propagation
+  via x-trace-id + traceparent) + live interop pairing with the Java session (both
+  directions, RPC + async, 404/403/408 + trace continuity).** → serves: vision-mercury
+  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-233234.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
