@@ -15,9 +15,9 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-20 | agent: Claude Code (2026-07-20-213830)
-- **last_review:** 2026-07-20 | through 2026-07-20-040852
-- **last_invariant_check:** 2026-07-18 | through 2026-07-18-061457 (confirmed — inv-never-couple-functions + Vision both hold)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-021231)
+- **last_review:** 2026-07-21 | through 2026-07-21-021231
+- **last_invariant_check:** 2026-07-21 | through 2026-07-21-021231 (prompted — awaiting human confirmation via the open re-verify thread)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 58 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-20 | uses: 59 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +92,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 57 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-20 | uses: 58 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -241,26 +241,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 36 | tier: active | origin: 2026-07-18-061457.md -->
-
-- [x] **Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign
-  fallback (rollup #40).** Found in the tut-12 pre-flight ([[ot-companion-validation-sweep]]):
-  `import graph from {deployed}` succeeds via the classpath fallback but returned `ok:false` —
-  the per-line `is_error_line` heuristic tripped on the benign "Graph model not found in /tmp/…"
-  line the engine prints before "Found deployed graph model…". Fix (identical design, both
-  engines): classification is now **whole-output-aware** — the not-found line is forgiven *only*
-  when the same output also carries the fallback's success marker; a genuine miss prints the
-  not-found line alone and stays `ok:false` (verified against both import handlers: a real miss
-  emits nothing after the not-found line, so the rule can't mask real failures). Rust:
-  `first_error_line()` in `rest.rs` + both-direction test in `graph_runtime.rs`
-  (workspace/clippy/fmt green). Java: mirrored in `PostCompanionCommandSync` +
-  `CompanionSyncTest` (66-test module suite green), committed on local branch
-  **`fix/companion-sync-ok-heuristic`**, pushed to origin at maintainer direction — **PR
-  [#195](https://github.com/Accenture/mercury-composable/pull/195) MERGED upstream
-  (2026-07-19)**. Both engines live-validated by the maintainer; the fix is live in BOTH. Docs aligned: `ai-agent-guide.md` caveat → fixed semantics,
-  `minigraph-commands.json` sync_envelope note, rollup #40 → DONE. `/sync` contract stays
-  byte-identical across engines. → serves: vision-mercury
-  <!-- id: ot-sync-ok-heuristic-fix | created: 2026-07-19 | last_used: 2026-07-19 | uses: 3 | tier: archive-candidate | origin: 2026-07-19-205854.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 37 | tier: active | origin: 2026-07-18-061457.md -->
 
 - [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
   2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
@@ -280,25 +261,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
   both engines, even mislabeled as JSON). → serves: vision-mercury
   <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
-
-- [x] **Numeric promotion for the simple-plugin arithmetic family (increment 39, BOTH ports).**
-  Maintainer decision 2026-07-19 (prompted by increment 38's probe: `f:add` couldn't consume a
-  `COMPUTE` double — "simple arithmetic belongs in a simple plugin"): `promoteNumber` now
-  promotes whole numbers/strings to **long**, decimals to **double**; result type decided over
-  ALL args before folding (order-independent) — any floating arg ⇒ double computation,
-  all-integral ⇒ exact long incl. integer division (**strictly widening**: no previously-working
-  call changes). Covers add/subtract/multiply/div/mod + increment/decrement + gt/lt (whole pairs
-  compare exact). Rust: `plugins_e8.rs` + mixed-type unit cases + the `f:add`-on-doubles
-  accumulator in the `rust-foreach` probe (workspace 202/clippy 0/fmt). Java: upstream
-  **PR [#196](https://github.com/Accenture/mercury-composable/pull/196) MERGED** (2026-07-19;
-  `SimplePluginUtils.reduceNumbers`, 7 arithmetic classes, gt/lt, promotion test + `f:round`,
-  142+67 module tests green; incl. the maintainer's unused-import review touch-up). Docs relaxed across all surfaces (grammar/#math-for-each, JSON
-  catalog, skills-reference, help page + bundle, event-script syntax.md matrix). Boundary
-  documented: once a double enters, IEEE-754 (ints exact to 2^53). **Follow-up same session:
-  new `f:round(number[, places])` plugin (both ports, second commit `80e64166` on the branch)**
-  — half-up on the shortest DECIMAL representation (1.005 → 1.01 at 2 places; binary error
-  never leaks into the decision); whole inputs pass through. → serves: vision-mercury
-  <!-- id: plugin-numeric-promotion | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: archive-candidate | origin: 2026-07-19-225257.md -->
 
 - [x] **LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40).**
   Backlog probe #3 confirmed it: `skill_run` (the join's completion source) meant "ran" not
@@ -375,7 +337,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   catalog + agent-guide recipe + skills-reference + `help list.md` all updated; rollup #38 →
   DONE. Design note: discovery rides the command surface (no new REST endpoints — `/sync`
   already gives agents REST access to every command). → serves: vision-mercury
-  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 6 | tier: active | origin: 2026-07-19-171653.md -->
+  <!-- id: ot-discovery-commands-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 6 | tier: archive-candidate | origin: 2026-07-19-171653.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -523,7 +485,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   engine's `error.code`. → serves: vision-mercury
   <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 4 | tier: active | origin: 2026-07-20-163856.md -->
 
-- [ ] **`describe graph` trailing-`]` in the derived surface — JAVA-only bug; Rust hardened
+- [x] **`describe graph` trailing-`]` in the derived surface — CLOSED 2026-07-21: Java fix
+  MERGED (PR [#206](https://github.com/Accenture/mercury-composable/pull/206), 2026-07-20 —
+  both recommended pieces: JSON-serialize properties before scanning for byte-identical
+  contract output + the unbalanced-`]` tokenizer guard). JAVA-only bug; Rust hardened
   preventively (2026-07-20).** The maintainer's screenshot (:8085 = Java playground) showed
   `output.body]`; the Rust engine prints clean (probe-verified — its scan runs over
   JSON-quoted text, while Java's `describeDeployedGraph` scans `Map.toString()` text whose
@@ -534,11 +499,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `contains` is how both suites missed it); workspace 38 binaries green/clippy 0/fmt —
   **PR [#150](https://github.com/Accenture/mercury/pull/150) MERGED 2026-07-20** (true merge,
   CI green: test + memory gates).
-  **Pending: the Java fix** — handed off to the mercury-composable agent session via
-  `/tmp/describe-graph-trailing-bracket-finding.md` (recommended: JSON-serialize properties
-  before scanning for byte-identical contract output + same tokenizer guard + exact-line
-  test). Close when the Java PR merges. → serves: vision-mercury
-  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-20 | uses: 1 | tier: working | origin: 2026-07-20-213830.md -->
+  The Java fix was handed off to the mercury-composable agent session via
+  `/tmp/describe-graph-trailing-bracket-finding.md` and landed as recommended (incl.
+  exact-line tests). Known micro-divergence in the defensive layer only (harmless, both
+  ports' primary scans are JSON-quoted): Java's guard skips any token containing `[`,
+  Rust's counts brackets — differs only for an array-index path ending an unquoted list
+  (`output.body[0]]`), unreachable except via Java's exception fallback.
+  → serves: vision-mercury
+  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: active | origin: 2026-07-20-213830.md -->
+
+- [ ] **Re-verify invariants (due):** confirm `inv-never-couple-functions` and the Vision
+  (`vision-mercury`) still hold, or supersede any that don't (`DECAY.md` §9). Cadence: 54
+  sessions since the 2026-07-18 check ≥ `verify_invariants_every: 40`. Human gate — check
+  this off to confirm, or supersede the false ones.
+  <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-021231.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

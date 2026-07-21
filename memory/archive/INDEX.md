@@ -23,3 +23,5 @@
 - ot-subscribe-via-sync-bug — Bug FIXED (Rust; Java prepared): companion endpoints limit `session` to read-only. Found — faded (completed 2026-07-18, fixed in both engines via PR #194; sslu > archive_window) — 2026-Q3.md
 - ot-help-pages-rewrite — (backlog) Rewrite the interactive help pages for human operators — DONE 2026-07-19. Mainta… — faded — 2026-Q3.md
 - profiles-renamed-app-active — Profile selection renamed `APP_PROFILES_ACTIVE` / `app.profiles.active` — no alias — faded — 2026-Q3.md
+- ot-sync-ok-heuristic-fix — Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign — faded — 2026-Q3.md
+- plugin-numeric-promotion — Numeric promotion for the simple-plugin arithmetic family (increment 39, BOTH ports). — faded — 2026-Q3.md
