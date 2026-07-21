@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-023208)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-030938)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -491,6 +491,52 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (maintainer-approved). Cadence was 54 sessions since the 2026-07-18 check ≥
   `verify_invariants_every: 40`.
   <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 2 | tier: active | origin: 2026-07-21-021231.md -->
+
+- [ ] **(blueprint) Parity remediation — maintainer-approved 2026-07-21.** A GitHub Copilot
+  correctness assessment (24 findings) was independently verified finding-by-finding against
+  both codebases (4 parallel agents + direct checks, file:line evidence both sides):
+  **20 CONFIRMED real divergences, 2 INTENTIONAL-documented (null-on-spill design; XML
+  console text), 2 PARTIAL/overstated (dotted config keys — config normalization makes both
+  ports identical; wildcard grammar)**. Maintainer reviewed and directed remediation —
+  "serious side effects... affect functional integrity such as telemetry and response
+  headers." Fix order (amended from the report): **(1) CRITICAL: REST boundary drops
+  function response-envelope headers** (`server.rs:342-353` never reads `result.headers()`;
+  Java `AsyncHttpResponse.updateHeaders` copies all + content-type override + Set-Cookie —
+  design together with the header-model questions of case-insensitive lookup/CR-LF
+  sanitize/multi-Set-Cookie); (2) trace continuity: zero-traced routes drop trace state
+  (Java suppresses telemetry only), scheduled sends capture no context (Java `touch()` at
+  schedule time), ambient trace overwrites explicit id/path (Java fills-if-absent); (3)
+  Event Script safety: dynamic-index array cap `max.model.array.size` missing (own docs
+  contradict: syntax.md claims it, configuration-reference.md says not read), flow-launch
+  `body` precondition missing; (4) date/time plugins: full Java pattern support + the
+  silently-dropped zone arg of `f:dateTime`; (5) fetcher cache key = dictionary-declared
+  inputs only (Rust keys the whole staged fetch map → re-fires POSTs Java reuses;
+  single-request path only); (6) registration semantics (Java replaces on re-register,
+  clamps instances 1..=1000), config resolver false-cycle on repeated `${a} ${a}`,
+  .properties full syntax; (7) REST routing parity (multi-value query params, 405-vs-404 +
+  OPTIONS, cookies map/raw query/https flag — https is hardcoded false; wildcard deltas both
+  directions incl. Rust-only empty-remainder match); (8) remaining mappings: nested `[]`
+  append recursion, list→text `List.toString()` parity, UTF-16 length/substring semantics,
+  launch-failure 500, `Session` case routing, `-0` rendering, HostUri lastIndexOf quirk.
+  **Meta-fix:** several Rust doc comments claim "Java parity" where behavior diverges (F8,
+  F19, F21, fetcher cache, HostUri) — fix alongside code (no-silent-divergence convention).
+  **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
+  consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
+  Full verdict table in the session log. → serves: vision-mercury (faithful port)
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
+
+- [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
+  `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded
+  cache utility (Caffeine: `expireAfterWrite`, `maximumSize`, default 2000 items, min TTL
+  1s; static registry createCache/getInstance/getCacheCollection). NOT ported — Rust
+  platform-core has no cache utility; current stand-ins are ad-hoc (playground WS dedup =
+  unbounded `Mutex<HashMap>` in `commands.rs::is_duplicate`; fetcher provider cache =
+  per-instance state in BOTH engines, so not affected). Needed for: the future connectors
+  port ([[bp-kafka-connectors-backlog]] — minimalist-kafka's schema-registry client is a
+  heavy ManagedCache user) and Java-API-surface completeness for app developers. Candidate:
+  `moka` crate (the Rust Caffeine analog) or a small hand-rolled TTL+LRU; the WS dedup
+  cache should adopt it and gain bounded eviction. → serves: vision-mercury
+  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
