@@ -153,30 +153,37 @@ impl ComposableFunction for ActuatorServices {
         let context = &self.context;
         match self.kind {
             ActuatorKind::Liveness => {
+                // Java ActuatorServices: explicit text/plain on the envelope
                 if context.health_status.load(Ordering::SeqCst) {
-                    EventEnvelope::new().set_body("OK")
+                    Ok(EventEnvelope::new()
+                        .set_header("content-type", "text/plain")
+                        .set_body("OK")?)
                 } else {
                     Ok(EventEnvelope::new()
                         .set_status(400)
+                        .set_header("content-type", "text/plain")
                         .set_body("Unhealthy. Please check '/health' endpoint.")?)
                 }
             }
             ActuatorKind::Info => {
                 let now = std::time::SystemTime::now();
                 let uptime = now.duration_since(context.start_time).unwrap_or_default();
-                EventEnvelope::new().set_body(serde_json::json!({
-                    "app": context.app_block(),
-                    "runtime": {
-                        "language": "rust",
-                        "platform_core": env!("CARGO_PKG_VERSION"),
-                    },
-                    "origin": Platform::origin(),
-                    "time": {
-                        "start": trace::iso8601_utc(context.start_time),
-                        "current": trace::iso8601_utc(now),
-                    },
-                    "up_time": elapsed_time(uptime),
-                }))
+                // Java ActuatorServices: explicit application/json envelope type
+                EventEnvelope::new()
+                    .set_header("content-type", "application/json")
+                    .set_body(serde_json::json!({
+                        "app": context.app_block(),
+                        "runtime": {
+                            "language": "rust",
+                            "platform_core": env!("CARGO_PKG_VERSION"),
+                        },
+                        "origin": Platform::origin(),
+                        "time": {
+                            "start": trace::iso8601_utc(context.start_time),
+                            "current": trace::iso8601_utc(now),
+                        },
+                        "up_time": elapsed_time(uptime),
+                    }))
             }
             ActuatorKind::Env => {
                 let config = AppConfigReader::get_instance();
@@ -199,13 +206,15 @@ impl ComposableFunction for ActuatorServices {
                     let value = config.get_property(&name).unwrap_or_default();
                     properties.insert(name, serde_json::Value::String(value));
                 }
-                EventEnvelope::new().set_body(serde_json::json!({
-                    "app": context.app_block(),
-                    "env": {
-                        "environment": environment,
-                        "properties": properties,
-                    },
-                }))
+                EventEnvelope::new()
+                    .set_header("content-type", "application/json")
+                    .set_body(serde_json::json!({
+                        "app": context.app_block(),
+                        "env": {
+                            "environment": environment,
+                            "properties": properties,
+                        },
+                    }))
             }
             ActuatorKind::Health => {
                 let po = PostOffice::new(&context.platform);
@@ -236,6 +245,7 @@ impl ComposableFunction for ActuatorServices {
                 result.insert("name".into(), serde_json::Value::String(Platform::name()));
                 Ok(EventEnvelope::new()
                     .set_status(if up { 200 } else { 400 }) // Java parity
+                    .set_header("content-type", "application/json")
                     .set_body(serde_json::Value::Object(result))?)
             }
         }

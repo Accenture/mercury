@@ -413,9 +413,17 @@ authoritative schema is the Java project's own `docs/guides/rest-automation/rest
   `tracing`, per-entry `trace.id.header`/`correlation.id.header` impedance overrides) +
   `cors` blocks (options/headers, `Access-Control-*` lines) + `headers` blocks
   (request/response add/drop/keep). Parser invariants enforced per the grammar.
-- **Dispatch:** method+path match (exact literals > `{param}` captures > trailing wildcard),
-  request mapped to the **`AsyncHttpRequest`** shape (`method`, `url`, `ip`, `headers`,
-  `parameters.path`/`parameters.query`, `body`, `https`, `host`). The body follows the Java
+- **Dispatch:** method+path match with the FULL Java RoutingEntry grammar (increment 56,
+  parity F14): exact literals > `{param}` captures > wildcards; mid-path `*` matches one
+  segment, `foo*` prefix-matches one segment, and a trailing `*`/`foo*` lets the URL run
+  longer — but never shorter (`/api/files/*` does not match `/api/files`). A known path
+  under a wrong method answers **405** "Method not allowed" (the Java getSimilarRoute
+  marker); OPTIONS without a CORS block (or with empty options) is 405, never a bare 204.
+  Request mapped to the **`AsyncHttpRequest`** shape (`method`, `url`, `ip`, `headers`,
+  `parameters.path`/`parameters.query` — repeated query values become a LIST, single stays
+  a string — `body`, `https` from `x-forwarded-proto`, `host`, top-level `query` = the raw
+  query string, `cookies` = the parsed cookie map with the raw header withheld; the trace
+  path carries the query string). The body follows the Java
   `handlePayload` content-type dispatch **exactly** (parity fix 2026-07-19; no JSON sniffing,
   no default content type): `application/json` → map/list when bracket-wrapped, else raw text
   (parse failure falls back to text; empty → `{}`); `application/xml` → raw text (XML parse
@@ -436,8 +444,12 @@ authoritative schema is the Java project's own `docs/guides/rest-automation/rest
   map that the rest.yaml response transform filters (content-type/cookies bypass the filter,
   as in Java). HEAD responses carry headers, never a body. Envelope header model matches Java
   `EventEnvelope`: case-insensitive `header()` lookup, CR/LF filtered on `set_header()`.
-  Still open (tracked in `ot-parity-remediation`): Java's `Accept`-based fallback content
-  negotiation (`updateContentType`) — the Rust port derives the fallback from body shape only.
+  The fallback content type is negotiated from the request's `Accept` header (increment 56,
+  Java `updateContentType`): html → text/html (map/list bodies HTML-wrapped, `handleMapContent`),
+  json or `*/*` → application/json, NO Accept → no content-type header at all, anything else →
+  text/plain; an `application/xml` Accept negotiates JSON (the port's XML deferral — never
+  claiming xml on the wire). Actuator endpoints set explicit envelope content types exactly
+  like Java `ActuatorServices`.
   Errors are the Java JSON shape `{status, message, type:"error"}`; timeout → 408; OPTIONS
   preflight → CORS options headers.
 - **The edge starts traces** (the piece increments 5 was built for): a **business

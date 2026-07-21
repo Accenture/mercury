@@ -66,8 +66,13 @@ enum Segment {
     Literal(String),
     /// `{param}` capture with its name.
     Param(String),
-    /// Trailing `*` — matches the remainder.
-    Wildcard,
+    /// A bare `*` segment — matches any single segment; in trailing position
+    /// it also lets the URL run longer (Java `matchRoute` wildcard rule).
+    Any,
+    /// `foo*` — case-insensitive prefix match on one segment (Java
+    /// `notMatched` `endsWith("*")`); trailing position also lets the URL
+    /// run longer.
+    Prefix(String),
 }
 
 /// A reusable `cors:` block (Java `CorsInfo`).
@@ -261,7 +266,7 @@ impl RoutingTable {
                 .iter()
                 .filter(|s| matches!(s, Segment::Literal(_)))
                 .count();
-            let wildcard = info.segments.iter().any(|s| matches!(s, Segment::Wildcard));
+            let wildcard = info.is_open_ended();
             let better = match &best {
                 None => true,
                 // prefer non-wildcard, then more literal segments
@@ -283,36 +288,63 @@ impl RoutingTable {
         }
         best.map(|(_, _, assigned)| assigned)
     }
+
+    /// True when the path matches SOME entry regardless of method — the Java
+    /// `getSimilarRoute` marker (increment 56, parity F14c): a known path
+    /// with a wrong method answers 405 "Method not allowed", never 404.
+    pub fn path_matches_any_method(&self, path: &str) -> bool {
+        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        self.routes
+            .iter()
+            .any(|info| info.match_path(&segments).is_some())
+    }
 }
 
 impl RouteInfo {
-    /// Match URL segments against this entry (case-insensitive literals),
+    /// True when the pattern ends with a `*`-suffixed segment (bare `*` or
+    /// `foo*`) — Java's `configured.endsWith("*")` wildcard flag: the URL may
+    /// then run LONGER than the pattern, but never shorter (`/api/files/*`
+    /// does NOT match `/api/files` — the increment-56 fix of the Rust-only
+    /// empty-remainder match).
+    fn is_open_ended(&self) -> bool {
+        matches!(
+            self.segments.last(),
+            Some(Segment::Any) | Some(Segment::Prefix(_))
+        )
+    }
+
+    /// Match URL segments against this entry — the exact Java `matchRoute` +
+    /// `notMatched` rules (case-insensitive literals and prefixes),
     /// returning the extracted `{param}` values on success.
     fn match_path(&self, request_segments: &[&str]) -> Option<HashMap<String, String>> {
+        if self.is_open_ended() {
+            if self.segments.len() > request_segments.len() {
+                return None;
+            }
+        } else if self.segments.len() != request_segments.len() {
+            return None;
+        }
         let mut params = HashMap::new();
-        let mut request_index = 0;
-        for segment in &self.segments {
+        for (i, segment) in self.segments.iter().enumerate() {
+            let actual = request_segments.get(i)?;
             match segment {
-                Segment::Wildcard => return Some(params), // consumes the rest (even empty)
+                Segment::Any => {}
                 Segment::Literal(expected) => {
-                    let actual = request_segments.get(request_index)?;
                     if actual.to_lowercase() != *expected {
                         return None;
                     }
-                    request_index += 1;
+                }
+                Segment::Prefix(prefix) => {
+                    if !actual.to_lowercase().starts_with(prefix.as_str()) {
+                        return None;
+                    }
                 }
                 Segment::Param(name) => {
-                    let actual = request_segments.get(request_index)?;
                     params.insert(name.clone(), actual.to_string());
-                    request_index += 1;
                 }
             }
         }
-        if request_index == request_segments.len() {
-            Some(params)
-        } else {
-            None
-        }
+        Some(params)
     }
 }
 
@@ -380,20 +412,19 @@ fn parse_route(
         }
         methods.push(method);
     }
-    // segments: literal / {param} / trailing *
+    // segments: literal / {param} / bare `*` (any one segment) / `foo*`
+    // (prefix) — the full Java RoutingEntry grammar (increment 56, parity
+    // F14b: mid-path `*` and segment prefixes were previously rejected or
+    // treated as literals)
     let mut segments = Vec::new();
     let parts: Vec<&str> = url.split('/').filter(|s| !s.is_empty()).collect();
-    for (position, part) in parts.iter().enumerate() {
+    for part in &parts {
         if let Some(name) = part.strip_prefix('{').and_then(|p| p.strip_suffix('}')) {
             segments.push(Segment::Param(name.to_string()));
         } else if *part == "*" {
-            if position != parts.len() - 1 {
-                return Err(AppError::new(
-                    400,
-                    format!("rest[{index}] wildcard '*' must be the trailing segment"),
-                ));
-            }
-            segments.push(Segment::Wildcard);
+            segments.push(Segment::Any);
+        } else if let Some(prefix) = part.strip_suffix('*') {
+            segments.push(Segment::Prefix(prefix.to_lowercase()));
         } else {
             segments.push(Segment::Literal(part.to_lowercase()));
         }
@@ -712,9 +743,10 @@ headers:
             "rest:\n  - service: 'https://example.com'\n    methods: ['GET']\n    url: /a\n"
         )
         .is_err());
-        // non-trailing wildcard
+        // mid-path `*` is VALID since increment 56 (Java RoutingEntry parity:
+        // it matches exactly one segment)
         assert!(
-            table("rest:\n  - service: x.y\n    methods: ['GET']\n    url: '/a/*/b'\n").is_err()
+            table("rest:\n  - service: x.y\n    methods: ['GET']\n    url: '/a/*/b'\n").is_ok()
         );
         // cors line must be Access-Control-*
         assert!(table(
