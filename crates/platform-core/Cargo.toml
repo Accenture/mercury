@@ -39,3 +39,5 @@ platform-macros = { path = "../platform-macros" }
 [dev-dependencies]
 # self-signed certificates for the HTTPS client integration test (increment 48)
 rcgen = "0.13"
+# decode the golden envelope wire-format vectors (increment 59)
+base64 = "0.22"
