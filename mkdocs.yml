@@ -73,9 +73,9 @@ markdown_extensions:
   - pymdownx.snippets:
       base_path: ["."]
       check_paths: true
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # NOTE: pymdownx.emoji is deliberately NOT enabled. These docs are full of
+  # colon-delimited technical patterns (e.g. HH:mm:ss), and the emoji extension
+  # turns ":mm:" into a flag emoji in plain text.
 
 plugins:
   - search
