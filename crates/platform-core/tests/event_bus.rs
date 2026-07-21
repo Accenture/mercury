@@ -595,3 +595,72 @@ fn envelope_header_values_are_sanitized_for_crlf() {
     let event = EventEnvelope::new().set_header("x-answer", "one\r\ntwo\rthree\nfour");
     assert_eq!(event.header("x-answer"), Some("onetwothreefour"));
 }
+
+/// Reports which map keys arrived on the wire (Nil-transport probe).
+struct KeyProbe;
+
+#[async_trait]
+impl ComposableFunction for KeyProbe {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let keys: Vec<String> = match input.body() {
+            rmpv::Value::Map(entries) => entries
+                .iter()
+                .filter_map(|(k, _)| k.as_str().map(str::to_string))
+                .collect(),
+            _ => Vec::new(),
+        };
+        EventEnvelope::new().set_body(keys)
+    }
+}
+
+/// Increment 58 (the F2 decision — maintainer chose NORMALIZE): with
+/// serializer.null.transport=false, Nil map entries are stripped on EVERY
+/// hop, including the in-process fast path — delivery semantics no longer
+/// depend on whether an event happened to spill under back-pressure (Java
+/// serializes every hop, so its strip is always deterministic).
+#[tokio::test]
+async fn null_map_entries_strip_deterministically_on_the_fast_path() {
+    setup_config();
+    let platform = Platform::new();
+    platform
+        .register("v1.null.probe", Arc::new(KeyProbe), 1)
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    // warm the route so the worker is Ready and the probe request takes the
+    // FAST path — a cold route buffers (spills), which serializes and strips
+    // even on pre-fix code (that race IS the F2 nondeterminism)
+    let _ = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.null.probe")
+                .set_body("warm")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("warm-up");
+    let body = rmpv::Value::Map(vec![
+        (rmpv::Value::from("keep"), rmpv::Value::from("x")),
+        (rmpv::Value::from("drop"), rmpv::Value::Nil),
+    ]);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.null.probe")
+                .set_raw_body(body),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("probe rpc");
+    let keys: Vec<String> = reply.body_as().expect("key list");
+    assert!(keys.contains(&"keep".to_string()));
+    assert!(
+        !keys.contains(&"drop".to_string()),
+        "a Nil map entry must be stripped on the fast path too (Java parity): {keys:?}"
+    );
+}

@@ -269,6 +269,8 @@ impl Platform {
     /// Crate-internal: deliver an event into a route's manager mailbox. Awaits
     /// when the bounded mailbox is full — back-pressure, not drops.
     pub(crate) async fn deliver(&self, route: &str, event: EventEnvelope) -> Result<(), AppError> {
+        let mut event = event;
+        normalize_null_transport(&mut event);
         // an RPC inbox is addressable like any destination (Java parity: the
         // TemporaryInbox route receives replies through normal dispatch) — so
         // a function replying MANUALLY via po.send(reply_to) also works
@@ -295,6 +297,20 @@ impl Platform {
             .send(MailboxMessage::Event(Box::new(event)))
             .await
             .map_err(|_| AppError::new(500, format!("Route {route} is closed")))
+    }
+}
+
+/// Deterministic null transport on EVERY hop (increment 58, the F2 decision —
+/// maintainer chose normalization over documentation): Java serializes every
+/// event-bus hop, so `Nil` map entries are stripped consistently when
+/// `serializer.null.transport=false`. The Rust fast path deliberately skips
+/// serialization (the documented performance divergence stays), so the strip
+/// is applied explicitly here — predicate-guarded: a body without Nil map
+/// entries costs one allocation-free read-only walk.
+fn normalize_null_transport(event: &mut EventEnvelope) {
+    if !crate::serializer::null_transport() && crate::serializer::has_nil_map_entry(event.body()) {
+        let stripped = crate::serializer::strip_nulls_always(event.body());
+        event.set_body_internal(stripped);
     }
 }
 
@@ -555,6 +571,8 @@ async fn worker_loop(
                 response.set_from_internal(&route);
                 response.set_to_internal(&reply_route);
                 response.set_exec_time_internal(elapsed_ms);
+                // the reply is a bus hop too — same deterministic null strip
+                normalize_null_transport(&mut response);
                 if let Some((trace_id, trace_path, span_id)) = trace_triple {
                     response.set_trace_internal(&trace_id, &trace_path);
                     if let Some(span_id) = span_id {

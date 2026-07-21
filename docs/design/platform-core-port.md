@@ -286,7 +286,11 @@ Increment 2's shared-MPMC dispatch was a simplification; the faithful Java desig
   senders await (back-pressure, not drops).
 - **Deliberate divergences** (doc-commented): envelopes are serialized (MsgPack) only when
   crossing into the elastic queue (Java serializes every bus message; in-process Rust moves
-  are free — the on-disk format stays byte-identical); RPC inboxes ride the same route
+  are free — the on-disk format stays byte-identical). **Null transport is normalized
+  regardless** (increment 58, the F2 decision — maintainer chose normalization): `Nil` map
+  entries are stripped explicitly on every hop when `serializer.null.transport=false`
+  (`normalize_null_transport`, predicate-guarded), so consumer-visible semantics never
+  depend on whether an event happened to spill under load; RPC inboxes ride the same route
   machinery (Java's `AsyncInbox` bypasses `ServiceQueue` — a lighter dedicated inbox is a
   possible later refinement); the RUNNING keep-alive timer, expired-store scan, and
   shutdown-hook housekeeping await the lifecycle increment.

@@ -220,6 +220,10 @@ impl EventEnvelope {
 
     // ---- crate-internal mutators (worker bookkeeping) ----
 
+    pub(crate) fn set_body_internal(&mut self, body: rmpv::Value) {
+        self.body = body;
+    }
+
     pub(crate) fn set_cid_internal(&mut self, cid: Option<String>) {
         self.cid = cid;
     }
@@ -250,11 +254,13 @@ impl EventEnvelope {
     /// Encode the envelope as MsgPack bytes (idiomatic serde — design D4).
     ///
     /// The body's `Nil` map entries are omitted unless `serializer.null.transport`
-    /// is `true` — the Rust mirror of Java `MsgPack.packMap`'s null-skip. This is
-    /// only reached on the ElasticQueue (back-pressure/spill) path, never on the
-    /// in-memory fast path. The clone + strip runs **only** when the body actually
-    /// carries a strippable `Nil` (`has_nil_map_entry`); otherwise — a scalar body,
-    /// a structured body with no nulls, or transport on — `self` encodes directly
+    /// is `true` — the Rust mirror of Java `MsgPack.packMap`'s null-skip. Since
+    /// increment 58 (the F2 decision) the same strip also runs explicitly on the
+    /// in-memory fast path (`platform::normalize_null_transport`), so delivery
+    /// semantics are deterministic on every hop — here it is normally a no-op.
+    /// The clone + strip runs **only** when the body actually carries a
+    /// strippable `Nil` (`has_nil_map_entry`); otherwise — a scalar body, a
+    /// structured body with no nulls, or transport on — `self` encodes directly
     /// with no extra allocation, so the common case pays only a read-only scan.
     pub fn to_bytes(&self) -> Result<Vec<u8>, AppError> {
         if crate::serializer::null_transport() || !crate::serializer::has_nil_map_entry(&self.body)
