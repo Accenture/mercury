@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-030938)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-032558)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -500,10 +500,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   ports identical; wildcard grammar)**. Maintainer reviewed and directed remediation —
   "serious side effects... affect functional integrity such as telemetry and response
   headers." Fix order (amended from the report): **(1) CRITICAL: REST boundary drops
-  function response-envelope headers** (`server.rs:342-353` never reads `result.headers()`;
-  Java `AsyncHttpResponse.updateHeaders` copies all + content-type override + Set-Cookie —
-  design together with the header-model questions of case-insensitive lookup/CR-LF
-  sanitize/multi-Set-Cookie); (2) trace continuity: zero-traced routes drop trace state
+  function response-envelope headers — DONE 2026-07-21 (increment 50):** the boundary now
+  mirrors Java `AsyncHttpResponse.updateHeaders` (content-type override, `|`-separated
+  multi-Set-Cookie, `x-stream-id`/`x-ttl` withheld as the deferred streaming contract,
+  rest.yaml response filter on the merged map, HEAD = headers-no-body) + the F9 envelope
+  header model (case-insensitive `header()`, CR/LF-filtered `set_header()`); 4 new tests
+  (raw-socket multi-Set-Cookie assertions); workspace 213/clippy 0/fmt. NEW sub-item
+  discovered while porting: Java's `Accept`-based fallback content negotiation
+  (`updateContentType` + `handleContent` body rendering) remains unported — Rust derives
+  the fallback content type from body shape only (queued with item 7); (2) trace continuity: zero-traced routes drop trace state
   (Java suppresses telemetry only), scheduled sends capture no context (Java `touch()` at
   schedule time), ambient trace overwrites explicit id/path (Java fills-if-absent); (3)
   Event Script safety: dynamic-index array cap `max.model.array.size` missing (own docs

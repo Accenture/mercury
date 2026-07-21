@@ -66,6 +66,7 @@
 | 47 | `describe graph {graph-id}` — a deployed model's contract view (finding #53) + differentiated tutorial purposes (#54); both ports | 2026-07-20 | — | 202 |
 | 48 | outbound HTTPS for the async HTTP client (rustls + OS trust store, `trust_all_cert` parity) — Rust-only parity work | 2026-07-20 | — | 206 |
 | 49 | `/sync` contract gaps (findings #62–#63): dedup bypass for direct RPC + `Syntax:` usage classified as failure; both ports | 2026-07-20 | — | 206 |
+| 50 | parity remediation 1 — REST boundary preserves function response-envelope headers (redirects/cookies/content-type) + envelope header model (case-insensitive get, CR/LF filter) | 2026-07-21 | — | 213 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1334,6 +1335,35 @@ the identical design in both ports (like #40).
   tests** green; branch **`fix/companion-sync-contract-gaps`** pushed for the upstream PR.
 - **Docs:** the sync-envelope contract now states both rules (agent guide bullets +
   `sync_envelope` notes in the catalog); rollups #62/#63 → DONE.
+
+---
+
+## Increment 50 — parity remediation 1: REST response headers (2026-07-21)
+
+First increment of the maintainer-approved parity-remediation program (the verified
+third-party correctness assessment; thread `ot-parity-remediation`). The **Critical**
+finding: the REST boundary dropped every header a function set on its response
+`EventEnvelope`, so redirects (`Location`), cookies, and custom content types never
+reached the HTTP client — Java's `AsyncHttpResponse.updateHeaders` copies them all.
+
+- **REST boundary** (`automation/server.rs`): response-envelope headers now map to HTTP
+  exactly as in Java — `content-type` overrides the body-derived type (lowercased,
+  skipped for HEAD); `set-cookie` splits on the `|` separator into one header line per
+  cookie (`SimpleHttpUtility.setCookies`); `x-stream-id` (with the `stream.*.in` shape) +
+  `x-ttl` are recognized as the response-streaming contract and withheld from the wire
+  (streaming is a documented D10 deferral); everything else joins the response header map,
+  which the rest.yaml response transform then filters (Java `filterHeaders` — content-type
+  and cookies bypass it, as in Java). HEAD responses carry headers but no body.
+- **Envelope header model** (`envelope.rs`, Java `EventEnvelope` parity): `header()` falls
+  back to a case-insensitive scan; `set_header()` filters CR/LF from values (the
+  header-injection guard).
+- **Tests:** `function_response_headers_survive_the_rest_boundary` +
+  `head_response_carries_headers_but_no_body` (raw-socket reads so repeated `Set-Cookie`
+  lines stay visible) in `rest_automation.rs`; envelope unit tests in `event_bus.rs`.
+  Workspace 213 tests / clippy 0 / fmt clean.
+- Remaining header-model item (tracked in the thread): Java derives a fallback response
+  content type from the request `Accept` header (`updateContentType`) and renders the body
+  per that negotiation — the Rust port still derives from the body shape alone.
 
 ---
 

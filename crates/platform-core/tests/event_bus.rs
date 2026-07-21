@@ -540,3 +540,21 @@ async fn manual_reply_reaches_the_rpc_inbox() {
     // the MANUAL reply won the oneshot (it was sent before the function returned)
     assert_eq!(response.body_as::<String>().unwrap(), "manual reply");
 }
+
+/// Increment 50: envelope header-model parity with Java `EventEnvelope` —
+/// `getHeader` is case-insensitive and `setHeader` filters CR/LF
+/// (header-injection guard).
+#[test]
+fn envelope_header_lookup_is_case_insensitive() {
+    let event = EventEnvelope::new().set_header("Content-Type", "text/plain");
+    assert_eq!(event.header("content-type"), Some("text/plain"));
+    assert_eq!(event.header("CONTENT-TYPE"), Some("text/plain"));
+    assert_eq!(event.header("Content-Type"), Some("text/plain"));
+    assert_eq!(event.header("no-such-header"), None);
+}
+
+#[test]
+fn envelope_header_values_are_sanitized_for_crlf() {
+    let event = EventEnvelope::new().set_header("x-answer", "one\r\ntwo\rthree\nfour");
+    assert_eq!(event.header("x-answer"), Some("onetwothreefour"));
+}

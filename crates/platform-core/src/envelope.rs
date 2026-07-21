@@ -120,7 +120,10 @@ impl EventEnvelope {
     }
 
     pub fn set_header(mut self, key: &str, value: &str) -> Self {
-        self.headers.insert(key.to_string(), value.to_string());
+        // Java setHeader guarantees CR/LF never enter a header value
+        // (header-injection guard); same filter here
+        let value: String = value.chars().filter(|c| *c != '\r' && *c != '\n').collect();
+        self.headers.insert(key.to_string(), value);
         self
     }
 
@@ -188,7 +191,15 @@ impl EventEnvelope {
     }
 
     pub fn header(&self, key: &str) -> Option<&str> {
-        self.headers.get(key).map(String::as_str)
+        // Java getHeader falls back to a case-insensitive scan when the
+        // exact key is absent
+        if let Some(value) = self.headers.get(key) {
+            return Some(value.as_str());
+        }
+        self.headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(key))
+            .map(|(_, value)| value.as_str())
     }
 
     pub fn body(&self) -> &rmpv::Value {
