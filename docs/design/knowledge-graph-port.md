@@ -119,7 +119,10 @@ changes).
    > text, https rejected explicitly) + the `AsyncHttpRequest` builder/parser.
    > event-script: E-9 http-client fixtures activated E2E incl. the full-shape W3C
    > trace-propagation test through the real HTTP edge. knowledge-graph:
-   > `fetcher.rs` (dictionary/provider, `key:default` fallbacks, instance cache,
+   > `fetcher.rs` (dictionary/provider, `key:default` fallbacks, instance cache —
+   > keyed on the DICTIONARY-scoped parameter map `{node}.dd.{alias}.*`, declared
+   > inputs only, exactly like Java `makeRegularHttpCall` (increment 54, parity F6:
+   > the whole-staged-map key re-fired provider calls Java reuses, POSTs included) —
    > for-each fork-join) + `features.rs` (`FeatureRunner` registry — explicit
    > registration replaces the Java annotation scan; built-in log-request/
    > response-headers). Tutorials 3/5/6/12/114 + unit-test-1 pass over real HTTP

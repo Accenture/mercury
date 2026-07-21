@@ -126,6 +126,27 @@ impl knowledge_graph::features::FeatureRunner for DemoAuth {
     }
 }
 
+/// Counts every provider call it receives — the cache-key regression probe
+/// (increment 54, parity F6): two fetches whose DICTIONARY-declared inputs
+/// match must produce exactly one call, regardless of fetcher-level staging.
+static CACHE_PROBE_CALLS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+#[preload(route = "mock.cache.counter", instances = 10)]
+struct MockCacheCounter;
+
+#[async_trait]
+impl ComposableFunction for MockCacheCounter {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let n = CACHE_PROBE_CALLS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        EventEnvelope::new().set_body(serde_json::json!({"count": n}))
+    }
+}
+
 /// Echoes the Authorization header it received on the wire.
 #[preload(route = "mock.echo.auth", instances = 10)]
 struct MockEchoAuth;
@@ -218,6 +239,7 @@ async fn graph_runtime_end_to_end() {
     graph_task_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
+    fetcher_cache_key_uses_dictionary_declared_inputs_only(&platform).await;
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
@@ -719,6 +741,45 @@ async fn graph_extension_matches_java_semantics(platform: &Platform) {
     assert_eq!(
         Some("world"),
         reply.headers().get("x-hello").map(String::as_str)
+    );
+}
+
+/// Increment 54 (parity F6): the provider cache key is built EXCLUSIVELY from
+/// dictionary-declared inputs (Java `makeRegularHttpCall` reads the
+/// `{node}.dd.{alias}.*` namespace). Two sequential fetchers stage a
+/// DIFFERENT undeclared fetcher-level parameter (`extra` = alpha/beta) while
+/// their dictionaries declare the same `person_id` — Java reuses the cached
+/// response; the pre-fix Rust keyed on the whole staged map and re-fired the
+/// provider call.
+async fn fetcher_cache_key_uses_dictionary_declared_inputs_only(platform: &Platform) {
+    let before = CACHE_PROBE_CALLS.load(std::sync::atomic::Ordering::SeqCst);
+    let reply = run_graph(
+        platform,
+        "rust-cache-key",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "rust-cache-key failed: {:?}",
+        reply.body()
+    );
+    let after = CACHE_PROBE_CALLS.load(std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        1,
+        after - before,
+        "equivalent dictionary requests must share ONE provider call (Java parity)"
+    );
+    // both fetches surfaced the SAME cached response
+    let mm = body_map(&reply);
+    let count1 = mm.get_element("count1");
+    let count2 = mm.get_element("count2");
+    assert!(count1.is_some(), "count1 missing: {:?}", reply.body());
+    assert_eq!(
+        count1, count2,
+        "the second fetch must reuse the first fetch's cached response"
     );
 }
 

@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-051629)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-212346)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 64 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 65 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 63 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 64 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -263,43 +263,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
   both engines, even mislabeled as JSON). → serves: vision-mercury
   <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
-
-- [x] **Prepare `docs/guides` for the human reader — COMPLETE 2026-07-20 (increments 43–46,
-  all four phases).** MkDocs+Material site, 20 nav pages strict-green: Home + Getting Started
-  (43); Foundations + Layer 1/2 guides with the layer-organized "AI-enabled" nav (44); Layer 3
-  human set incl. composing-the-layers (sweep finding #9 closed) + rest-automation +
-  flow-schema + six D-H2 source-enumerated references (45); port-scope + polish + final pass
-  (46). ~4,600 lines, all source-verified, ~40 port-note boxes. **This was the stated gate
-  before graduation to github.com/Accenture/mercury.** Upstream doc-fix candidates parked:
-  Java flow-schema documents `error.status` but the engine key is `error.code` (both
-  implementations); `error.stack` null in Rust. Original backlog text:** **Design approved (Q1–Q4
-  answered: guides/ tree for both audiences; identity = github.com/Accenture/mercury —
-  graduation after the docs; deep-purple palette; help pages unchanged) + PHASES 1–2 SHIPPED
-  2026-07-20 (increments 43–44)**: scaffold + Home + Getting Started + strict CI; then
-  Foundations trio + Layer 1/2 guides (7 source-verified pages, 17 port-note boxes,
-  observability records verbatim from a live run) with the Java site's LAYER-ORGANIZED nav
-  (each layer's AI agent guide inside its section — "the repo is AI-enabled"). PHASE 3
-  SHIPPED same day (increment 45: 12 pages — KG human set incl. composing-the-layers closing
-  sweep finding #9, rest-automation, flow-schema, the six D-H2 reference conversions with
-  source-enumerated keys; 19 nav pages, strict build green; Java-doc bugs surfaced:
-  `error.status`→`error.code`, `error.stack` null — upstream doc-fix candidates). Remaining:
-  phase 4 (background/port-scope page + Home polish + final link pass). Design
-  (`docs/design/human-docs.md` v1): MkDocs+Material per the agent-memory
-  recipe; core rule D-H2 = no wide reference tables (entry-per-heading, the maintainer's
-  presentation critique); human pages under `docs/guides-human/` (AI-doc paths untouched);
-  AI set surfaced under Reference (link, never restate); 18 Java pages mapped, 8 skipped
-  (out of port scope); 4 increments; 4 open questions. Maintainer decision 2026-07-19:
-  the guides tree currently serves AI agents (the knowledge-graph AI set + event-script +
-  event-driven AI guides, hardened by the validation sweep); the **human developer documentation
-  was deferred** and is now backlog. Source map: the Java upstream's human guides
-  (`~/sandbox/mercury-composable/docs/guides/` — getting-started, architecture, methodology,
-  event-driven walkthroughs like write-your-first-function / function-execution, rest-automation
-  human pages, api-overview, annotations/configuration/event-envelope references, observability,
-  index/home) — adapted to the Rust port the way the help pages were (2026-07-19): map don't
-  mirror, all code in the Rust API, port truths (tokio not virtual threads, `#[preload]` not
-  `@PreLoad`, no Kafka/Spring), verified against source. The AI docs stay agent-optimized and
-  separate; the in-app help pages are already done. → serves: vision-mercury
-  <!-- id: ot-human-guides-backlog | created: 2026-07-19 | last_used: 2026-07-20 | uses: 7 | tier: archive-candidate | origin: 2026-07-19-181641.md -->
 
 - [x] **Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42,
   BOTH ports).** From tut-11 finding #38: the `list` command grows two read-only forms —
@@ -483,7 +446,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust's counts brackets — differs only for an array-index path ending an unquoted list
   (`output.body[0]]`), unreachable except via Java's exception fallback.
   → serves: vision-mercury
-  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: active | origin: 2026-07-20-213830.md -->
+  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-213830.md -->
 
 - [x] **Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony):**
   `inv-never-couple-functions` holds (code evidence: zero direct inter-function calls across
@@ -525,9 +488,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (increment 53): real pattern tokenizer (names/12h/AM-PM/SSS/quoted literals/offsets;
   unsupported letters fail loudly), `f:dateTime` zone arg via chrono-tz + ISO_DATE_TIME
   no-arg form with [zone-id] suffix; parse plugins ride the same converter; deterministic
-  zone tests; workspace 218/clippy 0/fmt; deps + micro-divergences documented; (5) fetcher cache key = dictionary-declared
-  inputs only (Rust keys the whole staged fetch map → re-fires POSTs Java reuses;
-  single-request path only); (6) registration semantics (Java replaces on re-register,
+  zone tests; workspace 218/clippy 0/fmt; deps + micro-divergences documented; (5) fetcher cache key — DONE 2026-07-21
+  (increment 54, the last High): key = the dd-namespace map `{node}.dd.{alias}.*`
+  (declared inputs only, Java makeRegularHttpCall parity; log + trace annotation now
+  report dd-scoped keys); call-counting red/green regression (rust-cache-key fixture +
+  mock.cache.counter — pre-fix 2 calls, fixed 1; Java repo can adopt the same fixture);
+  workspace 218/clippy 0/fmt; (6) registration semantics (Java replaces on re-register,
   clamps instances 1..=1000), config resolver false-cycle on repeated `${a} ${a}`,
   .properties full syntax; (7) REST routing parity (multi-value query params, 405-vs-404 +
   OPTIONS, cookies map/raw query/https flag — https is hardcoded false; wildcard deltas both
@@ -539,7 +505,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
   consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 5 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 6 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

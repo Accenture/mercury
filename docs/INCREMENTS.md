@@ -70,6 +70,7 @@
 | 51 | parity remediation 2 — trace continuity: zero-traced routes keep the trace flowing (telemetry-only suppression), send_later captures context at schedule time, explicit trace identity wins over the ambient bracket | 2026-07-21 | — | 216 |
 | 52 | parity remediation 3 — Event Script safety: `max.model.array.size` cap enforced on dynamic RHS indices (+ docs contradiction fixed), flow-launch `body` precondition | 2026-07-21 | — | 217 |
 | 53 | parity remediation 4 — date/time plugins: full Java-pattern tokenizer (names, 12h/AM-PM, SSS, quoted literals, offsets; loud failure on unsupported letters), `f:dateTime` zone argument + ISO_DATE_TIME no-arg form | 2026-07-21 | — | 218 |
+| 54 | parity remediation 5 — fetcher cache key = dictionary-declared inputs only (`{node}.dd.{alias}.*`, Java makeRegularHttpCall parity); call-counting red/green regression | 2026-07-21 | — | 218 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1451,6 +1452,34 @@ silently discarded its zone argument.
   invalid-zone error, no-arg shape, AM/PM + millis parse round-trips against
   locally-computed epochs. Workspace 218 tests / clippy 0 / fmt. syntax.md documents the
   pattern/zone forms (upstream doc candidate: Java's page is equally terse).
+
+---
+
+## Increment 54 — parity remediation 5: the fetcher cache key (2026-07-21)
+
+Fifth increment of the parity-remediation program — the last High (finding F6). The
+knowledge-graph fetcher cached provider responses keyed on the WHOLE staged fetch map
+(everything the fetcher's own `input` mapping staged), while Java keys on the
+dictionary-scoped namespace `{node}.dd.{alias}.*` — dictionary-declared inputs only.
+Since the Rust key was a strict superset, Rust could only miss where Java hits: two
+fetches with identical declared inputs but different fetcher-level staging re-fired the
+provider call Java reuses — including side-effecting POSTs.
+
+- **Fix** (`fetcher.rs`, single-request path — `for_each` has no cache in either
+  engine): the cache lookup/store key is now the dd-namespace map read back from the
+  state machine after `fill_dictionary_api_parameters`, mirroring Java
+  `makeRegularHttpCall` exactly (a no-input dictionary keys on the empty map, as in
+  Java). The provider-call log line and the `parameters` trace annotation now report
+  the dictionary-scoped keys, matching Java's output. The now-unused whole-map
+  conversion helper was removed.
+- **Test:** `fetcher_cache_key_uses_dictionary_declared_inputs_only` — a
+  call-counting mock provider (`mock.cache.counter`) behind the new `rust-cache-key`
+  fixture: two sequential fetchers stage different undeclared `extra` parameters while
+  their dictionaries declare the same `person_id`. **Red/green-verified**: pre-fix code
+  makes 2 provider calls, fixed code makes 1 and both fetches surface the same cached
+  response. (The assessment recommended exactly this call-counting regression in each
+  repository — the Java repo can adopt the same fixture.) Workspace 218 tests /
+  clippy 0 / fmt.
 
 ---
 

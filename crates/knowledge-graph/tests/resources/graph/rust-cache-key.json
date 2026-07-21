@@ -1,0 +1,127 @@
+{
+  "nodes": [
+    {
+      "types": ["Root"],
+      "alias": "root",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": ["input.body.person_id -> model.person_id"],
+        "purpose": "Regression probe: the provider cache key is built from dictionary-declared inputs only (parity F6)",
+        "name": "rust-cache-key"
+      }
+    },
+    {
+      "types": ["Fetcher"],
+      "alias": "fetcher-1",
+      "properties": {
+        "skill": "graph.api.fetcher",
+        "input": [
+          "input.body.person_id -> person_id",
+          "text(alpha) -> extra"
+        ],
+        "dictionary": ["cache-name"],
+        "output": ["result.count -> output.body.count1"]
+      }
+    },
+    {
+      "types": ["Fetcher"],
+      "alias": "fetcher-2",
+      "properties": {
+        "skill": "graph.api.fetcher",
+        "input": [
+          "input.body.person_id -> person_id",
+          "text(beta) -> extra"
+        ],
+        "dictionary": ["cache-echo"],
+        "output": ["result.count -> output.body.count2"]
+      }
+    },
+    {
+      "types": ["Dictionary"],
+      "alias": "cache-name",
+      "properties": {
+        "input": ["person_id"],
+        "output": ["response.count -> result.count"],
+        "provider": "counter-api",
+        "purpose": "call count as seen by the first fetch"
+      }
+    },
+    {
+      "types": ["Dictionary"],
+      "alias": "cache-echo",
+      "properties": {
+        "input": ["person_id"],
+        "output": ["response.count -> result.count"],
+        "provider": "counter-api",
+        "purpose": "call count as seen by the second fetch"
+      }
+    },
+    {
+      "types": ["Provider"],
+      "alias": "counter-api",
+      "properties": {
+        "method": "GET",
+        "url": "http://127.0.0.1:${rest.server.port:8080}/api/cache/counter/{id}",
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ],
+        "purpose": "call-counting mock endpoint"
+      }
+    },
+    {
+      "types": ["Island"],
+      "alias": "dictionary",
+      "properties": {
+        "skill": "graph.island"
+      }
+    },
+    {
+      "types": ["End"],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [{"type": "fetch", "properties": {}}],
+      "target": "fetcher-1"
+    },
+    {
+      "source": "fetcher-1",
+      "relations": [{"type": "then", "properties": {}}],
+      "target": "fetcher-2"
+    },
+    {
+      "source": "fetcher-2",
+      "relations": [{"type": "complete", "properties": {}}],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [{"type": "contains", "properties": {}}],
+      "target": "dictionary"
+    },
+    {
+      "source": "dictionary",
+      "relations": [{"type": "data", "properties": {}}],
+      "target": "cache-name"
+    },
+    {
+      "source": "dictionary",
+      "relations": [{"type": "data", "properties": {}}],
+      "target": "cache-echo"
+    },
+    {
+      "source": "cache-name",
+      "relations": [{"type": "provider", "properties": {}}],
+      "target": "counter-api"
+    },
+    {
+      "source": "cache-echo",
+      "relations": [{"type": "provider", "properties": {}}],
+      "target": "counter-api"
+    }
+  ]
+}
