@@ -329,3 +329,253 @@ context:
     assert!(!rendered.contains_key("bogus"));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// ---- increment 51: trace continuity (parity findings F3 / F7 / F8) ----
+
+/// (trace id, trace path, span id) as observed on one delivered event.
+type SeenTraces = Arc<Mutex<Vec<(Option<String>, Option<String>, Option<String>)>>>;
+
+/// Records the trace identity each delivered event carries.
+struct TraceRecorder {
+    seen: SeenTraces,
+}
+
+#[async_trait]
+impl ComposableFunction for TraceRecorder {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        self.seen.lock().expect("recorder mutex").push((
+            input.trace_id().map(str::to_string),
+            input.trace_path().map(str::to_string),
+            input.span_id().map(str::to_string),
+        ));
+        EventEnvelope::new().set_body("ok")
+    }
+}
+
+/// A zero-traced middle hop: calls the next route and returns its reply.
+struct ZeroTracedRelay {
+    platform: Platform,
+    next: &'static str,
+}
+
+#[async_trait]
+impl ComposableFunction for ZeroTracedRelay {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&self.platform);
+        let request = EventEnvelope::new().set_to(self.next).set_body("relay")?;
+        po.request(request, Duration::from_secs(2)).await
+    }
+}
+
+/// F3: a zero-traced route suppresses only its own telemetry — the trace
+/// context still flows to nested calls and back on the reply (Java gates
+/// startTracing/sendTracingInfo on the flag, never the propagation).
+#[tokio::test]
+async fn zero_traced_route_preserves_trace_continuity() {
+    setup_config();
+    let (platform, datasets) = capture_platform();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            "v1.trace.recorder",
+            Arc::new(TraceRecorder { seen: seen.clone() }),
+            1,
+        )
+        .unwrap();
+    platform
+        .register_with_options(
+            "v1.zero.relay",
+            Arc::new(ZeroTracedRelay {
+                platform: platform.clone(),
+                next: "v1.trace.recorder",
+            }),
+            1,
+            platform_core::FunctionOptions {
+                zero_traced: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let response = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.zero.relay")
+                .set_trace("trace-through-zero", "GET /zero")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .unwrap();
+    // the reply from the zero-traced hop still carries the trace identity
+    assert_eq!(response.trace_id(), Some("trace-through-zero"));
+    assert_eq!(response.trace_path(), Some("GET /zero"));
+    // the nested call saw the same trace id/path — with NO span from the
+    // zero-traced hop (it owns no span, Java parity)
+    let recorded = seen.lock().expect("recorder mutex").clone();
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(recorded[0].0.as_deref(), Some("trace-through-zero"));
+    assert_eq!(recorded[0].1.as_deref(), Some("GET /zero"));
+    assert_eq!(recorded[0].2, None, "zero-traced hop must not mint a span");
+    // exactly ONE telemetry dataset: the recorder's own execution — the
+    // zero-traced relay emitted none
+    let all = wait_for_datasets(&datasets, 1).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let all_after = datasets.lock().expect("capture mutex").clone();
+    assert_eq!(all_after.len(), all.len(), "no late datasets expected");
+    assert!(all_after
+        .iter()
+        .all(|d| trace_of(d)["service"] == "v1.trace.recorder"));
+}
+
+/// A function that schedules a delayed send and returns immediately — the
+/// timer fires long after the trace bracket is gone.
+struct Scheduler {
+    platform: Platform,
+}
+
+#[async_trait]
+impl ComposableFunction for Scheduler {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&self.platform);
+        let event = EventEnvelope::new()
+            .set_to("v1.trace.recorder.later")
+            .set_body("later")?;
+        po.send_later(event, Duration::from_millis(50));
+        EventEnvelope::new().set_body("scheduled")
+    }
+}
+
+/// F7: send_later captures the sender's trace context AT SCHEDULING TIME
+/// (Java sendLater wraps the event in touch() before the timer).
+#[tokio::test]
+async fn scheduled_send_captures_context_at_schedule_time() {
+    setup_config();
+    let (platform, _datasets) = capture_platform();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            "v1.trace.recorder.later",
+            Arc::new(TraceRecorder { seen: seen.clone() }),
+            1,
+        )
+        .unwrap();
+    platform
+        .register(
+            "v1.scheduler",
+            Arc::new(Scheduler {
+                platform: platform.clone(),
+            }),
+            1,
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let _ = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.scheduler")
+                .set_trace("trace-scheduled", "GET /later")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .unwrap();
+    // wait for the timer to fire and the recorder to run
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+    while seen.lock().expect("recorder mutex").is_empty() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "scheduled event never arrived"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let recorded = seen.lock().expect("recorder mutex").clone();
+    assert_eq!(recorded[0].0.as_deref(), Some("trace-scheduled"));
+    assert_eq!(recorded[0].1.as_deref(), Some("GET /later"));
+    assert!(recorded[0].2.is_some(), "scheduler's span rides the event");
+}
+
+/// Sends one event carrying an EXPLICIT trace identity from inside a bracket.
+struct ExplicitSender {
+    platform: Platform,
+}
+
+#[async_trait]
+impl ComposableFunction for ExplicitSender {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&self.platform);
+        let request = EventEnvelope::new()
+            .set_to("v1.trace.recorder.explicit")
+            .set_trace("explicit-id", "EXPLICIT /path")
+            .set_body("x")?;
+        let _ = po.request(request, Duration::from_secs(2)).await?;
+        EventEnvelope::new().set_body("sent")
+    }
+}
+
+/// F8: an explicitly supplied trace identity survives the ambient bracket
+/// (Java touch() fills trace id/path only when absent).
+#[tokio::test]
+async fn explicit_trace_identity_survives_ambient_bracket() {
+    setup_config();
+    let (platform, _datasets) = capture_platform();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            "v1.trace.recorder.explicit",
+            Arc::new(TraceRecorder { seen: seen.clone() }),
+            1,
+        )
+        .unwrap();
+    platform
+        .register(
+            "v1.explicit.sender",
+            Arc::new(ExplicitSender {
+                platform: platform.clone(),
+            }),
+            1,
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let _ = po
+        .request(
+            EventEnvelope::new()
+                .set_to("v1.explicit.sender")
+                .set_trace("ambient-id", "GET /ambient")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(2),
+        )
+        .await
+        .unwrap();
+    let recorded = seen.lock().expect("recorder mutex").clone();
+    assert_eq!(recorded.len(), 1);
+    // the explicit identity won; the ambient bracket did not overwrite it
+    assert_eq!(recorded[0].0.as_deref(), Some("explicit-id"));
+    assert_eq!(recorded[0].1.as_deref(), Some("EXPLICIT /path"));
+    // the sender's span still rides the event (Java: span is stamped
+    // unconditionally so the receiver knows its parent)
+    assert!(recorded[0].2.is_some());
+}

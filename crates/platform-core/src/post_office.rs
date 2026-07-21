@@ -32,10 +32,13 @@ use crate::function::AppError;
 use crate::platform::Platform;
 use crate::trace;
 
-/// Stamp the current trace context onto an outbound event (Java parity:
-/// the sender's PostOffice propagates its trace and carries its span id so
-/// the receiver knows its parent span; the business correlation-id follows
-/// the request to the next touch point when the event has none of its own).
+/// Stamp the current trace context onto an outbound event — the mirror of
+/// Java `PostOffice.touch()`: trace id and path are filled **only when the
+/// event has none of its own** (an explicitly supplied trace identity always
+/// wins — F8 parity fix, 2026-07-21); the span id is stamped unconditionally
+/// so the receiver knows its parent span — except inside a zero-traced hop,
+/// which owns no span (Java: no live TraceInfo there); `from` and the
+/// business correlation-id follow the request when absent.
 /// No-op outside a trace bracket.
 fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
     let snapshot = trace::with_current(|state| {
@@ -45,12 +48,17 @@ fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
             state.trace_path.clone(),
             state.span_id.clone(),
             state.cid.clone(),
+            state.zero_traced,
         )
     });
-    if let Some((route, trace_id, trace_path, span_id, cid)) = snapshot {
-        event = event
-            .set_trace(&trace_id, &trace_path)
-            .set_span_id(&span_id);
+    if let Some((route, trace_id, trace_path, span_id, cid, zero_traced)) = snapshot {
+        // Java touch(): each trace field fills independently, if-absent
+        let effective_id = event.trace_id().unwrap_or(&trace_id).to_string();
+        let effective_path = event.trace_path().unwrap_or(&trace_path).to_string();
+        event = event.set_trace(&effective_id, &effective_path);
+        if !zero_traced {
+            event = event.set_span_id(&span_id);
+        }
         if event.from().is_none() {
             event = event.set_from(&route);
         }
@@ -109,6 +117,10 @@ impl PostOffice {
     /// abortable tokio task (map-don't-mirror; increment E-3 — built for the
     /// event-script flow TTL watcher).
     pub fn send_later(&self, event: EventEnvelope, delay: std::time::Duration) -> String {
+        // capture the sender/trace/correlation context NOW (Java sendLater
+        // wraps the event in touch() before the timer) — the spawned timer
+        // task does not inherit the task-local trace bracket (F7 parity fix)
+        let event = apply_current_trace(event);
         let timer_id = uuid::Uuid::new_v4().simple().to_string();
         let platform = self.platform.clone();
         let id_for_task = timer_id.clone();

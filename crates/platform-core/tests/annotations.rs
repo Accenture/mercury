@@ -111,8 +111,10 @@ impl ComposableFunction for ZeroTracedFn {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         ZERO_TRACED_RAN.store(true, Ordering::SeqCst);
+        // the bracket exists for CONTINUITY (increment 51, Java parity: the
+        // function still sees the trace context) but is telemetry-suppressed
         ZERO_TRACED_HAD_TRACE.store(
-            trace::with_current(|_| true).unwrap_or(false),
+            trace::with_current(|state| !state.zero_traced).unwrap_or(false),
             Ordering::SeqCst,
         );
         EventEnvelope::new().set_body("ok")
@@ -327,8 +329,10 @@ async fn annotation_macros_end_to_end() {
         .expect("untyped rpc");
     assert_eq!(reply.body_as::<String>().expect("untyped reply"), "hello");
 
-    // the stacked #[zero_tracing] marker suppresses the trace bracket even
-    // for a traced request
+    // the stacked #[zero_tracing] marker suppresses the hop's TELEMETRY
+    // (increment 51, Java parity): the trace context still flows through for
+    // continuity, marked zero_traced so no dataset is emitted and no span
+    // joins the chain
     let reply = po
         .request(
             EventEnvelope::new()
@@ -344,7 +348,7 @@ async fn annotation_macros_end_to_end() {
     assert!(ZERO_TRACED_RAN.load(Ordering::SeqCst));
     assert!(
         !ZERO_TRACED_HAD_TRACE.load(Ordering::SeqCst),
-        "zero-traced route must not execute inside a trace bracket"
+        "zero-traced route must run with a telemetry-suppressed trace bracket"
     );
 
     // the stacked #[event_interceptor] marker: the manual reply arrives and
