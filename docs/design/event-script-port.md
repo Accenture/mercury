@@ -356,8 +356,15 @@ reactive back-pressure.*
   `promoteNumber` semantics incl. divide-by-zero guards), generators (`now` with
   iso/local/ms, `dateTime` with Java-pattern formatting), comparisons (`gt`/`lt`,
   `ternary`, case-insensitive `startsWith`/`endsWith`/`includes` with list
-  membership), date parsing (`parseDate`/`parseDateTime` — a small Java-pattern →
-  chrono format converter covers the yyyy/MM/dd/HH/mm/ss tokens flow files use),
+  membership), date parsing (`parseDate`/`parseDateTime` — the Java-pattern → chrono
+  converter is a real tokenizer since increment 53 (parity F5): the practical
+  `DateTimeFormatter` letter set — years/months incl. names, weekdays, 12/24-hour
+  clocks, AM/PM, SSS millis, quoted literals, X/Z offsets — with unsupported letters
+  failing loudly; `f:dateTime` honors its optional zone argument via chrono-tz
+  (`ZoneId.of` analog) and its no-arg form emits Java's ISO_DATE_TIME shape with the
+  `[zone-id]` suffix. Known micro-divergences documented at the converter: minute-less
+  `X` offsets render as `+0530`, `XXX` at UTC renders `+00:00` not `Z`, `z` is
+  format-only),
   list-of-map operations (`listOfMap` normalization + column merge,
   `updateListOfMap`, `removeKey`, `uniqueSet`, `defaultValue`), and the full
   `validate` rule engine (type checks, `required`/`evaluate` modes, string/integer/

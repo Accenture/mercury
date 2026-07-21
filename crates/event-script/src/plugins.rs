@@ -603,4 +603,86 @@ mod tests {
         );
         assert!(calculate("noSuchPlugin", &[]).is_err());
     }
+
+    /// Increment 53 (parity F5): full Java DateTimeFormatter pattern support
+    /// and the f:dateTime zone argument (previously silently dropped).
+    #[test]
+    fn date_time_patterns_and_zone_match_java_semantics() {
+        // the converter tokenizes properly: names, 12-hour clock, AM/PM,
+        // millis, quoted literals, escaped quotes, offsets
+        assert_eq!(
+            java_pattern_to_chrono("MM/dd/yyyy HH:mm:ss"),
+            Ok("%m/%d/%Y %H:%M:%S".to_string())
+        );
+        assert_eq!(
+            java_pattern_to_chrono("yyyy-MM-dd'T'HH:mm:ss.SSS"),
+            Ok("%Y-%m-%dT%H:%M:%S.%3f".to_string())
+        );
+        assert_eq!(
+            java_pattern_to_chrono("EEE, dd MMM yyyy hh:mm a"),
+            Ok("%a, %d %b %Y %I:%M %p".to_string())
+        );
+        assert_eq!(java_pattern_to_chrono("yyyy''MM"), Ok("%Y'%m".to_string()));
+        // unsupported letters fail loudly instead of emitting garbage
+        let err = java_pattern_to_chrono("yyyy VV").expect_err("V unsupported");
+        assert!(err.contains("'V'"), "{err}");
+
+        // f:dateTime honors the zone argument (Java ZoneId.of analog) —
+        // deterministic via the offset pattern
+        assert_eq!(
+            calculate("dateTime", &[Value::from("XXX"), Value::from("UTC")]),
+            Ok(Value::from("+00:00"))
+        );
+        assert_eq!(
+            calculate(
+                "dateTime",
+                &[Value::from("XXX"), Value::from("Asia/Kolkata")]
+            ),
+            Ok(Value::from("+05:30"))
+        );
+        let err = calculate("dateTime", &[Value::from("HH"), Value::from("Not/AZone")])
+            .expect_err("invalid zone");
+        assert!(err.contains("Unknown time zone"), "{err}");
+        // no-arg form: ISO_DATE_TIME with the [zone-id] suffix (Java
+        // ZonedDateTime + DateTimeFormatter.ISO_DATE_TIME)
+        let stamp = get_text_value(&calculate("dateTime", &[]).expect("no-arg dateTime"));
+        assert!(
+            stamp.contains('T') && stamp.ends_with(']') && stamp.contains('['),
+            "{stamp}"
+        );
+
+        // parseDateTime with AM/PM + 12-hour clock (previously garbage)
+        let ms = calculate(
+            "parseDateTime",
+            &[
+                Value::from("07/04/2026 09:30:00 PM"),
+                Value::from("MM/dd/yyyy hh:mm:ss a; ms"),
+            ],
+        )
+        .expect("parse AM/PM");
+        // the same instant computed directly (local zone, like Java
+        // LocalDateTime.parse().atZone(systemDefault()))
+        use chrono::TimeZone;
+        let expected = chrono::Local
+            .from_local_datetime(
+                &chrono::NaiveDate::from_ymd_opt(2026, 7, 4)
+                    .unwrap()
+                    .and_hms_opt(21, 30, 0)
+                    .unwrap(),
+            )
+            .earliest()
+            .unwrap()
+            .timestamp_millis();
+        assert_eq!(ms, Value::from(expected));
+        // milliseconds in the pattern round-trip too
+        let ms = calculate(
+            "parseDateTime",
+            &[
+                Value::from("2026-07-04 21:30:00.250"),
+                Value::from("yyyy-MM-dd HH:mm:ss.SSS; ms"),
+            ],
+        )
+        .expect("parse millis");
+        assert_eq!(ms, Value::from(expected + 250));
+    }
 }

@@ -243,26 +243,126 @@ fn plugin_now(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Convert the common Java DateTimeFormatter pattern letters to a chrono
-/// format string (yyyy/MM/dd/HH/mm/ss — the tokens flow files use).
-fn java_pattern_to_chrono(pattern: &str) -> String {
-    pattern
-        .replace("yyyy", "%Y")
-        .replace("MM", "%m")
-        .replace("dd", "%d")
-        .replace("HH", "%H")
-        .replace("mm", "%M")
-        .replace("ss", "%S")
+/// Convert a Java `DateTimeFormatter` pattern to a chrono format string
+/// (increment 53, parity F5 — was a naive six-token replace that passed
+/// everything else through as garbage). A real tokenizer: repeated pattern
+/// letters, `'quoted literals'` (with `''` as an escaped quote), literal
+/// separators (`%` escaped). Coverage is the practical Java letter set;
+/// an unsupported letter fails LOUDLY instead of producing wrong output.
+/// Known micro-divergences (closest chrono forms, documented): `X`/`XX`
+/// render as `+0530` (no minute-less form), `XXX` renders UTC as `+00:00`
+/// where Java prints `Z`; `z` is format-only (chrono cannot parse zone
+/// abbreviations).
+fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut out = String::new();
+    let push_literal = |out: &mut String, c: char| {
+        if c == '%' {
+            out.push_str("%%");
+        } else {
+            out.push(c);
+        }
+    };
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\'' {
+            // '' outside a quoted section is a literal quote
+            if chars.get(i + 1) == Some(&'\'') {
+                out.push('\'');
+                i += 2;
+                continue;
+            }
+            // quoted literal text, '' inside = one quote
+            i += 1;
+            while i < chars.len() {
+                if chars[i] == '\'' {
+                    if chars.get(i + 1) == Some(&'\'') {
+                        out.push('\'');
+                        i += 2;
+                        continue;
+                    }
+                    i += 1;
+                    break;
+                }
+                push_literal(&mut out, chars[i]);
+                i += 1;
+            }
+            continue;
+        }
+        if c.is_ascii_alphabetic() {
+            let mut n = 1;
+            while chars.get(i + n) == Some(&c) {
+                n += 1;
+            }
+            let token = match (c, n) {
+                ('y' | 'u', 2) => "%y",
+                ('y' | 'u', _) => "%Y",
+                ('M', 4..) => "%B",
+                ('M', 3) => "%b",
+                ('M', 2) => "%m",
+                ('M', 1) => "%-m",
+                ('d', 2..) => "%d",
+                ('d', 1) => "%-d",
+                ('E', 4..) => "%A",
+                ('E', _) => "%a",
+                ('H', 2..) => "%H",
+                ('H', 1) => "%-H",
+                ('h', 2..) => "%I",
+                ('h', 1) => "%-I",
+                ('m', 2..) => "%M",
+                ('m', 1) => "%-M",
+                ('s', 2..) => "%S",
+                ('s', 1) => "%-S",
+                ('S', 3) => "%3f",
+                ('S', _) => {
+                    return Err(format!(
+                        "Unsupported fractional-second width in '{pattern}' - use SSS (milliseconds)"
+                    ))
+                }
+                ('a', _) => "%p",
+                ('X', 3) => "%:z",
+                ('X', 1..=2) => "%z",
+                ('Z', _) => "%z",
+                ('z', _) => "%Z",
+                _ => {
+                    return Err(format!(
+                        "Unsupported date-time pattern letter '{c}' in '{pattern}'"
+                    ))
+                }
+            };
+            out.push_str(token);
+            i += n;
+            continue;
+        }
+        push_literal(&mut out, c);
+        i += 1;
+    }
+    Ok(out)
 }
 
 fn plugin_date_time(args: &[Value]) -> Result<Value, String> {
-    let now = chrono::Local::now();
+    // Java DateGenerator: ZonedDateTime.now(zone).format(pattern) — the
+    // optional 2nd argument is the zone (ZoneId.of), previously silently
+    // dropped (parity F5); no pattern → ISO_DATE_TIME with the [zone-id]
+    // suffix; no zone → the system default
+    let zone_name = match args.get(1) {
+        Some(zone) => get_text_value(zone),
+        None => iana_time_zone::get_timezone()
+            .map_err(|e| format!("unable to detect the system time zone - {e}"))?,
+    };
+    let tz: chrono_tz::Tz = zone_name
+        .parse()
+        .map_err(|_| format!("Unknown time zone '{zone_name}'"))?;
+    let now = chrono::Utc::now().with_timezone(&tz);
     match args.first() {
-        None => Ok(Value::from(
-            now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
-        )),
+        None => Ok(Value::from(format!(
+            "{}[{}]",
+            now.format("%Y-%m-%dT%H:%M:%S%.f%:z"),
+            zone_name
+        ))),
         Some(pattern) => {
-            let format = java_pattern_to_chrono(&get_text_value(pattern));
+            let format = java_pattern_to_chrono(&get_text_value(pattern))?;
             Ok(Value::from(now.format(&format).to_string()))
         }
     }
@@ -388,7 +488,7 @@ fn plugin_parse_date(args: &[Value]) -> Result<Value, String> {
                     "Invalid validation rule. Syntax: text(pattern, iso | local | ms)".to_string(),
                 );
             };
-            let format = java_pattern_to_chrono(pattern);
+            let format = java_pattern_to_chrono(pattern)?;
             let date = chrono::NaiveDate::parse_from_str(&get_text_value(value), &format)
                 .map_err(|e| format!("unable to parse date - {e}"))?;
             let midnight = date.and_hms_opt(0, 0, 0).ok_or("invalid date")?;
@@ -407,7 +507,7 @@ fn plugin_parse_date_time(args: &[Value]) -> Result<Value, String> {
                     "Invalid validation rule. Syntax: text(pattern, iso | local | ms)".to_string(),
                 );
             };
-            let format = java_pattern_to_chrono(pattern);
+            let format = java_pattern_to_chrono(pattern)?;
             let datetime = chrono::NaiveDateTime::parse_from_str(&get_text_value(value), &format)
                 .map_err(|e| format!("unable to parse datetime - {e}"))?;
             parsed_date_output(datetime, &rules)

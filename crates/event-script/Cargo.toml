@@ -20,6 +20,11 @@ serde_json = "1"
 serde_json_path = "0.7"
 base64 = "0.22"
 chrono = "0.4"
+# increment 53 (parity F5): f:dateTime zone argument — chrono-tz is the
+# ZoneId.of() analog (IANA database), iana-time-zone names the system zone
+# (the ZoneId.systemDefault() analog, same crate chrono uses internally)
+chrono-tz = "0.10"
+iana-time-zone = "0.1"
 event-script-macros = { path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
 

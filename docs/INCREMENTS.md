@@ -69,6 +69,7 @@
 | 50 | parity remediation 1 — REST boundary preserves function response-envelope headers (redirects/cookies/content-type) + envelope header model (case-insensitive get, CR/LF filter) | 2026-07-21 | — | 213 |
 | 51 | parity remediation 2 — trace continuity: zero-traced routes keep the trace flowing (telemetry-only suppression), send_later captures context at schedule time, explicit trace identity wins over the ambient bracket | 2026-07-21 | — | 216 |
 | 52 | parity remediation 3 — Event Script safety: `max.model.array.size` cap enforced on dynamic RHS indices (+ docs contradiction fixed), flow-launch `body` precondition | 2026-07-21 | — | 217 |
+| 53 | parity remediation 4 — date/time plugins: full Java-pattern tokenizer (names, 12h/AM-PM, SSS, quoted literals, offsets; loud failure on unsupported letters), `f:dateTime` zone argument + ISO_DATE_TIME no-arg form | 2026-07-21 | — | 218 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1421,6 +1422,35 @@ Third increment of the parity-remediation program — the two Event Script safet
   in-range index passes) in the e2e scenario suite + `flow_launch_requires_a_body_in_the_dataset`
   (request/launch/non-map) — **red/green-verified** (both fail on the pre-fix source);
   the compiler's loaded-flow-set assertion extended. Workspace 217 tests / clippy 0 / fmt.
+
+---
+
+## Increment 53 — parity remediation 4: date/time plugins (2026-07-21)
+
+Fourth increment of the parity-remediation program (finding F5, High). The Java-pattern →
+chrono converter was a six-token literal replace — everything beyond
+`yyyy/MM/dd/HH/mm/ss` passed through as garbage chrono directives — and `f:dateTime`
+silently discarded its zone argument.
+
+- **A real pattern tokenizer** (`java_pattern_to_chrono`, now `Result`): repeated pattern
+  letters mapped to their chrono equivalents — years (`yy`/`yyyy`/`u`), months incl.
+  names (`M`–`MMMM`), weekdays (`E`–`EEEE`), 12/24-hour clocks (`h`/`H`), AM/PM (`a`),
+  `SSS` milliseconds, `'quoted literals'` with `''` escapes, `X`/`XXX`/`Z` offsets,
+  format-only `z` zone names — and an **explicit error** for unsupported letters instead
+  of silently wrong output. Micro-divergences documented at the converter (minute-less
+  `X` renders `+0530`; `XXX` at UTC renders `+00:00`, not `Z`).
+- **`f:dateTime` zone argument** (Java `DateGenerator`: `ZonedDateTime.now(zone)`): the
+  optional second argument now selects the zone via chrono-tz (`ZoneId.of` analog;
+  unknown zone → error, as Java throws). The no-arg form emits Java's `ISO_DATE_TIME`
+  shape incl. the `[zone-id]` suffix (system zone via iana-time-zone — the
+  `ZoneId.systemDefault()` analog). New deps: `chrono-tz 0.10`, `iana-time-zone 0.1`.
+- **`parseDate`/`parseDateTime`** ride the same converter — AM/PM, millis, and quoted
+  literals in parse patterns now work.
+- **Tests:** `date_time_patterns_and_zone_match_java_semantics` — converter mappings +
+  loud unsupported-letter failure, deterministic zone assertions (`XXX` @ UTC/Kolkata),
+  invalid-zone error, no-arg shape, AM/PM + millis parse round-trips against
+  locally-computed epochs. Workspace 218 tests / clippy 0 / fmt. syntax.md documents the
+  pattern/zone forms (upstream doc candidate: Java's page is equally terse).
 
 ---
 

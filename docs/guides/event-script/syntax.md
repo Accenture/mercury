@@ -1446,6 +1446,10 @@ For example:
 *DateTime plugins*
 
 - f:dateTime() will yield a timestamp with local timezone.
+- f:dateTime(text(pattern)) formats the current time with a Java `DateTimeFormatter`
+  pattern (e.g. `yyyy-MM-dd'T'HH:mm:ss.SSS a`); an optional second argument selects the
+  time zone by ID, e.g. f:dateTime(text(HH:mm), text(Asia/Tokyo)) — default is the
+  system zone.
 
 ```
 2026-03-15T14:48:21.735153-07:00[America/Los_Angeles]
