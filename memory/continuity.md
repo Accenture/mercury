@@ -15,9 +15,9 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-021231)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-023208)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
-- **last_invariant_check:** 2026-07-21 | through 2026-07-21-021231 (prompted — awaiting human confirmation via the open re-verify thread)
+- **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -262,31 +262,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   both engines, even mislabeled as JSON). → serves: vision-mercury
   <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
 
-- [x] **LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40).**
-  Backlog probe #3 confirmed it: `skill_run` (the join's completion source) meant "ran" not
-  "completed" — stamped even when a skill failed into its `exception=` route — and `RESET`
-  cleared `node_seen`+state but left the stale mark, so a fork whose failing branch retries
-  could fire the join **prematurely** and silently lose that branch's data (empirically proven:
-  probe test red on old code in BOTH engines, `expected: Peter, got: null`). Fix (maintainer
-  decision + companion tightening; **traveler ≡ executor**, both ports): `skill_run` is
-  **success-only** (not marked when `{node}.status`+`{node}.error` are set) and `RESET` clears
-  it with the guard and state — join completion is now "success-only and current" (a
-  permanently failing branch times out visibly instead of corrupting output). Probes:
-  `rust-join-retry.json` + `join_barrier_waits_for_a_retrying_branch` (Rust),
-  `unit-test-join-retry.json` + `joinBarrierWaitsForRetryingBranch` (Java, 68-test suite
-  green, branch **`fix/join-barrier-retry-interplay`** pushed — maintainer opens the PR).
-  Docs updated across grammar/catalog/skills-reference/help pages + bundle. Upstream: PR
-  [#197](https://github.com/Accenture/mercury-composable/pull/197) created by the maintainer
-  (CI pending). **Follow-on observation FIXED same day (increment 41, both ports):** chained
-  joins now judge an upstream join by its recorded OUTCOME (`node_seen[join] == true` = fired)
-  instead of the run mark — probe `rust-join-chain.json`/`unit-test-join-chain.json` red on
-  old code in both engines (`expected: X, got: null`); Java: #197
-  MERGED, then `fix/chained-join-outcome` rebased onto post-#197 main and **PR
-  [#198](https://github.com/Accenture/mercury-composable/pull/198) MERGED (2026-07-20)** —
-  the full join-barrier arc (increments 40+41) is live in BOTH engines.
-  → serves: vision-mercury
-  <!-- id: join-barrier-valid-completions | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: archive-candidate | origin: 2026-07-19-233602.md -->
-
 - [x] **Prepare `docs/guides` for the human reader — COMPLETE 2026-07-20 (increments 43–46,
   all four phases).** MkDocs+Material site, 20 nav pages strict-green: Home + Getting Started
   (43); Foundations + Layer 1/2 guides with the layer-organized "AI-enabled" nav (44); Layer 3
@@ -443,7 +418,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   nothing (mirror of #40's false-negative). Recommend: usage response ⇒ `ok:false` + `error`.
   Both fixes are small and shared-design (identical in both ports, like #40).
   → serves: vision-mercury
-  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-051617.md -->
+  <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-051617.md -->
 
 - [x] **HTTP redirection backlog — RESOLVED 2026-07-20: story WITHDRAWN (parity confirmed
   empirically; maintainer's stated criterion met).** A temporary JUnit probe in the Java
@@ -460,7 +435,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   SSO) handles it programmatically (layer 1) or declaratively via `{node}.status` routing
   (layers 2/3); years of Java production confirm it is not normally required. The raw 3xx
   IS the correct answer for a backend client. → serves: vision-mercury
-  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: active | origin: 2026-07-20-051617.md -->
+  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-051617.md -->
 
 - [x] **Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED
   2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) MERGED 2026-07-20 —
@@ -508,11 +483,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: active | origin: 2026-07-20-213830.md -->
 
-- [ ] **Re-verify invariants (due):** confirm `inv-never-couple-functions` and the Vision
-  (`vision-mercury`) still hold, or supersede any that don't (`DECAY.md` §9). Cadence: 54
-  sessions since the 2026-07-18 check ≥ `verify_invariants_every: 40`. Human gate — check
-  this off to confirm, or supersede the false ones.
-  <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-021231.md -->
+- [x] **Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony):**
+  `inv-never-couple-functions` holds (code evidence: zero direct inter-function calls across
+  examples/event-script/knowledge-graph; the only invocation path is the platform's worker
+  dispatch) and the Vision (`vision-mercury`) holds — north star unchanged; its stale
+  pre-graduation current-state/mental-model framing refreshed in `memory/vision.md`
+  (maintainer-approved). Cadence was 54 sessions since the 2026-07-18 check ≥
+  `verify_invariants_every: 40`.
+  <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 2 | tier: active | origin: 2026-07-21-021231.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

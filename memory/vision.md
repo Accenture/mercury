@@ -17,10 +17,16 @@ re-delivered in Rust **step by step from the foundation up to the user interface
 
 ## Current-state context
 
-Greenfield at enable (only a placeholder `README.md`). This is a **private prototyping
-repo**, chosen deliberately to keep rapid, noisy iteration away from public readers; once a
-**sufficient foundation** exists the work **graduates to the official Accenture repo** (this
-private repo is the prototyping stage, not the final home).
+> Refreshed 2026-07-21 at the invariant re-verify ceremony (maintainer-confirmed; the
+> north star below is unchanged). Original enable-time context kept for the record.
+
+Greenfield at enable 2026-07-15 (only a placeholder `README.md`), delivered from a
+**private prototyping repo** chosen deliberately to keep rapid, noisy iteration away from
+public readers. That stage is complete: all **three core layers are ported and
+milestone-closed** (platform-core, event-script, active knowledge graph + Playground), and
+the work **GRADUATED to the official repo `github.com/Accenture/mercury` on 2026-07-20**.
+Forward runway: continue foundation → user interface (`bp-foundation-to-ui`) and the
+lightweight-connectors backlog (see Non-goals).
 
 The **authoritative, detailed vision is the official `mercury-composable` (Java) project** —
 this repo inherits that vision, scoped to a Rust re-implementation. We *map, don't mirror*:
@@ -87,5 +93,6 @@ treat the Java project as canonical rather than copying its docs here.
 ## Mental model
 
 > The same destination as mercury-composable (Java), re-reached in Rust — built bottom-up
-> (platform-core → event-script → active knowledge graph → UI), minus the Kafka service mesh,
-> in a private prototyping repo until the foundation is ready for the official Accenture repo.
+> (platform-core → event-script → active knowledge graph → UI), minus the Kafka service mesh.
+> Prototyped privately until the foundation was ready; now living at the official Accenture
+> repo (`github.com/Accenture/mercury`, since 2026-07-20) — one product vision, two languages.
