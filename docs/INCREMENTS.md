@@ -68,6 +68,7 @@
 | 49 | `/sync` contract gaps (findings #62–#63): dedup bypass for direct RPC + `Syntax:` usage classified as failure; both ports | 2026-07-20 | — | 206 |
 | 50 | parity remediation 1 — REST boundary preserves function response-envelope headers (redirects/cookies/content-type) + envelope header model (case-insensitive get, CR/LF filter) | 2026-07-21 | — | 213 |
 | 51 | parity remediation 2 — trace continuity: zero-traced routes keep the trace flowing (telemetry-only suppression), send_later captures context at schedule time, explicit trace identity wins over the ambient bracket | 2026-07-21 | — | 216 |
+| 52 | parity remediation 3 — Event Script safety: `max.model.array.size` cap enforced on dynamic RHS indices (+ docs contradiction fixed), flow-launch `body` precondition | 2026-07-21 | — | 217 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1396,6 +1397,30 @@ against the Java source (`WorkerHandler` + `PostOffice.touch()`):
   `explicit_trace_identity_survives_ambient_bracket` — **red/green-verified** (all three
   fail on the pre-fix source). `annotations.rs` updated to the corrected contract (the
   bracket exists but is telemetry-suppressed). Workspace 216 tests / clippy 0 / fmt.
+
+---
+
+## Increment 52 — parity remediation 3: Event Script safety (2026-07-21)
+
+Third increment of the parity-remediation program — the two Event Script safety findings:
+
+- **F4 (High) — the `max.model.array.size` cap is enforced.** A dynamically resolved RHS
+  array index (`[model.x]`) above the configured ceiling (default 1000, read once like
+  Java's `TaskExecutor` constructor) now fails the mapping with Java's exact message
+  ("Cannot set RHS to index > N that exceeds max 1000 - ...") instead of allocating an
+  arbitrarily large state-machine array; cap check before the negative check, as in
+  `resolveModelIndex`. Literal numeric indices stay uncapped in both engines. **The
+  repo's own docs contradicted each other** (syntax.md claimed the limit existed;
+  configuration-reference.md listed the key as not read) — configuration-reference.md now
+  documents the key as read, with a port note.
+- **F18 (Medium) — flow launches require a `body`.** `FlowExecutor::launch`/`request`
+  enforce Java's precondition: a dataset without a top-level `body` key is rejected with
+  "Missing body in dataset" (400) before any dispatch, so a malformed dataset never
+  starts a flow or executes side effects (non-map datasets included).
+- **Tests:** the `dynamic-index-cap` fixture (over-cap rejected via the exception handler,
+  in-range index passes) in the e2e scenario suite + `flow_launch_requires_a_body_in_the_dataset`
+  (request/launch/non-map) — **red/green-verified** (both fail on the pre-fix source);
+  the compiler's loaded-flow-set assertion extended. Workspace 217 tests / clippy 0 / fmt.
 
 ---
 

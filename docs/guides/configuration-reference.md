@@ -24,7 +24,7 @@ files themselves merge in the manifest order described below.
     sync-over-async/Redis, the OpenTelemetry forwarder (`otel.*`), classpath scanning
     (`web.component.scan`, `yaml.preload.override`, `modules.autostart`), threading
     (`kernel.thread.pool`, `deferred.commit.log`), event-script extras
-    (`max.model.array.size`, `yaml.event.over.http`, `yaml.journal`, `yaml.multicast`),
+    (`yaml.event.over.http`, `yaml.journal`, `yaml.multicast`),
     HTTP extras (`async.http.temp`, `stack.trace.transport.size`,
     `protect.info.endpoints`), and serialization extras (`snake.case.serialization`,
     `custom.content.types`, `mime.types`). If a key is not on this page, the Rust port
@@ -376,6 +376,22 @@ location: 'classpath:/flows/'
 
 `location` inside the manifest defaults to `classpath:/flows/`. Read by
 `crates/event-script` (compiler).
+
+#### `max.model.array.size`
+
+| Type | Default |
+|---|---|
+| int | `1000` |
+
+Ceiling for a **dynamically resolved** array index on the right-hand side of a data
+mapping (a `[model.x]` index) — a mapping whose resolved index exceeds it fails instead of
+allocating an arbitrarily large state-machine array. Literal numeric indices are not
+capped (same as the Java engine). Read once by `crates/event-script` (task executor).
+
+!!! note "Port note"
+    Added in increment 52 (parity remediation): the key existed in the Java engine from
+    the start, and the syntax guide already described it — the Rust executor now enforces
+    it.
 
 ## Knowledge graph and Playground
 

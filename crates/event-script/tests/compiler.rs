@@ -111,6 +111,8 @@ fn loaded_flow_set_matches_the_java_engine() {
         // from more-flows.yaml: the parser fixtures that compile.
         // dynamic-reserved-key: the reserved-key RHS is dynamic, checked at runtime
         "dynamic-reserved-key",
+        // dynamic-index-cap: the max.model.array.size cap is dynamic, checked at runtime
+        "dynamic-index-cap",
         // 23/25/26/27: an invalid mapping drops the TASK, the flow still loads
         "parser-test-23",
         "parser-test-25",

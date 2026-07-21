@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-044626)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-050117)
 - **last_review:** 2026-07-21 | through 2026-07-21-021231
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -68,7 +68,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 62 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 63 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -92,7 +92,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 61 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 62 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -241,7 +241,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
   "llms.txt + follow the map".
   → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 37 | tier: active | origin: 2026-07-18-061457.md -->
+  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 37 | tier: archive-candidate | origin: 2026-07-18-061457.md -->
 
 - [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
   2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
@@ -515,9 +515,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `touch()` pre-timer), `apply_current_trace` = exact `touch()` mirror (trace id/path
   fill-if-absent, span unconditional; F8 false parity comment fixed); 3 red/green tests in
   telemetry.rs + annotations.rs contract update; workspace 216/clippy 0/fmt; (3)
-  Event Script safety: dynamic-index array cap `max.model.array.size` missing (own docs
-  contradict: syntax.md claims it, configuration-reference.md says not read), flow-launch
-  `body` precondition missing; (4) date/time plugins: full Java pattern support + the
+  Event Script safety — DONE 2026-07-21 (increment 52): `max.model.array.size` cap
+  enforced on dynamic RHS indices (Java resolveModelIndex order + message; docs
+  contradiction fixed — configuration-reference.md now documents the key), flow-launch
+  `body` precondition ("Missing body in dataset", 400, both launch+request); red/green
+  fixture dynamic-index-cap + body-precondition test; workspace 217/clippy 0/fmt; (4) date/time plugins: full Java pattern support + the
   silently-dropped zone arg of `f:dateTime`; (5) fetcher cache key = dictionary-declared
   inputs only (Rust keys the whole staged fetch map → re-fires POSTs Java reuses;
   single-request path only); (6) registration semantics (Java replaces on re-register,
@@ -532,7 +534,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
   consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 3 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 4 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

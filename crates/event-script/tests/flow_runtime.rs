@@ -602,6 +602,35 @@ async fn flows_run_end_to_end_like_java() {
         "the error should name the key: {body}"
     );
 
+    // --- dynamic RHS index above max.model.array.size is rejected at runtime
+    // (increment 52, parity F4 — Java resolveModelIndex; default cap 1000)
+    let reply = run_flow(
+        &platform,
+        "dynamic-index-cap",
+        from_json(&serde_json::json!({"body": {"n": 5000}, "header": {}})),
+        "biz-cid-cap",
+    )
+    .await;
+    let body = json_body(&reply);
+    let message = body["message"].as_str().unwrap_or("");
+    assert!(
+        message.contains("exceeds max 1000"),
+        "unexpected error: {body}"
+    );
+    // ...while an in-range dynamic index still works
+    let reply = run_flow(
+        &platform,
+        "dynamic-index-cap",
+        from_json(&serde_json::json!({"body": {"n": 3}, "header": {}})),
+        "biz-cid-cap-ok",
+    )
+    .await;
+    assert!(
+        !reply.has_error(),
+        "in-range dynamic index must pass: {:?}",
+        json_body(&reply)
+    );
+
     // --- fire-and-forget launch works (no reply expected)
     FlowExecutor::launch(
         &platform,
@@ -1267,4 +1296,42 @@ async fn flows_run_end_to_end_like_java() {
         .await
         .expect("direct rpc");
     assert_eq!(ping.body_as::<String>().unwrap(), "ping");
+}
+
+/// Increment 52 (parity F18): the Java FlowExecutor precondition — a launch
+/// dataset must carry a top-level `body` key, or the flow never starts (a
+/// malformed dataset must not execute side effects). Java throws
+/// "Missing body in dataset" from both launch() and request().
+#[tokio::test]
+async fn flow_launch_requires_a_body_in_the_dataset() {
+    let platform = Platform::new();
+    let no_body = from_json(&serde_json::json!({"header": {}}));
+    let err = FlowExecutor::request(
+        &platform,
+        "greetings",
+        no_body.clone(),
+        "cid-nobody-1",
+        Duration::from_secs(2),
+        None,
+    )
+    .await
+    .expect_err("request without body must be rejected");
+    assert_eq!(err.status(), 400);
+    assert_eq!(err.message(), "Missing body in dataset");
+    let err = FlowExecutor::launch(&platform, "greetings", no_body, "cid-nobody-2", None)
+        .await
+        .expect_err("launch without body must be rejected");
+    assert_eq!(err.status(), 400);
+    assert_eq!(err.message(), "Missing body in dataset");
+    // a non-map dataset cannot carry a body key either
+    let err = FlowExecutor::launch(
+        &platform,
+        "greetings",
+        Value::from("not-a-map"),
+        "cid-nobody-3",
+        None,
+    )
+    .await
+    .expect_err("non-map dataset must be rejected");
+    assert_eq!(err.status(), 400);
 }

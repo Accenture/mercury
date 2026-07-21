@@ -1534,6 +1534,20 @@ fn set_input_rhs(
 /// list indices (`[model.n]` → the resolved integer; a numeric RHS index must
 /// not be negative), and finally the reserved-key re-check on a dynamically
 /// resolved RHS (the compiler cannot see runtime-substituted targets).
+/// Java `TaskExecutor.maxModelArraySize`: the configured ceiling for a
+/// dynamically resolved RHS model index (`max.model.array.size`, default
+/// 1000) — read once, like Java's constructor. Guards only the dynamic
+/// `[model.x]` path; literal numeric indices are uncapped in both engines.
+fn max_model_array_size() -> i32 {
+    static CACHE: OnceLock<i32> = OnceLock::new();
+    *CACHE.get_or_init(|| {
+        str2int(
+            &platform_core::AppConfigReader::get_instance()
+                .get_property_or("max.model.array.size", "1000"),
+        )
+    })
+}
+
 fn substitute_dynamic_index(
     statement: &str,
     source: &MultiLevelMap,
@@ -1560,6 +1574,15 @@ fn substitute_dynamic_index(
                     .map(|v| display(&v))
                     .unwrap_or_else(|| "null".to_string());
                 let n = str2int(&resolved);
+                // Java resolveModelIndex: the configured cap first, then the
+                // negative check (F4 parity fix, 2026-07-21 — unbounded
+                // growth was possible before)
+                if is_rhs && n > max_model_array_size() {
+                    return Err(format!(
+                        "Cannot set RHS to index > {n} that exceeds max {} - {statement}",
+                        max_model_array_size()
+                    ));
+                }
                 if is_rhs && n < 0 {
                     return Err(format!("Cannot set RHS to negative index - {statement}"));
                 }
@@ -1654,6 +1677,7 @@ impl FlowExecutor {
         business_correlation_id: &str,
         trace: Option<(&str, &str)>,
     ) -> Result<(), AppError> {
+        Self::require_body(&dataset)?;
         let po = PostOffice::new(platform);
         po.send(Self::launch_event(
             flow_id,
@@ -1673,12 +1697,26 @@ impl FlowExecutor {
         timeout: Duration,
         trace: Option<(&str, &str)>,
     ) -> Result<EventEnvelope, AppError> {
+        Self::require_body(&dataset)?;
         let po = PostOffice::new(platform);
         po.request(
             Self::launch_event(flow_id, dataset, business_correlation_id, trace),
             timeout,
         )
         .await
+    }
+
+    /// Java `FlowExecutor` precondition (both `launch` and `request`): the
+    /// dataset must carry a top-level `body` key, or the flow never starts —
+    /// a malformed dataset must not execute side effects (F18 parity fix).
+    fn require_body(dataset: &Value) -> Result<(), AppError> {
+        let has_body = matches!(dataset, Value::Map(entries)
+            if entries.iter().any(|(key, _)| key.as_str() == Some("body")));
+        if has_body {
+            Ok(())
+        } else {
+            Err(AppError::new(400, "Missing body in dataset"))
+        }
     }
 
     fn launch_event(
