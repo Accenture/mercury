@@ -100,6 +100,10 @@ pub struct Platform {
 
 /// Registration options (Java annotation analogs): `zero_traced` is
 /// `@ZeroTracing` (this route's executions are excluded from trace recording);
+/// Java `ServiceDef.MAX_INSTANCES`: the worker-count ceiling — registration
+/// clamps to `1..=1000` exactly like `setConcurrency`.
+const MAX_INSTANCES: usize = 1000;
+
 /// `interceptor` is `@EventInterceptor` (the function receives the raw
 /// envelope — `reply_to`/`cid` intact — and replies manually; the worker sends
 /// no auto-reply on success, though a failure still routes to `reply_to`).
@@ -162,15 +166,21 @@ impl Platform {
         options: FunctionOptions,
     ) -> Result<(), AppError> {
         validate_route(route)?;
-        if instances == 0 {
-            return Err(AppError::new(400, "instances must be at least 1"));
-        }
+        // Java ServiceDef.setConcurrency: Math.max(1, Math.min(n, 1000)) —
+        // zero is accepted (→ 1) and the worker count is capped, silently
+        // (F10 parity fix, 2026-07-21; previously 0 was rejected and there
+        // was no ceiling)
+        let instances = instances.clamp(1, MAX_INSTANCES);
         let (mailbox_tx, mailbox_rx) = mpsc::channel::<MailboxMessage>(dispatch_mailbox_size());
         let stop = Arc::new(Notify::new());
         {
             let mut routes = self.routes.write().expect("route registry poisoned");
-            if routes.contains_key(route) {
-                return Err(AppError::new(400, format!("Route {route} already exists")));
+            // Java Platform.register: an existing route is RELOADED — the old
+            // service is released and the new one takes its place (F10 parity
+            // fix; previously rejected with "already exists")
+            if let Some(previous) = routes.remove(route) {
+                log::warn!("Reloading LambdaFunction {route}");
+                previous.stop.notify_one();
             }
             routes.insert(
                 route.to_string(),

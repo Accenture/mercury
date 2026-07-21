@@ -122,7 +122,12 @@ impl ConfigReader {
 }
 ```
 
-**Formats:** `.yml`/`.yaml` (YAML), `.json`, `.properties` (line-based `k=v`, sorted-key load).
+**Formats:** `.yml`/`.yaml` (YAML), `.json`, `.properties` (full `java.util.Properties.load`
+syntax since increment 55, parity F13: `=`/`:`/whitespace separators, backslash line
+continuations, `\uXXXX` + single-char escapes, value trailing-whitespace preserved;
+sorted-key load). `${...}` resolution keeps a per-segment chain (increment 55, parity F11 —
+a repeated `${a} ${a}` or diamond reference is not a false cycle; genuine cycles still
+resolve to empty with a warning).
 Tabs in YAML are tolerated (replaced with two spaces — ported quirk).
 
 **Lookup precedence in `get(key)`** (ported exactly):

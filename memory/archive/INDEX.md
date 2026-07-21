@@ -27,3 +27,4 @@
 - plugin-numeric-promotion — Numeric promotion for the simple-plugin arithmetic family (increment 39, BOTH ports). — faded — 2026-Q3.md
 - join-barrier-valid-completions — LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40). — faded — 2026-Q3.md
 - ot-human-guides-backlog — Prepare `docs/guides` for the human reader — COMPLETE 2026-07-20 (increments 43–46, — faded — 2026-Q3.md
+- ot-discovery-commands-backlog — Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42, — faded — 2026-Q3.md
