@@ -26,3 +26,4 @@
 - ot-sync-ok-heuristic-fix — Bug FIXED (Rust; Java prepared): `/sync` ok-heuristic false-negative on import's benign — faded — 2026-Q3.md
 - plugin-numeric-promotion — Numeric promotion for the simple-plugin arithmetic family (increment 39, BOTH ports). — faded — 2026-Q3.md
 - join-barrier-valid-completions — LATENT BUG fixed (both ports): join barrier counted failed/reset branches (increment 40). — faded — 2026-Q3.md
+- ot-human-guides-backlog — Prepare `docs/guides` for the human reader — COMPLETE 2026-07-20 (increments 43–46, — faded — 2026-Q3.md

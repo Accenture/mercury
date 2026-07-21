@@ -26,6 +26,12 @@ rest:
     timeout: 10s
     tracing: true
 
+  - service: 'mock.cache.counter'
+    methods: ['GET']
+    url: '/api/cache/counter/{id}'
+    timeout: 10s
+    tracing: true
+
   - service: 'post.companion.command'
     methods: ['POST']
     url: '/api/companion/{id}'

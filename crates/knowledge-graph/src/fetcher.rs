@@ -298,7 +298,14 @@ async fn execute_providers(
                 )
                 .map_err(invalid)?;
             let request = build_http_request(&md, &mut state)?;
-            let params_value = pairs_to_value(&params_map);
+            // the cache key is the DICTIONARY-scoped parameter map
+            // ({node}.dd.{alias}.* — declared inputs only), never the whole
+            // staged fetch map: equivalent dictionary requests must share a
+            // cache entry regardless of extra fetcher-level staging (Java
+            // makeRegularHttpCall; parity F6 fix, 2026-07-21)
+            let params_value = state
+                .get_element(&format!("{node_name}.dd.{}", dd.get_alias()))
+                .unwrap_or(Value::Map(vec![]));
             let cached = get_cached_result(&md.provider_name, &state, &params_value);
             (request.to_value(), params_value, cached)
         };
@@ -718,15 +725,6 @@ fn value_to_pairs(value: &Value) -> Vec<(String, Value)> {
             .collect(),
         _ => Vec::new(),
     }
-}
-
-fn pairs_to_value(pairs: &[(String, Value)]) -> Value {
-    Value::Map(
-        pairs
-            .iter()
-            .map(|(k, v)| (Value::from(k.as_str()), v.clone()))
-            .collect(),
-    )
 }
 
 fn params_keys(params: &Value) -> Vec<String> {
