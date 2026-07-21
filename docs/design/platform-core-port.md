@@ -344,10 +344,19 @@ automation.)* Port of the `Telemetry` service, the trace bracket in `WorkerHandl
   around the invocation — torn down when the function returns, same spawn/`Mono`-completion
   boundary as Java. Zero-traced routes: the telemetry plumbing, `inbox.*` (Java's AsyncInbox
   bypasses ServiceQueue), and `skip.rpc.tracing` (default `async.http.request`, verbatim).
-- **Automatic propagation**: `PostOffice::send`/`request` inside a trace stamp the outbound
-  event with trace id/path, this span (→ receiver's parent), sender route, and the
-  **business correlation-id** when the event carries none — cid is a separate concern from
-  the trace id, readable via `my_correlation_id()`. Responses carry the trace back
+  **A zero-traced hop keeps the bracket for CONTINUITY** (increment 51, parity F3): Java
+  gates only `startTracing`/`sendTracingInfo` on the flag — the trace context still flows
+  to replies and nested calls; the hop emits no telemetry and mints no span into the chain
+  (`TraceState.zero_traced`). Deliberate log-only divergence: the hop's own JSON log lines
+  resolve trace tokens (Java registers no log context there); nothing changes on the wire.
+- **Automatic propagation** (Java `PostOffice.touch()`, exact since increment 51 —
+  parity F7/F8): `PostOffice::send`/`request` inside a trace **fill** the outbound event's
+  trace id/path **only when absent** (an explicit trace identity always wins), stamp this
+  span unconditionally (→ receiver's parent; withheld inside a zero-traced hop), sender
+  route, and the **business correlation-id** when the event carries none — cid is a
+  separate concern from the trace id, readable via `my_correlation_id()`. `send_later`
+  captures the whole context **at scheduling time** (Java wraps in `touch()` before the
+  timer; the spawned timer task inherits no task-local bracket). Responses carry the trace back
   (applyTraceContext parity).
 - **`Telemetry` service** (`distributed.tracing`, registered by the essential-services
   phase): logs each span dataset `{trace:{id, span_id, parent_span_id, service, path, from,

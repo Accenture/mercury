@@ -67,6 +67,7 @@
 | 48 | outbound HTTPS for the async HTTP client (rustls + OS trust store, `trust_all_cert` parity) — Rust-only parity work | 2026-07-20 | — | 206 |
 | 49 | `/sync` contract gaps (findings #62–#63): dedup bypass for direct RPC + `Syntax:` usage classified as failure; both ports | 2026-07-20 | — | 206 |
 | 50 | parity remediation 1 — REST boundary preserves function response-envelope headers (redirects/cookies/content-type) + envelope header model (case-insensitive get, CR/LF filter) | 2026-07-21 | — | 213 |
+| 51 | parity remediation 2 — trace continuity: zero-traced routes keep the trace flowing (telemetry-only suppression), send_later captures context at schedule time, explicit trace identity wins over the ambient bracket | 2026-07-21 | — | 216 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1364,6 +1365,37 @@ reached the HTTP client — Java's `AsyncHttpResponse.updateHeaders` copies them
 - Remaining header-model item (tracked in the thread): Java derives a fallback response
   content type from the request `Accept` header (`updateContentType`) and renders the body
   per that negotiation — the Rust port still derives from the body shape alone.
+
+---
+
+## Increment 51 — parity remediation 2: trace continuity (2026-07-21)
+
+Second increment of the parity-remediation program — the telemetry half of the
+maintainer's functional-integrity concern. Three verified findings fixed, each mirrored
+against the Java source (`WorkerHandler` + `PostOffice.touch()`):
+
+- **F3 (High) — zero-traced routes no longer break the trace chain.** Java gates only
+  `startTracing` + `sendTracingInfo` on the tracing flag; the reply and nested calls carry
+  the incoming trace unconditionally. The Rust worker now keeps the trace bracket on a
+  zero-traced hop (marked `TraceState.zero_traced`): the trace id/path flow to the reply
+  and to nested calls, while the hop emits **no telemetry** and mints **no span** into the
+  chain (Java: no `TraceInfo` exists, so `touch()` stamps no span). Deliberate log-only
+  divergence documented in the design doc: the hop's own JSON log lines resolve trace
+  tokens.
+- **F7 (Medium) — `send_later` captures context at scheduling time.** Java `sendLater`
+  wraps the event in `touch()` before the timer; the Rust spawned timer task inherits no
+  task-local bracket, so the capture now happens before the spawn.
+- **F8 (Medium) — an explicit trace identity survives the ambient bracket.**
+  `apply_current_trace` is now the exact mirror of Java `touch()`: trace id and path fill
+  independently, only-if-absent; the span id stays unconditional (both ports overwrite it).
+  The doc comment that wrongly claimed "Java parity" for overwrite semantics is corrected
+  (no-silent-divergence meta-fix).
+- **Tests:** 3 new in `telemetry.rs` — `zero_traced_route_preserves_trace_continuity`
+  (reply + nested trace, no span from the hop, exactly one dataset),
+  `scheduled_send_captures_context_at_schedule_time`,
+  `explicit_trace_identity_survives_ambient_bracket` — **red/green-verified** (all three
+  fail on the pre-fix source). `annotations.rs` updated to the corrected contract (the
+  bracket exists but is telemetry-suppressed). Workspace 216 tests / clippy 0 / fmt.
 
 ---
 

@@ -483,20 +483,27 @@ async fn worker_loop(
         let event_from = event.from().map(str::to_string);
         // trace bracket (Java WorkerHandler): a traced request carries trace id
         // + path; this execution gets its own span, parented to the sender's
-        // span carried on the envelope
-        let trace_state = if !zero_traced {
-            match (event.trace_id(), event.trace_path()) {
-                (Some(trace_id), Some(trace_path)) => Some(TraceState::new(
+        // span carried on the envelope. A ZERO-TRACED route still keeps the
+        // bracket when the incoming event is traced — Java gates only
+        // startTracing + sendTracingInfo on the flag, while the reply and any
+        // nested calls carry the trace onward unconditionally (F3 parity fix,
+        // 2026-07-21) — but the hop emits no telemetry and contributes no span.
+        // Deliberate minor divergence: the hop's own JSON log lines still
+        // resolve trace tokens (Java registers no log context here); log-only,
+        // nothing changes on the wire.
+        let trace_state = match (event.trace_id(), event.trace_path()) {
+            (Some(trace_id), Some(trace_path)) => {
+                let mut state = TraceState::new(
                     &route,
                     trace_id,
                     trace_path,
                     event.span_id(),
                     event.correlation_id(),
-                )),
-                _ => None,
+                );
+                state.zero_traced = zero_traced;
+                Some(state)
             }
-        } else {
-            None
+            _ => None,
         };
         let (result, finished_state) =
             trace::run_scoped(trace_state, function.handle_event(headers, event, instance)).await;
@@ -507,12 +514,18 @@ async fn worker_loop(
         // reports the same value rather than a raw full-precision float.
         let elapsed_ms = started.elapsed().as_secs_f32() * 1000.0;
         let elapsed_ms = (elapsed_ms.max(0.0) * 1000.0).round() / 1000.0;
-        // propagate the trace to the response so the next hop chains correctly
-        let trace_triple = finished_state
-            .as_ref()
-            .map(|s| (s.trace_id.clone(), s.trace_path.clone(), s.span_id.clone()));
-        // send the performance-metrics dataset to the telemetry sink
-        if let Some(state) = finished_state {
+        // propagate the trace to the response so the next hop chains correctly;
+        // a zero-traced hop contributes no span of its own (Java parity)
+        let trace_triple = finished_state.as_ref().map(|s| {
+            (
+                s.trace_id.clone(),
+                s.trace_path.clone(),
+                (!s.zero_traced).then(|| s.span_id.clone()),
+            )
+        });
+        // send the performance-metrics dataset to the telemetry sink — never
+        // for a zero-traced route (Java: sendTracingInfo is gated on tracing)
+        if let Some(state) = finished_state.filter(|s| !s.zero_traced) {
             emit_telemetry(&registry, &route, event_from, &state, &result, elapsed_ms).await;
         }
         match (reply_to, result) {
@@ -534,7 +547,9 @@ async fn worker_loop(
                 response.set_exec_time_internal(elapsed_ms);
                 if let Some((trace_id, trace_path, span_id)) = trace_triple {
                     response.set_trace_internal(&trace_id, &trace_path);
-                    response.set_span_id_internal(&span_id);
+                    if let Some(span_id) = span_id {
+                        response.set_span_id_internal(&span_id);
+                    }
                 }
                 // a lightweight RPC inbox (Java AsyncInbox parity) bypasses the
                 // route machinery entirely — complete the caller's oneshot

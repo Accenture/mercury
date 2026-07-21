@@ -72,6 +72,12 @@ pub struct TraceState {
     /// Developer-supplied log-context key-values
     /// (`PostOffice::update_context`) — flows to the application log only.
     pub custom_log_keys: HashMap<String, serde_json::Value>,
+    /// True on a zero-traced route: the trace CONTEXT still flows (replies and
+    /// nested calls keep the trace id/path — Java propagates them from the
+    /// incoming event unconditionally), but this hop emits no telemetry and
+    /// mints no span into the chain (Java never calls `startTracing`, so
+    /// `touch()` finds no TraceInfo and stamps no span id).
+    pub zero_traced: bool,
 }
 
 impl TraceState {
@@ -92,6 +98,7 @@ impl TraceState {
             start_time: iso8601_utc_now(),
             annotations: HashMap::new(),
             custom_log_keys: HashMap::new(),
+            zero_traced: false,
         }
     }
 
