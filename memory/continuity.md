@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-220215)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-223548)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 67 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 68 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 66 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 67 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -490,15 +490,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   x-forwarded-proto, trace-path query suffix, AND the increment-50 leftover: Accept-driven
   fallback content negotiation (html wrap; xml→json deferral; no Accept ⇒ no content-type)
   + actuator explicit envelope types (Java ActuatorServices); red/green suite; workspace
-  224/clippy 0/fmt; (8) remaining mappings: nested `[]`
-  append recursion, list→text `List.toString()` parity, UTF-16 length/substring semantics,
-  launch-failure 500, `Session` case routing, `-0` rendering, HostUri lastIndexOf quirk.
+  224/clippy 0/fmt; (8) remaining mappings — DONE
+  2026-07-21 (increment 57, the FINAL code item): nested `[]` append recursion, list→text
+  `List.toString()`, UTF-16 length/substring (emoji = 2 units; split-surrogate → U+FFFD
+  documented), launch-failure 500 (manager; client preconditions stay 400 like Java),
+  session-guard case-sensitivity, `-0` concat rendering (direct view keeps "-0.0" =
+  Double.toString — both Java surfaces), HostUri lastIndexOf split with the
+  repeat-in-query quirk; red/green; workspace 230/clippy 0/fmt. **ALL 8 ITEMS DONE — every
+  CONFIRMED assessment finding is fixed.** Remaining in this thread: ONLY the F2
+  null-on-spill maintainer decision below.
   **Meta-fix:** several Rust doc comments claim "Java parity" where behavior diverges (F8,
   F19, F21, fetcher cache, HostUri) — fix alongside code (no-silent-divergence convention).
   **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
   consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 8 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 9 | tier: working | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

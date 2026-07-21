@@ -217,7 +217,10 @@ impl MultiLevelMap {
     }
 
     /// Java `appendIndex`: replace the first `[]` with the current length of
-    /// the list at that prefix (0 when absent).
+    /// the list at that prefix (0 when absent), then RECURSE until no `[]`
+    /// remains — nested appends like `model.rows[].items[]` resolve fully
+    /// (increment 57, parity F17; previously only the first marker expanded
+    /// and the leftover `[]` failed the mapping).
     fn append_index(&self, composite_path: &str) -> String {
         let Some(empty) = composite_path.find("[]") else {
             return composite_path.to_string();
@@ -227,7 +230,7 @@ impl MultiLevelMap {
             Some(Value::Array(list)) => list.len(),
             _ => 0,
         };
-        format!("{prefix}[{len}]{}", &composite_path[empty + 2..])
+        self.append_index(&format!("{prefix}[{len}]{}", &composite_path[empty + 2..]))
     }
 
     /// Remove by composite path: map keys are removed; list slots become null
@@ -491,6 +494,31 @@ mod tests {
         assert_eq!(
             m.get_element("$.fetcher-ext.result[*].account_details"),
             Some(Value::Array(vec![Value::from("a"), Value::from("b")]))
+        );
+    }
+
+    /// Increment 57 (parity F17): nested `[]` markers all expand — Java
+    /// appendIndex recurses until none remain.
+    #[test]
+    fn nested_append_markers_expand_recursively() {
+        let mut m = MultiLevelMap::new();
+        m.set_element("model.rows[].items[]", Value::from("a"))
+            .unwrap();
+        m.set_element("model.rows[0].items[]", Value::from("b"))
+            .unwrap();
+        m.set_element("model.rows[].items[]", Value::from("c"))
+            .unwrap();
+        assert_eq!(
+            m.get_element("model.rows[0].items[0]"),
+            Some(Value::from("a"))
+        );
+        assert_eq!(
+            m.get_element("model.rows[0].items[1]"),
+            Some(Value::from("b"))
+        );
+        assert_eq!(
+            m.get_element("model.rows[1].items[0]"),
+            Some(Value::from("c"))
         );
     }
 }

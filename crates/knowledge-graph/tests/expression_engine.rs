@@ -235,3 +235,14 @@ fn random_and_argument_checks() {
     let e3 = engine.eval_number("sqrt('4')").unwrap_err();
     assert_eq!("Cannot coerce string to number: \"4\"", e3.message());
 }
+
+/// Increment 57 (parity F23): a CONCATENATED negative zero renders "0" like
+/// Java (numberToString goes through BigDecimal, which has no signed zero),
+/// while the direct display view keeps "-0.0" — exactly Java's
+/// Double.toString. Two surfaces, two Java behaviors, both mirrored.
+#[test]
+fn negative_zero_renders_like_java() {
+    let engine = ExpressionEngine::new();
+    assert!(engine.eval_boolean("('n=' + (0 * -1)) == 'n=0'").unwrap());
+    assert_eq!("-0.0", engine.evaluate_value("0 * -1").unwrap().as_string());
+}

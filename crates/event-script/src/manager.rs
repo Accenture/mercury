@@ -38,7 +38,9 @@ pub const SERVICE_NAME: &str = "event.script.manager";
 pub const BUSINESS_CORRELATION_ID: &str = "correlation_id";
 
 /// Handle one launch event (the interceptor body). Errors are routed back to
-/// the caller when a reply address exists (Java parity).
+/// the caller when a reply address exists, always as status 500 — Java
+/// `EventScriptManager.handleEvent` hard-codes it (increment 57, parity F21;
+/// previously the original 400s leaked through).
 pub async fn handle(
     platform: &Platform,
     headers: HashMap<String, String>,
@@ -51,7 +53,7 @@ pub async fn handle(
             let error = EventEnvelope::new()
                 .set_to(reply_to)
                 .set_correlation_id(cid)
-                .set_status(e.status())
+                .set_status(500)
                 .set_raw_body(Value::from(e.message()));
             let _ = po.send(error).await;
         }

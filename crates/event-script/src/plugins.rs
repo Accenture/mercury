@@ -224,8 +224,13 @@ fn plugin_substring(args: &[Value]) -> Result<Value, String> {
     let text = get_text_value(value);
     let start = rest.first().map(convert_integer).unwrap_or(-1);
     let end = rest.get(1).map(convert_integer).unwrap_or(-1);
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len() as i64;
+    // Java String.substring indexes are UTF-16 code units (increment 57,
+    // parity F20 — previously Unicode scalars, shifting indexes for emoji
+    // and other non-BMP input). Micro-divergence: an index that splits a
+    // surrogate pair yields U+FFFD (Java keeps the unpaired surrogate,
+    // which Rust strings cannot represent).
+    let units: Vec<u16> = text.encode_utf16().collect();
+    let len = units.len() as i64;
     // Java isOutOfBounds: end past the text, start past the text, or flipped
     let out_of_bounds = (end >= 0 && end > len)
         || (start >= 0 && start > len)
@@ -236,15 +241,13 @@ fn plugin_substring(args: &[Value]) -> Result<Value, String> {
         ));
     }
     if start >= 0 && end >= 0 {
-        Ok(Value::from(
-            chars[start as usize..end as usize]
-                .iter()
-                .collect::<String>(),
-        ))
+        Ok(Value::from(String::from_utf16_lossy(
+            &units[start as usize..end as usize],
+        )))
     } else if start >= 0 && start < len {
-        Ok(Value::from(
-            chars[start as usize..].iter().collect::<String>(),
-        ))
+        Ok(Value::from(String::from_utf16_lossy(
+            &units[start as usize..],
+        )))
     } else {
         Ok(Value::from(text))
     }
@@ -684,5 +687,28 @@ mod tests {
         )
         .expect("parse millis");
         assert_eq!(ms, Value::from(expected + 250));
+    }
+
+    /// Increment 57 (parity F20): substring indexes are UTF-16 code units —
+    /// Java "a😀b".substring(3) == "b" (the emoji occupies units 1..3).
+    #[test]
+    fn substring_uses_utf16_code_units() {
+        assert_eq!(
+            calculate("substring", &[Value::from("a😀b"), Value::from(3)]),
+            Ok(Value::from("b"))
+        );
+        assert_eq!(
+            calculate(
+                "substring",
+                &[Value::from("a😀b"), Value::from(0), Value::from(1)]
+            ),
+            Ok(Value::from("a"))
+        );
+        // out-of-bounds uses the UTF-16 length (4), exactly like Java
+        assert!(calculate(
+            "substring",
+            &[Value::from("a😀b"), Value::from(0), Value::from(5)]
+        )
+        .is_err());
     }
 }
