@@ -31,10 +31,14 @@ use platform_core::{
 use serde::{Deserialize, Serialize};
 use std::sync::Once;
 
-/// Every test calls this first: `Platform::register` reads configuration (the
-/// dispatch mailbox size, the elastic queue's segment size and holding area),
-/// so the resource root, spill-dir override, and singleton init must be fixed
-/// before the first registration in this process.
+/// Every test that can reach the process-wide config singleton calls this
+/// first — and the reach is wider than it looks: `Platform::register` reads
+/// configuration (dispatch mailbox size, the elastic queue's segment size and
+/// holding area), and `EventEnvelope::to_bytes()` reads
+/// `serializer.null.transport` through the same singleton. Tests run in
+/// parallel threads, so a test that touches the singleton without this setup
+/// races the `Once` block and can freeze the config WITHOUT the
+/// `tests/resources` root (the `demo.instances` CI flake, fixed 2026-07-21).
 fn setup_config() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -143,6 +147,9 @@ struct Pojo {
 
 #[test]
 fn envelope_round_trips_through_msgpack() {
+    // to_bytes() reaches the config singleton (serializer.null.transport) —
+    // without this call it races the other tests' Once init (see setup_config)
+    setup_config();
     let pojo = Pojo {
         name: "mercury".to_string(),
         count: 42,
