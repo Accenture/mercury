@@ -193,10 +193,11 @@ wire shape in memory — typed values pass through `serde` on `set_body`/`body_a
   `application/json`, a string body as `text/plain`, and a binary body as
   `application/octet-stream`; websocket frames and outbound HTTP client bodies are JSON as
   well.
-- **Null omission — absent means null.** At every wire boundary (JSON and MsgPack alike),
-  null **map** key-values are omitted by default, so a consumer must treat an absent key
-  and a null value as the same thing. Set `serializer.null.transport: true` to transport
-  nulls explicitly. Array elements are never dropped (ordering is preserved), and an empty
+- **Null omission — absent means null.** At every boundary — the wire (JSON and MsgPack
+  alike) and every in-memory event-bus hop — null **map** key-values are omitted by
+  default, so a consumer must treat an absent key and a null value as the same thing; the
+  behavior is deterministic and identical to the Java engine on every delivery path. Set
+  `serializer.null.transport: true` to transport nulls explicitly. Array elements are never dropped (ordering is preserved), and an empty
   `[]` or `{}` is a real value. See the
   [Configuration Reference](configuration-reference.md#serializernulltransport).
 

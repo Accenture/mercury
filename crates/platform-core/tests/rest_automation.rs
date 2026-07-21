@@ -561,13 +561,16 @@ async fn body_dispatch_mirrors_java_content_type_rules() {
     let unsniffed = probe(vec![("Content-Type", "text/plain")], r#"{"item":"book"}"#).await;
     assert_eq!(unsniffed["kind"], "text");
     assert_eq!(unsniffed["content"], r#"{"item":"book"}"#);
-    // form fields decode into query parameters; the body stays null
+    // form fields decode into query parameters; the null body key is
+    // STRIPPED on the bus hop (increment 58, the F2 normalization — Java's
+    // always-serialize wire drops it too, and AsyncHttpRequest.getBody()
+    // reads absent-as-null, so the two are indistinguishable in Java)
     let form = probe(
         vec![("Content-Type", "application/x-www-form-urlencoded")],
         "a=1&b=hello+world",
     )
     .await;
-    assert_eq!(form["kind"], "null");
+    assert_eq!(form["kind"], "missing");
     assert_eq!(form["query"]["a"], "1");
     assert_eq!(form["query"]["b"], "hello world");
     // no content type -> raw bytes (Java handleBinaryContent), never sniffed

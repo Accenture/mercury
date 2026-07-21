@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-223548)
+- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-225928)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 68 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 69 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 67 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 68 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -370,23 +370,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   → serves: vision-mercury
   <!-- id: ot-sync-companion-contract-gaps | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-051617.md -->
 
-- [x] **HTTP redirection backlog — RESOLVED 2026-07-20: story WITHDRAWN (parity confirmed
-  empirically; maintainer's stated criterion met).** A temporary JUnit probe in the Java
-  repo (`RedirectProbeTest`, PostOffice → `async.http.request`, live `https://google.com`)
-  returned **301 / location: www.google.com / 220-char body — byte-identical to the Rust
-  port's drive-#3 result**. Reactor-Netty supports `followRedirect` but mercury-composable
-  never enables it, so raw-3xx-to-the-caller is canonical behavior in BOTH engines; finding
-  #61's grammar rule ("the fetcher never follows redirects; point the Provider url at the
-  target") documents the shared contract. Nothing to port. Probe file removed after
-  evidence capture (live-endpoint dependency — not CI material); verbatim transcript +
-  decision record now in `docs/design/platform-core-port.md` §5j. **Maintainer rationale
-  (2026-07-20): deliberate design, not an omission** — the engines target BACKEND
-  applications; redirect-following is browser-side automation; a backend needing it (e.g.
-  SSO) handles it programmatically (layer 1) or declaratively via `{node}.status` routing
-  (layers 2/3); years of Java production confirm it is not normally required. The raw 3xx
-  IS the correct answer for a backend client. → serves: vision-mercury
-  <!-- id: ot-http-redirect-backlog | created: 2026-07-20 | last_used: 2026-07-20 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-051617.md -->
-
 - [x] **Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED
   2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) MERGED 2026-07-20 —
   the battle-tested grammar is live in BOTH engines).** Gold
@@ -442,7 +425,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `verify_invariants_every: 40`.
   <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 2 | tier: archive-candidate | origin: 2026-07-21-021231.md -->
 
-- [ ] **(blueprint) Parity remediation — maintainer-approved 2026-07-21.** A GitHub Copilot
+- [x] **(blueprint) Parity remediation — COMPLETE 2026-07-21 (increments 50–58: all 8 items + the F2 decision).** A GitHub Copilot
   correctness assessment (24 findings) was independently verified finding-by-finding against
   both codebases (4 parallel agents + direct checks, file:line evidence both sides):
   **20 CONFIRMED real divergences, 2 INTENTIONAL-documented (null-on-spill design; XML
@@ -501,10 +484,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   null-on-spill maintainer decision below.
   **Meta-fix:** several Rust doc comments claim "Java parity" where behavior diverges (F8,
   F19, F21, fetcher cache, HostUri) — fix alongside code (no-silent-divergence convention).
-  **F2 (null-on-spill) needs a maintainer decision**, not a fix: documented design, but the
-  consequence (Nil visibility varies with load) is stated nowhere — document or normalize.
+  **F2 RESOLVED 2026-07-21 (increment 58): maintainer chose NORMALIZE** — Nil map entries
+  strip deterministically on every hop (predicate-guarded `normalize_null_transport` at
+  deliver + worker reply); the no-serialization fast path stays; red/green on a warmed
+  route (the cold-route race demonstrated the nondeterminism live). Ripple: the HTTP
+  boundary's null body key strips on the wire exactly like Java's.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 9 | tier: working | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 10 | tier: active | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

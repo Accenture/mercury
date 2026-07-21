@@ -334,9 +334,13 @@ anything else, or no content type
 The function's reply envelope maps back to HTTP:
 
 - **Status** — the envelope status (HTTP semantics; ≥ 400 is an error).
-- **Body** — by type: a map or list is rendered as JSON with `content-type: application/json`
-  (null map entries are omitted unless `serializer.null.transport=true`); a string becomes
-  `text/plain`; bytes become `application/octet-stream`; an empty body sends no content type.
+- **Body and content type** — a function-set `content-type` envelope header always wins;
+  otherwise the fallback is negotiated from the request's `Accept` header (Java parity):
+  `text/html` renders a map/list body as JSON wrapped in an HTML shell,
+  `application/json` or `*/*` negotiate JSON, no `Accept` sends **no content-type header**,
+  anything else is `text/plain`; an `application/xml` Accept negotiates JSON (the port's
+  XML deferral). Strings and bytes always ride raw regardless of the negotiated type. Null
+  map entries are omitted unless `serializer.null.transport=true`.
 - **Headers** — the response transforms of the entry's `headers` block are applied, then the
   entry's CORS `headers` lines are added.
 

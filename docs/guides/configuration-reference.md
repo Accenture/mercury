@@ -347,13 +347,20 @@ queue).
 |---|---|
 | boolean | `false` |
 
-Null handling at every wire boundary (JSON HTTP responses, websocket frames, outbound HTTP
-request bodies, and the MsgPack envelope encoder). Default `false`: null **map** key-values
-are omitted from the output — absent means null. Set `true` when a downstream must
-distinguish "key present with null value" from "key absent". Only map key-values are
-affected — array elements (including nulls) are always kept so ordering is preserved, and
-an empty `[]` or `{}` is a real value, never treated as null. Read once at startup by
-`crates/platform-core` (serializer) and cached for the process lifetime.
+Null handling at every boundary — the wire (JSON HTTP responses, websocket frames,
+outbound HTTP request bodies, the MsgPack envelope encoder) **and every in-memory
+event-bus hop**. Default `false`: null **map** key-values are omitted — absent means null,
+and a receiving function sees the key absent regardless of delivery path. Set `true` when
+a downstream must distinguish "key present with null value" from "key absent". Only map
+key-values are affected — array elements (including nulls) are always kept so ordering is
+preserved, and an empty `[]` or `{}` is a real value, never treated as null. Read once at
+startup by `crates/platform-core` (serializer) and cached for the process lifetime.
+
+!!! note "Port note"
+    Since increment 58 the strip is applied deterministically on every hop, exactly like
+    the Java engine (which serializes every bus message). Earlier Rust builds stripped
+    only when back-pressure spilled an event to disk, so null visibility could vary with
+    load — that nondeterminism is gone.
 
 ## Event Script (flow engine)
 

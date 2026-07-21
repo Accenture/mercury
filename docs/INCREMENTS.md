@@ -74,6 +74,7 @@
 | 55 | parity remediation 6 — registration replaces + clamps 1..=1000 (Java Platform.register/ServiceDef), config resolver per-segment loop chain (no false cycles), .properties full java.util.Properties syntax | 2026-07-21 | — | 220 |
 | 56 | parity remediation 7 — REST routing/request/response parity: full wildcard grammar, 405 + OPTIONS semantics, multi-value query params, cookies map, raw query + https flag, trace-path query, Accept-negotiated content type | 2026-07-21 | — | 224 |
 | 57 | parity remediation 8 (final) — nested `[]` append recursion, list→text List.toString, UTF-16 length/substring, launch-failure 500, session-guard case, `-0` concat rendering, HostUri lastIndexOf split | 2026-07-21 | — | 230 |
+| 58 | F2 resolution (maintainer: NORMALIZE) — Nil map entries strip deterministically on every hop incl. the in-process fast path; the load-dependent null visibility is gone | 2026-07-21 | — | 231 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1583,6 +1584,35 @@ Medium/Low findings, each an exact Java mirror:
 With this increment, all 8 remediation items are DONE — every CONFIRMED finding from the
 verified assessment is fixed. The one open remnant is the F2 null-on-spill documentation
 decision (maintainer call: document the load-dependent consequence, or normalize).
+
+---
+
+## Increment 58 — F2 resolution: deterministic null transport (2026-07-21)
+
+The last open remnant of the parity-remediation program. F2 was verified INTENTIONAL (the
+no-serialization fast path is a documented deliberate divergence) but its observable
+consequence was stated nowhere: with `serializer.null.transport=false`, a `Nil` map entry
+survived the in-process fast path yet was stripped whenever back-pressure spilled the
+event through the elastic queue — consumer-visible semantics varied with load. **The
+maintainer chose normalization over documentation.**
+
+- **Fix** (`platform.rs`): `normalize_null_transport` strips `Nil` map entries explicitly
+  at `deliver()` (every initial hop: normal routes, reserved direct routes, RPC inboxes)
+  and on the worker auto-reply — predicate-guarded by the allocation-free
+  `has_nil_map_entry`, so a body without nulls pays one read-only walk. The
+  no-serialization performance divergence itself stays; only the null semantics are now
+  deterministic and Java-identical (Java serializes every hop, so its strip was always
+  deterministic).
+- **Ripple, itself Java-faithful:** the HTTP boundary's `body: null` key (form-encoded
+  requests) is now stripped on the bus hop — exactly what Java's wire does
+  (`MsgPack.packMap` drops it, and `AsyncHttpRequest.getBody()` reads absent-as-null, so
+  the two are indistinguishable in Java). The body-dispatch test updated accordingly.
+- **Test:** `null_map_entries_strip_deterministically_on_the_fast_path` —
+  **red/green-verified on a WARMED route** (the first red attempt raced worker startup
+  into the spill path and passed on pre-fix code: a live demonstration of the very
+  nondeterminism this increment removes). Workspace 231 tests / clippy 0 / fmt.
+
+**The parity-remediation program is COMPLETE: all 8 items plus the F2 decision.**
 
 ---
 
