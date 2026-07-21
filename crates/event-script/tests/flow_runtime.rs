@@ -844,6 +844,18 @@ async fn flows_run_end_to_end_like_java() {
         Some("test-header")
     );
 
+    // --- an unknown flow id: the manager replies 500 like Java
+    // EventScriptManager (increment 57, parity F21 — previously the
+    // original 400 leaked through)
+    let reply = run_flow(
+        &platform,
+        "no-such-flow-xyz",
+        http_dataset(Some("nobody"), &[]),
+        "biz-cid-f21",
+    )
+    .await;
+    assert_eq!(reply.status(), 500, "launch failures are 500 (Java parity)");
+
     // --- a dangling sub-flow reference aborts at runtime
     let reply = run_flow(
         &platform,

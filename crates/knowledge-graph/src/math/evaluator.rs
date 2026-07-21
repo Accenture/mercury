@@ -215,6 +215,10 @@ fn number_to_string(d: f64) -> String {
         "NaN".to_string()
     } else if d.is_infinite() {
         if d > 0.0 { "Infinity" } else { "-Infinity" }.to_string()
+    } else if d == 0.0 {
+        // BigDecimal has no signed zero: -0.0 renders "0" like Java
+        // (increment 57, parity F23 — Rust's Display keeps the sign)
+        "0".to_string()
     } else {
         // Rust's Display is already the minimal plain-decimal form
         // (BigDecimal stripTrailingZeros + toPlainString in Java)

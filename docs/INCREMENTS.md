@@ -73,6 +73,7 @@
 | 54 | parity remediation 5 — fetcher cache key = dictionary-declared inputs only (`{node}.dd.{alias}.*`, Java makeRegularHttpCall parity); call-counting red/green regression | 2026-07-21 | — | 218 |
 | 55 | parity remediation 6 — registration replaces + clamps 1..=1000 (Java Platform.register/ServiceDef), config resolver per-segment loop chain (no false cycles), .properties full java.util.Properties syntax | 2026-07-21 | — | 220 |
 | 56 | parity remediation 7 — REST routing/request/response parity: full wildcard grammar, 405 + OPTIONS semantics, multi-value query params, cookies map, raw query + https flag, trace-path query, Accept-negotiated content type | 2026-07-21 | — | 224 |
+| 57 | parity remediation 8 (final) — nested `[]` append recursion, list→text List.toString, UTF-16 length/substring, launch-failure 500, session-guard case, `-0` concat rendering, HostUri lastIndexOf split | 2026-07-21 | — | 230 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1543,6 +1544,45 @@ Accept-negotiation sub-item queued at increment 50):
   `response_content_negotiation_matches_java`, the trace-path query assertion, and the
   existing suite updated to send explicit Accept headers (real clients do). Workspace 224
   tests / clippy 0 / fmt.
+
+---
+
+## Increment 57 — parity remediation 8: the remaining mappings (2026-07-21)
+
+Eighth and FINAL code increment of the parity-remediation program — the seven remaining
+Medium/Low findings, each an exact Java mirror:
+
+- **F17** (`mlm.rs`): `append_index` recurses like Java `appendIndex`, so nested append
+  markers (`model.rows[].items[]`) expand fully instead of failing the mapping.
+- **F19** (`conversions.rs`): a LIST converts to text/binary as Java `List.toString()`
+  (`[a, 2, null]`, nested maps `{k=v}`) — the `String.valueOf` fall-through; maps stay
+  JSON. The doc comment and code now agree (meta-fix).
+- **F20** (`conversions.rs` + `plugins.rs`): string length and substring indexes are
+  UTF-16 code units (Java `String.length`/`substring`) — an emoji counts 2. Documented
+  micro-divergence: an index splitting a surrogate pair yields U+FFFD (Java keeps the
+  unpaired surrogate, which Rust strings cannot represent).
+- **F21** (`manager.rs`): every launch failure replies **500** like Java
+  `EventScriptManager` (the client-side `FlowExecutor` preconditions stay 400, as in
+  Java where they throw to the caller). The false "Java parity" comment corrected.
+- **F22** (`commands.rs`): the session-command guard is case-SENSITIVE like Java
+  (`startsWith("session")`); a capitalized `Session ...` falls through to
+  forward/dedup, and the downstream keyword dispatch stays case-insensitive (already
+  matching Java).
+- **F23** (`math/evaluator.rs`): a concatenated negative zero renders `"0"` (Java's
+  `numberToString` goes through BigDecimal, which has no signed zero); the direct
+  display view keeps `"-0.0"` — exactly Java `Double.toString`. Both surfaces mirrored.
+- **F24** (`fetcher.rs`): `HostUri` splits at Java's `lastIndexOf(path)` on the
+  bracket-sanitized URL, quirks included (a path recurring verbatim in the query splits
+  at the LAST occurrence); the java.net.URI path derivation is reproduced. The non-http
+  scheme guard stays (Java merely fails later); the doc comment now states the exact
+  contract (meta-fix).
+- **Tests:** nested-append, List.toString + UTF-16 length, UTF-16 substring (emoji),
+  unknown-flow 500 (red/green), negative-zero both surfaces (red/green), HostUri quirk
+  suite (red/green). Workspace 230 tests / clippy 0 / fmt.
+
+With this increment, all 8 remediation items are DONE — every CONFIRMED finding from the
+verified assessment is fixed. The one open remnant is the F2 null-on-spill documentation
+decision (maintainer call: document the load-dependent consequence, or normalize).
 
 ---
 

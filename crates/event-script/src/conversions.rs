@@ -46,36 +46,61 @@ pub fn display(value: &Value) -> String {
 }
 
 /// Java `getTextValue`: strings pass through, bytes decode as UTF-8, maps
-/// render as JSON, everything else via `display`.
+/// render as JSON — and a LIST renders as Java `List.toString()` (`[a, b]`),
+/// exactly the fall-through to `String.valueOf` (increment 57, parity F19;
+/// previously lists were JSON-serialized like maps).
 pub fn get_text_value(value: &Value) -> String {
     match value {
         Value::String(s) => s.as_str().unwrap_or_default().to_string(),
         Value::Binary(b) => String::from_utf8_lossy(b).to_string(),
-        Value::Map(_) | Value::Array(_) => to_json_string(value),
+        Value::Map(_) => to_json_string(value),
+        Value::Array(_) => java_to_string(value),
         other => display(other),
     }
 }
 
 /// Java `getBinaryValue`: bytes pass through, strings encode as UTF-8, maps
-/// render as JSON bytes, everything else via `display` bytes.
+/// render as JSON bytes — and a LIST as `List.toString()` bytes (parity F19).
 pub fn get_binary_value(value: &Value) -> Vec<u8> {
     match value {
         Value::Binary(b) => b.clone(),
         Value::String(s) => s.as_str().unwrap_or_default().as_bytes().to_vec(),
-        Value::Map(_) | Value::Array(_) => to_json_string(value).into_bytes(),
+        Value::Map(_) => to_json_string(value).into_bytes(),
+        Value::Array(_) => java_to_string(value).into_bytes(),
         other => display(other).into_bytes(),
     }
 }
 
-/// Java `getLength`: null → 0; bytes/list → element count; string → character
-/// count; everything else → length of its display form.
+/// The Java `toString()` shape of a collection tree — `[a, b]` for lists and
+/// `{k=v, k2=v2}` for nested maps, elements via `String.valueOf` (`display`).
+fn java_to_string(value: &Value) -> String {
+    match value {
+        Value::Array(items) => {
+            let inner: Vec<String> = items.iter().map(java_to_string).collect();
+            format!("[{}]", inner.join(", "))
+        }
+        Value::Map(entries) => {
+            let inner: Vec<String> = entries
+                .iter()
+                .map(|(k, v)| format!("{}={}", display(k), java_to_string(v)))
+                .collect();
+            format!("{{{}}}", inner.join(", "))
+        }
+        other => display(other),
+    }
+}
+
+/// Java `getLength`: null → 0; bytes/list → element count; string →
+/// `String.length()` = UTF-16 code units (increment 57, parity F20 — a
+/// non-BMP character such as an emoji counts 2, not 1); everything else →
+/// the UTF-16 length of its display form.
 pub fn get_length(value: &Value) -> i64 {
     match value {
         Value::Nil => 0,
         Value::Binary(b) => b.len() as i64,
-        Value::String(s) => s.as_str().unwrap_or_default().chars().count() as i64,
+        Value::String(s) => s.as_str().unwrap_or_default().encode_utf16().count() as i64,
         Value::Array(list) => list.len() as i64,
-        other => display(other).chars().count() as i64,
+        other => display(other).encode_utf16().count() as i64,
     }
 }
 
@@ -253,5 +278,28 @@ mod tests {
             get_length(&Value::Array(vec![Value::from(1), Value::from(2)])),
             2
         );
+    }
+
+    /// Increment 57 (parity F19): a list converts to text as Java
+    /// `List.toString()` — not JSON; maps stay JSON like Java.
+    #[test]
+    fn list_to_text_matches_java_tostring() {
+        let list = Value::Array(vec![Value::from("a"), Value::from(2), Value::Nil]);
+        assert_eq!(get_text_value(&list), "[a, 2, null]");
+        assert_eq!(get_binary_value(&list), b"[a, 2, null]".to_vec());
+        let nested = Value::Array(vec![Value::Map(vec![(Value::from("k"), Value::from("v"))])]);
+        assert_eq!(get_text_value(&nested), "[{k=v}]");
+        // maps are unchanged: JSON, exactly like Java getTextValue
+        let map = Value::Map(vec![(Value::from("k"), Value::from("v"))]);
+        assert_eq!(get_text_value(&map), "{\"k\":\"v\"}");
+    }
+
+    /// Increment 57 (parity F20): string length counts UTF-16 code units —
+    /// an emoji is 2, exactly Java String.length().
+    #[test]
+    fn length_counts_utf16_code_units() {
+        assert_eq!(get_length(&Value::from("abc")), 3);
+        assert_eq!(get_length(&Value::from("😀")), 2);
+        assert_eq!(get_length(&Value::from("a😀b")), 4);
     }
 }

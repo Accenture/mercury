@@ -286,7 +286,11 @@ async fn handle_command(
     if command.starts_with('{') && command.ends_with('}') {
         return handle_json_command(po, out_route, command).await;
     }
-    if command.to_lowercase().starts_with("session") || forwarded {
+    // Java GraphCommandService: this guard is CASE-SENSITIVE (a capitalized
+    // "Session ..." falls through and is forwarded/deduped like any other
+    // command; the downstream keyword dispatch stays case-insensitive) —
+    // increment 57, parity F22
+    if command.starts_with("session") || forwarded {
         return single_or_multi_line(platform, po, command, in_route, out_route).await;
     }
     // the dedup guard protects the WS UI from double-submits; a synchronous

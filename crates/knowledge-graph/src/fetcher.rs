@@ -50,7 +50,12 @@ pub const ROUTE: &str = "graph.api.fetcher";
 const WARNING_INTERVAL_MS: i64 = 30000;
 
 /// Java `HostUri`: split a provider URL into target host and URI, tolerating
-/// `{path}` brackets and spaces.
+/// `{path}` brackets and spaces — the EXACT Java split (increment 57, parity
+/// F24): the URI path is derived like `java.net.URI.getPath()` and the split
+/// point is `lastIndexOf(path)` on the bracket-sanitized URL, quirks
+/// included (a path that recurs verbatim in the query splits at the LAST
+/// occurrence). The scheme check stays a Rust guard — Java tolerates other
+/// schemes here only to fail later in the HTTP client.
 pub struct HostUri {
     pub host: String,
     pub uri: String,
@@ -58,23 +63,47 @@ pub struct HostUri {
 
 impl HostUri {
     pub fn parse(url: &str) -> Result<Self, AppError> {
-        let (scheme, rest) = if let Some(rest) = url.strip_prefix("http://") {
-            ("http://", rest)
-        } else if let Some(rest) = url.strip_prefix("https://") {
-            ("https://", rest)
-        } else {
+        if !url.starts_with("http://") && !url.starts_with("https://") {
             return Err(invalid(format!("Invalid provider URL {url}")));
+        }
+        // Java: hide path-parameter brackets and spaces from the URI parser
+        let safe: String = url
+            .chars()
+            .map(|c| match c {
+                '{' => '(',
+                '}' => ')',
+                ' ' => '+',
+                other => other,
+            })
+            .collect();
+        // java.net.URI.getPath(): from the first '/' after the authority,
+        // ending before any query or fragment
+        let after_scheme = safe.find("://").map(|i| i + 3).unwrap_or(0);
+        let path = match safe[after_scheme..].find('/') {
+            Some(offset) => {
+                let start = after_scheme + offset;
+                let rest = &safe[start..];
+                let end = rest.find(['?', '#']).unwrap_or(rest.len());
+                &safe[start..start + end]
+            }
+            None => "",
         };
-        match rest.find('/') {
-            Some(slash) => Ok(HostUri {
-                host: format!("{scheme}{}", &rest[..slash]),
-                uri: rest[slash..].to_string(),
-            }),
-            None => Ok(HostUri {
+        // Java: sep = path.isEmpty() ? -1 : safeUrl.lastIndexOf(path)
+        let sep = if path.is_empty() {
+            None
+        } else {
+            safe.rfind(path)
+        };
+        Ok(match sep {
+            None => HostUri {
                 host: url.to_string(),
                 uri: "/".to_string(),
-            }),
-        }
+            },
+            Some(sep) => HostUri {
+                host: url[..sep].to_string(),
+                uri: url[sep..].to_string(),
+            },
+        })
     }
 }
 
@@ -783,4 +812,33 @@ async fn run_http_batch(requests: Vec<Value>, ttl: i64) -> Vec<HttpResponseView>
         }));
     }
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HostUri;
+
+    /// Increment 57 (parity F24): the split point is Java's
+    /// `lastIndexOf(path)` — a path that recurs verbatim in the query splits
+    /// at the LAST occurrence, quirks included.
+    #[test]
+    fn host_uri_split_matches_java_lastindexof() {
+        let normal = HostUri::parse("https://host.example/api/x?q=1").unwrap();
+        assert_eq!(normal.host, "https://host.example");
+        assert_eq!(normal.uri, "/api/x?q=1");
+        // no path at all -> whole url is the host, uri is "/"
+        let bare = HostUri::parse("https://host.example").unwrap();
+        assert_eq!(bare.host, "https://host.example");
+        assert_eq!(bare.uri, "/");
+        // the Java quirk: the path text recurs in the query -> LAST occurrence
+        let quirky = HostUri::parse("https://host/search?q=/search").unwrap();
+        assert_eq!(quirky.host, "https://host/search?q=");
+        assert_eq!(quirky.uri, "/search");
+        // brackets and spaces are tolerated ({id} placeholders)
+        let braced = HostUri::parse("http://h:8080/api/mdm/profile/{id}").unwrap();
+        assert_eq!(braced.host, "http://h:8080");
+        assert_eq!(braced.uri, "/api/mdm/profile/{id}");
+        // non-http schemes stay rejected (Rust guard; Java fails later)
+        assert!(HostUri::parse("ftp://host/x").is_err());
+    }
 }
