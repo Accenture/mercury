@@ -413,9 +413,19 @@ authoritative schema is the Java project's own `docs/guides/rest-automation/rest
   declare `application/json` to get a parsed map, which is why the canonical POST-provider
   fixtures map `text(application/json) -> header.content-type`
   → `po.request(service, timeout)` → envelope mapped back (status; body: map/list→JSON,
-  text→text/plain, bytes→octet-stream; response header transforms + CORS headers). Errors are
-  the Java JSON shape `{status, message, type:"error"}`; timeout → 408; OPTIONS preflight →
-  CORS options headers.
+  text→text/plain, bytes→octet-stream; response header transforms + CORS headers).
+  **Function response-envelope headers are preserved** (increment 50, Java
+  `AsyncHttpResponse.updateHeaders` parity): `content-type` overrides the body-derived type
+  (lowercased; skipped for HEAD), `set-cookie` splits on `|` into one header line per cookie,
+  `x-stream-id` (`stream.*.in` shape) + `x-ttl` are recognized as the response-streaming
+  contract and **withheld** (streaming stays deferred), all other headers join the response
+  map that the rest.yaml response transform filters (content-type/cookies bypass the filter,
+  as in Java). HEAD responses carry headers, never a body. Envelope header model matches Java
+  `EventEnvelope`: case-insensitive `header()` lookup, CR/LF filtered on `set_header()`.
+  Still open (tracked in `ot-parity-remediation`): Java's `Accept`-based fallback content
+  negotiation (`updateContentType`) — the Rust port derives the fallback from body shape only.
+  Errors are the Java JSON shape `{status, message, type:"error"}`; timeout → 408; OPTIONS
+  preflight → CORS options headers.
 - **The edge starts traces** (the piece increments 5 was built for): a **business
   correlation-id is always ensured** (per-entry/global header, else generated) — independent
   of tracing — set on the envelope and exposed via the reserved `my_correlation_id` request

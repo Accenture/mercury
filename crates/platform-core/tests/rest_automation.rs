@@ -184,6 +184,32 @@ impl ComposableFunction for ApiKeyCheck {
     }
 }
 
+/// Increment 50: a function that decorates its response envelope — the
+/// headers must survive the REST boundary exactly as in Java
+/// `AsyncHttpResponse.updateHeaders` (redirect Location, repeated
+/// Set-Cookie, content-type override; stream metadata withheld).
+struct HeaderProbe;
+
+#[async_trait]
+impl ComposableFunction for HeaderProbe {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new()
+            .set_status(302)
+            .set_header("Location", "/somewhere/else")
+            .set_header("Content-Type", "application/vnd.demo+json")
+            .set_header("Set-Cookie", "first=1; Path=/|second=2; HttpOnly")
+            .set_header("X-Custom", "custom-value")
+            .set_header("x-stream-id", "stream.100.in")
+            .set_header("x-ttl", "10")
+            .set_body(serde_json::json!({"moved": true}))
+    }
+}
+
 const REST_YAML: &str = r#"
 rest:
   - service: "http.echo"
@@ -191,6 +217,11 @@ rest:
     url: "/api/echo/{user}"
     timeout: 5s
     cors: cors_1
+    headers: header_1
+  - service: "header.probe"
+    methods: ['GET', 'HEAD']
+    url: "/api/headers"
+    timeout: 5s
     headers: header_1
   - service: "trace.probe"
     methods: ['GET']
@@ -286,6 +317,9 @@ async fn server() -> TestServer {
     platform
         .register("api.key.check", Arc::new(ApiKeyCheck), 1)
         .unwrap();
+    platform
+        .register("header.probe", Arc::new(HeaderProbe), 1)
+        .unwrap();
     let addr = automation::start_http_server(&platform).await.unwrap();
     TestServer {
         port: addr.port(),
@@ -333,7 +367,69 @@ async fn http(
     (status, headers, payload.to_string())
 }
 
+/// Raw HTTP exchange keeping the header block verbatim — repeated headers
+/// (Set-Cookie) stay visible as separate lines, unlike the map in `http`.
+async fn http_raw(port: u16, method: &str, path: &str) -> (u16, String, String) {
+    let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .expect("connect");
+    let request =
+        format!("{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+    stream.write_all(request.as_bytes()).await.expect("write");
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).await.expect("read");
+    let text = String::from_utf8_lossy(&raw).to_string();
+    let (head, payload) = text.split_once("\r\n\r\n").unwrap_or((text.as_str(), ""));
+    let status: u16 = head
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse().ok())
+        .expect("status code");
+    (status, head.to_lowercase(), payload.to_string())
+}
+
 // ---- tests ----
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn function_response_headers_survive_the_rest_boundary() {
+    let server = server().await;
+    let (status, head, body) = http_raw(server.port, "GET", "/api/headers").await;
+    // envelope status + Location = a working redirect (Java parity)
+    assert_eq!(status, 302);
+    assert!(head.contains("location: /somewhere/else"), "{head}");
+    // function-set content type overrides the body-derived one
+    assert!(
+        head.contains("content-type: application/vnd.demo+json"),
+        "{head}"
+    );
+    // custom header preserved
+    assert!(head.contains("x-custom: custom-value"), "{head}");
+    // "|"-separated cookies become one Set-Cookie line each
+    assert!(head.contains("set-cookie: first=1; path=/"), "{head}");
+    assert!(head.contains("set-cookie: second=2; httponly"), "{head}");
+    // the rest.yaml response transform still applies alongside
+    assert!(head.contains("x-served-by: mercury"), "{head}");
+    // stream metadata is recognized and withheld from the wire (deferral)
+    assert!(!head.contains("x-stream-id"), "{head}");
+    assert!(!head.contains("x-ttl"), "{head}");
+    // the body still rides normally on GET
+    assert!(body.contains("moved"), "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn head_response_carries_headers_but_no_body() {
+    let server = server().await;
+    let (status, head, body) = http_raw(server.port, "HEAD", "/api/headers").await;
+    assert_eq!(status, 302);
+    assert!(head.contains("location: /somewhere/else"), "{head}");
+    // HEAD: the function's content-type override is skipped (Java isHead)
+    assert!(
+        !head.contains("content-type: application/vnd.demo+json"),
+        "{head}"
+    );
+    assert!(body.is_empty(), "HEAD must not carry a body: {body:?}");
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_with_path_query_and_generated_cid() {

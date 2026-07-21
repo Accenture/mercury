@@ -336,15 +336,46 @@ async fn process(
         &parent_span,
     )?;
     let result = po.request(event, info.timeout).await?;
-    // map the response envelope back to HTTP
+    // map the response envelope back to HTTP (Java AsyncHttpResponse:
+    // updateHeadersAndContentType + updateHeaders)
     let status = status_of(result.status());
-    let (content_type, payload) = envelope_payload(&result);
+    let is_head = method == "HEAD";
+    let (derived_type, payload) = envelope_payload(&result);
+    let mut content_type = derived_type.map(str::to_string);
+    let mut set_cookies: Vec<String> = Vec::new();
     let mut response_headers: HashMap<String, String> = HashMap::new();
-    if let Some(content_type) = content_type {
-        response_headers.insert("content-type".to_string(), content_type.to_string());
+    for (name, value) in result.headers() {
+        let key = name.to_lowercase();
+        match key.as_str() {
+            // the response-streaming contract (x-stream-id + x-ttl) is a
+            // documented deferral in this port (D10) — recognized like Java
+            // and withheld from the wire, never leaked as literal headers
+            "x-stream-id" if value.starts_with("stream.") && value.contains(".in") => {}
+            "x-ttl" => {}
+            // a function-set content type overrides the body-derived one
+            // (Java: response.putHeader directly, lowercased; skipped for HEAD)
+            "content-type" => {
+                if !is_head {
+                    content_type = Some(value.to_lowercase());
+                }
+            }
+            // repeated cookies ride one envelope header, "|"-separated
+            // (Java SimpleHttpUtility.setCookies -> one header line each)
+            "set-cookie" => {
+                set_cookies.extend(value.split('|').map(|c| c.trim().to_string()));
+            }
+            _ => {
+                response_headers.insert(key, value.clone());
+            }
+        }
     }
+    // the rest.yaml response transform filters the merged header map (Java
+    // filterHeaders); content-type and cookies bypass it, as in Java
     if let Some(header_info) = &info.headers {
         header_info.response.apply(&mut response_headers);
+    }
+    if let Some(content_type) = content_type {
+        response_headers.insert("content-type".to_string(), content_type);
     }
     if let Some(cors) = &info.cors {
         for (name, value) in &cors.headers {
@@ -355,6 +386,13 @@ async fn process(
     for (name, value) in response_headers {
         response = response.header(name, value);
     }
+    for cookie in set_cookies {
+        if !cookie.is_empty() {
+            response = response.header("set-cookie", cookie);
+        }
+    }
+    // a HEAD response never carries a body (Java: isHeadMethod skips content)
+    let payload = if is_head { Bytes::new() } else { payload };
     response
         .body(Full::new(payload))
         .map_err(|e| AppError::new(500, e.to_string()))
