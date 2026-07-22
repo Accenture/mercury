@@ -89,3 +89,59 @@ single distributed trace across the boundary (and across languages).
     (single-character keys) is rejected with a clear 400; Java 4.10+ defaults to standard, so
     this only surfaces with an old or misconfigured peer. The Java engine's per-format response
     mirroring is therefore unnecessary here — replies are always standard.
+
+## Event over HTTP by configuration
+
+Calling the API is rarely necessary: the same forwarding can be **declared**, so that user
+code needs zero HTTP awareness — this service abstraction means an application does not
+know (or care) where its target services run. Name the routing map in your application
+configuration (this is also the default, so a `resources/event-over-http.yaml` file is
+picked up with no configuration at all):
+
+```yaml
+yaml.event.over.http: 'classpath:/event-over-http.yaml'
+```
+
+and list the remote routes in that file:
+
+```yaml
+event.http:
+  - route: 'hello.world'
+    target: 'http://127.0.0.1:8085/api/event'
+  - route: 'event.save.get'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    # optional security headers
+    headers:
+      authorization: 'demo'
+```
+
+From then on, **every `PostOffice` call to a listed route crosses to the peer
+transparently** — the calling function cannot tell a remote route from a local one:
+
+- `po.request(event, timeout)` forwards as an Event-over-HTTP RPC and returns the peer's
+  reply envelope directly.
+- `po.send(event)` with a `reply_to` runs the **callback dance**: the reply address is
+  withheld from the wire, the forward runs as RPC, and the peer's response is delivered to
+  the original `reply_to` locally — with the sender route, trace context, and business
+  correlation-id restored.
+- `po.send(event)` without a `reply_to` is forwarded **drop-n-forget**, expecting the
+  peer's 202 acknowledgement (a failure is logged, never raised).
+
+The optional per-target `headers` ride on every forwarded HTTP call — the place for an
+`authorization` credential when the peer's `/api/event` endpoint sits behind
+authentication. `${...}` references (environment variables, base configuration keys such
+as `server.port` above) resolve when the file loads. An absent file simply leaves the
+feature off.
+
+A forwarded envelope carries the `x-event-api` marker header, and an event bearing it is
+never forwarded again — the recursion guard that lets two instances declare routes toward
+each other without a loop. The receiving function sees the header like any other envelope
+header.
+
+!!! note "Port note"
+    Same semantics as the Java engine's `yaml.event.over.http`
+    (`EventEmitter.sendWithEventHttp` and the request-path hooks), including the fixed
+    60-second forward timeout on the send path — an RPC made with `po.request` uses the
+    caller's own timeout. The Java engine loads the map at startup inside its
+    `EventEmitter` singleton; this port has no such singleton, so the map loads once on
+    first use — same configuration, same behavior.

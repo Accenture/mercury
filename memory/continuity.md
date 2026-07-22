@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-22 | agent: Claude Code (2026-07-22-000658)
+- **last_session:** 2026-07-22 | agent: Claude Code (2026-07-22-025232)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -507,7 +507,47 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   "not ported" notes corrected. Workspace 235/clippy 0/fmt. **ONLY REMAINING: the live
   cross-language interop pairing with the Java session (composable-example :8100 /
   lambda-example :8085, both directions, RPC + async, 404/403/408 + trace continuity;
-  interop target = is_private = false).** Earlier: **Increment 2 (increment 60): private
+  interop target = is_private = false).** **Interop Phase A DONE 2026-07-22** (branch
+  `feature/interop-test-service`, UNCOMMITTED — maintainer review pending): hello-world
+  gains a public `hello.world` echo (`{body, headers, instance, origin}`; optional
+  `sleep_ms` body key delays the reply for the 408 case), app live detached on :8086
+  (`-Drest.server.port=8086`; 8085 reserved for the Java lambda-example), all four
+  dispatch paths smoke-verified over real HTTP with hand-rolled standard envelopes
+  (200 echo + trace context, 408 on ttl, 403 private, 404 unknown). **Phase B DONE
+  2026-07-22** (session 2026-07-22-015354): (1) echo binary bug FIXED — the JSON detour
+  dropped MsgPack-bin bodies (Nil-normalization stripped the key); echo now reflects raw
+  `rmpv::Value` (lesson: relay/echo functions must stay in the MsgPack domain);
+  (2) Rust→Java matrix vs the live Java apps: torture echo (unicode + 9007199254740993 +
+  list + BINARY), async 202 ack, in-band 404/403, and IN-BAND trace-continuity proof
+  (Java ran under the sent trace id) all PASS via the production `event_over_http`
+  client; (3) findings — `hello.world`@8085 was still private on the Java side (their
+  item), and a Rust platform-core bug found:
+  `AsyncHttpRequest::timeout_seconds()` rounded x-ttl DOWN (1500ms→1s read timeout) so a
+  peer's in-band 408 lost to the local abort (Java fixed the same bug class during the
+  drive; their in-band 408 proven at raw protocol level). **D2 fix DONE 2026-07-22
+  (Eric-authorized; session 2026-07-22-023009):** `timeout_seconds()` → ceiling division
+  (Java `getTimeoutSeconds` parity), response-timeout site +1s wire grace (Java
+  `AsyncHttpClient` parity), `event_over_http` local wait +100ms grace over x-ttl (Java
+  EventEmitter parity); regression test `remote_timeout_arrives_in_band` (the Rust twin
+  of Java's `EventHttpTest.remoteTimeoutArrivesInBand`); platform-core 162/0, clippy 0;
+  LIVE case-6 re-run vs the Java sleeper now passes through the production client
+  (in-band 408 "Timeout for 1500 ms" @1.505s). NOTE: the Phase-B task chip for this bug
+  was already started by the user — that spun-off session is redundant now.
+  **Declarative Event over HTTP DONE 2026-07-22 (increment 62, maintainer-requested —
+  "zero code at user app level"; session 2026-07-22-025232):** `yaml.event.over.http`
+  (default classpath:/event-over-http.yaml, absent = off) → route→{target, security
+  headers} registry (lazy OnceLock; `${...}` substitution; @instance stripped);
+  PostOffice send/request hooks forward transparently (request = RPC returning the peer
+  reply; send+reply_to = callback dance restoring from/trace/cid; plain send = async 202;
+  `x-event-api` recursion guard; send_later rides send); new
+  `event_over_http_with_headers`, `EventEnvelope::clear_reply_to`, hook-free
+  `request_direct` for the internal HTTP leg (breaks async type recursion +
+  defense-in-depth). Twin tests of Java EventHttpTest (config + declarative round trip);
+  workspace 237/clippy 0/fmt; docs (guide section + configuration-reference entry +
+  INCREMENTS §62; strict docs build deferred to CI — no mkdocs in env). LIVE
+  cross-language proof: zero-code po.request + callback dance reached the JAVA peer
+  (:8299) through a scratch map. Remaining:
+  Eric's review of the interop branch (platform-core fix + declarative feature). Earlier: **Increment 2 (increment 60): private
   functions, both Java paths** —
   `#[preload]` is PRIVATE BY DEFAULT with `is_private = false` opt-out (mirrors Java
   `@PreLoad isPrivate() default true` — a deliberate posture: engine internals become

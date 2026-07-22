@@ -1,0 +1,12 @@
+# Declarative Event-over-HTTP routing map (Java test fixture parity) —
+# each entry forwards a route to a peer's /api/event endpoint transparently.
+event.http:
+  - route: 'event.http.test'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    # optional security headers
+    headers:
+      authorization: 'demo'
+  - route: 'event.save.get'
+    target: 'http://127.0.0.1:${server.port}/api/event'
+    headers:
+      authorization: 'demo'

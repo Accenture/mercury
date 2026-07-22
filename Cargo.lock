@@ -383,8 +383,10 @@ dependencies = [
  "async-trait",
  "log",
  "platform-core",
+ "rmpv",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
