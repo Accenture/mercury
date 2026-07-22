@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-21 | agent: Claude Code (2026-07-21-235034)
+- **last_session:** 2026-07-22 | agent: Claude Code (2026-07-22-000658)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-21 | uses: 71 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-22 | uses: 72 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-21 | uses: 70 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-22 | uses: 71 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -497,7 +497,18 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   round_trip field, unset-field omission; the five Java golden vectors (copied verbatim)
   decode + round-trip; encoder contract locked (fresh envelope = id + headers only).
   Compact (legacy) format deliberately NOT decoded — v1 standard-only, 400 on compact
-  peers. **Increment 2 DONE 2026-07-21 (increment 60): private functions, both Java paths** —
+  peers. **Increment 3 DONE 2026-07-21 (increment 61): /api/event service + client** — Java
+  EventApiService + EventEmitter client ported (`automation/event_api.rs`): service
+  registered PRIVATE + in the default rest.yaml (merge_default_endpoints), 403 private
+  gate / 404 / 400 / 408, async 202 ack vs RPC mirror, compact-envelope rejection (v1
+  standard-only), trace propagation via x-trace-id + traceparent; `event_over_http`
+  client returns the reply/ack envelope. E2E test = real HTTP round trip (all paths +
+  service-rejects-itself + client round-trip). New `event-over-http.md` guide; two stale
+  "not ported" notes corrected. Workspace 235/clippy 0/fmt. **ONLY REMAINING: the live
+  cross-language interop pairing with the Java session (composable-example :8100 /
+  lambda-example :8085, both directions, RPC + async, 404/403/408 + trace continuity;
+  interop target = is_private = false).** Earlier: **Increment 2 (increment 60): private
+  functions, both Java paths** —
   `#[preload]` is PRIVATE BY DEFAULT with `is_private = false` opt-out (mirrors Java
   `@PreLoad isPrivate() default true` — a deliberate posture: engine internals become
   private automatically), `register_private` API + `is_private()` query, engine internals
@@ -506,8 +517,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   /api/event service + client (x-ttl/x-async semantics, 403 via is_private, trace
   propagation via x-trace-id + traceparent) + live interop pairing with the Java session
   (both directions, RPC + async, 404/403/408 + trace continuity; the interop target
-  function must be declared `is_private = false`).** → serves: vision-mercury
-  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-21 | uses: 2 | tier: working | origin: 2026-07-21-233234.md -->
+  function must be declared `is_private = false`). MAINTAINER DIRECTIVES: private-by-
+  default = the encapsulation boundary is the app instance (functions cross it only via
+  deliberate is_private = false exposure); the /api/event endpoint ships in the DEFAULT
+  rest.yaml (merge_default_endpoints, like the actuators — zero user configuration).** → serves: vision-mercury
+  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-22 | uses: 3 | tier: working | origin: 2026-07-21-233234.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

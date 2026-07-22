@@ -112,6 +112,7 @@ nav:
       - Write Your First Function: guides/event-driven/write-your-first-function.md
       - Function Execution: guides/event-driven/function-execution.md
       - REST Automation: guides/rest-automation.md
+      - Event over HTTP: guides/event-over-http.md
       - Function AI Agent Guide: guides/event-driven/ai-agent-guide.md
   - "Layer 2 — Event Script":
       - Overview: guides/event-script/index.md

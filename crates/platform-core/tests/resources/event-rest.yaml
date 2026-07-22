@@ -1,0 +1,5 @@
+rest:
+  - service: "no.op"
+    methods: ['GET']
+    url: "/api/placeholder"
+    timeout: 10s

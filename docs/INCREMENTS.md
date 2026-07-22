@@ -77,6 +77,7 @@
 | 58 | F2 resolution (maintainer: NORMALIZE) — Nil map entries strip deterministically on every hop incl. the in-process fast path; the load-dependent null visibility is gone | 2026-07-21 | — | 231 |
 | 59 | Event over HTTP phase 2, increment 1 — standard envelope wire-format conformance: body absent-as-nil default, round_trip field, unset-field omission; Java golden vectors decode + round-trip | 2026-07-21 | — | 233 |
 | 60 | Event over HTTP phase 2, increment 2 — private functions, both Java paths: `#[preload]` private-by-default with `is_private = false` opt-out + `register_private` API + `is_private()` query; engine internals registered private | 2026-07-21 | — | 233 |
+| 61 | Event over HTTP phase 2, increment 3 — /api/event service + client: RPC/async dispatch, 403 private gate, 404/400/408, compact rejection, trace propagation (x-trace-id + traceparent); ships in default rest.yaml | 2026-07-21 | — | 235 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1673,6 +1674,38 @@ BOTH declaration paths per the maintainer's directive:
   gain the attribute row (and macros-reference's stale "duplicate route fails at
   startup" claim corrected to the increment-55 reload semantics). Workspace 233 tests /
   clippy 0 / fmt.
+
+---
+
+## Increment 61 — Event over HTTP phase 2 / 3: the /api/event service + client (2026-07-21)
+
+The feature comes together — Java `EventApiService` + the `EventEmitter` event-over-http
+client, ported (`automation/event_api.rs`):
+
+- **Service** (`POST /api/event`, registered PRIVATE, in the default rest.yaml via
+  `merge_default_endpoints` — the maintainer's directive): decodes the posted standard
+  envelope, enforces the visibility boundary (**403** for a private target — a remote
+  caller can never reach engine internals or an unpublished function), and dispatches —
+  async (`x-async: true`) is drop-n-forget with a 202 ack, otherwise RPC up to `x-ttl` ms
+  mirroring the target's reply. 404 (unknown route), 400 (missing `to`), 408 (RPC
+  timeout), and a clear 400 for a legacy compact envelope (v1 is standard-only). Every
+  response body is itself a serialized envelope, so the caller reads success and failure
+  the same way.
+- **Client** (`event_over_http`): POSTs a serialized envelope to a peer, returns the reply
+  (or the 202 ack for async). Trace context propagates via `x-trace-id` + W3C
+  `traceparent`, so a trace continues across the boundary and the remote spans parent onto
+  the caller's — one distributed trace across instances and languages.
+- **Test** (`event_over_http.rs`): a real HTTP round trip through `/api/event` —
+  RPC (status/headers/body + trace crossing), 403 private, 404, async 202 ack, compact
+  rejection, the service rejecting ITSELF as a target, and the `event_over_http` client
+  round-tripped against the same server (a local stand-in for the cross-language pairing).
+- **Docs:** new `event-over-http.md` guide (nav under Layer 1); two now-stale port notes
+  corrected (actuators + rest-automation had said `/api/event` was unported). Workspace
+  235 tests / clippy 0 / fmt; docs strict-build green.
+- **Next: the live cross-language interop pairing with the Java session** — composable-example
+  (:8100) / lambda-example (:8085) both directions, RPC + async, 404/403/408 + trace
+  continuity (the Java session offered to pair). The interop target must be
+  `is_private = false`.
 
 ---
 

@@ -20,10 +20,11 @@ GET /livenessprobe
 ```
 
 !!! note "Rust port"
-    Three Java defaults are not ported: **`/info/lib`** (Java lists JAR dependencies from the
-    archive manifest — a Rust binary has no runtime dependency manifest), **`/info/routes`**
-    (the route listing), and **`POST /api/event`** (the Event-over-HTTP protocol). XML actuator
-    responses are also not supported — actuators answer in JSON.
+    Two Java defaults are not ported: **`/info/lib`** (Java lists JAR dependencies from the
+    archive manifest — a Rust binary has no runtime dependency manifest) and **`/info/routes`**
+    (the route listing). XML actuator responses are also not supported — actuators answer in
+    JSON. **`POST /api/event` (Event over HTTP) IS ported** (increment 61) and ships in the
+    default rest.yaml — see [Event over HTTP](event-over-http.md).
 
 #### `GET /info`
 

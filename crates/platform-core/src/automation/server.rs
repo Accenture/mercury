@@ -618,6 +618,11 @@ fn url_decode(text: &str) -> String {
 /// `/info/lib` and `/info/routes` are deferred (see the actuator module doc).
 const DEFAULT_REST_YAML: &str = r#"
 rest:
+  - service: "event.api.service"
+    methods: ['POST']
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
   - service: "info.actuator.service"
     methods: ['GET']
     url: "/info"

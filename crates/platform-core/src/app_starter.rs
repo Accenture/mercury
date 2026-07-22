@@ -155,6 +155,21 @@ impl AppStarter {
                 }
             }
         }
+        // the event-over-http service (Java EssentialServiceLoader): reached
+        // through REST automation's default /api/event route. Registered
+        // PRIVATE — it is never itself a remote target. 250 workers (Java
+        // parity: the endpoint fans out concurrent RPC forwards).
+        if !platform.has_route(crate::automation::EVENT_API_SERVICE) {
+            if let Err(e) = platform.register_private(
+                crate::automation::EVENT_API_SERVICE,
+                Arc::new(crate::automation::EventApiService::new(&platform)),
+                250,
+            ) {
+                if !platform.has_route(crate::automation::EVENT_API_SERVICE) {
+                    return Err(e);
+                }
+            }
+        }
         // actuator endpoints (Java EssentialServiceLoader parity): /info /env
         // /health /livenessprobe, exposed via REST automation's default routes
         if !platform.has_route(crate::actuator::INFO_ACTUATOR) {
