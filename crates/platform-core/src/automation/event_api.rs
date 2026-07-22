@@ -205,7 +205,13 @@ pub async fn event_over_http(
     let http_event = EventEnvelope::new()
         .set_to(ASYNC_HTTP_REQUEST)
         .set_raw_body(http.to_value());
-    let response = po.request(http_event, timeout).await?;
+    // the local wait gets a small grace over the remote TTL (Java parity:
+    // EventEmitter's inner deadline is timeout + 100ms) so a peer that spends
+    // its whole TTL still replies in-band — its 408 envelope must win the
+    // race against the local abort, never lose it
+    let response = po
+        .request(http_event, timeout + Duration::from_millis(100))
+        .await?;
     // the response body is the serialized reply envelope (octet-stream →
     // binary); anything else is a transport-level failure
     match response.body() {

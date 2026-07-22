@@ -310,10 +310,14 @@ impl AsyncHttpRequest {
         &self.body
     }
 
+    /// Java `AsyncHttpRequest.getTimeoutSeconds()`: the x-ttl header is in
+    /// milliseconds and a fractional second must round UP, never down
+    /// (1,500 ms is a 2-second budget, not 1) — otherwise the wire-level
+    /// read timeout fires before a peer that spends its whole TTL replies.
     pub fn timeout_seconds(&self) -> u64 {
         self.header("x-ttl")
             .and_then(|v| v.parse::<u64>().ok())
-            .map(|ms| (ms.max(1000)) / 1000)
+            .map(|ms| ms.max(1).div_ceil(1000))
             .unwrap_or(DEFAULT_TTL_SECONDS)
     }
 
@@ -506,8 +510,12 @@ async fn process_request(
     let http_request = builder
         .body(Full::new(Bytes::from(body_bytes)))
         .map_err(|e| AppError::new(400, format!("Invalid HTTP request - {e}")))?;
-    // per-request response timeout (the x-ttl header, default 30s)
-    let ttl = Duration::from_secs(request.timeout_seconds());
+    // per-request response timeout (the x-ttl header, default 30s) with one
+    // extra second of wire-level grace so a peer that spends its whole TTL
+    // and replies AT the deadline is still readable; the caller's own RPC
+    // timeout, not this read timeout, governs the user-visible deadline
+    // (Java parity: AsyncHttpClient responseTimeout = getTimeoutSeconds() + 1)
+    let ttl = Duration::from_secs(request.timeout_seconds() + 1);
     let http_response = tokio::time::timeout(ttl, sender.send_request(http_request))
         .await
         .map_err(|_| AppError::new(408, format!("Timeout for {} ms", ttl.as_millis())))?

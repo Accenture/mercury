@@ -34,6 +34,24 @@ use platform_core::{
 };
 use rmpv::Value;
 
+/// A public target that spends more than the caller's TTL before replying —
+/// the remote peer's in-band 408 must reach the caller (see
+/// `remote_timeout_arrives_in_band`).
+struct SleepyEcho;
+
+#[async_trait]
+impl ComposableFunction for SleepyEcho {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        tokio::time::sleep(Duration::from_millis(3000)).await;
+        EventEnvelope::new().set_body("too late")
+    }
+}
+
 /// A public target: echoes its body and reports the trace id it ran under.
 struct RemoteEcho;
 
@@ -81,6 +99,9 @@ async fn server() -> (u16, Platform) {
         .unwrap();
     platform
         .register_private("v1.secret", Arc::new(RemoteEcho), 1)
+        .unwrap();
+    platform
+        .register("v1.sleepy.echo", Arc::new(SleepyEcho), 2)
         .unwrap();
     // the event-over-http CLIENT posts through async.http.request — the
     // lifecycle registers it normally; this test boots the server directly
@@ -255,6 +276,38 @@ async fn event_over_http_service_and_client() {
     .await
     .expect("client 403 is a normal envelope, not a transport error");
     assert_eq!(client_403.status(), 403);
+}
+
+/// A peer that spends more than the caller's TTL replies with its own in-band
+/// 408 envelope — and the caller must RECEIVE it, not abort locally first.
+/// Guards two deadline bugs (the Rust twin of Java's
+/// `EventHttpTest.remoteTimeoutArrivesInBand`): the wire-level read timeout
+/// must round a fractional-second x-ttl UP with grace
+/// (`AsyncHttpRequest::timeout_seconds` + the response-timeout site), and the
+/// client's local RPC wait must exceed the remote TTL (`event_over_http`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn remote_timeout_arrives_in_band() {
+    let (port, platform) = server().await;
+    let po = PostOffice::new(&platform);
+    let endpoint = format!("http://127.0.0.1:{port}/api/event");
+    let reply = event_over_http(
+        &po,
+        &endpoint,
+        EventEnvelope::new()
+            .set_to("v1.sleepy.echo")
+            .set_body("x")
+            .unwrap(),
+        Duration::from_millis(1500),
+        true,
+    )
+    .await
+    .expect("the remote in-band 408 must arrive as a normal envelope, not a local client error");
+    assert_eq!(reply.status(), 408);
+    let message: String = reply.body_as().unwrap();
+    assert!(
+        message.contains("1500"),
+        "the 408 message should carry the remote ttl: {message}"
+    );
 }
 
 /// The service must not be reachable AS a remote target (it is private) — a
