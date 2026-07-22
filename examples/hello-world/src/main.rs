@@ -52,6 +52,7 @@ use platform_core::{
     before_application, main_application, preload, trace, AppConfigReader, AppError,
     ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
 };
+use rmpv::Value;
 use serde::{Deserialize, Serialize};
 
 // ---- the composable function (Java: @PreLoad(route = "greeting.demo", instances = 10)) ----
@@ -142,6 +143,64 @@ impl ComposableFunction for GreetingApi {
             "correlation_id": po.my_correlation_id(),
         }))
     }
+}
+
+// ---- the public echo function (Java lambda-example: hello.world) ----
+
+/// Mirrors the Java lambda-example's `hello.world` echo: replies with the
+/// request body and headers plus the worker instance and this application's
+/// origin id. Declared `is_private = false` — the deliberate opt-out that
+/// publishes the route to remote callers via Event over HTTP
+/// (`POST /api/event`); every other function here keeps the private default.
+///
+/// The body is reflected as the raw MsgPack value, never through a JSON
+/// detour — JSON has no byte type, so converting would silently drop binary
+/// values from the echo (found by the cross-language interop matrix).
+///
+/// An optional integer body key `sleep_ms` delays the reply by that many
+/// milliseconds — the cross-language interop matrix uses it to exercise the
+/// RPC-timeout (408) path (e.g. `sleep_ms: 3000` against `x-ttl: 1500`).
+#[preload(route = "hello.world", instances = 10, is_private = false)]
+struct HelloWorld;
+
+#[async_trait]
+impl ComposableFunction for HelloWorld {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body = input.body().clone();
+        if let Some(ms) = sleep_ms(&body) {
+            log::info!("echo #{instance} sleeping {ms} ms before replying");
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+        }
+        log::info!("echo #{instance} got a request");
+        let echo_headers = Value::Map(
+            headers
+                .iter()
+                .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
+                .collect(),
+        );
+        Ok(EventEnvelope::new().set_raw_body(Value::Map(vec![
+            (Value::from("body"), body),
+            (Value::from("headers"), echo_headers),
+            (Value::from("instance"), Value::from(instance as u64)),
+            (Value::from("origin"), Value::from(Platform::origin())),
+        ])))
+    }
+}
+
+/// The optional integer `sleep_ms` key of a map body.
+fn sleep_ms(body: &Value) -> Option<u64> {
+    let Value::Map(entries) = body else {
+        return None;
+    };
+    entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("sleep_ms"))
+        .and_then(|(_, v)| v.as_u64())
 }
 
 // ---- the static-content request filter (increment 8) ----
