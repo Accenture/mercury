@@ -409,14 +409,15 @@ the client instead. `path` and `service` are mandatory when a filter is configur
 
 ## Built-in endpoints
 
-When `rest.yaml` does not claim their URLs, four actuator endpoints are added automatically:
-`/info`, `/env`, `/health` and `/livenessprobe` — your own entry for one of these URLs always
-wins, which is how you attach `authentication`, CORS, or a different timeout to them. See
-[Actuators & HTTP Client](actuators-and-http-client.md).
+When `rest.yaml` does not claim their URLs, five endpoints are added automatically: the four
+actuators `/info`, `/env`, `/health`, `/livenessprobe`, and **`POST /api/event`** (Event over
+HTTP). Your own entry for one of these URLs always wins, which is how you attach
+`authentication`, CORS, or a different timeout to them. See
+[Actuators & HTTP Client](actuators-and-http-client.md) and
+[Event over HTTP](event-over-http.md).
 
 !!! note "Rust port"
-    The Java engine also provides `POST /api/event` (Event-over-HTTP), `/info/lib`, and
-    `/info/routes` as defaults. None of these are ported yet — see the
+    Two Java defaults remain unported — `/info/lib` and `/info/routes` — see the
     [actuator port notes](actuators-and-http-client.md#actuator-endpoints).
 
 ## See also
