@@ -406,8 +406,9 @@ fn dispatch_mailbox_size() -> usize {
 
 /// Validate a route name — port of Java `Utility.validServiceName` plus the
 /// at-least-one-dot rule: lowercase alphanumeric with `.` `-` `_`, no leading/
-/// trailing/consecutive dots.
-fn validate_route(route: &str) -> Result<(), AppError> {
+/// trailing/consecutive dots. Crate-visible so the declarative
+/// Event-over-HTTP config loader applies the same rule (Java parity).
+pub(crate) fn validate_route(route: &str) -> Result<(), AppError> {
     let valid_chars = !route.is_empty()
         && route.bytes().all(|b| {
             b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'_')

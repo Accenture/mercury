@@ -27,6 +27,7 @@
 
 use std::time::Duration;
 
+use crate::automation::event_api;
 use crate::envelope::EventEnvelope;
 use crate::function::AppError;
 use crate::platform::Platform;
@@ -103,11 +104,22 @@ impl PostOffice {
     /// trace automatically: the outbound event carries the current trace
     /// id/path, this function's span id (the receiver's parent span), the
     /// sender route, and the business correlation-id when the event has none.
+    ///
+    /// A route declared in `yaml.event.over.http` forwards transparently to
+    /// the peer's `/api/event` instead of the local bus (Java
+    /// `EventEmitter.send` declarative hook) — user code cannot tell a remote
+    /// route from a local one. The `x-event-api` envelope header marks an
+    /// event that already crossed the wire, so it is never re-forwarded.
     pub async fn send(&self, event: EventEnvelope) -> Result<(), AppError> {
         let event = apply_current_trace(event);
         let Some(route) = event.to().map(str::to_string) else {
             return Err(AppError::new(400, "Missing routing path ('to')"));
         };
+        if event.header(event_api::X_EVENT_API).is_none() {
+            if let Some(entry) = event_api::get_event_http_target(&route) {
+                return event_api::send_with_event_http(&self.platform, event, &route, entry);
+            }
+        }
         self.platform.deliver(&route, event).await
     }
 
@@ -131,7 +143,11 @@ impl PostOffice {
                 .expect("timer registry")
                 .remove(&id_for_task);
             if let Some(route) = event.to().map(str::to_string) {
-                if let Err(e) = platform.deliver(&route, event).await {
+                // deliver through send() so a scheduled event honors the
+                // declarative Event-over-HTTP hook exactly like a direct one
+                // (the timer task has no trace bracket, so the trace context
+                // captured above at schedule time is untouched)
+                if let Err(e) = PostOffice::new(&platform).send(event).await {
                     log::warn!(
                         "Unable to deliver scheduled event to {route} - {}",
                         e.message()
@@ -219,6 +235,11 @@ impl PostOffice {
 
     /// RPC (Java `po.request(event, timeout)`): deliver the event and await the
     /// reply through a temporary inbox. Timeout → status **408**.
+    ///
+    /// A route declared in `yaml.event.over.http` forwards transparently as an
+    /// Event-over-HTTP RPC and returns the peer's reply (Java
+    /// `EventEmitter.asyncRequest`/`eRequest` declarative hook); the
+    /// `x-event-api` recursion guard applies as in [`send`](Self::send).
     pub async fn request(
         &self,
         event: EventEnvelope,
@@ -227,6 +248,32 @@ impl PostOffice {
         // propagate the trace context first, so a business correlation-id
         // riding the current trace wins over a minted one
         let event = apply_current_trace(event);
+        if event.header(event_api::X_EVENT_API).is_none() {
+            if let Some(entry) = event.to().and_then(event_api::get_event_http_target) {
+                let forward = event.set_header(event_api::X_EVENT_API, "request");
+                return event_api::event_over_http_with_headers(
+                    self,
+                    &entry.target,
+                    forward,
+                    timeout,
+                    true,
+                    &entry.headers,
+                )
+                .await;
+            }
+        }
+        self.request_direct(event, timeout).await
+    }
+
+    /// The local inbox-based RPC without the declarative Event-over-HTTP hook
+    /// — used by the framework's own internal calls (notably the HTTP client
+    /// leg of an Event-over-HTTP forward, which must never consult the
+    /// declarative registry itself).
+    pub(crate) async fn request_direct(
+        &self,
+        event: EventEnvelope,
+        timeout: Duration,
+    ) -> Result<EventEnvelope, AppError> {
         // a lightweight one-shot inbox (Java AsyncInbox parity): one map entry,
         // no route registration — the reply bypasses the ServiceQueue machinery
         let (inbox_id, rx) = crate::inbox::open();

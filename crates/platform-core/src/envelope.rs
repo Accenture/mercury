@@ -127,6 +127,14 @@ impl EventEnvelope {
         self
     }
 
+    /// Remove the reply-to address (Java `setReplyTo(null)`) — used when an
+    /// event is re-targeted, e.g. the declarative Event-over-HTTP forward
+    /// nulls the local callback route before the envelope crosses the wire.
+    pub fn clear_reply_to(mut self) -> Self {
+        self.reply_to = None;
+        self
+    }
+
     pub fn set_correlation_id(mut self, cid: &str) -> Self {
         self.cid = Some(cid.to_string());
         self

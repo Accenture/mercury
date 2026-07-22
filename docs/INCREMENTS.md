@@ -78,6 +78,7 @@
 | 59 | Event over HTTP phase 2, increment 1 — standard envelope wire-format conformance: body absent-as-nil default, round_trip field, unset-field omission; Java golden vectors decode + round-trip | 2026-07-21 | — | 233 |
 | 60 | Event over HTTP phase 2, increment 2 — private functions, both Java paths: `#[preload]` private-by-default with `is_private = false` opt-out + `register_private` API + `is_private()` query; engine internals registered private | 2026-07-21 | — | 233 |
 | 61 | Event over HTTP phase 2, increment 3 — /api/event service + client: RPC/async dispatch, 403 private gate, 404/400/408, compact rejection, trace propagation (x-trace-id + traceparent); ships in default rest.yaml | 2026-07-21 | — | 235 |
+| 62 | Declarative Event over HTTP (`yaml.event.over.http`) — route→target map with per-target security headers; transparent PostOffice send/request forwarding (callback dance, x-event-api recursion guard); plus the D2 ttl fix (ceil + wire grace + local-wait grace) | 2026-07-22 | — | 237 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1706,6 +1707,46 @@ client, ported (`automation/event_api.rs`):
   (:8100) / lambda-example (:8085) both directions, RPC + async, 404/403/408 + trace
   continuity (the Java session offered to pair). The interop target must be
   `is_private = false`.
+
+---
+
+## Increment 62 — Declarative Event over HTTP + the D2 timeout fix (2026-07-22)
+
+Zero code at the user-application level for Event over HTTP (the maintainer's ask): the
+Java `yaml.event.over.http` behavior, ported.
+
+- **Config** (`yaml.event.over.http`, default `classpath:/event-over-http.yaml`; absent
+  file = feature off): `event.http[]` entries map a route to a peer's `/api/event` URL
+  plus optional per-target security headers; `${...}` references resolve at load; invalid
+  routes/targets are logged and skipped (Java `EventEmitter.loadHttpRoutes`). The map
+  loads once on first use (Java loads in its `EventEmitter` singleton constructor — this
+  port has no such singleton).
+- **Transparent forwarding** (Java send/asyncRequest/eRequest hooks): a `PostOffice`
+  `request` to a mapped route forwards as an Event-over-HTTP RPC and returns the peer's
+  reply; a `send` with `reply_to` runs the callback dance (reply address withheld from
+  the wire, peer response delivered to it locally with from/trace/cid restored); a plain
+  `send` is drop-n-forget expecting the 202 ack. The `x-event-api` marker header is the
+  recursion guard — a forwarded event is never re-forwarded. `send_later` delivers
+  through `send`, so scheduled events honor the map too. The internal HTTP-client RPC leg
+  uses a new hook-free `request_direct` (defense-in-depth: the forward machinery never
+  consults the registry itself, and the async fn type stays non-recursive).
+- **D2 fix (Eric-authorized, from the live cross-language interop drive):**
+  `AsyncHttpRequest::timeout_seconds()` now rounds a fractional-second x-ttl UP (Java
+  `getTimeoutSeconds` ceiling parity; was floor — a 1500ms ttl became a 1s read timeout),
+  the response-timeout site adds 1s wire-level grace (Java `AsyncHttpClient` parity), and
+  `event_over_http` gives its local wait a 100ms grace over the remote TTL — so a peer
+  spending its whole TTL replies in-band (its 408 envelope wins the race, never loses).
+- **Tests:** `event_http_declarative.rs` (Java `EventHttpTest.configTest` +
+  `declarativeEventOverHttpTest` twins — config load incl. `@instance` stripping, then a
+  real `/api/event` round trip where user code with zero http-awareness saves and reads
+  a value on the "remote" instance, callback + request paths);
+  `remote_timeout_arrives_in_band` in `event_over_http.rs` (Java
+  `EventHttpTest.remoteTimeoutArrivesInBand` twin — sleepy target + short ttl must yield
+  the REMOTE in-band 408, not a local client error). Workspace 237 / clippy 0 / fmt.
+- **Docs:** `event-over-http.md` gains "Event over HTTP by configuration";
+  `configuration-reference.md` adds `yaml.event.over.http` (removed from the absent-keys
+  note). The D2 fix was verified live in the cross-language interop matrix (case 6: the
+  Java peer's in-band 408 now arrives through this port's client).
 
 ---
 

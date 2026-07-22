@@ -24,7 +24,7 @@ files themselves merge in the manifest order described below.
     sync-over-async/Redis, the OpenTelemetry forwarder (`otel.*`), classpath scanning
     (`web.component.scan`, `yaml.preload.override`, `modules.autostart`), threading
     (`kernel.thread.pool`, `deferred.commit.log`), event-script extras
-    (`yaml.event.over.http`, `yaml.journal`, `yaml.multicast`),
+    (`yaml.journal`, `yaml.multicast`),
     HTTP extras (`async.http.temp`, `stack.trace.transport.size`,
     `protect.info.endpoints`), and serialization extras (`snake.case.serialization`,
     `custom.content.types`, `mime.types`). If a key is not on this page, the Rust port
@@ -169,6 +169,22 @@ Connection timeout of the built-in async HTTP client (`async.http.request`). Rea
 `crates/platform-core` (automation). The per-request time-to-live is separate — it travels
 as the `x-ttl` header on the request event (default 30 seconds; see
 [Reserved Names & Headers](reserved-names-and-headers.md)).
+
+#### `yaml.event.over.http`
+
+| Type | Default |
+|---|---|
+| text (config location) | `classpath:/event-over-http.yaml` |
+
+Location of the optional **declarative Event-over-HTTP routing map**. Each `event.http[]`
+entry in the file maps a route name to a peer's `/api/event` endpoint (with optional
+per-target security headers such as `authorization`), and every `PostOffice`
+`send`/`request` to that route is then forwarded over HTTP transparently — user code
+cannot tell a remote route from a local one. An absent file simply disables the feature.
+`${...}` references (environment variables, base configuration keys) resolve inside the
+values. Read by `crates/platform-core` (automation) on first use. See the
+[Event over HTTP guide](event-over-http.md#event-over-http-by-configuration) for the file
+format and forwarding semantics.
 
 ## Tracing and observability
 
