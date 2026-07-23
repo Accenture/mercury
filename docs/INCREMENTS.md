@@ -83,6 +83,7 @@
 | 64 | Telemetry presentation parity with the Java reference: REST automation callback dispatch + `async.http.response` span (first/response legs are real spans), log-context gating (traced lines only), `my_*` response-header strip, business-cid header channel, `event.api.auth` demo + session info, demo→declarative rename, `hello.pojo` — rust-to-rust trace = EXACT replica of java-to-java (empty signature diff, both patterns) | 2026-07-23 | — | 245 |
 | 65 | Metadata injection hardening (Java parity): business cid rides the engine-managed `my_cid` envelope tag (wire-compatible `tags` field), worker injects the four `my_*` read-only keys into the input header copy at entry and sanitizes them (+ `x-event-api`) at exit — metadata is never transported; REST response echoes X-Correlation-Id; edge stamps the resolved cid onto the dataset headers | 2026-07-23 | — | 249 |
 | 66 | `temporary.inbox` alignment (Java parity): ONE reserved RPC reply-listener route keyed by correlation id — the `inbox.*` namespace freed for applications; RPC marker = the reserved `rpc` tag; `@origin` addressing never generated, parsed away inbound; reply dispatch direct on the sender's runtime | 2026-07-23 | — | 250 |
+| 67 | Collection plugins mirror (`isEmpty`/`getFirst`/`getLast` — contributed to the Java engine in mercury-composable PR #220): flows are engine-portable YAML, so plugins + error text behave identically on both engines | 2026-07-23 | — | 252 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1965,6 +1966,29 @@ staging area queued to a human operator, e.g. `inbox.approval`). Mirror of Java'
   manual replies are the interceptor pattern). Workspace 250 / clippy 0 / fmt;
   span-signature acceptance re-run (rust-to-rust empty diff — the reserved route is
   zero-traced, signature unchanged).
+
+---
+
+## Increment 67 — Collection plugins mirror: isEmpty, getFirst, getLast (2026-07-23)
+
+Team-contributed to the Java engine (mercury-composable PR #220, author Chris H) and
+mirrored here per Eric's ruling: Event Script flows are engine-portable YAML and this
+port has the full simple-plugin system, so `f:isEmpty(...)` must behave identically on
+both engines — including ERROR TEXT, which DevSecOps teams read in aggregated logs
+(presentation parity extends to error messages).
+
+- `isEmpty` — exactly one input; Collection/Map/String/array (the byte-array `Binary`
+  is the primitive-array analog) → boolean; null input or an unsupported type is an
+  error with the Java message ("Input cannot be null to check if value is empty" /
+  "Unsupported input type to check if value is empty: <Type>") — null checks belong to
+  `isNull`/`notNull` per the house convention.
+- `getFirst`/`getLast` — exactly one input; a non-empty List → its first/last element;
+  null, non-list, or empty list errors match the Java messages verbatim.
+- Registered in the built-in table (the loader reports 45 built-ins now); test twins of
+  the Java suites (positives across all supported types incl. empty/non-empty byte
+  arrays; every invalid case asserting the exact message; registry discovery). Docs:
+  syntax guide's Built-in Plugins table gains the **Collection** category (Java wording);
+  hello-flow README count. Workspace 252 / clippy 0 / fmt.
 
 ---
 

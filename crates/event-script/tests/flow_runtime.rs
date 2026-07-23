@@ -434,11 +434,31 @@ fn json_body(reply: &EventEnvelope) -> serde_json::Value {
 
 // ---- the E2E scenarios ----
 
+/// One-time process setup shared by EVERY test in this binary (the same
+/// `Once` pattern as compiler.rs / mapping_engine.rs). Tests run in parallel
+/// threads, and the FIRST touch of `AppConfigReader` freezes the resource
+/// roots into the config snapshot — `Platform::new()` touches the config
+/// through the reply-listener registration (its worker resolves
+/// `skip.rpc.tracing`), so a test that skipped this setup could freeze the
+/// snapshot WITHOUT `tests/resources`: `yaml.flow.automation` would fall back
+/// to the single default manifest and the more-flows/rust-flows fixtures
+/// would never load ("Flow dynamic-reserved-key not found" — seen on slow CI
+/// runners). Every test body must call this first.
+fn setup_config() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        platform_core::resources::prepend_resource_root("tests/resources");
+        let holding =
+            std::env::temp_dir().join(format!("mercury-flow-test-{}", std::process::id()));
+        platform_core::overrides::set("transient.data.store", &holding.display().to_string());
+        // pin the configuration snapshot NOW, with the test root in place
+        let _ = platform_core::AppConfigReader::get_instance();
+    });
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flows_run_end_to_end_like_java() {
-    platform_core::resources::prepend_resource_root("tests/resources");
-    let holding = std::env::temp_dir().join(format!("mercury-flow-test-{}", std::process::id()));
-    platform_core::overrides::set("transient.data.store", &holding.display().to_string());
+    setup_config();
     // the one-liner lifecycle collects the engine (compiler/manager/executor)
     // and every task function above from the annotation inventory
     AutoStart::main(vec![]).await.expect("lifecycle");
@@ -1316,6 +1336,7 @@ async fn flows_run_end_to_end_like_java() {
 /// "Missing body in dataset" from both launch() and request().
 #[tokio::test]
 async fn flow_launch_requires_a_body_in_the_dataset() {
+    setup_config();
     let platform = Platform::new();
     let no_body = from_json(&serde_json::json!({"header": {}}));
     let err = FlowExecutor::request(

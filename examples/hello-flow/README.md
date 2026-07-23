@@ -13,7 +13,7 @@ binds the endpoint to the flow with one line:
 ```
 
 Linking the `event-script` crate self-registers the whole engine (compiler,
-manager, task executor, HTTP adapter, resilience handler, 42 built-in
+manager, task executor, HTTP adapter, resilience handler, 45 built-in
 plugins) through the same annotation inventory that collects the app's own
 functions — `main()` is still one line.
 

@@ -1424,6 +1424,9 @@ For example:
 | **Logical**         | startsWith      | Two strings, case insensitive.                                                                                        |
 | **Logical**         | endsWith        | Two strings, case insensitive.                                                                                        |
 | **Logical**         | includes        | Two strings, case insensitive OR one list and one string                                                              |
+| **Collection**      | isEmpty         | A single Collection, Map, String or array — true when it has no elements. Use `isNull` / `notNull` for null checks; a null or unsupported input is an error. |
+| **Collection**      | getFirst        | A single non-empty List — returns its first element.                                                                  |
+| **Collection**      | getLast         | A single non-empty List — returns its last element.                                                                   |
 | **Type Conversion** | b64             | Either a base64 encoded String, OR a byte array.                                                                      |
 | **Type Conversion** | binary          | Either a byte[], Map or String                                                                                        |
 | **Type Conversion** | length          | Either a byte[], List or String                                                                                       |
