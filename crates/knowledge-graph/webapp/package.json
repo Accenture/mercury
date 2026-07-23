@@ -21,7 +21,7 @@
     "react-json-view-lite": "^2.5.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.6.5",
-    "react-router-dom": "^7.16.0",
+    "react-router-dom": "^7.18.1",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
