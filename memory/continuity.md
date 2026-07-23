@@ -129,7 +129,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
   → serves: vision-mercury
   <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
-- [ ] **(blueprint)** **Synchronous AI-companion feedback** — make the companion a real AI *tool*, not
+- [x] **(blueprint)** **Synchronous AI-companion feedback — CLOSED 2026-07-23 (human gate
+  approved by Eric 2026-07-22: gap already complete and merged in both ports per the
+  thread's own text, validated by earlier testing).** Original thread text: make the
+  companion a real AI *tool*, not
   a write-then-poll bus. The current `POST /api/companion/{id}` is fire-and-forget (`{status:accepted}`);
   command outcome + errors stream WS-only, so an AI caller is blind (Tut-4: HTTP 200 while the run had
   aborted). Design: an **additive** `POST /api/companion/{id}/sync` returning a structured envelope
