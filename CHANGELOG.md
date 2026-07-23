@@ -11,11 +11,26 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.10.1, 7/23/2026
+
+Patch release: **telemetry presentation parity with the Java reference engine**. Field
+installations stay polyglot — DevSecOps teams aggregate both engines' telemetry and logs
+in one place — so the trace-record topology and log presentation of this port must be an
+**exact structural replica** of the Java engine's. After this release they are: the
+normalized-signature diff is **empty in all four direction combinations** (java→java,
+rust→rust, java→rust, rust→java; both calling patterns, incl. authentication). The
+`/api/event` edge is a visible span aligned with the Java reference, the application log
+context appears only on lines with a real request trace, the declarative demo endpoint is
+renamed for symmetry, the new `event.api.auth` demo shows endpoint protection with
+session-info forwarding, and the full interop story — evidence, defects, fixes, and the
+learnings kept as a playbook for future language ports — is deposited in this repo's docs
+as the [Interop Test Report](docs/test-reports/event-over-http-interop.md). All changes
+in PR [#169](https://github.com/Accenture/mercury/pull/169).
 
 ### Added
 
-1. **Event-over-HTTP authentication demo.** The hello-world example overrides the default
+1. **Event-over-HTTP authentication demo
+   ([#169](https://github.com/Accenture/mercury/pull/169)).** The hello-world example overrides the default
    `/api/event` endpoint with a demo authentication service (`event.api.auth`) that
    validates the caller's `authorization` header against a shared secret resolved from
    the environment (`demo.peer.token: ${DEMO_PEER_TOKEN:demo}` on both peers — no
@@ -29,10 +44,12 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Changed
 
-1. **The declarative demo endpoint is renamed for symmetry with its programmatic twin:**
+1. **The declarative demo endpoint is renamed for symmetry with its programmatic twin
+   ([#169](https://github.com/Accenture/mercury/pull/169)):**
    `/api/event/http/demo` → `/api/event/http/declarative` and flow id
    `event-over-http-demo` → `event-over-http-declarative` in the hello-flow example.
-2. **REST automation dispatches the endpoint service as a CALLBACK** (Java `HttpRouter`
+2. **REST automation dispatches the endpoint service as a CALLBACK
+   ([#169](https://github.com/Accenture/mercury/pull/169))** (Java `HttpRouter`
    parity): the event carries `reply_to = async.http.response` and its `cid` is the HTTP
    context id, while the business correlation-id rides the `my_correlation_id` envelope
    header (the worker's trace bracket prefers it, so `po.my_correlation_id()` is
@@ -46,16 +63,19 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Fixed
 
-1. **The application log context no longer leaks onto context-less lines.** The
+1. **The application log context no longer leaks onto context-less lines
+   ([#169](https://github.com/Accenture/mercury/pull/169)).** The
    `context` block appears ONLY on log lines emitted inside a traced function execution
    with a real request trace (Java parity: the log context registers per worker
    execution in lockstep with the trace bracket). Telemetry records and framework/system
    lines carry no context block at all — previously they carried a partial block with
    constants and a timestamp.
-2. **Reserved `my_*` metadata is stripped from HTTP response headers** (Java
+2. **Reserved `my_*` metadata is stripped from HTTP response headers
+   ([#169](https://github.com/Accenture/mercury/pull/169))** (Java
    `copyResponseHeaders` protected-metadata parity): `my_route`, `my_trace_id`,
    `my_trace_path` and `my_correlation_id` never reach the wire.
-3. **The Event-over-HTTP client returns a non-envelope response as-is** (e.g. an
+3. **The Event-over-HTTP client returns a non-envelope response as-is
+   ([#169](https://github.com/Accenture/mercury/pull/169))** (e.g. an
    authentication-layer 401 in the REST error shape) with its HTTP status, instead of
    failing with "Invalid event-over-http response" (Java `handleFutureResponse` parity).
 
