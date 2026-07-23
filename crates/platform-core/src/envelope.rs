@@ -300,6 +300,10 @@ impl EventEnvelope {
         self.span_id = Some(span_id.to_string());
     }
 
+    pub(crate) fn clear_span_id_internal(&mut self) {
+        self.span_id = None;
+    }
+
     // ---- wire format ----
 
     /// Encode the envelope as MsgPack bytes (idiomatic serde — design D4).

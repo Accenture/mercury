@@ -178,15 +178,22 @@ async fn traced_request_produces_span_lineage_across_two_hops() {
     // the response carries the trace context back (applyTraceContext parity)
     assert_eq!(response.trace_id(), Some(trace_id.as_str()));
     assert!(response.span_id().is_some());
-    // two spans arrive: one per traced hop
-    let all = wait_for_datasets(&datasets, 2).await;
+    // four datasets arrive: one WORKER record per traced hop plus one
+    // caller-side RPC record (round_trip) per RPC — the test's request for
+    // v1.first.hop and the first hop's nested request for v1.second.hop
+    let all = wait_for_datasets(&datasets, 4).await;
+    // a worker record has no round_trip; an RPC record always does
     let first = all
         .iter()
-        .find(|d| trace_of(d)["service"] == "v1.first.hop")
+        .find(|d| {
+            trace_of(d)["service"] == "v1.first.hop" && !trace_of(d).contains_key("round_trip")
+        })
         .expect("first hop span");
     let second = all
         .iter()
-        .find(|d| trace_of(d)["service"] == "v1.second.hop")
+        .find(|d| {
+            trace_of(d)["service"] == "v1.second.hop" && !trace_of(d).contains_key("round_trip")
+        })
         .expect("second hop span");
     // same trace, OTel-shaped ids
     assert_eq!(trace_of(first)["id"], serde_json::json!(trace_id));
@@ -213,6 +220,31 @@ async fn traced_request_produces_span_lineage_across_two_hops() {
     // business correlation-id propagated to BOTH hops
     assert_eq!(cid_a.lock().unwrap().as_deref(), Some("order-42"));
     assert_eq!(cid_b.lock().unwrap().as_deref(), Some("order-42"));
+    // the caller-side RPC record for the nested hop (Java InboxBase.recordTrace)
+    // chains like a worker record: span_id = the callee's own span (from the
+    // reply), parent_span_id = the caller's span (from the outbound request)
+    let second_rpc = all
+        .iter()
+        .find(|d| {
+            trace_of(d)["service"] == "v1.second.hop" && trace_of(d).contains_key("round_trip")
+        })
+        .expect("second hop RPC record");
+    assert_eq!(
+        trace_of(second_rpc)["span_id"],
+        trace_of(second)["span_id"],
+        "RPC record must carry the callee's own span"
+    );
+    assert_eq!(
+        trace_of(second_rpc)["parent_span_id"].as_str().unwrap(),
+        first_span,
+        "RPC record must chain onto the caller's span"
+    );
+    assert_eq!(
+        trace_of(second_rpc)["from"],
+        serde_json::json!("v1.first.hop")
+    );
+    assert_eq!(trace_of(second_rpc)["success"], serde_json::json!(true));
+    assert!(trace_of(second_rpc)["round_trip"].is_number());
 }
 
 #[tokio::test]
@@ -428,15 +460,40 @@ async fn zero_traced_route_preserves_trace_continuity() {
     assert_eq!(recorded[0].0.as_deref(), Some("trace-through-zero"));
     assert_eq!(recorded[0].1.as_deref(), Some("GET /zero"));
     assert_eq!(recorded[0].2, None, "zero-traced hop must not mint a span");
-    // exactly ONE telemetry dataset: the recorder's own execution — the
-    // zero-traced relay emitted none
-    let all = wait_for_datasets(&datasets, 1).await;
+    // exactly TWO telemetry datasets: the recorder's own worker record plus
+    // the TEST's caller-side RPC record about the relay (Java parity: the
+    // caller's inbox records a traced RPC whatever the target's tracing
+    // posture). The zero-traced relay itself emitted NOTHING — no worker
+    // record, and its nested RPC record is suppressed by the zero-traced
+    // bracket (its outbound events carry no span; in Java they carry no
+    // trace at all, so no inbox record either).
+    let all = wait_for_datasets(&datasets, 2).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
     let all_after = datasets.lock().expect("capture mutex").clone();
     assert_eq!(all_after.len(), all.len(), "no late datasets expected");
-    assert!(all_after
+    let worker_records: Vec<_> = all_after
         .iter()
-        .all(|d| trace_of(d)["service"] == "v1.trace.recorder"));
+        .filter(|d| !trace_of(d).contains_key("round_trip"))
+        .collect();
+    assert_eq!(worker_records.len(), 1, "only the recorder emits a span");
+    assert_eq!(
+        trace_of(worker_records[0])["service"],
+        serde_json::json!("v1.trace.recorder")
+    );
+    // the RPC record about the zero-traced relay carries NO span_id — the
+    // relay owns no span, so its reply carries none
+    let rpc_record = all_after
+        .iter()
+        .find(|d| trace_of(d).contains_key("round_trip"))
+        .expect("the test caller's RPC record");
+    assert_eq!(
+        trace_of(rpc_record)["service"],
+        serde_json::json!("v1.zero.relay")
+    );
+    assert!(
+        !trace_of(rpc_record).contains_key("span_id"),
+        "a zero-traced callee contributes no span to the RPC record"
+    );
 }
 
 /// A function that schedules a delayed send and returns immediately — the
@@ -578,4 +635,97 @@ async fn explicit_trace_identity_survives_ambient_bracket() {
     // the sender's span still rides the event (Java: span is stamped
     // unconditionally so the receiver knows its parent)
     assert!(recorded[0].2.is_some());
+}
+
+// ---- RPC telemetry span lineage (Java PostOfficeTest.rpcTelemetryCarriesSpanLineage) ----
+
+/// Regression twin of the Java fix (commit `04e5618f`): the RPC trace record
+/// (the one carrying `round_trip`) must chain like a worker-emitted record —
+/// `span_id` is the callee's own span (carried on the RPC reply) and
+/// `parent_span_id` is the caller's span (carried on the outbound request).
+/// A traced parent function makes a nested RPC to a leaf; the leaf's RPC
+/// record must carry both fields, with `parent_span_id` equal to the parent
+/// function's own span.
+#[tokio::test]
+async fn rpc_telemetry_carries_span_lineage() {
+    setup_config();
+    let (platform, datasets) = capture_platform();
+    struct Leaf;
+    #[async_trait]
+    impl ComposableFunction for Leaf {
+        async fn handle_event(
+            &self,
+            _h: HashMap<String, String>,
+            _i: EventEnvelope,
+            _n: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            EventEnvelope::new().set_body("ok")
+        }
+    }
+    platform
+        .register("span.lineage.leaf", Arc::new(Leaf), 1)
+        .unwrap();
+    platform
+        .register(
+            "span.lineage.parent",
+            Arc::new(Hop {
+                platform: platform.clone(),
+                next: Some("span.lineage.leaf"),
+                seen_cid: Arc::new(Mutex::new(None)),
+                annotate: None,
+            }),
+            1,
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let trace_id = trace::new_trace_id();
+    let response = po
+        .request(
+            EventEnvelope::new()
+                .set_to("span.lineage.parent")
+                .set_trace(&trace_id, "GET /api/span/lineage")
+                .set_body("start")
+                .unwrap(),
+            Duration::from_secs(8),
+        )
+        .await
+        .unwrap();
+    // the reply itself now reports the measured round trip (Java parity)
+    assert!(response.round_trip().is_some());
+    // worker records: parent + leaf; RPC records: parent (by the test) + leaf
+    // (by the parent function) = four datasets
+    let all = wait_for_datasets(&datasets, 4).await;
+    let leaf_rpc = all
+        .iter()
+        .find(|d| {
+            trace_of(d)["service"] == "span.lineage.leaf" && trace_of(d).contains_key("round_trip")
+        })
+        .expect("the RPC trace record for the leaf must arrive");
+    let parent_worker = all
+        .iter()
+        .find(|d| {
+            trace_of(d)["service"] == "span.lineage.parent"
+                && !trace_of(d).contains_key("round_trip")
+        })
+        .expect("the parent's worker record must arrive");
+    let leaf = trace_of(leaf_rpc);
+    assert_eq!(leaf["id"], serde_json::json!(trace_id));
+    assert!(
+        leaf["span_id"].is_string(),
+        "the RPC record carries the callee's own span"
+    );
+    assert!(
+        leaf["parent_span_id"].is_string(),
+        "the RPC record chains onto the caller's span"
+    );
+    assert_eq!(
+        leaf["parent_span_id"],
+        trace_of(parent_worker)["span_id"],
+        "the leaf's parent is the parent function's own span"
+    );
+    assert_eq!(leaf["from"], serde_json::json!("span.lineage.parent"));
+    assert!(leaf["round_trip"].is_number());
+    assert!(leaf["exec_time"].is_number());
+    assert_eq!(leaf["path"], serde_json::json!("GET /api/span/lineage"));
+    assert_eq!(leaf["success"], serde_json::json!(true));
 }

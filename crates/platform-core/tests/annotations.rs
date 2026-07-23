@@ -139,6 +139,31 @@ impl ComposableFunction for AnnoPublicEcho {
     }
 }
 
+/// Comma-separated route ALIASES (Java `@PreLoad(route = "a.b, c.d")`): the
+/// same function object registers under every name with the same instance
+/// count and visibility. The counter proves both routes reach this handler.
+#[preload(
+    route = "anno.alias.one, anno.alias.two",
+    instances = 3,
+    is_private = false
+)]
+struct AliasedEcho;
+
+static ALIAS_CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[async_trait]
+impl ComposableFunction for AliasedEcho {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        ALIAS_CALLS.fetch_add(1, Ordering::SeqCst);
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
 /// The interceptor flag (Java @PreLoad + @EventInterceptor): manual reply
 /// through the raw envelope's reply_to/cid; no auto-reply on success.
 #[preload(route = "anno.interceptor")]
@@ -405,4 +430,32 @@ async fn annotation_macros_end_to_end() {
         .await
         .expect("interceptor manual reply");
     assert_eq!(reply.body_as::<String>().expect("manual reply"), "manual");
+
+    // comma-separated route aliases (Java @PreLoad(route = "a.b, c.d")):
+    // both names registered, same instance count, same (public) visibility
+    assert!(platform.has_route("anno.alias.one"));
+    assert!(platform.has_route("anno.alias.two"));
+    assert_eq!(platform.instances("anno.alias.one"), Some(3));
+    assert_eq!(platform.instances("anno.alias.two"), Some(3));
+    assert_eq!(platform.is_private("anno.alias.one"), Some(false));
+    assert_eq!(platform.is_private("anno.alias.two"), Some(false));
+    // both aliases are callable and reach the SAME handler
+    for alias in ["anno.alias.one", "anno.alias.two"] {
+        let reply = po
+            .request(
+                EventEnvelope::new()
+                    .set_to(alias)
+                    .set_body(alias)
+                    .expect("body"),
+                Duration::from_secs(2),
+            )
+            .await
+            .expect("alias rpc");
+        assert_eq!(reply.body_as::<String>().expect("alias reply"), alias);
+    }
+    assert_eq!(
+        ALIAS_CALLS.load(Ordering::SeqCst),
+        2,
+        "one shared handler must have served both aliases"
+    );
 }

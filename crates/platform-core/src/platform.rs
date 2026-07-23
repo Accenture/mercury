@@ -614,8 +614,12 @@ async fn worker_loop(
                 normalize_null_transport(&mut response);
                 if let Some((trace_id, trace_path, span_id)) = trace_triple {
                     response.set_trace_internal(&trace_id, &trace_path);
-                    if let Some(span_id) = span_id {
-                        response.set_span_id_internal(&span_id);
+                    match span_id {
+                        Some(span_id) => response.set_span_id_internal(&span_id),
+                        // a zero-traced hop owns no span — and must not leak
+                        // a nested reply's span as its own (Java rebuilds the
+                        // response envelope, so its reply never carries one)
+                        None => response.clear_span_id_internal(),
                     }
                 }
                 // a lightweight RPC inbox (Java AsyncInbox parity) bypasses the
@@ -660,6 +664,14 @@ fn is_zero_traced(route: &str) -> bool {
     if crate::telemetry::ZERO_TRACING_FILTER.contains(&route) || route.starts_with("inbox.") {
         return true;
     }
+    in_skip_rpc_tracing_list(route)
+}
+
+/// Whether a route is listed in `skip.rpc.tracing` (default
+/// `async.http.request`) — shared by the worker's zero-trace resolution above
+/// and the caller-side RPC `round_trip` record (Java `InboxBase.getSkipTracing`
+/// reads the same key).
+pub(crate) fn in_skip_rpc_tracing_list(route: &str) -> bool {
     AppConfigReader::get_instance()
         .get_property_or("skip.rpc.tracing", "async.http.request")
         .split([',', ' '])

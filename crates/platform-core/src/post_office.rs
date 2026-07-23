@@ -282,6 +282,11 @@ impl PostOffice {
             .correlation_id()
             .map(str::to_string)
             .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
+        // capture the RPC trace identity before the send consumes the event
+        // (Java AsyncInbox constructor: to, from, traceId, tracePath, and the
+        // caller's span riding the outbound request — the callee's parent)
+        let rpc_trace = RpcTraceCapture::of(&event);
+        let begin = std::time::Instant::now();
         let event = event.set_reply_to(&inbox_id).set_correlation_id(&cid);
         if let Err(e) = self.send(event).await {
             crate::inbox::close(&inbox_id);
@@ -289,7 +294,16 @@ impl PostOffice {
         }
         let outcome = tokio::time::timeout(timeout, rx).await;
         match outcome {
-            Ok(Ok(response)) => Ok(response),
+            Ok(Ok(response)) => {
+                // the requester measures the full request/response cycle
+                // (Java AsyncInbox.saveResponse: reply.setRoundTrip(diff)),
+                // standardized to 3 decimal points like exec_time
+                let diff = begin.elapsed().as_secs_f32() * 1000.0;
+                let diff = (diff.max(0.0) * 1000.0).round() / 1000.0;
+                let response = response.set_round_trip(diff);
+                self.record_rpc_trace(&rpc_trace, &response);
+                Ok(response)
+            }
             Ok(Err(_)) => Err(AppError::new(500, "Reply channel closed unexpectedly")),
             Err(_) => {
                 crate::inbox::close(&inbox_id);
@@ -299,5 +313,150 @@ impl PostOffice {
                 ))
             }
         }
+    }
+
+    /// Emit the caller-side RPC trace record — the dataset carrying
+    /// `round_trip` — to the `distributed.tracing` sink (Java
+    /// `InboxBase.recordTrace`, invoked from `AsyncInbox.saveResponse`).
+    ///
+    /// Emitted only for a **traced** RPC (the outbound event carried a trace
+    /// id and path) whose target service is not in `skip.rpc.tracing`, and
+    /// never from inside a zero-traced bracket (a zero-traced hop emits no
+    /// telemetry; in Java its outbound events carry no trace, so no record).
+    /// Span lineage mirrors the Java fix (commit `04e5618f`): `span_id` = the
+    /// callee's own span carried on the RPC reply; `parent_span_id` = the
+    /// caller's span captured from the outbound request — so the round-trip
+    /// record chains into the span tree like any worker-emitted record.
+    ///
+    /// Parity note: Java moves the reply envelope's `annotations` into this
+    /// record. In this port annotations never ride the reply — they flow with
+    /// the callee's own worker-emitted record — so the field is absent here.
+    fn record_rpc_trace(&self, rpc: &RpcTraceCapture, reply: &EventEnvelope) {
+        let (Some(to), Some(trace_id), Some(trace_path)) =
+            (&rpc.to, &rpc.trace_id, &rpc.trace_path)
+        else {
+            return; // not a traced RPC
+        };
+        // a zero-traced hop must not emit telemetry (its trace context flows
+        // for continuity only — see the worker's trace bracket)
+        if trace::with_current(|state| state.zero_traced).unwrap_or(false) {
+            return;
+        }
+        let service = trim_origin(to).to_string();
+        if crate::platform::in_skip_rpc_tracing_list(&service) {
+            return;
+        }
+        if !self
+            .platform
+            .has_route(crate::telemetry::DISTRIBUTED_TRACING)
+        {
+            return; // no telemetry sink on this platform
+        }
+        let mut metrics = serde_json::Map::new();
+        let mut put = |k: &str, v: serde_json::Value| {
+            metrics.insert(k.to_string(), v);
+        };
+        put(
+            "origin",
+            serde_json::Value::String(Platform::origin().to_string()),
+        );
+        put("id", serde_json::Value::String(trace_id.clone()));
+        put("service", serde_json::Value::String(service));
+        if let Some(from) = &rpc.from {
+            put(
+                "from",
+                serde_json::Value::String(trim_origin(from).to_string()),
+            );
+        }
+        // span lineage of the RPC (omitted when unavailable, Java parity)
+        if let Some(span_id) = reply.span_id() {
+            put("span_id", serde_json::Value::String(span_id.to_string()));
+        }
+        if let Some(parent) = &rpc.parent_span {
+            put("parent_span_id", serde_json::Value::String(parent.clone()));
+        }
+        if let Some(exec_time) = reply.exec_time() {
+            put(
+                "exec_time",
+                serde_json::Value::from(((exec_time as f64) * 1000.0).round() / 1000.0),
+            );
+        }
+        if let Some(round_trip) = reply.round_trip() {
+            put(
+                "round_trip",
+                serde_json::Value::from(((round_trip as f64) * 1000.0).round() / 1000.0),
+            );
+        }
+        put("start", serde_json::Value::String(rpc.start.clone()));
+        put("path", serde_json::Value::String(trace_path.clone()));
+        let status = reply.status();
+        put("status", serde_json::Value::from(status));
+        if status >= 400 {
+            put("success", serde_json::Value::Bool(false));
+            // data privacy (Java parity): only a recognized plain error
+            // message is shown; any structured error body is masked
+            let message = match reply.body() {
+                rmpv::Value::String(s) => s.as_str().unwrap_or("***").to_string(),
+                _ => "***".to_string(),
+            };
+            put("exception", serde_json::Value::String(message));
+        } else {
+            put("success", serde_json::Value::Bool(true));
+        }
+        let mut dataset = serde_json::Map::new();
+        dataset.insert("trace".to_string(), serde_json::Value::Object(metrics));
+        // fire-and-forget like Java's EventEmitter.send — never delays the
+        // caller's RPC completion; delivery failures are logged only
+        let platform = self.platform.clone();
+        tokio::spawn(async move {
+            match EventEnvelope::new()
+                .set_to(crate::telemetry::DISTRIBUTED_TRACING)
+                .set_body(serde_json::Value::Object(dataset))
+            {
+                Ok(event) => {
+                    if let Err(e) = platform
+                        .deliver(crate::telemetry::DISTRIBUTED_TRACING, event)
+                        .await
+                    {
+                        log::error!("Unable to send to distributed.tracing - {}", e.message());
+                    }
+                }
+                Err(e) => log::error!("Unable to send to distributed.tracing - {}", e.message()),
+            }
+        });
+    }
+}
+
+/// The RPC trace identity captured when the request is sent (Java
+/// `AsyncInbox`'s constructor fields + `InboxMetadata`).
+struct RpcTraceCapture {
+    to: Option<String>,
+    from: Option<String>,
+    trace_id: Option<String>,
+    trace_path: Option<String>,
+    /// The caller's span riding the outbound request — the callee's parent.
+    parent_span: Option<String>,
+    /// ISO-8601 UTC time the RPC began.
+    start: String,
+}
+
+impl RpcTraceCapture {
+    fn of(event: &EventEnvelope) -> Self {
+        RpcTraceCapture {
+            to: event.to().map(str::to_string),
+            from: event.from().map(str::to_string),
+            trace_id: event.trace_id().map(str::to_string),
+            trace_path: event.trace_path().map(str::to_string),
+            parent_span: event.span_id().map(str::to_string),
+            start: trace::iso8601_utc_now(),
+        }
+    }
+}
+
+/// Trim an `@origin` suffix from a route (Java `InboxBase.trimOrigin`).
+fn trim_origin(route: &str) -> &str {
+    match route.find('@') {
+        Some(at) => &route[..at],
+        None => route,
     }
 }

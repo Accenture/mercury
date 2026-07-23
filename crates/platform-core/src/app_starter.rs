@@ -401,16 +401,23 @@ impl AutoStart {
                 .and_then(|key| config.get_property(key))
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(entry.instances);
-            starter = starter.preload_with_options(
-                entry.route,
-                (entry.factory)(),
-                instances,
-                FunctionOptions {
-                    zero_traced: entry.zero_tracing,
-                    interceptor: entry.interceptor,
-                    private: entry.is_private,
-                },
-            );
+            // a comma-separated route value declares ALIASES: every name
+            // registers the SAME function object with the same instance
+            // count and visibility (Java AppStarter splits @PreLoad.route
+            // and registers one instance for all names)
+            let function = (entry.factory)();
+            for route in entry.route.split(',').map(str::trim) {
+                starter = starter.preload_with_options(
+                    route,
+                    function.clone(),
+                    instances,
+                    FunctionOptions {
+                        zero_traced: entry.zero_tracing,
+                        interceptor: entry.interceptor,
+                        private: entry.is_private,
+                    },
+                );
+            }
         }
         for entry in inventory::iter::<crate::registry::MainAppEntry> {
             // Java @OptionalService: skip a conditionally-run main application

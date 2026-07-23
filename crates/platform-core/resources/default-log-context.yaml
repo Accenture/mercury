@@ -1,0 +1,18 @@
+#
+# Built-in default application log context.
+#
+# The log-context feature is ON by default using this template. It applies to the
+# structured JSON log formats (log.format=json or compact).
+#
+# To customize the context block, provide your own app-log-context.yaml in the
+# application's resources/ folder - it replaces this default entirely.
+# To turn the feature off, set app.log.context=false in the application configuration.
+#
+context:
+  cid: $cid
+  traceId: $traceId
+  tracePath: $tracePath
+  spanId: $spanId
+  parentSpanId: $parentSpanId
+  service: $service
+  timestamp: $utc

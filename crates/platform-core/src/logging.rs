@@ -19,11 +19,14 @@
 //! (`org.platformlambda.core.logging`).
 //!
 //! Spans tell you the causal path; application logs tell you what happened
-//! inside each step. When the optional **`app-log-context.yaml`** is present
-//! on the resource path, every structured (JSON) log line emitted inside a
-//! traced function carries a `context` block — correlation id, trace/span
-//! ids, service name, and any business key-values added via
-//! `PostOffice::update_context` — so logs and spans join up in the backend.
+//! inside each step. The log-context feature is **on by default**: the crate
+//! ships a built-in `default-log-context.yaml` (embedded at compile time)
+//! carrying the standard trace context, so every structured (JSON) log line
+//! emitted inside a traced function carries a `context` block — correlation
+//! id, trace/span ids, service name, and any business key-values added via
+//! `PostOffice::update_context` — with zero setup. An application replaces
+//! the template with its own **`app-log-context.yaml`** on the resource path,
+//! or opts out entirely with `app.log.context=false` (default `true`).
 //!
 //! The template maps an output key (your choice) to one of three forms:
 //! a reserved **`$token`** (`$cid`, `$traceId`, `$tracePath`, `$spanId`,
@@ -49,9 +52,18 @@ use crate::util::app_config_reader::AppConfigReader;
 use crate::util::config_reader::{ConfigError, ConfigReader};
 
 const CONFIG_FILE: &str = "classpath:/app-log-context.yaml";
+/// The built-in default template (Java `default-log-context.yaml`), shipped
+/// under a DISTINCT file name from the application override. Java keeps the
+/// two names apart because same-named classpath resources shadow in
+/// classloader order; this port embeds the default at compile time — the
+/// same defensive design, enforced by the compiler.
+const DEFAULT_TEMPLATE: &str = include_str!("../resources/default-log-context.yaml");
+/// Feature switch (Java `app.log.context`), default `true`.
+const FEATURE_FLAG: &str = "app.log.context";
 const CONTEXT: &str = "context";
 
-/// Parsed `app-log-context.yaml` template (Java `LogContextConfig`).
+/// Parsed log-context template (Java `LogContextConfig`) — the application's
+/// `app-log-context.yaml` when present, otherwise the built-in default.
 pub struct LogContextConfig {
     enabled: bool,
     /// output key → reserved token name (without the `$`), resolved per line
@@ -66,21 +78,36 @@ impl LogContextConfig {
     /// (Java parity).
     pub fn instance() -> &'static LogContextConfig {
         static INSTANCE: OnceLock<LogContextConfig> = OnceLock::new();
-        INSTANCE.get_or_init(|| {
-            let _ = AppConfigReader::get_instance();
-            match ConfigReader::load(CONFIG_FILE) {
-                Ok(reader) => LogContextConfig::from_reader(&reader),
-                Err(ConfigError::NotFound(_)) => {
-                    // optional config file absent — feature stays off
-                    log::debug!("Optional {CONFIG_FILE} not found - log context feature disabled");
-                    LogContextConfig::disabled()
-                }
-                Err(e) => {
-                    log::error!("Unable to load {CONFIG_FILE} - {e}");
-                    LogContextConfig::disabled()
+        INSTANCE.get_or_init(Self::load_config_file)
+    }
+
+    /// Resolve the template with the Java `LogContextConfig.loadConfigFile`
+    /// order: the `app.log.context` switch (default on) → the application's
+    /// own `app-log-context.yaml` (replaces the template entirely) → the
+    /// built-in default, so the feature is on out of the box.
+    fn load_config_file() -> LogContextConfig {
+        let config = AppConfigReader::get_instance();
+        if config.get_property_or(FEATURE_FLAG, "true") == "false" {
+            log::info!("Application log context disabled by {FEATURE_FLAG}=false");
+            return LogContextConfig::disabled();
+        }
+        match ConfigReader::load(CONFIG_FILE) {
+            Ok(reader) => LogContextConfig::from_reader(&reader),
+            Err(ConfigError::NotFound(_)) => {
+                // no application override — fall back to the built-in default
+                match ConfigReader::from_yaml_text(DEFAULT_TEMPLATE) {
+                    Ok(reader) => LogContextConfig::from_reader(&reader),
+                    Err(e) => {
+                        log::warn!("Built-in default-log-context.yaml invalid - {e}");
+                        LogContextConfig::disabled()
+                    }
                 }
             }
-        })
+            Err(e) => {
+                log::error!("Unable to load {CONFIG_FILE} - {e}");
+                LogContextConfig::disabled()
+            }
+        }
     }
 
     fn disabled() -> Self {
@@ -339,5 +366,61 @@ mod tests {
         assert!(matches!(LogFormat::resolve("compact"), LogFormat::Compact));
         assert!(matches!(LogFormat::resolve("text"), LogFormat::Text));
         assert!(matches!(LogFormat::resolve("unknown"), LogFormat::Text)); // safe default
+    }
+
+    /// One sequential test for the three `load_config_file` outcomes — the
+    /// resolution reads process-global state (overrides, resource roots), so
+    /// the cases must not run as parallel tests.
+    #[test]
+    fn log_context_is_on_by_default_overridable_and_can_opt_out() {
+        // 1. DEFAULT-ON: no app-log-context.yaml on the resource path (this
+        // crate's own resources/ has none) → the built-in default template
+        // enables the feature with the standard trace-context keys
+        let config = LogContextConfig::load_config_file();
+        assert!(config.is_enabled(), "log context must be ON by default");
+        let token_keys: Vec<&str> = config.tokens.iter().map(|(k, _)| k.as_str()).collect();
+        for expected in [
+            "cid",
+            "traceId",
+            "tracePath",
+            "spanId",
+            "parentSpanId",
+            "service",
+            "timestamp",
+        ] {
+            assert!(
+                token_keys.contains(&expected),
+                "built-in template must carry '{expected}'"
+            );
+        }
+        assert!(
+            config.constants.is_empty(),
+            "built-in default has no constants"
+        );
+
+        // 2. OPT-OUT: app.log.context=false disables the feature entirely
+        crate::util::overrides::set(FEATURE_FLAG, "false");
+        let config = LogContextConfig::load_config_file();
+        crate::util::overrides::clear(FEATURE_FLAG);
+        assert!(!config.is_enabled(), "app.log.context=false must opt out");
+
+        // 3. APP FILE OVERRIDES: an app-log-context.yaml on the resource path
+        // REPLACES the built-in template entirely (no merge)
+        let dir = std::env::temp_dir().join(format!("pc-logctx-default-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("app-log-context.yaml"),
+            "context:\n  onlyKey: $service\n",
+        )
+        .unwrap();
+        crate::util::resources::prepend_resource_root(&dir);
+        let config = LogContextConfig::load_config_file();
+        assert!(config.is_enabled());
+        assert_eq!(
+            config.tokens,
+            vec![("onlyKey".to_string(), "service".to_string())],
+            "the application template must replace the built-in default entirely"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
