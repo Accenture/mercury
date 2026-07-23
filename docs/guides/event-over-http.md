@@ -391,5 +391,14 @@ at any peer that exposes the routes.
 The full cross-language matrix — both directions, both patterns, RPC and async, error
 semantics and trace continuity — was exercised by live bidirectional interop drives
 between the two engines; the permanent record is the
-[Interop Test Report](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)
-on the Java docs site.
+[Interop Test Report](../test-reports/event-over-http-interop.md) (mirrored on the
+[Java docs site](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)).
+
+## See also
+
+- [Interop Test Report (Java ⇄ Rust)](../test-reports/event-over-http-interop.md) — the live
+  bidirectional validation of both patterns, with span-level trace evidence and the
+  learnings kept as a playbook for future language ports.
+- [REST Automation](rest-automation.md) — declarative HTTP endpoints, no controllers.
+- [EventEnvelope](event-envelope-reference.md) — the envelope and the standard wire format.
+- [Observability Model](observability.md) — the span tree and the application log context.
