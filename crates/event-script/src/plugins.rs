@@ -287,6 +287,66 @@ fn plugin_ne(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(rest.iter().any(|v| v != first)))
 }
 
+// ---- Collection operators (contributed to the Java engine in
+// mercury-composable PR #220; mirrored for flow portability — a flow using
+// f:isEmpty(...) must behave identically on both engines, including error
+// text read in aggregated logs) ----
+
+/// `f:isEmpty(value)` — true when a Collection/Map/String/array has no
+/// elements (Java `IsEmptyOperator`). Null checks belong to `isNull` /
+/// `notNull`: a null input is an error, as is an unsupported type.
+fn plugin_is_empty(args: &[Value]) -> Result<Value, String> {
+    let [value] = args else {
+        return Err("One input is required to check if value is empty".to_string());
+    };
+    match value {
+        Value::Nil => Err("Input cannot be null to check if value is empty".to_string()),
+        Value::Array(items) => Ok(Value::Boolean(items.is_empty())),
+        Value::Map(entries) => Ok(Value::Boolean(entries.is_empty())),
+        Value::String(text) => Ok(Value::Boolean(
+            text.as_str().map(str::is_empty).unwrap_or(true),
+        )),
+        // the byte-array analog of a Java primitive array
+        Value::Binary(bytes) => Ok(Value::Boolean(bytes.is_empty())),
+        other => Err(format!(
+            "Unsupported input type to check if value is empty: {}",
+            value_type_name(other)
+        )),
+    }
+}
+
+/// `f:getFirst(list)` — the first element of a non-empty List (Java
+/// `GetFirstOperator`). Null, non-list or empty input is an error.
+fn plugin_get_first(args: &[Value]) -> Result<Value, String> {
+    let [value] = args else {
+        return Err("One input is required to get first item from list".to_string());
+    };
+    match value {
+        Value::Nil => Err("Input cannot be null to get first item from list".to_string()),
+        Value::Array(items) => match items.first() {
+            Some(first) => Ok(first.clone()),
+            None => Err("Input cannot be empty to get first item from list".to_string()),
+        },
+        _ => Err("Input must be a list to get first item".to_string()),
+    }
+}
+
+/// `f:getLast(list)` — the last element of a non-empty List (Java
+/// `GetLastOperator`). Null, non-list or empty input is an error.
+fn plugin_get_last(args: &[Value]) -> Result<Value, String> {
+    let [value] = args else {
+        return Err("One input is required to get last item from list".to_string());
+    };
+    match value {
+        Value::Nil => Err("Input cannot be null to get last item from list".to_string()),
+        Value::Array(items) => match items.last() {
+            Some(last) => Ok(last.clone()),
+            None => Err("Input cannot be empty to get last item from list".to_string()),
+        },
+        _ => Err("Input must be a list to get last item".to_string()),
+    }
+}
+
 fn builtin_registrations() -> HashMap<String, Registration> {
     let mut map = HashMap::new();
     let implemented: &[(&str, PluginBody)] = &[
@@ -338,6 +398,10 @@ fn builtin_registrations() -> HashMap<String, Registration> {
         ("uniqueSet", plugin_unique_set),
         ("defaultValue", plugin_default_value),
         ("validate", plugin_validate),
+        // Collection operators (Java PR #220 mirror)
+        ("isEmpty", plugin_is_empty),
+        ("getFirst", plugin_get_first),
+        ("getLast", plugin_get_last),
     ];
     for (name, body) in completed {
         map.insert(name.to_string(), Registration::Implemented(*body));
@@ -350,6 +414,123 @@ include!("plugins_e8.rs");
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Twin of the Java `IsEmptyOperatorTest` (PR #220): positives across
+    /// the supported types — incl. the byte-array analog of an empty /
+    /// non-empty primitive array — and invalid inputs with exact messages.
+    #[test]
+    fn is_empty_matches_java_semantics() {
+        // discovery: the plugin is registered under its f: name
+        assert!(contains_simple_plugin("isEmpty"));
+        let t = Value::Boolean(true);
+        let f = Value::Boolean(false);
+        // Collection (list)
+        assert_eq!(calculate("isEmpty", &[Value::Array(vec![])]), Ok(t.clone()));
+        assert_eq!(
+            calculate("isEmpty", &[Value::Array(vec![Value::from(1)])]),
+            Ok(f.clone())
+        );
+        // Map
+        assert_eq!(calculate("isEmpty", &[Value::Map(vec![])]), Ok(t.clone()));
+        assert_eq!(
+            calculate(
+                "isEmpty",
+                &[Value::Map(vec![(Value::from("k"), Value::from("v"))])]
+            ),
+            Ok(f.clone())
+        );
+        // CharSequence (string)
+        assert_eq!(calculate("isEmpty", &[Value::from("")]), Ok(t.clone()));
+        assert_eq!(calculate("isEmpty", &[Value::from("x")]), Ok(f.clone()));
+        // primitive array analog (byte array)
+        assert_eq!(
+            calculate("isEmpty", &[Value::Binary(vec![])]),
+            Ok(t.clone())
+        );
+        assert_eq!(
+            calculate("isEmpty", &[Value::Binary(vec![7u8])]),
+            Ok(f.clone())
+        );
+        // invalid inputs: exact Java-parity messages
+        assert_eq!(
+            calculate("isEmpty", &[]),
+            Err("One input is required to check if value is empty".to_string())
+        );
+        assert_eq!(
+            calculate("isEmpty", &[Value::from(""), Value::from("")]),
+            Err("One input is required to check if value is empty".to_string())
+        );
+        assert_eq!(
+            calculate("isEmpty", &[Value::Nil]),
+            Err("Input cannot be null to check if value is empty".to_string())
+        );
+        assert_eq!(
+            calculate("isEmpty", &[Value::from(42)]),
+            Err("Unsupported input type to check if value is empty: Integer".to_string())
+        );
+        assert_eq!(
+            calculate("isEmpty", &[Value::Boolean(true)]),
+            Err("Unsupported input type to check if value is empty: Boolean".to_string())
+        );
+    }
+
+    /// Twin of the Java `GetFirstOperatorTest` / `GetLastOperatorTest`
+    /// (PR #220): a single non-empty List; null, non-list or empty input is
+    /// an error with the exact message.
+    #[test]
+    fn get_first_and_get_last_match_java_semantics() {
+        assert!(contains_simple_plugin("getFirst"));
+        assert!(contains_simple_plugin("getLast"));
+        let list = Value::Array(vec![Value::from("a"), Value::from(2), Value::from("z")]);
+        assert_eq!(
+            calculate("getFirst", std::slice::from_ref(&list)),
+            Ok(Value::from("a"))
+        );
+        assert_eq!(
+            calculate("getLast", std::slice::from_ref(&list)),
+            Ok(Value::from("z"))
+        );
+        // single-element list: first == last
+        let one = Value::Array(vec![Value::from(7)]);
+        assert_eq!(
+            calculate("getFirst", std::slice::from_ref(&one)),
+            Ok(Value::from(7))
+        );
+        assert_eq!(calculate("getLast", &[one]), Ok(Value::from(7)));
+        // invalid inputs: exact Java-parity messages
+        assert_eq!(
+            calculate("getFirst", &[]),
+            Err("One input is required to get first item from list".to_string())
+        );
+        assert_eq!(
+            calculate("getLast", &[]),
+            Err("One input is required to get last item from list".to_string())
+        );
+        assert_eq!(
+            calculate("getFirst", &[Value::Nil]),
+            Err("Input cannot be null to get first item from list".to_string())
+        );
+        assert_eq!(
+            calculate("getLast", &[Value::Nil]),
+            Err("Input cannot be null to get last item from list".to_string())
+        );
+        assert_eq!(
+            calculate("getFirst", &[Value::from("not-a-list")]),
+            Err("Input must be a list to get first item".to_string())
+        );
+        assert_eq!(
+            calculate("getLast", &[Value::from(9)]),
+            Err("Input must be a list to get last item".to_string())
+        );
+        assert_eq!(
+            calculate("getFirst", &[Value::Array(vec![])]),
+            Err("Input cannot be empty to get first item from list".to_string())
+        );
+        assert_eq!(
+            calculate("getLast", &[Value::Array(vec![])]),
+            Err("Input cannot be empty to get last item from list".to_string())
+        );
+    }
 
     #[test]
     fn core_plugins_match_java_semantics() {
