@@ -15,23 +15,32 @@
 //
 
 //! The event-script taste of mercury: the transaction lives in
-//! `resources/flows/hello-flow.yml` — the two functions below are the only
-//! code, and neither knows the other exists (route-name + envelope coupling
+//! `resources/flows/hello-flow.yml` — the functions below are the only
+//! code, and none knows the others exist (route-name + envelope coupling
 //! only). Linking the `event-script` crate self-registers the flow engine
 //! through the annotation inventory; `rest.yaml` binds the endpoint to the
 //! flow with `flow: 'hello-flow'`.
 //!
+//! This example is the structural parallel of the Java `composable-example`
+//! (same port 8100, same demo endpoints). Besides the greeting flow, it
+//! ships the two **Event-over-HTTP demo endpoints** — see `README.md` and
+//! the Event over HTTP guide — whose callee is the `hello-world` example
+//! (or, interchangeably, the Java `lambda-example`) on port 8085.
+//!
 //! ```bash
 //! cargo run -p hello-flow
-//! curl 'http://127.0.0.1:8086/api/hello/eric?lang=fr'
-//! curl 'http://127.0.0.1:8086/api/hello/eric?lang=en'
+//! curl 'http://127.0.0.1:8100/api/hello/eric?lang=fr'
+//! curl 'http://127.0.0.1:8100/api/hello/eric?lang=en'
 //! ```
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use async_trait::async_trait;
+use platform_core::automation::event_over_http;
 use platform_core::{
-    main_application, preload, AppError, ComposableFunction, EntryPoint, EventEnvelope,
+    main_application, preload, AppConfigReader, AppError, ComposableFunction, EntryPoint,
+    EventEnvelope, Platform, PostOffice,
 };
 
 /// Decision task: French when `lang=fr`, English otherwise.
@@ -75,6 +84,80 @@ impl ComposableFunction for GreetingComposer {
                 "handled_by_instance": instance,
                 "served_by": "hello-flow",
             }))
+    }
+}
+
+/// The PROGRAMMATIC Event-over-HTTP demo task (the Rust twin of the Java
+/// composable-example's `EventOverHttpRpc`): calls the peer's `hello.world`
+/// function by passing the peer's Event API endpoint URL directly to the
+/// request API. Because the target address is given programmatically,
+/// `hello.world` does NOT appear in `event-over-http.yaml` — compare with
+/// `hello.declarative` (an alias of the same peer function), which is
+/// resolved through that configuration file instead. The two REST endpoints
+/// `/api/event/http/programmatic` and `/api/event/http/demo` therefore hit
+/// the same peer function through the two different patterns.
+#[preload(route = "v1.event.over.http.rpc", instances = 10)]
+struct EventOverHttpRpc;
+
+#[async_trait]
+impl ComposableFunction for EventOverHttpRpc {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let config = AppConfigReader::get_instance();
+        let host = config.get_property_or("peer.demo.host", "127.0.0.1");
+        let port = config.get_property_or("peer.demo.port", "8085");
+        let endpoint = format!("http://{host}:{port}/api/event");
+        let mut request = EventEnvelope::new()
+            .set_to("hello.world")
+            .set_raw_body(input.body().clone());
+        for (key, value) in &headers {
+            request = request.set_header(key, value);
+        }
+        let po = PostOffice::new(&Platform::get_instance());
+        let response =
+            event_over_http(&po, &endpoint, request, Duration::from_secs(10), true).await?;
+        if response.status() != 200 {
+            // surface the remote error to the flow's exception handler
+            return Err(AppError::new(
+                response.status(),
+                response
+                    .body_as::<String>()
+                    .unwrap_or_else(|_| response.body().to_string()),
+            ));
+        }
+        Ok(EventEnvelope::new().set_raw_body(response.body().clone()))
+    }
+}
+
+/// A demo exception handler for the two Event-over-HTTP flows: formats the
+/// flow engine's error dataset (`error.code`, `error.message`) as the HTTP
+/// response (the Java composable-example's `v1.hello.exception` analog).
+#[preload(route = "v1.hello.exception")]
+struct HelloException;
+
+#[async_trait]
+impl ComposableFunction for HelloException {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let status = body["status"].as_i64().unwrap_or(500);
+        log::warn!(
+            "demo exception handler: status={status}, message={}",
+            body["message"]
+        );
+        EventEnvelope::new().set_body(serde_json::json!({
+            "type": "error",
+            "status": status,
+            "message": body["message"],
+        }))
     }
 }
 
@@ -125,7 +208,7 @@ struct HelloFlowApp;
 impl EntryPoint for HelloFlowApp {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
         log::info!(
-            "Flows ready: {:?} — try: curl 'http://127.0.0.1:8086/api/hello/eric?lang=fr'",
+            "Flows ready: {:?} — try: curl 'http://127.0.0.1:8100/api/hello/eric?lang=fr'",
             event_script::flows::get_all_flows()
         );
         Ok(())

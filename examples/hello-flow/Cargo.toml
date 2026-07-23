@@ -12,3 +12,7 @@ event-script = { path = "../../crates/event-script" }
 async-trait = "0.1"
 serde_json = "1"
 log = "0.4"
+
+[dev-dependencies]
+rmpv = { version = "1", features = ["with-serde"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }

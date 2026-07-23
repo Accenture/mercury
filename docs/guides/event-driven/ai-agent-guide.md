@@ -61,7 +61,7 @@ struct MyFunction;
 
 | Parameter | Type | Default | Notes |
 |:---|:---|:---|:---|
-| `route` | string | **required** | Unique; one route per struct. Dot-separated lowercase convention (`v1.my.function`). |
+| `route` | string | **required** | Unique. Dot-separated lowercase convention (`v1.my.function`). A comma-separated list registers the same function under several route names (aliases) with the same instances/visibility — Java parity: `route = "hello.world, hello.declarative"`. Empty segments are a compile error. |
 | `instances` | int | `1` | Concurrent workers. Production services typically use 10–100. |
 | `env_instances` | string | — | A key in the application configuration to read the worker count from at startup (the value may itself use `${SOME_ENV:default}` syntax); falls back to `instances`. |
 | `typed` | flag | off | The struct implements `TypedFunction<I, O>` instead of `ComposableFunction`; the engine bridges it with a `TypedAdapter`. |
@@ -69,7 +69,7 @@ struct MyFunction;
 | `interceptor` | flag | off | Event-interceptor mode: the function sees the raw incoming `EventEnvelope` and the engine does **not** auto-reply on success (failures still route to the caller). Also stackable as `#[event_interceptor]`. |
 | `is_private` | bool | `true` | Preloaded functions are **private by default** (in-instance only — Java `@PreLoad` parity); set `is_private = false` to make the function callable from another application instance through Event over HTTP. Everything inside the instance (REST automation, flows, graphs) reaches private functions normally. Programmatic pair: `platform.register_private(...)`; plain `register(...)` = public. |
 
-*(The Java engine's `isPrivate`, `inputPojoClass`, `customSerializer`, and
+*(The Java engine's `inputPojoClass`, `customSerializer`, and
 `inputStrategy`/`outputStrategy` parameters have no Rust equivalent — everything is process-local,
 and serde handles typing; see [Serialization](#serialization).)*
 
@@ -374,7 +374,7 @@ rest:
 
 ```bash
 # 4. Test (rest.server.port from resources/application.yml)
-curl -s -X POST http://127.0.0.1:8086/api/greeting \
+curl -s -X POST http://127.0.0.1:8100/api/greeting \
      -H "content-type: application/json" \
      -d '{"name": "Mercury"}'
 # → {"greeting": "Hello, Mercury!"}

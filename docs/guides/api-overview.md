@@ -257,7 +257,7 @@ po.annotate_trace("customer_tier", "gold")
 
 Attaches business context to the **application log** stream (Java `updateContext`): the
 key-value appears in the `context` block of every subsequent structured log line of this
-request (requires the optional `app-log-context.yaml`; see the
+request (the log context is on by default — see the
 [Configuration Reference](configuration-reference.md)). A null value removes the key. The
 reserved context keys (`cid`, `traceId`, `tracePath`, `spanId`, `parentSpanId`, `service`,
 `utc`) are rejected with status 400; outside a trace the call is a silent no-op.

@@ -234,8 +234,21 @@ dispatch).
 
 Application log output format: `text` is a plain console line; `json` pretty-prints each
 record; `compact` emits single-line jsonl records (no CR/LF within a record). Both JSON
-forms carry the application log context block when `app-log-context.yaml` is present. Read
-by `crates/platform-core` (logging). Switch at launch with `-Dlog.format=json`.
+forms carry the application log context block (on by default — see `app.log.context`).
+Read by `crates/platform-core` (logging). Switch at launch with `-Dlog.format=json`.
+
+#### `app.log.context`
+
+| Type | Default |
+|---|---|
+| boolean | `true` |
+
+Turns the [application log context](observability.md#the-application-log-context) on or
+off. When on (the default), the structured JSON formats (`log.format=json` or `compact`)
+stamp a `context` block — correlation id, trace/span ids, service name — into every log
+line a traced function emits, using the built-in `default-log-context.yaml` template.
+Provide your own `app-log-context.yaml` on the resource path to replace the template, or
+set this key to `false` to opt out. Read by `crates/platform-core` (logging).
 
 #### `log.level`
 
@@ -253,14 +266,15 @@ by `crates/platform-core` (logging).
 
 | Type | Default |
 |---|---|
-| resource file | absent (feature off) |
+| resource file | absent (the built-in `default-log-context.yaml` applies) |
 
-When present on the resource path, every structured (JSON) log line emitted inside a traced
-function carries a `context` block. Its `context:` section maps an output key of your
-choice to a reserved `$token` (`$cid`, `$traceId`, `$tracePath`, `$spanId`,
-`$parentSpanId`, `$service`, `$utc` — resolved live per line), a `${ENV:default}`
-substitution (resolved once at load), or a literal. Keys that resolve to nothing are
-omitted. Business key-values added with `PostOffice::update_context` join the same block.
+Replaces the built-in log-context template entirely. Its `context:` section maps an
+output key of your choice to a reserved `$token` (`$cid`, `$traceId`, `$tracePath`,
+`$spanId`, `$parentSpanId`, `$service`, `$utc` — resolved live per line), a
+`${ENV:default}` substitution (resolved once at load), or a literal. Keys that resolve to
+nothing are omitted. Business key-values added with `PostOffice::update_context` join the
+same block. When this file is absent, the built-in default template (the seven standard
+trace-context keys) applies — see `app.log.context` above to switch the feature off.
 Read by `crates/platform-core` (logging).
 
 ## Actuators and health

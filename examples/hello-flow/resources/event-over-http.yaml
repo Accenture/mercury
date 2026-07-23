@@ -1,0 +1,8 @@
+# Declarative Event-over-HTTP routing (the caller side of the demo): the
+# foreign route below does NOT exist in this application — every PostOffice
+# call to it forwards transparently to the peer's /api/event endpoint.
+# Compare with the programmatic demo endpoint, whose task passes the peer's
+# URL directly to the request API and therefore needs no entry here.
+event.http:
+  - route: 'hello.declarative'
+    target: 'http://${peer.demo.host:127.0.0.1}:${peer.demo.port}/api/event'

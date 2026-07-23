@@ -5,8 +5,8 @@ functions, flows, and graph nodes that never call each other directly. Observabi
 therefore not optional — it is the only way to see the causal path a request actually took.
 mercury answers this with a built-in distributed-tracing engine whose trace and span ids
 follow the **W3C Trace Context / OpenTelemetry** format, a real-time telemetry stream, and
-an opt-in log context that joins application logs to their spans. Everything on this page
-is verified against this repository's source and the running `hello-world` example.
+a default-on log context that joins application logs to their spans. Everything on this
+page is verified against this repository's source and the running `hello-world` example.
 
 ## Two ids, two concerns
 
@@ -112,10 +112,20 @@ present, your `annotations`:
 `status`, `success`, `exception`
 :   HTTP-style status code, a boolean verdict, and — only on failure — the error message.
 
-!!! note "Rust port"
-    The Java dataset additionally records a `round_trip` metric. The Rust port does not —
-    the requester reads the equivalent from the reply envelope's `exec_time`. Everything
-    else in the dataset shape is Java parity.
+**Exactly one record per span.** For an **RPC-served** execution the worker suppresses
+its own record when the reply reaches the caller, and the caller emits the span's single
+record when the reply arrives — same shape, plus a `round_trip` metric (the full
+request/response cycle in milliseconds; the reply envelope carries the same value) and
+the callee's `annotations`, which ride the reply envelope. Its span lineage chains like
+a worker-emitted record: `parent_span_id` is the caller's span, and `span_id` is the
+callee's own span — adopted only from a **direct responder** (the reply's `from` equals
+the requested route); a relayed reply (e.g. a flow answering on behalf of the
+flow-adapter route) keeps the parent but omits `span_id`, because the relaying
+function's span is reported by its own record. This works across an Event-over-HTTP hop
+too, which is what stitches a remote function's record into the calling application's
+span tree. **Callback**-style invocations (a `reply_to` that is a route, not an RPC
+inbox — e.g. Event Script task dispatch) keep self-recording from the worker. Routes
+listed in `skip.rpc.tracing` (default `async.http.request`) are excluded (Java parity).
 
 By default the dataset is **logged** — that is the real-time telemetry stream. This is a
 real record from a `hello-world` run (`log.format: json`), emitted by `distributed.tracing`
@@ -216,11 +226,22 @@ log level comes from `log.level` (default `info`); a `RUST_LOG` environment vari
 ## The application log context
 
 Spans tell you the causal path; application logs tell you what happened inside each step.
-The log-context feature closes the gap: when an optional **`app-log-context.yaml`** is
-present on the resource path, every structured log line carries a `context` block —
-correlation id, trace/span ids, service name, and your own key-values — so you can pivot
-from a span in your backend straight to the log lines that belong to it. From
-`examples/hello-world/resources/app-log-context.yaml`:
+The log-context feature closes the gap: every structured log line carries a `context`
+block — correlation id, trace/span ids, service name, and your own key-values — so you
+can pivot from a span in your backend straight to the log lines that belong to it.
+
+The feature is **on by default**: platform-core ships a built-in
+`default-log-context.yaml` (embedded at compile time) that emits the standard trace
+context (`cid`, `traceId`, `tracePath`, `spanId`, `parentSpanId`, `service`,
+`timestamp`) on every structured log line. You can adjust it in two ways:
+
+- **Customize** — provide your own `app-log-context.yaml` on the resource path
+  (`resources/`); it replaces the built-in template entirely.
+- **Opt out** — set `app.log.context: false` in the application configuration.
+
+A custom template looks like this — from
+`examples/hello-world/resources/app-log-context.yaml`, which extends the standard set
+with two custom keys:
 
 ```yaml
 context:
@@ -283,7 +304,7 @@ the span join up in the backend, with the `user` key added by `update_context`:
 - Trace-bound context keys appear only on lines emitted **inside** a traced function
   execution; framework boot logs and work `tokio::spawn`ed from inside a function carry
   only the trace-independent keys — the same boundary the distributed trace has.
-- Feature off (no `app-log-context.yaml`) costs one boolean check per log line.
+- Feature off (`app.log.context: false`) costs one boolean check per log line.
 - The `text` format never renders a context block, whatever the configuration.
 
 ## See also

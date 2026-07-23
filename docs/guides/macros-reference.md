@@ -27,7 +27,7 @@ Registers a composable function at startup and binds it to a route — the Java
 
 | Parameter | Meaning |
 |---|---|
-| `route = "..."` | **Required.** The function's route name (lowercase, at least one dot). |
+| `route = "..."` | **Required.** The function's route name (lowercase, at least one dot). A **comma-separated list** registers the same function object under several route names (aliases) with the same instance count and visibility — the Java `@PreLoad(route = "hello.world, hello.declarative")` behavior. Names are whitespace-trimmed; an empty segment is a compile error. |
 | `instances = N` | Worker count, default `1`. |
 | `env_instances = "config.key"` | Read the worker count from application configuration at startup; the literal `instances` is the fallback. |
 | `typed` | The struct implements `TypedFunction<I, O>` instead of `ComposableFunction`. |
@@ -71,6 +71,20 @@ configured value when the key is set:
     instances = 2
 )]
 struct UntypedEcho;
+```
+
+A comma-separated `route` registers **aliases** — one function object serving several
+route names. The `hello-world` example publishes its echo under two names because the
+Event-over-HTTP demo calls it through two different patterns (see the
+[Event over HTTP guide](event-over-http.md)):
+
+```rust
+#[preload(
+    route = "hello.world, hello.declarative",
+    instances = 10,
+    is_private = false
+)]
+struct HelloWorld;
 ```
 
 An invalid route name fails the application at startup (a duplicate route RELOADS the

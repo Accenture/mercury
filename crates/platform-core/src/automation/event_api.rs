@@ -223,6 +223,14 @@ pub async fn event_over_http_with_headers(
     security_headers: &HashMap<String, String>,
 ) -> Result<EventEnvelope, AppError> {
     let (host, path) = split_endpoint(endpoint)?;
+    // stamp the calling function's trace context onto the WIRE envelope
+    // (fill-if-absent trace id/path; the caller's span unconditionally) —
+    // Java parity: the trace-aware po.request(..., endpoint, rpc) touches the
+    // event before serialization, so the remote function parents onto the
+    // caller's span. The declarative hook already applied this in request();
+    // a second application is idempotent. A PROGRAMMATIC caller passing a
+    // fresh envelope gets the same lineage automatically.
+    let event = crate::post_office::apply_current_trace(event);
     let trace_id = event.trace_id().map(str::to_string);
     let span_id = event.span_id().map(str::to_string);
     let payload = event.to_bytes()?;

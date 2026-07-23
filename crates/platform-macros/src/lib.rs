@@ -63,7 +63,11 @@ use syn::{parse_macro_input, ItemStruct, LitInt, LitStr};
 /// composable function at startup.
 ///
 /// Parameters:
-/// - `route = "my.function.route"` (required)
+/// - `route = "my.function.route"` (required). A **comma-separated list**
+///   registers the same function under several route names (aliases) with the
+///   same instance count and visibility — the Java
+///   `@PreLoad(route = "hello.world, hello.declarative")` behavior. Each name
+///   is whitespace-trimmed; an empty segment is a compile error.
 /// - `instances = N` (default 1)
 /// - `env_instances = "config.key"` — read the instance count from application
 ///   configuration at startup, falling back to `instances` (Java `envInstances`)
@@ -130,6 +134,13 @@ pub fn preload(args: TokenStream, input: TokenStream) -> TokenStream {
             .to_compile_error()
             .into();
     };
+    // a comma-separated route list declares ALIASES (Java @PreLoad parity);
+    // validate the list shape at compile time — empty segments are an error
+    if let Err(message) = validate_route_list(&route.value()) {
+        return syn::Error::new_spanned(&route, message)
+            .to_compile_error()
+            .into();
+    }
     // consume stacked marker attributes (Java annotation stacking)
     zero_tracing |= strip_marker(&mut item, "zero_tracing");
     interceptor |= strip_marker(&mut item, "event_interceptor");
@@ -389,5 +400,49 @@ fn optional_service_expr(cond: &Option<LitStr>) -> proc_macro2::TokenStream {
     match cond {
         Some(c) => quote!(::core::option::Option::Some(#c)),
         None => quote!(::core::option::Option::None),
+    }
+}
+
+/// Validate a `#[preload]` route value: one route name, or a comma-separated
+/// list of route names (aliases — Java `@PreLoad(route = "a.b, c.d")`). Each
+/// segment is whitespace-trimmed; an **empty segment** (leading/trailing/
+/// doubled comma, or a blank value) is rejected here at compile time.
+/// Route-name *shape* (lowercase, at least one dot) stays a startup-time
+/// check in `Platform::register`, exactly as for a single route.
+fn validate_route_list(route: &str) -> Result<(), String> {
+    let segments: Vec<&str> = route.split(',').map(str::trim).collect();
+    if segments.iter().any(|segment| segment.is_empty()) {
+        return Err(format!(
+            "invalid #[preload] route list '{route}' - each comma-separated \
+             route name must be non-empty"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_route_list;
+
+    #[test]
+    fn single_route_is_valid() {
+        assert!(validate_route_list("hello.world").is_ok());
+    }
+
+    #[test]
+    fn comma_separated_aliases_are_valid_with_or_without_spaces() {
+        assert!(validate_route_list("hello.world, hello.declarative").is_ok());
+        assert!(validate_route_list("hello.world,hello.declarative").is_ok());
+        assert!(validate_route_list("a.b , c.d ,  e.f").is_ok());
+    }
+
+    #[test]
+    fn empty_segments_are_rejected() {
+        assert!(validate_route_list("").is_err());
+        assert!(validate_route_list("   ").is_err());
+        assert!(validate_route_list("hello.world,").is_err());
+        assert!(validate_route_list(",hello.world").is_err());
+        assert!(validate_route_list("hello.world,,hello.declarative").is_err());
+        assert!(validate_route_list("hello.world, ,hello.declarative").is_err());
     }
 }

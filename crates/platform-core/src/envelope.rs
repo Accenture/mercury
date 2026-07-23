@@ -42,8 +42,8 @@ use crate::function::AppError;
 /// `docs/guides/event-envelope-wire-format.md` in the Java repo; golden
 /// vectors under `tests/resources/envelope-vectors/`). Encoders emit `id` and
 /// `headers` always and other fields only when set; decoders treat absent and
-/// nil identically and ignore unknown keys (Java may add `tags`,
-/// `annotations`, `stack`, `obj_type`, `exception`).
+/// nil identically and ignore unknown keys (Java may add `tags`, `stack`,
+/// `obj_type`, `exception`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EventEnvelope {
     id: String,
@@ -75,6 +75,14 @@ pub struct EventEnvelope {
     /// format; stamped by callers that measure it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     round_trip: Option<f32>,
+    /// Trace annotations riding a REPLY envelope (Java `annotations`): a
+    /// worker attaches the function's `annotate_trace` key-values to its
+    /// response, and the RPC caller folds them into the `round_trip` trace
+    /// record (then strips them — user code never sees them). Same key on the
+    /// wire as the Java standard format, so annotations survive an
+    /// Event-over-HTTP hop in either language direction.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    annotations: HashMap<String, rmpv::Value>,
 }
 
 fn nil_value() -> rmpv::Value {
@@ -101,6 +109,7 @@ impl Default for EventEnvelope {
             body: rmpv::Value::Nil,
             exec_time: None,
             round_trip: None,
+            annotations: HashMap::new(),
         }
     }
 }
@@ -269,6 +278,18 @@ impl EventEnvelope {
         self
     }
 
+    /// Trace annotations riding this (reply) envelope (Java `getAnnotations`).
+    pub fn annotations(&self) -> &HashMap<String, rmpv::Value> {
+        &self.annotations
+    }
+
+    /// Remove all annotations (Java `clearAnnotations`) — the RPC caller
+    /// strips them after folding them into the trace record.
+    pub fn clear_annotations(mut self) -> Self {
+        self.annotations.clear();
+        self
+    }
+
     // ---- crate-internal mutators (worker bookkeeping) ----
 
     pub(crate) fn set_body_internal(&mut self, body: rmpv::Value) {
@@ -298,6 +319,18 @@ impl EventEnvelope {
 
     pub(crate) fn set_span_id_internal(&mut self, span_id: &str) {
         self.span_id = Some(span_id.to_string());
+    }
+
+    pub(crate) fn clear_span_id_internal(&mut self) {
+        self.span_id = None;
+    }
+
+    pub(crate) fn set_annotations_internal(&mut self, annotations: HashMap<String, rmpv::Value>) {
+        self.annotations = annotations;
+    }
+
+    pub(crate) fn clear_annotations_internal(&mut self) {
+        self.annotations.clear();
     }
 
     // ---- wire format ----

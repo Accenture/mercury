@@ -153,6 +153,17 @@ impl ComposableFunction for GreetingApi {
 /// publishes the route to remote callers via Event over HTTP
 /// (`POST /api/event`); every other function here keeps the private default.
 ///
+/// The function registers TWO route names (a comma-separated alias list,
+/// Java `@PreLoad` parity) because it is the standing Event-over-HTTP
+/// interop target of the demo pair: the Rust `hello-flow` example (or the
+/// Java `composable-example`) calls `hello.world` through the PROGRAMMATIC
+/// pattern (the caller passes this app's `/api/event` URL to the request
+/// API) and `hello.declarative` through the DECLARATIVE pattern (the route
+/// is resolved via the caller's `event-over-http.yaml`). Both examples run
+/// on port 8085 with the same route names, so the Java and Rust callees are
+/// drop-in replacements for each other — that interchangeability is the
+/// point of the demo.
+///
 /// The body is reflected as the raw MsgPack value, never through a JSON
 /// detour — JSON has no byte type, so converting would silently drop binary
 /// values from the echo (found by the cross-language interop matrix).
@@ -160,7 +171,11 @@ impl ComposableFunction for GreetingApi {
 /// An optional integer body key `sleep_ms` delays the reply by that many
 /// milliseconds — the cross-language interop matrix uses it to exercise the
 /// RPC-timeout (408) path (e.g. `sleep_ms: 3000` against `x-ttl: 1500`).
-#[preload(route = "hello.world", instances = 10, is_private = false)]
+#[preload(
+    route = "hello.world, hello.declarative",
+    instances = 10,
+    is_private = false
+)]
 struct HelloWorld;
 
 #[async_trait]

@@ -84,6 +84,18 @@ impl ConfigReader {
         Ok(reader)
     }
 
+    /// Build a reader from in-memory YAML text and resolve references — used
+    /// for **embedded** built-in templates (e.g. `default-log-context.yaml`),
+    /// the Rust analog of a library-jar classpath resource. The `resources/`
+    /// roots are application-owned in this port, so a library default ships
+    /// compiled-in via `include_str!` instead of shadowing a file name.
+    pub fn from_yaml_text(text: &str) -> Result<Self, ConfigError> {
+        let mut reader = ConfigReader::default();
+        reader.load_yaml_text(text)?;
+        reader.resolve_references();
+        Ok(reader)
+    }
+
     /// Build a reader from an existing nested map and resolve references
     /// (Java `load(Map)`).
     pub fn from_map(map: BTreeMap<String, ConfigValue>) -> Self {

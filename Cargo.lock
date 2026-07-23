@@ -373,7 +373,9 @@ dependencies = [
  "event-script",
  "log",
  "platform-core",
+ "rmpv",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

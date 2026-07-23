@@ -1,11 +1,19 @@
 # hello-flow example — event-script (layer 2) riding platform-core (layer 1).
+# The structural parallel of the Java composable-example (same port 8100).
 application.name: hello-flow
 
 # REST automation serves rest.yaml; the flow engine loads flows.yaml — both
 # by their default locations in this resources/ folder.
 rest.automation: true
-rest.server.port: 8086
+rest.server.port: 8100
 
 info.app.description: 'mercury hello-flow example (event-script)'
 show.application.properties: 'application.name, rest.server.port'
 mandatory.health.dependencies: 'flow.engine.health'
+
+# Event-over-HTTP demo peer (the callee of both demo endpoints): the Rust
+# hello-world example or the Java lambda-example — both serve port 8085 with
+# the same public routes, so they are interchangeable.
+yaml.event.over.http: 'classpath:/event-over-http.yaml'
+peer.demo.host: '127.0.0.1'
+peer.demo.port: 8085

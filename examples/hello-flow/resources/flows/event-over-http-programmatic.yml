@@ -1,0 +1,35 @@
+#
+# The PROGRAMMATIC Event-over-HTTP demo: the task is an ordinary composable
+# function (v1.event.over.http.rpc) that passes the peer's /api/event URL
+# directly to the request API — so its target route 'hello.world' needs NO
+# entry in event-over-http.yaml. Compare with event-over-http-demo.yml,
+# which reaches the same peer function declaratively via its alias route.
+#
+flow:
+  id: 'event-over-http-programmatic'
+  description: 'Demonstrate Event-over-Http protocol using programmatic means'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'v1.event.over.http.rpc'
+
+tasks:
+  - input:
+      - 'input.header -> header'
+      - 'input.body -> *'
+    process: 'v1.event.over.http.rpc'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Make an Event-over-Http call using the PostOffice request API'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

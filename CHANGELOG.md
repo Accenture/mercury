@@ -11,6 +11,51 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **Comma-separated route aliases in `#[preload]`** — Java `@PreLoad` parity:
+   `route = "hello.world, hello.declarative"` registers the same function object under
+   every listed name with the same instance count and visibility. Empty segments are a
+   compile error.
+2. **Application log context is now on by default.** platform-core ships a built-in
+   `default-log-context.yaml` (embedded at compile time) so the structured JSON formats
+   (`log.format=json` or `compact`) stamp the standard trace context (`cid`, `traceId`,
+   `tracePath`, `spanId`, `parentSpanId`, `service`, `timestamp`) into every log line a
+   traced function emits — no setup required. An application can replace the template
+   with its own `app-log-context.yaml`, or opt out with the new `app.log.context=false`
+   key. Applications already providing an `app-log-context.yaml` are unaffected.
+   Plain-text logging (`log.format=text`, the default) is unaffected.
+3. **RPC telemetry records — exactly one record per span.** The caller now emits the
+   `round_trip` trace record for each traced RPC response (Java `InboxBase.recordTrace`
+   parity) while the worker suppresses its own record for an RPC-served execution whose
+   reply reached the caller (Java `WorkerHandler.sendTracingInfo` gate) — so each span
+   reports once, with full lineage: `parent_span_id` (the caller's span, unconditional)
+   and `span_id` (the callee's span, adopted only from a **direct responder**; a relayed
+   reply — e.g. a flow answering on behalf of the flow-adapter route — keeps the parent
+   but omits the span, Java `spanIdFromResponder` parity). Callback-style invocations
+   keep self-recording. The callee's trace annotations now ride the reply envelope (also
+   on the Event-over-HTTP wire) and fold into the span's single record; the RPC reply
+   itself carries the measured `round_trip` value. The programmatic `event_over_http`
+   client stamps the calling function's trace context (incl. its span) onto the wire
+   envelope, so remote functions parent onto the caller's span in both the declarative
+   and the programmatic pattern.
+4. **Event-over-HTTP demo endpoints in `hello-flow`** (the structural parallel of the
+   Java composable-example, now on port **8100**): `/api/event/http/demo` (declarative —
+   the flow's task is the foreign route `hello.declarative`, resolved through
+   `event-over-http.yaml`) and `/api/event/http/programmatic` (the task passes the peer's
+   `/api/event` URL directly to the request API). The `hello-world` echo registers the
+   `hello.declarative` alias and is interchangeable with the Java lambda-example — same
+   port 8085, same routes — so the demo doubles as a cross-language interop demo with
+   zero configuration changes.
+
+### Fixed
+
+1. **A zero-traced hop no longer leaks a nested reply's span id** as its own on the
+   response envelope (Java parity: its reply carries no span).
+
+---
 ## Version 4.9.0, 7/20/2026
 
 **Graduation release — and the adoption of the canonical version line.** The version jumps
