@@ -11,18 +11,47 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.10.2, 7/23/2026
+
+Patch release: **the metadata contract, hardened in lock-step with the Java engine**. A
+composable function has exactly three inputs — headers, body and instance; the headers
+are a **copy** of the envelope headers with read-only metadata **injected by the worker
+at entry and sanitized at exit** — metadata is never transported in the event itself.
+The business correlation-id rides an engine-managed envelope tag (`my_cid`) and is echoed
+on every HTTP response, and the RPC reply path is aligned with the Java design: a
+**single reserved `temporary.inbox` route** keyed by correlation id — the `inbox.*`
+namespace belongs to applications — registered with deterministic essential-service
+sequencing, with the mesh-era `route@origin` syntax never generated. Re-verified live in
+all four direction combinations at an **empty trace-signature diff** — the full battery
+(functionality, correlation echo, injected-metadata parity, authentication, signature) is
+recorded in the [Interop Test Report](docs/test-reports/event-over-http-interop.md).
+The release also mirrors the team-contributed Event Script **collection plugins**
+(`isEmpty`, `getFirst`, `getLast` — flows are engine-portable, so plugins must exist on
+both engines). Metadata/reply-path changes in PR
+[#171](https://github.com/Accenture/mercury/pull/171).
 
 ### Added
 
-1. **The HTTP response echoes the business correlation-id.** REST automation returns the
+1. **The HTTP response echoes the business correlation-id
+   ([#171](https://github.com/Accenture/mercury/pull/171)).** REST automation returns the
    request's correlation-id (inbound or edge-generated) on the response under the
    configured header name (default `X-Correlation-Id`), so an edge caller can correlate
    without parsing the body. A response header of the same name set by the function takes
    precedence. The edge also stamps the resolved value onto the request dataset headers,
    so the function, the flow engine (`model.cid`) and the response all see the SAME id.
 
-2. **The `inbox.*` route namespace belongs to applications.** RPC replies now resolve
+2. **Collection plugins for Event Script: `isEmpty`, `getFirst`, `getLast`.** Contributed
+   to the Java engine in mercury-composable
+   [PR #220](https://github.com/Accenture/mercury-composable/pull/220) and mirrored here
+   for flow portability — Event Script flows are engine-portable YAML, so
+   `f:isEmpty(...)` behaves identically on both engines, including error text (which
+   reads the same in aggregated logs). `isEmpty`: a single Collection/Map/String/array —
+   true when it has no elements (use `isNull`/`notNull` for null checks; null or an
+   unsupported type is an error). `getFirst`/`getLast`: a single non-empty List — its
+   first/last element.
+
+3. **The `inbox.*` route namespace belongs to applications
+   ([#171](https://github.com/Accenture/mercury/pull/171)).** RPC replies now resolve
    through the ONE reserved reply-listener route, `temporary.inbox` (Java `TemporaryInbox`
    parity: private, zero-tracing, 500 instances, registered by the essential-service step
    at the highest startup priority and present on every platform from construction), keyed
@@ -36,7 +65,8 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Fixed
 
-1. **Protected metadata is never transported in the event.** The business correlation-id
+1. **Protected metadata is never transported in the event
+   ([#171](https://github.com/Accenture/mercury/pull/171)).** The business correlation-id
    now rides an engine-managed envelope tag (`tags` wire field — wire-compatible with the
    Java engine) instead of a `my_correlation_id` envelope header, and the worker injects
    the `my_*` read-only keys (`my_route`, `my_trace_id`, `my_trace_path`,
