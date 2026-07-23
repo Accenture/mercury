@@ -101,10 +101,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release in flight — 2026-07-23) **v4.10.0 release prepared in lock-step with the
-  Java engine** (Java v4.10.0 shipped/published 2026-07-22, tag on merge `af21e6f6`,
-  PR #216; release gate = both parity PRs merged + the live bidirectional interop drives
-  passed — permanent record: the Java docs' `test-reports/event-over-http-interop` page).
+- [x] (release — 2026-07-23; CLOSED same day) **v4.10.0 SHIPPED via the normal flow, in
+  lock-step with the Java engine** — tag `v4.10.0` on merge commit `4dc70337`
+  (PR [#168](https://github.com/Accenture/mercury/pull/168), CI green), release notes
+  delivered, release published 2026-07-22. (Java v4.10.0 shipped/published the same day,
+  tag on merge `af21e6f6`, PR #216; release gate = both parity PRs merged + the live
+  bidirectional interop drives passed — permanent record: the Java docs'
+  `test-reports/event-over-http-interop` page.)
   Branch `chore/release-4.10.0` (cut from main `1d18883e`, carries the memory-review
   commit): workspace version 4.9.0→4.10.0 (root `Cargo.toml` only — members inherit;
   Cargo.lock regenerated), CHANGELOG `## Version 4.10.0, 7/22/2026` covering PR #166
@@ -112,8 +115,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   fixes) + PR #167 (aliases, log-context default-on, one-record-per-span telemetry, demo
   pair, zero-trace span-leak fix) with the interop-report link, event-over-http guide
   links the Java site's Interop Test Report. Gate green at the new version: workspace
-  244 / clippy 0 / fmt. NOT pushed — Eric pushes and opens the PR. Close when the release
-  is tagged and published.
+  244 / clippy 0 / fmt.
   <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-022937.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
