@@ -25,6 +25,7 @@
 //! timeout (→ status **408** on expiry). Fork-n-join and `send_later` arrive
 //! in later increments.
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::automation::event_api;
@@ -40,8 +41,10 @@ use crate::trace;
 /// so the receiver knows its parent span — except inside a zero-traced hop,
 /// which owns no span (Java: no live TraceInfo there); `from` and the
 /// business correlation-id follow the request when absent.
-/// No-op outside a trace bracket.
-fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
+/// No-op outside a trace bracket. Crate-visible so the programmatic
+/// Event-over-HTTP client stamps the wire envelope the same way (Java's
+/// trace-aware `po.request(..., endpoint, rpc)` touches the event first).
+pub(crate) fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
     let snapshot = trace::with_current(|state| {
         (
             state.route.clone(),
@@ -301,7 +304,11 @@ impl PostOffice {
                 let diff = begin.elapsed().as_secs_f32() * 1000.0;
                 let diff = (diff.max(0.0) * 1000.0).round() / 1000.0;
                 let response = response.set_round_trip(diff);
-                self.record_rpc_trace(&rpc_trace, &response);
+                // the reply's annotations belong to the trace record, never
+                // to the caller (Java saveResponse: fold + clearAnnotations)
+                let annotations = response.annotations().clone();
+                let response = response.clear_annotations();
+                self.record_rpc_trace(&rpc_trace, &response, annotations);
                 Ok(response)
             }
             Ok(Err(_)) => Err(AppError::new(500, "Reply channel closed unexpectedly")),
@@ -318,30 +325,32 @@ impl PostOffice {
     /// Emit the caller-side RPC trace record — the dataset carrying
     /// `round_trip` — to the `distributed.tracing` sink (Java
     /// `InboxBase.recordTrace`, invoked from `AsyncInbox.saveResponse`).
+    /// For an RPC-served execution this is **the single record for the span**:
+    /// the worker suppresses its own record when the reply reaches the caller
+    /// (Java `WorkerHandler.sendTracingInfo` gate), so exec_time, round_trip,
+    /// span lineage and the callee's annotations all report here, once.
     ///
     /// Emitted only for a **traced** RPC (the outbound event carried a trace
-    /// id and path) whose target service is not in `skip.rpc.tracing`, and
-    /// never from inside a zero-traced bracket (a zero-traced hop emits no
-    /// telemetry; in Java its outbound events carry no trace, so no record).
-    /// Span lineage mirrors the Java fix (commit `04e5618f`): `span_id` = the
-    /// callee's own span carried on the RPC reply; `parent_span_id` = the
-    /// caller's span captured from the outbound request — so the round-trip
-    /// record chains into the span tree like any worker-emitted record.
-    ///
-    /// Parity note: Java moves the reply envelope's `annotations` into this
-    /// record. In this port annotations never ride the reply — they flow with
-    /// the callee's own worker-emitted record — so the field is absent here.
-    fn record_rpc_trace(&self, rpc: &RpcTraceCapture, reply: &EventEnvelope) {
+    /// id and path) whose target service is not in `skip.rpc.tracing`.
+    /// Span lineage mirrors the Java fixes (commits `04e5618f` + `140640d8`):
+    /// `parent_span_id` = the caller's span captured from the outbound
+    /// request, unconditionally; `span_id` = the callee's own span carried on
+    /// the reply, adopted **only from a direct responder** (the reply's `from`
+    /// equals the requested route — Java `InboxBase.spanIdFromResponder`). A
+    /// RELAYED reply (e.g. a flow answering on behalf of the manager route)
+    /// carries the span of a different function that reports its own record —
+    /// adopting it would misattribute and duplicate that span.
+    fn record_rpc_trace(
+        &self,
+        rpc: &RpcTraceCapture,
+        reply: &EventEnvelope,
+        annotations: HashMap<String, rmpv::Value>,
+    ) {
         let (Some(to), Some(trace_id), Some(trace_path)) =
             (&rpc.to, &rpc.trace_id, &rpc.trace_path)
         else {
             return; // not a traced RPC
         };
-        // a zero-traced hop must not emit telemetry (its trace context flows
-        // for continuity only — see the worker's trace bracket)
-        if trace::with_current(|state| state.zero_traced).unwrap_or(false) {
-            return;
-        }
         let service = trim_origin(to).to_string();
         if crate::platform::in_skip_rpc_tracing_list(&service) {
             return;
@@ -368,8 +377,10 @@ impl PostOffice {
                 serde_json::Value::String(trim_origin(from).to_string()),
             );
         }
-        // span lineage of the RPC (omitted when unavailable, Java parity)
-        if let Some(span_id) = reply.span_id() {
+        // span lineage of the RPC (omitted when unavailable, Java parity):
+        // the reply's span id counts only when it comes from the DIRECT
+        // responder (Java spanIdFromResponder); the parent is unconditional
+        if let Some(span_id) = span_id_from_responder(to, reply) {
             put("span_id", serde_json::Value::String(span_id.to_string()));
         }
         if let Some(parent) = &rpc.parent_span {
@@ -405,6 +416,17 @@ impl PostOffice {
         }
         let mut dataset = serde_json::Map::new();
         dataset.insert("trace".to_string(), serde_json::Value::Object(metrics));
+        // the callee's annotations, carried on the reply, report with THIS
+        // record — the callee's own record was suppressed (Java recordTrace)
+        if !annotations.is_empty() {
+            let folded: serde_json::Map<String, serde_json::Value> = annotations
+                .into_iter()
+                .filter_map(|(k, v)| serde_json::to_value(&v).ok().map(|value| (k, value)))
+                .collect();
+            if !folded.is_empty() {
+                dataset.insert("annotations".to_string(), serde_json::Value::Object(folded));
+            }
+        }
         // fire-and-forget like Java's EventEmitter.send — never delays the
         // caller's RPC completion; delivery failures are logged only
         let platform = self.platform.clone();
@@ -458,5 +480,17 @@ fn trim_origin(route: &str) -> &str {
     match route.find('@') {
         Some(at) => &route[..at],
         None => route,
+    }
+}
+
+/// The reply's span id, adopted only when the reply comes from the DIRECT
+/// responder — its `from` equals the requested route (Java
+/// `InboxBase.spanIdFromResponder`, commit `140640d8`). A relayed reply
+/// (another function answering on behalf of the requested route) carries a
+/// span that its own record already reports.
+fn span_id_from_responder<'a>(to: &str, reply: &'a EventEnvelope) -> Option<&'a str> {
+    match reply.from() {
+        Some(from) if trim_origin(to) == from => reply.span_id(),
+        _ => None,
     }
 }

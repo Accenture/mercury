@@ -178,24 +178,25 @@ async fn traced_request_produces_span_lineage_across_two_hops() {
     // the response carries the trace context back (applyTraceContext parity)
     assert_eq!(response.trace_id(), Some(trace_id.as_str()));
     assert!(response.span_id().is_some());
-    // four datasets arrive: one WORKER record per traced hop plus one
-    // caller-side RPC record (round_trip) per RPC — the test's request for
-    // v1.first.hop and the first hop's nested request for v1.second.hop
-    let all = wait_for_datasets(&datasets, 4).await;
-    // a worker record has no round_trip; an RPC record always does
+    // EXACTLY ONE record per span (Java WorkerHandler suppression): both hops
+    // are RPC-served, so each span's single record is the caller-side RPC
+    // record carrying round_trip — the test's request for v1.first.hop and
+    // the first hop's nested request for v1.second.hop
+    let _ = wait_for_datasets(&datasets, 2).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let all = datasets.lock().expect("capture mutex").clone();
+    assert_eq!(all.len(), 2, "one record per span, no worker duplicates");
+    assert!(all.iter().all(|d| trace_of(d).contains_key("round_trip")));
     let first = all
         .iter()
-        .find(|d| {
-            trace_of(d)["service"] == "v1.first.hop" && !trace_of(d).contains_key("round_trip")
-        })
-        .expect("first hop span");
+        .find(|d| trace_of(d)["service"] == "v1.first.hop")
+        .expect("first hop record");
     let second = all
         .iter()
-        .find(|d| {
-            trace_of(d)["service"] == "v1.second.hop" && !trace_of(d).contains_key("round_trip")
-        })
-        .expect("second hop span");
-    // same trace, OTel-shaped ids
+        .find(|d| trace_of(d)["service"] == "v1.second.hop")
+        .expect("second hop record");
+    // same trace, OTel-shaped ids; span_id is each callee's OWN span,
+    // adopted from the direct responder's reply (spanIdFromResponder)
     assert_eq!(trace_of(first)["id"], serde_json::json!(trace_id));
     assert_eq!(trace_of(second)["id"], serde_json::json!(trace_id));
     let first_span = trace_of(first)["span_id"].as_str().unwrap();
@@ -205,46 +206,28 @@ async fn traced_request_produces_span_lineage_across_two_hops() {
         trace_of(second)["parent_span_id"].as_str().unwrap(),
         first_span
     );
-    // the second hop's caller is recorded
+    // spans stay unique across the trace (Java SpanPropagationTest invariant)
+    assert_ne!(trace_of(second)["span_id"], trace_of(first)["span_id"]);
+    // the second hop's caller is recorded; the test itself has no route
     assert_eq!(trace_of(second)["from"], serde_json::json!("v1.first.hop"));
+    assert!(!trace_of(first).contains_key("from"));
     // timing + success + path present
     assert!(trace_of(first)["exec_time"].is_number());
+    assert!(trace_of(first)["round_trip"].is_number());
     assert_eq!(trace_of(first)["success"], serde_json::json!(true));
     assert_eq!(trace_of(first)["path"], serde_json::json!("GET /api/first"));
     assert!(trace_of(first)["start"].as_str().unwrap().ends_with('Z'));
-    // annotations flow with the first hop's span
+    // annotations ride the reply envelope and fold into the span's single
+    // record (Java: applyTraceContext -> inbox recordTrace); the caller's
+    // returned envelope no longer carries them
     assert_eq!(
         first["annotations"]["business.step"],
         serde_json::json!("checkout")
     );
+    assert!(response.annotations().is_empty());
     // business correlation-id propagated to BOTH hops
     assert_eq!(cid_a.lock().unwrap().as_deref(), Some("order-42"));
     assert_eq!(cid_b.lock().unwrap().as_deref(), Some("order-42"));
-    // the caller-side RPC record for the nested hop (Java InboxBase.recordTrace)
-    // chains like a worker record: span_id = the callee's own span (from the
-    // reply), parent_span_id = the caller's span (from the outbound request)
-    let second_rpc = all
-        .iter()
-        .find(|d| {
-            trace_of(d)["service"] == "v1.second.hop" && trace_of(d).contains_key("round_trip")
-        })
-        .expect("second hop RPC record");
-    assert_eq!(
-        trace_of(second_rpc)["span_id"],
-        trace_of(second)["span_id"],
-        "RPC record must carry the callee's own span"
-    );
-    assert_eq!(
-        trace_of(second_rpc)["parent_span_id"].as_str().unwrap(),
-        first_span,
-        "RPC record must chain onto the caller's span"
-    );
-    assert_eq!(
-        trace_of(second_rpc)["from"],
-        serde_json::json!("v1.first.hop")
-    );
-    assert_eq!(trace_of(second_rpc)["success"], serde_json::json!(true));
-    assert!(trace_of(second_rpc)["round_trip"].is_number());
 }
 
 #[tokio::test]
@@ -460,38 +443,41 @@ async fn zero_traced_route_preserves_trace_continuity() {
     assert_eq!(recorded[0].0.as_deref(), Some("trace-through-zero"));
     assert_eq!(recorded[0].1.as_deref(), Some("GET /zero"));
     assert_eq!(recorded[0].2, None, "zero-traced hop must not mint a span");
-    // exactly TWO telemetry datasets: the recorder's own worker record plus
-    // the TEST's caller-side RPC record about the relay (Java parity: the
-    // caller's inbox records a traced RPC whatever the target's tracing
-    // posture). The zero-traced relay itself emitted NOTHING — no worker
-    // record, and its nested RPC record is suppressed by the zero-traced
-    // bracket (its outbound events carry no span; in Java they carry no
-    // trace at all, so no inbox record either).
-    let all = wait_for_datasets(&datasets, 2).await;
+    // exactly TWO telemetry datasets, both caller-side RPC records (one per
+    // span — Java parity): the RELAY's nested request records the recorder's
+    // span (the trace context flows through a zero-traced hop, so its
+    // outbound events are traced and its inbox records like any other), and
+    // the TEST's request records the relay. NO worker records: both
+    // executions were RPC-served, and the zero-traced relay never emits its
+    // own telemetry anyway.
+    let _ = wait_for_datasets(&datasets, 2).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let all_after = datasets.lock().expect("capture mutex").clone();
-    assert_eq!(all_after.len(), all.len(), "no late datasets expected");
-    let worker_records: Vec<_> = all_after
+    let all = datasets.lock().expect("capture mutex").clone();
+    assert_eq!(all.len(), 2, "one record per span, no late datasets");
+    assert!(all.iter().all(|d| trace_of(d).contains_key("round_trip")));
+    // the recorder's single record: its own span, adopted from the direct
+    // responder's reply; NO parent — the zero-traced relay owns no span
+    let recorder = all
         .iter()
-        .filter(|d| !trace_of(d).contains_key("round_trip"))
-        .collect();
-    assert_eq!(worker_records.len(), 1, "only the recorder emits a span");
-    assert_eq!(
-        trace_of(worker_records[0])["service"],
-        serde_json::json!("v1.trace.recorder")
+        .find(|d| trace_of(d)["service"] == "v1.trace.recorder")
+        .expect("the relay's RPC record about the recorder");
+    assert!(trace_of(recorder)["span_id"].is_string());
+    assert!(
+        !trace_of(recorder).contains_key("parent_span_id"),
+        "a zero-traced caller contributes no parent span"
     );
-    // the RPC record about the zero-traced relay carries NO span_id — the
-    // relay owns no span, so its reply carries none
-    let rpc_record = all_after
-        .iter()
-        .find(|d| trace_of(d).contains_key("round_trip"))
-        .expect("the test caller's RPC record");
     assert_eq!(
-        trace_of(rpc_record)["service"],
+        trace_of(recorder)["from"],
         serde_json::json!("v1.zero.relay")
     );
+    // the relay's single record carries NO span_id — the relay owns no span,
+    // so its reply carries none for the responder gate to adopt
+    let relay = all
+        .iter()
+        .find(|d| trace_of(d)["service"] == "v1.zero.relay")
+        .expect("the test caller's RPC record about the relay");
     assert!(
-        !trace_of(rpc_record).contains_key("span_id"),
+        !trace_of(relay).contains_key("span_id"),
         "a zero-traced callee contributes no span to the RPC record"
     );
 }
@@ -692,22 +678,25 @@ async fn rpc_telemetry_carries_span_lineage() {
         .unwrap();
     // the reply itself now reports the measured round trip (Java parity)
     assert!(response.round_trip().is_some());
-    // worker records: parent + leaf; RPC records: parent (by the test) + leaf
-    // (by the parent function) = four datasets
-    let all = wait_for_datasets(&datasets, 4).await;
+    // exactly one record per span (worker records suppressed for delivered
+    // RPCs): the parent's record by the test, the leaf's by the parent
+    let _ = wait_for_datasets(&datasets, 2).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let all = datasets.lock().expect("capture mutex").clone();
+    assert_eq!(all.len(), 2, "one record per span");
     let leaf_rpc = all
         .iter()
         .find(|d| {
             trace_of(d)["service"] == "span.lineage.leaf" && trace_of(d).contains_key("round_trip")
         })
         .expect("the RPC trace record for the leaf must arrive");
-    let parent_worker = all
+    let parent_rpc = all
         .iter()
         .find(|d| {
             trace_of(d)["service"] == "span.lineage.parent"
-                && !trace_of(d).contains_key("round_trip")
+                && trace_of(d).contains_key("round_trip")
         })
-        .expect("the parent's worker record must arrive");
+        .expect("the parent's RPC record must arrive");
     let leaf = trace_of(leaf_rpc);
     assert_eq!(leaf["id"], serde_json::json!(trace_id));
     assert!(
@@ -720,12 +709,121 @@ async fn rpc_telemetry_carries_span_lineage() {
     );
     assert_eq!(
         leaf["parent_span_id"],
-        trace_of(parent_worker)["span_id"],
+        trace_of(parent_rpc)["span_id"],
         "the leaf's parent is the parent function's own span"
+    );
+    assert_ne!(
+        leaf["span_id"],
+        trace_of(parent_rpc)["span_id"],
+        "spans stay unique across the trace"
     );
     assert_eq!(leaf["from"], serde_json::json!("span.lineage.parent"));
     assert!(leaf["round_trip"].is_number());
     assert!(leaf["exec_time"].is_number());
     assert_eq!(leaf["path"], serde_json::json!("GET /api/span/lineage"));
     assert_eq!(leaf["success"], serde_json::json!(true));
+}
+
+/// Regression twin of Java commit `140640d8` (`InboxBase.spanIdFromResponder`,
+/// caught by the flow engine's SpanPropagationTest): a RELAYED reply — one
+/// answered on behalf of the requested route by a different function — must
+/// NOT donate its span id to the caller's `round_trip` record. That span
+/// belongs to a function that reports its own record; adopting it would
+/// misattribute and duplicate it. `parent_span_id` stays unconditional.
+#[tokio::test]
+async fn relayed_reply_does_not_donate_its_span_to_the_rpc_record() {
+    setup_config();
+    let (platform, datasets) = capture_platform();
+    struct Responder;
+    #[async_trait]
+    impl ComposableFunction for Responder {
+        async fn handle_event(
+            &self,
+            _h: HashMap<String, String>,
+            _i: EventEnvelope,
+            _n: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            EventEnvelope::new().set_body("real answer")
+        }
+    }
+    /// An event interceptor that relays the responder's reply verbatim to the
+    /// original caller — the relayed reply's `from` names the responder, not
+    /// the route the caller requested (the flow-engine reply shape).
+    struct RelayInterceptor {
+        platform: Platform,
+    }
+    #[async_trait]
+    impl ComposableFunction for RelayInterceptor {
+        async fn handle_event(
+            &self,
+            _h: HashMap<String, String>,
+            input: EventEnvelope,
+            _n: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            let po = PostOffice::new(&self.platform);
+            let nested = po
+                .request(
+                    EventEnvelope::new()
+                        .set_to("relay.actual.responder")
+                        .set_body("x")?,
+                    Duration::from_secs(2),
+                )
+                .await?;
+            if let (Some(reply_to), Some(cid)) = (input.reply_to(), input.correlation_id()) {
+                // relay: keep the nested reply's `from` (the responder)
+                let relayed = nested.set_to(reply_to).set_correlation_id(cid);
+                po.send(relayed).await?;
+            }
+            EventEnvelope::new().set_body("ignored by the worker")
+        }
+    }
+    platform
+        .register("relay.actual.responder", Arc::new(Responder), 1)
+        .unwrap();
+    platform
+        .register_with_options(
+            "relay.entry",
+            Arc::new(RelayInterceptor {
+                platform: platform.clone(),
+            }),
+            1,
+            platform_core::FunctionOptions {
+                interceptor: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let response = po
+        .request(
+            EventEnvelope::new()
+                .set_to("relay.entry")
+                .set_trace(&trace::new_trace_id(), "GET /relay")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.body_as::<String>().unwrap(), "real answer");
+    // two RPC records: the responder's (by the interceptor) and the relay
+    // entry's (by the test); no worker records
+    let _ = wait_for_datasets(&datasets, 2).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let all = datasets.lock().expect("capture mutex").clone();
+    assert_eq!(all.len(), 2, "one record per span");
+    let responder = all
+        .iter()
+        .find(|d| trace_of(d)["service"] == "relay.actual.responder")
+        .expect("the responder's record");
+    let entry = all
+        .iter()
+        .find(|d| trace_of(d)["service"] == "relay.entry")
+        .expect("the relay entry's record");
+    // the responder's span reports exactly once — on its own record
+    assert!(trace_of(responder)["span_id"].is_string());
+    assert!(
+        !trace_of(entry).contains_key("span_id"),
+        "a relayed reply must not donate its span to the caller's record"
+    );
 }

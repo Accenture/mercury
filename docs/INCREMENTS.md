@@ -79,7 +79,7 @@
 | 60 | Event over HTTP phase 2, increment 2 — private functions, both Java paths: `#[preload]` private-by-default with `is_private = false` opt-out + `register_private` API + `is_private()` query; engine internals registered private | 2026-07-21 | — | 233 |
 | 61 | Event over HTTP phase 2, increment 3 — /api/event service + client: RPC/async dispatch, 403 private gate, 404/400/408, compact rejection, trace propagation (x-trace-id + traceparent); ships in default rest.yaml | 2026-07-21 | — | 235 |
 | 62 | Declarative Event over HTTP (`yaml.event.over.http`) — route→target map with per-target security headers; transparent PostOffice send/request forwarding (callback dance, x-event-api recursion guard); plus the D2 ttl fix (ceil + wire grace + local-wait grace) | 2026-07-22 | — | 237 |
-| 63 | Java-parity batch pre-4.10: `#[preload]` route aliases, app-log-context ON by default (built-in `default-log-context.yaml` + `app.log.context` switch), caller-side RPC `round_trip` telemetry record with span lineage, Event-over-HTTP demo endpoints in hello-flow (declarative + programmatic; port 8086→8100) | 2026-07-23 | — | 243 |
+| 63 | Java-parity batch pre-4.10: `#[preload]` route aliases, app-log-context ON by default (built-in `default-log-context.yaml` + `app.log.context` switch), caller-side RPC `round_trip` telemetry record with span lineage, Event-over-HTTP demo endpoints in hello-flow (declarative + programmatic; port 8086→8100) | 2026-07-23 | — | 244 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1769,20 +1769,39 @@ lock-step (Java references: mercury-composable commits `9f9050e1` log-context de
   built-in ships under a DISTINCT file name embedded via `include_str!` — the Rust
   mirror of Java's same-named-resource-shadowing defense (`ConfigReader::from_yaml_text`
   added for embedded templates). json/compact formats only; `text` unaffected.
-- **Caller-side RPC `round_trip` telemetry record** (Java `InboxBase.recordTrace` — this
-  port previously emitted NO record on RPC completion, a wider gap than the Java bug):
-  `PostOffice::request_direct` now records a traced RPC's completion to
-  `distributed.tracing` with **span lineage** exactly per the Java fix — `span_id` = the
-  callee's span from the reply, `parent_span_id` = the caller's span captured from the
-  outbound request. Gated like Java: traced events only, `skip.rpc.tracing` honored
-  (shared helper with the worker's zero-trace resolution), plus never from inside a
-  zero-traced bracket (in Java such events carry no trace at all). The reply envelope
-  now carries `set_round_trip` (Java `saveResponse` parity). Companion fix: a
-  zero-traced hop clears a nested reply's span id from its response instead of leaking
-  it (Java rebuilds the response envelope, so its reply never carries one).
-  Regression `rpc_telemetry_carries_span_lineage` (the Java
-  `PostOfficeTest.rpcTelemetryCarriesSpanLineage` twin) + strengthened lineage/zero-trace
-  tests.
+- **Caller-side RPC `round_trip` telemetry record — exactly one record per span** (Java
+  `InboxBase.recordTrace` — this port previously emitted NO record on RPC completion, a
+  wider gap than the Java bug): `PostOffice::request_direct` now records a traced RPC's
+  completion to `distributed.tracing`, and the worker **suppresses its own record** for
+  an RPC-served execution whose reply reached the caller (the Java
+  `WorkerHandler.sendTracingInfo` gate `journaled || rpc == null || notDelivered`;
+  journaling not ported — the RPC marker in this port is an `inbox.` reply address, and
+  `inbox::deliver` now reports delivery). Callback-style dispatch (a route `reply_to`,
+  e.g. Event Script tasks) keeps self-recording. **Span lineage** per the Java fixes
+  (04e5618f + 140640d8): `parent_span_id` = the caller's span from the outbound request,
+  unconditional; `span_id` = the callee's span from the reply, adopted **only from a
+  direct responder** (`span_id_from_responder`: the reply's `from` equals the requested
+  route) — a relayed reply (flow answering on behalf of the adapter route) keeps the
+  parent but omits the span it does not own. **Annotations now ride the reply envelope**
+  (new wire-compatible `annotations` field, also crossing Event-over-HTTP): the worker
+  attaches the function's `annotate_trace` values to its response and the caller folds
+  them into the span's single record, then strips them (Java
+  applyTraceContext/saveResponse). The programmatic `event_over_http` client stamps the
+  calling function's trace context (incl. its span) onto the wire envelope
+  (`apply_current_trace`, Java touch parity) so remote functions parent onto the
+  caller's span in BOTH patterns. Gated like Java: traced events only,
+  `skip.rpc.tracing` honored (shared helper with the worker's zero-trace resolution).
+  The reply envelope carries `set_round_trip` (Java `saveResponse` parity). Companion
+  fix: a zero-traced hop clears a nested reply's span id from its response instead of
+  leaking it (Java rebuilds the response envelope, so its reply never carries one).
+  Regressions: `rpc_telemetry_carries_span_lineage` (the Java
+  `PostOfficeTest.rpcTelemetryCarriesSpanLineage` twin),
+  `relayed_reply_does_not_donate_its_span_to_the_rpc_record` (the Java
+  `SpanPropagationTest` unique-span invariant), + rewritten lineage/zero-trace tests
+  asserting one-record-per-span. Live two-app acceptance drive (hello-flow →
+  hello-world, both patterns) verified at span level: no duplicate spans, no foreign
+  span ids on round_trip records, callee records parent onto the caller's task span in
+  both patterns.
 - **Event-over-HTTP demo endpoints in hello-flow** (now port **8100**, the structural
   parallel of the Java composable-example): `/api/event/http/demo` (declarative — flow
   task = the foreign alias route `hello.declarative` via `event-over-http.yaml` +
@@ -1799,7 +1818,7 @@ lock-step (Java references: mercury-composable commits `9f9050e1` log-context de
   event-over-http.md (zero-code demo walk-through, the programmatic twin, cross-language
   interop section — structurally mirrors the Java guide), hello-flow/hello-world READMEs,
   port sweep 8086→8100 across guides. CHANGELOG "Unreleased" section.
-- Workspace 243 / clippy 0 / fmt.
+- Workspace 244 / clippy 0 / fmt.
 
 ---
 

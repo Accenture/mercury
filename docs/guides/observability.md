@@ -112,13 +112,20 @@ present, your `annotations`:
 `status`, `success`, `exception`
 :   HTTP-style status code, a boolean verdict, and — only on failure — the error message.
 
-A traced **RPC** produces a second record from the caller's side when the reply arrives —
-same shape, plus a `round_trip` metric (the full request/response cycle in milliseconds;
-the reply envelope carries the same value). Its span lineage chains like the worker's
-record: `span_id` is the callee's own span (carried on the reply) and `parent_span_id` is
-the caller's span — including across an Event-over-HTTP hop, which is what stitches a
-remote function's record into the calling application's span tree. Routes listed in
-`skip.rpc.tracing` (default `async.http.request`) are excluded (Java parity).
+**Exactly one record per span.** For an **RPC-served** execution the worker suppresses
+its own record when the reply reaches the caller, and the caller emits the span's single
+record when the reply arrives — same shape, plus a `round_trip` metric (the full
+request/response cycle in milliseconds; the reply envelope carries the same value) and
+the callee's `annotations`, which ride the reply envelope. Its span lineage chains like
+a worker-emitted record: `parent_span_id` is the caller's span, and `span_id` is the
+callee's own span — adopted only from a **direct responder** (the reply's `from` equals
+the requested route); a relayed reply (e.g. a flow answering on behalf of the
+flow-adapter route) keeps the parent but omits `span_id`, because the relaying
+function's span is reported by its own record. This works across an Event-over-HTTP hop
+too, which is what stitches a remote function's record into the calling application's
+span tree. **Callback**-style invocations (a `reply_to` that is a route, not an RPC
+inbox — e.g. Event Script task dispatch) keep self-recording from the worker. Routes
+listed in `skip.rpc.tracing` (default `async.http.request`) are excluded (Java parity).
 
 By default the dataset is **logged** — that is the real-time telemetry stream. This is a
 real record from a `hello-world` run (`log.format: json`), emitted by `distributed.tracing`

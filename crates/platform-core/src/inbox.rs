@@ -68,14 +68,19 @@ pub(crate) fn open() -> (String, oneshot::Receiver<EventEnvelope>) {
 }
 
 /// Deliver a reply to an inbox. A missing entry (caller timed out and closed
-/// the inbox) drops the reply silently — the correct outcome.
-pub(crate) fn deliver(id: &str, reply: EventEnvelope) {
+/// the inbox) drops the reply silently — the correct outcome. Returns whether
+/// the reply actually reached a waiting caller — the Java
+/// `ProcessStatus.isNotDelivered` signal, which reopens the worker-side
+/// telemetry record for an RPC-served execution (otherwise the caller's
+/// `round_trip` record is THE record for the span and the worker stays quiet).
+pub(crate) fn deliver(id: &str, reply: EventEnvelope) -> bool {
     let sender = registry()
         .lock()
         .expect("inbox registry poisoned")
         .remove(id);
-    if let Some(sender) = sender {
-        let _ = sender.send(reply);
+    match sender {
+        Some(sender) => sender.send(reply).is_ok(),
+        None => false,
     }
 }
 

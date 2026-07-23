@@ -542,10 +542,20 @@ async fn worker_loop(
             break;
         };
         let started = Instant::now();
+        let mut event = event;
+        // annotations belong to REPLY envelopes only — never leak a prior
+        // hop's annotations into a function's input (Java WorkerHandler
+        // clears them on every non-inbox delivery)
+        event.clear_annotations_internal();
         let headers = event.headers().clone();
         let reply_to = event.reply_to().map(str::to_string);
         let cid = event.correlation_id().map(str::to_string);
         let event_from = event.from().map(str::to_string);
+        // the RPC marker (Java `event.getTag(RPC)`): in this port an RPC
+        // reply address is always a lightweight inbox id
+        let served_rpc = reply_to
+            .as_deref()
+            .is_some_and(|r| r.starts_with(crate::inbox::INBOX_PREFIX));
         // trace bracket (Java WorkerHandler): a traced request carries trace id
         // + path; this execution gets its own span, parented to the sender's
         // span carried on the envelope. A ZERO-TRACED route still keeps the
@@ -588,11 +598,32 @@ async fn worker_loop(
                 (!s.zero_traced).then(|| s.span_id.clone()),
             )
         });
-        // send the performance-metrics dataset to the telemetry sink — never
-        // for a zero-traced route (Java: sendTracingInfo is gated on tracing)
-        if let Some(state) = finished_state.filter(|s| !s.zero_traced) {
-            emit_telemetry(&registry, &route, event_from, &state, &result, elapsed_ms).await;
-        }
+        // trace annotations ride the REPLY (Java applyTraceContext): the RPC
+        // caller folds them into the round_trip record; a zero-traced hop
+        // attaches none (Java has no live TraceInfo there)
+        let reply_annotations: HashMap<String, rmpv::Value> = finished_state
+            .as_ref()
+            .filter(|s| !s.zero_traced)
+            .map(|s| {
+                s.annotations
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        rmpv::ext::to_value(v).ok().map(|value| (k.clone(), value))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        // pre-compute the outcome for the telemetry record — the result is
+        // consumed by the reply delivery below (Java reads it from
+        // ProcessStatus after processEvent has already sent the response)
+        let outcome = match &result {
+            Ok(response) => (response.status(), !response.has_error(), None),
+            Err(e) => (e.status(), false, Some(e.message().to_string())),
+        };
+        // whether an RPC reply failed to reach its waiting caller (the Java
+        // ProcessStatus.isNotDelivered signal); an interceptor's success path
+        // attempts no delivery and is NOT a delivery failure (Java parity)
+        let mut not_delivered = false;
         match (reply_to, result) {
             // an event interceptor replies MANUALLY (Java @EventInterceptor):
             // its successful return value is ignored and no auto-reply is sent
@@ -610,6 +641,7 @@ async fn worker_loop(
                 response.set_from_internal(&route);
                 response.set_to_internal(&reply_route);
                 response.set_exec_time_internal(elapsed_ms);
+                response.set_annotations_internal(reply_annotations.clone());
                 // the reply is a bus hop too — same deterministic null strip
                 normalize_null_transport(&mut response);
                 if let Some((trace_id, trace_path, span_id)) = trace_triple {
@@ -625,7 +657,7 @@ async fn worker_loop(
                 // a lightweight RPC inbox (Java AsyncInbox parity) bypasses the
                 // route machinery entirely — complete the caller's oneshot
                 if reply_route.starts_with(crate::inbox::INBOX_PREFIX) {
-                    crate::inbox::deliver(&reply_route, response);
+                    not_delivered = !crate::inbox::deliver(&reply_route, response);
                 } else if let Some(function) = reserved_route_function(&registry, &reply_route) {
                     // replies to the reserved engine routes (task callbacks)
                     // take the same direct path as sends
@@ -652,6 +684,16 @@ async fn worker_loop(
                 );
             }
             (None, Ok(_)) => {} // fire-and-forget success: result discarded
+        }
+        // send the performance-metrics dataset to the telemetry sink — never
+        // for a zero-traced route, and never for an RPC-served execution whose
+        // reply reached the caller: the caller's round_trip record is THE
+        // record for this span (Java WorkerHandler.sendTracingInfo gate:
+        // `journaled || rpc == null || notDelivered`; journaling not ported)
+        if let Some(state) = finished_state.filter(|s| !s.zero_traced) {
+            if !served_rpc || not_delivered {
+                emit_telemetry(&registry, &route, event_from, &state, outcome, elapsed_ms).await;
+            }
         }
     }
 }
@@ -688,7 +730,7 @@ async fn emit_telemetry(
     route: &str,
     from: Option<String>,
     state: &TraceState,
-    result: &Result<EventEnvelope, AppError>,
+    outcome: (i32, bool, Option<String>),
     elapsed_ms: f32,
 ) {
     let sender = registry
@@ -699,10 +741,7 @@ async fn emit_telemetry(
     let Some(sender) = sender else {
         return; // no telemetry sink on this platform
     };
-    let (status, success, exception) = match result {
-        Ok(response) => (response.status(), !response.has_error(), None),
-        Err(e) => (e.status(), false, Some(e.message().to_string())),
-    };
+    let (status, success, exception) = outcome;
     let mut metrics = serde_json::Map::new();
     let mut put = |k: &str, v: serde_json::Value| {
         metrics.insert(k.to_string(), v);

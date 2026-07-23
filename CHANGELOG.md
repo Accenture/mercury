@@ -27,12 +27,20 @@ the design rationale in [`docs/design/`](docs/design/).
    with its own `app-log-context.yaml`, or opt out with the new `app.log.context=false`
    key. Applications already providing an `app-log-context.yaml` are unaffected.
    Plain-text logging (`log.format=text`, the default) is unaffected.
-3. **RPC telemetry records** — the caller now emits the `round_trip` trace record for
-   each traced RPC response (Java `InboxBase.recordTrace` parity), complete with span
-   lineage: `span_id` (the callee's span) and `parent_span_id` (the caller's span), so
-   trace visualizers can chain RPC round-trips into the span tree — including across
-   Event-over-HTTP hops. The RPC reply envelope itself now carries the measured
-   `round_trip` value.
+3. **RPC telemetry records — exactly one record per span.** The caller now emits the
+   `round_trip` trace record for each traced RPC response (Java `InboxBase.recordTrace`
+   parity) while the worker suppresses its own record for an RPC-served execution whose
+   reply reached the caller (Java `WorkerHandler.sendTracingInfo` gate) — so each span
+   reports once, with full lineage: `parent_span_id` (the caller's span, unconditional)
+   and `span_id` (the callee's span, adopted only from a **direct responder**; a relayed
+   reply — e.g. a flow answering on behalf of the flow-adapter route — keeps the parent
+   but omits the span, Java `spanIdFromResponder` parity). Callback-style invocations
+   keep self-recording. The callee's trace annotations now ride the reply envelope (also
+   on the Event-over-HTTP wire) and fold into the span's single record; the RPC reply
+   itself carries the measured `round_trip` value. The programmatic `event_over_http`
+   client stamps the calling function's trace context (incl. its span) onto the wire
+   envelope, so remote functions parent onto the caller's span in both the declarative
+   and the programmatic pattern.
 4. **Event-over-HTTP demo endpoints in `hello-flow`** (the structural parallel of the
    Java composable-example, now on port **8100**): `/api/event/http/demo` (declarative —
    the flow's task is the foreign route `hello.declarative`, resolved through
