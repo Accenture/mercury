@@ -162,7 +162,7 @@ sequenceDiagram
     participant U as curl
     participant C as hello-flow (8100)
     participant L as hello-world (8085)
-    U->>C: POST /api/event/http/demo
+    U->>C: POST /api/event/http/declarative
     Note over C: flow task "hello.declarative"<br/>route is not local — resolved<br/>via event-over-http.yaml
     C->>L: POST /api/event<br/>(MsgPack envelope + trace context)
     Note over L: hello.declarative echo<br/>(alias of hello.world)
@@ -193,20 +193,25 @@ peer.demo.host: '127.0.0.1'
 peer.demo.port: 8085
 ```
 
-`event-over-http.yaml` maps the foreign route to the peer's Event API endpoint:
+`event-over-http.yaml` maps the foreign route to the peer's Event API endpoint (the
+`headers` block presents the shared demo token — see the
+[authentication demo](#authentication-the-eventapiauth-demo) below):
 
 ```yaml
 event.http:
   - route: 'hello.declarative'
     target: 'http://${peer.demo.host:127.0.0.1}:${peer.demo.port}/api/event'
+    # security headers (optional. Added for this demo only)
+    headers:
+      authorization: '${DEMO_PEER_TOKEN:demo}'
 ```
 
-and the REST endpoint `GET/POST /api/event/http/demo` (see `rest.yaml`) runs the flow
-`event-over-http-demo` whose task simply names the route:
+and the REST endpoint `GET/POST /api/event/http/declarative` (see `rest.yaml`) runs the flow
+`event-over-http-declarative` whose task simply names the route:
 
 ```yaml
 tasks:
-  - name: 'event-over-http-demo'
+  - name: 'event-over-http-declarative'
     input:
       - 'input.header -> header'
       - 'input.body -> *'
@@ -236,7 +241,7 @@ tasks:
 
     ```shell
     curl -s -X POST -H "content-type: application/json" \
-         -d '{"hello": "world"}' http://127.0.0.1:8100/api/event/http/demo
+         -d '{"hello": "world"}' http://127.0.0.1:8100/api/event/http/declarative
     ```
 
 4. The hello-world echo replies through the same path in reverse — the response arrives as
@@ -247,7 +252,7 @@ tasks:
       "body": { "hello": "world" },
       "headers": {
         "x-event-api": "callback",
-        "x-flow-id": "event-over-http-demo",
+        "x-flow-id": "event-over-http-declarative",
         "...": "..."
       },
       "instance": 4,
@@ -278,8 +283,12 @@ it directly to the request API — so `hello.world` needs **no entry** in
 
 ```rust
 let endpoint = format!("http://{host}:{port}/api/event");
+let security_headers = HashMap::from([
+    ("authorization".to_string(), config.get_property_or("demo.peer.token", "demo")),
+]);
 let request = EventEnvelope::new().set_to("hello.world").set_raw_body(input.body().clone());
-let response = event_over_http(&po, &endpoint, request, Duration::from_secs(10), true).await?;
+let response = event_over_http_with_headers(
+    &po, &endpoint, request, Duration::from_secs(10), true, &security_headers).await?;
 ```
 
 ```shell
@@ -301,6 +310,52 @@ the target at runtime.
     it. The Rust worker does not inject `my_route`; with the Rust callee, tell the
     patterns apart by the endpoint you called or by the declarative marker
     `x-event-api: callback` in the echoed headers.
+
+### Authentication: the event.api.auth demo
+
+The demo pair also shows how to protect the Event API endpoint. The hello-world example
+overrides the default `/api/event` entry in its `rest.yaml` to attach an authentication
+service:
+
+```yaml
+  - service: "event.api.service"
+    methods: ['POST']
+    url: "/api/event"
+    timeout: 60s
+    authentication: 'event.api.auth'
+    tracing: true
+```
+
+The `event.api.auth` function validates the caller's `authorization` header against a
+shared secret that **both peers resolve from the environment** — never hard-code a real
+credential in source or configuration files:
+
+```yaml
+# application.yml on both sides - "demo" is the local-development fallback
+demo.peer.token: '${DEMO_PEER_TOKEN:demo}'
+```
+
+On the calling side, the declarative route presents the token as a security header in
+`event-over-http.yaml`:
+
+```yaml
+event.http:
+  - route: 'hello.declarative'
+    target: 'http://${peer.demo.host:127.0.0.1}:${peer.demo.port}/api/event'
+    # security headers (optional. Added for this demo only)
+    headers:
+      authorization: '${DEMO_PEER_TOKEN:demo}'
+```
+
+and the programmatic task passes the same token in the security-headers argument of
+`event_over_http_with_headers`. A wrong or missing token gets an HTTP-401 without ever
+reaching the target function.
+
+When authentication passes, headers returned by the auth service become **session info**
+that rides to the target function as read-only headers — the demo's auth service adds
+`user: demo`, so you can see it echoed in the response body as proof that the request
+went through authentication. Replace the demo function with your own OAuth 2.0
+bearer-token validation for production use.
 
 ### Same demo, different language
 
@@ -336,5 +391,14 @@ at any peer that exposes the routes.
 The full cross-language matrix — both directions, both patterns, RPC and async, error
 semantics and trace continuity — was exercised by live bidirectional interop drives
 between the two engines; the permanent record is the
-[Interop Test Report](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)
-on the Java docs site.
+[Interop Test Report](../test-reports/event-over-http-interop.md) (mirrored on the
+[Java docs site](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)).
+
+## See also
+
+- [Interop Test Report (Java ⇄ Rust)](../test-reports/event-over-http-interop.md) — the live
+  bidirectional validation of both patterns, with span-level trace evidence and the
+  learnings kept as a playbook for future language ports.
+- [REST Automation](rest-automation.md) — declarative HTTP endpoints, no controllers.
+- [EventEnvelope](event-envelope-reference.md) — the envelope and the standard wire format.
+- [Observability Model](observability.md) — the span tree and the application log context.

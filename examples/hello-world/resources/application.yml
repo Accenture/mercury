@@ -23,3 +23,10 @@ info.app.description: 'mercury hello-world example'
 show.env.variables: 'GREETING_USER, ENV_NAME'
 show.application.properties: 'application.name, log.format, rest.server.port, greeting.instances'
 mandatory.health.dependencies: 'demo.health'
+
+# Shared demo secret for the Event-over-HTTP authentication demo. The
+# "event.api.auth" service compares the caller's "authorization" header
+# against this value. Resolved from the DEMO_PEER_TOKEN environment variable
+# so no real credential is ever hard-coded ("demo" is the fallback for local
+# development only).
+demo.peer.token: '${DEMO_PEER_TOKEN:demo}'

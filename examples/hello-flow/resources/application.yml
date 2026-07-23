@@ -17,3 +17,10 @@ mandatory.health.dependencies: 'flow.engine.health'
 yaml.event.over.http: 'classpath:/event-over-http.yaml'
 peer.demo.host: '127.0.0.1'
 peer.demo.port: 8085
+
+# Shared demo secret for the Event-over-HTTP authentication demo. The called
+# party's "event.api.auth" service expects this value in the "authorization"
+# header. Resolved from the DEMO_PEER_TOKEN environment variable so no real
+# credential is ever hard-coded ("demo" is the fallback for local development
+# only). The declarative side reads the same variable in event-over-http.yaml.
+demo.peer.token: '${DEMO_PEER_TOKEN:demo}'

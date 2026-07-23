@@ -135,6 +135,7 @@ nav:
       - Platform & PostOffice API: guides/api-overview.md
       - Reserved Names & Headers: guides/reserved-names-and-headers.md
       - Actuators & HTTP Client: guides/actuators-and-http-client.md
+      - "Interop Test Report (Java ⇄ Rust)": test-reports/event-over-http-interop.md
   - Background:
       - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md

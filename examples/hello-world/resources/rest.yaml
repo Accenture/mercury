@@ -9,6 +9,18 @@ rest:
     headers: header_1
     tracing: true
 
+  # Override the default "/api/event" endpoint to attach the demo
+  # authentication service (the EventApiAuth function). A calling party must
+  # present the shared demo token in the "authorization" header - see
+  # "demo.peer.token" in application.yml (resolved from the DEMO_PEER_TOKEN
+  # environment variable).
+  - service: "event.api.service"
+    methods: ['POST']
+    url: "/api/event"
+    timeout: 60s
+    authentication: 'event.api.auth'
+    tracing: true
+
 cors:
   - id: cors_1
     options:

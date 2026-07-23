@@ -174,28 +174,19 @@ impl LogContextConfig {
     /// tokens resolved live, constants, then the developer's custom keys.
     /// Keys resolving to nothing are omitted.
     ///
-    /// `state` is the current trace bracket when the line runs inside a traced
-    /// function. Outside a trace (`None`) the block still renders with the
-    /// trace-independent keys — constants and `$utc` — while trace-bound
-    /// tokens and custom keys are omitted. (A deliberate refinement over Java,
-    /// where the block appears only on traced lines — maintainer-directed so
-    /// application-level log lines carry the static context too.)
+    /// `state` is the current trace bracket — the context block exists ONLY
+    /// for a log line emitted inside a traced function execution with a real
+    /// request trace (Java parity: the log context is registered per worker
+    /// execution in lockstep with the trace bracket; framework, system and
+    /// telemetry lines carry no context at all, not even the constants).
     pub fn render(
         &self,
-        state: Option<&trace::TraceState>,
+        state: &trace::TraceState,
         log_time: std::time::SystemTime,
     ) -> serde_json::Map<String, serde_json::Value> {
         let mut out = serde_json::Map::new();
         for (output_key, token_name) in &self.tokens {
-            let value = match state {
-                Some(state) => state.token(token_name, log_time),
-                // only $utc resolves without a trace
-                None if token_name == "utc" => {
-                    Some(serde_json::Value::String(trace::iso8601_utc(log_time)))
-                }
-                None => None,
-            };
-            if let Some(value) = value {
+            if let Some(value) = state.token(token_name, log_time) {
                 out.insert(output_key.clone(), value);
             }
         }
@@ -205,11 +196,9 @@ impl LogContextConfig {
                 serde_json::Value::String(constant.clone()),
             );
         }
-        if let Some(state) = state {
-            for (key, value) in &state.custom_log_keys {
-                if !value.is_null() {
-                    out.insert(key.clone(), value.clone());
-                }
+        for (key, value) in &state.custom_log_keys {
+            if !value.is_null() {
+                out.insert(key.clone(), value.clone());
             }
         }
         out
@@ -290,16 +279,25 @@ impl log::Log for PlatformLogger {
             serde_json::Value::String(message)
         };
         line.insert("message".into(), message_value);
-        // the application log context (when the optional config is present):
-        // inside a traced worker the full set renders — the logger runs
-        // synchronously on the same task, so the task-local is found; outside
-        // a trace the trace-independent keys (constants, $utc) still render
+        // the application log context: ONLY inside a traced worker with a
+        // real request trace (Java parity — the context registers per worker
+        // execution in lockstep with the trace bracket; a zero-traced route
+        // registers none). Framework/system/telemetry lines carry no context
+        // block at all — constants never leak onto context-less lines.
         let config = LogContextConfig::instance();
         if config.is_enabled() {
-            let context = trace::with_current(|state| config.render(Some(state), now))
-                .unwrap_or_else(|| config.render(None, now));
-            if !context.is_empty() {
-                line.insert("context".into(), serde_json::Value::Object(context));
+            let context = trace::with_current(|state| {
+                if state.zero_traced {
+                    None
+                } else {
+                    Some(config.render(state, now))
+                }
+            })
+            .flatten();
+            if let Some(context) = context {
+                if !context.is_empty() {
+                    line.insert("context".into(), serde_json::Value::Object(context));
+                }
             }
         }
         let line = serde_json::Value::Object(line);

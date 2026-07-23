@@ -286,6 +286,11 @@ impl AsyncHttpRequest {
         self.method.as_deref().unwrap_or("GET")
     }
 
+    /// The request URI path (Java `AsyncHttpRequest.getUrl`).
+    pub fn url(&self) -> &str {
+        self.url.as_deref().unwrap_or("/")
+    }
+
     pub fn target_host(&self) -> Option<&str> {
         self.target_host.as_deref()
     }
@@ -297,6 +302,13 @@ impl AsyncHttpRequest {
     /// All request headers in insertion order.
     pub fn headers(&self) -> &[(String, String)] {
         &self.headers
+    }
+
+    /// Session info injected by an authentication service (Java
+    /// `AsyncHttpRequest.getSessionInfo`): headers returned on the auth
+    /// verdict, riding to the target function as read-only headers.
+    pub fn session(&self) -> &[(String, String)] {
+        &self.session
     }
 
     pub fn header(&self, key: &str) -> Option<&str> {

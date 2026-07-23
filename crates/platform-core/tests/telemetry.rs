@@ -333,7 +333,7 @@ context:
     state
         .custom_log_keys
         .insert("user".into(), serde_json::json!("demo"));
-    let rendered = config.render(Some(&state), std::time::SystemTime::now());
+    let rendered = config.render(&state, std::time::SystemTime::now());
     assert_eq!(rendered["cid"], serde_json::json!("order-1"));
     assert_eq!(rendered["service"], serde_json::json!("v1.demo"));
     assert_eq!(rendered["environment"], serde_json::json!("dev"));

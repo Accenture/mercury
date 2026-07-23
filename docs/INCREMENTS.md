@@ -80,6 +80,7 @@
 | 61 | Event over HTTP phase 2, increment 3 — /api/event service + client: RPC/async dispatch, 403 private gate, 404/400/408, compact rejection, trace propagation (x-trace-id + traceparent); ships in default rest.yaml | 2026-07-21 | — | 235 |
 | 62 | Declarative Event over HTTP (`yaml.event.over.http`) — route→target map with per-target security headers; transparent PostOffice send/request forwarding (callback dance, x-event-api recursion guard); plus the D2 ttl fix (ceil + wire grace + local-wait grace) | 2026-07-22 | — | 237 |
 | 63 | Java-parity batch pre-4.10: `#[preload]` route aliases, app-log-context ON by default (built-in `default-log-context.yaml` + `app.log.context` switch), caller-side RPC `round_trip` telemetry record with span lineage, Event-over-HTTP demo endpoints in hello-flow (declarative + programmatic; port 8086→8100) | 2026-07-23 | — | 244 |
+| 64 | Telemetry presentation parity with the Java reference: REST automation callback dispatch + `async.http.response` span (first/response legs are real spans), log-context gating (traced lines only), `my_*` response-header strip, business-cid header channel, `event.api.auth` demo + session info, demo→declarative rename, `hello.pojo` — rust-to-rust trace = EXACT replica of java-to-java (empty signature diff, both patterns) | 2026-07-23 | — | 245 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1819,6 +1820,57 @@ lock-step (Java references: mercury-composable commits `9f9050e1` log-context de
   interop section — structurally mirrors the Java guide), hello-flow/hello-world READMEs,
   port sweep 8086→8100 across guides. CHANGELOG "Unreleased" section.
 - Workspace 244 / clippy 0 / fmt.
+
+---
+
+## Increment 64 — Telemetry presentation parity: the Java reference topology, exactly (2026-07-23)
+
+Eric's manual four-direction interop testing sharpened the bar: the rust-to-rust trace
+log must be an **exact structural replica** of java-to-java (normalized signature:
+8 records declarative / 9 programmatic, per-record service + parent edge + kind + path).
+Rationale (standing invariant): installations are polyglot — DevSecOps teams see both
+engines' telemetry in one aggregation, so presentation differences are support burden.
+Java reference: mercury-composable branch `feature/event-api-span-and-auth`.
+
+- **REST automation dispatches the endpoint service as a CALLBACK** (the structural
+  fix Eric green-lit): the dispatched event carries `reply_to = async.http.response` and
+  `cid` = the HTTP context id (a per-request oneshot in a pending map); the new
+  `async.http.response` service (registered by `start_http_server`, private, 500
+  instances, traced) correlates the reply to the waiting connection. Consequences:
+  the endpoint service's worker self-records its span (the missing first leg), and the
+  response leg is a visible span parenting onto the replying function's span — on the
+  caller side it parents onto the CALLEE's function span in the declarative pattern
+  (the flow relays the remote reply) and onto the local task span in the programmatic
+  one (the reference's deliberate asymmetry).
+- **Business correlation-id channel** (Java PostOffice parity): the `my_correlation_id`
+  envelope header carries the business id past the context-id cid slot; the worker's
+  trace bracket prefers it, so `po.my_correlation_id()` / `model.cid` semantics are
+  unchanged (flow tasks now correctly see the business id rather than the composite).
+- **Log-context gating** (items 1+2 of Eric's bug list): the `context` block renders
+  ONLY inside a traced, non-zero-traced worker bracket — telemetry records and
+  framework/system lines lost their partial constants-only block (the increment-5
+  "outside-a-trace constants" divergence is retired; Java lockstep model).
+- **`my_*` response-header strip** at the REST boundary (`copyResponseHeaders` parity).
+- **`event.api.auth` demo** (Java lambda-example twin): hello-world overrides
+  `/api/event` with `authentication: 'event.api.auth'`; the shared token resolves from
+  `${DEMO_PEER_TOKEN:demo}` on both peers; REST automation now forwards auth-verdict
+  headers as **session info** (`session` map → `/api/event` relays them as read-only
+  headers — `user: demo` proves the path in the echo). NOTE: `authentication:` support
+  already existed (increment 6); the session-info half is new. hello-flow presents the
+  token declaratively (`headers:` in event-over-http.yaml) and programmatically
+  (`event_over_http_with_headers`); the client returns non-envelope responses (the
+  auth 401) as-is (Java `handleFutureResponse` parity). New loopback e2e
+  `examples/hello-world/tests/event_api_auth.rs` (accept 200 + session proof / wrong
+  401 / missing 401 — the Java `EventApiAuthTest` twin).
+- **Renames + hello.pojo**: `/api/event/http/demo` → `/api/event/http/declarative`,
+  flow id `event-over-http-demo` → `event-over-http-declarative`; hello-world gains
+  `hello.pojo` and the echo forwards to it fire-and-forget (span propagation visible,
+  lambda-example parity).
+- **Acceptance:** live two-app drive, normalized span-owner diff against the Java
+  reference signature = **EMPTY** for both patterns; one record per span, no dangling
+  parents; log-context gating verified (36 context-less framework/telemetry records, 0
+  violations); response headers clean; auth 200/401/401 live. Workspace 245 / clippy 0 /
+  fmt.
 
 ---
 

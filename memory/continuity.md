@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.0**: tracks the canonical mercury-composable line (Java 4.10.0 released the same day — one version, two languages; cross-language Event-over-HTTP interop validated by live bidirectional drives).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-022937)
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-152724)
 - **last_review:** 2026-07-23 | through 2026-07-23-013514.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -61,6 +61,17 @@ scanning (→ compile-time registration; no runtime scanning in Rust). platform-
   `docs/arch-decisions/ADR.md` (ADR-0001…0007, adapted from the Java repo — read on demand).
   <!-- id: inv-never-couple-functions | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: core | origin: 2026-07-15-221632.md -->
 
+- **Telemetry/log presentation parity with the Java reference implementation** — the
+  trace-record topology (record count per trace, service names, parent edges,
+  round_trip-vs-exec kinds, paths) and the log presentation (app-log-context gating,
+  header hygiene) of this port must remain an exact structural replica of the Java
+  engine's, which is THE reference. Rationale (Eric, 2026-07-23): field installations
+  stay POLYGLOT for a long time — DevSecOps teams see both engines' telemetry and logs
+  in one aggregation, and any presentation difference is a support burden they will
+  flag. This is a standing invariant, not a one-off acceptance criterion; the Java-to-
+  Java normalized signature is the acceptance instrument (see increment 64).
+  <!-- id: inv-telemetry-presentation-parity | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: core | origin: 2026-07-23-152724.md -->
+
 *(More invariants will be distilled from mercury-composable's docs/ADRs as each layer is
 ported — e.g. stateless functions, HTTP-style status codes.)*
 
@@ -100,6 +111,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (feature branch awaiting Eric — 2026-07-23) **Telemetry presentation-parity batch
+  (increment 64) IMPLEMENTED on branch `feature/event-api-span-and-auth`** (mirror of the
+  Java reference branch of the same name; NOT pushed — Eric gates). rust-to-rust trace =
+  EXACT replica of java-to-java (empty normalized-signature diff, both patterns; signature
+  file /tmp/java-to-java-reference-signature.md). Structural changes: REST automation
+  CALLBACK dispatch + `async.http.response` span (first + response legs are real spans;
+  business cid moved to the `my_correlation_id` header channel), log-context gating
+  (traced lines only — the increment-5 outside-a-trace divergence retired), `my_*`
+  response-header strip, `event.api.auth` demo + session-info forwarding,
+  demo→declarative rename, hello.pojo forward. Workspace 245/clippy 0/fmt; acceptance
+  drive verified (topology/gating/headers/auth). Close when merged.
+  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-152724.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.0 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.0` on merge commit `4dc70337`

@@ -154,13 +154,15 @@ sent to this route (with the endpoint's timeout). The contract:
 - return body `true` → the request proceeds to `service`;
 - return body `false` (or anything that is not boolean `true`) → **401 Unauthorized**;
 - return an error (`Err(AppError)` / status ≥ 400) → that status and message are returned
-  to the caller, so the function can reject with a custom status such as 403.
+  to the caller, so the function can reject with a custom status such as 403;
+- **headers on the verdict envelope become session info** that rides to the target
+  function as read-only headers (the `session` map of the `AsyncHttpRequest`) — e.g. put
+  the validated user id there. A working example is the `event.api.auth` demo in the
+  [Event over HTTP](event-over-http.md#authentication-the-eventapiauth-demo) guide.
 
 !!! note "Rust port"
     Only the simple form — one route for the endpoint — is ported. The Java routing specs
-    (`'default: svc'`, `'header: svc'`, `'header: value: svc'`) and the Java option of
-    returning an `EventEnvelope` whose headers become session info for the target function
-    are not yet available: the verdict must be a boolean.
+    (`'default: svc'`, `'header: svc'`, `'header: value: svc'`) are not yet available.
 
 #### `tracing`
 

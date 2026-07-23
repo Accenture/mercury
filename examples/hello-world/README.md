@@ -85,7 +85,12 @@ function under two route names (`hello.world, hello.declarative` — a
 comma-separated alias list, one shared handler). It is the standing callee
 of the `hello-flow` example's two Event-over-HTTP demo endpoints, and the
 drop-in counterpart of the Java `lambda-example` (same port 8085, same
-routes) — so the demo doubles as a cross-language interop demo. See the
+routes) — so the demo doubles as a cross-language interop demo. The
+`/api/event` endpoint is protected by the `event.api.auth` demo service:
+callers must present the shared token (`DEMO_PEER_TOKEN`, default `demo`)
+in the `authorization` header, and the auth service injects `user: demo` as
+session info that shows up in the echo. The echo also forwards to
+`hello.pojo` so the span propagation is visible in the trace. See the
 hello-flow README and the docs site's *Event over HTTP* guide.
 
 Stop with Ctrl-C (graceful shutdown cleans the elastic store).

@@ -6,15 +6,15 @@
 # or HTTP client code.
 #
 flow:
-  id: 'event-over-http-demo'
+  id: 'event-over-http-declarative'
   description: 'Demonstrate Event-over-Http protocol using declarative means'
   ttl: 10s
   exception: 'v1.hello.exception'
 
-first.task: 'event-over-http-demo'
+first.task: 'event-over-http-declarative'
 
 tasks:
-  - name: 'event-over-http-demo'
+  - name: 'event-over-http-declarative'
     input:
       - 'input.header -> header'
       - 'input.body -> *'

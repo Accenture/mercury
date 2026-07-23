@@ -37,7 +37,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use platform_core::automation::event_over_http;
+use platform_core::automation::event_over_http_with_headers;
 use platform_core::{
     main_application, preload, AppConfigReader, AppError, ComposableFunction, EntryPoint,
     EventEnvelope, Platform, PostOffice,
@@ -94,8 +94,13 @@ impl ComposableFunction for GreetingComposer {
 /// `hello.world` does NOT appear in `event-over-http.yaml` — compare with
 /// `hello.declarative` (an alias of the same peer function), which is
 /// resolved through that configuration file instead. The two REST endpoints
-/// `/api/event/http/programmatic` and `/api/event/http/demo` therefore hit
-/// the same peer function through the two different patterns.
+/// `/api/event/http/programmatic` and `/api/event/http/declarative`
+/// therefore hit the same peer function through the two different patterns.
+///
+/// The peer's `/api/event` endpoint is protected by the `event.api.auth`
+/// demo — this task presents the shared token (resolved from the
+/// DEMO_PEER_TOKEN environment variable via `demo.peer.token`) as a security
+/// header on the HTTP request.
 #[preload(route = "v1.event.over.http.rpc", instances = 10)]
 struct EventOverHttpRpc;
 
@@ -111,6 +116,14 @@ impl ComposableFunction for EventOverHttpRpc {
         let host = config.get_property_or("peer.demo.host", "127.0.0.1");
         let port = config.get_property_or("peer.demo.port", "8085");
         let endpoint = format!("http://{host}:{port}/api/event");
+        // the peer's /api/event is protected by the event.api.auth demo —
+        // present the shared token as a security header (never hard-coded;
+        // "demo" is only the local-dev default inside ${DEMO_PEER_TOKEN:demo})
+        let mut security_headers = HashMap::new();
+        security_headers.insert(
+            "authorization".to_string(),
+            config.get_property_or("demo.peer.token", "demo"),
+        );
         let mut request = EventEnvelope::new()
             .set_to("hello.world")
             .set_raw_body(input.body().clone());
@@ -118,8 +131,15 @@ impl ComposableFunction for EventOverHttpRpc {
             request = request.set_header(key, value);
         }
         let po = PostOffice::new(&Platform::get_instance());
-        let response =
-            event_over_http(&po, &endpoint, request, Duration::from_secs(10), true).await?;
+        let response = event_over_http_with_headers(
+            &po,
+            &endpoint,
+            request,
+            Duration::from_secs(10),
+            true,
+            &security_headers,
+        )
+        .await?;
         if response.status() != 200 {
             // surface the remote error to the flow's exception handler
             return Err(AppError::new(

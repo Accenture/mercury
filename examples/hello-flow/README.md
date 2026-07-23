@@ -93,11 +93,14 @@ cargo run -p hello-world      # or the Java lambda-example — same port, same r
 **Declarative** (zero code — the target address is deployment configuration):
 the flow's task is the foreign route `hello.declarative`, which does not
 exist here; `resources/event-over-http.yaml` resolves it to the peer's
-`/api/event` endpoint and the call crosses the wire automatically.
+`/api/event` endpoint and the call crosses the wire automatically — carrying
+the shared demo token as a security header (the peer's `/api/event` is
+protected by its `event.api.auth` service; both sides resolve the token from
+the `DEMO_PEER_TOKEN` environment variable, default `demo` for local dev).
 
 ```bash
 curl -s -X POST -H 'content-type: application/json' \
-     -d '{"hello":"world"}' http://127.0.0.1:8100/api/event/http/demo
+     -d '{"hello":"world"}' http://127.0.0.1:8100/api/event/http/declarative
 ```
 
 **Programmatic** (the code computes the target at runtime): the flow's task
@@ -133,7 +136,7 @@ orchestration is configuration.
 |---|---|
 | `src/main.rs` | the composable functions + the one-line main |
 | `resources/flows/hello-flow.yml` | **the transaction** (decision + 2 end tasks) |
-| `resources/flows/event-over-http-demo.yml` | the declarative Event-over-HTTP demo flow |
+| `resources/flows/event-over-http-declarative.yml` | the declarative Event-over-HTTP demo flow |
 | `resources/flows/event-over-http-programmatic.yml` | the programmatic Event-over-HTTP demo flow |
 | `resources/event-over-http.yaml` | the declarative route → peer mapping |
 | `resources/flows.yaml` | which flows to compile at startup |
