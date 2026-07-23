@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.0**: tracks the canonical mercury-composable line (Java 4.10.0 released the same day — one version, two languages; cross-language Event-over-HTTP interop validated by live bidirectional drives).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-013514)
-- **last_review:** 2026-07-21 | through 2026-07-21-214043
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-022937)
+- **last_review:** 2026-07-23 | through 2026-07-23-013514.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-22 | uses: 72 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 78 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,175 +94,27 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-22 | uses: 71 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 77 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [x] **AI-companion validation sweep (tutorials 1–13) — COMPLETE 2026-07-19: ALL 13 PASSED** — dogfooding the full human–AI
-  collaboration path: a *fresh* companion agent builds each Playground tutorial from the **canonical
-  AI-agent docs alone** (`mercury-composable/docs/llms.txt` + `.../knowledge-graph/ai-agent-guide.md`
-  + `command-reference.md` + `minigraph-commands.json` — never the tutorial walkthroughs), one node /
-  one connection at a time with human screenshot validation, through the instantiate→run→inspect
-  dry-run (from tut-4 on: L3 = problem-only brief, no syntax hints, build-whole-then-dry-run). Running
-  log: `docs/AI-companion-test.md`. **Done: ALL (1–13 + the tut-5 retest).** Tut-3 surfaced + drove the
-  `#[optional_service]` / dev-mock / Dictionary bare-`input[]` / inspect-doc-placeholder arc (increments
-  30–32, both repos). **Tut-4** (decision node) found an AI-grammar gap — the AI docs listed
-  `graph.math` statement keywords but gave no statement syntax, so a fresh agent invented wrong
-  branching that failed silently; **fixed** by documenting the `graph.math`/`graph.js` statement grammar
-  (IF/THEN/ELSE etc.), landed via public-upstream PR
-  [Accenture/mercury-composable#187](https://github.com/Accenture/mercury-composable/pull/187), then a
-  second fresh agent solved it from the docs alone (dry-run PASS, all branches + `a==b`). Also validated
-  MiniGraph **session-management** (`session subscribe` link + a zero-dep Node WS subscriber gave the
-  orchestrator live console visibility). **Pending: 6–13** — each expected to surface more; that is the
-  *purpose*, hardening the Rust port toward production quality. **Tut-5 (L4, composition:
-  parallel fan-out + `graph.join` + data sourcing) PASSED on the FIRST attempt — 18/18 commands ok,
-  zero failures** — first test on this repo's own AI docs, driven wholly via `/sync` on the human's
-  live UI session; design semantically equivalent to canonical (one whole-profile Dictionary,
-  deterministic post-join `profile[0]/[1]` assembly — avoids canonical's unordered concurrent
-  append; the disjoint-`model.*`-scratch lesson derived unaided). Key finding: the five AI docs
-  alone were NOT sufficient — Provider `{name}` URL placeholders + Dictionary bare `input[]` live
-  only behind the non-existent `composing-the-layers.md`; the companion bridged in-band
-  (`describe skill` → `help data-dictionary`). New rollup findings #9–#15 in
-  `docs/AI-companion-test.md` (dangling links incl. the constant-set page, `help {topic}`
-  undocumented, stale `/command` prose, `/sync` envelope null-omission vs docs + undocumented `id`,
-  fan-out parallelism implied only, subscribe-via-sync bug → [[ot-subscribe-via-sync-bug]],
-  `session reset` doesn't clear the draft graph — contaminated-session hazard, orchestrator had to
-  delete 7 leftover nodes pre-brief). **Grammar gaps #9–#13 FIXED same day (maintainer-directed):**
-  Provider/Dictionary authoring section + closed constant set (deprecated `:type` excluded; Dictionary
-  `:` = default only) + `help {topic}` + `/sync` prose + truthful envelope (absent ⇒ null, `id`) +
-  explicit parallel fork/join/state-safety rules — across `command-reference.md`,
-  `minigraph-commands.json`, `skills-reference.md`, `ai-agent-guide.md`, `llms.txt`; all dangling
-  links removed (the four AI docs are now self-sufficient — agents should never need the human help
-  pages; help-page polish → [[ot-help-pages-rewrite]]). **Tut-6 (L5, data-driven iteration: `for_each` + chained
-  fetch + POST provider) PASSED on the FIRST attempt — 18 observed POSTs, all ok, zero failures**
-  (2026-07-19, session ws-876960-4). The planned tut-5 retest was **skipped (maintainer direction:
-  proceed to tut-6)** — its tightened criterion was applied observationally instead and the #9–#13
-  fixes **held**: Provider/Dictionary authoring (incl. the POST `body.*` form) came straight from
-  the grammar with ZERO lookups; the single in-band lookup (`help graph-api-fetcher`) was for the
-  `for_each` idiom → new findings #17–#21 (for_each idiom + aggregation semantics undocumented,
-  `output[]` required-vs-optional contradiction, POST example missing, constants "closed set" vs
-  `f:`/`$.` actually resolvable in graph mappings — code-confirmed). The WS-side watcher +
-  read-only companion rule (#194) validated live (`subscribed by ["ws-759054-5"]`, mirror held
-  the whole run). **Findings #17–#21 FIXED same day (maintainer-directed,
-  engine-verified):** `for_each` section (idiom + GUARANTEED ordered aggregation — verified in
-  `fetcher.rs`), corrected fetcher matrix (`output[]` optional; only `dictionary[]` hard-required),
-  POST-body Provider example, `f:`/`$.` non-constant source forms documented. **NEW #22 (maintainer
-  decision): `graph.island` is REQUIRED** — islands link data entities/dictionaries into the
-  graph's entity-relationship diagram (living documentation of enterprise knowledge); the AI
-  grammar now mandates **no node left unconnected**
-  (`root -[contains]-> island -[data]-> dictionary -[provider]-> provider`). **Tut-5 RETEST DONE (2026-07-19) — PASSED on the tightened
-  criterion: ZERO in-band lookups** (first run needed two), 20/20 ok, first-attempt dry-run pass;
-  the companion also wired the **Island knowledge layer unprompted** (#22 verified) and cited the
-  documented fork/state-safety rules (#13 verified) — the grammar self-sufficiency claim is now
-  proven end-to-end. Two inference-only frictions → #23 (array-index mapping targets) + #24 (whole-subtree
-  Dictionary output) — **both FIXED same day** (composite-keys block + examples across the
-  grammar docs). **Tut-7 (L6, mapping-language depth: constants, nested extraction,
-  ordered array assembly, execution-time `f:now`) PASSED — cleanest run yet: 8/8 commands, zero
-  failures, ZERO in-band lookups, first attempt** (2026-07-19, session ws-783755-2). Pre-flight:
-  `f:now()` verified present/correct in the port (maintainer flagged possible unconverted plugins —
-  live-probed iso/local/ms before briefing). The updated grammar visibly drove the design (indexed
-  assembly with the documented rationale, cross-layer plugin discovery via llms.txt, no cargo-cult
-  island). Frictions #26 (example `f:` plugins unnamed in KG grammar) + #27 (nested instantiate
-  seeds unshown) FIXED same day. **Tut-8 (L7, reshaping toolbox: JSONPath + `f:listOfMap`/`f:removeKey`)
-  PASSED — 17/17, zero failures, ZERO lookups, first attempt** (2026-07-19, ws-783755-2): the
-  companion chose the canonical's own "easier" `f:removeKey` route (form inferred → #28 FIXED
-  same day with a code-verified syntax+example), and — with NO config nodes — volunteered an
-  island with data-entity nodes documenting the domain (#22 shaping designs unprompted). Open:
-  #29 (graph.math for_each thinly specified — CLOSED 2026-07-19, increment 38: engine-verified
-  probe `rust-foreach.json` + `#math-for-each` grammar section across all four doc surfaces;
-  the probe also surfaced that COMPUTE doubles don't feed the whole-number-only `f:add` —
-  accumulators stay in COMPUTE) + #30
-  RESOLVED (maintainer agreed): island required with config/data-entity nodes, encouraged
-  otherwise — landed in the grammar; `listOfMap`/JSONPath impedance-matching rationale captured
-  in syntax.md. **Tut-9 (L8, reuse under governance: off-path `graph.math`
-  Module + `EXECUTE`) PASSED with ONE self-corrected iteration** (2026-07-19, ws-783755-2):
-  19/19 ok, zero lookups; the first functional defect of the sweep (empty output) was
-  self-diagnosed in-band via three `inspect`s — the EXECUTE result-landing rule (results belong to
-  the INVOKER; the module "just lends the logic") was missing from the grammar → #31 FIXED same
-  day (EXECUTE semantics + reusable-module worked example), plus #32 (type-case contradiction) and
-  #33 (island scope now covers Module nodes; "executes only to sink" phrasing) FIXED. Maintainer
-  correction absorbed: tut-9 = reusable module, NOT subgraphs (graph.extension comes later).
-  **Tut-10 (L9, composition by delegation: `graph.extension`
-  sub-graph) PASSED — 16/16, zero failures, ZERO lookups, first attempt** (2026-07-19,
-  ws-783755-2): delegation chosen over import unprompted (`extension=tutorial-3`, zero
-  re-implementation); the island documents the delegation itself (entity + external-model node
-  with graph_id/contract properties). Findings #34–#36 FIXED same day (engine-verified):
-  graph.extension delegation contract rule-stated; node-name charset corrected to include DIGITS
-  (canonical uses fetcher-1; engine has no charset validation); skill-less End blessed.
-  **Tut-11 (L10, cross-layer composition: `extension=flow://flow-11`)
-  PASSED — 15/15, zero failures, ZERO lookups, first attempt** (2026-07-19, ws-783755-2): the
-  companion explicitly credited the rule-stated grammar (#22/#30/#34/#36) for the zero-error run —
-  the feedback loop is compounding. Findings: #37 (no `*` on graph.extension — engine-verified,
-  now stated) + #39 (model-description endpoint noted) FIXED; #38 (no flow/graph id discovery
-  command — engine work, maintainer call) open. **Tut-12 (L11, resilience engineering: `exception=` routing +
-  bounded retry + recovery) PASSED — 27/27, zero failures, ZERO lookups, both dry-runs first
-  attempt** (2026-07-19, ws-783755-2; the hardest exercise yet): three-node retry machine with
-  mutual RESETs, arguably cleaner than canonical. Pre-flight scratch-probe of canonical tut-12
-  surfaced #40 (`/sync` ok-heuristic false-negative on import's benign fallback line — engine
-  fix landed 2026-07-19, see [[ot-sync-ok-heuristic-fix]]). Findings #41–#46 (exception= semantics, RESET truths
-  incl. comma lists + loop guard, IF-jump-ends-list, NEXT/DELAY written forms + timing,
-  unresolvable-source skip, dedup per-instance success-only) — ALL engine-verified and FIXED same
-  day (new Failure-routing section with the canonical retry pattern). #38 saved as
-  [[ot-discovery-commands-backlog]]. **Tut-13 (L12, the custom-logic seam: `graph.task` +
-  `v1.hello.task`, header value deliberately ≠ the doc example) PASSED — 16/16, zero failures,
-  ZERO lookups, first attempt** (2026-07-19); #47/#48 fixed same day. **SWEEP COMPLETE: 13/13
-  tutorials passed** — eight consecutive zero-lookup first-attempt passes from the tut-5 retest
-  on; final scorecard in `docs/AI-companion-test.md` ("Sweep complete — the scorecard"). 48
-  rollup findings all resolved or tracked. Follow-ups live in their own threads:
-  [[ot-help-pages-rewrite]] (done), [[ot-discovery-commands-backlog]], and the `/sync`
-  ok-heuristic engine fix (#40 — done, [[ot-sync-ok-heuristic-fix]]).
-  **Post-sweep forced test-drive: `f:listOfMap` (2026-07-20) PASSED — 17/17, ZERO lookups,
-  first attempt** (headless orchestrator-owned session ws-301207-1 — raw-WS client + /sync, no
-  human session needed): columnar→row impedance-matching exercise with a confidential column
-  and variable export length; the agent chained file(json:) → f:removeKey → f:listOfMap
-  (drops the column BEFORE rows exist) + f:length + an unprompted island. Findings #49–#52
-  (mapping[] in-order rule, listOfMap order guarantee, file() read-at-execution — empirically
-  proven by swapping the file between runs — f:length discoverability) all FIXED same day.
-  Streak extended by **drive #2
-  (2026-07-20): discovery-driven delegation** — brief named NO graph/flow id; the agent found
-  its target via `list graphs` + empirical probes, delegated to tutorial-3, island documented
-  the delegation (21/21, zero lookups, first attempt) — **TEN consecutive zero-lookup
-  first-attempt passes**. Findings #55–#57 fixed same day; **#53 + #54 IMPLEMENTED
-  2026-07-20 (increment 47, both ports)** — new `describe graph {graph-id}` contract view
-  (purpose + derived input/output surface; list → contract → delegate, all read-only) +
-  differentiated tutorial-3/5 purposes; Java upstream PR
-  [#200](https://github.com/Accenture/mercury-composable/pull/200) MERGED (2026-07-20) —
-  the discovery arc (list → contract → delegate) is live in BOTH engines. **Drive #3
-  (2026-07-20): live HTTPS fetch — PASSED 16/16, zero lookups, first attempt** — increment
-  48's TLS transport field-validated end-to-end against the real google.com CA chain
-  (truthful 301 + f:length page size; unprompted island); findings #58–#61 doc-FIXED same
-  day, #62–#63 (shared /sync contract gaps) → [[ot-sync-companion-contract-gaps]] —
-  **ELEVEN consecutive zero-lookup first-attempt passes**.
-  **Layer-1/2 AI docs ported for tutorials 6+ (2026-07-19, maintainer-directed):**
-  `docs/guides/event-script/` (ai-agent-guide, flow-grammar, event-script-flow.json, syntax.md —
-  flow YAML identical to Java, code examples in the Rust API) + `docs/guides/event-driven/`
-  (ai-agent-guide — `#[preload]`/`ComposableFunction`/PostOffice, verified against source);
-  `docs/llms.txt` maps them, so companion briefs for extension/task tutorials can stay
-  "llms.txt + follow the map".
-  → serves: vision-mercury (faithful delivery; a fresh agent orients + operates from the docs alone)
-  <!-- id: ot-companion-validation-sweep | created: 2026-07-18 | last_used: 2026-07-20 | uses: 37 | tier: archive-candidate | origin: 2026-07-18-061457.md -->
-
-- [x] **HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed
-  2026-07-19).** The maintainer's manual `/sync` test surfaced that the Rust boundary was laxer than
-  Java's `HttpRouter.handlePayload`. Three divergences fixed in `parse_body`
-  (`crates/platform-core/src/automation/server.rs`): JSON sniffing under non-JSON content types
-  removed (Java never parses outside `application/json`; bracket-guard + text fallback; empty JSON
-  body → `{}`); missing/unknown content type → **MsgPack binary** body (Java `byte[]`; empty → null);
-  `application/x-www-form-urlencoded` → fields into `parameters.query` with null body. Content-type
-  matched on the `;charset`-stripped value, case-sensitively like Java. **Key wire-verified fact: the
-  Java client sends NO default content-type** — a Map body POSTs out header-less (chunked), so POST
-  providers only work because the canonical fixtures map
-  `text(application/json) -> header.content-type` (tutorial-6, both repos; the AI grammar's POST
-  example #19 already teaches this — it is load-bearing in BOTH engines now). Remaining deliberate
-  divergence: `application/xml` arrives as raw text (no XML parser in the stack; same deferral as the
-  HTTP client response side) — noted in code + D10 (`docs/design/platform-core-port.md`). End-to-end
-  test `body_dispatch_mirrors_java_content_type_rules` (BodyProbe) in `tests/rest_automation.rs`;
-  workspace 202 tests / clippy 0 / fmt clean. `/sync` unaffected (commands still arrive as strings in
-  both engines, even mislabeled as JSON). → serves: vision-mercury
-  <!-- id: http-boundary-content-type-parity | created: 2026-07-19 | last_used: 2026-07-19 | uses: 1 | tier: working | origin: 2026-07-19-213516.md -->
+- [ ] (release in flight — 2026-07-23) **v4.10.0 release prepared in lock-step with the
+  Java engine** (Java v4.10.0 shipped/published 2026-07-22, tag on merge `af21e6f6`,
+  PR #216; release gate = both parity PRs merged + the live bidirectional interop drives
+  passed — permanent record: the Java docs' `test-reports/event-over-http-interop` page).
+  Branch `chore/release-4.10.0` (cut from main `1d18883e`, carries the memory-review
+  commit): workspace version 4.9.0→4.10.0 (root `Cargo.toml` only — members inherit;
+  Cargo.lock regenerated), CHANGELOG `## Version 4.10.0, 7/22/2026` covering PR #166
+  (wire format, /api/event service+client, private-by-default, declarative routing, D2/D3
+  fixes) + PR #167 (aliases, log-context default-on, one-record-per-span telemetry, demo
+  pair, zero-trace span-leak fix) with the interop-report link, event-over-http guide
+  links the Java site's Interop Test Report. Gate green at the new version: workspace
+  244 / clippy 0 / fmt. NOT pushed — Eric pushes and opens the PR. Close when the release
+  is tagged and published.
+  <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-022937.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -275,16 +127,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
   → serves: vision-mercury
   <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
-- [x] **(blueprint)** **Graduate to the official Accenture repo — DONE 2026-07-20.** The
-  maintainer repurposed `github.com/Accenture/mercury` (the original Java v1–v3 repo; legacy
-  releases kept as branches) as the official Rust home; the full R&D history (122 commits)
-  was merged onto it (`--allow-unrelated-histories`, branch `graduation`), README
-  de-privatized + legacy section preserved, MkDocs publishing automated (gh-deploy on main);
-  **PR [#147](https://github.com/Accenture/mercury/pull/147) MERGED** (true merge commit —
-  history intact).
-  Thereafter the regular PR process applies (no more direct pushes to main). The private
-  R&D repo (acn-ericlaw/mercury) freezes as the prototyping archive. → serves: vision-mercury
-  <!-- id: bp-graduate-to-accenture | created: 2026-07-15 | last_used: 2026-07-20 | uses: 5 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 - [ ] **(blueprint)** **Synchronous AI-companion feedback** — make the companion a real AI *tool*, not
   a write-then-poll bus. The current `POST /api/companion/{id}` is fire-and-forget (`{status:accepted}`);
   command outcome + errors stream WS-only, so an AI caller is blind (Tut-4: HTTP 200 while the run had
@@ -347,61 +189,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
   <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: working | origin: 2026-07-20-030615.md -->
-
-- [x] **Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED
-  2026-07-20 (PR [#203](https://github.com/Accenture/mercury-composable/pull/203) MERGED 2026-07-20 —
-  the battle-tested grammar is live in BOTH engines).** Gold
-  test PASSED: a fresh agent drove the JAVA Playground from the back-ported docs alone —
-  17/17, ZERO lookups, first attempt (columnar listOfMap exercise + unprompted
-  variable-length proof) — **streak 12, the twelfth on the Java engine** (grammar is
-  engine-neutral). graph.js restored as live (Rust-only retirement); flow-schema
-  `error.status`→`error.code` fixed (engine-verified); Java suite 71 green. Headless-client
-  lesson: Java WS idle-closes without APPLICATION-level ping text frames (the UI contract);
-  Rust tolerates protocol pings. Original survey text:** Marker audit: Java ENGINE is fully
-  synced (PRs #187–#201; CompileGraph purpose enforcement verified), but **31/40
-  grammar-hardening markers are absent from the Java AI docs** — findings #9–#63 landed on
-  the Rust copies only after the 2026-07-18 port. Scope: ~6 Java files
-  (`docs/guides/knowledge-graph/{command-reference,minigraph-commands.json,skills-reference,
-  ai-agent-guide}.md`, `docs/llms.txt`, `docs/guides/event-script/syntax.md` — numeric
-  promotion/f:round/removeKey/listOfMap) + two help-page behavior blocks
-  (`help graph-api-fetcher.md`: failure-routing pattern + HTTP semantics). **EXCLUDE
-  intentional divergences:** graph.js (alive in Java!), Rust-API examples, profiles rename,
-  port notes. Validation: a fresh-agent drive against the JAVA Playground from the
-  back-ported docs alone. Java human-doc bugs also parked: flow-schema `error.status` →
-  engine's `error.code`. → serves: vision-mercury
-  <!-- id: ot-java-ai-docs-backport | created: 2026-07-20 | last_used: 2026-07-20 | uses: 4 | tier: archive-candidate | origin: 2026-07-20-163856.md -->
-
-- [x] **`describe graph` trailing-`]` in the derived surface — CLOSED 2026-07-21: Java fix
-  MERGED (PR [#206](https://github.com/Accenture/mercury-composable/pull/206), 2026-07-20 —
-  both recommended pieces: JSON-serialize properties before scanning for byte-identical
-  contract output + the unbalanced-`]` tokenizer guard). JAVA-only bug; Rust hardened
-  preventively (2026-07-20).** The maintainer's screenshot (:8085 = Java playground) showed
-  `output.body]`; the Rust engine prints clean (probe-verified — its scan runs over
-  JSON-quoted text, while Java's `describeDeployedGraph` scans `Map.toString()` text whose
-  unquoted list form leaks the closing `]` into a path token ending a mapping list; both
-  ports' tokenizers accept `[`/`]` for array indices and trimmed only `.`/`-`/`[`). Rust
-  hardening landed (maintainer-directed): `collect_path_tokens` drops an unbalanced trailing
-  `]` + 3 unit tests + playground assertions tightened to exact indented lines (substring
-  `contains` is how both suites missed it); workspace 38 binaries green/clippy 0/fmt —
-  **PR [#150](https://github.com/Accenture/mercury/pull/150) MERGED 2026-07-20** (true merge,
-  CI green: test + memory gates).
-  The Java fix was handed off to the mercury-composable agent session via
-  `/tmp/describe-graph-trailing-bracket-finding.md` and landed as recommended (incl.
-  exact-line tests). Known micro-divergence in the defensive layer only (harmless, both
-  ports' primary scans are JSON-quoted): Java's guard skips any token containing `[`,
-  Rust's counts brackets — differs only for an array-index path ending an unquoted list
-  (`output.body[0]]`), unreachable except via Java's exception fallback.
-  → serves: vision-mercury
-  <!-- id: ot-describe-surface-trailing-bracket | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: archive-candidate | origin: 2026-07-20-213830.md -->
-
-- [x] **Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony):**
-  `inv-never-couple-functions` holds (code evidence: zero direct inter-function calls across
-  examples/event-script/knowledge-graph; the only invocation path is the platform's worker
-  dispatch) and the Vision (`vision-mercury`) holds — north star unchanged; its stale
-  pre-graduation current-state/mental-model framing refreshed in `memory/vision.md`
-  (maintainer-approved). Cadence was 54 sessions since the 2026-07-18 check ≥
-  `verify_invariants_every: 40`.
-  <!-- id: ot-reverify-invariants-2026-07-21 | created: 2026-07-21 | last_used: 2026-07-21 | uses: 2 | tier: archive-candidate | origin: 2026-07-21-021231.md -->
 
 - [x] **(blueprint) Parity remediation — COMPLETE 2026-07-21 (increments 50–58: all 8 items + the F2 decision).** A GitHub Copilot
   correctness assessment (24 findings) was independently verified finding-by-finding against
@@ -468,7 +255,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   route (the cold-route race demonstrated the nondeterminism live). Ripple: the HTTP
   boundary's null body key strips on the wire exactly like Java's.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-21 | uses: 10 | tier: active | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-22 | uses: 11 | tier: active | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded
@@ -483,7 +270,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   cache should adopt it and gain bounded eviction. → serves: vision-mercury
   <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
 
-- [ ] **(blueprint) Event over HTTP — phase 2, cross-language envelope interop.** Handoff
+- [x] **(blueprint) Event over HTTP — phase 2, cross-language envelope interop — CLOSED
+  2026-07-23: PR [#167](https://github.com/Accenture/mercury/pull/167) MERGED (merge
+  `c64d0683`) — the parity batch (increment 63) + the one-record-per-span telemetry fixes
+  are on main; everything this thread tracked (increments 59–63) is merged in both
+  repos.** Original thread text: Handoff
   from the Java session 2026-07-21 (`/tmp/event-envelope-rust-handoff.md`; Java reference
   PR #212, branch `feature/event-envelope-standard-format`): Java adopted a named-key
   "standard" wire format matching this port's `to_vec_named` output (D4's revisit clause
@@ -585,7 +376,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   event_over_http stamps the caller's trace/span on the wire envelope (apply_current_
   trace at client entry). Workspace 244/clippy 0/fmt. See session 2026-07-23-013514.**
   → serves: vision-mercury
-  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-22 | uses: 3 | tier: working | origin: 2026-07-21-233234.md -->
+  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-23 | uses: 9 | tier: active | origin: 2026-07-21-233234.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and

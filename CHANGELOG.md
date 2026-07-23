@@ -11,23 +11,61 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.10.0, 7/22/2026
+
+Feature release: cross-language Event-over-HTTP interoperability with the canonical
+[Java implementation](https://github.com/Accenture/mercury-composable) (its v4.10.0
+shipped the same day — one version, two languages). The language-neutral wire format, the
+`/api/event` service and client, declarative routing, a ready-to-run demo pair covering
+both calling patterns, application log context on by default, and RPC span-lineage
+telemetry. Validated by live bidirectional Java ⇄ Rust interop drives — see the
+[Interop Test Report](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)
+on the Java docs site.
 
 ### Added
 
-1. **Comma-separated route aliases in `#[preload]`** — Java `@PreLoad` parity:
+1. **Language-neutral event envelope wire format
+   ([#166](https://github.com/Accenture/mercury/pull/166)).** The envelope's MsgPack
+   map with descriptive string keys is now a cross-language contract shared verbatim
+   with the Java engine (normative spec: the Java repo's
+   [Event Envelope Wire Format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)
+   reference), proven by golden conformance vectors kept byte-identical in both repos.
+   Decoders treat an absent and a nil field alike and ignore unknown keys; the v1
+   service accepts the **standard** format only — a legacy Java *compact* envelope
+   (single-character keys) is rejected with a clear 400 (Java 4.10+ defaults to
+   standard).
+2. **Event over HTTP: the `/api/event` service + client
+   ([#166](https://github.com/Accenture/mercury/pull/166)).** `POST /api/event` ships in
+   the default `rest.yaml` (merged like the actuators — zero configuration): RPC and
+   async dispatch with `x-ttl`/`x-async` semantics, 403 for private targets, in-band
+   404/400/408, and trace propagation via `x-trace-id` + W3C `traceparent`. Preloaded
+   functions are now **private by default** with the `is_private = false` opt-out (Java
+   `@PreLoad` parity) and every engine internal is registered private — an application
+   instance is a closed world unless a function is deliberately published. The
+   `event_over_http` client posts a serialized envelope to a peer and returns the reply.
+3. **Declarative Event over HTTP — `yaml.event.over.http`
+   ([#166](https://github.com/Accenture/mercury/pull/166)).** Routes listed in
+   `event-over-http.yaml` (with optional per-target security headers and `${...}`
+   substitution) forward transparently: `po.request` returns the peer's reply,
+   `po.send` with a `reply_to` runs the callback dance, a plain `po.send` is
+   drop-n-forget with the 202 ack, and `send_later` honors the map. The `x-event-api`
+   marker is the recursion guard — a forwarded event crosses the wire exactly once.
+4. **Comma-separated route aliases in `#[preload]`
+   ([#167](https://github.com/Accenture/mercury/pull/167))** — Java `@PreLoad` parity:
    `route = "hello.world, hello.declarative"` registers the same function object under
    every listed name with the same instance count and visibility. Empty segments are a
    compile error.
-2. **Application log context is now on by default.** platform-core ships a built-in
-   `default-log-context.yaml` (embedded at compile time) so the structured JSON formats
-   (`log.format=json` or `compact`) stamp the standard trace context (`cid`, `traceId`,
-   `tracePath`, `spanId`, `parentSpanId`, `service`, `timestamp`) into every log line a
-   traced function emits — no setup required. An application can replace the template
-   with its own `app-log-context.yaml`, or opt out with the new `app.log.context=false`
-   key. Applications already providing an `app-log-context.yaml` are unaffected.
-   Plain-text logging (`log.format=text`, the default) is unaffected.
-3. **RPC telemetry records — exactly one record per span.** The caller now emits the
+5. **Application log context is now on by default
+   ([#167](https://github.com/Accenture/mercury/pull/167)).** platform-core ships a
+   built-in `default-log-context.yaml` (embedded at compile time) so the structured JSON
+   formats (`log.format=json` or `compact`) stamp the standard trace context (`cid`,
+   `traceId`, `tracePath`, `spanId`, `parentSpanId`, `service`, `timestamp`) into every
+   log line a traced function emits — no setup required. An application can replace the
+   template with its own `app-log-context.yaml`, or opt out with the new
+   `app.log.context=false` key. Applications already providing an `app-log-context.yaml`
+   are unaffected. Plain-text logging (`log.format=text`, the default) is unaffected.
+6. **RPC telemetry records — exactly one record per span
+   ([#167](https://github.com/Accenture/mercury/pull/167)).** The caller now emits the
    `round_trip` trace record for each traced RPC response (Java `InboxBase.recordTrace`
    parity) while the worker suppresses its own record for an RPC-served execution whose
    reply reached the caller (Java `WorkerHandler.sendTracingInfo` gate) — so each span
@@ -41,18 +79,31 @@ the design rationale in [`docs/design/`](docs/design/).
    client stamps the calling function's trace context (incl. its span) onto the wire
    envelope, so remote functions parent onto the caller's span in both the declarative
    and the programmatic pattern.
-4. **Event-over-HTTP demo endpoints in `hello-flow`** (the structural parallel of the
-   Java composable-example, now on port **8100**): `/api/event/http/demo` (declarative —
-   the flow's task is the foreign route `hello.declarative`, resolved through
-   `event-over-http.yaml`) and `/api/event/http/programmatic` (the task passes the peer's
-   `/api/event` URL directly to the request API). The `hello-world` echo registers the
-   `hello.declarative` alias and is interchangeable with the Java lambda-example — same
-   port 8085, same routes — so the demo doubles as a cross-language interop demo with
-   zero configuration changes.
+7. **Event-over-HTTP demo endpoints in `hello-flow` — both patterns
+   ([#167](https://github.com/Accenture/mercury/pull/167))** (the structural parallel of
+   the Java composable-example, now on port **8100**): `/api/event/http/demo`
+   (declarative — the flow's task is the foreign route `hello.declarative`, resolved
+   through `event-over-http.yaml`) and `/api/event/http/programmatic` (the task passes
+   the peer's `/api/event` URL directly to the request API). The `hello-world` echo
+   registers the `hello.declarative` alias and is interchangeable with the Java
+   lambda-example — same port 8085, same routes — so the demo doubles as a
+   cross-language interop demo with zero configuration changes; see the walk-through in
+   the [Event over HTTP](docs/guides/event-over-http.md) guide.
 
 ### Fixed
 
-1. **A zero-traced hop no longer leaks a nested reply's span id** as its own on the
+1. **HTTP client read timeout no longer truncates a sub-second TTL to 1 second
+   ([#166](https://github.com/Accenture/mercury/pull/166)).**
+   `AsyncHttpRequest::timeout_seconds()` rounds the TTL up, the response-timeout site
+   adds a one-second wire grace, and the `event_over_http` client waits 100 ms beyond
+   the remote TTL — so a peer that spends its whole TTL still delivers its in-band 408
+   instead of losing to a local transport abort.
+2. **The `hello-world` echo no longer drops MsgPack-binary bodies
+   ([#166](https://github.com/Accenture/mercury/pull/166))** — it reflects the raw
+   value instead of taking a JSON detour (JSON has no byte type; found by the
+   cross-language interop matrix).
+3. **A zero-traced hop no longer leaks a nested reply's span id
+   ([#167](https://github.com/Accenture/mercury/pull/167))** as its own on the
    response envelope (Java parity: its reply carries no span).
 
 ---
