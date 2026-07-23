@@ -39,14 +39,21 @@ struct HttpEcho;
 impl ComposableFunction for HttpEcho {
     async fn handle_event(
         &self,
-        _headers: HashMap<String, String>,
+        headers: HashMap<String, String>,
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         let request: serde_json::Value = input.body_as()?;
         let user = request["parameters"]["path"]["user"].clone();
         let q = request["parameters"]["query"]["q"].clone();
-        let cid_header = request["headers"][automation::MY_CORRELATION_ID].clone();
+        // the read-only my_correlation_id key is INJECTED into the function's
+        // input header copy at delivery (metadata contract) — it is no longer
+        // a dataset header
+        let cid_header = headers
+            .get(automation::MY_CORRELATION_ID)
+            .cloned()
+            .map(serde_json::Value::String)
+            .unwrap_or(serde_json::Value::Null);
         let body = request["body"].clone();
         EventEnvelope::new().set_body(serde_json::json!({
             "user": user,
@@ -499,6 +506,42 @@ async fn get_with_path_query_and_generated_cid() {
     assert_eq!(json["method"], "GET");
     // a business correlation-id was generated at the edge and exposed
     assert!(json["my_cid"].as_str().is_some_and(|cid| !cid.is_empty()));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_echoes_inbound_correlation_id() {
+    // the edge echoes the request's business correlation-id on the HTTP
+    // response so the caller can correlate without parsing the body
+    // (Java RestEndpointTest.responseEchoesInboundCorrelationId twin)
+    let server = server().await;
+    let (status, headers, _) = http(
+        server.port,
+        "GET",
+        "/api/echo/eric?q=hi",
+        &[("X-Correlation-Id", "cid-echo-0101")],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(headers["x-correlation-id"], "cid-echo-0101");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_carries_generated_correlation_id_when_absent() {
+    // when the caller does not provide one, the edge generates a
+    // correlation-id and still returns it on the response — the SAME value
+    // the function saw as its injected my_correlation_id
+    // (Java RestEndpointTest.responseCarriesGeneratedCorrelationIdWhenAbsent twin)
+    let server = server().await;
+    let (status, headers, body) = http(server.port, "GET", "/api/echo/eric?q=hi", &[], "").await;
+    assert_eq!(status, 200);
+    let echoed = headers
+        .get("x-correlation-id")
+        .expect("the generated correlation-id must be echoed on the response");
+    assert!(!echoed.is_empty());
+    // end-to-end identity: response header == the injected my_correlation_id
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["my_cid"], serde_json::json!(echoed.as_str()));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

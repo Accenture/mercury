@@ -547,7 +547,40 @@ async fn worker_loop(
         // hop's annotations into a function's input (Java WorkerHandler
         // clears them on every non-inbox delivery)
         event.clear_annotations_internal();
-        let headers = event.headers().clone();
+        // Metadata contract (Java WorkerHandler parity): a user function
+        // receives a COPY of the envelope headers with read-only metadata
+        // INJECTED at delivery time; metadata is never transported in the
+        // event itself. The business correlation-id arrives on the
+        // engine-managed tag (a legacy pre-4.10.2 peer transported it as an
+        // envelope header — honor that value, then remove the header), the
+        // engine-internal relay guard never reaches a user function, and
+        // tags are engine-visible only.
+        let tag_cid = event
+            .tag(crate::post_office::BUSINESS_CID_TAG)
+            .map(str::to_string);
+        event.clear_tags_internal();
+        let legacy_cid = event.remove_header_internal(crate::automation::MY_CORRELATION_ID);
+        event.remove_header_internal(crate::automation::X_EVENT_API);
+        // the port's cid-slot convention is the last fallback: a direct bus
+        // caller may put the business id in the envelope cid (port note)
+        let business_cid = tag_cid
+            .or(legacy_cid)
+            .or_else(|| event.correlation_id().map(str::to_string));
+        // the function's input header copy with the my_* read-only keys
+        let mut headers = event.headers().clone();
+        headers.insert(MY_ROUTE.to_string(), route.clone());
+        if let Some(trace_id) = event.trace_id() {
+            headers.insert(MY_TRACE_ID.to_string(), trace_id.to_string());
+        }
+        if let Some(trace_path) = event.trace_path() {
+            headers.insert(MY_TRACE_PATH.to_string(), trace_path.to_string());
+        }
+        if let Some(cid) = &business_cid {
+            headers.insert(
+                crate::automation::MY_CORRELATION_ID.to_string(),
+                cid.clone(),
+            );
+        }
         let reply_to = event.reply_to().map(str::to_string);
         let cid = event.correlation_id().map(str::to_string);
         let event_from = event.from().map(str::to_string);
@@ -568,15 +601,17 @@ async fn worker_loop(
         // nothing changes on the wire.
         let trace_state = match (event.trace_id(), event.trace_path()) {
             (Some(trace_id), Some(trace_path)) => {
-                // the business correlation-id prefers the my_correlation_id
-                // envelope header (Java PostOffice parity) — the cid slot may
+                // the business correlation-id resolved above (tag > legacy
+                // header > cid-slot convention) — the cid slot itself may
                 // carry an internal correlation id (the HTTP context id of a
                 // REST callback dispatch, or a flow task's composite id)
-                let business_cid = event
-                    .header(crate::automation::MY_CORRELATION_ID)
-                    .or_else(|| event.correlation_id());
-                let mut state =
-                    TraceState::new(&route, trace_id, trace_path, event.span_id(), business_cid);
+                let mut state = TraceState::new(
+                    &route,
+                    trace_id,
+                    trace_path,
+                    event.span_id(),
+                    business_cid.as_deref(),
+                );
                 state.zero_traced = zero_traced;
                 Some(state)
             }
@@ -644,6 +679,12 @@ async fn worker_loop(
                 response.set_to_internal(&reply_route);
                 response.set_exec_time_internal(elapsed_ms);
                 response.set_annotations_internal(reply_annotations.clone());
+                // exit-side sanitization, symmetric with the entry-side
+                // injection (Java copyResponseHeaders): the read-only my_*
+                // keys and engine-internal keys never leave a function as
+                // response headers, even if it accidentally copies its input
+                // headers onto the returned envelope
+                sanitize_response_headers(&mut response);
                 // the reply is a bus hop too — same deterministic null strip
                 normalize_null_transport(&mut response);
                 if let Some((trace_id, trace_path, span_id)) = trace_triple {
@@ -697,6 +738,27 @@ async fn worker_loop(
                 emit_telemetry(&registry, &route, event_from, &state, outcome, elapsed_ms).await;
             }
         }
+    }
+}
+
+/// Read-only metadata keys injected into a function's input header copy at
+/// delivery (Java `WorkerHandler` MY_ROUTE / MY_TRACE_ID / MY_TRACE_PATH).
+pub(crate) const MY_ROUTE: &str = "my_route";
+pub(crate) const MY_TRACE_ID: &str = "my_trace_id";
+pub(crate) const MY_TRACE_PATH: &str = "my_trace_path";
+
+/// Exit-side sanitization (Java `WorkerHandler.copyResponseHeaders`): the
+/// injected read-only metadata and engine-internal keys are filtered from a
+/// function's returned envelope before it becomes a reply.
+fn sanitize_response_headers(response: &mut EventEnvelope) {
+    for key in [
+        MY_ROUTE,
+        MY_TRACE_ID,
+        MY_TRACE_PATH,
+        crate::automation::MY_CORRELATION_ID,
+        crate::automation::X_EVENT_API,
+    ] {
+        response.remove_header_internal(key);
     }
 }
 

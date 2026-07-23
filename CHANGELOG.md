@@ -11,6 +11,33 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **The HTTP response echoes the business correlation-id.** REST automation returns the
+   request's correlation-id (inbound or edge-generated) on the response under the
+   configured header name (default `X-Correlation-Id`), so an edge caller can correlate
+   without parsing the body. A response header of the same name set by the function takes
+   precedence. The edge also stamps the resolved value onto the request dataset headers,
+   so the function, the flow engine (`model.cid`) and the response all see the SAME id.
+
+### Fixed
+
+1. **Protected metadata is never transported in the event.** The business correlation-id
+   now rides an engine-managed envelope tag (`tags` wire field — wire-compatible with the
+   Java engine) instead of a `my_correlation_id` envelope header, and the worker injects
+   the `my_*` read-only keys (`my_route`, `my_trace_id`, `my_trace_path`,
+   `my_correlation_id`) into the function's input header copy at delivery — this port now
+   injects the same four keys as the Java engine, so the echo demos are replicas. At exit
+   the worker sanitizes a returned envelope's headers symmetrically: the `my_*` keys and
+   the engine-internal `x-event-api` relay guard never leave a function as response
+   headers, and neither reaches a function's view on the way in (tags are engine-visible
+   only). A callee still honors the legacy header from a pre-4.10.2 peer (injected, then
+   stripped), but no longer sends it — business-cid continuity in mixed fleets requires
+   both sides on this version, the same upgrade-together posture as the wire format.
+
+---
 ## Version 4.10.1, 7/23/2026
 
 Patch release: **telemetry presentation parity with the Java reference engine**. Field

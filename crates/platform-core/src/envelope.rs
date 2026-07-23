@@ -83,6 +83,14 @@ pub struct EventEnvelope {
     /// Event-over-HTTP hop in either language direction.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     annotations: HashMap<String, rmpv::Value>,
+    /// Engine-managed tags (Java `tags`): reserved key-values visible to the
+    /// engine only — the worker scrubs them from the function's view at
+    /// delivery. Carries e.g. the business correlation-id
+    /// ([`crate::post_office::BUSINESS_CID_TAG`]) across touch points and the
+    /// Event-over-HTTP wire. Same key on the wire as the Java standard
+    /// format — metadata is never transported as envelope headers.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    tags: HashMap<String, String>,
 }
 
 fn nil_value() -> rmpv::Value {
@@ -110,6 +118,7 @@ impl Default for EventEnvelope {
             exec_time: None,
             round_trip: None,
             annotations: HashMap::new(),
+            tags: HashMap::new(),
         }
     }
 }
@@ -290,6 +299,19 @@ impl EventEnvelope {
         self
     }
 
+    /// An engine-managed tag value (Java `getTag`).
+    pub fn tag(&self, key: &str) -> Option<&str> {
+        self.tags.get(key).map(String::as_str)
+    }
+
+    /// Attach an engine-managed tag (Java `addTag`). Reserved for the engine:
+    /// tags never reach a user function's view — the worker scrubs them at
+    /// delivery after extracting what it injects into the header copy.
+    pub fn add_tag(mut self, key: &str, value: &str) -> Self {
+        self.tags.insert(key.to_string(), value.to_string());
+        self
+    }
+
     // ---- crate-internal mutators (worker bookkeeping) ----
 
     pub(crate) fn set_body_internal(&mut self, body: rmpv::Value) {
@@ -331,6 +353,16 @@ impl EventEnvelope {
 
     pub(crate) fn clear_annotations_internal(&mut self) {
         self.annotations.clear();
+    }
+
+    pub(crate) fn clear_tags_internal(&mut self) {
+        self.tags.clear();
+    }
+
+    /// Remove a header, returning its value (worker-entry scrubbing of
+    /// engine-internal / legacy metadata keys from the function's view).
+    pub(crate) fn remove_header_internal(&mut self, key: &str) -> Option<String> {
+        self.headers.remove(key)
     }
 
     // ---- wire format ----

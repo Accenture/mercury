@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.1**: tracks the canonical mercury-composable line (Java 4.10.1 released the same day — one version, two languages; telemetry presentation parity: empty normalized-signature diff in all four direction combinations).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-163133)
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-213440)
 - **last_review:** 2026-07-23 | through 2026-07-23-013514.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -81,7 +81,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 81 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 82 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -105,12 +105,29 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 80 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 81 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (feature branch awaiting Eric — 2026-07-23) **Metadata injection hardening
+  (increment 65) IMPLEMENTED on branch `feature/metadata-injection-hardening`** (mirror
+  of the Java reference branch of the same name; NOT pushed — Eric gates). Eric's design
+  ruling: a function's headers are a COPY with read-only metadata INJECTED at entry and
+  SANITIZED at exit — metadata is never transported in the event. Business cid rides the
+  new engine-managed `my_cid` tag (wire-compatible `tags` envelope field; converted at
+  apply_current_trace, flow task dispatch, REST service events); the worker now injects
+  ALL FOUR my_* keys into the input copy (this port previously injected none — echo demos
+  are now Java replicas), honors + strips the legacy pre-4.10.2 header, scrubs
+  x-event-api and tags from the function's view, and filters my_*/x-event-api at exit.
+  REST response echoes X-Correlation-Id (function-set wins); edge stamps the resolved cid
+  onto the dataset headers (function/model.cid/response all see the SAME id — verified
+  live end-to-end incl. the generated-cid case). Four regression twins + fixture updates;
+  workspace 249/clippy 0/fmt. Serves [[inv-telemetry-presentation-parity]]. Close when
+  merged.
+  <!-- id: thread-metadata-injection-hardening | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-213440.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.1 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.1` on merge commit `2c4e4066`
@@ -299,7 +316,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   route (the cold-route race demonstrated the nondeterminism live). Ripple: the HTTP
   boundary's null body key strips on the wire exactly like Java's.
   Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-22 | uses: 11 | tier: active | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-22 | uses: 11 | tier: archive-candidate | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded

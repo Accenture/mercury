@@ -81,6 +81,7 @@
 | 62 | Declarative Event over HTTP (`yaml.event.over.http`) — route→target map with per-target security headers; transparent PostOffice send/request forwarding (callback dance, x-event-api recursion guard); plus the D2 ttl fix (ceil + wire grace + local-wait grace) | 2026-07-22 | — | 237 |
 | 63 | Java-parity batch pre-4.10: `#[preload]` route aliases, app-log-context ON by default (built-in `default-log-context.yaml` + `app.log.context` switch), caller-side RPC `round_trip` telemetry record with span lineage, Event-over-HTTP demo endpoints in hello-flow (declarative + programmatic; port 8086→8100) | 2026-07-23 | — | 244 |
 | 64 | Telemetry presentation parity with the Java reference: REST automation callback dispatch + `async.http.response` span (first/response legs are real spans), log-context gating (traced lines only), `my_*` response-header strip, business-cid header channel, `event.api.auth` demo + session info, demo→declarative rename, `hello.pojo` — rust-to-rust trace = EXACT replica of java-to-java (empty signature diff, both patterns) | 2026-07-23 | — | 245 |
+| 65 | Metadata injection hardening (Java parity): business cid rides the engine-managed `my_cid` envelope tag (wire-compatible `tags` field), worker injects the four `my_*` read-only keys into the input header copy at entry and sanitizes them (+ `x-event-api`) at exit — metadata is never transported; REST response echoes X-Correlation-Id; edge stamps the resolved cid onto the dataset headers | 2026-07-23 | — | 249 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -1871,6 +1872,51 @@ Java reference: mercury-composable branch `feature/event-api-span-and-auth`.
   parents; log-context gating verified (36 context-less framework/telemetry records, 0
   violations); response headers clean; auth 200/401/401 live. Workspace 245 / clippy 0 /
   fmt.
+
+---
+
+## Increment 65 — Metadata injection hardening: injected at entry, sanitized at exit, never transported (2026-07-23)
+
+Eric's design ruling (both engines; Java reference branch
+`feature/metadata-injection-hardening`, mirrored here): a composable function has exactly
+three inputs — headers, body, instance. The headers are a COPY of the envelope headers
+with read-only metadata INJECTED by the worker at entry and SANITIZED at exit; metadata is
+never transported in the event itself.
+
+- **Business correlation-id → engine-managed envelope tag** (`my_cid`,
+  `post_office::BUSINESS_CID_TAG`) riding a new wire-compatible `tags` envelope field
+  (same key as the Java standard format; no spec/vector change; skip-if-empty keeps the
+  golden vectors byte-identical). Converted at all stamping sites: `apply_current_trace`
+  (Java touch), the flow engine's task dispatch, and REST automation's service events.
+  The cid SLOT stays free for internal correlation (HTTP context id, flow composite id);
+  the port's direct-bus convention (business id in the cid slot) remains the last
+  fallback of the worker's resolution: tag > legacy header > cid slot.
+- **Entry injection:** the worker now injects ALL FOUR `my_*` keys into the function's
+  input header copy (`my_route` from worker context, `my_trace_id`/`my_trace_path` from
+  envelope fields, `my_correlation_id` from the tag — honoring a legacy pre-4.10.2
+  peer's envelope header, which is then removed), strips the engine-internal
+  `x-event-api` relay guard from the function's view, and scrubs tags — this port
+  previously injected none, so the echo demos now show the same four keys as Java's.
+- **Exit sanitization** (`sanitize_response_headers`, Java `copyResponseHeaders`): the
+  four `my_*` keys + `x-event-api` are filtered from a returned envelope's headers on
+  the auto-reply path — a function that accidentally copies its input headers onto its
+  reply cannot leak them. The REST boundary strip gains `x-event-api` too.
+- **HTTP response correlation echo:** the edge resolves the business cid (inbound or
+  generated), stamps it onto the request dataset headers under the configured name
+  (Java parity — function, flow `model.cid` and response all see the SAME id), and the
+  response writer echoes it (`X-Correlation-Id` by default; a function-set header of
+  the same name wins).
+- **Regression twins:** `metadata_is_never_transported_in_the_event` (remote loopback
+  hop; tag transport intact, envelope clean, no x-event-api in the view, tags scrubbed),
+  `accidental_metadata_echo_is_sanitized_at_exit` (+ legacy-header honor+strip),
+  `response_echoes_inbound_correlation_id`,
+  `response_carries_generated_correlation_id_when_absent` (incl. end-to-end identity:
+  response header == injected my_correlation_id). Fixtures updated to the new contract
+  (HttpEcho reads the injected copy; hello-flow e2e asserts my_* injection + no
+  x-event-api + injected cid == dataset header). Note: this port never had the legacy
+  "cid is NOT echoed" assertion to invert. Docs: reserved-names (metadata contract +
+  compatibility note + response echo), event-over-http guide (my_route note now applies
+  to both engines; sample updated), CHANGELOG Unreleased. Workspace 249 / clippy 0 / fmt.
 
 ---
 

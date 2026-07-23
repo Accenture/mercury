@@ -119,23 +119,29 @@ Both are part of the telemetry plumbing and are never themselves traced.
 
 ## Reserved event headers
 
-`my_correlation_id`
-:   Injected by the REST automation edge into the HTTP request event's headers as
-    **read-only metadata**: the business correlation-id of the request (captured from the
-    configured header or freshly generated). Do not set it yourself. Inside a function,
-    prefer `po.my_correlation_id()` — it works at any depth of the call graph, not just on
-    the HTTP-facing function.
+`my_route`, `my_trace_id`, `my_trace_path`, `my_correlation_id`
+:   **Read-only metadata, injected at entry and sanitized at exit — never transported.**
+    The worker injects these keys into the function's input header COPY at delivery time:
+    the invoked route name, the trace id/path (from envelope fields), and the business
+    correlation-id (from an **engine-managed envelope tag** — every `PostOffice` touch
+    point, the flow engine's task dispatch, and the REST edge carry it on the tag, never
+    as an envelope header). At exit the worker filters these keys (plus the
+    engine-internal `x-event-api` relay guard) from a returned envelope's headers, so a
+    function that accidentally copies its input headers onto its reply cannot leak them.
+    Do not set them yourself; `po.my_correlation_id()` / `po.my_trace_id()` /
+    `po.my_trace_path()` read the same data at any depth of the call graph.
 
 `flow_id`, `correlation_id`
 :   Engine-internal headers on events addressed to `event.script.manager` (flow selection
     and the business correlation-id handoff). Application code never sets these — the flow
     adapter and the task executor own them.
 
-!!! note "Rust port"
-    Java also injects `my_route`, `my_trace_id`, and `my_trace_path` as read-only event
-    headers; this port does not. The equivalent data is on the task-local trace context —
-    read it through `po.my_trace_id()` / `po.my_trace_path()`, and the worker `instance`
-    number is a `handle_event` parameter.
+!!! note "Compatibility"
+    A callee on this version still honors the business correlation-id transported as a
+    `my_correlation_id` envelope header by a **pre-4.10.2 peer** (injected, then stripped
+    from the function's view), but no longer sends it — business-cid continuity in mixed
+    fleets requires both sides on this version, the same upgrade-together posture as the
+    wire format.
 
 ## Reserved HTTP headers
 
@@ -143,7 +149,7 @@ Both are part of the telemetry plumbing and are never themselves traced.
 |---|---|
 | `X-Trace-Id` | Carries the trace id — recognized inbound at the REST edge, emitted outbound by the async HTTP client. The header **name** is configurable (`http.trace.id.header`; per-endpoint `trace.id.header` in rest.yaml) |
 | `traceparent` | W3C Trace Context: `00-{trace-id}-{parent-span-id}-01` (32-hex trace id, 16-hex span id). Inbound it **takes precedence** over `X-Trace-Id` and contributes the caller's span as this hop's parent; outbound it is emitted alongside `X-Trace-Id`, built from this hop's own span |
-| `X-Correlation-Id` | The business correlation-id (configurable: `http.correlation.id.header`; per-endpoint `correlation.id.header`). Captured at the edge; a fresh dash-less UUID is generated when absent |
+| `X-Correlation-Id` | The business correlation-id (configurable: `http.correlation.id.header`; per-endpoint `correlation.id.header`). Captured at the edge (a fresh dash-less UUID is generated when absent), stamped onto the request dataset headers, and **echoed on the HTTP response** so an edge caller can correlate without parsing the body — a response header of the same name set by the function takes precedence |
 | `x-flow-id` | Selects the flow a request launches. A rest.yaml entry's `flow:` value becomes this header on the request event; `http.flow.adapter` rejects a request without it |
 | `x-ttl` | Time-to-live in **milliseconds** for an async HTTP client call (`AsyncHttpRequest::set_timeout_seconds` writes it; default 30 seconds when absent) |
 | `x-content-length` | Set by the async HTTP client on the **response** event when the origin response carried no `content-length` (chunked transfer) — the actual body length in bytes |
@@ -151,11 +157,14 @@ Both are part of the telemetry plumbing and are never themselves traced.
 
 When a call is traced, the platform stamps `X-Trace-Id` and `traceparent` on every outbound
 HTTP request from the current trace context — do not set them in application code. The
-framework does not echo the trace id or the correlation-id back to the HTTP client.
+framework echoes the business correlation-id back to the HTTP client (see the table) but
+never the trace id.
 
 !!! note "Rust port"
-    Java headers with no counterpart here (their features are unported):
-    `X-Small-Payload-As-Bytes`, `X-Event-Api`, `X-Async` (event-over-HTTP),
+    Event-over-HTTP headers `x-ttl` / `x-async` (dispatch semantics on `POST /api/event`)
+    and the engine-internal `x-event-api` relay-guard envelope header are ported — the
+    relay guard never reaches a user function's view (removed at delivery). Java headers
+    with no counterpart here (their features are unported): `X-Small-Payload-As-Bytes`,
     `X-Raw-Xml` (the XML parser/writer pair is not ported — XML bodies pass through as
     text), and `X-App-Instance` (`protect.info.endpoints` is not ported).
 

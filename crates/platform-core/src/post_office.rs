@@ -34,6 +34,13 @@ use crate::function::AppError;
 use crate::platform::Platform;
 use crate::trace;
 
+/// Engine-managed envelope tag carrying the business correlation-id across
+/// touch points and Event-over-HTTP hops (Java `EventEmitter.BUSINESS_CID_TAG`).
+/// Metadata is never transported as envelope headers — the worker injects the
+/// `my_correlation_id` key into the function's input header copy from this
+/// tag at delivery.
+pub const BUSINESS_CID_TAG: &str = "my_cid";
+
 /// Stamp the current trace context onto an outbound event — the mirror of
 /// Java `PostOffice.touch()`: trace id and path are filled **only when the
 /// event has none of its own** (an explicitly supplied trace identity always
@@ -66,9 +73,13 @@ pub(crate) fn apply_current_trace(mut event: EventEnvelope) -> EventEnvelope {
         if event.from().is_none() {
             event = event.set_from(&route);
         }
-        if event.correlation_id().is_none() {
+        // the business correlation-id rides an engine-managed envelope tag —
+        // never an envelope header or the cid slot (which stays free for
+        // internal correlation); the receiving worker injects it into the
+        // function's input header copy at delivery (Java touch() parity)
+        if event.tag(BUSINESS_CID_TAG).is_none() {
             if let Some(cid) = cid {
-                event = event.set_correlation_id(&cid);
+                event = event.add_tag(BUSINESS_CID_TAG, &cid);
             }
         }
     }
