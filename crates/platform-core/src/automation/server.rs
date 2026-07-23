@@ -23,23 +23,33 @@
 //! (always, independent of tracing) → **start a trace** when the entry says
 //! `tracing: true` (a valid W3C `traceparent` wins and contributes the
 //! caller's span as our parent; else the trace-id header; else generated) →
-//! optional authentication → build the `AsyncHttpRequest`-shaped event → RPC
-//! to the target function → map the response envelope back to HTTP (status,
-//! body by type, response-header transforms + CORS headers). Errors use the
-//! Java JSON shape `{status, message, type: "error"}`.
+//! optional authentication (an RPC; verdict headers become **session info**)
+//! → build the `AsyncHttpRequest`-shaped event → **CALLBACK dispatch** to the
+//! target service (Java `HttpRouter` parity: the event carries
+//! `reply_to = async.http.response` and `cid` = the HTTP context id, so the
+//! endpoint service's worker self-records its span — the first leg is a real
+//! span record — and the response leg is itself a function span; the business
+//! correlation-id rides the `my_correlation_id` envelope header) → the
+//! [`AsyncHttpResponseService`] correlates the reply back to the waiting
+//! connection → map the response envelope back to HTTP (status, body by type,
+//! response-header transforms + CORS headers; the reserved `my_*` metadata is
+//! stripped, Java `copyResponseHeaders` parity). Errors use the Java JSON
+//! shape `{status, message, type: "error"}`.
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
+use async_trait::async_trait;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use tokio::sync::oneshot;
 
 use crate::envelope::EventEnvelope;
-use crate::function::AppError;
+use crate::function::{AppError, ComposableFunction};
 use crate::platform::Platform;
 use crate::post_office::PostOffice;
 use crate::trace;
@@ -52,6 +62,59 @@ use super::routing::{AssignedRoute, RoutingTable};
 /// Reserved read-only request header exposing the business correlation-id to
 /// the target function (Java `HttpRouter.MY_CORRELATION_ID`).
 pub const MY_CORRELATION_ID: &str = "my_correlation_id";
+
+/// Route of the HTTP response-correlation service (Java
+/// `AsyncHttpClient.ASYNC_HTTP_RESPONSE`).
+pub const ASYNC_HTTP_RESPONSE: &str = "async.http.response";
+
+/// Reserved `my_*` metadata headers that must never reach the HTTP wire
+/// (Java `WorkerHandler.copyResponseHeaders` protected-metadata handling).
+const PROTECTED_METADATA: [&str; 4] = [
+    "my_route",
+    "my_trace_id",
+    "my_trace_path",
+    MY_CORRELATION_ID,
+];
+
+/// Pending HTTP contexts awaiting their response envelope — keyed by the
+/// per-request context id that rides the dispatched event's `cid`
+/// (Java `HttpRouter` contexts + `AsyncContextHolder`).
+fn pending_responses() -> &'static Mutex<HashMap<String, oneshot::Sender<EventEnvelope>>> {
+    static PENDING: OnceLock<Mutex<HashMap<String, oneshot::Sender<EventEnvelope>>>> =
+        OnceLock::new();
+    PENDING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// The `async.http.response` service (Java `AsyncHttpResponse`) — the HTTP
+/// response leg as a REAL registered function: a REST-automation dispatch is a
+/// **callback** to the endpoint service, whose reply (or a flow's response)
+/// arrives here carrying the HTTP context id as its correlation id, and this
+/// service hands the envelope back to the waiting connection. Because it is
+/// an ordinary traced worker, the response leg is a visible span that parents
+/// onto the replying function's span — exactly the Java reference topology.
+/// A missing context (the connection timed out) drops the reply silently.
+pub struct AsyncHttpResponseService;
+
+#[async_trait]
+impl ComposableFunction for AsyncHttpResponseService {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(context_id) = input.correlation_id().map(str::to_string) {
+            let sender = pending_responses()
+                .lock()
+                .expect("pending http contexts poisoned")
+                .remove(&context_id);
+            if let Some(sender) = sender {
+                let _ = sender.send(input);
+            }
+        }
+        Ok(EventEnvelope::new())
+    }
+}
 
 /// The address the first HTTP server bound to in this process (first-bind
 /// wins; `start_http_server` still binds a fresh listener on every call).
@@ -80,6 +143,18 @@ struct RouterState {
 /// the bound address; the accept loop runs as a background task.
 pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppError> {
     let config = AppConfigReader::get_instance();
+    // the response-correlation service is part of the HTTP boundary itself
+    // (Java AppStarter registers AsyncHttpResponse with the server, private,
+    // 500 instances); idempotent — tolerate a concurrent registration
+    if !platform.has_route(ASYNC_HTTP_RESPONSE) {
+        if let Err(e) =
+            platform.register_private(ASYNC_HTTP_RESPONSE, Arc::new(AsyncHttpResponseService), 500)
+        {
+            if !platform.has_route(ASYNC_HTTP_RESPONSE) {
+                return Err(e);
+            }
+        }
+    }
     let rest_yaml = config.get_property_or("yaml.rest.automation", "classpath:/rest.yaml");
     let reader = ConfigReader::load(&rest_yaml)
         .map_err(|e| AppError::new(500, format!("Unable to load {rest_yaml} - {e}")))?;
@@ -364,7 +439,8 @@ async fn process(
     } else {
         format!("{method} {path}?{query_text}")
     };
-    // optional authentication before dispatch (simple route form)
+    // optional authentication before dispatch (simple route form) — an RPC,
+    // so the auth verdict reports as a round_trip record (Java parity)
     if let Some(auth_route) = &info.authentication {
         let auth_event = build_event(
             auth_route,
@@ -387,7 +463,29 @@ async fn process(
         if !verdict.body_as::<bool>().unwrap_or(false) {
             return Err(AppError::new(401, "Unauthorized"));
         }
+        // headers on the auth verdict become SESSION INFO that rides to the
+        // target function as read-only headers (Java HttpRouter parity —
+        // e.g. the event.api.auth demo injects `user: demo`)
+        if !verdict.headers().is_empty() {
+            let session: serde_json::Map<String, serde_json::Value> = verdict
+                .headers()
+                .iter()
+                .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+                .collect();
+            http_request["session"] = serde_json::Value::Object(session);
+        }
     }
+    // CALLBACK dispatch (Java HttpRouter parity): the endpoint service is
+    // invoked with reply_to = async.http.response and cid = the HTTP context
+    // id — its worker self-records its span (no RPC suppression), and the
+    // response leg is a visible function span. The business correlation-id
+    // rides the my_correlation_id envelope header instead of the cid slot.
+    let context_id = uuid::Uuid::new_v4().simple().to_string();
+    let (tx, rx) = oneshot::channel();
+    pending_responses()
+        .lock()
+        .expect("pending http contexts poisoned")
+        .insert(context_id.clone(), tx);
     let event = build_event(
         &info.service,
         &http_request,
@@ -396,8 +494,32 @@ async fn process(
         &trace_id,
         &trace_path,
         &parent_span,
-    )?;
-    let result = po.request(event, info.timeout).await?;
+    )?
+    .set_correlation_id(&context_id)
+    .set_reply_to(ASYNC_HTTP_RESPONSE);
+    if let Err(e) = po.send(event).await {
+        pending_responses()
+            .lock()
+            .expect("pending http contexts poisoned")
+            .remove(&context_id);
+        return Err(e);
+    }
+    let result = match tokio::time::timeout(info.timeout, rx).await {
+        Ok(Ok(envelope)) => envelope,
+        Ok(Err(_)) => {
+            return Err(AppError::new(500, "Response channel closed unexpectedly"));
+        }
+        Err(_) => {
+            pending_responses()
+                .lock()
+                .expect("pending http contexts poisoned")
+                .remove(&context_id);
+            return Err(AppError::new(
+                408,
+                format!("Timeout for {} ms", info.timeout.as_millis()),
+            ));
+        }
+    };
     // map the response envelope back to HTTP (Java AsyncHttpResponse:
     // updateHeadersAndContentType + updateHeaders)
     let status = status_of(result.status());
@@ -407,6 +529,11 @@ async fn process(
     let mut response_headers: HashMap<String, String> = HashMap::new();
     for (name, value) in result.headers() {
         let key = name.to_lowercase();
+        // the reserved my_* metadata never reaches the HTTP wire (Java
+        // WorkerHandler.copyResponseHeaders protected-metadata parity)
+        if PROTECTED_METADATA.contains(&key.as_str()) {
+            continue;
+        }
         match key.as_str() {
             // the response-streaming contract (x-stream-id + x-ttl) is a
             // documented deferral in this port (D10) — recognized like Java
@@ -480,6 +607,10 @@ fn build_event(
         .set_to(to)
         .set_from("http.request")
         .set_correlation_id(cid)
+        // the business correlation-id channel (Java parity): the header
+        // survives when the dispatch overwrites cid with the HTTP context id,
+        // and the worker's trace bracket prefers it for my_correlation_id()
+        .set_header(MY_CORRELATION_ID, cid)
         .set_body(http_request)?;
     // a binary body (unknown content type) rides as MsgPack binary — the
     // JSON-shaped request map can't carry bytes (Java: byte[] on the

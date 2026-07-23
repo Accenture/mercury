@@ -568,13 +568,15 @@ async fn worker_loop(
         // nothing changes on the wire.
         let trace_state = match (event.trace_id(), event.trace_path()) {
             (Some(trace_id), Some(trace_path)) => {
-                let mut state = TraceState::new(
-                    &route,
-                    trace_id,
-                    trace_path,
-                    event.span_id(),
-                    event.correlation_id(),
-                );
+                // the business correlation-id prefers the my_correlation_id
+                // envelope header (Java PostOffice parity) — the cid slot may
+                // carry an internal correlation id (the HTTP context id of a
+                // REST callback dispatch, or a flow task's composite id)
+                let business_cid = event
+                    .header(crate::automation::MY_CORRELATION_ID)
+                    .or_else(|| event.correlation_id());
+                let mut state =
+                    TraceState::new(&route, trace_id, trace_path, event.span_id(), business_cid);
                 state.zero_traced = zero_traced;
                 Some(state)
             }

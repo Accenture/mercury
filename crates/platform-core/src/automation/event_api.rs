@@ -123,6 +123,13 @@ impl ComposableFunction for EventApiService {
         let Some(to) = inner.to().map(str::to_string) else {
             return Ok(reply(400, error_envelope(400, "Missing routing path")));
         };
+        // session info injected by an authentication service on this /api/event
+        // entry rides to the target function as read-only headers (Java parity:
+        // sessionInfo.forEach(request::setHeader))
+        let mut inner = inner;
+        for (key, value) in request.session() {
+            inner = inner.set_header(key, value);
+        }
         if !self.platform.has_route(&to) {
             return Ok(reply(
                 404,
@@ -272,13 +279,13 @@ pub async fn event_over_http_with_headers(
         .request_direct(http_event, timeout + Duration::from_millis(100))
         .await?;
     // the response body is the serialized reply envelope (octet-stream →
-    // binary); anything else is a transport-level failure
+    // binary); a non-envelope response — e.g. an authentication-layer 401 in
+    // the REST error JSON shape, produced before the Event API service ever
+    // ran — is returned as-is with its HTTP status (Java parity:
+    // EventEmitter.handleFutureResponse)
     match response.body() {
         Value::Binary(bytes) => EventEnvelope::from_bytes(bytes),
-        other => Err(AppError::new(
-            500,
-            format!("Invalid event-over-http response: {other:?}"),
-        )),
+        _ => Ok(response),
     }
 }
 
