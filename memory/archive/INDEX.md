@@ -30,3 +30,9 @@
 - ot-discovery-commands-backlog — Discovery commands for deployed flows and graph models — DONE 2026-07-20 (increment 42, — faded — 2026-Q3.md
 - ot-http-redirect-backlog — HTTP redirection backlog — RESOLVED 2026-07-20: story WITHDRAWN (parity confirmed — faded — 2026-Q3.md
 - ot-sync-companion-contract-gaps — `/sync` contract gaps (findings #62–#63) — FIXED 2026-07-20 (increment 49, BOTH — faded — 2026-Q3.md
+- ot-companion-validation-sweep — AI-companion validation sweep (tutorials 1–13) — COMPLETE 2026-07-19: ALL 13 PASSED — dogf… — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
+- http-boundary-content-type-parity — HTTP-boundary content-type dispatch mirrors Java exactly (parity fix, maintainer-directed — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
+- bp-graduate-to-accenture — (blueprint) Graduate to the official Accenture repo — DONE 2026-07-20. The — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
+- ot-java-ai-docs-backport — Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
+- ot-describe-surface-trailing-bracket — `describe graph` trailing-`]` in the derived surface — CLOSED 2026-07-21: Java fix — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
+- ot-reverify-invariants-2026-07-21 — Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony): — completed thread swept (invariants re-confirmed 2026-07-21; completion older than archive_window 20) — 2026-Q3.md
