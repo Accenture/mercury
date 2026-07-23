@@ -849,7 +849,19 @@ fn decode_response_body(bytes: &[u8], content_type: Option<&str>) -> Value {
 
 /// The registered service wrapper (Java `AsyncHttpClient` implements
 /// `TypedLambdaFunction`; registered by the app starter at 500 instances).
-pub struct AsyncHttpClientService;
+/// Holds the platform it is registered on so its manual replies route to
+/// that platform's `temporary.inbox` reply listener.
+pub struct AsyncHttpClientService {
+    platform: Platform,
+}
+
+impl AsyncHttpClientService {
+    pub fn new(platform: &Platform) -> Self {
+        AsyncHttpClientService {
+            platform: platform.clone(),
+        }
+    }
+}
 
 #[async_trait::async_trait]
 impl crate::function::ComposableFunction for AsyncHttpClientService {
@@ -859,6 +871,9 @@ impl crate::function::ComposableFunction for AsyncHttpClientService {
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
-        handle(&Platform::get_instance(), headers, input).await
+        // reply through the platform this service was registered on — its
+        // manual reply must reach THAT platform's temporary.inbox listener
+        // (the global instance may live on another runtime in tests)
+        handle(&self.platform, headers, input).await
     }
 }

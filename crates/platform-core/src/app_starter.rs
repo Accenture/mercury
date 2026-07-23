@@ -138,10 +138,35 @@ impl AppStarter {
             env!("CARGO_PKG_VERSION")
         );
         // 1. essential services (sequence 0, framework-reserved — the Java
-        //    EssentialServiceLoader): elastic-store housekeeping + the
-        //    distributed-tracing telemetry sink (idempotent across runs)
+        //    EssentialServiceLoader, which registers async.http.request (500),
+        //    temporary.inbox (500) and distributed.tracing (1) at the HIGHEST
+        //    startup priority, before any user hook or preload): elastic-store
+        //    housekeeping, the RPC reply listener, the telemetry sink (a
+        //    deliberate singleton — serializes trace-record processing to
+        //    preserve ordering; the event system buffers bursts), the event
+        //    API, actuators, no.op and the HTTP client (all idempotent)
         elastic_queue::start_housekeeping();
         let platform = Platform::get_instance();
+        // the RPC reply listener is registered at Platform construction (so
+        // every registry has it from birth); assert it here like the Java
+        // loader does. Reply dispatch is DIRECT on the sender's runtime (see
+        // RESERVED_ENGINE_ROUTES), so the entry is the addressable identity
+        if !platform.has_route(crate::inbox::TEMPORARY_INBOX) {
+            if let Err(e) = platform.register_with_options(
+                crate::inbox::TEMPORARY_INBOX,
+                Arc::new(crate::inbox::TemporaryInbox),
+                500,
+                crate::platform::FunctionOptions {
+                    zero_traced: true,
+                    interceptor: false,
+                    private: true,
+                },
+            ) {
+                if !platform.has_route(crate::inbox::TEMPORARY_INBOX) {
+                    return Err(e);
+                }
+            }
+        }
         if !platform.has_route(crate::telemetry::DISTRIBUTED_TRACING) {
             if let Err(e) = platform.register_private(
                 crate::telemetry::DISTRIBUTED_TRACING,
@@ -217,7 +242,9 @@ impl AppStarter {
         if !platform.has_route(crate::automation::ASYNC_HTTP_REQUEST) {
             if let Err(e) = platform.register_with_options(
                 crate::automation::ASYNC_HTTP_REQUEST,
-                Arc::new(crate::automation::http_client::AsyncHttpClientService),
+                Arc::new(crate::automation::http_client::AsyncHttpClientService::new(
+                    &platform,
+                )),
                 500,
                 FunctionOptions {
                     zero_traced: false,

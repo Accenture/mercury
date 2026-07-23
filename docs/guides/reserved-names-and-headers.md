@@ -10,9 +10,8 @@ this port actually registers.
     The Java list includes many names from unported subsystems, absent here: the connector
     and service-mesh routes (`cloud.connector`, `presence.*`, `system.service.*`,
     `*.multiplex.*`), the scheduler (`cron.scheduler`, `run.scheduled.job`), the Kafka and
-    sync-over-async extensions, `event.api.service` / `async.http.response`
-    (event-over-HTTP is not ported), `temporary.inbox` (RPC inboxes use the `inbox.`
-    prefix here), `actuator.services` / `lib.actuator.service` / `routes.actuator.service`
+    sync-over-async extensions,
+    `actuator.services` / `lib.actuator.service` / `routes.actuator.service`
     (`/info/lib` and `/info/routes` are deferred), and `http.auth.handler` — a rest.yaml
     `authentication` entry names your authentication function's route directly here (the
     simple route form; the tag-based auth router is not ported).
@@ -23,7 +22,8 @@ this port actually registers.
 
 | Route | Purpose |
 |---|---|
-| `distributed.tracing` | Telemetry sink — traced executions send their performance-metrics dataset here |
+| `distributed.tracing` | Telemetry sink — traced executions send their performance-metrics dataset here (a deliberate singleton: serializes trace-record processing to preserve ordering) |
+| `temporary.inbox` | Event listener for RPC — the ONE reserved reply route: every `PostOffice::request` reply resolves through it by correlation id (private, zero-tracing, 500 instances) |
 | `info.actuator.service` | `/info` actuator endpoint |
 | `env.actuator.service` | `/env` actuator endpoint |
 | `health.actuator.service` | `/health` actuator endpoint |
@@ -32,16 +32,18 @@ this port actually registers.
 | `async.http.request` | The built-in async HTTP client (an event interceptor) |
 | `ws.server.housekeeper` | Websocket server cleanup service |
 
-Two route **prefixes** are also reserved by platform-core:
+One route **prefix** is also reserved by platform-core:
 
-- **`inbox.`** — temporary one-shot RPC inboxes. `PostOffice::request` opens one per call;
-  they are addressable like any destination (so a function replying manually via
-  `po.send(reply_to)` works) but bypass the queue machinery, and any route starting with
-  `inbox.` is excluded from trace recording.
 - **`ws.`** — websocket connections. Each live connection gets a session id of the form
   `ws.{random}.{n}` with a `{session}.in` route (delivers lifecycle events to your
   `#[websocket_service]` function) and a `{session}.out` route (sends frames back to the
   client).
+
+The **`inbox.*` namespace belongs to applications** — RPC replies resolve through the
+single reserved `temporary.inbox` route by correlation id, so no per-request route or
+prefix is claimed. Workflow applications are free to register routes like
+`inbox.approval` (a staging area queued to a human operator); they behave — and are
+traced — like any other user function.
 
 ### event-script
 

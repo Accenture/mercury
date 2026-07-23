@@ -18,12 +18,14 @@
 //! — the inter-function messaging client.
 //!
 //! Two core patterns: [`send`](PostOffice::send) (fire-and-forget) and
-//! [`request`](PostOffice::request) (RPC). RPC works exactly like the Java
-//! `AsyncInbox`: a **lightweight one-shot inbox** (see [`crate::inbox`]) —
-//! one correlation-map entry, no route registration — receives the reply,
-//! bypassing the ServiceQueue machinery entirely; the caller awaits with a
-//! timeout (→ status **408** on expiry). Fork-n-join and `send_later` arrive
-//! in later increments.
+//! [`request`](PostOffice::request) (RPC). RPC works exactly like Java's
+//! `TemporaryInbox` design (see [`crate::inbox`]): the request carries
+//! `reply_to = temporary.inbox` — the ONE reserved reply-listener route —
+//! plus a unique correlation id keyed into a pending-request registry; the
+//! reply routes to that service like any other event and completes the
+//! caller's oneshot; the caller awaits with a timeout (→ status **408** on
+//! expiry). No per-request route or prefix is claimed, so the `inbox.*`
+//! namespace belongs to applications.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -40,6 +42,12 @@ use crate::trace;
 /// `my_correlation_id` key into the function's input header copy from this
 /// tag at delivery.
 pub const BUSINESS_CID_TAG: &str = "my_cid";
+
+/// Engine-managed envelope tag marking an RPC request (Java
+/// `EventEmitter.RPC`): the worker suppresses its own telemetry record for a
+/// delivered RPC-served execution — the caller's `round_trip` record is THE
+/// record for the span. The reply address is just routing.
+pub(crate) const RPC_TAG: &str = "rpc";
 
 /// Stamp the current trace context onto an outbound event — the mirror of
 /// Java `PostOffice.touch()`: trace id and path are filled **only when the
@@ -288,22 +296,39 @@ impl PostOffice {
         event: EventEnvelope,
         timeout: Duration,
     ) -> Result<EventEnvelope, AppError> {
-        // a lightweight one-shot inbox (Java AsyncInbox parity): one map entry,
-        // no route registration — the reply bypasses the ServiceQueue machinery
-        let (inbox_id, rx) = crate::inbox::open();
-        // correlation id: keep the caller's, or mint one (Java parity)
-        let cid = event
-            .correlation_id()
-            .map(str::to_string)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
+        // one pending entry in the correlation-id-keyed registry (Java
+        // TemporaryInbox + InboxBase.getHolder): the reply routes to the
+        // reserved temporary.inbox service like any other event — no
+        // per-request route is created, so the inbox.* namespace stays free
+        // for applications
+        let (inbox_cid, rx) = crate::inbox::open();
+        // the caller's original correlation id is restored on the reply
+        // (Java AsyncInbox.originalCid)
+        let original_cid = event.correlation_id().map(str::to_string);
+        // the port's cid-slot convention: a direct caller's explicit
+        // correlation id is business context — carry it on the engine tag so
+        // the callee's injected my_correlation_id still matches, now that the
+        // slot itself carries the inbox resolution id (an already-stamped tag
+        // wins, e.g. from a traced bracket or the REST/flow engines)
+        let mut event = event;
+        if event.tag(BUSINESS_CID_TAG).is_none() {
+            if let Some(cid) = &original_cid {
+                event = event.add_tag(BUSINESS_CID_TAG, cid);
+            }
+        }
         // capture the RPC trace identity before the send consumes the event
         // (Java AsyncInbox constructor: to, from, traceId, tracePath, and the
         // caller's span riding the outbound request — the callee's parent)
         let rpc_trace = RpcTraceCapture::of(&event);
         let begin = std::time::Instant::now();
-        let event = event.set_reply_to(&inbox_id).set_correlation_id(&cid);
+        let event = event
+            .set_reply_to(crate::inbox::TEMPORARY_INBOX)
+            .set_correlation_id(&inbox_cid)
+            // the RPC marker (Java event.addTag(RPC, timeout)) — the worker
+            // reads it to suppress its own record for a delivered RPC
+            .add_tag(RPC_TAG, &timeout.as_millis().to_string());
         if let Err(e) = self.send(event).await {
-            crate::inbox::close(&inbox_id);
+            crate::inbox::close(&inbox_cid);
             return Err(e);
         }
         let outcome = tokio::time::timeout(timeout, rx).await;
@@ -314,7 +339,12 @@ impl PostOffice {
                 // standardized to 3 decimal points like exec_time
                 let diff = begin.elapsed().as_secs_f32() * 1000.0;
                 let diff = (diff.max(0.0) * 1000.0).round() / 1000.0;
-                let response = response.set_round_trip(diff);
+                let mut response = response.set_round_trip(diff);
+                // restore the caller's correlation id (Java parity: the
+                // inbox id was only the resolution key)
+                if original_cid.is_some() {
+                    response.set_cid_internal(original_cid);
+                }
                 // the reply's annotations belong to the trace record, never
                 // to the caller (Java saveResponse: fold + clearAnnotations)
                 let annotations = response.annotations().clone();
@@ -324,7 +354,7 @@ impl PostOffice {
             }
             Ok(Err(_)) => Err(AppError::new(500, "Reply channel closed unexpectedly")),
             Err(_) => {
-                crate::inbox::close(&inbox_id);
+                crate::inbox::close(&inbox_cid);
                 Err(AppError::new(
                     408,
                     format!("Request timeout for {} ms", timeout.as_millis()),

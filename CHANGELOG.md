@@ -22,6 +22,18 @@ the design rationale in [`docs/design/`](docs/design/).
    precedence. The edge also stamps the resolved value onto the request dataset headers,
    so the function, the flow engine (`model.cid`) and the response all see the SAME id.
 
+2. **The `inbox.*` route namespace belongs to applications.** RPC replies now resolve
+   through the ONE reserved reply-listener route, `temporary.inbox` (Java `TemporaryInbox`
+   parity: private, zero-tracing, 500 instances, registered by the essential-service step
+   at the highest startup priority and present on every platform from construction), keyed
+   by correlation id — no per-request pseudo-route and no reserved prefix. A workflow
+   application is free to register routes like `inbox.approval` (a human-operator staging
+   area); they are reachable and traced like any user function. The worker's RPC-served
+   detection now uses the reserved `rpc` envelope tag (Java `EventEmitter.RPC`) instead of
+   a reply-address prefix. Per Eric's ruling, the legacy `route@origin` addressing syntax
+   (meaningful only under the Kafka service mesh) is never generated; an inbound `@origin`
+   suffix is parsed away.
+
 ### Fixed
 
 1. **Protected metadata is never transported in the event.** The business correlation-id

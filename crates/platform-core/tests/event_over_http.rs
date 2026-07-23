@@ -108,7 +108,7 @@ async fn server() -> (u16, Platform) {
     platform
         .register_with_options(
             automation::ASYNC_HTTP_REQUEST,
-            Arc::new(AsyncHttpClientService),
+            Arc::new(AsyncHttpClientService::new(&platform)),
             10,
             FunctionOptions {
                 interceptor: true,

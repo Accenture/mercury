@@ -279,8 +279,12 @@ async fn rpc_round_trip_with_correlation() {
     assert_eq!(response.correlation_id(), Some("cid-42"));
     assert_eq!(response.from(), Some("v1.echo"));
     assert!(response.exec_time().is_some());
-    // the temporary inbox was released
-    assert_eq!(platform.routes(), vec!["v1.echo".to_string()]);
+    // no per-request route leaks: only the user route and the permanent
+    // reply listener remain (the inbox.* namespace belongs to applications)
+    assert_eq!(
+        platform.routes(),
+        vec!["temporary.inbox".to_string(), "v1.echo".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -323,7 +327,10 @@ async fn rpc_timeout_is_408() {
         .unwrap_err();
     assert_eq!(err.status(), 408);
     // the temporary inbox was released even on timeout
-    assert_eq!(platform.routes(), vec!["v1.slow".to_string()]);
+    assert_eq!(
+        platform.routes(),
+        vec!["temporary.inbox".to_string(), "v1.slow".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -543,10 +550,11 @@ impl ComposableFunction for ManualReplier {
                 .set_body("manual reply")?;
             po.send(reply).await?;
         }
-        // suppress the automatic reply: without reply_to set on the returned
-        // envelope... the worker would also auto-reply; return an envelope the
-        // caller ignores (first reply wins on a oneshot inbox)
-        EventEnvelope::new().set_body("ignored auto reply")
+        // as an @EventInterceptor the worker ignores this returned value —
+        // the manual reply above is the only reply (Java parity: manual
+        // replies are the interceptor pattern; a non-interceptor double
+        // reply would race through the reply listener's worker pool)
+        EventEnvelope::new().set_body("ignored by the worker")
     }
 }
 
@@ -555,12 +563,16 @@ async fn manual_reply_reaches_the_rpc_inbox() {
     setup_config();
     let platform = Platform::new();
     platform
-        .register(
+        .register_with_options(
             "v1.manual.replier",
             Arc::new(ManualReplier {
                 platform: platform.clone(),
             }),
             1,
+            platform_core::FunctionOptions {
+                interceptor: true,
+                ..Default::default()
+            },
         )
         .unwrap();
     let po = PostOffice::new(&platform);

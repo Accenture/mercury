@@ -90,7 +90,14 @@ struct RouteEntry {
 /// macros (maintainer decision, 2026-07-16): application functions must stay
 /// on the reactive back-pressure path — this bypass is an engine privilege,
 /// not an API.
-const RESERVED_ENGINE_ROUTES: &[&str] = &["event.script.manager", "task.executor"];
+const RESERVED_ENGINE_ROUTES: &[&str] = &[
+    "event.script.manager",
+    "task.executor",
+    // the RPC reply listener: replies must complete on the SENDER's runtime —
+    // the registered workers are the route's addressable identity, but a
+    // multi-runtime process (test binaries) cannot rely on their liveness
+    crate::inbox::TEMPORARY_INBOX,
+];
 
 type RouteRegistry = Arc<RwLock<HashMap<String, RouteEntry>>>;
 
@@ -122,7 +129,23 @@ pub struct FunctionOptions {
 
 impl Platform {
     pub fn new() -> Self {
-        Self::default()
+        let platform = Self::default();
+        // the RPC reply listener is an ESSENTIAL service present from birth
+        // on every platform — Java's EssentialServiceLoader registers it at
+        // the highest startup priority; isolated registries (tests) get it
+        // here so an RPC works before any lifecycle runs. Private,
+        // zero-tracing, 500 instances (Java parity).
+        let _ = platform.register_with_options(
+            crate::inbox::TEMPORARY_INBOX,
+            Arc::new(crate::inbox::TemporaryInbox),
+            500,
+            FunctionOptions {
+                zero_traced: true,
+                interceptor: false,
+                private: true,
+            },
+        );
+        platform
     }
 
     /// The process-wide platform (Java `Platform.getInstance()`), created on
@@ -306,16 +329,15 @@ impl Platform {
 
     /// Crate-internal: deliver an event into a route's manager mailbox. Awaits
     /// when the bounded mailbox is full — back-pressure, not drops.
+    ///
+    /// An `@origin`/`@instance` suffix on the route is tolerated and ignored
+    /// (Eric's ruling: the `route@origin` syntax is only meaningful under the
+    /// legacy Kafka service mesh — this port parses it away on inbound data,
+    /// e.g. envelopes from a Java peer, and never generates it).
     pub(crate) async fn deliver(&self, route: &str, event: EventEnvelope) -> Result<(), AppError> {
+        let route = bare_route(route);
         let mut event = event;
         normalize_null_transport(&mut event);
-        // an RPC inbox is addressable like any destination (Java parity: the
-        // TemporaryInbox route receives replies through normal dispatch) — so
-        // a function replying MANUALLY via po.send(reply_to) also works
-        if route.starts_with(crate::inbox::INBOX_PREFIX) {
-            crate::inbox::deliver(route, event);
-            return Ok(());
-        }
         // reserved engine routes run directly (see RESERVED_ENGINE_ROUTES)
         if let Some(function) = reserved_route_function(&self.routes, route) {
             spawn_direct(function, event);
@@ -530,9 +552,9 @@ async fn worker_loop(
     registry: RouteRegistry,
     options: FunctionOptions,
 ) {
-    // a route that is itself telemetry plumbing (or a temporary RPC inbox, or
-    // listed in skip.rpc.tracing, or registered with @ZeroTracing semantics)
-    // never traces its own executions
+    // a route that is itself telemetry plumbing or the RPC reply listener
+    // (or listed in skip.rpc.tracing, or registered with @ZeroTracing
+    // semantics) never traces its own executions
     let zero_traced = options.zero_traced || is_zero_traced(&route);
     loop {
         if manager.send(MailboxMessage::Ready(instance)).await.is_err() {
@@ -543,52 +565,59 @@ async fn worker_loop(
         };
         let started = Instant::now();
         let mut event = event;
-        // annotations belong to REPLY envelopes only — never leak a prior
-        // hop's annotations into a function's input (Java WorkerHandler
-        // clears them on every non-inbox delivery)
-        event.clear_annotations_internal();
-        // Metadata contract (Java WorkerHandler parity): a user function
-        // receives a COPY of the envelope headers with read-only metadata
-        // INJECTED at delivery time; metadata is never transported in the
-        // event itself. The business correlation-id arrives on the
-        // engine-managed tag (a legacy pre-4.10.2 peer transported it as an
-        // envelope header — honor that value, then remove the header), the
-        // engine-internal relay guard never reaches a user function, and
-        // tags are engine-visible only.
-        let tag_cid = event
-            .tag(crate::post_office::BUSINESS_CID_TAG)
-            .map(str::to_string);
-        event.clear_tags_internal();
-        let legacy_cid = event.remove_header_internal(crate::automation::MY_CORRELATION_ID);
-        event.remove_header_internal(crate::automation::X_EVENT_API);
-        // the port's cid-slot convention is the last fallback: a direct bus
-        // caller may put the business id in the envelope cid (port note)
-        let business_cid = tag_cid
-            .or(legacy_cid)
-            .or_else(|| event.correlation_id().map(str::to_string));
-        // the function's input header copy with the my_* read-only keys
-        let mut headers = event.headers().clone();
-        headers.insert(MY_ROUTE.to_string(), route.clone());
-        if let Some(trace_id) = event.trace_id() {
-            headers.insert(MY_TRACE_ID.to_string(), trace_id.to_string());
-        }
-        if let Some(trace_path) = event.trace_path() {
-            headers.insert(MY_TRACE_PATH.to_string(), trace_path.to_string());
-        }
-        if let Some(cid) = &business_cid {
-            headers.insert(
-                crate::automation::MY_CORRELATION_ID.to_string(),
-                cid.clone(),
-            );
-        }
+        // the RPC marker (Java `event.getTag(RPC)`): RPC requests carry the
+        // reserved rpc tag; the reply address is just routing
+        let served_rpc = event.tag(crate::post_office::RPC_TAG).is_some();
+        // the reply listener receives its envelope PRISTINE: the envelope IS
+        // the payload the waiting caller gets back (annotations for the
+        // round_trip record, the request's correlation id for resolution) —
+        // Java executeFunction exempts TEMPORARY_INBOX from metadata handling
+        let is_reply_listener = route == crate::inbox::TEMPORARY_INBOX;
+        let (business_cid, headers) = if is_reply_listener {
+            (None, event.headers().clone())
+        } else {
+            // annotations belong to REPLY envelopes only — never leak a prior
+            // hop's annotations into a function's input (Java WorkerHandler)
+            event.clear_annotations_internal();
+            // Metadata contract (Java WorkerHandler parity): a user function
+            // receives a COPY of the envelope headers with read-only metadata
+            // INJECTED at delivery time; metadata is never transported in the
+            // event itself. The business correlation-id arrives on the
+            // engine-managed tag (a legacy pre-4.10.2 peer transported it as
+            // an envelope header — honor that value, then remove the header),
+            // the engine-internal relay guard never reaches a user function,
+            // and tags are engine-visible only.
+            let tag_cid = event
+                .tag(crate::post_office::BUSINESS_CID_TAG)
+                .map(str::to_string);
+            event.clear_tags_internal();
+            let legacy_cid = event.remove_header_internal(crate::automation::MY_CORRELATION_ID);
+            event.remove_header_internal(crate::automation::X_EVENT_API);
+            // the port's cid-slot convention is the last fallback: a direct
+            // bus caller may put the business id in the envelope cid
+            let business_cid = tag_cid
+                .or(legacy_cid)
+                .or_else(|| event.correlation_id().map(str::to_string));
+            // the function's input header copy with the my_* read-only keys
+            let mut headers = event.headers().clone();
+            headers.insert(MY_ROUTE.to_string(), route.clone());
+            if let Some(trace_id) = event.trace_id() {
+                headers.insert(MY_TRACE_ID.to_string(), trace_id.to_string());
+            }
+            if let Some(trace_path) = event.trace_path() {
+                headers.insert(MY_TRACE_PATH.to_string(), trace_path.to_string());
+            }
+            if let Some(cid) = &business_cid {
+                headers.insert(
+                    crate::automation::MY_CORRELATION_ID.to_string(),
+                    cid.clone(),
+                );
+            }
+            (business_cid, headers)
+        };
         let reply_to = event.reply_to().map(str::to_string);
         let cid = event.correlation_id().map(str::to_string);
         let event_from = event.from().map(str::to_string);
-        // the RPC marker (Java `event.getTag(RPC)`): in this port an RPC
-        // reply address is always a lightweight inbox id
-        let served_rpc = reply_to
-            .as_deref()
-            .is_some_and(|r| r.starts_with(crate::inbox::INBOX_PREFIX));
         // trace bracket (Java WorkerHandler): a traced request carries trace id
         // + path; this execution gets its own span, parented to the sender's
         // span carried on the envelope. A ZERO-TRACED route still keeps the
@@ -697,11 +726,11 @@ async fn worker_loop(
                         None => response.clear_span_id_internal(),
                     }
                 }
-                // a lightweight RPC inbox (Java AsyncInbox parity) bypasses the
-                // route machinery entirely — complete the caller's oneshot
-                if reply_route.starts_with(crate::inbox::INBOX_PREFIX) {
-                    not_delivered = !crate::inbox::deliver(&reply_route, response);
-                } else if let Some(function) = reserved_route_function(&registry, &reply_route) {
+                // RPC replies route to the reserved temporary.inbox service
+                // like any other destination (Java parity) — no special path.
+                // A legacy '@origin' suffix is parsed away (never generated).
+                let reply_route = bare_route(&reply_route).to_string();
+                if let Some(function) = reserved_route_function(&registry, &reply_route) {
                     // replies to the reserved engine routes (task callbacks)
                     // take the same direct path as sends
                     spawn_direct(function, response);
@@ -715,6 +744,10 @@ async fn worker_loop(
                     if let Some(sender) = sender {
                         // route may already be released — drop silently
                         let _ = sender.send(MailboxMessage::Event(Box::new(response))).await;
+                    } else {
+                        // the reply had nowhere to go (Java ProcessStatus
+                        // notDelivered) — the worker keeps its own record
+                        not_delivered = true;
                     }
                 }
             }
@@ -741,6 +774,16 @@ async fn worker_loop(
     }
 }
 
+/// Strip a legacy `@origin`/`@instance` suffix from a route reference —
+/// meaningful only under the Java Kafka service mesh, which is out of scope
+/// here: inbound values are parse-tolerant, outbound values never carry one.
+pub(crate) fn bare_route(route: &str) -> &str {
+    match route.find('@') {
+        Some(at) => &route[..at],
+        None => route,
+    }
+}
+
 /// Read-only metadata keys injected into a function's input header copy at
 /// delivery (Java `WorkerHandler` MY_ROUTE / MY_TRACE_ID / MY_TRACE_PATH).
 pub(crate) const MY_ROUTE: &str = "my_route";
@@ -763,11 +806,11 @@ fn sanitize_response_headers(response: &mut EventEnvelope) {
 }
 
 /// Whether a route's executions are excluded from trace recording: the
-/// telemetry plumbing itself (Java `@ZeroTracing` + filter), temporary RPC
-/// inboxes (Java's `AsyncInbox` bypasses `ServiceQueue` entirely), and any
-/// route listed in `skip.rpc.tracing` (default `async.http.request`).
+/// telemetry plumbing and the RPC reply listener (Java `@ZeroTracing` +
+/// filter — exact names only, no prefixes), and any route listed in
+/// `skip.rpc.tracing` (default `async.http.request`).
 fn is_zero_traced(route: &str) -> bool {
-    if crate::telemetry::ZERO_TRACING_FILTER.contains(&route) || route.starts_with("inbox.") {
+    if crate::telemetry::ZERO_TRACING_FILTER.contains(&route) {
         return true;
     }
     in_skip_rpc_tracing_list(route)

@@ -122,7 +122,7 @@ async fn declarative_event_over_http() {
     platform
         .register_with_options(
             automation::ASYNC_HTTP_REQUEST,
-            Arc::new(AsyncHttpClientService),
+            Arc::new(AsyncHttpClientService::new(&platform)),
             10,
             FunctionOptions {
                 interceptor: true,
