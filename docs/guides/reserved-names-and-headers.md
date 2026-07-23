@@ -138,6 +138,15 @@ Both are part of the telemetry plumbing and are never themselves traced.
     and the business correlation-id handoff). Application code never sets these — the flow
     adapter and the task executor own them.
 
+## Reserved envelope tags
+
+The envelope's `tags` wire field is engine-managed and never visible to a user function.
+Two tag names are reserved with cross-language semantics: **`rpc`** (marks an RPC request,
+value = timeout in ms — drives the worker-record suppression so each RPC-served span
+reports once) and **`my_cid`** (transports the business correlation-id; injected as the
+read-only `my_correlation_id` header-copy key at delivery). See the
+[EventEnvelope reference](event-envelope-reference.md#reserved-envelope-tags).
+
 !!! note "Compatibility"
     A callee on this version still honors the business correlation-id transported as a
     `my_correlation_id` envelope header by a **pre-4.10.2 peer** (injected, then stripped
