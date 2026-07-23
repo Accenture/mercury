@@ -293,17 +293,16 @@ the span join up in the backend, with the `user` key added by `update_context`:
 ```
 
 !!! note "Rust port"
-    Two deliberate divergences from the Java feature. **Outside a trace, the block still
-    renders its trace-independent keys** (constants and `$utc`) — in Java the block
-    appears only on traced lines; here application-level lines (startup, framework
-    events) carry the static context too. **An invalid `$token` is advisory** — reported
-    and skipped — where Java throws at load.
+    One deliberate divergence from the Java feature: **an invalid `$token` is
+    advisory** — reported and skipped — where Java throws at load.
 
 ## Scope and boundaries
 
-- Trace-bound context keys appear only on lines emitted **inside** a traced function
-  execution; framework boot logs and work `tokio::spawn`ed from inside a function carry
-  only the trace-independent keys — the same boundary the distributed trace has.
+- The `context` block appears **only** on lines emitted inside a traced function
+  execution with a real request trace (Java parity: the log context registers per worker
+  execution in lockstep with the trace bracket). Framework boot logs, telemetry records,
+  and work `tokio::spawn`ed from inside a function carry **no context block at all** —
+  constants never leak onto context-less lines.
 - Feature off (`app.log.context: false`) costs one boolean check per log line.
 - The `text` format never renders a context block, whatever the configuration.
 

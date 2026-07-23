@@ -192,6 +192,15 @@ impl ComposableFunction for HelloWorld {
             tokio::time::sleep(Duration::from_millis(ms)).await;
         }
         log::info!("echo #{instance} got a request");
+        // forward an event to hello.pojo so the span-id of this function is
+        // seen propagated to hello.pojo (Java lambda-example parity)
+        let po = PostOffice::new(&Platform::get_instance());
+        po.send(
+            EventEnvelope::new()
+                .set_to("hello.pojo")
+                .set_header("id", "1"),
+        )
+        .await?;
         let echo_headers = Value::Map(
             headers
                 .iter()
@@ -216,6 +225,81 @@ fn sleep_ms(body: &Value) -> Option<u64> {
         .iter()
         .find(|(k, _)| k.as_str() == Some("sleep_ms"))
         .and_then(|(_, v)| v.as_u64())
+}
+
+// ---- the PoJo demo function (Java lambda-example: hello.pojo) ----
+
+/// Mirrors the Java lambda-example's `hello.pojo`: returns a place-holder
+/// object for `id = 1` (the echo forwards here fire-and-forget so the span
+/// propagation from `hello.world` is visible in the trace), 404 otherwise.
+#[preload(route = "hello.pojo", instances = 10, is_private = false)]
+struct HelloPoJo;
+
+#[async_trait]
+impl ComposableFunction for HelloPoJo {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        match headers.get("id").map(String::as_str) {
+            Some("1") => {
+                log::info!("PoJo delivered by instance #{instance}");
+                EventEnvelope::new().set_body(serde_json::json!({
+                    "id": 1,
+                    "name": "Simple PoJo class",
+                    "address": "100 World Blvd, Planet Earth",
+                    "instance": instance,
+                    "origin": Platform::origin(),
+                }))
+            }
+            Some(_) => Err(AppError::new(404, "Not found. Try id = 1")),
+            None => Err(AppError::new(400, "Missing parameter 'id'")),
+        }
+    }
+}
+
+// ---- the Event-over-HTTP authentication demo (Java lambda-example: event.api.auth) ----
+
+/// Demo authentication service for the Event-over-HTTP endpoint.
+///
+/// The `rest.yaml` entry for `POST /api/event` declares
+/// `authentication: 'event.api.auth'`, so every incoming Event API request is
+/// delivered here first. This demo compares the caller's `authorization`
+/// header against a shared token that both peers resolve from the environment
+/// (`demo.peer.token: ${DEMO_PEER_TOKEN:demo}` in application.yml) — never
+/// hard-code a real credential in source or configuration files.
+///
+/// Returning an envelope with a boolean body tells the REST automation engine
+/// to continue (`true`) or reject with HTTP-401 (`false`). Additional headers
+/// on the envelope become **session info** that rides to the target function
+/// as read-only headers — the `user` header in this demo. Replace this
+/// function with your own OAuth 2.0 bearer-token validation for production.
+#[preload(route = "event.api.auth", instances = 10)]
+struct EventApiAuth;
+
+#[async_trait]
+impl ComposableFunction for EventApiAuth {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request = platform_core::automation::AsyncHttpRequest::from_value(input.body());
+        let expected = AppConfigReader::get_instance().get_property_or("demo.peer.token", "demo");
+        let authorized = request.header("authorization") == Some(expected.as_str());
+        log::info!(
+            "Event API authorization {} {} = {}",
+            request.method(),
+            request.url(),
+            if authorized { "PASS" } else { "FAIL" }
+        );
+        EventEnvelope::new()
+            .set_header("user", "demo")
+            .set_body(authorized)
+    }
 }
 
 // ---- the static-content request filter (increment 8) ----

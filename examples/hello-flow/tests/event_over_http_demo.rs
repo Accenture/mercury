@@ -133,7 +133,8 @@ async fn both_event_over_http_demo_endpoints_round_trip() {
 
     // DECLARATIVE pattern: flow task names the foreign route, resolved
     // through event-over-http.yaml — zero code
-    let (status, body) = http_post(port, "/api/event/http/demo", "{\"hello\":\"world\"}").await;
+    let (status, body) =
+        http_post(port, "/api/event/http/declarative", "{\"hello\":\"world\"}").await;
     assert_eq!(status, 200, "declarative demo body: {body}");
     let response: serde_json::Value = serde_json::from_str(&body).expect("json");
     assert_eq!(response["body"]["hello"], serde_json::json!("world"));

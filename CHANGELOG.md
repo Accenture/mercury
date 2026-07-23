@@ -11,6 +11,55 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **Event-over-HTTP authentication demo.** The hello-world example overrides the default
+   `/api/event` endpoint with a demo authentication service (`event.api.auth`) that
+   validates the caller's `authorization` header against a shared secret resolved from
+   the environment (`demo.peer.token: ${DEMO_PEER_TOKEN:demo}` on both peers — no
+   hard-coded credential). The hello-flow example presents the token declaratively (a
+   `headers` block in `event-over-http.yaml`) and programmatically (the request API's
+   security headers), and session info injected by the auth service rides to the target
+   function as read-only headers — REST automation now forwards auth-verdict headers as
+   the request's `session` map (Java parity). The echo also forwards to a new
+   `hello.pojo` function so span propagation is visible in the trace (lambda-example
+   parity).
+
+### Changed
+
+1. **The declarative demo endpoint is renamed for symmetry with its programmatic twin:**
+   `/api/event/http/demo` → `/api/event/http/declarative` and flow id
+   `event-over-http-demo` → `event-over-http-declarative` in the hello-flow example.
+2. **REST automation dispatches the endpoint service as a CALLBACK** (Java `HttpRouter`
+   parity): the event carries `reply_to = async.http.response` and its `cid` is the HTTP
+   context id, while the business correlation-id rides the `my_correlation_id` envelope
+   header (the worker's trace bracket prefers it, so `po.my_correlation_id()` is
+   unchanged). The endpoint service's worker now self-records its span — the first leg
+   of every trace is a real span record — and the response leg (`async.http.response`)
+   is itself a visible function span parenting onto the replying function's span. The
+   telemetry topology of a two-app Event-over-HTTP call is now an exact structural
+   replica of the Java engine's — verified record-for-record against the Java reference
+   signature (both patterns, incl. the deliberate cross-pattern asymmetry of the
+   caller-side response leg).
+
+### Fixed
+
+1. **The application log context no longer leaks onto context-less lines.** The
+   `context` block appears ONLY on log lines emitted inside a traced function execution
+   with a real request trace (Java parity: the log context registers per worker
+   execution in lockstep with the trace bracket). Telemetry records and framework/system
+   lines carry no context block at all — previously they carried a partial block with
+   constants and a timestamp.
+2. **Reserved `my_*` metadata is stripped from HTTP response headers** (Java
+   `copyResponseHeaders` protected-metadata parity): `my_route`, `my_trace_id`,
+   `my_trace_path` and `my_correlation_id` never reach the wire.
+3. **The Event-over-HTTP client returns a non-envelope response as-is** (e.g. an
+   authentication-layer 401 in the REST error shape) with its HTTP status, instead of
+   failing with "Invalid event-over-http response" (Java `handleFutureResponse` parity).
+
+---
 ## Version 4.10.0, 7/22/2026
 
 Feature release: cross-language Event-over-HTTP interoperability with the canonical

@@ -6,3 +6,6 @@
 event.http:
   - route: 'hello.declarative'
     target: 'http://${peer.demo.host:127.0.0.1}:${peer.demo.port}/api/event'
+    # security headers (optional. Added for this demo only)
+    headers:
+      authorization: '${DEMO_PEER_TOKEN:demo}'

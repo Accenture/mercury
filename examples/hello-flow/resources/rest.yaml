@@ -12,8 +12,8 @@ rest:
   # route 'hello.declarative', resolved through event-over-http.yaml
   - service: "http.flow.adapter"
     methods: ['GET', 'POST']
-    url: "/api/event/http/demo"
-    flow: 'event-over-http-demo'
+    url: "/api/event/http/declarative"
+    flow: 'event-over-http-declarative'
     timeout: 15s
     tracing: true
 
