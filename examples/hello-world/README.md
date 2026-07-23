@@ -80,6 +80,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "If-None-Match: $ETAG" \
 Or just open <http://127.0.0.1:8085/> in a browser and refresh — the second
 load revalidates with 304.
 
+**The Event-over-HTTP interop target** — the app publishes a public echo
+function under two route names (`hello.world, hello.declarative` — a
+comma-separated alias list, one shared handler). It is the standing callee
+of the `hello-flow` example's two Event-over-HTTP demo endpoints, and the
+drop-in counterpart of the Java `lambda-example` (same port 8085, same
+routes) — so the demo doubles as a cross-language interop demo. See the
+hello-flow README and the docs site's *Event over HTTP* guide.
+
 Stop with Ctrl-C (graceful shutdown cleans the elastic store).
 
 ## Where things live

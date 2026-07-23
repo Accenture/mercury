@@ -1,0 +1,36 @@
+#
+# The DECLARATIVE Event-over-HTTP demo: the task below names the route
+# 'hello.declarative', which does not exist in this application — the
+# event-over-http.yaml configuration resolves it to the peer's /api/event
+# endpoint and the call crosses the wire automatically. Zero orchestration
+# or HTTP client code.
+#
+flow:
+  id: 'event-over-http-demo'
+  description: 'Demonstrate Event-over-Http protocol using declarative means'
+  ttl: 10s
+  exception: 'v1.hello.exception'
+
+first.task: 'event-over-http-demo'
+
+tasks:
+  - name: 'event-over-http-demo'
+    input:
+      - 'input.header -> header'
+      - 'input.body -> *'
+    process: 'hello.declarative'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Make an Event-over-Http call using the event-over-http.yaml configuration'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just a demo exception handler'
+    execution: end

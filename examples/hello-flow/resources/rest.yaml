@@ -1,4 +1,4 @@
-# One declarative endpoint bound to a FLOW (not a function): REST automation
+# Declarative endpoints bound to FLOWS (not functions): REST automation
 # injects the x-flow-id header and http.flow.adapter launches the flow.
 rest:
   - service: "http.flow.adapter"
@@ -6,4 +6,22 @@ rest:
     url: "/api/hello/{user}"
     flow: 'hello-flow'
     timeout: 10s
+    tracing: true
+
+  # Event-over-HTTP demo, DECLARATIVE pattern: the flow's task is the foreign
+  # route 'hello.declarative', resolved through event-over-http.yaml
+  - service: "http.flow.adapter"
+    methods: ['GET', 'POST']
+    url: "/api/event/http/demo"
+    flow: 'event-over-http-demo'
+    timeout: 15s
+    tracing: true
+
+  # Event-over-HTTP demo, PROGRAMMATIC pattern: the flow's task passes the
+  # peer's /api/event URL directly to the PostOffice request API
+  - service: "http.flow.adapter"
+    methods: ['GET', 'POST']
+    url: "/api/event/http/programmatic"
+    flow: 'event-over-http-programmatic'
+    timeout: 15s
     tracing: true

@@ -1,4 +1,6 @@
 flows:
   - 'hello-flow.yml'
+  - 'event-over-http-demo.yml'
+  - 'event-over-http-programmatic.yml'
 
 location: 'classpath:/flows/'

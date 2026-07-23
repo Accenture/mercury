@@ -1,5 +1,9 @@
-# Optional application log context (increment 5): when this file is present,
-# every structured (JSON) log line emitted inside a traced function carries a
+# Application log context override: the feature is ON by default with the
+# platform's built-in default-log-context.yaml (the standard trace context).
+# Providing this file REPLACES that template entirely — this example adds two
+# custom keys on top of the standard set. Opt out with app.log.context=false.
+#
+# Every structured (JSON) log line emitted inside a traced function carries a
 # "context" block, so logs and spans join up in the observability backend.
 #
 # left side  = output key (your choice)
