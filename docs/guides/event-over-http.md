@@ -332,3 +332,9 @@ The mirror direction works the same way: the Java composable-example (port 8100)
 `hello.declarative` in its own `event-over-http.yaml` and can call the Rust hello-world —
 or the Java lambda-example — interchangeably. Point `peer.demo.host` / `peer.demo.port`
 at any peer that exposes the routes.
+
+The full cross-language matrix — both directions, both patterns, RPC and async, error
+semantics and trace continuity — was exercised by live bidirectional interop drives
+between the two engines; the permanent record is the
+[Interop Test Report](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)
+on the Java docs site.

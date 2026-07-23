@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.0**: tracks the canonical mercury-composable line (Java 4.10.0 released the same day — one version, two languages; cross-language Event-over-HTTP interop validated by live bidirectional drives).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-015546)
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-022937)
 - **last_review:** 2026-07-23 | through 2026-07-23-013514.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -100,6 +100,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (release in flight — 2026-07-23) **v4.10.0 release prepared in lock-step with the
+  Java engine** (Java v4.10.0 shipped/published 2026-07-22, tag on merge `af21e6f6`,
+  PR #216; release gate = both parity PRs merged + the live bidirectional interop drives
+  passed — permanent record: the Java docs' `test-reports/event-over-http-interop` page).
+  Branch `chore/release-4.10.0` (cut from main `1d18883e`, carries the memory-review
+  commit): workspace version 4.9.0→4.10.0 (root `Cargo.toml` only — members inherit;
+  Cargo.lock regenerated), CHANGELOG `## Version 4.10.0, 7/22/2026` covering PR #166
+  (wire format, /api/event service+client, private-by-default, declarative routing, D2/D3
+  fixes) + PR #167 (aliases, log-context default-on, one-record-per-span telemetry, demo
+  pair, zero-trace span-leak fix) with the interop-report link, event-over-http guide
+  links the Java site's Interop Test Report. Gate green at the new version: workspace
+  244 / clippy 0 / fmt. NOT pushed — Eric pushes and opens the PR. Close when the release
+  is tagged and published.
+  <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-022937.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
