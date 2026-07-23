@@ -53,3 +53,4 @@ crates/knowledge-graph/resources/public/**/*.map
 .DS_STORE
 .vscode/
 site/
+.idea/
