@@ -108,7 +108,7 @@ async fn server() -> (u16, Platform) {
     platform
         .register_with_options(
             automation::ASYNC_HTTP_REQUEST,
-            Arc::new(AsyncHttpClientService),
+            Arc::new(AsyncHttpClientService::new(&platform)),
             10,
             FunctionOptions {
                 interceptor: true,
@@ -326,4 +326,136 @@ async fn event_service_itself_is_private() {
     );
     // silence the unused import when only this test builds
     let _ = AsyncHttpRequest::new();
+}
+
+/// A capture target for the metadata-transport contract: reports what it saw
+/// in its input header COPY versus the envelope view.
+struct MetadataCapture {
+    seen: Arc<std::sync::Mutex<Option<serde_json::Value>>>,
+}
+
+#[async_trait]
+impl ComposableFunction for MetadataCapture {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        *self.seen.lock().expect("capture") = Some(serde_json::json!({
+            "injected_cid": headers.get("my_correlation_id"),
+            "injected_route": headers.get("my_route"),
+            "envelope_cid_header": input.header("my_correlation_id"),
+            "envelope_event_api_header": input.header("x-event-api"),
+            "delivered_event_api": headers.get("x-event-api"),
+            // engine tags are scrubbed from the function's envelope view
+            "visible_tags": input.tag(platform_core::post_office::BUSINESS_CID_TAG),
+        }));
+        EventEnvelope::new().set_body("captured")
+    }
+}
+
+/// Regression twin of Java `EventHttpTest.metadataIsNeverTransportedInTheEvent`:
+/// the my_* metadata keys are injected into the function's input header COPY
+/// at delivery — they must never exist as envelope headers. The business
+/// correlation-id crosses the Event-over-HTTP wire as an engine-managed tag.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn metadata_is_never_transported_in_the_event() {
+    let (port, platform) = server().await;
+    let seen = Arc::new(std::sync::Mutex::new(None));
+    platform
+        .register(
+            "metadata.transport.capture",
+            Arc::new(MetadataCapture { seen: seen.clone() }),
+            1,
+        )
+        .unwrap();
+    // a TRACED caller function with a business correlation-id makes the
+    // remote loopback hop — the wire + relay path is exercised end to end
+    struct Caller {
+        platform: Platform,
+        port: u16,
+    }
+    #[async_trait]
+    impl ComposableFunction for Caller {
+        async fn handle_event(
+            &self,
+            _headers: HashMap<String, String>,
+            _input: EventEnvelope,
+            _instance: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            let po = PostOffice::new(&self.platform);
+            event_over_http(
+                &po,
+                &format!("http://127.0.0.1:{}/api/event", self.port),
+                EventEnvelope::new()
+                    .set_to("metadata.transport.capture")
+                    .set_body("ping")?,
+                Duration::from_secs(5),
+                true,
+            )
+            .await
+        }
+    }
+    platform
+        .register_private(
+            "metadata.transport.caller",
+            Arc::new(Caller {
+                platform: platform.clone(),
+                port,
+            }),
+            1,
+        )
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let correlation_id = format!("corr-{}", uuid_like());
+    let _ = po
+        .request(
+            EventEnvelope::new()
+                .set_to("metadata.transport.caller")
+                .set_trace(
+                    &platform_core::trace::new_trace_id(),
+                    "TEST /metadata/transport",
+                )
+                .set_correlation_id(&correlation_id)
+                .set_body("start")
+                .unwrap(),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("remote hop");
+    let seen = seen.lock().expect("capture").clone().expect("captured");
+    // injected metadata reaches the function's header copy — the business
+    // cid arrived INTACT across the wire (tag transport)
+    assert_eq!(seen["injected_cid"], serde_json::json!(correlation_id));
+    assert_eq!(
+        seen["injected_route"],
+        serde_json::json!("metadata.transport.capture")
+    );
+    // but the envelope itself never carries metadata or engine-internal keys
+    assert_eq!(
+        seen["envelope_cid_header"],
+        serde_json::Value::Null,
+        "my_correlation_id must not be an envelope header"
+    );
+    assert_eq!(
+        seen["delivered_event_api"],
+        serde_json::Value::Null,
+        "x-event-api must not reach a user function"
+    );
+    assert_eq!(seen["envelope_event_api_header"], serde_json::Value::Null);
+    // the tag channel is engine-managed — not even visible to the function's
+    // envelope view (the injected value arriving intact proves it carried)
+    assert_eq!(seen["visible_tags"], serde_json::Value::Null);
+}
+
+/// A cheap unique suffix without importing uuid in the test crate.
+fn uuid_like() -> String {
+    format!(
+        "{:x}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )
 }

@@ -177,10 +177,11 @@ po.send(
 |---|---|
 | `async request(&self, event: EventEnvelope, timeout: Duration)` | `Result<EventEnvelope, AppError>` |
 
-RPC (Java `po.request(event, timeout)`): delivers the event with a temporary one-shot inbox
-as `reply_to` and awaits the reply. The caller's correlation id is kept, or one is minted.
-On expiry the call fails with status **408**. `request(...).await` reads as synchronous but
-never blocks a runtime thread — the calling task is suspended until the reply arrives.
+RPC (Java `po.request(event, timeout)`): delivers the event with the reserved
+`temporary.inbox` reply listener as `reply_to` and a unique correlation id, and awaits
+the reply (the caller's original correlation id is restored on it). On expiry the call
+fails with status **408**. `request(...).await` reads as synchronous but never blocks a
+runtime thread — the calling task is suspended until the reply arrives.
 
 ```rust
 let reply = po

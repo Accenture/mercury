@@ -120,7 +120,12 @@ impl ComposableFunction for EventApiService {
             // compact error reply; we answer 400 with a plain message)
             Err(e) => return Ok(reply(400, error_envelope(400, e.message()))),
         };
-        let Some(to) = inner.to().map(str::to_string) else {
+        // an inbound '@origin' suffix from a legacy/mesh-era peer is parsed
+        // away — this port never generates one (Eric's ruling)
+        let Some(to) = inner
+            .to()
+            .map(|to| crate::platform::bare_route(to).to_string())
+        else {
             return Ok(reply(400, error_envelope(400, "Missing routing path")));
         };
         // session info injected by an authentication service on this /api/event

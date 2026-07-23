@@ -135,8 +135,9 @@ feature off.
 
 A forwarded envelope carries the `x-event-api` marker header, and an event bearing it is
 never forwarded again — the recursion guard that lets two instances declare routes toward
-each other without a loop. The receiving function sees the header like any other envelope
-header.
+each other without a loop. It is engine-internal: the worker removes it from a function's
+input header copy and filters it from returned response headers, so application code never
+sees or emits it.
 
 !!! note "Port note"
     Same semantics as the Java engine's `yaml.event.over.http`
@@ -251,7 +252,10 @@ tasks:
     {
       "body": { "hello": "world" },
       "headers": {
-        "x-event-api": "callback",
+        "my_route": "hello.declarative",
+        "my_trace_id": "51fb9a95cb6b47169dd83771283aebc2",
+        "my_trace_path": "POST /api/event/http/declarative",
+        "my_correlation_id": "8c9f2a1b34dd4e0f9a7b1c2d3e4f5a6b",
         "x-flow-id": "event-over-http-declarative",
         "...": "..."
       },
@@ -261,9 +265,10 @@ tasks:
     ```
 
     The `origin` identifies the application instance that actually executed the function —
-    the hello-world app, not the app you called. The `x-event-api` header is the
-    recursion-guard marker stamped on the forwarded envelope; its presence tells you the
-    event crossed the wire declaratively.
+    the hello-world app, not the app you called. The `my_*` keys are the read-only
+    metadata the worker injects into the function's input header copy at delivery (they
+    are never transported in the event itself, and never leave a function as response
+    headers); `my_route` names the alias that served the call.
 
 5. Look at both applications' logs: the trace context propagated across the HTTP hop
    automatically. Both apps log telemetry under the **same trace id**, the
@@ -303,13 +308,10 @@ calls the primary route `hello.world`, the declarative endpoint calls the alias
 configuration (the usual case); choose programmatic when the code must compute or vary
 the target at runtime.
 
-!!! note "Port note"
-    Against the **Java** callee (lambda-example), the echoed headers also include Java's
-    worker-injected `my_route` header — `hello.world` for the programmatic call,
-    `hello.declarative` for the declarative one — directly naming the route that served
-    it. The Rust worker does not inject `my_route`; with the Rust callee, tell the
-    patterns apart by the endpoint you called or by the declarative marker
-    `x-event-api: callback` in the echoed headers.
+Both engines inject the same read-only `my_*` metadata into the function's input header
+copy at delivery, so the echoed headers include `my_route` — `hello.world` for the
+programmatic call, `hello.declarative` for the declarative one — directly naming the
+route that served it, in either language.
 
 ### Authentication: the event.api.auth demo
 

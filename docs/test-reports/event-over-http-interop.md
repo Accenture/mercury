@@ -214,6 +214,67 @@ were symmetric with no additional work. Authentication verified in every directi
 (session proof in the echo; wrong or missing token → HTTP-401), response headers clean,
 and zero context blocks on untraced lines in either engine.
 
+## The metadata-hardening round (2026-07-23)
+
+A further manual four-direction review — after v4.10.1 — found two remaining issues: protected
+metadata visible to user functions and responses, and the business correlation-id missing from
+HTTP response headers. The trace signature was re-verified as an exact replica in all four
+directions **before** any fix, isolating the issues to pure header hygiene. The round produced
+a design ruling that is now the cross-engine contract:
+
+> **A composable function has exactly three inputs — headers, body and instance. The headers
+> are a COPY of the envelope headers with read-only metadata injected by the worker at entry
+> and sanitized at exit. Metadata is never transported in the event itself.**
+
+Root causes: the business correlation-id was the one metadata key transported as a real
+envelope header (the envelope has fields for trace id and path, but none for the business
+cid), so it leaked across the wire and into relayed events; the engine-internal `x-event-api`
+relay guard reached function views; and neither engine echoed the correlation-id on HTTP
+responses.
+
+**Fixes (both engines):** the business correlation-id rides an engine-managed envelope tag —
+`rpc` and `my_cid` are now documented reserved tag names in the
+[wire-format specification](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/) — with the worker
+injecting the four `my_*` read-only keys at delivery and sanitizing them (plus `x-event-api`)
+from returned envelopes at exit, covering the accidental-copy case; and REST automation echoes
+the request's business correlation-id on every HTTP response. This also closed a day-one
+injection asymmetry: the Rust callee now shows the identical `my_*` key set as Java, so the
+echo demos are replicas again.
+
+**The RPC reply path was aligned in the same round.** The Rust port had minted per-request
+pseudo-routes under an `inbox.` prefix — reserving the entire `inbox.*` namespace, which
+belongs to applications (workflow systems use routes like `inbox.approval` for human-approval
+staging). It now mirrors the Java design: one reserved private route `temporary.inbox` with a
+correlation-id-keyed pending registry, registered as an **essential service** at the highest
+startup priority (with the deliberate concurrency triple: HTTP client 500, temporary.inbox
+500, telemetry 1 — a singleton to preserve record ordering); the RPC marker is the reserved
+`rpc` tag; and the mesh-era `route@origin` syntax is never generated (inbound-tolerant only —
+instance addressing is a Kafka-service-mesh concern the port does not carry). A regression
+proves a user function registered as `inbox.approval` is reachable, RPC-able, and traced
+normally. The rework also surfaced a genuine pre-existing defect in the Rust HTTP client
+service (replying through the global platform instead of its own).
+
+### Regression re-test: the refactor is observably invisible
+
+The working hypothesis — that the rework would make interop more robust *and predictable* —
+was tested by re-running the full battery in both cross-language directions:
+
+| Check | Java → Rust | Rust → Java |
+|-------|-------------|-------------|
+| Functionality (both patterns) | pass | pass |
+| `X-Correlation-Id` response echo | pass | pass |
+| Generated-cid identity across the wire | pass | pass (one value end to end) |
+| Identical injected `my_*` key set | pass | pass |
+| `x-event-api` in any function view | absent | absent |
+| Authentication (session proof / 401) | pass | pass |
+| **Trace signature** | **empty diff** (8+9 records) | **empty diff** (8+9 records) |
+
+Same-language: Java full reactor and the Rust workspace suites green, with the rust-to-rust
+signature also an empty diff. The internals hardened — a static route table, one cid-keyed
+correlation concept local and remote, deterministic essential-service startup — while
+observable behavior stayed byte-for-byte unchanged, which is exactly what the empty diff is
+designed to prove.
+
 ## Learnings for future language ports
 
 This validation arc is the playbook for bringing the next language (e.g. Python) into the
@@ -240,3 +301,8 @@ family:
 6. **Live drives find what unit tests do not.** Every drive in this story surfaced real
    defects (timeout truncation, span misattribution, context leakage, an invisible relay
    edge) that per-repository test suites had not caught.
+7. **Reserve the minimum; inject the rest.** Engine metadata is injected into the function's
+   input copy at entry and sanitized at exit — never transported in the event — and the
+   engine reserves the smallest possible surface (one RPC listener route, two tag names).
+   Route namespaces and header space belong to applications; a port that borrows them for
+   engine plumbing will collide with real-world naming sooner or later.

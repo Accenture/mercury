@@ -139,10 +139,21 @@ async fn both_event_over_http_demo_endpoints_round_trip() {
     let response: serde_json::Value = serde_json::from_str(&body).expect("json");
     assert_eq!(response["body"]["hello"], serde_json::json!("world"));
     assert_eq!(response["origin"], serde_json::json!(Platform::origin()));
-    // the declarative hop is marked by the recursion-guard header; the
-    // programmatic hop carries no marker — the wire crossed exactly once
+    // the engine-internal x-event-api relay guard never reaches a user
+    // function's view (metadata contract) — even though the declarative hop
+    // rode it on the wire envelope
+    assert_eq!(response["headers"]["x-event-api"], serde_json::Value::Null);
+    // the read-only my_* metadata is INJECTED into the function's input
+    // header copy at delivery — never transported in the event: the injected
+    // my_correlation_id equals the edge-resolved business correlation-id
     assert_eq!(
-        response["headers"]["x-event-api"],
-        serde_json::json!("callback")
+        response["headers"]["my_route"],
+        serde_json::json!("hello.declarative")
+    );
+    assert!(response["headers"]["my_trace_id"].is_string());
+    assert!(response["headers"]["my_correlation_id"].is_string());
+    assert_eq!(
+        response["headers"]["my_correlation_id"], response["headers"]["x-correlation-id"],
+        "the injected business cid must match the edge-resolved dataset header"
     );
 }

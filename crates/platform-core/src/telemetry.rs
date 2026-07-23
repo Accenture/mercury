@@ -46,12 +46,14 @@ pub const DISTRIBUTED_TRACING: &str = "distributed.tracing";
 pub const DISTRIBUTED_TRACE_FORWARDER: &str = "distributed.trace.forwarder";
 pub const TRANSACTION_JOURNAL_RECORDER: &str = "transaction.journal.recorder";
 
-/// Routes that must never appear as a traced service (they are the telemetry
-/// plumbing itself — Java `ZERO_TRACING_FILTER`).
-pub const ZERO_TRACING_FILTER: [&str; 3] = [
+/// Routes that must never appear as a traced service — the telemetry
+/// plumbing itself and the RPC reply listener (Java `ZERO_TRACING_FILTER`;
+/// exact names only, no prefix matching).
+pub const ZERO_TRACING_FILTER: [&str; 4] = [
     DISTRIBUTED_TRACING,
     DISTRIBUTED_TRACE_FORWARDER,
     TRANSACTION_JOURNAL_RECORDER,
+    crate::inbox::TEMPORARY_INBOX,
 ];
 
 /// The built-in telemetry sink. Holds a handle to its own platform so it can

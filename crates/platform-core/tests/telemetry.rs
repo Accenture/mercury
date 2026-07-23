@@ -827,3 +827,64 @@ async fn relayed_reply_does_not_donate_its_span_to_the_rpc_record() {
         "a relayed reply must not donate its span to the caller's record"
     );
 }
+
+/// The `inbox.*` route namespace belongs to APPLICATIONS (Eric's design
+/// ruling): workflow apps commonly stage work for human operators on routes
+/// like `inbox.approval`. The engine reserves exactly ONE reply-listener
+/// route (`temporary.inbox`) and no prefix — so a user function on an
+/// `inbox.*` route registers normally, serves send and RPC, and is TRACED
+/// like any user function (no zero-tracing leakage from the old prefix rule).
+#[tokio::test]
+async fn inbox_namespace_belongs_to_applications() {
+    setup_config();
+    let (platform, datasets) = capture_platform();
+    struct Approval;
+    #[async_trait]
+    impl ComposableFunction for Approval {
+        async fn handle_event(
+            &self,
+            _h: HashMap<String, String>,
+            _i: EventEnvelope,
+            _n: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            EventEnvelope::new().set_body("approved")
+        }
+    }
+    platform
+        .register("inbox.approval", Arc::new(Approval), 2)
+        .unwrap();
+    assert!(platform.has_route("inbox.approval"));
+    let po = PostOffice::new(&platform);
+    // fire-and-forget works
+    po.send(
+        EventEnvelope::new()
+            .set_to("inbox.approval")
+            .set_body("fyi")
+            .unwrap(),
+    )
+    .await
+    .expect("send to a user inbox.* route");
+    // traced RPC works AND produces a trace record — the route is a normal
+    // user function, not swallowed by any reserved-prefix zero-tracing
+    let trace_id = trace::new_trace_id();
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("inbox.approval")
+                .set_trace(&trace_id, "GET /api/approval")
+                .set_body("go")
+                .unwrap(),
+            Duration::from_secs(5),
+        )
+        .await
+        .expect("rpc to a user inbox.* route");
+    assert_eq!(reply.body_as::<String>().unwrap(), "approved");
+    let all = wait_for_datasets(&datasets, 1).await;
+    let record = all
+        .iter()
+        .find(|d| trace_of(d)["service"] == "inbox.approval")
+        .expect("a user inbox.* route must be traced like any function");
+    assert_eq!(trace_of(record)["id"], serde_json::json!(trace_id));
+    assert!(trace_of(record)["span_id"].is_string());
+    assert!(trace_of(record).contains_key("round_trip"));
+}

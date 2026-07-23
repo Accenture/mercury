@@ -69,11 +69,12 @@ pub const ASYNC_HTTP_RESPONSE: &str = "async.http.response";
 
 /// Reserved `my_*` metadata headers that must never reach the HTTP wire
 /// (Java `WorkerHandler.copyResponseHeaders` protected-metadata handling).
-const PROTECTED_METADATA: [&str; 4] = [
+const PROTECTED_METADATA: [&str; 5] = [
     "my_route",
     "my_trace_id",
     "my_trace_path",
     MY_CORRELATION_ID,
+    "x-event-api",
 ];
 
 /// Pending HTTP contexts awaiting their response envelope — keyed by the
@@ -346,7 +347,10 @@ async fn process(
             uuid::Uuid::new_v4().simple().to_string()
         }
     });
-    headers.insert(MY_CORRELATION_ID.to_string(), cid.clone());
+    // stamp the resolved correlation-id onto the request dataset under the
+    // configured header name (Java parity): the target function and the flow
+    // engine see the SAME edge-resolved value even when the caller sent none
+    headers.insert(cid_header.clone(), cid.clone());
     // AsyncHttpRequest-shaped event body (Java parity keys).
     // Repeated query parameters keep EVERY value — one occurrence is a
     // string, more become a list (Java HttpRouter: params.getAll;
@@ -570,6 +574,11 @@ async fn process(
     if let Some(header_info) = &info.headers {
         header_info.response.apply(&mut response_headers);
     }
+    // echo the request's business correlation-id (inbound or edge-generated)
+    // under the configured header name so the caller can correlate without
+    // parsing the body; a function-set response header of the same name wins
+    // (Java AsyncHttpResponse parity)
+    response_headers.entry(cid_header.clone()).or_insert(cid);
     if let Some(content_type) = content_type {
         response_headers.insert("content-type".to_string(), content_type);
     }
@@ -607,10 +616,11 @@ fn build_event(
         .set_to(to)
         .set_from("http.request")
         .set_correlation_id(cid)
-        // the business correlation-id channel (Java parity): the header
-        // survives when the dispatch overwrites cid with the HTTP context id,
-        // and the worker's trace bracket prefers it for my_correlation_id()
-        .set_header(MY_CORRELATION_ID, cid)
+        // the business correlation-id rides the engine-managed envelope tag
+        // (never a header): it survives when the dispatch overwrites cid with
+        // the HTTP context id, and the worker injects my_correlation_id into
+        // the target function's input copy at delivery (Java parity)
+        .add_tag(crate::post_office::BUSINESS_CID_TAG, cid)
         .set_body(http_request)?;
     // a binary body (unknown content type) rides as MsgPack binary — the
     // JSON-shaped request map can't carry bytes (Java: byte[] on the

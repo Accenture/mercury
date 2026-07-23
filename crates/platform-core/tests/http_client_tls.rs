@@ -46,7 +46,7 @@ fn register_http_client(platform: &Platform) {
     platform
         .register_with_options(
             ASYNC_HTTP_REQUEST,
-            Arc::new(AsyncHttpClientService),
+            Arc::new(AsyncHttpClientService::new(platform)),
             10,
             FunctionOptions {
                 zero_traced: false,

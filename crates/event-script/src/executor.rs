@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use platform_core::automation::MY_CORRELATION_ID;
+use platform_core::post_office::BUSINESS_CID_TAG;
 use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
@@ -1374,9 +1374,11 @@ pub(crate) async fn execute_task(
     for (k, v) in &optional_headers {
         event = event.set_header(k, v);
     }
-    // the read-only business correlation-id header is stamped LAST so a
-    // mapped header cannot override the framework value (Java parity)
-    event = event.set_header(MY_CORRELATION_ID, &instance.business_correlation_id);
+    // the flow's business correlation-id (model.cid) rides the engine-managed
+    // envelope tag — never an envelope header — so the worker injects
+    // my_correlation_id into the function's input copy at delivery and a
+    // mapped optional header cannot collide with the framework value
+    event = event.add_tag(BUSINESS_CID_TAG, &instance.business_correlation_id);
     let po = PostOffice::new(platform);
     if delay_ms > 0 {
         po.send_later(event, Duration::from_millis(delay_ms));

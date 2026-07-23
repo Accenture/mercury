@@ -14,40 +14,55 @@
 // limitations under the License.
 //
 
-//! The lightweight RPC inbox — the Rust analog of Java's **TemporaryInbox
-//! pattern** (`org.platformlambda.core.services.TemporaryInbox` +
-//! `InboxBase.getHolder`): a reply is resolved through a **correlation map**,
-//! not a per-request route registration, so an RPC costs one map insert/remove
-//! instead of a manager task + workers + elastic queue per request.
+//! The RPC reply listener — Rust port of Java's **`TemporaryInbox`**
+//! (`org.platformlambda.core.services.TemporaryInbox` + `InboxBase.getHolder`):
+//! **one reserved private route**, `temporary.inbox`, receives every RPC reply
+//! and resolves the waiting caller through a **correlation-id-keyed registry**
+//! — an RPC costs one map insert/remove, and no per-request route or route
+//! prefix is ever claimed, so the `inbox.*` namespace belongs entirely to
+//! applications (workflow apps commonly use routes like `inbox.approval` for
+//! human-operator staging areas).
 //!
-//! `PostOffice::request` registers a unique `inbox.<uuid>` id here and sets it
-//! as the envelope's `reply_to`; any delivery addressed to an `inbox.` id —
+//! `PostOffice::request` registers a unique correlation id here and sends the
+//! request with `reply_to = temporary.inbox` and that id as the envelope `cid`
+//! (the caller's original correlation id is restored on the reply — Java
+//! `AsyncInbox.originalCid`). Any delivery addressed to `temporary.inbox` —
 //! the worker's automatic reply *or* a manual `po.send(reply_to)` (the
-//! `@EventInterceptor` pattern) — completes the oneshot. A late reply after
-//! timeout finds the entry gone and is dropped silently (Java parity).
+//! `#[event_interceptor]` pattern) — reaches this service like any other
+//! function, and it completes the caller's oneshot. A late reply after timeout
+//! finds the entry gone and is dropped silently (Java parity). For the
+//! fork-n-join multi-inbox case the correlation id is composite `{cid}-{seq}`;
+//! the lookup strips after the LAST `-` exactly like Java (single-inbox ids
+//! are dash-less uuids, so they never split).
+//!
+//! The route is registered at platform construction (and asserted by the
+//! lifecycle's essential-service step, the Java `EssentialServiceLoader`
+//! analog) — private, zero-tracing, 500 instances.
 //!
 //! **Deliberate divergences from Java** (doc'd, not silent):
-//! - Java routes every reply through one **shared registered route**
-//!   (`temporary.inbox@<origin>`, 500 instances) and correlates by a
-//!   **sequenced cid** that temporarily replaces the business cid
-//!   (`InboxCorrelation` restores it). The Rust port correlates by the unique
-//!   `reply_to` id itself, so the **business correlation-id rides through
-//!   untouched** — one less moving part; the composite `cid-seq` machinery is
-//!   only needed for fork-n-join multi-inboxes (deferred, §7).
-//! - The reply completes the oneshot at the delivery boundary instead of
-//!   dispatching through an inbox function — same observable behavior, one
-//!   less hop. Java's origin-qualified reply address (`@origin`) is a
-//!   service-mesh concern, out of scope with the mesh.
+//! - Java's reply address is origin-qualified (`temporary.inbox@{origin}`)
+//!   because the `route@origin` syntax selects a target instance under the
+//!   legacy Kafka service mesh. That burden is not carried here (Eric's
+//!   ruling): the reply address is the plain route name; an inbound
+//!   `@origin` suffix (e.g. from a Java peer's envelope) is parsed away and
+//!   never generated.
+//! - Dispatch to this route is DIRECT on the sender's runtime (the reserved
+//!   engine-route path), like `event.script.manager`/`task.executor`: the
+//!   registered workers are the route's addressable identity, but a
+//!   multi-runtime process (test binaries) cannot rely on their liveness,
+//!   and a reply must always complete.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
+use async_trait::async_trait;
 use tokio::sync::oneshot;
 
 use crate::envelope::EventEnvelope;
+use crate::function::{AppError, ComposableFunction};
 
-/// Reply-route ids with this prefix are lightweight inboxes, not routes.
-pub(crate) const INBOX_PREFIX: &str = "inbox.";
+/// The reserved RPC reply-listener route (Java `TemporaryInbox.TEMPORARY_INBOX`).
+pub const TEMPORARY_INBOX: &str = "temporary.inbox";
 
 fn registry() -> &'static Mutex<HashMap<String, oneshot::Sender<EventEnvelope>>> {
     static REGISTRY: OnceLock<Mutex<HashMap<String, oneshot::Sender<EventEnvelope>>>> =
@@ -55,39 +70,60 @@ fn registry() -> &'static Mutex<HashMap<String, oneshot::Sender<EventEnvelope>>>
     REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Create a new inbox: returns its unique id (already `inbox.`-prefixed) and
-/// the receiving end for the caller to await.
+/// Create a new pending RPC entry: returns its unique correlation id (a
+/// dash-less uuid — it must never contain `-`, see the composite-id split)
+/// and the receiving end for the caller to await.
 pub(crate) fn open() -> (String, oneshot::Receiver<EventEnvelope>) {
-    let id = format!("{INBOX_PREFIX}{}", uuid::Uuid::new_v4().simple());
+    let cid = uuid::Uuid::new_v4().simple().to_string();
     let (tx, rx) = oneshot::channel();
     registry()
         .lock()
         .expect("inbox registry poisoned")
-        .insert(id.clone(), tx);
-    (id, rx)
+        .insert(cid.clone(), tx);
+    (cid, rx)
 }
 
-/// Deliver a reply to an inbox. A missing entry (caller timed out and closed
-/// the inbox) drops the reply silently — the correct outcome. Returns whether
-/// the reply actually reached a waiting caller — the Java
-/// `ProcessStatus.isNotDelivered` signal, which reopens the worker-side
-/// telemetry record for an RPC-served execution (otherwise the caller's
-/// `round_trip` record is THE record for the span and the worker stays quiet).
-pub(crate) fn deliver(id: &str, reply: EventEnvelope) -> bool {
-    let sender = registry()
-        .lock()
-        .expect("inbox registry poisoned")
-        .remove(id);
-    match sender {
-        Some(sender) => sender.send(reply).is_ok(),
-        None => false,
-    }
-}
-
-/// Close an inbox without a reply (timeout / send failure cleanup).
-pub(crate) fn close(id: &str) {
+/// Close a pending entry without a reply (timeout / send failure cleanup).
+pub(crate) fn close(cid: &str) {
     registry()
         .lock()
         .expect("inbox registry poisoned")
-        .remove(id);
+        .remove(cid);
+}
+
+/// The `temporary.inbox` service (Java `TemporaryInbox`): resolves the reply's
+/// correlation id — stripping a composite `{cid}-{seq}` suffix on the last
+/// `-`, Java parity — and hands the envelope to the waiting caller. A missing
+/// entry (the caller timed out) drops the reply silently — the correct
+/// outcome. The worker delivers the envelope to this route PRISTINE (no
+/// metadata scrubbing or injection — see `worker_loop`), because the envelope
+/// IS the payload the caller receives.
+pub struct TemporaryInbox;
+
+#[async_trait]
+impl ComposableFunction for TemporaryInbox {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(composite) = input.correlation_id() {
+            // for the multi-inbox fork-n-join case the correlation id is
+            // composite "{cid}-{seq}" — strip after the LAST '-' (Java
+            // TemporaryInbox; single-inbox ids are dash-less, never split)
+            let cid = match composite.rfind('-') {
+                Some(sep) => &composite[..sep],
+                None => composite,
+            };
+            let sender = registry()
+                .lock()
+                .expect("inbox registry poisoned")
+                .remove(cid);
+            if let Some(sender) = sender {
+                let _ = sender.send(input);
+            }
+        }
+        Ok(EventEnvelope::new())
+    }
 }

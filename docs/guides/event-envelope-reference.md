@@ -208,15 +208,36 @@ wire shape in memory — typed values pass through `serde` on `set_body`/`body_a
 | `to_bytes() -> Result<Vec<u8>, AppError>` | encode the envelope as MsgPack |
 | `EventEnvelope::from_bytes(&[u8]) -> Result<Self, AppError>` | decode an envelope |
 
+### Reserved envelope tags
+
+The wire's optional `tags` field (map of str → str) carries **engine-managed metadata**.
+Tags are never visible to a user function — the engine consumes them at delivery. Two tag
+names are reserved with cross-language semantics that a conforming implementation must
+honor (see the Java repo's
+[wire-format specification](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)):
+
+- **`rpc`** — marks an RPC request (value = timeout in ms). The serving engine suppresses
+  the worker-side trace record for an RPC-served execution; the caller's round-trip record
+  is the single record for that span.
+- **`my_cid`** — carries the business correlation-id across touch points and
+  Event-over-HTTP hops. Metadata is never transported as envelope headers; the receiving
+  engine injects the read-only `my_correlation_id` key into the function's input header
+  copy from this tag at delivery.
+
 !!! note "Rust port"
-    The wire format is idiomatic serde MessagePack — deliberately **not** byte-compatible
-    with Java's compact flag-keyed encoding, since cross-JVM interop is out of scope
-    (single-runtime, in-memory bus only). Envelope features tied to unported subsystems do
-    not exist here: `tags`, envelope-level `annotations` (trace annotations live on the
-    trace context via `PostOffice::annotate_trace`), serialized exception/stack-trace
-    transport (`getException`, `stack.trace.transport.size`), broadcast flags, and the
-    `Kv` helper. Trace annotation and business-context APIs are on the `PostOffice` — see
-    the [API Overview](api-overview.md).
+    The envelope encodes as the **standard event envelope wire format** — a MsgPack map
+    with descriptive string keys shared verbatim with the Java engine (normative spec:
+    the Java repo's
+    [Event Envelope Wire Format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/);
+    golden conformance vectors are kept byte-identical in both repositories). Java's
+    legacy *compact* flag-keyed encoding is not decoded (v1 is standard-only). Envelope
+    features tied to unported subsystems do not exist here: serialized
+    exception/stack-trace transport (`getException`, `stack.trace.transport.size`),
+    broadcast flags, and the `Kv` helper. `tags` are engine-reserved (see above), and
+    envelope-level `annotations` ride REPLY envelopes only (the worker attaches
+    `PostOffice::annotate_trace` values; the RPC caller folds them into the trace record
+    and strips them). Trace annotation and business-context APIs are on the `PostOffice`
+    — see the [API Overview](api-overview.md).
 
 ---
 

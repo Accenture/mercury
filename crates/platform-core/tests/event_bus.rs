@@ -279,8 +279,12 @@ async fn rpc_round_trip_with_correlation() {
     assert_eq!(response.correlation_id(), Some("cid-42"));
     assert_eq!(response.from(), Some("v1.echo"));
     assert!(response.exec_time().is_some());
-    // the temporary inbox was released
-    assert_eq!(platform.routes(), vec!["v1.echo".to_string()]);
+    // no per-request route leaks: only the user route and the permanent
+    // reply listener remain (the inbox.* namespace belongs to applications)
+    assert_eq!(
+        platform.routes(),
+        vec!["temporary.inbox".to_string(), "v1.echo".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -323,7 +327,10 @@ async fn rpc_timeout_is_408() {
         .unwrap_err();
     assert_eq!(err.status(), 408);
     // the temporary inbox was released even on timeout
-    assert_eq!(platform.routes(), vec!["v1.slow".to_string()]);
+    assert_eq!(
+        platform.routes(),
+        vec!["temporary.inbox".to_string(), "v1.slow".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -543,10 +550,11 @@ impl ComposableFunction for ManualReplier {
                 .set_body("manual reply")?;
             po.send(reply).await?;
         }
-        // suppress the automatic reply: without reply_to set on the returned
-        // envelope... the worker would also auto-reply; return an envelope the
-        // caller ignores (first reply wins on a oneshot inbox)
-        EventEnvelope::new().set_body("ignored auto reply")
+        // as an @EventInterceptor the worker ignores this returned value —
+        // the manual reply above is the only reply (Java parity: manual
+        // replies are the interceptor pattern; a non-interceptor double
+        // reply would race through the reply listener's worker pool)
+        EventEnvelope::new().set_body("ignored by the worker")
     }
 }
 
@@ -555,12 +563,16 @@ async fn manual_reply_reaches_the_rpc_inbox() {
     setup_config();
     let platform = Platform::new();
     platform
-        .register(
+        .register_with_options(
             "v1.manual.replier",
             Arc::new(ManualReplier {
                 platform: platform.clone(),
             }),
             1,
+            platform_core::FunctionOptions {
+                interceptor: true,
+                ..Default::default()
+            },
         )
         .unwrap();
     let po = PostOffice::new(&platform);
@@ -663,4 +675,67 @@ async fn null_map_entries_strip_deterministically_on_the_fast_path() {
         !keys.contains(&"drop".to_string()),
         "a Nil map entry must be stripped on the fast path too (Java parity): {keys:?}"
     );
+}
+
+/// Regression twin of Java `PostOfficeTest.accidentalMetadataEchoIsSanitizedAtExit`
+/// (Eric's scenario): a function accidentally copies its input headers —
+/// including the injected read-only metadata — onto a returned envelope and
+/// even sets the engine-internal `x-event-api` key. The exit-side
+/// sanitization must filter the protected keys while keeping ordinary
+/// headers. Also covers the legacy compatibility path: a pre-4.10.2 peer
+/// transporting the business cid as an envelope header gets it honored
+/// (injected) and stripped from the function's view.
+#[tokio::test]
+async fn accidental_metadata_echo_is_sanitized_at_exit() {
+    setup_config();
+    struct EchoAllHeaders;
+    #[async_trait]
+    impl ComposableFunction for EchoAllHeaders {
+        async fn handle_event(
+            &self,
+            headers: HashMap<String, String>,
+            _input: EventEnvelope,
+            _instance: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            let mut result = EventEnvelope::new();
+            for (key, value) in &headers {
+                result = result.set_header(key, value); // the accidental copy
+            }
+            result = result.set_header("x-event-api", "spoofed"); // engine-internal key
+            result.set_body("ok")
+        }
+    }
+    let platform = Platform::new();
+    platform
+        .register("echo.all.headers", Arc::new(EchoAllHeaders), 1)
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    // a traced request with a LEGACY-transported business cid header — the
+    // worker honors it (injected as my_correlation_id) then strips it
+    let request = EventEnvelope::new()
+        .set_to("echo.all.headers")
+        .set_trace("trace-sanitize-1", "TEST /exit/sanitization")
+        .set_header("hello", "world")
+        .set_header("my_correlation_id", "cid-sanitize-1")
+        .set_body("x")
+        .unwrap();
+    let reply = po.request(request, Duration::from_secs(5)).await.unwrap();
+    assert_eq!(reply.body_as::<String>().unwrap(), "ok");
+    // ordinary headers survive — including proof that injection happened:
+    // the function saw my_route/my_trace_id/my_trace_path/my_correlation_id
+    // in its input COPY (it echoed them), yet none leave as reply headers
+    assert_eq!(reply.header("hello"), Some("world"));
+    for protected in [
+        "my_route",
+        "my_trace_id",
+        "my_trace_path",
+        "my_correlation_id",
+        "x-event-api",
+    ] {
+        assert_eq!(
+            reply.header(protected),
+            None,
+            "{protected} must be sanitized at exit"
+        );
+    }
 }
