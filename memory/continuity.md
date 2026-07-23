@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.9.0**: tracks the canonical mercury-composable line (Java 4.9.0 released the same day — one version, two languages).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-005048)
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-013514)
 - **last_review:** 2026-07-21 | through 2026-07-21-214043
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -574,7 +574,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   verification); docs walk-through mirrors the Java guide. Workspace 243/clippy 0/fmt.
   Follow-up candidates: port Java's worker-injected `my_route` header (docs claim scoped
   honestly meanwhile); the Java demo flows' `output.body.content-type` mapping looks like
-  a typo (flagged to Eric). See session 2026-07-23-005048.**
+  a typo (flagged to Eric). See session 2026-07-23-005048. **TELEMETRY FIX ROUND
+  2026-07-23 (commit `8328d720`, same branch — Eric's interop drives on PR #167 surfaced
+  three findings, all fixed + span-level acceptance PASSED): I1 exactly ONE record per
+  span (worker suppresses its record for a delivered RPC — Java sendTracingInfo gate;
+  RPC marker = inbox reply address; annotations now ride the reply envelope, a new
+  wire-compatible field, and fold into the caller's record); I2 round_trip span_id only
+  from a DIRECT responder (reply.from == requested route — Java spanIdFromResponder
+  140640d8; relayed flow replies keep parent, omit span); I3 programmatic
+  event_over_http stamps the caller's trace/span on the wire envelope (apply_current_
+  trace at client entry). Workspace 244/clippy 0/fmt. See session 2026-07-23-013514.**
   → serves: vision-mercury
   <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-22 | uses: 3 | tier: working | origin: 2026-07-21-233234.md -->
 
