@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.0**: tracks the canonical mercury-composable line (Java 4.10.0 released the same day — one version, two languages; cross-language Event-over-HTTP interop validated by live bidirectional drives).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-152724)
+- **last_session:** 2026-07-23 | agent: Claude Code (2026-07-23-163133)
 - **last_review:** 2026-07-23 | through 2026-07-23-013514.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -81,7 +81,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 79 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 81 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -105,14 +105,27 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 78 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 80 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (feature branch awaiting Eric — 2026-07-23) **Telemetry presentation-parity batch
+- [ ] (release in flight — 2026-07-23) **v4.10.1 release prepared** (patch: the telemetry
+  presentation-parity batch). Branch `chore/release-4.10.1` from main `ecec21c5` (PR #169
+  merge): workspace version 4.10.0→4.10.1 (root Cargo.toml only — members inherit;
+  Cargo.lock regenerated; sweep re-verified the surface is just the workspace field),
+  CHANGELOG `## Version 4.10.1, 7/23/2026` led by the presentation-parity story (empty
+  normalized-signature diff in all four directions; polyglot-DevSecOps rationale) with
+  PR #169 stamped on every entry. Gate green at the new version: workspace 245 / clippy
+  0 / fmt. NOT pushed — Eric pushes and opens the PR. The Java counterpart PR #217
+  (reference-side changes) is in CI; the Java repo follows with its own release. Close
+  when tagged and published.
+  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-163133.md -->
+
+- [x] (feature branch — 2026-07-23; MERGED as PR [#169](https://github.com/Accenture/mercury/pull/169),
+  merge `ecec21c5`) **Telemetry presentation-parity batch
   (increment 64) IMPLEMENTED on branch `feature/event-api-span-and-auth`** (mirror of the
   Java reference branch of the same name; NOT pushed — Eric gates). rust-to-rust trace =
   EXACT replica of java-to-java (empty normalized-signature diff, both patterns; signature
@@ -123,7 +136,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   response-header strip, `event.api.auth` demo + session-info forwarding,
   demo→declarative rename, hello.pojo forward. Workspace 245/clippy 0/fmt; acceptance
   drive verified (topology/gating/headers/auth). Close when merged.
-  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-152724.md -->
+  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 2 | tier: active | origin: 2026-07-23-152724.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.0 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.0` on merge commit `4dc70337`
