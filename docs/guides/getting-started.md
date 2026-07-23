@@ -120,7 +120,7 @@ a static-content filter) is in
 
 ```bash
 cargo run -p hello-flow
-curl -s http://127.0.0.1:8086/api/hello/eric
+curl -s http://127.0.0.1:8100/api/hello/eric
 ```
 
 The endpoint binds to a **flow** instead of a function (`flow: 'hello-flow'` in its

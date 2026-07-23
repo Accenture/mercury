@@ -168,7 +168,7 @@ the adapter reshapes the HTTP request into the flow's input dataset (`input.quer
 
 ```bash
 cargo run -p hello-flow
-curl 'http://127.0.0.1:8086/api/hello/eric?lang=fr'
+curl 'http://127.0.0.1:8100/api/hello/eric?lang=fr'
 ```
 
 ```json

@@ -33,7 +33,7 @@ Rust (stable) + Cargo. Run any example:
 
 ```bash
 cargo run -p hello-world           # layer 1 — event bus + HTTP
-cargo run -p hello-flow            # layer 2 — a YAML flow over HTTP (port 8086)
+cargo run -p hello-flow            # layer 2 — a YAML flow over HTTP (port 8100)
 cargo run -p minigraph-playground  # layer 3 — the Playground; open http://127.0.0.1:8100/
 ```
 

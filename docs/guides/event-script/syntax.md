@@ -158,10 +158,10 @@ including ones from a library crate the app depends on — registers itself at s
 To test your new REST endpoint, flow configuration and function, please point your browser to
 
 ```text
-http://127.0.0.1:8086/api/greetings/my_name
+http://127.0.0.1:8100/api/greetings/my_name
 ```
 
-(8086 is `examples/hello-flow`'s `rest.server.port`; use your application's port.)
+(8100 is `examples/hello-flow`'s `rest.server.port`; use your application's port.)
 You can replace "my_name" with your first name to see the response to the browser.
 
 ## Flow configuration syntax

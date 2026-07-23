@@ -244,7 +244,7 @@ flow file is compiled and validated at startup, before the HTTP server accepts a
 The flow YAML syntax is **identical to the Java engine's**, so flow files port unchanged —
 see the [flow grammar](event-script/flow-grammar.md) and the
 [syntax reference](event-script/syntax.md). The runnable example is `hello-flow`
-(port **8086**) in [Getting Started](getting-started.md).
+(port **8100**) in [Getting Started](getting-started.md).
 
 ## The knowledge graph stands on top of both
 
