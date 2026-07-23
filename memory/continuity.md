@@ -70,7 +70,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 78 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-23 | uses: 79 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -94,7 +94,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 77 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-23 | uses: 78 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -183,7 +183,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **The companion `/sync` feature is COMPLETE and MERGED in both ports** (Rust R&D main + Java upstream
   main); the `/sync` REST contract is byte-identical and language-neutral. Blueprint gap closed.
   → serves: vision-mercury
-  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 22 | tier: working | origin: 2026-07-18-162832.md -->
+  <!-- id: bp-companion-sync | created: 2026-07-18 | last_used: 2026-07-19 | uses: 22 | tier: archive-candidate | origin: 2026-07-18-162832.md -->
 
 - [ ] **(backlog) Port the lightweight cloud-native connectors + sync-over-async.** Maintainer
   scope refinement 2026-07-20 (stated while reviewing the docs site): `minimalist-kafka` and
@@ -381,7 +381,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   event_over_http stamps the caller's trace/span on the wire envelope (apply_current_
   trace at client entry). Workspace 244/clippy 0/fmt. See session 2026-07-23-013514.**
   → serves: vision-mercury
-  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-23 | uses: 9 | tier: active | origin: 2026-07-21-233234.md -->
+  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-23 | uses: 10 | tier: active | origin: 2026-07-21-233234.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
