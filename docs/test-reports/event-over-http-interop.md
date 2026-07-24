@@ -277,6 +277,68 @@ correlation concept local and remote, deterministic essential-service startup �
 observable behavior stayed byte-for-byte unchanged, which is exactly what the empty diff is
 designed to prove.
 
+## The configurable-traceparent round (2026-07-24)
+
+A field installation's API gateway strips the standard W3C `traceparent` from its header
+allow-list, so both engines gained a configurable traceparent **carrier name** —
+`http.traceparent.header` (Java adds the `kafka.*` / `secondary.kafka.*` twins), with per-entry
+overrides — shipped in lock-step (Java PR #227, Rust PR #177). Before release, this round
+validated the feature live across the language boundary with the custom name `ce_traceparent`,
+every application launched with `-Dhttp.traceparent.header=ce_traceparent` (the Rust port
+honors the same `-D` override syntax).
+
+The drive deliberately simulated the field scenario: the client supplied the W3C value **only
+under `ce_traceparent`** — the standard header never sent — so any trace continuity observed
+had to come from the custom carrier.
+
+### Results — the feature is correct and symmetric
+
+| Check | java→rust | rust→java |
+|-------|-----------|-----------|
+| Functionality (declarative + programmatic) | pass | pass |
+| Edge adopts trace context from `ce_traceparent` alone | pass | pass |
+| Caller's REST span parents onto the client's span | pass | pass |
+| Callee `/api/event` spans parent onto the caller's span | pass | pass |
+| Declarative reply-span asymmetry preserved cross-language | pass | pass |
+| Authentication (`event.api.auth`) | pass | pass |
+| `X-Correlation-Id` response echo | pass | pass |
+
+Wire-level captures (a header-dumping listener standing in for the peer) confirmed the **dual
+stamp** on both engines' outbound `/api/event` calls: `traceparent` and `ce_traceparent`
+carrying the identical W3C value, alongside the trace-id header. A four-combination echo
+matrix (java→java, java→rust, rust→rust, rust→java, both patterns, all eight runs under the
+custom name) confirmed the feature introduces no cross-engine differences: every echoed
+`ce_traceparent` and trace behavior was symmetric.
+
+### Findings — pre-existing surfaces exposed by the matrix (not caused by the feature)
+
+The deeper matrix inspection surfaced header-hygiene asymmetries that predate this feature:
+
+1. **Both programmatic demo tasks transport their injected metadata.** Java's
+   `EventOverHttpRpc` (`headers.forEach(req::setHeader)`) and the Rust twin (its `set_header`
+   loop) copy the function's **injected** header view — including the four `my_*` keys — onto
+   the outgoing envelope: the accidental-copy anti-pattern of learning #7, on the request side.
+2. **The two engines sanitize different subsets at the receiving `/api/event` door.** With
+   inbound `my_*` on the wire, a Java callee delivers `my_correlation_id` (the legacy-cid
+   compat carrier) but strips `my_route`/`my_trace_id`/`my_trace_path`; a Rust callee strips
+   `my_correlation_id` and `x-event-api` but delivers the other three. On the declarative
+   path, `x-event-api: callback` is visible in a Java callee's envelope view, absent in a
+   Rust callee's.
+3. **Wire hygiene nits.** The Rust HTTP client emits each trace header twice (same value);
+   it stamps `x-correlation-id` on the `/api/event` request where Java carries the business
+   cid only in the envelope tag; Java sends `accept` and `x-small-payload-as-bytes` where
+   Rust does not; and the Rust port does not log the resolved traceparent header name at
+   startup (Java: `Traceparent HTTP header is 'ce_traceparent'`).
+
+### Verdict
+
+The configurable traceparent carrier works end to end in both directions: with the standard
+header never supplied, the custom name alone carried the full W3C context — trace identity
+**and** span parenting — through both engines' edges, app-to-app hops, and `/api/event`
+doors. The feature is release-ready. The findings above are queued as a follow-up hygiene
+round: fix the two demo tasks, align the inbound `/api/event` metadata sanitization, and
+polish the wire/logging nits.
+
 ## Learnings for future language ports
 
 This validation arc is the playbook for bringing the next language (e.g. Python) into the
