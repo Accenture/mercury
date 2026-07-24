@@ -335,9 +335,43 @@ The deeper matrix inspection surfaced header-hygiene asymmetries that predate th
 The configurable traceparent carrier works end to end in both directions: with the standard
 header never supplied, the custom name alone carried the full W3C context — trace identity
 **and** span parenting — through both engines' edges, app-to-app hops, and `/api/event`
-doors. The feature is release-ready. The findings above are queued as a follow-up hygiene
-round: fix the two demo tasks, align the inbound `/api/event` metadata sanitization, and
-polish the wire/logging nits.
+doors. The feature is release-ready. The findings above were fixed in the hygiene round
+below.
+
+### Resolution — the hygiene round (2026-07-24, ships in v4.10.4)
+
+All findings were fixed in lock-step and the matrix re-run:
+
+1. **The delivered envelope view is scrubbed on both engines.** The worker removes the five
+   engine keys (`my_route`, `my_trace_id`, `my_trace_path`, `my_correlation_id`,
+   `x-event-api`) from the delivered envelope's own headers for non-interceptor functions —
+   whatever a peer transported or a local edge merged can never masquerade as application
+   data. The legacy `my_correlation_id` compat carrier remains honored into the injected
+   view before the scrub, and event interceptors keep raw transport fidelity (on the Rust
+   port this also *restored* interceptor fidelity that its earlier partial scrub had
+   violated). Entry-side regression twins added on both engines. The investigation settled
+   the attribution: the Rust port never injected metadata into the envelope view — the
+   matrix leaks were pure transport (both programmatic demos' header-copy loops) plus, on
+   the Java side, the declarative relay guard and the auth session-info merge reaching the
+   envelope view.
+2. **Both programmatic demo tasks forward business headers only** — the injected `my_*`
+   view describes the local function's own context and is never transported.
+3. **Wire hygiene aligned to the Java reference.** The Rust client now stamps each trace
+   header exactly once, no longer adds `x-correlation-id` to the event-over-HTTP transport
+   leg (the business cid rides the envelope tag), sends `accept` and
+   `x-small-payload-as-bytes` like Java, and logs the resolved
+   `Correlation-id / Trace-id / Traceparent HTTP header` names at startup.
+4. **The endpoint timeout rides the request dataset as `x-ttl` on both engines.** Java's
+   REST ingress represents the route timeout as the request's `x-ttl` header (caller-sent
+   value wins), so a flow's `input.header` view carries it; the Rust ingress now does the
+   same — with a regression pinning both the default and the caller-wins precedence.
+
+**Final verification:** the four-combination matrix re-ran with both fixed engines under
+`ce_traceparent` — **all eight echoes are identical** after normalizing volatile fields
+(same header set, same values including `x-ttl` milliseconds), wire captures show the same
+header set from both engines' clients, and cross-language span parenting held in both
+directions. Gates: Java full reactor green (422 platform-core tests, 2 new); Rust workspace
+260 passed (3 new), clippy 0, fmt clean.
 
 ## Learnings for future language ports
 
