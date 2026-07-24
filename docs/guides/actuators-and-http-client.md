@@ -203,9 +203,10 @@ surrounding whitespace — a token read from a file with a trailing newline stay
 the trace id (header name from `http.trace.id.header`, default `X-Trace-Id`) and a W3C
 `traceparent` carrying the current span — so distributed traces stay connected across the HTTP
 boundary; do not set these yourself in a traced flow or function. When a custom traceparent
-header name is configured (`http.traceparent.header`), the same W3C value is stamped under
-**both** the standard and the custom name, so the trace context survives an intermediary that
-strips the standard header. In an untraced call nothing
+header name is configured (`http.traceparent.header` — for backward compatibility with legacy
+systems only; departing from the W3C/OTel standard is discouraged), the same W3C value is
+stamped under **both** the standard and the custom name, so the trace context survives an
+intermediary that strips the standard header. In an untraced call nothing
 is injected, and a trace header you set is forwarded as-is — which is what lets you propagate
 a trace to a third-party system with full control. The business **correlation id** of the
 current request is likewise injected (header name from `http.correlation.id.header`, default

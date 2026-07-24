@@ -221,17 +221,23 @@ name per endpoint with its optional `correlation.id.header` key.
 | string (header name) | `traceparent` |
 
 The HTTP header name carrying the **W3C trace context** (the full `traceparent` value:
-trace-id, parent span-id and flags). An **escape hatch** for an intermediary — typically an
-API gateway with a header allow-list — that strips the standard `traceparent` header and
-cannot be fixed promptly. When customized, outbound HTTP calls (the async HTTP client and
-Event-over-HTTP) stamp the same W3C value under **both** names, and inbound resolution reads
-the custom name first (a well-formed value under it wins, so an intermediary-injected
-standard `traceparent` cannot override the peer's context) with the standard header as
-fallback. Read by `crates/platform-core` (REST automation server, HTTP client and
-Event-over-HTTP client). Overridable per endpoint with `traceparent.header` in a `rest.yaml`
-entry. **Caution:** a renamed traceparent is invisible to standards-compliant tooling
-(OpenTelemetry SDKs, service meshes, APM agents) — keep the default unless an unfixable
-intermediary forces the rename, and configure both ends alike.
+trace-id, parent span-id and flags). When customized, outbound HTTP calls (the async HTTP
+client and Event-over-HTTP) stamp the same W3C value under **both** names, and inbound
+resolution reads the custom name first (a well-formed value under it wins, so an
+intermediary-injected standard `traceparent` cannot override the peer's context) with the
+standard header as fallback. Read by `crates/platform-core` (REST automation server, HTTP
+client and Event-over-HTTP client). Overridable per endpoint with `traceparent.header` in a
+`rest.yaml` entry.
+
+> **Our position: use the standard.** `traceparent` is the W3C Trace Context header that
+> OpenTelemetry and the wider observability ecosystem interoperate on, and the framework
+> implements it as the default with zero configuration. This optional setting exists for
+> **backward compatibility with legacy systems only** — an intermediary (typically an API
+> gateway with a header allow-list) or an upstream convention that cannot be fixed promptly.
+> **Departure from the standard is discouraged:** a renamed carrier is invisible to
+> standards-compliant tooling (OpenTelemetry SDKs, service meshes, APM agents) and every
+> participant must be configured alike. Treat a custom name as a temporary bridge, and plan
+> the migration back to the standard header (e.g. fixing the gateway allow-list).
 
 #### `skip.rpc.tracing`
 

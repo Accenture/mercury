@@ -38,7 +38,16 @@ A `rest.yaml` endpoint entry may override all three per endpoint (`trace.id.head
 default. Legacy conflation — pointing the trace-id and correlation-id names at one shared
 header — is supported: the edge then resolves **one** id for both rather than minting two.
 
-!!! tip "A renamed traceparent beats conflation for the gateway case"
+!!! warning "The standard W3C `traceparent` is our position — use it"
+    It is the header OpenTelemetry and the wider observability ecosystem interoperate on,
+    and the framework implements it as the default with zero configuration. The optional
+    `traceparent.header` family exists for **backward compatibility with legacy systems
+    only**; departure from the standard is discouraged, because a renamed carrier is
+    invisible to OpenTelemetry SDKs, service meshes and APM agents, and every participant
+    must be configured alike. Treat a custom name as a temporary bridge and plan the
+    migration back to the standard header.
+
+!!! tip "Within that constraint: a renamed traceparent beats conflation for the gateway case"
     The conflation above carries only the trace **id**, so spans in different applications
     can be stitched by id but not **parented** across the hop. Renaming the traceparent
     carrier (`http.traceparent.header=X-Trace-Context`) moves the *full* W3C context —
@@ -47,9 +56,8 @@ header — is supported: the edge then resolves **one** id for both rather than 
     both the custom and the standard name; inbound, a well-formed value under the custom
     name wins (an intermediary that injects its own fresh `traceparent` cannot break the
     caller's chain) and the standard header remains a fallback for standards-compliant
-    callers. **The trade-off:** a renamed traceparent is invisible to OpenTelemetry SDKs,
-    service meshes and APM agents — treat it as an escape hatch for an intermediary you
-    cannot fix, configure both ends alike, and prefer fixing the gateway allow-list.
+    callers. The durable fix is always the gateway allow-list — retire the custom name once
+    it lands.
 
 !!! note "Rust port"
     The Java guide also documents `kafka.trace.id.header` / `kafka.correlation.id.header` /

@@ -59,9 +59,12 @@ the design rationale in [`docs/design/`](docs/design/).
    standard `traceparent` cannot override the peer's context — with the standard header as
    fallback for standards-compliant callers. Unlike the trace-id conflation workaround, the
    full W3C context (trace-id, parent span-id, flags) crosses the intermediary, so
-   cross-application **span parenting** survives. Default behavior unchanged (`traceparent`);
-   a renamed carrier is invisible to OpenTelemetry-compliant tooling, so keep the default
-   unless an unfixable intermediary forces the rename. Mirrors the Java engine's feature of
+   cross-application **span parenting** survives. Default behavior unchanged (`traceparent`).
+   **The standard W3C/OpenTelemetry `traceparent` remains the project's position** — the
+   optional key is for backward compatibility with legacy systems only, and departure from
+   the standard is discouraged (a renamed carrier is invisible to OTel-compliant tooling);
+   treat a custom name as a temporary bridge and plan the migration back to the standard
+   header. Mirrors the Java engine's feature of
    the same name in lock-step (identical config keys and precedence; the Java engine's
    `kafka.traceparent.header` / `secondary.kafka.traceparent.header` twins have no Rust
    surface — the Kafka service mesh is not ported).
