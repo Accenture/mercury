@@ -36,3 +36,4 @@
 - ot-java-ai-docs-backport — Back-port the AI-doc grammar hardening to the Java repo — EXECUTED + VALIDATED — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
 - ot-describe-surface-trailing-bracket — `describe graph` trailing-`]` in the derived surface — CLOSED 2026-07-21: Java fix — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
 - ot-reverify-invariants-2026-07-21 — Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony): — completed thread swept (invariants re-confirmed 2026-07-21; completion older than archive_window 20) — 2026-Q3.md
+- bp-companion-sync — (blueprint) Synchronous AI-companion feedback — CLOSED 2026-07-23 (human gate — completed thread swept (gap closed + human gate approved 2026-07-22; completion older than archive_window 20) — 2026-Q3.md
