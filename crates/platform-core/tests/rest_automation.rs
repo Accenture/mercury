@@ -24,6 +24,8 @@ use std::sync::{Arc, Mutex, Once};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use platform_core::automation::http_client::AsyncHttpClientService;
+use platform_core::platform::FunctionOptions;
 use platform_core::{
     automation, overrides, resources, AppConfigReader, AppError, ComposableFunction, EventEnvelope,
     Platform, PostOffice,
@@ -242,6 +244,66 @@ impl ComposableFunction for HeaderProbe {
     }
 }
 
+/// Reflects the raw HTTP headers the request arrived with, so a test can see
+/// exactly what an upstream caller stamped on the wire.
+struct TraceHeaderEcho;
+
+#[async_trait]
+impl ComposableFunction for TraceHeaderEcho {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        EventEnvelope::new().set_body(serde_json::json!({
+            "headers": request["headers"],
+        }))
+    }
+}
+
+/// A traced function that calls the "/api/echo/headers" echo endpoint through
+/// the "async.http.request" HTTP client and returns the echo's view of the
+/// request it received. Because the echo reflects the raw HTTP headers, a
+/// test can assert exactly what the async HTTP client stamped on the outgoing
+/// call - e.g. that the W3C trace context travels under BOTH the standard
+/// "traceparent" and a custom http.traceparent.header name.
+struct EchoChainCaller {
+    platform: Platform,
+}
+
+#[async_trait]
+impl ComposableFunction for EchoChainCaller {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        let port = request["parameters"]["query"]["port"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        let echo = automation::AsyncHttpRequest::new()
+            .set_method("GET")
+            .set_url("/api/echo/headers")
+            .set_target_host(&format!("http://127.0.0.1:{port}"))
+            .set_header("accept", "application/json");
+        let po = PostOffice::new(&self.platform);
+        let response = po
+            .request(
+                EventEnvelope::new()
+                    .set_to(automation::ASYNC_HTTP_REQUEST)
+                    .set_raw_body(echo.to_value()),
+                Duration::from_secs(10),
+            )
+            .await?;
+        Ok(EventEnvelope::new().set_raw_body(response.body().clone()))
+    }
+}
+
 const REST_YAML: &str = r#"
 rest:
   - service: "http.echo"
@@ -276,6 +338,28 @@ rest:
     url: "/api/traced"
     timeout: 5s
     tracing: true
+  # Per-endpoint traceparent header-name override: this endpoint reads the W3C trace context
+  # from 'X-Endpoint-Trace', taking precedence over the global http.traceparent.header
+  # (X-Trace-Context in this test suite) and the standard 'traceparent' (which remains a
+  # fallback when absent).
+  - service: "trace.probe"
+    methods: ['GET']
+    url: "/api/renamed/traceparent/probe"
+    timeout: 5s
+    tracing: true
+    traceparent.header: "X-Endpoint-Trace"
+  # A traced caller whose downstream target is the /api/echo/headers echo, so tests can
+  # inspect the raw headers the async HTTP client stamped on the outgoing hop (e.g. the
+  # custom traceparent name).
+  - service: "echo.chain.caller"
+    methods: ['GET']
+    url: "/api/echo/chain"
+    timeout: 15s
+    tracing: true
+  - service: "trace.header.echo"
+    methods: ['GET']
+    url: "/api/echo/headers"
+    timeout: 5s
   - service: "plain.text"
     methods: ['GET']
     url: "/api/text"
@@ -370,6 +454,31 @@ async fn server() -> TestServer {
         .unwrap();
     platform
         .register("request.view", Arc::new(RequestView), 1)
+        .unwrap();
+    platform
+        .register("trace.header.echo", Arc::new(TraceHeaderEcho), 1)
+        .unwrap();
+    platform
+        .register(
+            "echo.chain.caller",
+            Arc::new(EchoChainCaller {
+                platform: platform.clone(),
+            }),
+            1,
+        )
+        .unwrap();
+    // the async HTTP client, for the echo-chain caller's outgoing hop
+    platform
+        .register_with_options(
+            automation::ASYNC_HTTP_REQUEST,
+            Arc::new(AsyncHttpClientService::new(&platform)),
+            10,
+            FunctionOptions {
+                zero_traced: false,
+                interceptor: true,
+                private: true,
+            },
+        )
         .unwrap();
     let addr = automation::start_http_server(&platform).await.unwrap();
     TestServer {
@@ -894,4 +1003,168 @@ async fn flow_binding_injects_x_flow_id_header() {
     let (_, _, body) = http(ts.port, "GET", "/api/echo/alice", &[], "").await;
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert!(json["flow_id"].is_null());
+}
+
+// ---- configurable traceparent header name (http.traceparent.header) ----
+//
+// The suite-wide config (tests/resources/application.properties) sets
+// http.traceparent.header=X-Trace-Context, so EVERY test in this binary runs
+// with the feature active - the untouched tests above prove it is additive.
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn custom_traceparent_header_name_carries_the_trace_context() {
+    // http.traceparent.header=X-Trace-Context in this test suite: an intermediary that strips
+    // the standard W3C "traceparent" can still deliver the trace context under the custom name
+    let server = server().await;
+    let w3c_trace_id = "1af92f3577b34da6a3ce929d0e0e4701";
+    let value = format!("00-{w3c_trace_id}-00f067aa0ba902b7-01");
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/traced",
+        &[("X-Trace-Context", value.as_str())],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let seen = server
+        .trace_seen
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("probe ran");
+    assert_eq!(
+        seen.0.as_deref(),
+        Some(w3c_trace_id),
+        "the endpoint adopted the W3C trace context carried under the custom header name"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn custom_traceparent_name_wins_over_injected_standard_header() {
+    // an intermediary (e.g. a service-mesh sidecar) may inject its OWN standard traceparent;
+    // the peer's context under the deliberately configured custom name must not be overridden
+    let server = server().await;
+    let peer_trace_id = "2af92f3577b34da6a3ce929d0e0e4702";
+    let injected_trace_id = "3af92f3577b34da6a3ce929d0e0e4703";
+    let peer = format!("00-{peer_trace_id}-00f067aa0ba902b7-01");
+    let injected = format!("00-{injected_trace_id}-00f067aa0ba902b8-01");
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/traced",
+        &[
+            ("X-Trace-Context", peer.as_str()),
+            ("traceparent", injected.as_str()),
+        ],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let seen = server
+        .trace_seen
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("probe ran");
+    assert_eq!(
+        seen.0.as_deref(),
+        Some(peer_trace_id),
+        "a well-formed value under the custom traceparent name wins over the standard header"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn standard_traceparent_remains_fallback_under_custom_name() {
+    // a standards-compliant caller that only sends the standard header still propagates,
+    // even though this application is configured with a custom traceparent name
+    let server = server().await;
+    let w3c_trace_id = "4af92f3577b34da6a3ce929d0e0e4704";
+    let value = format!("00-{w3c_trace_id}-00f067aa0ba902b7-01");
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/traced",
+        &[("traceparent", value.as_str())],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let seen = server
+        .trace_seen
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("probe ran");
+    assert_eq!(seen.0.as_deref(), Some(w3c_trace_id));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn per_endpoint_traceparent_override_beats_global_name() {
+    // /api/renamed/traceparent/probe declares 'traceparent.header: X-Endpoint-Trace' in
+    // rest.yaml, which replaces the global custom name (X-Trace-Context) for that endpoint
+    let server = server().await;
+    let endpoint_trace_id = "5af92f3577b34da6a3ce929d0e0e4705";
+    let global_name_trace_id = "6af92f3577b34da6a3ce929d0e0e4706";
+    let endpoint = format!("00-{endpoint_trace_id}-00f067aa0ba902b7-01");
+    let global_name = format!("00-{global_name_trace_id}-00f067aa0ba902b8-01");
+    let (status, _, _) = http(
+        server.port,
+        "GET",
+        "/api/renamed/traceparent/probe",
+        &[
+            ("X-Endpoint-Trace", endpoint.as_str()),
+            ("X-Trace-Context", global_name.as_str()),
+        ],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let seen = server
+        .trace_seen
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("probe ran");
+    assert_eq!(
+        seen.0.as_deref(),
+        Some(endpoint_trace_id),
+        "the per-endpoint traceparent.header override takes precedence over the global name"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_http_client_stamps_trace_context_under_both_names() {
+    // outbound: with http.traceparent.header configured, the async HTTP client stamps the
+    // SAME W3C value under both the standard "traceparent" and the custom name, so the
+    // context survives an intermediary that strips the standard header while compliant
+    // hops keep working
+    let server = server().await;
+    let w3c_trace_id = "7af92f3577b34da6a3ce929d0e0e4707";
+    let value = format!("00-{w3c_trace_id}-00f067aa0ba902b7-01");
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        &format!("/api/echo/chain?port={}", server.port),
+        &[
+            ("traceparent", value.as_str()),
+            ("Accept", "application/json"),
+        ],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200, "chain body: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    let stamped = json["headers"]["traceparent"]
+        .as_str()
+        .expect("the traced caller stamped the standard traceparent on the outgoing hop");
+    assert!(
+        stamped.starts_with(&format!("00-{w3c_trace_id}-")),
+        "the stamped traceparent continues the caller's trace: {stamped}"
+    );
+    assert_eq!(
+        json["headers"]["x-trace-context"].as_str(),
+        Some(stamped),
+        "the same W3C value must be stamped under the custom traceparent header name"
+    );
 }

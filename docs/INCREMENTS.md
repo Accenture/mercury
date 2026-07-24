@@ -1992,6 +1992,37 @@ both engines — including ERROR TEXT, which DevSecOps teams read in aggregated 
 
 ---
 
+## Increment 68 — Configurable traceparent header name (2026-07-24)
+
+Field-requested, ratified by Eric and mirrored from the Java reference
+(mercury-composable branch `feature/configurable-traceparent-header`) in lock-step:
+`http.traceparent.header` (default `traceparent`) plus a per-entry `traceparent.header`
+override in rest.yaml. An escape hatch for an intermediary (API-gateway header
+allow-list) that strips the standard W3C header — unlike trace-id conflation, the full
+W3C context crosses the intermediary, so cross-application span parenting survives.
+
+- **Inbound (REST automation):** the traceparent is parsed from the effective name
+  (per-entry > global > standard); a well-formed value under the custom name WINS — a
+  sidecar may inject its own fresh standard `traceparent`, which must not override the
+  peer's context — and the standard header remains a fallback for standards-compliant
+  callers.
+- **Outbound (async HTTP client + Event-over-HTTP):** the same W3C value is stamped
+  under BOTH names (custom additionally, when it differs case-insensitively).
+- **Test pattern (Java twin):** the suite-wide test config sets
+  `http.traceparent.header=X-Trace-Context`, so every platform-core test runs with the
+  feature active — the untouched suite proves it is additive. Five regressions mirror
+  the Java ones: custom name carries the context, custom wins over an injected standard
+  header, standard fallback, per-entry override beats the global name, and the
+  echo-chain proof that the client stamps identical values under both names.
+- **Skipped surfaces:** the Java `kafka.traceparent.header` /
+  `secondary.kafka.traceparent.header` family and the kafka-flow-adapter per-binding
+  override (no Kafka surface in this port). Docs: configuration reference, observability
+  (impedance table + "renamed traceparent beats conflation" tip), rest-automation
+  grammar, reserved-names table, HTTP-client guide, CHANGELOG Unreleased. Workspace
+  257 / clippy 0 / fmt.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,

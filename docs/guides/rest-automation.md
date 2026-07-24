@@ -177,7 +177,7 @@ otherwise a fresh id is generated. See
 [Function Execution — tracing](event-driven/function-execution.md#tracing-behavior-per-call-type)
 for what happens downstream.
 
-#### `trace.id.header` / `correlation.id.header`
+#### `trace.id.header` / `correlation.id.header` / `traceparent.header`
 
 | Type | Default |
 |---|---|
@@ -189,6 +189,13 @@ is per-entry override, then the `application.yml` globals (`http.trace.id.header
 `X-Trace-Id`; `http.correlation.id.header`, default `X-Correlation-Id`), then the built-in
 default. Header capture is case-insensitive, and a well-formed W3C `traceparent` still takes
 precedence for the trace id.
+
+`traceparent.header` overrides the global `http.traceparent.header` (default `traceparent`)
+— the header carrying the **full W3C trace context**, for an intermediary that strips the
+standard name; a well-formed value under the custom name wins, with the standard
+`traceparent` as fallback. See
+[Observability](observability.md#two-ids-two-concerns) for the semantics and the
+trade-off.
 
 A business **correlation id is always ensured** — independent of tracing. If the caller sends
 none, one is generated (when one header name serves both roles, the trace id is reused so a

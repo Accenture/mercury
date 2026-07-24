@@ -51,9 +51,10 @@ pub struct RouteInfo {
     pub authentication: Option<String>,
     pub tracing: bool,
     /// Per-endpoint impedance overrides (grammar: `trace.id.header`,
-    /// `correlation.id.header`).
+    /// `correlation.id.header`, `traceparent.header`).
     pub trace_id_header: Option<String>,
     pub correlation_id_header: Option<String>,
+    pub traceparent_header: Option<String>,
     /// Event-script flow binding (grammar `flow:`): the flow id injected as
     /// the `x-flow-id` request header for `http.flow.adapter` (increment E-3).
     pub flow: Option<String>,
@@ -455,6 +456,7 @@ fn parse_route(
         tracing,
         trace_id_header: text("trace.id.header"),
         correlation_id_header: text("correlation.id.header"),
+        traceparent_header: text("traceparent.header"),
         flow: text("flow"),
         segments,
     })

@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.3**: tracks the canonical mercury-composable line (Java 4.10.3 released the same day — one version, two languages; the field-deployment roll-up of the 4.10 arc).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-031514)
+- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-160634)
 - **last_review:** 2026-07-24 | through 2026-07-24-025820.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -111,6 +111,29 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (in flight — 2026-07-24; branch `feature/configurable-traceparent-header`, 1 commit, NOT
+  pushed — Eric gates) **Configurable traceparent header name (field request), mirrored from
+  the Java reference in lock-step** (mercury-composable branch of the same name, commit
+  `5ee496dd`). `http.traceparent.header` (default `traceparent`) + per-entry
+  `traceparent.header` in rest.yaml (precedence per-entry > global > default). Inbound
+  (REST automation): parse the custom name FIRST — a well-formed value under it wins, so a
+  sidecar-injected standard `traceparent` cannot override the peer's context — standard header
+  as fallback for compliant callers. Outbound (async HTTP client + the Event-over-HTTP encode
+  path): the same W3C value stamped under BOTH names when they differ (case-insensitive).
+  Escape hatch for a gateway allow-list that strips the standard header — the full W3C context
+  crosses, so cross-app span parenting survives (beats trace-id conflation). Java's Kafka twins
+  (`kafka.traceparent.header` / `secondary.kafka.traceparent.header` + the adapter per-binding
+  override) have NO Rust surface (mesh not ported) — skipped per the mirror-what-exists rule.
+  Test pattern mirrored: suite-wide `http.traceparent.header=X-Trace-Context` in
+  tests/resources/application.properties (the whole platform-core suite runs feature-active,
+  proving it additive) + 5 regression twins of the Java tests (custom carries context / custom
+  wins over injected standard / standard fallback / per-entry override / dual-stamp
+  echo-chain). Gate: workspace 257 (252+5) / clippy 0 / fmt. Docs: config reference,
+  observability (impedance row + "renamed traceparent beats conflation" tip), rest-automation
+  grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
+  merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
+  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-160634.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
