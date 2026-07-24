@@ -252,11 +252,9 @@ tasks:
     {
       "body": { "hello": "world" },
       "headers": {
-        "my_route": "hello.declarative",
-        "my_trace_id": "51fb9a95cb6b47169dd83771283aebc2",
-        "my_trace_path": "POST /api/event/http/declarative",
-        "my_correlation_id": "8c9f2a1b34dd4e0f9a7b1c2d3e4f5a6b",
         "x-flow-id": "event-over-http-declarative",
+        "x-correlation-id": "51fb9a95cb6b47169dd83771283aebc2",
+        "user": "demo",
         "...": "..."
       },
       "instance": 4,
@@ -265,10 +263,11 @@ tasks:
     ```
 
     The `origin` identifies the application instance that actually executed the function —
-    the hello-world app, not the app you called. The `my_*` keys are the read-only
-    metadata the worker injects into the function's input header copy at delivery (they
-    are never transported in the event itself, and never leave a function as response
-    headers); `my_route` names the alias that served the call.
+    the hello-world app, not the app you called. The echoed `headers` map is the clean
+    envelope-header view (`input.headers()` on the `EventEnvelope`): the engine never
+    transports its read-only `my_*` metadata in the event, so none appears here — the
+    function reads that metadata from its injected input headers instead. The `user`
+    entry is session info added by the authentication demo shown below.
 
 5. Look at both applications' logs: the trace context propagated across the HTTP hop
    automatically. Both apps log telemetry under the **same trace id**, the
@@ -307,11 +306,6 @@ calls the primary route `hello.world`, the declarative endpoint calls the alias
 `hello.declarative`. Choose declarative when the target address is deployment
 configuration (the usual case); choose programmatic when the code must compute or vary
 the target at runtime.
-
-Both engines inject the same read-only `my_*` metadata into the function's input header
-copy at delivery, so the echoed headers include `my_route` — `hello.world` for the
-programmatic call, `hello.declarative` for the declarative one — directly naming the
-route that served it, in either language.
 
 ### Authentication: the event.api.auth demo
 
