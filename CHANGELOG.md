@@ -11,6 +11,25 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Version 4.10.5, 7/24/2026
+
+Security patch in lock-step with the Java engine's v4.10.5.
+
+### Security
+
+1. **Playground webapp migrated to react-router 8.3.0
+   ([dependabot #16](https://github.com/Accenture/mercury/security/dependabot/16)).**
+   Remediates the React Router **RSC Mode CSRF Bypass** advisory (follow-up to
+   CVE-2026-22030; affected `>= 7.12.0, < 8.3.0`). The webapp depended on
+   `react-router-dom` ^7.18.1, which ends at 7.18.1 and pins the vulnerable
+   `react-router` exactly — v8 consolidated everything into the single `react-router`
+   package, so the migration swaps the dependency and updates the import specifiers in
+   the four source files that referenced `react-router-dom`. Validation: `npm audit`
+   clean (0 vulnerabilities), all 124 webapp tests pass, and the served bundle in
+   `crates/knowledge-graph/resources/public` was rebuilt and redeployed via
+   `npm run release`.
+
+---
 ## Version 4.10.4, 7/24/2026
 
 Patch release in lock-step with the Java engine's v4.10.4. Two arcs, one drive: the
