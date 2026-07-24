@@ -13,6 +13,32 @@ the design rationale in [`docs/design/`](docs/design/).
 ---
 ## Unreleased
 
+### Fixed
+
+1. **The delivered envelope view is scrubbed of engine metadata (interop hygiene round).**
+   The pre-release `ce_traceparent` interop drive's four-combination matrix (see
+   `docs/test-reports/event-over-http-interop.md`) found that a peer-transported or
+   edge-merged `my_*` / `x-event-api` header could surface in a function's input
+   **envelope** header view (the injected input copy was already clean). The worker now
+   scrubs the five engine keys from the delivered envelope for non-interceptor functions —
+   whatever a peer transported can never masquerade as application data — while the legacy
+   `my_correlation_id` compat carrier remains honored into the injected view before the
+   scrub, and event interceptors keep raw transport fidelity. Two regressions added
+   (entry-side twins of the exit sanitization), mirrored from the Java reference.
+2. **The programmatic Event-over-HTTP demo no longer copies its injected metadata onto the
+   outgoing event.** The hello-flow `EventOverHttpRpc` task forwards business headers only —
+   the injected `my_*` view describes the local function's own context and is never
+   transported.
+3. **Wire hygiene of the outbound `/api/event` request, aligned to the Java reference.**
+   The engine's trace stamps (`x-trace-id`, `traceparent`, a custom
+   `http.traceparent.header` name) now use insert semantics — one value each on the wire,
+   never duplicated with the transport leg's own copies; the HTTP-level correlation-id
+   header is no longer stamped on the engine's Event-over-HTTP transport leg (the business
+   cid rides inside the envelope on the `my_cid` tag, exactly like Java); the request
+   carries `accept: */*` and `x-small-payload-as-bytes: true` (Java's header set); and
+   REST automation announces the resolved correlation-id / trace-id / traceparent header
+   names at startup with the Java engine's wording.
+
 ### Added
 
 1. **Configurable traceparent header name (field request).** A new header-name key completes

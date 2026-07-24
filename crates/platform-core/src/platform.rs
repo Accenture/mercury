@@ -584,22 +584,23 @@ async fn worker_loop(
             // INJECTED at delivery time; metadata is never transported in the
             // event itself. The business correlation-id arrives on the
             // engine-managed tag (a legacy pre-4.10.2 peer transported it as
-            // an envelope header — honor that value, then remove the header),
-            // the engine-internal relay guard never reaches a user function,
-            // and tags are engine-visible only.
+            // an envelope header — honor that value into the injected view),
+            // the engine-internal relay guard never reaches a user function's
+            // copy, and tags are engine-visible only.
             let tag_cid = event
                 .tag(crate::post_office::BUSINESS_CID_TAG)
                 .map(str::to_string);
             event.clear_tags_internal();
-            let legacy_cid = event.remove_header_internal(crate::automation::MY_CORRELATION_ID);
-            event.remove_header_internal(crate::automation::X_EVENT_API);
+            // the function's input header copy: engine-internal keys removed,
+            // the my_* read-only keys injected
+            let mut headers = event.headers().clone();
+            headers.remove(crate::automation::X_EVENT_API);
+            let legacy_cid = headers.remove(crate::automation::MY_CORRELATION_ID);
             // the port's cid-slot convention is the last fallback: a direct
             // bus caller may put the business id in the envelope cid
             let business_cid = tag_cid
                 .or(legacy_cid)
                 .or_else(|| event.correlation_id().map(str::to_string));
-            // the function's input header copy with the my_* read-only keys
-            let mut headers = event.headers().clone();
             headers.insert(MY_ROUTE.to_string(), route.clone());
             if let Some(trace_id) = event.trace_id() {
                 headers.insert(MY_TRACE_ID.to_string(), trace_id.to_string());
@@ -612,6 +613,19 @@ async fn worker_loop(
                     crate::automation::MY_CORRELATION_ID.to_string(),
                     cid.clone(),
                 );
+            }
+            // The delivered envelope view is scrubbed of the same engine keys:
+            // a peer that transported my_* headers (e.g. a function that
+            // copied its injected input view onto an outgoing event) or an
+            // edge that merged them must never surface engine metadata as
+            // application data. Safe to mutate - each delivery owns its own
+            // envelope copy. Event interceptors are exempt: they relay raw
+            // envelopes and need transport fidelity (e.g. the x-event-api
+            // relay guard).
+            if !options.interceptor {
+                for key in ENGINE_METADATA_KEYS {
+                    event.remove_header_internal(key);
+                }
             }
             (business_cid, headers)
         };
@@ -790,17 +804,23 @@ pub(crate) const MY_ROUTE: &str = "my_route";
 pub(crate) const MY_TRACE_ID: &str = "my_trace_id";
 pub(crate) const MY_TRACE_PATH: &str = "my_trace_path";
 
+/// The engine's reserved metadata keys: injected into a function's input
+/// header copy at delivery, scrubbed from the delivered envelope view at
+/// entry (non-interceptors), and filtered from a returned reply at exit —
+/// metadata is injected, never transported.
+pub(crate) const ENGINE_METADATA_KEYS: [&str; 5] = [
+    MY_ROUTE,
+    MY_TRACE_ID,
+    MY_TRACE_PATH,
+    crate::automation::MY_CORRELATION_ID,
+    crate::automation::X_EVENT_API,
+];
+
 /// Exit-side sanitization (Java `WorkerHandler.copyResponseHeaders`): the
 /// injected read-only metadata and engine-internal keys are filtered from a
 /// function's returned envelope before it becomes a reply.
 fn sanitize_response_headers(response: &mut EventEnvelope) {
-    for key in [
-        MY_ROUTE,
-        MY_TRACE_ID,
-        MY_TRACE_PATH,
-        crate::automation::MY_CORRELATION_ID,
-        crate::automation::X_EVENT_API,
-    ] {
+    for key in ENGINE_METADATA_KEYS {
         response.remove_header_internal(key);
     }
 }

@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.3**: tracks the canonical mercury-composable line (Java 4.10.3 released the same day — one version, two languages; the field-deployment roll-up of the 4.10 arc).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-160634)
+- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-173129)
 - **last_review:** 2026-07-24 | through 2026-07-24-025820.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -81,7 +81,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-24 | uses: 85 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-24 | uses: 87 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -105,15 +105,45 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-24 | uses: 84 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-24 | uses: 86 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (in flight — 2026-07-24; branch `feature/configurable-traceparent-header`, 1 commit, NOT
-  pushed — Eric gates) **Configurable traceparent header name (field request), mirrored from
+- [ ] (in flight — 2026-07-24; branch `fix/interop-header-hygiene` off
+  `docs/interop-ce-traceparent`, 1 commit, NOT pushed — Eric gates; targets a v4.10.4 lock-step
+  release) **Interop header-hygiene round, mirrored from the Java reference branch of the same
+  name.** The ce_traceparent interop matrix PASSED (report on `docs/interop-ce-traceparent`,
+  pushed as `62210de8`) but exposed pre-existing header-hygiene asymmetries; all fixed.
+  (1) **Aligned invariant:** a function's delivered ENVELOPE view never contains my_route/
+  my_trace_id/my_trace_path/my_correlation_id/x-event-api — the matrix leak was TRANSPORT (the
+  hello-flow demo copied its injected view onto the outgoing envelope), NOT injection: the Rust
+  delivery never injected my_* into the envelope view and already removed cid/x-event-api; the
+  three my_* keys passed through as transported headers. The worker now scrubs all 5 keys from
+  the delivered envelope for NON-interceptor functions (shared ENGINE_METADATA_KEYS with the
+  exit filter); interceptors keep raw transport fidelity (also RESTORES Java semantics — the
+  port previously stripped cid/x-event-api from interceptor envelopes too); legacy
+  my_correlation_id honored-then-scrubbed. (2) Demo: hello-flow EventOverHttpRpc filters the 4
+  injected my_* keys from its header-copy loop. (3) Wire hygiene on the /api/event client leg:
+  insert-semantics engine stamps (stamp_header, Java http.set — kills the doubled
+  x-trace-id/traceparent/custom-name headers); NO x-correlation-id on the transport leg (the
+  business cid rides the my_cid tag; leg marked via an HTTP-level x-event-api client
+  instruction, consumed by the client + HEADERS_TO_IGNORE — Java's "client-side instruction"
+  precedent); + accept:*/* + x-small-payload-as-bytes:true (Java's header set, same order);
+  + the 3 startup header-name log lines (Java wording). Wire VERIFIED with a raw header-dump
+  listener: single trace headers, no x-correlation-id, full Java set, marker off the wire.
+  2 regression twins of Java PostOfficeTest (CleanEnvelopeEcho probe reporting both views).
+  Gate: workspace 259 (257+2) / clippy 0 / fmt. Docs: event-over-http engine-internals note,
+  CHANGELOG Unreleased Fixed ×3, increment 69. Next: coordinator re-runs the four-way matrix
+  (expect byte-identical clean echoes), then v4.10.4 release prep. Relates
+  [[inv-telemetry-presentation-parity]], [[thread-configurable-traceparent]].
+  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-173129.md -->
+
+- [ ] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb` — the
+  ce_traceparent interop matrix then verified the custom carrier cross-language; close at the
+  v4.10.4 release) **Configurable traceparent header name (field request), mirrored from
   the Java reference in lock-step** (mercury-composable branch of the same name, commit
   `5ee496dd`). `http.traceparent.header` (default `traceparent`) + per-entry
   `traceparent.header` in rest.yaml (precedence per-entry > global > default). Inbound
@@ -133,7 +163,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   observability (impedance row + "renamed traceparent beats conflation" tip), rest-automation
   grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
   merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
-  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-160634.md -->
+  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: working | origin: 2026-07-24-160634.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
@@ -201,7 +231,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   normalized-signature diff in all four directions; polyglot-DevSecOps rationale) with
   PR #169 stamped on every entry. Gate green at the new version: workspace 245 / clippy
   0 / fmt.
-  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: active | origin: 2026-07-23-163133.md -->
+  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: archive-candidate | origin: 2026-07-23-163133.md -->
 
 - [x] (feature branch — 2026-07-23; MERGED as PR [#169](https://github.com/Accenture/mercury/pull/169),
   merge `ecec21c5`) **Telemetry presentation-parity batch
@@ -215,7 +245,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   response-header strip, `event.api.auth` demo + session-info forwarding,
   demo→declarative rename, hello.pojo forward. Workspace 245/clippy 0/fmt; acceptance
   drive verified (topology/gating/headers/auth). Close when merged.
-  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 2 | tier: active | origin: 2026-07-23-152724.md -->
+  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 2 | tier: archive-candidate | origin: 2026-07-23-152724.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.0 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.0` on merge commit `4dc70337`

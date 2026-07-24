@@ -68,6 +68,9 @@ const HEADERS_TO_IGNORE: &[&str] = &[
     "sec-fetch-mode",
     "sec-fetch-site",
     "sec-fetch-user",
+    // engine-internal client instruction (the Event-over-HTTP transport-leg
+    // marker) — consumed by this client, never sent to the peer
+    "x-event-api",
 ];
 
 /// The HTTP request contract (Java `AsyncHttpRequest`): a map-backed model
@@ -744,14 +747,18 @@ fn apply_headers(
     // distributed trace propagation: this route is untraced by default
     // (skip.rpc.tracing, Java parity), so the trace rides the ENVELOPE and
     // the injected invocation headers, not the ambient trace state — exactly
-    // like Java's PostOffice.trackable(headers)
+    // like Java's PostOffice.trackable(headers).
+    // The engine's own stamps use INSERT semantics (Java `http.set`): a
+    // same-named header forwarded from the request object above is replaced,
+    // never duplicated (append-vs-insert wire hygiene — the Event-over-HTTP
+    // leg pre-sets the same trace headers on its request).
     let config = AppConfigReader::get_instance();
     if let Some(trace_id) = event.trace_id() {
         let trace_header = config.get_property_or("http.trace.id.header", "X-Trace-Id");
-        builder = builder.header(trace_header.as_str(), trace_id);
+        stamp_header(&mut builder, &trace_header, trace_id);
         if let Some(traceparent) = w3c_trace::format(trace_id, event.span_id().unwrap_or_default())
         {
-            builder = builder.header(w3c_trace::TRACEPARENT, traceparent.as_str());
+            stamp_header(&mut builder, w3c_trace::TRACEPARENT, &traceparent);
             // when a custom traceparent header name is configured
             // (http.traceparent.header), stamp the same value under that name
             // too, so the W3C trace context survives an intermediary that
@@ -759,15 +766,22 @@ fn apply_headers(
             let custom_traceparent =
                 config.get_property_or("http.traceparent.header", w3c_trace::TRACEPARENT);
             if !custom_traceparent.eq_ignore_ascii_case(w3c_trace::TRACEPARENT) {
-                builder = builder.header(custom_traceparent.as_str(), traceparent.as_str());
+                stamp_header(&mut builder, &custom_traceparent, &traceparent);
             }
         }
     }
-    // propagate the business correlation-id (unless the caller set it)
-    if let Some(business_cid) = invocation_headers.get(crate::automation::MY_CORRELATION_ID) {
-        let cid_header = config.get_property_or("http.correlation.id.header", "X-Correlation-Id");
-        if request.header(&cid_header).is_none() {
-            builder = builder.header(cid_header.as_str(), business_cid.as_str());
+    // propagate the business correlation-id (unless the caller set it).
+    // The engine's own Event-over-HTTP transport leg (the x-event-api client
+    // instruction) is exempt: the business cid rides INSIDE the envelope
+    // (my_cid tag) and the HTTP-level header is absent on that path (Java
+    // parity — its EventEmitter leg carries no ambient business context).
+    if request.header(super::event_api::X_EVENT_API).is_none() {
+        if let Some(business_cid) = invocation_headers.get(crate::automation::MY_CORRELATION_ID) {
+            let cid_header =
+                config.get_property_or("http.correlation.id.header", "X-Correlation-Id");
+            if request.header(&cid_header).is_none() {
+                stamp_header(&mut builder, &cid_header, business_cid.as_str());
+            }
         }
     }
     // cookies
@@ -787,6 +801,22 @@ fn permitted_http_header(header: &str) -> bool {
     !HEADERS_TO_IGNORE
         .iter()
         .any(|ignored| header.eq_ignore_ascii_case(ignored))
+}
+
+/// Insert-or-replace an engine-stamped header on the outgoing request (Java
+/// `http.set` semantics): a same-named header already forwarded from the
+/// request object is replaced, never duplicated. An invalid name/value is
+/// dropped silently — the same outcome `Builder::header` would produce as a
+/// deferred build error, but without failing the whole request.
+fn stamp_header(builder: &mut hyper::http::request::Builder, name: &str, value: &str) {
+    if let Some(headers) = builder.headers_mut() {
+        if let (Ok(name), Ok(value)) = (
+            hyper::header::HeaderName::from_bytes(name.as_bytes()),
+            hyper::header::HeaderValue::from_str(value),
+        ) {
+            headers.insert(name, value);
+        }
+    }
 }
 
 fn url_encode(text: &str) -> String {

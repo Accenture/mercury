@@ -189,6 +189,11 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
         traceparent_header: config
             .get_property_or("http.traceparent.header", w3c_trace::TRACEPARENT),
     });
+    // startup announcement of the resolved header names (Java HttpRouter
+    // parity — same wording, presentation parity for side-by-side log review)
+    log::info!("Correlation-id HTTP header is '{}'", state.cid_header);
+    log::info!("Trace-id HTTP header is '{}'", state.trace_header);
+    log::info!("Traceparent HTTP header is '{}'", state.traceparent_header);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
         .await
         .map_err(|e| AppError::new(500, format!("Unable to bind port {port} - {e}")))?;

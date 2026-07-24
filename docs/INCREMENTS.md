@@ -2023,6 +2023,45 @@ W3C context crosses the intermediary, so cross-application span parenting surviv
 
 ---
 
+## Increment 69 — Interop header hygiene: clean envelope view + wire alignment (2026-07-24)
+
+The `ce_traceparent` interop drive passed (report in
+`docs/test-reports/event-over-http-interop.md`), but its four-combination matrix exposed
+pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branch
+`fix/interop-header-hygiene`) toward a v4.10.4 lock-step release.
+
+- **Aligned invariant:** a function's delivered ENVELOPE view never contains `my_route`,
+  `my_trace_id`, `my_trace_path`, `my_correlation_id`, or `x-event-api` — regardless of
+  what a peer transported or a local edge merged; ordinary headers survive untouched.
+  Diagnosis: the matrix leak was TRANSPORT (the demo copied its injected view onto the
+  outgoing envelope), not injection — the Rust delivery never injected my_* into the
+  envelope view, and already removed cid/x-event-api; the three my_* keys passed through.
+  The worker now scrubs all five from the delivered envelope for NON-interceptor
+  functions (shared `ENGINE_METADATA_KEYS` with the exit filter); the injected copy is
+  cleaned for everyone; interceptors keep raw transport fidelity — which also restored
+  Java's semantics for them (previously the port removed cid/x-event-api from interceptor
+  envelopes too). Legacy `my_correlation_id` header still honored-then-scrubbed. Safe to
+  mutate: each delivery owns its envelope (owned `recv()` value).
+- **Demo:** hello-flow `EventOverHttpRpc` filters the four injected `my_*` keys from its
+  header-copy loop (Java twin comment: injected view describes THIS function's own
+  context, never transported).
+- **Wire hygiene (client leg):** engine stamps switched to insert semantics
+  (`stamp_header` — Java `http.set`), killing the doubled x-trace-id / traceparent /
+  custom-name headers; the Event-over-HTTP transport leg no longer stamps
+  x-correlation-id (business cid rides the `my_cid` tag inside the envelope — the leg is
+  marked with an HTTP-level `x-event-api` client instruction, consumed by the client and
+  on HEADERS_TO_IGNORE, Java's "client-side instruction" precedent); request now carries
+  `x-small-payload-as-bytes: true` + `accept: */*` (Java header set, same order);
+  REST automation logs the three resolved header names at startup (Java wording).
+  Verified with a raw header-dump listener: single trace headers, no x-correlation-id,
+  full Java header set, marker absent from the wire.
+- **Regressions:** `transported_metadata_is_scrubbed_from_the_delivered_envelope_view` +
+  `legacy_correlation_id_header_is_honored_then_scrubbed` (Java PostOfficeTest twins,
+  `CleanEnvelopeEcho` probe reporting both header views). Docs: event-over-http
+  engine-internals note, CHANGELOG Unreleased Fixed. Workspace 259 / clippy 0 / fmt.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,

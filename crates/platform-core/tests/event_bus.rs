@@ -739,3 +739,107 @@ async fn accidental_metadata_echo_is_sanitized_at_exit() {
         );
     }
 }
+
+/// Test probe for the worker's envelope-view sanitization: an
+/// EventEnvelope-typed function that reports both of its header views — the
+/// delivered envelope's own headers (which must never contain the engine's
+/// my_* / x-event-api keys, whatever a peer transported) and its injected
+/// input copy (where the my_* metadata legitimately lives) — so a test can
+/// assert the boundary between transported data and injected metadata.
+struct CleanEnvelopeEcho;
+
+#[async_trait]
+impl ComposableFunction for CleanEnvelopeEcho {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new().set_body(serde_json::json!({
+            "envelope_headers": input.headers().clone(),
+            "injected_cid": headers.get("my_correlation_id"),
+            "injected_route": headers.get("my_route"),
+        }))
+    }
+}
+
+/// Regression twin of Java
+/// `PostOfficeTest.transportedMetadataIsScrubbedFromTheDeliveredEnvelopeView`
+/// — the entry-side twin of the exit sanitization above: a peer transports
+/// the engine's reserved keys as ordinary envelope headers (e.g. a function
+/// that copied its injected input view onto an outgoing event, or a spoofing
+/// caller). The worker must scrub them from the delivered envelope view — a
+/// function's input envelope never surfaces engine metadata as application
+/// data — while ordinary headers survive and the injected view still carries
+/// the real context.
+#[tokio::test]
+async fn transported_metadata_is_scrubbed_from_the_delivered_envelope_view() {
+    setup_config();
+    let platform = Platform::new();
+    platform
+        .register("clean.envelope.echo", Arc::new(CleanEnvelopeEcho), 1)
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let request = EventEnvelope::new()
+        .set_to("clean.envelope.echo")
+        .set_header("hello", "clean")
+        .set_header("my_route", "spoofed.route")
+        .set_header("my_trace_id", "spoofed-trace")
+        .set_header("my_trace_path", "SPOOF /path")
+        .set_header("x-event-api", "spoofed")
+        .set_body("x")
+        .unwrap();
+    let reply = po.request(request, Duration::from_secs(5)).await.unwrap();
+    let result: serde_json::Value = reply.body_as().expect("probe result");
+    // ordinary headers survive in the envelope view
+    assert_eq!(result["envelope_headers"]["hello"], "clean");
+    // the transported engine keys are scrubbed from the delivered envelope
+    for key in [
+        "my_route",
+        "my_trace_id",
+        "my_trace_path",
+        "my_correlation_id",
+        "x-event-api",
+    ] {
+        assert!(
+            result["envelope_headers"].get(key).is_none(),
+            "{key} must be scrubbed from the delivered envelope view: {result}"
+        );
+    }
+    // the injected view is unaffected: real context, not the spoofed values
+    assert_eq!(result["injected_route"], "clean.envelope.echo");
+}
+
+/// Regression twin of Java
+/// `PostOfficeTest.legacyCorrelationIdHeaderIsHonoredThenScrubbed`: a
+/// pre-4.10.2 peer transports the business correlation-id as the
+/// my_correlation_id envelope header (no my_cid tag) — the worker must still
+/// honor it (the function reads it from its injected view) while the
+/// delivered envelope view stays clean.
+#[tokio::test]
+async fn legacy_correlation_id_header_is_honored_then_scrubbed() {
+    setup_config();
+    let platform = Platform::new();
+    platform
+        .register("legacy.cid.echo", Arc::new(CleanEnvelopeEcho), 1)
+        .unwrap();
+    let po = PostOffice::new(&platform);
+    let request = EventEnvelope::new()
+        .set_to("legacy.cid.echo")
+        .set_header("my_correlation_id", "legacy-cid-0042")
+        .set_body("x")
+        .unwrap();
+    let reply = po.request(request, Duration::from_secs(5)).await.unwrap();
+    let result: serde_json::Value = reply.body_as().expect("probe result");
+    assert_eq!(
+        result["injected_cid"], "legacy-cid-0042",
+        "the legacy header is honored into the injected view"
+    );
+    assert!(
+        result["envelope_headers"]
+            .get("my_correlation_id")
+            .is_none(),
+        "the legacy carrier is scrubbed from the delivered envelope view: {result}"
+    );
+}
