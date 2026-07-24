@@ -373,6 +373,17 @@ header set from both engines' clients, and cross-language span parenting held in
 directions. Gates: Java full reactor green (422 platform-core tests, 2 new); Rust workspace
 260 passed (3 new), clippy 0, fmt clean.
 
+**Post-round refinement — inbound precedence finalized before release.** In line with the
+standards position, the inbound rule was flipped from the drive's original
+custom-name-first semantics: the **standard `traceparent` always wins**, and the custom
+name is read only when the standard header is absent. Rationale: a well-formed standard
+traceparent means the legacy system already upgraded to the W3C/OTel standard, so a
+proprietary header alongside it is residual and safely ignored. This also makes the family
+self-consistent — the `trace.id.header` fallback already yields to the standard. Both
+engines flipped in lock-step with their precedence regressions inverted, and note that the
+drive's ce_traceparent-only scenario (the gateway simulation) is unaffected: the custom
+name remains the carrier whenever the standard header does not survive the intermediary.
+
 ## Learnings for future language ports
 
 This validation arc is the playbook for bringing the next language (e.g. Python) into the

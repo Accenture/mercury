@@ -143,8 +143,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   semantics; caller-sent value WINS — route-wins broke the /api/event in-band remote-timeout
   race, caught by remote_timeout_arrives_in_band). Regression
   endpoint_timeout_rides_the_dataset_as_the_x_ttl_header; gate now workspace 260 / clippy 0 /
-  fmt.** Next: final matrix pass (expect all 8 echoes byte-identical after normalization),
-  report update, v4.10.4 release prep. Relates [[inv-telemetry-presentation-parity]],
+  fmt.** **FINAL RULING (Eric) applied as a 3rd commit, mirroring Java `5401f1f8`: inbound,
+  the STANDARD traceparent always wins; the custom name is a fallback only when the standard
+  is absent/malformed (a well-formed standard traceparent = the legacy system already
+  upgraded; residual proprietary header safely ignored — self-consistent with the
+  trace.id.header fallback). Precedence regression inverted
+  (standard_traceparent_wins_over_custom_header_name); gateway-simulation test unchanged
+  (proves the fallback); all "custom name first" doc phrases flipped; outbound dual stamping
+  unchanged. Gate: workspace 260 / clippy 0 / fmt.** Next: Eric pushes both engines' branches
+  together, v4.10.4 release prep. Relates [[inv-telemetry-presentation-parity]],
   [[thread-configurable-traceparent]].
   <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-173129.md -->
 

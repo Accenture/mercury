@@ -2059,6 +2059,17 @@ pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branc
   `legacy_correlation_id_header_is_honored_then_scrubbed` (Java PostOfficeTest twins,
   `CleanEnvelopeEcho` probe reporting both header views). Docs: event-over-http
   engine-internals note, CHANGELOG Unreleased Fixed. Workspace 259 / clippy 0 / fmt.
+- **Final precedence ruling (Eric, superseding the round's custom-name-first design):
+  inbound, the standard `traceparent` always wins; the custom name is read only when the
+  standard header is absent or malformed.** Rationale: a well-formed standard OTel
+  traceparent means the legacy system already upgraded to the standard header — a
+  proprietary header alongside it is residual and safely ignored; this also makes the
+  family self-consistent with the `trace.id.header` fallback, which already yields to the
+  standard. Both engines flipped in lock-step (Java `5401f1f8`); the precedence regression
+  inverted (`standard_traceparent_wins_over_custom_header_name`), the custom-name-only
+  gateway test unchanged (now proves the fallback), the standard-only test reframed
+  (`standard_traceparent_is_authoritative_under_custom_name`); every "custom name first"
+  doc phrase flipped. Outbound dual stamping unchanged.
 - **Residual (matrix re-run finding): the endpoint timeout rides the dataset as `x-ttl`.**
   Java's `AsyncHttpRequest.setTimeoutSeconds` stores the REST endpoint timeout AS the
   x-ttl header (ms), so j2j/j2r echoes carried the key and r2r/r2j did not. The Rust

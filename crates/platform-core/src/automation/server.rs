@@ -138,9 +138,11 @@ struct RouterState {
     /// Configurable traceparent header name (`http.traceparent.header`): an
     /// escape hatch for an intermediary (e.g. an API gateway) that strips the
     /// standard W3C `traceparent` header. When customized, the same W3C-format
-    /// value travels under BOTH names on outbound calls, and inbound
-    /// resolution reads the custom name first with the standard header as
-    /// fallback.
+    /// value travels under BOTH names on outbound calls. Inbound, the standard
+    /// `traceparent` always wins; the custom name is read only when the
+    /// standard header is absent or malformed — a well-formed standard
+    /// traceparent means the caller already speaks W3C/OTel, so a proprietary
+    /// header alongside it is residual and safely ignored.
     traceparent_header: String,
 }
 
@@ -338,27 +340,26 @@ async fn process(
         .to_lowercase();
     // trace resolution: a valid W3C traceparent wins and contributes the
     // caller's span as our parent; else the trace-id header; else generated.
-    // The traceparent is parsed from the effective header name (per-entry
-    // 'traceparent.header' in rest.yaml, else the global
-    // http.traceparent.header, default "traceparent"). A well-formed value
-    // under the custom name wins - an intermediary may inject its own
-    // standard traceparent, which must not override the peer's context -
-    // while the standard header remains a fallback so standards-compliant
-    // callers still propagate.
-    let traceparent_header = info
-        .traceparent_header
-        .as_deref()
-        .unwrap_or(&state.traceparent_header)
-        .to_lowercase();
+    // The standard "traceparent" header always wins; the custom name
+    // (per-entry 'traceparent.header' in rest.yaml, else the global
+    // http.traceparent.header) is read only when the standard header is
+    // absent or malformed. Rationale: a well-formed standard traceparent
+    // means the caller already speaks the W3C/OpenTelemetry standard - a
+    // proprietary header alongside it is residual and safely ignored.
     let traceparent = headers
-        .get(&traceparent_header)
+        .get(w3c_trace::TRACEPARENT)
         .and_then(|value| w3c_trace::parse(value))
         .or_else(|| {
+            let traceparent_header = info
+                .traceparent_header
+                .as_deref()
+                .unwrap_or(&state.traceparent_header)
+                .to_lowercase();
             if traceparent_header == w3c_trace::TRACEPARENT {
                 None
             } else {
                 headers
-                    .get(w3c_trace::TRACEPARENT)
+                    .get(&traceparent_header)
                     .and_then(|value| w3c_trace::parse(value))
             }
         });

@@ -338,10 +338,10 @@ rest:
     url: "/api/traced"
     timeout: 5s
     tracing: true
-  # Per-endpoint traceparent header-name override: this endpoint reads the W3C trace context
-  # from 'X-Endpoint-Trace', taking precedence over the global http.traceparent.header
-  # (X-Trace-Context in this test suite) and the standard 'traceparent' (which remains a
-  # fallback when absent).
+  # Per-endpoint traceparent header-name override: when the standard 'traceparent' is
+  # absent, this endpoint reads the W3C trace context from 'X-Endpoint-Trace', which
+  # replaces the global custom name (X-Trace-Context in this test suite) as the
+  # fallback source.
   - service: "trace.probe"
     methods: ['GET']
     url: "/api/renamed/traceparent/probe"
@@ -1013,8 +1013,8 @@ async fn flow_binding_injects_x_flow_id_header() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn custom_traceparent_header_name_carries_the_trace_context() {
-    // http.traceparent.header=X-Trace-Context in this test suite: an intermediary that strips
-    // the standard W3C "traceparent" can still deliver the trace context under the custom name
+    // http.traceparent.header=X-Trace-Context in this test suite: when the standard W3C
+    // "traceparent" is absent (an intermediary stripped it), the custom name delivers the context
     let server = server().await;
     let w3c_trace_id = "1af92f3577b34da6a3ce929d0e0e4701";
     let value = format!("00-{w3c_trace_id}-00f067aa0ba902b7-01");
@@ -1041,21 +1041,21 @@ async fn custom_traceparent_header_name_carries_the_trace_context() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn custom_traceparent_name_wins_over_injected_standard_header() {
-    // an intermediary (e.g. a service-mesh sidecar) may inject its OWN standard traceparent;
-    // the peer's context under the deliberately configured custom name must not be overridden
+async fn standard_traceparent_wins_over_custom_header_name() {
+    // the standards position: a well-formed standard traceparent means the caller already
+    // speaks W3C/OTel - a proprietary header alongside it is residual and safely ignored
     let server = server().await;
-    let peer_trace_id = "2af92f3577b34da6a3ce929d0e0e4702";
-    let injected_trace_id = "3af92f3577b34da6a3ce929d0e0e4703";
-    let peer = format!("00-{peer_trace_id}-00f067aa0ba902b7-01");
-    let injected = format!("00-{injected_trace_id}-00f067aa0ba902b8-01");
+    let residual_trace_id = "2af92f3577b34da6a3ce929d0e0e4702";
+    let standard_trace_id = "3af92f3577b34da6a3ce929d0e0e4703";
+    let residual = format!("00-{residual_trace_id}-00f067aa0ba902b7-01");
+    let standard = format!("00-{standard_trace_id}-00f067aa0ba902b8-01");
     let (status, _, _) = http(
         server.port,
         "GET",
         "/api/traced",
         &[
-            ("X-Trace-Context", peer.as_str()),
-            ("traceparent", injected.as_str()),
+            ("X-Trace-Context", residual.as_str()),
+            ("traceparent", standard.as_str()),
         ],
         "",
     )
@@ -1069,14 +1069,14 @@ async fn custom_traceparent_name_wins_over_injected_standard_header() {
         .expect("probe ran");
     assert_eq!(
         seen.0.as_deref(),
-        Some(peer_trace_id),
-        "a well-formed value under the custom traceparent name wins over the standard header"
+        Some(standard_trace_id),
+        "the standard W3C traceparent wins; the custom name is a fallback only"
     );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn standard_traceparent_remains_fallback_under_custom_name() {
-    // a standards-compliant caller that only sends the standard header still propagates,
+async fn standard_traceparent_is_authoritative_under_custom_name() {
+    // a standards-compliant caller that only sends the standard header propagates normally,
     // even though this application is configured with a custom traceparent name
     let server = server().await;
     let w3c_trace_id = "4af92f3577b34da6a3ce929d0e0e4704";
@@ -1102,7 +1102,9 @@ async fn standard_traceparent_remains_fallback_under_custom_name() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn per_endpoint_traceparent_override_beats_global_name() {
     // /api/renamed/traceparent/probe declares 'traceparent.header: X-Endpoint-Trace' in
-    // rest.yaml, which replaces the global custom name (X-Trace-Context) for that endpoint
+    // rest.yaml, which replaces the global custom name (X-Trace-Context) for that endpoint.
+    // The standard traceparent is absent here, so the effective custom name is the
+    // fallback source.
     let server = server().await;
     let endpoint_trace_id = "5af92f3577b34da6a3ce929d0e0e4705";
     let global_name_trace_id = "6af92f3577b34da6a3ce929d0e0e4706";

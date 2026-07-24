@@ -192,10 +192,10 @@ precedence for the trace id.
 
 `traceparent.header` overrides the global `http.traceparent.header` (default `traceparent`)
 — the header carrying the **full W3C trace context**, for **backward compatibility with a
-legacy intermediary only** (departure from the W3C/OTel standard is discouraged); a
-well-formed value under the custom name wins, with the standard `traceparent` as fallback.
-See [Observability](observability.md#two-ids-two-concerns) for the standards position and
-the semantics.
+legacy intermediary only** (departure from the W3C/OTel standard is discouraged); the
+standard `traceparent` always wins, and the custom name is read only when the standard is
+absent. See [Observability](observability.md#two-ids-two-concerns) for the standards
+position and the semantics.
 
 A business **correlation id is always ensured** — independent of tracing. If the caller sends
 none, one is generated (when one header name serves both roles, the trace id is reused so a

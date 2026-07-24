@@ -222,12 +222,12 @@ name per endpoint with its optional `correlation.id.header` key.
 
 The HTTP header name carrying the **W3C trace context** (the full `traceparent` value:
 trace-id, parent span-id and flags). When customized, outbound HTTP calls (the async HTTP
-client and Event-over-HTTP) stamp the same W3C value under **both** names, and inbound
-resolution reads the custom name first (a well-formed value under it wins, so an
-intermediary-injected standard `traceparent` cannot override the peer's context) with the
-standard header as fallback. Read by `crates/platform-core` (REST automation server, HTTP
-client and Event-over-HTTP client). Overridable per endpoint with `traceparent.header` in a
-`rest.yaml` entry.
+client and Event-over-HTTP) stamp the same W3C value under **both** names. Inbound, the
+**standard `traceparent` always wins** — the custom name is read only when the standard
+header is absent: a well-formed standard traceparent means the caller already speaks
+W3C/OTel, so a proprietary header alongside it is residual and safely ignored. Read by
+`crates/platform-core` (REST automation server, HTTP client and Event-over-HTTP client).
+Overridable per endpoint with `traceparent.header` in a `rest.yaml` entry.
 
 > **Our position: use the standard.** `traceparent` is the W3C Trace Context header that
 > OpenTelemetry and the wider observability ecosystem interoperate on, and the framework
