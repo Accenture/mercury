@@ -182,7 +182,7 @@ struct HelloWorld;
 impl ComposableFunction for HelloWorld {
     async fn handle_event(
         &self,
-        headers: HashMap<String, String>,
+        _headers: HashMap<String, String>,
         input: EventEnvelope,
         instance: usize,
     ) -> Result<EventEnvelope, AppError> {
@@ -201,8 +201,12 @@ impl ComposableFunction for HelloWorld {
                 .set_header("id", "1"),
         )
         .await?;
+        // Note that the '_headers' input = input.headers() plus injected read-only metadata
+        // (my_route, my_trace_id, my_trace_path and my_correlation_id).
+        // Since we want to echo back the original request headers, we use input.headers().
         let echo_headers = Value::Map(
-            headers
+            input
+                .headers()
                 .iter()
                 .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
                 .collect(),

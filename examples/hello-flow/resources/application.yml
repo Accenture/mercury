@@ -2,6 +2,12 @@
 # The structural parallel of the Java composable-example (same port 8100).
 application.name: hello-flow
 
+# structured logging (increment 5): text = plain console line (default),
+# json = pretty-print JSON, compact = single-line jsonl (no CR/LF per record).
+# Both JSON forms carry the app-log-context block. Override at launch with the
+# -D runtime argument (the JVM -D analog): hello_flow -- -Dlog.format=compact
+log.format: json
+
 # REST automation serves rest.yaml; the flow engine loads flows.yaml — both
 # by their default locations in this resources/ folder.
 rest.automation: true

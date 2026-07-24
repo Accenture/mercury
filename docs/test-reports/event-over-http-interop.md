@@ -65,7 +65,9 @@ Rust at [PR #167](https://github.com/Accenture/mercury/pull/167).
   application instance that actually executed the function — in the other language.
 - Java callee: the echoed `my_route` header discriminates the pattern —
   `hello.declarative` (declarative) vs `hello.world` (programmatic) — demonstrating why
-  the echo function registers two route names.
+  the echo function registers two route names. (The demo echo has since been changed to
+  display the clean envelope-header view, so the injected metadata no longer appears in
+  its output; the two route names remain.)
 
 ## Results — trace continuity
 
