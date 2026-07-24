@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.4**: tracks the canonical mercury-composable line (Java 4.10.4 in lock-step — one version, two languages; configurable traceparent carrier + interop hygiene, eight-echo-identical drive).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-183956)
+- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-191554)
 - **last_review:** 2026-07-24 | through 2026-07-24-025820.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -105,12 +105,28 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-24 | uses: 87 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-24 | uses: 88 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (release in flight — 2026-07-24; branch `chore/release-4.10.5`, 2 commits, NOT pushed —
+  coordinator pushes and delivers PR text with the Java one) **v4.10.5 release prep — security
+  patch in lock-step with the Java engine's v4.10.5.** Content: playground webapp migrated
+  react-router-dom ^7.18.1 → react-router ^8.3.0 (coordinator's commit `a2fcb26b`),
+  remediating dependabot #16 (React Router RSC Mode CSRF Bypass, follow-up to CVE-2026-22030;
+  affected >= 7.12.0 < 8.3.0) — the -dom package ends at 7.18.1 and pins the vulnerable
+  react-router exactly; v8 consolidated into the single package. Validation: npm audit 0,
+  124 webapp tests, bundle redeployed via npm run release. This closes the dependabot #16
+  loop flagged in the v4.10.4 closure push response. Prep commit: sweep 4.10.4→4.10.5 (root
+  Cargo.toml; lock regenerated; continuity status line), CHANGELOG
+  `## Version 4.10.5, 7/24/2026` Security section. Gate: workspace 260 / clippy 0 / fmt
+  (one unidentified single-test failure during the first post-bump compile-storm run; did
+  not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
+  Close when tagged + release published on both repos.
+  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-191554.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
@@ -127,7 +143,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Cargo.toml only — members inherit; lock regenerated; continuity status line); CHANGELOG
   Unreleased → `## Version 4.10.4, 7/24/2026` + release summary. Gate: workspace 260 /
   clippy 0 / fmt. Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-183956.md -->
+  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: active | origin: 2026-07-24-183956.md -->
 
 - [x] (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]])
   **Interop header-hygiene round, mirrored from the Java reference branch of the same
