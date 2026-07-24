@@ -11,6 +11,31 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Version 4.10.3, 7/23/2026
+
+Patch release for **field deployment**, in lock-step with the Java engine's v4.10.3 —
+releases are immutable, so the post-4.10.2 fixes roll up into a new patch. No engine
+behavior changes: demo hygiene and refreshed playground webapp dependencies.
+
+### Changed
+
+1. **The demo echo displays the clean envelope-header view
+   ([#175](https://github.com/Accenture/mercury/pull/175)).** The hello-world echo now
+   reflects the function's ENVELOPE headers (the transported view) rather than the
+   injected input copy — making the demo a live proof that the reserved `my_*` metadata
+   never rides the wire: the injected keys are visible in the function (and documented),
+   but the echoed transport view is clean. The hello-flow example adopts
+   `log.format=json`, so a side-by-side java/rust demo run reads identically in both
+   terminals (presentation parity down to the demo experience).
+2. **Playground webapp dependencies refreshed from npm
+   ([#174](https://github.com/Accenture/mercury/pull/174)).** Fresh resolution of the
+   knowledge-graph Playground webapp lockfile within the declared semver ranges
+   (including the dependabot react-router advisory bump,
+   [#173](https://github.com/Accenture/mercury/pull/173)): `npm audit` clean, package
+   registry and integrity checksums verified. Webapp-only — no Rust crate dependency
+   changes.
+
+---
 ## Version 4.10.2, 7/23/2026
 
 Patch release: **the metadata contract, hardened in lock-step with the Java engine**. A
