@@ -1,0 +1,3340 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Rust port of mercury-composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph, delivered bottom-up in Rust.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/guides/knowledge-graph/command-reference/">
+      
+      
+        <link rel="prev" href="../ai-agent-guide/">
+      
+      
+        <link rel="next" href="../skills-reference/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>MiniGraph command grammar - mercury</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#minigraph-command-grammar" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="mercury" class="md-header__button md-logo" aria-label="mercury" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mercury
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MiniGraph command grammar
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../background/port-scope/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Background
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="mercury" class="md-nav__button md-logo" aria-label="mercury" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    mercury
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lexical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lexical rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Namespaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create node / update node
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instantiate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        instantiate graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run / execute / inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#describe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        describe / list / seen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export / import
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        help
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skill-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skill → property matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider &amp; Dictionary — the data-dictionary method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#for-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iterative fetching — for_each
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure routing — exception=
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#island" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Island — the knowledge layer (required)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#math-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph.math statement grammar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="graph.math statement grammar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#math-for-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        for_each[] — iterate a statement block over lists
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invariants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../test-reports/event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Background
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lexical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lexical rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Namespaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create node / update node
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instantiate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        instantiate graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run / execute / inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#describe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        describe / list / seen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export / import
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        help
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skill-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skill → property matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider &amp; Dictionary — the data-dictionary method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#for-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iterative fetching — for_each
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure routing — exception=
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#island" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Island — the knowledge layer (required)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#math-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph.math statement grammar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="graph.math statement grammar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#math-for-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        for_each[] — iterate a statement block over lists
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invariants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="minigraph-command-grammar">MiniGraph command grammar<a class="headerlink" href="#minigraph-command-grammar" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>At a glance</strong></p>
+<ul>
+<li>This is the <strong>source of truth</strong> for the MiniGraph command language — the rules, not a tour.
+  Tutorials teach by example; this page states the grammar so you (or an AI agent) generate
+  commands <strong>deterministically</strong>, without inferring.</li>
+<li>A machine-readable form of this grammar lives at
+  <a href="../minigraph-commands.json"><code>minigraph-commands.json</code></a> (ingest it; validate against it).</li>
+<li>Driving the Playground from an agent? See the <a href="../ai-agent-guide/">AI agent guide</a>.</li>
+</ul>
+</blockquote>
+<h2 id="lexical">Lexical rules<a class="headerlink" href="#lexical" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Rule</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Node name</strong></td>
+<td>lowercase letters, digits and hyphen</td>
+<td><code>person-name</code>, <code>mdm-profile</code>, <code>fetcher-1</code></td>
+</tr>
+<tr>
+<td><strong>Node type</strong></td>
+<td>a descriptive label; shipped examples <strong>capitalize</strong> structural types</td>
+<td><code>Root</code>, <code>End</code>, <code>Provider</code>, <code>Dictionary</code>, <code>Fetcher</code>, <code>Island</code></td>
+</tr>
+<tr>
+<td><strong>Reserved names</strong></td>
+<td>the root node <strong>must</strong> be named <code>root</code>; the end node <strong>must</strong> be <code>end</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Property</strong></td>
+<td><code>key=value</code>; keys may be composite (dot-bracket)</td>
+<td><code>url=http://...</code>, <code>mapping[]=a -&gt; b</code></td>
+</tr>
+<tr>
+<td><strong>List property</strong></td>
+<td>a <code>key[]=entry</code> line <em>appends</em> one entry to the list <code>key</code></td>
+<td>repeat <code>mapping[]=...</code> per entry</td>
+</tr>
+<tr>
+<td><strong>Multi-line value</strong></td>
+<td>wrap the value in triple single quotes</td>
+<td><code>statement[]='''</code> … <code>'''</code></td>
+</tr>
+<tr>
+<td><strong>Constant</strong></td>
+<td><code>type(value)</code> — the closed set in <a href="#constants">Constants</a></td>
+<td><code>text(hello)</code>, <code>int(100)</code>, <code>boolean(true)</code></td>
+</tr>
+<tr>
+<td><strong>Mapping operator</strong></td>
+<td><code>source -&gt; target</code> (left = source, right = target)</td>
+<td><code>input.body.id -&gt; person_id</code></td>
+</tr>
+<tr>
+<td><strong>Variable substitution</strong></td>
+<td><code>{namespace.key}</code> inside <code>COMPUTE</code>/<code>IF</code> expressions</td>
+<td><code>{book.price}</code>, <code>{input.body.discount}</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="namespaces">Namespaces<a class="headerlink" href="#namespaces" title="Permanent link">&para;</a></h2>
+<p>The per-execution <strong>state machine</strong> is addressed through these namespaces (sources and targets in
+mappings):</p>
+<table>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Meaning</th>
+<th>Read</th>
+<th>Write</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>input.body</code> / <code>input.header</code></td>
+<td>the incoming request</td>
+<td>✓</td>
+<td>(seeded at instantiate)</td>
+</tr>
+<tr>
+<td><code>model.*</code></td>
+<td>intermediate working state</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>output.body</code> / <code>output.header</code></td>
+<td>the response returned to the caller</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>{node-name}</code></td>
+<td>a node's own properties</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>{node-name}.result</code></td>
+<td>a skill's output</td>
+<td>✓</td>
+<td>(set by the skill)</td>
+</tr>
+<tr>
+<td><code>{node-name}.status</code> / <code>.error</code></td>
+<td>a skill's execution status</td>
+<td>✓</td>
+<td>(set by the engine)</td>
+</tr>
+<tr>
+<td><code>response.*</code></td>
+<td>a <strong>data Provider's</strong> raw HTTP response — used in a <strong>Dictionary</strong> node's <code>output[]</code></td>
+<td>✓ (in a dictionary mapping)</td>
+<td>(set by the fetch)</td>
+</tr>
+<tr>
+<td><code>result.*</code></td>
+<td>a <strong>Dictionary/Fetcher</strong> result set</td>
+<td>✓</td>
+<td>(set by the skill)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Composite keys &amp; arrays.</strong> Every mapping source and target addresses nested data with the
+<strong>dot-bracket</strong> convention — including <strong>numeric list indices</strong>, on the target side too. A numeric
+index in a target creates/sets that list slot, which is the natural idiom for assembling a JSON
+list deterministically (e.g. after a parallel fork/join):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mapping[]=fetch-one.result.profile -&gt; output.body.profile[0]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mapping[]=fetch-two.result.profile -&gt; output.body.profile[1]
+</code></pre></div>
+<p>An <strong>empty index appends</strong>: <code>[]</code> in a target adds one element to the end of the list — and
+creates the list with that first element when it does not yet exist:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>output[]=model.fetcher-one -&gt; output.body.profile[]
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>output[]=model.fetcher-two -&gt; output.body.profile[]
+</code></pre></div>
+<p>Data mapping is <strong>thread-safe</strong> (state-machine operations are serialized), so concurrent <code>[]</code>
+appends from parallel branches carry <strong>no racing risk</strong> — but their <strong>element order follows
+completion order</strong>, which is undetermined across parallel branches. Use <code>[]</code> when order does not
+matter; use numeric indices (above) when the order must be deterministic.</p>
+<p>A <strong>non-leaf (interior) path maps the entire subtree</strong>, not just scalars: a source like
+<code>fetch-one.result.profile</code> above carries the whole profile object, and <code>response.accounts</code> in a
+Dictionary mapping carries the whole array.</p>
+<p><strong>An unresolvable source skips the entry</strong> — when a mapping's source key does not exist, the
+target is left <strong>untouched</strong> (not nulled). Two idioms for defaults follow from this:
+<code>f:defaultValue(input.body.flag, boolean(false)) -&gt; model.flag</code>, or default-then-overlay
+(<code>boolean(false) -&gt; model.flag</code> followed by <code>input.body.flag -&gt; model.flag</code>).</p>
+<h2 id="constants">Constants<a class="headerlink" href="#constants" title="Permanent link">&para;</a></h2>
+<p>A constant is valid wherever a mapping <strong>source</strong> is (a <code>mapping[]</code>/<code>input[]</code>/<code>output[]</code> source, an
+<code>instantiate graph</code> seed line). This is the <strong>closed set</strong> — no other constant or coercion form
+exists (in particular, the legacy <code>:type</code> suffix — "simple type matching" — is <strong>deprecated</strong>; never
+generate it. A <code>:</code> inside a <strong>Dictionary</strong> node's <code>input[]</code> entry is a <strong>default value</strong>, nothing
+else — see <a href="#provider-dictionary">Provider &amp; Dictionary</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Produces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text(hello world)</code></td>
+<td>string (verbatim, no quoting needed — spaces are preserved exactly, including leading/trailing ones inside the parentheses: <code>text(Hello )</code> keeps its trailing space)</td>
+</tr>
+<tr>
+<td><code>int(100)</code> / <code>long(10000000000)</code></td>
+<td>integer (non-numeric input → <code>-1</code>; a decimal part is dropped)</td>
+</tr>
+<tr>
+<td><code>float(1.5)</code> / <code>double(1.5)</code></td>
+<td>floating-point number</td>
+</tr>
+<tr>
+<td><code>boolean(true)</code></td>
+<td>boolean — <code>true</code> only for case-insensitive <code>true</code>; anything else is <code>false</code></td>
+</tr>
+<tr>
+<td><code>map(k1=v1, k2=v2)</code></td>
+<td>inline map literal (values are strings)</td>
+</tr>
+<tr>
+<td><code>map(config.key)</code></td>
+<td>the value of an application-configuration key</td>
+</tr>
+<tr>
+<td><code>file(text:/tmp/f.txt)</code> / <code>file(json:…)</code> / <code>file(binary:…)</code></td>
+<td>file content as text / parsed JSON / bytes — read at <strong>mapping-evaluation time</strong> (each execution), so a changed file is picked up by the next run</td>
+</tr>
+<tr>
+<td><code>classpath(text:/data/f.txt)</code></td>
+<td>like <code>file()</code>, resolved against the app's resource roots</td>
+</tr>
+</tbody>
+</table>
+<p>Beyond constants, two further <strong>non-constant source forms</strong> are valid in mappings (the graph
+skills share Event Script's mapping engine):</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>f:plugin(args…)</code></td>
+<td>a <a href="../../event-script/syntax/#simple-plugins">simple-plugin</a> invocation — the modern replacement for the deprecated <code>:type</code> suffixes. <strong>Arguments accept any mapping source</strong>: constants and any state-machine path — <code>model.*</code>, <code>input.*</code>, <code>output.*</code>, and node namespaces such as <code>{node}.result.{key}</code> (engine-verified). Examples: <code>f:concat(model.a, text(!))</code>, generators <code>f:uuid()</code> and <code>f:now(text(local))</code> (current date-time at execution: <code>iso</code>/<code>local</code>/<code>ms</code>), arithmetic <code>f:add(...)</code>, logic <code>f:ternary(...)</code>, and <strong>list/map reshapers</strong> <code>f:removeKey(list, text(key))</code> (strip fields from every map in a list), <code>f:listOfMap(...)</code> (maps-of-lists → list-of-maps, order-preserving) and <code>f:length(...)</code> (length by type: list → element count, string → <strong>character</strong> count, bytes → byte count, null → 0). <strong>Full catalog</strong> in the <a href="../../event-script/syntax/#simple-plugins">Event Script syntax page</a></td>
+</tr>
+<tr>
+<td><code>$.…</code></td>
+<td>a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
+<p>Each command's exact form. Lines shown stacked are a single <strong>multi-line</strong> command (enter as one
+block); one-line commands are self-contained.</p>
+<h3 id="create">create node / update node<a class="headerlink" href="#create" title="Permanent link">&para;</a></h3>
+<p>Multi-line. <code>update node</code> has the identical shape and replaces a node's definition.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>create node {name}
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>with type {type}
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>with properties
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>{key}={value}
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>{key}={value}
+</code></pre></div>
+<ul>
+<li><code>with properties</code> and the key lines are <strong>optional</strong> (properties act as defaults).</li>
+<li>A node has <strong>zero or one</strong> skill, set with <code>skill={route}</code>.</li>
+<li><code>{name}</code> is lowercase letters, digits and hyphen (<code>root</code>/<code>end</code> reserved); <code>{type}</code> is a descriptive label,
+  conventionally <strong>Capitalized</strong> (<code>Root</code>, <code>Fetcher</code>, <code>Module</code> — see <a href="#lexical">lexical</a>).</li>
+</ul>
+<h3 id="connect">connect<a class="headerlink" href="#connect" title="Permanent link">&para;</a></h3>
+<p>One-line. <strong>Directional</strong> — <code>connect a to b</code> differs from <code>connect b to a</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>connect {node-a} to {node-b} with {relation}
+</code></pre></div>
+<p>The <code>{relation}</code> is a <strong>descriptive label</strong> (e.g. <code>done</code>, <code>fetch</code>, <code>provider</code>) — free-form, not
+interpreted for skill routing. For data-entity nodes, meaningful relationship names capture
+enterprise knowledge.</p>
+<p>A node may have <strong>multiple outgoing connections</strong> — traversal <strong>forks into parallel branches</strong>, one
+per connection, and the branches execute <strong>concurrently</strong>. Synchronize them with a
+<a href="../skills-reference/#join"><code>graph.join</code></a> barrier node; without one, traversal proceeds as each
+branch completes. Data mapping is <strong>thread-safe</strong>, but parallel branches should not write the
+<strong>same scalar key</strong> (the last writer wins, nondeterministically) — write to disjoint keys (e.g.
+per-branch <code>model.*</code> variables), or <strong>append to a shared list with <code>[]</code></strong>, which is race-free
+(element order then follows completion order — see
+<a href="#namespaces">Composite keys &amp; arrays</a>).</p>
+<h3 id="delete">delete<a class="headerlink" href="#delete" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>delete node {name}
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>delete connection {node-a} and {node-b}
+</code></pre></div>
+<h3 id="instantiate">instantiate graph<a class="headerlink" href="#instantiate" title="Permanent link">&para;</a></h3>
+<p>Multi-line. Creates a runnable instance with optional seeded mock input. <strong>Required before</strong>
+<code>run</code>, <code>execute</code>, or <code>inspect</code>. Alias: <code>start</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>instantiate graph
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>{constant} -&gt; input.body.{key}
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>{constant} -&gt; input.header.{key}
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>{constant} -&gt; model.{key}
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>instantiate graph
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>int(100) -&gt; input.body.profile_id
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>text(application/json) -&gt; input.header.content-type
+</code></pre></div>
+<p>Seed keys may be <strong>composite</strong> (dot-bracket), so nested mock payloads seed directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>instantiate graph
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>text(Peter) -&gt; input.body.profile.name
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>text(100 World Blvd) -&gt; input.body.profile.address1
+</code></pre></div>
+<p>Issuing <code>instantiate graph</code> again <strong>replaces</strong> the current instance — a fresh state machine and
+cleared run marks — which is the standard idiom for a second dry-run with different input.</p>
+<h3 id="run">run / execute / inspect<a class="headerlink" href="#run" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>run                        # traverse from root to end
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>execute {node}             # run a single node (after instantiate)
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>inspect {namespace.key}    # read a value from the state machine
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>inspect output               # a whole namespace: input | output | model
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>inspect output.body.name     # a specific composite key
+</code></pre></div>
+<blockquote>
+<p><strong>Placeholder convention:</strong> <code>{…}</code> in the syntax lines above (e.g. <code>{node}</code>,
+<code>{namespace.key}</code>) marks a value you substitute — <strong>do not type the braces</strong>.
+Write <code>inspect output.body.name</code>, not <code>inspect {output.body.name}</code> (a literal
+<code>{output.body}</code> is treated as the key <code>{output</code> → <code>body}</code> and resolves to nothing).</p>
+</blockquote>
+<h3 id="describe">describe / list / seen<a class="headerlink" href="#describe" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>describe graph
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>describe graph {graph-id}        # DISCOVERY: a deployed model&#39;s contract view
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>describe node {name}
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>describe connection {node-a} and {node-b}
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>describe skill {skill.route}     # prints the shipped help for a skill
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>list nodes
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>list connections
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>list graphs                      # DISCOVERY: deployable graph models (extension= targets)
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>list flows                       # DISCOVERY: Event Script flows (extension=flow:// targets)
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>seen                             # nodes visited in the last run
+</code></pre></div>
+<p><strong>Discovery (read-only).</strong> <code>list graphs</code> enumerates the graph models a
+<a href="../skills-reference/#extension"><code>graph.extension</code></a> node can delegate to — the compiled registry
+united with the deployed location's models — each with its root node's <code>purpose</code>, so the listing
+reads as living documentation. <code>list flows</code> enumerates the Event Script flows for
+<code>extension=flow://{flow-id}</code>. <strong><code>describe graph {graph-id}</code></strong> then shows a deployed model's
+<strong>contract view</strong> — its purpose, size, and the <code>input.*</code> / <code>output.*</code> data surface derived
+from the model's own mappings — so an agent can wire the delegation's <code>input[]</code>/<code>output[]</code>
+without out-of-band knowledge or trial execution.</p>
+<h3 id="export">export / import<a class="headerlink" href="#export" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>export graph as {name}
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>import graph from {name}
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>import node {node} from {name}
+</code></pre></div>
+<ul>
+<li><code>export</code> writes JSON to <code>location.graph.temp</code>; it adds <code>name={name}</code> to the root node and
+  <strong>fails if any node is an orphan</strong> (every node must connect to ≥1 other).</li>
+<li>The export reply includes <code>Described in /api/graph/model/{name}/{token}</code> — a read-only HTTP
+  view of the exported model.</li>
+</ul>
+<h3 id="session">session<a class="headerlink" href="#session" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>session                    # show this session id + subscribers
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>session subscribe {id}     # mirror another (primary) session&#39;s commands into yours
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>session unsubscribe
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>session reset
+</code></pre></div>
+<p>The topology subcommands (<code>subscribe</code>/<code>unsubscribe</code>/<code>reset</code>) work only from a
+<strong>WebSocket-connected session</strong>. The companion REST endpoints reject them (a companion is an
+assistant to a session, not a session of its own) — only the read-only <code>session</code> status query is
+available there.</p>
+<h3 id="help">help<a class="headerlink" href="#help" title="Permanent link">&para;</a></h3>
+<p>One-line. Prints the engine's shipped help page for a command, a concept, or a skill — the same
+content <code>describe skill {route}</code> returns for a skill. Useful for in-band self-service when a
+detail is not in this grammar (and file an issue when that happens — this page is meant to be
+sufficient).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>help                       # overview
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>help {command}             # e.g. help connect, help instantiate
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>help {topic}               # e.g. help data-dictionary, help session
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>help {skill-topic}         # hyphenated skill form: help graph-api-fetcher, help graph-math
+</code></pre></div>
+<ul>
+<li>Aliases: <code>help start</code> → <code>help instantiate</code>; <code>help clear</code> → <code>help delete</code>.</li>
+<li>An unknown topic returns "not found" — topic names are lowercase (commands by name, skills as
+  <code>graph-…</code> hyphenated).</li>
+</ul>
+<h2 id="node-types">Node types<a class="headerlink" href="#node-types" title="Permanent link">&para;</a></h2>
+<p><code>root</code> and <code>end</code> are <strong>structural</strong> (entry/exit). All other types are <strong>descriptive labels</strong>
+validated by the node's skill, if any. Common conventional types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Role</th>
+<th>Typical skill</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Root</code> / <code>End</code></td>
+<td>entry / exit</td>
+<td>— / often <code>graph.data.mapper</code>; a <strong>skill-less <code>End</code></strong> is valid when an upstream node already shaped <code>output.body</code></td>
+</tr>
+<tr>
+<td>data-entity</td>
+<td>passive data holder</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>Dictionary</code></td>
+<td>external attribute definition</td>
+<td>none (config)</td>
+</tr>
+<tr>
+<td><code>Provider</code></td>
+<td>external endpoint definition</td>
+<td>none (config)</td>
+</tr>
+<tr>
+<td><code>Island</code></td>
+<td>the <strong>knowledge layer</strong>: links config/data-entity nodes into an entity-relationship view (isolated from traversal, never executed) — see <a href="#island">Island</a></td>
+<td><code>graph.island</code></td>
+</tr>
+<tr>
+<td>(active node)</td>
+<td>does work during traversal</td>
+<td>a <code>graph.*</code> skill</td>
+</tr>
+</tbody>
+</table>
+<h2 id="skill-matrix">Skill → property matrix<a class="headerlink" href="#skill-matrix" title="Permanent link">&para;</a></h2>
+<p>Which properties each skill accepts. See the <a href="../skills-reference/">skills reference</a> for semantics
+and examples; this is the at-a-glance contract.</p>
+<table>
+<thead>
+<tr>
+<th>Skill (<code>skill=</code>)</th>
+<th>Required</th>
+<th>Optional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graph.data.mapper</code></td>
+<td><code>mapping[]</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>graph.math</code></td>
+<td><code>statement[]</code> (<code>COMPUTE</code>/<code>IF</code>/<code>MAPPING</code>/<code>EXECUTE</code>/<code>RESET</code>)</td>
+<td><code>for_each[]</code>, <code>NEXT:</code>, <code>DELAY:</code>, <code>BEGIN</code>/<code>END</code></td>
+</tr>
+<tr>
+<td>~~<code>graph.js</code>~~</td>
+<td>⚠️ <strong>retired in this Rust port</strong> (security) — use <code>graph.math</code> or <code>graph.task</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>graph.api.fetcher</code></td>
+<td><code>dictionary[]</code> (+ <code>input[]</code> whenever its dictionaries declare parameters — the usual case)</td>
+<td><code>output[]</code> (the result set always lands at <code>{node}.result</code> for a later mapper), <code>for_each[]</code> (see <a href="#for-each">Iterative fetching</a>), <code>concurrency</code> (1–30, def 3), <code>exception</code></td>
+</tr>
+<tr>
+<td><code>graph.extension</code></td>
+<td><code>extension</code> (<code>{graph-id}</code> or <code>flow://{flow-id}</code>), <code>input[]</code></td>
+<td><code>output[]</code>, <code>for_each[]</code>, <code>concurrency</code>, <code>exception</code></td>
+</tr>
+<tr>
+<td><code>graph.task</code></td>
+<td><code>task</code> (a composable function's route name)</td>
+<td><code>input[]</code>, <code>output[]</code>, <code>for_each[]</code>, <code>concurrency</code>, <code>exception</code></td>
+</tr>
+<tr>
+<td><code>graph.join</code></td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>graph.island</code></td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Configuration nodes used by <code>graph.api.fetcher</code> — full authoring rules in
+<a href="#provider-dictionary">Provider &amp; Dictionary</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Properties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Provider</strong></td>
+<td><code>url</code>, <code>method</code>, <code>feature[]</code>, <code>input[]</code> (targets: <code>header.*</code>, <code>query.*</code>, <code>path_parameter.*</code>, <code>body.*</code>)</td>
+</tr>
+<tr>
+<td><strong>Dictionary</strong></td>
+<td><code>provider</code>, <code>input[]</code> (<strong>bare</strong> parameter names), <code>output[]</code> (<code>response.*</code> → <code>result.*</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="provider-dictionary">Provider &amp; Dictionary — the data-dictionary method<a class="headerlink" href="#provider-dictionary" title="Permanent link">&para;</a></h2>
+<p><code>graph.api.fetcher</code> never holds a URL itself. It names one or more <strong>Dictionary</strong> nodes (data
+attributes); each Dictionary names the <strong>Provider</strong> node (endpoint definition) that supplies it.
+Both are <strong>config nodes</strong>: they never execute and are referenced <strong>by name</strong> — but they must
+<strong>not</strong> be left floating. Wire them into the knowledge structure under a <code>graph.island</code> node
+(see <a href="#island">Island — the knowledge layer</a>): the island subgraph is the graph's
+entity-relationship diagram, and <strong>no node is left unconnected</strong>.</p>
+<p><strong>Provider</strong> — defines the HTTP call:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>create node {name}
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>with type Provider
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>with properties
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>purpose={description}
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>url={target url}
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>method={GET | POST | PUT | PATCH | DELETE | HEAD}
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>feature[]={feature flag}
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>input[]={source} -&gt; {target}
+</code></pre></div>
+<ul>
+<li>The <code>url</code> may embed <strong><code>{name}</code> path placeholders</strong> — each one is filled by an <code>input[]</code> line
+  targeting <code>path_parameter.{name}</code>. Standard <code>${config.key:default}</code> substitution also applies
+  (e.g. <code>url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}</code>).</li>
+<li><code>input[]</code> <strong>source</strong>: a <a href="#constants">constant</a>, a Dictionary <strong>parameter name</strong> (bare), or a
+  state-machine value (<code>model.*</code>). <strong>Target</strong>: <code>header.{name}</code>, <code>query.{name}</code>,
+  <code>path_parameter.{name}</code>, <code>body.{key}</code> — or the whole <code>body</code> (e.g. to send a string or array as
+  the request body).</li>
+<li><code>feature[]</code> entries declare capabilities the calling fetcher must support (e.g. an auth
+  mechanism). Built-ins: <code>log-request-headers</code> / <code>log-response-headers</code> — the fetcher logs the
+  request/response headers into its node's <code>header</code> section. An unsupported feature produces a
+  warning from <code>graph.api.fetcher</code> (a custom fetcher may enforce it).</li>
+</ul>
+<p><strong>Dictionary</strong> — defines one data attribute retrievable through a Provider:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>create node {name}
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>with type Dictionary
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>with properties
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>purpose={description}
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>provider={provider-node-name}
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>input[]={parameter}
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>input[]={parameter}:{default}
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>output[]=response.{path} -&gt; result.{key}
+</code></pre></div>
+<ul>
+<li><code>input[]</code> entries are <strong>bare parameter names</strong>, <em>not</em> <code>source -&gt; target</code> mappings (the one
+  exception to the mapping rule). An optional <code>:{default}</code> suffix supplies a default value
+  (<code>input[]=detail:true</code>) — that is the <strong>only</strong> meaning of <code>:</code> here.</li>
+<li><code>output[]</code> maps the Provider's raw HTTP response body (the <strong><code>response.*</code></strong> namespace) into the
+  <strong>result set</strong> (<code>result.{key}</code>). The result set is what a fetcher exposes: as the <code>result.*</code>
+  source inside its own <code>output[]</code> mappings, and as <code>{fetcher-node}.result</code> to later nodes.
+  The source path may be a <strong>leaf or an interior node</strong> — an interior path maps the <strong>whole
+  subtree</strong>: <code>response.profile.name -&gt; result.name</code> extracts one field, while
+  <code>response.profile -&gt; result.profile</code> captures the entire profile object and
+  <code>response.accounts -&gt; result.account_numbers</code> an entire array. The namespace root itself is
+  also valid: <strong><code>response -&gt; result.{key}</code> captures the entire raw body</strong> — the way to keep a
+  non-JSON body (an HTML page, plain text) whole.</li>
+<li><strong><code>response.*</code> addresses the response body only.</strong> The HTTP <strong>status</strong> of every executed
+  fetch is recorded at <strong><code>{fetcher-node}.status</code></strong> (success included — a <code>200</code> or a <code>301</code> is
+  readable there, not just failures); response <strong>headers</strong> are captured on request with
+  <code>feature[]=log-response-headers</code> on the Provider, landing at
+  <code>{fetcher-node}.header.response.{name}</code> (request headers: <code>log-request-headers</code> →
+  <code>{fetcher-node}.header.request.{name}</code>).</li>
+<li><strong>The fetcher never follows redirects</strong> — one Provider call is exactly one HTTP request. A
+  <code>3xx</code> answer is a non-failure: its status and body are captured like any other response and
+  traversal proceeds (only ≥ 400 triggers <a href="#failure-routing">failure routing</a>). To land on the
+  redirect target, point the Provider <code>url</code> at it directly.</li>
+<li>A fetcher's <code>input[]</code> <strong>targets must match the dictionary parameter names</strong> exactly, or execution
+  fails. Several Dictionary nodes may share one Provider; identical calls (same provider + same
+  input values) are <strong>deduplicated</strong> into a single HTTP request.</li>
+</ul>
+<p>Worked example — fetch a person's profile by id (path parameter + JSON accept header), then expose
+name and address:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>create node mdm-profile
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>with type Provider
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>with properties
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>purpose=MDM profile endpoint
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>url=http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>method=GET
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>input[]=text(application/json) -&gt; header.accept
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>input[]=person_id -&gt; path_parameter.id
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>create node person-profile
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>with type Dictionary
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>with properties
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>purpose=full profile record of a person
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>provider=mdm-profile
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>input[]=person_id
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>output[]=response.profile.name -&gt; result.name
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>output[]=response.profile.address -&gt; result.address
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>create node fetcher
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>with type Fetcher
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>with properties
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>skill=graph.api.fetcher
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>dictionary[]=person-profile
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>input[]=input.body.person_id -&gt; person_id
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>output[]=result.name -&gt; output.body.name
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>output[]=result.address -&gt; output.body.address
+</code></pre></div>
+<p>Second worked example — a <strong>POST</strong> Provider: <code>body.{key}</code> targets build the JSON request body
+(set <code>content-type</code>; there is no URL placeholder — the parameters travel in the body):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>create node account-api
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>with type Provider
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>with properties
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>purpose=account management endpoint
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>url=http://127.0.0.1:${rest.server.port:8080}/api/account/details
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>method=POST
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>input[]=text(application/json) -&gt; header.accept
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>input[]=text(application/json) -&gt; header.content-type
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>input[]=person_id -&gt; body.person_id
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>input[]=account_id -&gt; body.account_id
+</code></pre></div>
+<h2 id="for-each">Iterative fetching — <code>for_each</code><a class="headerlink" href="#for-each" title="Permanent link">&para;</a></h2>
+<p>A <code>graph.api.fetcher</code> node can execute <strong>once per element of a runtime array</strong> — the mechanism for
+"fetch details for each item in a list obtained from a previous call":</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>create node accounts-fetcher
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>with type Fetcher
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>with properties
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>skill=graph.api.fetcher
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>dictionary[]=account-detail
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>for_each[]=profile-fetcher.result.accounts -&gt; model.account_id
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>concurrency=3
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>input[]=input.body.person_id -&gt; person_id
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>input[]=model.account_id -&gt; account_id
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>output[]=result.detail -&gt; model.account_details
+</code></pre></div>
+<ul>
+<li><code>for_each[]={array-source} -&gt; model.{var}</code> — the source <strong>must resolve to a list</strong>; it is
+  typically a <strong>prior fetcher's result</strong> (<code>{fetcher}.result.{key}</code> — the cross-node <code>.result</code>
+  namespace) or any <code>model.*</code> array. Multiple <code>for_each[]</code> lines iterate multiple parameters in
+  lock-step.</li>
+<li>Wire the current element into each call with an ordinary input mapping:
+  <code>input[]=model.{var} -&gt; {dictionary-parameter}</code>. Non-iterated inputs (like <code>person_id</code> above)
+  are passed unchanged to every call.</li>
+<li><code>concurrency</code> bounds the parallel fan-out (1–30, default 3): the calls run in batches of that
+  size.</li>
+<li><strong>Aggregation (guaranteed):</strong> each iteration's <code>result.{key}</code> values are <strong>appended into a
+  single array</strong> on this node's result set — after N iterations, <code>result.detail</code> above is an
+  array of N. <strong>Order is deterministic</strong>: batches execute in input-list order and responses join
+  in request order, so the aggregated array preserves the source array's order regardless of
+  <code>concurrency</code>.</li>
+<li>Identical requests are still deduplicated into one HTTP call.</li>
+</ul>
+<h2 id="failure-routing">Failure routing — <code>exception=</code><a class="headerlink" href="#failure-routing" title="Permanent link">&para;</a></h2>
+<p><code>graph.api.fetcher</code>, <code>graph.task</code>, and <code>graph.extension</code> accept an optional
+<code>exception={handler-node}</code> property. On a <strong>failed</strong> call (HTTP status ≥ 400, or a task error):</p>
+<ul>
+<li>the node's <code>{node}.status</code> and <code>{node}.error</code> are set (the engine's error record);</li>
+<li>the node's <code>output[]</code> mappings are <strong>skipped</strong>;</li>
+<li>traversal <strong>jumps to the named handler node</strong> instead of aborting. Without <code>exception=</code>, the
+  run <strong>aborts</strong> on failure.</li>
+</ul>
+<p>Wire the handler back explicitly (e.g. <code>connect error-handler to fetcher with retry</code>) — no node
+left unconnected. The canonical <strong>bounded-retry</strong> pattern combines the pieces (see the
+<a href="#math-statements">statement grammar</a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>create node error-handler
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>with type Decision
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>with properties
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>skill=graph.math
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>statement[]=RESET: fetcher, error-handler
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -&gt; model.attempts
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>statement[]=MAPPING: f:add(model.attempts, int(1)) -&gt; model.attempts
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>statement[]=&#39;&#39;&#39;
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>IF: {model.attempts} &gt;= 3
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>THEN: recovery-node
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>ELSE: next
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>&#39;&#39;&#39;
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>statement[]=NEXT: fetcher
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>statement[]=DELAY: 50
+</code></pre></div>
+<p>The handler <strong>resets the fetcher and itself first</strong> (the placement rule above — it then runs on
+every path, including the recovery jump), counts attempts (<code>f:defaultValue</code> + <code>f:add</code> on the
+<code>model.*</code> namespace, which <code>RESET</code> never touches), exits to a recovery node at the bound (a taken
+<code>IF</code> jump ends the list), otherwise jumps back and paces the retry with a delay — staying under
+the engine's loop guard. If the handler also carries a defensive check on the failed node's
+status, that check must come <strong>before</strong> the <code>RESET</code> (it reads state the reset wipes).</p>
+<h2 id="island">Island — the knowledge layer (required)<a class="headerlink" href="#island" title="Permanent link">&para;</a></h2>
+<p>A <code>graph.island</code> node is <strong>isolated from graph traversal</strong> — it executes only to sink (the run
+log shows one <code>Executed … with skill graph.island</code> line), so traversal never continues through it.
+It is <strong>not optional decoration</strong>: the island subgraph is the graph's
+<strong>entity-relationship diagram</strong>. Connecting Dictionary, Provider, data-entity, and reusable
+<strong>module</strong> nodes under an island turns the graph into <strong>living documentation of enterprise
+knowledge</strong> — a new joiner (or an agent) reads the connected dictionaries, entities, and modules
+to discover the domain model, not just the execution path.</p>
+<p><strong>Convention: leave no node unconnected.</strong> The island is <strong>required</strong> whenever the graph has
+off-path nodes — config (Dictionary, Provider), data-entity, or reusable
+<a href="#math-statements">module</a> nodes — wire every one of them into the knowledge structure. For a
+graph with none (e.g. a pure transformation), an island is <strong>encouraged</strong>: adding data-entity
+nodes that document the domain model (entities, fields, which fields are internal-only) turns
+even a small graph into discoverable enterprise knowledge.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>create node dictionary
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>with type Island
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>with properties
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>skill=graph.island
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>connect root to dictionary with contains
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>connect dictionary to person-profile with data
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>connect dictionary to account-detail with data
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>connect person-profile to mdm-profile with provider
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>connect account-detail to account-api with provider
+</code></pre></div>
+<p>The relation labels are descriptive (free-form) — choose names that capture the real-world
+relationship; <code>contains</code> / <code>data</code> / <code>provider</code> are the shipped conventions. Traversal is
+unaffected: the island sinks, so the execution path never enters the knowledge layer.</p>
+<h2 id="math-statements"><code>graph.math</code> statement grammar<a class="headerlink" href="#math-statements" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong><code>graph.js</code> is retired in this Rust port</strong> (disabled for security — the runtime rejects it with
+<em>"Skill graph.js is retired for security reasons - use graph.math or graph.task instead."</em>). Use
+<code>graph.math</code> for inline compute/branch, or <code>graph.task</code> for anything richer. Its expression dialect
+is a narrow JS-like subset — arithmetic/comparison/boolean operators only, <strong>no bitwise ops, no
+function calls, no variables</strong>; <code>COMPUTE</code> yields a double (integers serialize as e.g. <code>8.0</code>).</p>
+</blockquote>
+<p>A <code>graph.math</code> node runs an ordered list of <code>statement[]</code> lines. Five statement types:</p>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Form</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>COMPUTE</code></td>
+<td><code>COMPUTE: {var} -&gt; {expr}</code></td>
+<td>evaluate a JS-like math/boolean expression; the result is stored in <strong>this node's <code>result</code> namespace</strong> — read it back as <code>{this-node}.result.{var}</code> or move it with <code>MAPPING</code></td>
+</tr>
+<tr>
+<td><code>IF</code></td>
+<td>multi-line (see below)</td>
+<td>a boolean <strong>decision</strong> that redirects traversal to a named node</td>
+</tr>
+<tr>
+<td><code>MAPPING</code></td>
+<td><code>MAPPING: source -&gt; target</code></td>
+<td>data mapping, identical to <code>graph.data.mapper</code> (<strong>no</strong> <code>{}</code> around source/target)</td>
+</tr>
+<tr>
+<td><code>EXECUTE</code></td>
+<td><code>EXECUTE: {node-name}</code></td>
+<td>run another <code>graph.math</code> node's statements inline, <strong>in the calling node's context</strong> — any <code>COMPUTE</code> results land in the <strong>invoking</strong> node's result namespace (<code>{invoker}.result.{var}</code>); the executed module's own namespace stays empty. This is the <strong>module-reuse mechanism</strong>: author a formula once in an off-path module node, and any executing node borrows it (see the note below)</td>
+</tr>
+<tr>
+<td><code>RESET</code></td>
+<td><code>RESET: {node-name}</code></td>
+<td>forget a node completely — guard, completion mark, state — so it can execute again (advanced; see the rules below)</td>
+</tr>
+</tbody>
+</table>
+<p>Expressions use <code>{namespace.key}</code> substitution (<code>{input.body.a}</code>, <code>{book.price}</code>, <code>{model.x}</code>) —
+the <code>{…}</code> substitution syntax is robust to hyphenated names (<code>{unit-price}</code> is the value of
+<code>unit-price</code>, never a subtraction), so use communicative hyphenated names freely. A node
+with <strong>only</strong> <code>MAPPING</code> statements is rejected — use <code>graph.data.mapper</code> instead. Statements run in order.</p>
+<p><strong>Reusable modules.</strong> A <code>graph.math</code> node can serve as a governed <strong>library module</strong>: author the
+formula once, reading neutral <code>model.*</code> operands, keep the node <strong>off the execution path</strong>, and
+let any traversal node borrow it with <code>EXECUTE</code>. The caller marshals inputs into the module's
+expected <code>model.*</code> keys, executes, then maps <strong>its own</strong> result out:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>create node addition             # the library — authored once, not traversed
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>with type Module
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>with properties
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>skill=graph.math
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>statement[]=COMPUTE: sum -&gt; {model.a} + {model.b}
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>create node compute              # the execution-path caller
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>with type Compute
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>with properties
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>skill=graph.math
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>statement[]=MAPPING: input.body.a -&gt; model.a
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>statement[]=MAPPING: input.body.b -&gt; model.b
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>statement[]=EXECUTE: addition
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>statement[]=MAPPING: compute.result.sum -&gt; output.body.sum
+</code></pre></div>
+<p>Note <code>compute.result.sum</code> — <strong>not</strong> <code>addition.result.sum</code>: the caller borrows the logic, so the
+result belongs to the caller. Hang the module under the <a href="#island">Island knowledge layer</a>
+(<code>island -[module]-&gt; addition</code>) so it is documented and no node is left unconnected.</p>
+<p><strong><code>IF</code> is a multi-line statement — this is the decision construct.</strong> An <code>IF</code> <strong>must</strong> be paired with
+<code>THEN:</code> and <code>ELSE:</code>, or the engine aborts the run (<code>node {name} does not have if:, then: or else:</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>IF: &lt;boolean expression&gt;
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>THEN: &lt;node-name&gt; | next
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>ELSE: &lt;node-name&gt; | next
+</code></pre></div>
+<ul>
+<li><code>THEN:</code> / <code>ELSE:</code> each name the <strong>node to jump to</strong>, or the keyword <strong><code>next</code></strong> (fall through to the
+  natural graph traversal / next statement).</li>
+<li><strong>A taken node-jump ends the statement list immediately</strong> — statements after it do not run. A
+  branch that resolves to <code>next</code> <strong>falls through</strong>: processing continues with the following
+  statements. Order the list accordingly (e.g. an early-exit check first; the retry logic after).</li>
+<li>Append the whole triad as one multi-line value with <code>'''</code> … <code>'''</code> (see <a href="#lexical">lexical</a>).</li>
+</ul>
+<p>Worked example — compute the sum, then branch on a comparison so each branch fills the response:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>skill=graph.math
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>statement[]=COMPUTE: sum -&gt; {input.body.a} + {input.body.b}
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>statement[]=&#39;&#39;&#39;
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>IF: {input.body.a} &gt;= {input.body.b}
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>THEN: ge-path
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>ELSE: lt-path
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>&#39;&#39;&#39;
+</code></pre></div>
+<p><strong>Traversal-control keywords</strong> — these are ordinary <code>statement[]</code> lines (e.g.
+<code>statement[]=NEXT: fetcher</code>, <code>statement[]=DELAY: 500</code>), conventionally placed last:</p>
+<ul>
+<li><code>NEXT: {node-name}</code> — unconditionally jump to a node <strong>by name</strong> (it takes a <em>node name</em>, <strong>not</strong> a
+  connection/relation label). Unlike a taken <code>IF</code> jump, <code>NEXT:</code> does <strong>not</strong> stop processing: the
+  remaining statements still run, and the jump is applied <strong>after the whole list completes</strong>
+  (the last <code>NEXT:</code> wins).</li>
+<li><code>RESET: {node-name}[, {node-name} …]</code> — clear the run-once guard, the <strong>completion mark</strong>, and
+  the <strong>state</strong> of one or <strong>more</strong> nodes (comma/space-separated list). The completion mark matters
+  for <a href="../skills-reference/#join">join barriers</a>: a reset (retrying) branch stops satisfying the
+  barrier until it re-executes successfully — and a branch that <strong>failed</strong> into its <code>exception=</code>
+  route never satisfies it in the first place (completion is success-only). Resetting a never-executed node is a safe no-op. A node may
+  reset <strong>itself</strong> — the run-once mark is set <em>before</em> execution, so a self-reset survives and the
+  node can run again. <strong>Placement rule: put <code>RESET</code> first among the action statements</strong> — it then
+  runs on every path (a later taken <code>IF</code> jump would skip it) and everything the node stores
+  afterwards (such as <code>DELAY:</code>'s pending pause) survives the self-wipe. The one exception: keep it
+  <strong>after</strong> any statement that reads state it would wipe — an <code>IF</code> on a just-wiped variable (e.g.
+  <code>{fetcher.status}</code> after <code>RESET: fetcher</code>) <strong>aborts the run</strong>, so a defensive status check goes
+  before the <code>RESET</code>. This enables retry loops — see <a href="#failure-routing">Failure routing</a> — but
+  mind the engine's <strong>loop guard</strong>: a node executed too frequently (default &gt;10 visits/second)
+  aborts the traversal, so bound every retry loop and pace it with <code>DELAY:</code>.</li>
+<li><code>BEGIN</code> / <code>END</code> — delimit the loop body for <strong><code>for_each[]</code></strong> iterative execution (they are
+  <strong>not</strong> <code>IF</code>-block braces) — see <a href="#math-for-each">for_each</a>.</li>
+<li><code>DELAY: {milliseconds}</code> — pause <strong>after this node completes</strong>, deferring the walk to the next
+  node (paces retries; simulates a slow service).</li>
+</ul>
+<h3 id="math-for-each"><code>for_each[]</code> — iterate a statement block over lists<a class="headerlink" href="#math-for-each" title="Permanent link">&para;</a></h3>
+<p>The optional node property <code>for_each[]</code> turns part of the statement list into a <strong>loop</strong>. Each
+entry has the mapping form <code>source -&gt; model.{var}</code> — the RHS <strong>must</strong> be a <code>model.*</code> key:</p>
+<ul>
+<li>a <strong>list-valued</strong> source becomes an <strong>iteration array</strong>: its <code>model.{var}</code> is rebound to
+  element <em>i</em> on each pass. Multiple list entries advance <strong>in lockstep</strong> (parallel arrays) and
+  must all have the <strong>same length</strong> (engine error otherwise). At least one entry must resolve
+  to a list, or the node aborts (<em>"No data mapping resolved from 'for_each' entries. LHS must
+  be a list."</em>).</li>
+<li>a <strong>scalar</strong> source binds its <code>model.{var}</code> <strong>once</strong>, at resolution time — before the loop
+  runs, even when the lists are empty.</li>
+<li>an <strong>unresolvable</strong> source <strong>removes</strong> the <code>model.{var}</code> key (not left stale, not nulled).</li>
+</ul>
+<p><code>BEGIN</code> / <code>END</code> lines split <code>statement[]</code> into three blocks:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>statement[]=…      ← pre-block: runs ONCE, before the loop
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>statement[]=BEGIN
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>statement[]=…      ← each-block: runs once PER ELEMENT
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>statement[]=END
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>statement[]=…      ← post-block: runs ONCE, after the loop
+</code></pre></div>
+<p>Rules (engine-verified):</p>
+<ul>
+<li><strong>No <code>BEGIN</code> ⇒ the whole statement list is the loop body.</strong> Seed accumulators in a pre-block,
+  or the seeding re-runs on every iteration.</li>
+<li>Iteration is <strong>strictly sequential, in list order</strong> — element 0 completes before element 1
+  starts. (Contrast: the <a href="#for-each">fetcher's <code>for_each</code></a> fans HTTP calls out concurrently and
+  only <em>aggregates</em> in order.) The whole loop is <strong>one node execution</strong>, so a long list does not
+  trip the traversal loop guard.</li>
+<li><strong>A taken <code>IF</code> jump breaks the loop:</strong> it ends the current iteration immediately, skips the
+  remaining elements <strong>and the post-block</strong>, and routes traversal to the named node. In the
+  pre-block it skips the loop and post-block the same way. (A <code>NEXT:</code> exits too, after its block
+  completes.) An <code>ELSE: next</code> falls through to the rest of the iteration.</li>
+<li><strong>Empty lists are fine:</strong> the each-block runs zero times; the pre- and post-blocks still run.</li>
+<li><strong>Number dialect:</strong> <code>COMPUTE</code> yields <strong>doubles</strong>; the <code>f:add</code>/<code>f:subtract</code>/… simple plugins
+  use <strong>numeric promotion</strong> — all-whole-number inputs keep exact long arithmetic (including
+  integer division and the classic integer counters of
+  <a href="#failure-routing">Failure routing</a>), while <strong>any</strong> floating-point argument promotes the
+  whole computation to a double. So <code>f:add</code> composes directly with <code>COMPUTE</code> results and
+  decimal API data; accumulate with either <code>f:add</code> or a pure-<code>COMPUTE</code> read-back (both shown
+  below). Tame floating-point artifacts with <strong><code>f:round(value, int(2))</code></strong> — half-up rounding
+  applied to the number's decimal representation (<code>1.005</code> → <code>1.01</code> at 2 places).</li>
+<li><code>EXECUTE:</code> inlining happens <strong>before</strong> the blocks are split, so an executed module's
+  statements land at the <code>EXECUTE:</code> position and may contribute to (or delimit) the loop body.</li>
+<li>Without <code>for_each[]</code>, <code>BEGIN</code>/<code>END</code> lines are accepted and ignored.</li>
+</ul>
+<p>Worked example (engine-verified) — line totals with a running sum:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>create node totaler
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>with type Loop
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>with properties
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>skill=graph.math
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>for_each[]=input.body.prices -&gt; model.price
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>for_each[]=input.body.quantities -&gt; model.qty
+<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>statement[]=MAPPING: int(0) -&gt; model.total
+<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a>statement[]=BEGIN
+<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a>statement[]=COMPUTE: total -&gt; {model.total} + {model.price} * {model.qty}
+<a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a>statement[]=MAPPING: totaler.result.total -&gt; model.total
+<a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a>statement[]=END
+<a id="__codelineno-29-12" name="__codelineno-29-12" href="#__codelineno-29-12"></a>statement[]=MAPPING: model.total -&gt; output.body.total
+</code></pre></div>
+<p>With <code>prices=[10,20,30]</code> and <code>quantities=[7,8,9]</code> the run yields <code>total: 500.0</code>: the pre-block
+seeds the accumulator once, each pass computes <code>total + price*qty</code> and writes it back to
+<code>model.total</code>, and the post-block maps the final value out. The plugin form is equivalent —
+<code>COMPUTE: line -&gt; {model.price} * {model.qty}</code> then
+<code>MAPPING: f:add(model.total, totaler.result.line) -&gt; model.total</code> — numeric promotion carries
+the <code>COMPUTE</code> doubles through <code>f:add</code> (both forms are engine-verified).</p>
+<h2 id="invariants">Invariants<a class="headerlink" href="#invariants" title="Permanent link">&para;</a></h2>
+<p>Hard rules the engine enforces — violate them and generation fails:</p>
+<ol>
+<li>The root node is named <code>root</code>; the end node is named <code>end</code>.</li>
+<li>A node has <strong>0 or 1</strong> skill.</li>
+<li>Node <strong>names</strong> are <strong>lowercase letters, digits and hyphen</strong> (<code>root</code>/<code>end</code> reserved). Node <strong>types</strong> are
+   descriptive labels — shipped examples capitalize structural types (see <a href="#lexical">lexical</a>).</li>
+<li>Every node <strong>in the traversal path</strong> must connect to ≥1 node, or <code>export</code> fails.
+   <code>Dictionary</code> and <code>Provider</code> configuration nodes are referenced <em>by name</em> (<code>dictionary[]=</code>,
+   <code>provider=</code>) and are <strong>not traversed</strong> — but the convention is still <strong>no node left
+   unconnected</strong>: wire them under a <code>graph.island</code> node
+   (<code>root -[contains]-&gt; island -[data]-&gt; dictionary -[provider]-&gt; provider</code>) so the graph carries
+   the entity-relationship knowledge — see <a href="#island">Island</a>.</li>
+<li>A node is <strong>executed once</strong> per run (loop guard); a <code>graph.math</code> <code>RESET</code> statement is the only
+   escape, for advanced re-execution.</li>
+<li><code>instantiate graph</code> must precede <code>run</code> / <code>execute</code> / <code>inspect</code>.</li>
+</ol>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../minigraph-commands.json"><code>minigraph-commands.json</code></a> — the machine-readable form of this grammar.</li>
+<li><a href="../ai-agent-guide/">AI agent guide</a> — driving the Playground via the companion endpoint.</li>
+<li><a href="../skills-reference/">Built-in skills reference</a> — per-skill semantics and examples.</li>
+<li>The mapping syntax (<code>source -&gt; target</code>) and <a href="#constants">constant set</a> are shared with
+  <a href="../../event-script/syntax/#tasks-and-data-mapping">Event Script</a>; this page is self-contained —
+  the constants above are the full set.</li>
+<li><a href="../../event-script/flow-grammar/">Event Script flow grammar</a> — authoring the flows a
+  <code>graph.extension</code> node calls via <code>flow://{flow-id}</code>; <a href="../../event-driven/ai-agent-guide/">function AI agent guide</a>
+  — the composable functions a <code>graph.task</code> node calls.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../ai-agent-guide/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Graph AI Agent Guide">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Graph AI Agent Guide
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../skills-reference/" class="md-footer__link md-footer__link--next" aria-label="Next: Built-in Skills">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Built-in Skills
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

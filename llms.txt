@@ -1,0 +1,72 @@
+# Mercury (Rust)
+
+> A Rust port of Accenture's **mercury-composable** — a framework for composable, event-driven
+> applications built from self-contained functions wired by YAML event flows. Functions couple only
+> through named routes and event envelopes, so orchestration is configuration, not code. Built on
+> tokio (async), it ascends three layers: an event-driven core (**platform-core**), composable
+> orchestration (**event-script**), and a semantic layer where an **Active Knowledge Graph is the
+> application** (**knowledge-graph**). Faithful to the Java engine, with port-specific differences
+> called out in the docs (e.g. `graph.js` is retired here for security).
+
+> This is a machine-readable map of the **AI-agent documentation in this repo**. Paths are relative
+> to the repo root. It is the Rust port's own reference — where behavior differs from the Java
+> upstream, these docs are authoritative for this repo.
+
+## Operating the Active Knowledge Graph (MiniGraph) Playground — start here if you are an AI agent
+These are self-contained; you should not need the engine source or the tutorial walkthroughs:
+
+- [AI agent guide](guides/knowledge-graph/ai-agent-guide.md) — the companion-endpoint contract. Use
+  the **synchronous** `POST /api/companion/{session-id}/sync`: it returns the command outcome
+  **in-band** as `{ok, output, error, result}` (self-correct from `error`; no console relay needed),
+  and tees the same output to the human's WebSocket console for real-time human+AI collaboration.
+- [Command grammar](guides/knowledge-graph/command-reference.md) — the rules: lexical, namespaces,
+  the constant set (+ `f:` plugin / `$.` JSONPath source forms), every command's syntax (incl.
+  `help {topic}`), node types, parallel fan-out/join traversal, the skill→property matrix,
+  **Provider & Dictionary authoring** (the data-dictionary method), **iterative fetching**
+  (`for_each` with guaranteed ordered aggregation), the **Island knowledge layer** (required — no
+  node left unconnected), and the `graph.math` statement grammar (`IF`/`THEN`/`ELSE`, `COMPUTE`,
+  `MAPPING`, …).
+- [`minigraph-commands.json`](guides/knowledge-graph/minigraph-commands.json) — the machine-readable
+  command catalog; ingest it and validate commands against it before dispatching.
+- [Built-in skills reference](guides/knowledge-graph/skills-reference.md) — per-skill properties and
+  examples.
+
+**Port-specific notes (differ from the Java upstream):**
+- `graph.js` is **retired** (disabled for security) — use `graph.math` for inline compute/branch, or
+  `graph.task` to invoke a composable function for anything richer.
+- `graph.math`'s expression dialect is a **narrow** JS-like subset: arithmetic/comparison/boolean
+  operators only — no bitwise operators, no function calls, no variables; `COMPUTE` yields a double
+  (integers serialize as e.g. `8.0`).
+
+## Layer 2 — Event Script (composable orchestration): flows and tasks
+Needed when a graph composes onto flows (`graph.extension` with `flow://`) or when authoring flow
+YAML directly. **The flow YAML syntax is identical to the Java engine's** — flow files port
+unchanged; only the functions are written differently (Rust):
+
+- [Flow AI agent guide](guides/event-script/ai-agent-guide.md) — authoring flows deterministically:
+  compile contract, pre-write checklist, recipe, worked examples.
+- [Flow grammar](guides/event-script/flow-grammar.md) — the rules: flow structure, task fields, the
+  eight execution types, the data-mapping mini-language.
+- [`event-script-flow.json`](guides/event-script/event-script-flow.json) — the machine-readable flow
+  schema; ingest and validate against it.
+- [Event Script Syntax](guides/event-script/syntax.md) — the full reference with worked examples:
+  data-mapping catalog (constants, arrays, JSONPath, runtime model variables), all task types,
+  pipelines/loops, Simple Plugins (`f:` functions), exception handling, external state machine.
+
+## Layer 1 — platform-core: composable functions
+Needed when a flow task or a graph's `graph.task` calls a custom function:
+
+- [Function AI agent guide](guides/event-driven/ai-agent-guide.md) — the Rust authoring contract:
+  `#[preload]` attribute, `ComposableFunction`/`TypedFunction` traits, pre-write checklist,
+  PostOffice RPC patterns, serialization rules, worked example with rest.yaml wiring.
+
+## Design & project docs (human-facing)
+- `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and
+  `ai-companion-sync.md` for the synchronous companion endpoint).
+- `docs/INCREMENTS.md` — the increment ledger.
+- `docs/AI-companion-test.md` — the human+AI collaboration validation log (how these docs were
+  battle-tested by fresh AI companions).
+
+## Canonical upstream
+`Accenture/mercury-composable` — the Java reference implementation this repo ports. Its docs describe
+the Java engine; for the Rust port, the docs in *this* repo are authoritative.

@@ -1,0 +1,69 @@
+{
+  "dsl": "event-script-flow",
+  "version": "1.0",
+  "description": "Machine-readable schema for the Event Script flow DSL (Rust port of mercury-composable; the flow YAML syntax is identical to the Java engine's — flow files port unchanged). Mirrors flow-grammar.md. An AI agent should ingest this to author and validate flow YAML deterministically.",
+  "source_of_truth": "crates/event-script/src/compiler.rs (EXECUTION_TYPES; the CompileFlows port)",
+  "flow_structure": [
+    { "key": "flow.id", "required": true, "meaning": "unique flow id; referenced by rest.yaml and as flow://{id}" },
+    { "key": "flow.description", "required": true, "meaning": "human-readable purpose (non-blank)" },
+    { "key": "flow.ttl", "required": true, "meaning": "time-to-live, e.g. 30s (s/m/h; min 1s)" },
+    { "key": "flow.exception", "required": false, "meaning": "global exception-handler route" },
+    { "key": "first.task", "required": true, "meaning": "entry-point task (route name or task name)" },
+    { "key": "external.state.machine", "required": "conditional", "meaning": "route or flow://id; required if any task uses ext: namespace" },
+    { "key": "tasks", "required": true, "meaning": "list of task definitions; must include >=1 with execution: end" }
+  ],
+  "task_fields": [
+    { "field": "process", "required": "conditional", "meaning": "function route or flow://{flow-id}; process or name required" },
+    { "field": "name", "required": "conditional", "meaning": "unique task id; defaults to process; required only if the same process is used >1 time" },
+    { "field": "description", "required": true, "meaning": "non-blank purpose" },
+    { "field": "input", "required": true, "meaning": "list of 'source -> target' mappings ([] for none)" },
+    { "field": "output", "required": true, "meaning": "list of 'source -> target' mappings ([] for none)" },
+    { "field": "execution", "required": true, "meaning": "one of execution_types" },
+    { "field": "next", "required": "conditional", "meaning": "next task(s); shaped by execution type" },
+    { "field": "join", "required": "conditional", "meaning": "join task; required for fork" },
+    { "field": "pipeline", "required": "conditional", "meaning": "ordered task list; required for pipeline" },
+    { "field": "loop", "required": false, "meaning": "loop control (statement/condition) for a pipeline" },
+    { "field": "source", "required": false, "meaning": "model.* list to iterate for a dynamic fork" },
+    { "field": "delay", "required": false, "meaning": "ms (int) or model.* var; must be < flow.ttl" },
+    { "field": "exception", "required": false, "meaning": "task-level exception handler (overrides flow.exception)" }
+  ],
+  "execution_types": [
+    { "type": "sequential", "next": "exactly 1", "requires": [], "forbids": [], "does": "run, then the one next task" },
+    { "type": "decision", "next": ">=2", "requires": ["output maps -> decision"], "forbids": ["join", "pipeline", "source"], "does": "branch on the decision value (true->next[0]/false->next[1]; or numeric 1-indexed, multi-way)" },
+    { "type": "parallel", "next": ">=2", "requires": [], "forbids": ["join"], "does": "fan out to all next tasks concurrently" },
+    { "type": "fork", "next": ">=1", "requires": ["join"], "forbids": ["pipeline"], "does": "run next tasks concurrently, resume at join; optional source to iterate" },
+    { "type": "pipeline", "next": "exactly 1", "requires": ["pipeline list"], "forbids": ["join"], "does": "run pipeline tasks in order (optional loop), then the one next task" },
+    { "type": "response", "next": "exactly 1", "requires": [], "forbids": ["join"], "does": "send the HTTP response now, then continue async to next" },
+    { "type": "end", "next": "none", "requires": [], "forbids": ["next", "join", "pipeline", "loop", "source"], "does": "terminate; output mappings form the final response" },
+    { "type": "sink", "next": "none", "requires": [], "forbids": ["next"], "does": "terminal branch, no response (fork/parallel leaf)" }
+  ],
+  "data_mapping": {
+    "rule": "'source -> target' (one -> per rule; three-part 'LHS -> model.var -> RHS' allowed)",
+    "source_namespaces": ["input.*", "model.*", "model.parent.*", "model.root.*", "error.*", "$.<jsonpath>", "result", "input", "header", "status", "datatype", "f:fn(args)"],
+    "source_constants": ["text(...)", "int(...)", "long(...)", "float(...)", "double(...)", "boolean(...)", "map(k=v,...)", "file(text:/json:/binary:path)", "classpath(...)"],
+    "target_namespaces": ["output.*", "model.*", "model.parent.*", "decision", "file(path)", "file(append:path)", "ext:..."],
+    "conversions_deprecated": {
+      "suffixes": [":text", ":int", ":long", ":float", ":double", ":boolean", ":binary", ":b64", ":!", ":uuid", ":length", ":substring(a[,b])", ":concat(...)", ":and(model.k)", ":or(model.k)"],
+      "note": "the legacy 'simple type matching' source suffixes still parse for backward compatibility but are DEPRECATED — do not generate them in new flows; shape values in the function itself or use an f: simple-plugin function"
+    },
+    "special_tokens": ["->", "[]", "*", "{model.key}", ".ITEM", ".INDEX"],
+    "input_target_note": "in an input mapping the RHS with no namespace is the function's input body key (e.g. 'model.order -> order'); use header.* for input headers",
+    "output_source_note": "on the LHS of an output mapping, 'result' (bare) is the whole function result and 'result.x' a field; model.* always needs a specific key (no whole-model access)"
+  },
+  "references": "first.task, next, join, and pipeline reference a task by its name, which defaults to process",
+  "deployment": {
+    "flows_folder": "the application's resources/flows/ (an app is a standalone examples/<name>/ workspace crate with resources/ beside its Cargo.toml)",
+    "manifest": "resources/flows.yaml (config key yaml.flow.automation, default classpath:/flows.yaml)",
+    "http_binding": "rest.yaml endpoint with flow: {flow-id}",
+    "functions": "flow tasks call composable functions by route name — Rust authoring contract in guides/event-driven/ai-agent-guide.md"
+  },
+  "invariants": [
+    "flow.id, flow.description, flow.ttl, first.task, tasks all present; ttl >= 1s",
+    "every task has description, input, output, and a valid execution",
+    "there is >=1 task with execution: end",
+    "decision needs >=2 next; sequential/response/pipeline need exactly 1; end/sink have no next",
+    "fork requires join; pipeline requires a pipeline list",
+    "a name is required when the same process appears in more than one task",
+    "ext: targets require external.state.machine to be declared"
+  ]
+}
