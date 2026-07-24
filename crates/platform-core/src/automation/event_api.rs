@@ -59,6 +59,9 @@ pub const X_EVENT_API: &str = "x-event-api";
 const OCTET_STREAM: &str = "application/octet-stream";
 const X_TTL: &str = "x-ttl";
 const X_ASYNC: &str = "x-async";
+/// Java `EventEmitter.X_NO_STREAM`: instructs the receiving side to return a
+/// small payload as bytes — part of the /api/event request's wire header set.
+const X_NO_STREAM: &str = "x-small-payload-as-bytes";
 
 /// Application key naming the declarative routing map
 /// (Java `EventEmitter.EVENT_OVER_HTTP_YAML`).
@@ -251,7 +254,18 @@ pub async fn event_over_http_with_headers(
         .set_url(&path)
         .set_target_host(&host)
         .set_header("content-type", OCTET_STREAM)
+        // Java EventEmitter wire parity: both engines' /api/event requests
+        // carry the same header set (x-small-payload-as-bytes + accept)
+        .set_header(X_NO_STREAM, "true")
+        .set_header("accept", "*/*")
         .set_header(X_TTL, &timeout.as_millis().max(1000).to_string())
+        // a client-side instruction, consumed by the async HTTP client and
+        // never sent to the peer (the x-event-format precedent in Java):
+        // this is the engine's own Event-over-HTTP transport leg, so the
+        // client must not stamp the business correlation-id header on it —
+        // the business cid rides INSIDE the envelope (my_cid tag; Java's
+        // EventEmitter leg carries no ambient business context)
+        .set_header(X_EVENT_API, "true")
         .set_body(Value::Binary(payload));
     if !rpc {
         http = http.set_header(X_ASYNC, "true");

@@ -104,6 +104,17 @@ impl ComposableFunction for GreetingComposer {
 #[preload(route = "v1.event.over.http.rpc", instances = 10)]
 struct EventOverHttpRpc;
 
+/// The engine injects these read-only metadata keys into this function's
+/// input header copy. They describe THIS function's own context and are
+/// never transported in an event - so they must not be copied onto the
+/// outgoing request (metadata is injected, not forwarded).
+const INJECTED_METADATA: [&str; 4] = [
+    "my_route",
+    "my_trace_id",
+    "my_trace_path",
+    "my_correlation_id",
+];
+
 #[async_trait]
 impl ComposableFunction for EventOverHttpRpc {
     async fn handle_event(
@@ -127,8 +138,11 @@ impl ComposableFunction for EventOverHttpRpc {
         let mut request = EventEnvelope::new()
             .set_to("hello.world")
             .set_raw_body(input.body().clone());
+        // forward the business headers only - the injected my_* view stays local
         for (key, value) in &headers {
-            request = request.set_header(key, value);
+            if !INJECTED_METADATA.contains(&key.as_str()) {
+                request = request.set_header(key, value);
+            }
         }
         let po = PostOffice::new(&Platform::get_instance());
         let response = event_over_http_with_headers(

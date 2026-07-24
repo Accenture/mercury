@@ -2023,6 +2023,67 @@ W3C context crosses the intermediary, so cross-application span parenting surviv
 
 ---
 
+## Increment 69 — Interop header hygiene: clean envelope view + wire alignment (2026-07-24)
+
+The `ce_traceparent` interop drive passed (report in
+`docs/test-reports/event-over-http-interop.md`), but its four-combination matrix exposed
+pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branch
+`fix/interop-header-hygiene`) toward a v4.10.4 lock-step release.
+
+- **Aligned invariant:** a function's delivered ENVELOPE view never contains `my_route`,
+  `my_trace_id`, `my_trace_path`, `my_correlation_id`, or `x-event-api` — regardless of
+  what a peer transported or a local edge merged; ordinary headers survive untouched.
+  Diagnosis: the matrix leak was TRANSPORT (the demo copied its injected view onto the
+  outgoing envelope), not injection — the Rust delivery never injected my_* into the
+  envelope view, and already removed cid/x-event-api; the three my_* keys passed through.
+  The worker now scrubs all five from the delivered envelope for NON-interceptor
+  functions (shared `ENGINE_METADATA_KEYS` with the exit filter); the injected copy is
+  cleaned for everyone; interceptors keep raw transport fidelity — which also restored
+  Java's semantics for them (previously the port removed cid/x-event-api from interceptor
+  envelopes too). Legacy `my_correlation_id` header still honored-then-scrubbed. Safe to
+  mutate: each delivery owns its envelope (owned `recv()` value).
+- **Demo:** hello-flow `EventOverHttpRpc` filters the four injected `my_*` keys from its
+  header-copy loop (Java twin comment: injected view describes THIS function's own
+  context, never transported).
+- **Wire hygiene (client leg):** engine stamps switched to insert semantics
+  (`stamp_header` — Java `http.set`), killing the doubled x-trace-id / traceparent /
+  custom-name headers; the Event-over-HTTP transport leg no longer stamps
+  x-correlation-id (business cid rides the `my_cid` tag inside the envelope — the leg is
+  marked with an HTTP-level `x-event-api` client instruction, consumed by the client and
+  on HEADERS_TO_IGNORE, Java's "client-side instruction" precedent); request now carries
+  `x-small-payload-as-bytes: true` + `accept: */*` (Java header set, same order);
+  REST automation logs the three resolved header names at startup (Java wording).
+  Verified with a raw header-dump listener: single trace headers, no x-correlation-id,
+  full Java header set, marker absent from the wire.
+- **Regressions:** `transported_metadata_is_scrubbed_from_the_delivered_envelope_view` +
+  `legacy_correlation_id_header_is_honored_then_scrubbed` (Java PostOfficeTest twins,
+  `CleanEnvelopeEcho` probe reporting both header views). Docs: event-over-http
+  engine-internals note, CHANGELOG Unreleased Fixed. Workspace 259 / clippy 0 / fmt.
+- **Final precedence ruling (Eric, superseding the round's custom-name-first design):
+  inbound, the standard `traceparent` always wins; the custom name is read only when the
+  standard header is absent or malformed.** Rationale: a well-formed standard OTel
+  traceparent means the legacy system already upgraded to the standard header — a
+  proprietary header alongside it is residual and safely ignored; this also makes the
+  family self-consistent with the `trace.id.header` fallback, which already yields to the
+  standard. Both engines flipped in lock-step (Java `5401f1f8`); the precedence regression
+  inverted (`standard_traceparent_wins_over_custom_header_name`), the custom-name-only
+  gateway test unchanged (now proves the fallback), the standard-only test reframed
+  (`standard_traceparent_is_authoritative_under_custom_name`); every "custom name first"
+  doc phrase flipped. Outbound dual stamping unchanged.
+- **Residual (matrix re-run finding): the endpoint timeout rides the dataset as `x-ttl`.**
+  Java's `AsyncHttpRequest.setTimeoutSeconds` stores the REST endpoint timeout AS the
+  x-ttl header (ms), so j2j/j2r echoes carried the key and r2r/r2j did not. The Rust
+  ingress now stamps `x-ttl` = route timeout (ms, `max(1s)`) on the request dataset —
+  caller-sent value WINS (Java copies inbound headers after the stamp; the first attempt
+  had the precedence backwards and broke the /api/event in-band remote-timeout race —
+  caught by `remote_timeout_arrives_in_band`). The client/event-api sides already used
+  the single-header representation (`set_timeout_seconds`/`timeout_seconds` read/write
+  the header), so no other plumbing changed. Regression
+  `endpoint_timeout_rides_the_dataset_as_the_x_ttl_header` (default + caller-wins);
+  reserved-names x-ttl row updated. Workspace 260 / clippy 0 / fmt.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,

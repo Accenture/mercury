@@ -31,25 +31,33 @@ works with the same two ids:
 |:----|:--------|:-----------------|
 | `http.trace.id.header` | `X-Trace-Id` | inbound (when no `traceparent`) and the async HTTP client outbound |
 | `http.correlation.id.header` | `X-Correlation-Id` | edge capture inbound; async HTTP client outbound |
-| `http.traceparent.header` | `traceparent` | The header carrying the full W3C trace context; REST automation inbound (custom name first, standard fallback) and HTTP client / Event-over-HTTP outbound (stamped under **both** names) |
+| `http.traceparent.header` | `traceparent` | The header carrying the full W3C trace context; REST automation inbound (standard `traceparent` first, custom name only when the standard is absent) and HTTP client / Event-over-HTTP outbound (stamped under **both** names) |
 
 A `rest.yaml` endpoint entry may override all three per endpoint (`trace.id.header`,
 `correlation.id.header`, `traceparent.header`); precedence is per-entry > global > built-in
 default. Legacy conflation — pointing the trace-id and correlation-id names at one shared
 header — is supported: the edge then resolves **one** id for both rather than minting two.
 
-!!! tip "A renamed traceparent beats conflation for the gateway case"
+!!! warning "The standard W3C `traceparent` is our position — use it"
+    It is the header OpenTelemetry and the wider observability ecosystem interoperate on,
+    and the framework implements it as the default with zero configuration. The optional
+    `traceparent.header` family exists for **backward compatibility with legacy systems
+    only**; departure from the standard is discouraged, because a renamed carrier is
+    invisible to OpenTelemetry SDKs, service meshes and APM agents, and every participant
+    must be configured alike. Treat a custom name as a temporary bridge and plan the
+    migration back to the standard header.
+
+!!! tip "Within that constraint: a renamed traceparent beats conflation for the gateway case"
     The conflation above carries only the trace **id**, so spans in different applications
     can be stitched by id but not **parented** across the hop. Renaming the traceparent
     carrier (`http.traceparent.header=X-Trace-Context`) moves the *full* W3C context —
     trace-id, parent span-id and flags — through the gateway under an allow-listed name, so
     cross-application span parenting survives. Outbound calls stamp the same value under
-    both the custom and the standard name; inbound, a well-formed value under the custom
-    name wins (an intermediary that injects its own fresh `traceparent` cannot break the
-    caller's chain) and the standard header remains a fallback for standards-compliant
-    callers. **The trade-off:** a renamed traceparent is invisible to OpenTelemetry SDKs,
-    service meshes and APM agents — treat it as an escape hatch for an intermediary you
-    cannot fix, configure both ends alike, and prefer fixing the gateway allow-list.
+    both the custom and the standard name; inbound, the **standard `traceparent` always
+    wins** and the custom name is read only when the standard is absent — a well-formed
+    standard traceparent means the caller already speaks W3C/OTel, so a residual
+    proprietary header alongside it is safely ignored. The durable fix is always the
+    gateway allow-list — retire the custom name once it lands.
 
 !!! note "Rust port"
     The Java guide also documents `kafka.trace.id.header` / `kafka.correlation.id.header` /
@@ -76,8 +84,8 @@ Two controls tune what is recorded: routes listed in `skip.rpc.tracing` (default
 At a traced endpoint the edge resolves the trace in strict order:
 
 1. a well-formed **`traceparent`** header wins — the upstream trace continues, and the
-   caller's span id becomes this hop's parent span (read from the effective
-   `http.traceparent.header` name: custom name first, standard `traceparent` as fallback);
+   caller's span id becomes this hop's parent span (the standard name always wins; a
+   custom `http.traceparent.header` name is read only when the standard is absent);
 2. otherwise the trace-id header (`X-Trace-Id` by default) is adopted;
 3. otherwise a new 32-hex trace id is generated.
 

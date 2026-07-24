@@ -13,6 +13,40 @@ the design rationale in [`docs/design/`](docs/design/).
 ---
 ## Unreleased
 
+### Fixed
+
+1. **The delivered envelope view is scrubbed of engine metadata (interop hygiene round).**
+   The pre-release `ce_traceparent` interop drive's four-combination matrix (see
+   `docs/test-reports/event-over-http-interop.md`) found that a peer-transported or
+   edge-merged `my_*` / `x-event-api` header could surface in a function's input
+   **envelope** header view (the injected input copy was already clean). The worker now
+   scrubs the five engine keys from the delivered envelope for non-interceptor functions —
+   whatever a peer transported can never masquerade as application data — while the legacy
+   `my_correlation_id` compat carrier remains honored into the injected view before the
+   scrub, and event interceptors keep raw transport fidelity. Two regressions added
+   (entry-side twins of the exit sanitization), mirrored from the Java reference.
+2. **The programmatic Event-over-HTTP demo no longer copies its injected metadata onto the
+   outgoing event.** The hello-flow `EventOverHttpRpc` task forwards business headers only —
+   the injected `my_*` view describes the local function's own context and is never
+   transported.
+3. **Wire hygiene of the outbound `/api/event` request, aligned to the Java reference.**
+   The engine's trace stamps (`x-trace-id`, `traceparent`, a custom
+   `http.traceparent.header` name) now use insert semantics — one value each on the wire,
+   never duplicated with the transport leg's own copies; the HTTP-level correlation-id
+   header is no longer stamped on the engine's Event-over-HTTP transport leg (the business
+   cid rides inside the envelope on the `my_cid` tag, exactly like Java); the request
+   carries `accept: */*` and `x-small-payload-as-bytes: true` (Java's header set); and
+   REST automation announces the resolved correlation-id / trace-id / traceparent header
+   names at startup with the Java engine's wording.
+4. **The endpoint timeout rides the request dataset as the `x-ttl` header (Java parity).**
+   Java's `AsyncHttpRequest.setTimeoutSeconds` stores the REST endpoint timeout AS the
+   `x-ttl` header (milliseconds), so a flow's `input.header` view naturally carries the
+   key; the Rust ingress modeled the timeout outside the header map, making the two
+   engines' echoed header sets differ. REST automation now stamps the endpoint timeout
+   under `x-ttl` on the request dataset — a caller-sent value wins (Java copies inbound
+   headers after the stamp), which is exactly how the Event-over-HTTP client's own TTL
+   rides through the `/api/event` endpoint.
+
 ### Added
 
 1. **Configurable traceparent header name (field request).** A new header-name key completes
@@ -20,14 +54,18 @@ the design rationale in [`docs/design/`](docs/design/).
    `traceparent`), plus a per-entry `traceparent.header` override in a rest.yaml endpoint.
    An escape hatch for an intermediary (e.g. an API-gateway header allow-list) that strips
    the standard W3C header: outbound calls (async HTTP client and Event-over-HTTP) stamp the
-   same W3C value under **both** names, and inbound resolution (REST automation) reads the
-   custom name first — a well-formed value under it wins, so an intermediary-injected
-   standard `traceparent` cannot override the peer's context — with the standard header as
-   fallback for standards-compliant callers. Unlike the trace-id conflation workaround, the
+   same W3C value under **both** names, and inbound resolution (REST automation) honors the
+   **standard `traceparent` first** — the custom name is read only when the standard header
+   is absent, because a well-formed standard traceparent means the caller already speaks
+   W3C/OTel and a residual proprietary header is safely ignored. Unlike the trace-id
+   conflation workaround, the
    full W3C context (trace-id, parent span-id, flags) crosses the intermediary, so
-   cross-application **span parenting** survives. Default behavior unchanged (`traceparent`);
-   a renamed carrier is invisible to OpenTelemetry-compliant tooling, so keep the default
-   unless an unfixable intermediary forces the rename. Mirrors the Java engine's feature of
+   cross-application **span parenting** survives. Default behavior unchanged (`traceparent`).
+   **The standard W3C/OpenTelemetry `traceparent` remains the project's position** — the
+   optional key is for backward compatibility with legacy systems only, and departure from
+   the standard is discouraged (a renamed carrier is invisible to OTel-compliant tooling);
+   treat a custom name as a temporary bridge and plan the migration back to the standard
+   header. Mirrors the Java engine's feature of
    the same name in lock-step (identical config keys and precedence; the Java engine's
    `kafka.traceparent.header` / `secondary.kafka.traceparent.header` twins have no Rust
    surface — the Kafka service mesh is not ported).

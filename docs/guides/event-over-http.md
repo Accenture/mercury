@@ -135,9 +135,10 @@ feature off.
 
 A forwarded envelope carries the `x-event-api` marker header, and an event bearing it is
 never forwarded again — the recursion guard that lets two instances declare routes toward
-each other without a loop. It is engine-internal: the worker removes it from a function's
-input header copy and filters it from returned response headers, so application code never
-sees or emits it.
+each other without a loop. It is engine-internal: the worker removes it (together with any
+transported `my_*` key) from a function's input header copy *and* from the delivered
+envelope's own header view, and filters it from returned response headers, so application
+code never sees or emits it.
 
 !!! note "Port note"
     Same semantics as the Java engine's `yaml.event.over.http`
