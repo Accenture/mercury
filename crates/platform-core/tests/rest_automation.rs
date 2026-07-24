@@ -1168,3 +1168,44 @@ async fn async_http_client_stamps_trace_context_under_both_names() {
         "the same W3C value must be stamped under the custom traceparent header name"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn endpoint_timeout_rides_the_dataset_as_the_x_ttl_header() {
+    // Java parity (HttpRouter prepareHttpRequest + AsyncHttpRequest
+    // setTimeoutSeconds): the endpoint timeout is represented AS the x-ttl
+    // request header in milliseconds — one representation, visible in a
+    // flow's input.header view on both engines — and a caller-sent x-ttl
+    // wins over the route default (Java copies inbound headers after the
+    // stamp; the Event-over-HTTP client's own TTL depends on it)
+    let server = server().await;
+    // default: /api/echo/headers declares timeout 5s in rest.yaml -> 5000 ms
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        "/api/echo/headers",
+        &[("Accept", "application/json")],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200, "echo body: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(
+        json["headers"]["x-ttl"], "5000",
+        "the route timeout must ride the dataset as x-ttl in milliseconds: {json}"
+    );
+    // a caller-sent x-ttl wins over the route default
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        "/api/echo/headers",
+        &[("Accept", "application/json"), ("x-ttl", "1500")],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200, "echo body: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(
+        json["headers"]["x-ttl"], "1500",
+        "a caller-sent x-ttl must win over the route default: {json}"
+    );
+}

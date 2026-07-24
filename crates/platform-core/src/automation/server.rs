@@ -386,6 +386,16 @@ async fn process(
     // configured header name (Java parity): the target function and the flow
     // engine see the SAME edge-resolved value even when the caller sent none
     headers.insert(cid_header.clone(), cid.clone());
+    // the endpoint timeout is represented AS the x-ttl request header in
+    // milliseconds — Java parity: HttpRouter calls req.setTimeoutSeconds(
+    // route timeout) at ingress and AsyncHttpRequest stores/reads the TTL as
+    // this header (one representation), so a flow's input.header view carries
+    // the same key on both engines. A caller-sent x-ttl WINS — Java copies
+    // the inbound headers after the stamp, which is how the Event-over-HTTP
+    // client's own TTL rides through the /api/event endpoint.
+    headers
+        .entry("x-ttl".to_string())
+        .or_insert_with(|| (info.timeout.as_secs().max(1) * 1000).to_string());
     // AsyncHttpRequest-shaped event body (Java parity keys).
     // Repeated query parameters keep EVERY value — one occurrence is a
     // string, more become a list (Java HttpRouter: params.getAll;

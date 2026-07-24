@@ -38,6 +38,14 @@ the design rationale in [`docs/design/`](docs/design/).
    carries `accept: */*` and `x-small-payload-as-bytes: true` (Java's header set); and
    REST automation announces the resolved correlation-id / trace-id / traceparent header
    names at startup with the Java engine's wording.
+4. **The endpoint timeout rides the request dataset as the `x-ttl` header (Java parity).**
+   Java's `AsyncHttpRequest.setTimeoutSeconds` stores the REST endpoint timeout AS the
+   `x-ttl` header (milliseconds), so a flow's `input.header` view naturally carries the
+   key; the Rust ingress modeled the timeout outside the header map, making the two
+   engines' echoed header sets differ. REST automation now stamps the endpoint timeout
+   under `x-ttl` on the request dataset — a caller-sent value wins (Java copies inbound
+   headers after the stamp), which is exactly how the Event-over-HTTP client's own TTL
+   rides through the `/api/event` endpoint.
 
 ### Added
 

@@ -136,9 +136,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   listener: single trace headers, no x-correlation-id, full Java set, marker off the wire.
   2 regression twins of Java PostOfficeTest (CleanEnvelopeEcho probe reporting both views).
   Gate: workspace 259 (257+2) / clippy 0 / fmt. Docs: event-over-http engine-internals note,
-  CHANGELOG Unreleased Fixed ×3, increment 69. Next: coordinator re-runs the four-way matrix
-  (expect byte-identical clean echoes), then v4.10.4 release prep. Relates
-  [[inv-telemetry-presentation-parity]], [[thread-configurable-traceparent]].
+  CHANGELOG Unreleased Fixed ×3, increment 69. **Matrix re-run VERIFIED the hygiene fixes
+  independently (all 8 runs leak-free, wire = exact Java header set, startup parity line,
+  cross-language span parenting intact); ONE residual fixed as a 2nd commit: the endpoint
+  timeout now rides the request dataset as the x-ttl header (ms, Java setTimeoutSeconds
+  semantics; caller-sent value WINS — route-wins broke the /api/event in-band remote-timeout
+  race, caught by remote_timeout_arrives_in_band). Regression
+  endpoint_timeout_rides_the_dataset_as_the_x_ttl_header; gate now workspace 260 / clippy 0 /
+  fmt.** Next: final matrix pass (expect all 8 echoes byte-identical after normalization),
+  report update, v4.10.4 release prep. Relates [[inv-telemetry-presentation-parity]],
+  [[thread-configurable-traceparent]].
   <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-173129.md -->
 
 - [ ] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb` — the

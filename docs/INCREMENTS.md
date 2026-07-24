@@ -2059,6 +2059,17 @@ pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branc
   `legacy_correlation_id_header_is_honored_then_scrubbed` (Java PostOfficeTest twins,
   `CleanEnvelopeEcho` probe reporting both header views). Docs: event-over-http
   engine-internals note, CHANGELOG Unreleased Fixed. Workspace 259 / clippy 0 / fmt.
+- **Residual (matrix re-run finding): the endpoint timeout rides the dataset as `x-ttl`.**
+  Java's `AsyncHttpRequest.setTimeoutSeconds` stores the REST endpoint timeout AS the
+  x-ttl header (ms), so j2j/j2r echoes carried the key and r2r/r2j did not. The Rust
+  ingress now stamps `x-ttl` = route timeout (ms, `max(1s)`) on the request dataset —
+  caller-sent value WINS (Java copies inbound headers after the stamp; the first attempt
+  had the precedence backwards and broke the /api/event in-band remote-timeout race —
+  caught by `remote_timeout_arrives_in_band`). The client/event-api sides already used
+  the single-header representation (`set_timeout_seconds`/`timeout_seconds` read/write
+  the header), so no other plumbing changed. Regression
+  `endpoint_timeout_rides_the_dataset_as_the_x_ttl_header` (default + caller-wins);
+  reserved-names x-ttl row updated. Workspace 260 / clippy 0 / fmt.
 
 ---
 
