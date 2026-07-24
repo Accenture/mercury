@@ -6,7 +6,7 @@ import { type ToastType } from './useToast';
 export interface UseSendToJsonPathOptions {
   /** The WebSocket context (needed for getSlot, setPendingPayload, connect). */
   ctx:      WebSocketContextValue;
-  /** react-router-dom navigate function. */
+  /** react-router navigate function. */
   navigate: (to: string) => void;
   /** Toast callback. */
   addToast: (message: string, type?: ToastType) => void;

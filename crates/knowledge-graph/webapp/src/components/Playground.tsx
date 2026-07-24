@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels';
 import styles from './Playground.module.css';
 import { validatePayload, formatJSON } from '../utils/validators';

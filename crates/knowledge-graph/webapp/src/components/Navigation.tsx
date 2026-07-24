@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import { PLAYGROUND_CONFIGS } from '../config/playgrounds';
 import { useWebSocketContext } from '../contexts/WebSocketContext';
 import { type WsPhase } from '../contexts/WebSocketContext';

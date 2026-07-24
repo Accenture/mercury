@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import Playground from './components/Playground';
 import { PLAYGROUND_CONFIGS } from './config/playgrounds';
 import { WebSocketProvider } from './contexts/WebSocketContext';
