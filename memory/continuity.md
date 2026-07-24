@@ -140,7 +140,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the CI-flake fix (the flow_runtime config-snapshot race — latent on main since
   PR #171; reproduced under load, fixed with the Once setup pattern, 0/80 loaded
   failures after). Gate: workspace 252 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-2 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-231506.md -->
+  <!-- id: thread-release-4-10-2 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: active | origin: 2026-07-23-231506.md -->
 
 - [x] (feature branch — 2026-07-23; MERGED as PR [#171](https://github.com/Accenture/mercury/pull/171),
   merge `f86fbec2`) **Metadata injection hardening
@@ -178,7 +178,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   normalized-signature diff in all four directions; polyglot-DevSecOps rationale) with
   PR #169 stamped on every entry. Gate green at the new version: workspace 245 / clippy
   0 / fmt.
-  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-163133.md -->
+  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: active | origin: 2026-07-23-163133.md -->
 
 - [x] (feature branch — 2026-07-23; MERGED as PR [#169](https://github.com/Accenture/mercury/pull/169),
   merge `ecec21c5`) **Telemetry presentation-parity batch
@@ -209,7 +209,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   pair, zero-trace span-leak fix) with the interop-report link, event-over-http guide
   links the Java site's Interop Test Report. Gate green at the new version: workspace
   244 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: working | origin: 2026-07-23-022937.md -->
+  <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: archive-candidate | origin: 2026-07-23-022937.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
