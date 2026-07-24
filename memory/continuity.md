@@ -112,9 +112,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release in flight — 2026-07-24; branch `chore/release-4.10.5`, 2 commits, NOT pushed —
-  coordinator pushes and delivers PR text with the Java one) **v4.10.5 release prep — security
-  patch in lock-step with the Java engine's v4.10.5.** Content: playground webapp migrated
+- [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
+  (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR
+  [#180](https://github.com/Accenture/mercury/pull/180), CI green), release published; the
+  Java v4.10.5 published the same day (PR #230, tag on squash `4c82eae0`). Dependabot #16
+  CONFIRMED closed by Eric — the security warning is gone. Sixth lock-step release of the
+  4.10 arc: 4.10.0 interop → 4.10.1 presentation parity → 4.10.2 boundary demarcation →
+  4.10.3 field roll-up → 4.10.4 traceparent carrier + hygiene → 4.10.5 security patch.**
+  Prep detail retained: security patch in lock-step with the Java engine's v4.10.5. Content: playground webapp migrated
   react-router-dom ^7.18.1 → react-router ^8.3.0 (coordinator's commit `a2fcb26b`),
   remediating dependabot #16 (React Router RSC Mode CSRF Bypass, follow-up to CVE-2026-22030;
   affected >= 7.12.0 < 8.3.0) — the -dom package ends at 7.18.1 and pins the vulnerable
@@ -125,7 +130,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `## Version 4.10.5, 7/24/2026` Security section. Gate: workspace 260 / clippy 0 / fmt
   (one unidentified single-test failure during the first post-bump compile-storm run; did
   not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
-  Close when tagged + release published on both repos.
+  Tagged + published on both repos — CLOSED.
   <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-191554.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
