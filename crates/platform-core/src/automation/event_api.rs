@@ -262,12 +262,20 @@ pub async fn event_over_http_with_headers(
         http = http.set_header(key, value);
     }
     // trace propagation (Java sets both headers so the receiver chains onto
-    // this span as its parent)
+    // this span as its parent). When a custom traceparent header name is
+    // configured (http.traceparent.header), the same value is stamped under
+    // that name too, so the trace context survives an intermediary that
+    // strips the standard header.
     if let Some(trace_id) = &trace_id {
         http = http.set_header("x-trace-id", trace_id);
         if let Some(span_id) = &span_id {
             if let Some(traceparent) = w3c_trace::format(trace_id, span_id) {
                 http = http.set_header(w3c_trace::TRACEPARENT, &traceparent);
+                let custom_traceparent = AppConfigReader::get_instance()
+                    .get_property_or("http.traceparent.header", w3c_trace::TRACEPARENT);
+                if !custom_traceparent.eq_ignore_ascii_case(w3c_trace::TRACEPARENT) {
+                    http = http.set_header(&custom_traceparent, &traceparent);
+                }
             }
         }
     }

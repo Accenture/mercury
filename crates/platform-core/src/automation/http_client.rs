@@ -752,6 +752,15 @@ fn apply_headers(
         if let Some(traceparent) = w3c_trace::format(trace_id, event.span_id().unwrap_or_default())
         {
             builder = builder.header(w3c_trace::TRACEPARENT, traceparent.as_str());
+            // when a custom traceparent header name is configured
+            // (http.traceparent.header), stamp the same value under that name
+            // too, so the W3C trace context survives an intermediary that
+            // strips the standard header
+            let custom_traceparent =
+                config.get_property_or("http.traceparent.header", w3c_trace::TRACEPARENT);
+            if !custom_traceparent.eq_ignore_ascii_case(w3c_trace::TRACEPARENT) {
+                builder = builder.header(custom_traceparent.as_str(), traceparent.as_str());
+            }
         }
     }
     // propagate the business correlation-id (unless the caller set it)

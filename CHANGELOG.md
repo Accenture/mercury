@@ -11,6 +11,28 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **Configurable traceparent header name (field request).** A new header-name key completes
+   the observability impedance-matching surface: `http.traceparent.header` (default
+   `traceparent`), plus a per-entry `traceparent.header` override in a rest.yaml endpoint.
+   An escape hatch for an intermediary (e.g. an API-gateway header allow-list) that strips
+   the standard W3C header: outbound calls (async HTTP client and Event-over-HTTP) stamp the
+   same W3C value under **both** names, and inbound resolution (REST automation) reads the
+   custom name first — a well-formed value under it wins, so an intermediary-injected
+   standard `traceparent` cannot override the peer's context — with the standard header as
+   fallback for standards-compliant callers. Unlike the trace-id conflation workaround, the
+   full W3C context (trace-id, parent span-id, flags) crosses the intermediary, so
+   cross-application **span parenting** survives. Default behavior unchanged (`traceparent`);
+   a renamed carrier is invisible to OpenTelemetry-compliant tooling, so keep the default
+   unless an unfixable intermediary forces the rename. Mirrors the Java engine's feature of
+   the same name in lock-step (identical config keys and precedence; the Java engine's
+   `kafka.traceparent.header` / `secondary.kafka.traceparent.header` twins have no Rust
+   surface — the Kafka service mesh is not ported).
+
+---
 ## Version 4.10.3, 7/23/2026
 
 Patch release for **field deployment**, in lock-step with the Java engine's v4.10.3 —
