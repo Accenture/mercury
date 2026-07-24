@@ -112,22 +112,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release in flight — 2026-07-24; branch `chore/release-4.10.4`, 1 commit, NOT pushed —
-  coordinator pushes and delivers PR text with the Java one) **v4.10.4 release prep, in
-  lock-step with the Java engine's v4.10.4** (Java PR #228 merge `fcd4fbc1`; Rust PR #178
-  merge `b58d2163`). Patch release: configurable traceparent carrier (standards-first —
+- [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
+  (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
+  [#179](https://github.com/Accenture/mercury/pull/179), CI green, 260 tests), release
+  published; the Java v4.10.4 published the same day (PR #229, tag on squash `0125c17b`).
+  Fifth lock-step release of the 4.10 arc: 4.10.0 interop → 4.10.1 presentation parity →
+  4.10.2 boundary demarcation → 4.10.3 field roll-up → 4.10.4 traceparent carrier + interop
+  hygiene.** Prep detail below retained: in lock-step with the Java engine's v4.10.4
+  (Java PR #228 merge `fcd4fbc1`; Rust PR #178 merge `b58d2163`). Patch release: configurable traceparent carrier (standards-first —
   the optional name is backward-compat-only; standard traceparent wins inbound) + the
   interop hygiene round (clean delivered envelope view, /api/event wire alignment, x-ttl
   ingress parity), validated by the ce_traceparent four-way drive with all eight echoes
   identical (docs/test-reports/event-over-http-interop.md). Sweep 4.10.3→4.10.4 (root
   Cargo.toml only — members inherit; lock regenerated; continuity status line); CHANGELOG
   Unreleased → `## Version 4.10.4, 7/24/2026` + release summary. Gate: workspace 260 /
-  clippy 0 / fmt. Close when tagged + release published on both repos.
+  clippy 0 / fmt. Tagged + published on both repos — CLOSED.
   <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-183956.md -->
 
-- [ ] (in flight — 2026-07-24; branch `fix/interop-header-hygiene` off
-  `docs/interop-ce-traceparent`, 1 commit, NOT pushed — Eric gates; targets a v4.10.4 lock-step
-  release) **Interop header-hygiene round, mirrored from the Java reference branch of the same
+- [x] (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]])
+  **Interop header-hygiene round, mirrored from the Java reference branch of the same
   name.** The ce_traceparent interop matrix PASSED (report on `docs/interop-ce-traceparent`,
   pushed as `62210de8`) but exposed pre-existing header-hygiene asymmetries; all fixed.
   (1) **Aligned invariant:** a function's delivered ENVELOPE view never contains my_route/
@@ -167,11 +170,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   lock-step with Java PR #228 (merge `fcd4fbc1`); ships in v4.10.4
   ([[thread-release-4-10-4]]) — close with that release.** Relates
   [[inv-telemetry-presentation-parity]], [[thread-configurable-traceparent]].
-  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: working | origin: 2026-07-24-173129.md -->
+  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: active | origin: 2026-07-24-173129.md -->
 
-- [ ] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb` — the
-  ce_traceparent interop matrix then verified the custom carrier cross-language; close at the
-  v4.10.4 release) **Configurable traceparent header name (field request), mirrored from
+- [x] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb`; the
+  ce_traceparent interop matrix verified the custom carrier cross-language; **RELEASED in
+  v4.10.4 with the standards-first precedence flip — CLOSED**) **Configurable traceparent header name (field request), mirrored from
   the Java reference in lock-step** (mercury-composable branch of the same name, commit
   `5ee496dd`). `http.traceparent.header` (default `traceparent`) + per-entry
   `traceparent.header` in rest.yaml (precedence per-entry > global > default). Inbound
@@ -191,7 +194,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   observability (impedance row + "renamed traceparent beats conflation" tip), rest-automation
   grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
   merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
-  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: working | origin: 2026-07-24-160634.md -->
+  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: active | origin: 2026-07-24-160634.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
