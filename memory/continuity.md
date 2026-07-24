@@ -13,7 +13,7 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.2**: tracks the canonical mercury-composable line (Java 4.10.2 released the same day — one version, two languages; metadata contract: injected at entry, sanitized at exit, never transported).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.3**: tracks the canonical mercury-composable line (Java 4.10.3 released the same day — one version, two languages; the field-deployment roll-up of the 4.10 arc).
 - **last_enabled:** 2026-07-15
 - **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-025820)
 - **last_review:** 2026-07-23 | through 2026-07-23-013514.md
@@ -112,15 +112,18 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release in flight — 2026-07-24) **v4.10.3 release prepared** (field-deployment
-  roll-up; no engine behavior changes). Branch `chore/release-4.10.3` from main
-  `d2048eea` (PR #175 merge): bump 4.10.2→4.10.3 (root Cargo.toml only; lock
+- [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
+  lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
+  (PR [#176](https://github.com/Accenture/mercury/pull/176), CI green, 252 tests),
+  release published; the Java v4.10.3 (the field-deployment artifact) published the
+  same day (tag on squash `bd7e909d`). Field-deployment roll-up — no engine behavior
+  changes; consolidates the 4.10 line for the field: wire format, presentation parity,
+  metadata contract, temporary.inbox, collection plugins. Branch `chore/release-4.10.3`
+  from main `d2048eea` (PR #175 merge): bump 4.10.2→4.10.3 (root Cargo.toml only; lock
   regenerated), fresh CHANGELOG `## Version 4.10.3, 7/23/2026` — demo hygiene (clean
   envelope-header echo = live proof my_* never rides the wire; hello-flow
   log.format=json, PR #175) + playground webapp npm refresh (incl. dependabot #173;
-  audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt. NOT pushed — Eric pushes
-  and opens the PR; the Java v4.10.3 is the field-deployment artifact, Rust ships in
-  lock-step. Close when tagged and published.
+  audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt.
   <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-025820.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.2 SHIPPED via the normal flow, in
