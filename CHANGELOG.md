@@ -11,7 +11,16 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.10.4, 7/24/2026
+
+Patch release in lock-step with the Java engine's v4.10.4. Two arcs, one drive: the
+**configurable traceparent carrier** (standards-first — the optional
+`http.traceparent.header` name exists for backward compatibility with legacy systems
+only, and the standard `traceparent` always wins inbound) and the **interop hygiene
+round** (clean delivered envelope view, wire alignment of the outbound `/api/event`
+request, x-ttl ingress parity), validated end to end by the `ce_traceparent` four-way
+interop drive with **all eight echoes identical**
+([test report](docs/test-reports/event-over-http-interop.md)).
 
 ### Fixed
 
