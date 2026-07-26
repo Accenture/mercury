@@ -112,8 +112,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (in flight — 2026-07-26; branch `feature/annotation-macro-consistency`, 1 commit, NOT
-  pushed — Eric gates) **Annotation→macro consistency P1 (ratified arc; design:
+- [ ] (in flight — 2026-07-26; **P1 MERGED same day: Rust PR
+  [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
+  first trybuild CI run passed, .stderr matched stable first try) in lock-step with Java
+  PR #234 (squash `265f295d`, CI 6m37s). Remaining = P2: D4 yaml.preload.override port +
+  D5 registration-metadata contract page + golden conformance fixture + ADR pair
+  (trybuild already landed in P1).**) **Annotation→macro consistency P1 (ratified arc; design:
   Java repo `draft-design-specs/annotation-macro-interop-design.md`; goal: the Rust macro
   surface reads like the Java annotation surface — the template for future Python/Node
   ports). Java's lock-step half (Platform javadoc + PlaygroundLoader WARN) rides the
@@ -150,7 +154,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   compile error, .stderr committed; no rust-toolchain pin, so a diagnostics-reshaping
   bump regenerates via TRYBUILD=overwrite). Final gate: 265 (262+3) / clippy 0 / fmt.
   P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
-  Close when merged (+ released). Relates [[port-bottom-up-faithful]].
+  P1 merged; close when P2 lands (or the arc is re-scoped). Relates
+  [[port-bottom-up-faithful]].
   <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
