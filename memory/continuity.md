@@ -15,9 +15,9 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-012817)
-- **last_review:** 2026-07-24 | through 2026-07-24-025820.md
-- **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-013015)
+- **last_review:** 2026-07-26 | through 2026-07-26-012817.md
+- **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (re-verify prompted 2026-07-26 — cadence hit 40; pending Eric via Open Thread thread-reverify-invariants-2026q3)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -81,7 +81,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-24 | uses: 87 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 89 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -105,12 +105,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-24 | uses: 88 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 90 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
+  40).** Raised by the 2026-07-26 review (cadence). Confirm each never-decay fact still holds,
+  or supersede any that don't (`DECAY.md` §9 — the review never auto-invalidates): core facts —
+  `port-bottom-up-faithful`, `conventions-rust-baseline`, `inv-never-couple-functions`,
+  `inv-telemetry-presentation-parity`; and the **Vision** (`memory/vision.md`). Check off when
+  re-confirmed with Eric.
+  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-013015.md -->
 
 - [ ] (in flight — 2026-07-26; **P1 MERGED same day: Rust PR
   [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
@@ -171,7 +179,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
   P1 merged; close when P2 lands (or the arc is re-scoped). Relates
   [[port-bottom-up-faithful]].
-  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-002157.md -->
+  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: working | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR
@@ -397,73 +405,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
   <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: working | origin: 2026-07-20-030615.md -->
-
-- [x] **(blueprint) Parity remediation — COMPLETE 2026-07-21 (increments 50–58: all 8 items + the F2 decision).** A GitHub Copilot
-  correctness assessment (24 findings) was independently verified finding-by-finding against
-  both codebases (4 parallel agents + direct checks, file:line evidence both sides):
-  **20 CONFIRMED real divergences, 2 INTENTIONAL-documented (null-on-spill design; XML
-  console text), 2 PARTIAL/overstated (dotted config keys — config normalization makes both
-  ports identical; wildcard grammar)**. Maintainer reviewed and directed remediation —
-  "serious side effects... affect functional integrity such as telemetry and response
-  headers." Fix order (amended from the report): **(1) CRITICAL: REST boundary drops
-  function response-envelope headers — DONE 2026-07-21 (increment 50):** the boundary now
-  mirrors Java `AsyncHttpResponse.updateHeaders` (content-type override, `|`-separated
-  multi-Set-Cookie, `x-stream-id`/`x-ttl` withheld as the deferred streaming contract,
-  rest.yaml response filter on the merged map, HEAD = headers-no-body) + the F9 envelope
-  header model (case-insensitive `header()`, CR/LF-filtered `set_header()`); 4 new tests
-  (raw-socket multi-Set-Cookie assertions); workspace 213/clippy 0/fmt. NEW sub-item
-  discovered while porting: Java's `Accept`-based fallback content negotiation — CLOSED
-  with item 7 (increment 56); (2) trace continuity — DONE
-  2026-07-21 (increment 51): zero-traced hops keep a telemetry-suppressed bracket (trace
-  flows to replies + nested calls, no dataset, no span — Java gates only
-  startTracing/sendTracingInfo), `send_later` captures context at schedule time (Java
-  `touch()` pre-timer), `apply_current_trace` = exact `touch()` mirror (trace id/path
-  fill-if-absent, span unconditional; F8 false parity comment fixed); 3 red/green tests in
-  telemetry.rs + annotations.rs contract update; workspace 216/clippy 0/fmt; (3)
-  Event Script safety — DONE 2026-07-21 (increment 52): `max.model.array.size` cap
-  enforced on dynamic RHS indices (Java resolveModelIndex order + message; docs
-  contradiction fixed — configuration-reference.md now documents the key), flow-launch
-  `body` precondition ("Missing body in dataset", 400, both launch+request); red/green
-  fixture dynamic-index-cap + body-precondition test; workspace 217/clippy 0/fmt; (4) date/time plugins — DONE 2026-07-21
-  (increment 53): real pattern tokenizer (names/12h/AM-PM/SSS/quoted literals/offsets;
-  unsupported letters fail loudly), `f:dateTime` zone arg via chrono-tz + ISO_DATE_TIME
-  no-arg form with [zone-id] suffix; parse plugins ride the same converter; deterministic
-  zone tests; workspace 218/clippy 0/fmt; deps + micro-divergences documented; (5) fetcher cache key — DONE 2026-07-21
-  (increment 54, the last High): key = the dd-namespace map `{node}.dd.{alias}.*`
-  (declared inputs only, Java makeRegularHttpCall parity; log + trace annotation now
-  report dd-scoped keys); call-counting red/green regression (rust-cache-key fixture +
-  mock.cache.counter — pre-fix 2 calls, fixed 1; Java repo can adopt the same fixture);
-  workspace 218/clippy 0/fmt; (6) registration + config semantics — DONE
-  2026-07-21 (increment 55): register replaces (Java "Reloading" + release) + clamps
-  1..=1000 (ServiceDef.setConcurrency; zero no longer 400), resolver loop guard = true
-  push/pop chain (repeated/diamond refs resolve; genuine cycles still warn+empty),
-  .properties = full java.util.Properties.load (separators/continuations/escapes/
-  trailing-whitespace; malformed \u errors); red/green tests incl. reworked
-  registration contract test; workspace 220/clippy 0/fmt; (7) REST routing/request/response parity — DONE
-  2026-07-21 (increment 56): full Java wildcard grammar (mid-path `*`, `foo*` prefixes,
-  no empty-remainder match), 405 for known-path-wrong-method + OPTIONS-without-CORS,
-  multi-value query params, cookies map (raw header withheld), raw `query` key, https from
-  x-forwarded-proto, trace-path query suffix, AND the increment-50 leftover: Accept-driven
-  fallback content negotiation (html wrap; xml→json deferral; no Accept ⇒ no content-type)
-  + actuator explicit envelope types (Java ActuatorServices); red/green suite; workspace
-  224/clippy 0/fmt; (8) remaining mappings — DONE
-  2026-07-21 (increment 57, the FINAL code item): nested `[]` append recursion, list→text
-  `List.toString()`, UTF-16 length/substring (emoji = 2 units; split-surrogate → U+FFFD
-  documented), launch-failure 500 (manager; client preconditions stay 400 like Java),
-  session-guard case-sensitivity, `-0` concat rendering (direct view keeps "-0.0" =
-  Double.toString — both Java surfaces), HostUri lastIndexOf split with the
-  repeat-in-query quirk; red/green; workspace 230/clippy 0/fmt. **ALL 8 ITEMS DONE — every
-  CONFIRMED assessment finding is fixed.** Remaining in this thread: ONLY the F2
-  null-on-spill maintainer decision below.
-  **Meta-fix:** several Rust doc comments claim "Java parity" where behavior diverges (F8,
-  F19, F21, fetcher cache, HostUri) — fix alongside code (no-silent-divergence convention).
-  **F2 RESOLVED 2026-07-21 (increment 58): maintainer chose NORMALIZE** — Nil map entries
-  strip deterministically on every hop (predicate-guarded `normalize_null_transport` at
-  deliver + worker reply); the no-serialization fast path stays; red/green on a warmed
-  route (the cold-route race demonstrated the nondeterminism live). Ripple: the HTTP
-  boundary's null body key strips on the wire exactly like Java's.
-  Full verdict table in the session log. → serves: vision-mercury (faithful port)
-  <!-- id: ot-parity-remediation | created: 2026-07-21 | last_used: 2026-07-22 | uses: 11 | tier: archive-candidate | origin: 2026-07-21-030938.md -->
 
 - [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
   `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded
