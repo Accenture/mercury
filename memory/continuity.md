@@ -15,9 +15,9 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-013851)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-014908)
 - **last_review:** 2026-07-26 | through 2026-07-26-012817.md
-- **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (re-verify prompted 2026-07-26 — cadence hit 40; pending Eric via Open Thread thread-reverify-invariants-2026q3)
+- **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out flagged to Eric)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -58,7 +58,8 @@ scanning (→ compile-time registration; no runtime scanning in Rust). platform-
   `EventEnvelope`** only; no direct calls between user functions. This is the defining
   invariant inherited from mercury-composable (the actor-model decoupling); the whole
   three-layer design rests on it. Preserve it in the Rust port. Full ADR ledger:
-  `docs/arch-decisions/ADR.md` (ADR-0001…0007, adapted from the Java repo — read on demand).
+  `docs/arch-decisions/ADR.md` (ADR-0001…0007 adapted from the Java repo; ADR-0008 native —
+  read on demand).
   <!-- id: inv-never-couple-functions | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: core | origin: 2026-07-15-221632.md -->
 
 - **Telemetry/log presentation parity with the Java reference implementation** — the
@@ -96,7 +97,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 90 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 91 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -120,20 +121,33 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 91 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 92 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
-  40).** Raised by the 2026-07-26 review (cadence). Confirm each never-decay fact still holds,
-  or supersede any that don't (`DECAY.md` §9 — the review never auto-invalidates): core facts —
-  `port-bottom-up-faithful`, `conventions-rust-baseline`, `inv-never-couple-functions`,
-  `inv-telemetry-presentation-parity`; and the **Vision** (`memory/vision.md`). Check off when
-  re-confirmed with Eric.
-  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: working | origin: 2026-07-26-013015.md -->
+- [x] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
+  40).** Raised by the 2026-07-26 review (cadence); **VERIFIED 2026-07-26 against live code,
+  authorized by Eric ("proceed with the invariant re-verification when D5 is done").
+  Per-fact verdicts: `inv-never-couple-functions` CONFIRMED (route-string + envelope coupling
+  only — examples address peers via set_to("route"); the P1/P2 arcs changed registration
+  mechanics, not the coupling model; one substance refresh: the ADR-ledger parenthetical now
+  reads 0001…0007 adapted + 0008 native). `inv-telemetry-presentation-parity` CONFIRMED and
+  STRENGTHENED (rpc-tag one-record-per-span gate, ENGINE_METADATA_KEYS entry scrub + exit
+  sanitize, app-log-context default-on gating all live; the ce_traceparent/hygiene rounds
+  ended eight-echoes-identical in v4.10.4/5). `port-bottom-up-faithful` CONFIRMED (three
+  layers + macro crates + standalone examples; the whole macro arc practiced
+  Java-reference-first, map-don't-mirror). `conventions-rust-baseline` CONFIRMED with two
+  remedied code drifts (util/mod.rs + automation/mod.rs lacked the Apache header — headers
+  added in the verification commit) and one flagged carve-out for Eric: tests/ui compile-fail
+  FIXTURES carry no license header (deliberate — .stderr line numbers depend on fixture
+  content; treated as test resources, like Java's src/test/resources). Vision
+  (`vision-mercury`) CONFIRMED — north star unchanged, 2026-07-21 current-state context still
+  accurate, the annotation-macro arc directly serves the template-for-future-ports
+  trajectory. No supersessions required.**
+  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: active | origin: 2026-07-26-013015.md -->
 
 - [ ] (in flight — 2026-07-26; **P1 MERGED same day: Rust PR
   [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
