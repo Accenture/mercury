@@ -61,6 +61,23 @@ the design rationale in [`docs/design/`](docs/design/).
    reachable through `/api/event`).
 
 ---
+## Unreleased
+
+### Added
+
+1. **`yaml.preload.override` is ported (P2 of the annotation→macro consistency arc, D4).**
+   The Java operational surface with identical semantics: config files named by the key
+   rename, fan out, or re-tune the `instances` of any `#[preload]` route at deploy time
+   without recompiling — `original` / `routes` / optional `instances` / optional
+   `keep-original`, comma-separated locations with missing files logged and skipped,
+   multi-file merge (route-set union; the first file to set `instances` wins), applied at
+   boot between inventory collection and registration (after `env_instances` resolution,
+   Java's order). An override entry matches when ANY of a function's declared
+   comma-separated routes appears as an `original`, and the declared list is replaced by
+   the override's sorted route set. Seven-scenario regression suite mirrors Java's
+   `PreloadOverrideTest`.
+
+---
 ## Version 4.10.5, 7/24/2026
 
 Security patch in lock-step with the Java engine's v4.10.5.

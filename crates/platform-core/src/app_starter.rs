@@ -411,6 +411,11 @@ impl AutoStart {
             }
             starter = starter.before_application(entry.sequence, (entry.factory)());
         }
+        // Java yaml.preload.override: a config-driven transform over the
+        // collected #[preload] set, applied between inventory collection and
+        // registration — rename / fan out / re-tune instances without
+        // recompiling (the boot sequence's "override" step)
+        let preload_overrides = crate::preload_override::preload_override(config);
         for entry in inventory::iter::<crate::registry::PreloadEntry> {
             // Java @OptionalService: skip a conditionally-registered route when
             // its configuration condition does not hold (Java `Feature`).
@@ -422,18 +427,23 @@ impl AutoStart {
                 );
                 continue;
             }
-            // Java envInstances: the instance count may come from configuration
+            // Java envInstances: the instance count may come from configuration.
+            // Resolved BEFORE the override applies (Java processPreload order),
+            // so the resolved value is the "old" count in the override's log.
             let instances = entry
                 .env_instances
                 .and_then(|key| config.get_property(key))
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(entry.instances);
+            let (routes, instances) =
+                crate::preload_override::apply(&preload_overrides, entry.route, instances);
             // a comma-separated route value declares ALIASES: every name
             // registers the SAME function object with the same instance
             // count and visibility (Java AppStarter splits @PreLoad.route
-            // and registers one instance for all names)
+            // and registers one instance for all names) — an override's
+            // replacement route set fans out the same way
             let function = (entry.factory)();
-            for route in entry.route.split(',').map(str::trim) {
+            for route in &routes {
                 starter = starter.preload_with_options(
                     route,
                     function.clone(),

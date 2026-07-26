@@ -22,7 +22,7 @@ files themselves merge in the manifest order described below.
     `oversize.http.response.header`, `websocket.binary.size`, `websocket.server.port`),
     the service mesh / cloud connector and all Kafka keys, the scheduler, PostgreSQL,
     sync-over-async/Redis, the OpenTelemetry forwarder (`otel.*`), classpath scanning
-    (`web.component.scan`, `yaml.preload.override`, `modules.autostart`), threading
+    (`web.component.scan`, `modules.autostart`), threading
     (`kernel.thread.pool`, `deferred.commit.log`), event-script extras
     (`yaml.journal`, `yaml.multicast`),
     HTTP extras (`async.http.temp`, `stack.trace.transport.size`,
@@ -70,6 +70,37 @@ consolidated configuration.
     Spring is not ported, so the port uses the generic names outright (a rename, not an
     alias). The mechanism and precedence are unchanged, so profile overlay files
     themselves port without modification.
+
+#### `yaml.preload.override`
+
+| Type | Default |
+|---|---|
+| string (comma-separated locations) | — |
+
+Optional list of override-file locations (`classpath:/...` or `file:/...`) that rename,
+fan out, or re-tune the `instances` of any `#[preload]` route at deploy time — **without
+recompiling** (the Java operational surface, ported with identical semantics). A missing
+or malformed file is logged and skipped, so a deployment can chain optional locations.
+Each file carries a top-level `preload` list; every entry names an `original` route
+declared in a `#[preload]`, a `routes` replacement list, an optional `instances` count,
+and an optional `keep-original: true` that adds the original back into the set:
+
+```yaml
+preload:
+  - original: "hello.world"
+    routes:
+      - "hello.one"
+      - "hello.two"
+    instances: 20
+    keep-original: true
+```
+
+Across multiple files the route sets for the same `original` are UNIONed and the first
+file to set `instances` wins. Applied at boot between inventory collection and
+registration; `env_instances` resolution happens first, then a matched override replaces
+the route list (sorted) and — when its `instances` is positive — the resolved count,
+logged as `Preload [original] as [routes], instances old to new`. Read by
+`crates/platform-core` (AutoStart).
 
 ## Application identity
 

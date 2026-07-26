@@ -1,0 +1,7 @@
+# Second override file: same original as the first file - the route sets are
+# UNIONed and the FIRST file to set instances wins (5, not 9).
+preload:
+  - original: "po.merge.me"
+    routes:
+      - "po.merge.b"
+    instances: 9

@@ -367,11 +367,13 @@ routes exist only to disambiguate flow tasks.
 
 ## Preload overrides
 
-> **Not in this Rust port.** The Java engine can re-route a library function's fixed `@PreLoad`
-> route/instances at deploy time through a `yaml.preload.override` file. This port registers
-> functions by link-time inventory and has no override file. If a route name or concurrency must be
-> deployment-tunable, use the built-in knobs instead: `env_instances = "config.key"` for the worker
-> count, and the unique task `name` in the flow YAML for reuse under different task names.
+Exactly like the Java engine, a library function's fixed `#[preload]` route and instance
+count can be re-routed at deploy time through `yaml.preload.override` config files —
+rename, fan out (several routes served by one function), keep the original alongside, or
+re-tune `instances`, all without recompiling. See the
+[configuration reference](../configuration-reference.md#yamlpreloadoverride) for the file
+format and merge rules. For a simple configuration-driven worker count,
+`env_instances = "config.key"` remains the lighter knob.
 
 ## Hierarchy of flows
 

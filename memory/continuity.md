@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-002157)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-012817)
 - **last_review:** 2026-07-24 | through 2026-07-24-025820.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -117,7 +117,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   first trybuild CI run passed, .stderr matched stable first try) in lock-step with Java
   PR #234 (squash `265f295d`, CI 6m37s). Remaining = P2: D4 yaml.preload.override port +
   D5 registration-metadata contract page + golden conformance fixture + ADR pair
-  (trybuild already landed in P1).**) **Annotation→macro consistency P1 (ratified arc; design:
+  (trybuild already landed in P1). **P2/D4 IN PROGRESS 2026-07-26: yaml.preload.override
+  PORTED on branch `feature/registration-metadata-contract` (1 commit, NOT pushed)** —
+  new platform-core `preload_override` module (Java getPreloadOverride/overrideTasks/
+  getMatchedPreload/overridePreloadInfo semantics verbatim: comma-separated locations,
+  missing/malformed file logged+skipped whole-file, original/routes/instances/
+  keep-original entries, multi-file merge = route-set UNION + first-file-set instances
+  wins, match on ANY declared comma-split route, declared list REPLACED by sorted set,
+  positive instances replaces the env-resolved count, Java log wording); applied in
+  AutoStart between inventory collection and registration, after env_instances
+  resolution (the resolved value is the "old" in the log). 7-scenario regression suite
+  (rename+fan-out shared handler, keep-original, instances override, multi-file merge,
+  missing-file chain, alias-declared original, non-matched untouched). Docs: config
+  reference gains the key (removed from the not-read list), macros-reference +
+  event-script/syntax.md "not ported" blocks rewritten, CHANGELOG Unreleased. Gate: 266
+  (265+1) / clippy 0 / fmt. Awaiting the D5 Rust half (spec page + golden vectors +
+  conformance tests + ADR-0008) once the coordinator's Java reference artifacts exist.**) **Annotation→macro consistency P1 (ratified arc; design:
   Java repo `draft-design-specs/annotation-macro-interop-design.md`; goal: the Rust macro
   surface reads like the Java annotation surface — the template for future Python/Node
   ports). Java's lock-step half (Platform javadoc + PlaygroundLoader WARN) rides the
