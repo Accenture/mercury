@@ -38,3 +38,5 @@
 - ot-reverify-invariants-2026-07-21 — Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony): — completed thread swept (invariants re-confirmed 2026-07-21; completion older than archive_window 20) — 2026-Q3.md
 - bp-companion-sync — (blueprint) Synchronous AI-companion feedback — CLOSED 2026-07-23 (human gate — completed thread swept (gap closed + human gate approved 2026-07-22; completion older than archive_window 20) — 2026-Q3.md
 - ot-parity-remediation — (blueprint) Parity remediation — COMPLETE 2026-07-21 (increments 50–58: all 8 items + the… — completed thread swept (completion older than archive_window 20) — 2026-Q3.md
+- thread-release-4-10-0 — (release — 2026-07-23; CLOSED same day) v4.10.0 SHIPPED via the normal flow, in — completed release thread swept (completion older than archive_window 20) — 2026-Q3.md
+- ot-event-over-http — (blueprint) Event over HTTP — phase 2, cross-language envelope interop — CLOSED — completed thread swept (completion older than archive_window 20) — 2026-Q3.md

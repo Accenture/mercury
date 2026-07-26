@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-022229, closure note appended)
-- **last_review:** 2026-07-26 | through 2026-07-26-012817.md
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-024639)
+- **last_review:** 2026-07-26 | through 2026-07-26-022229.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -434,23 +434,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   drive verified (topology/gating/headers/auth). Close when merged.
   <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 2 | tier: archive-candidate | origin: 2026-07-23-152724.md -->
 
-- [x] (release — 2026-07-23; CLOSED same day) **v4.10.0 SHIPPED via the normal flow, in
-  lock-step with the Java engine** — tag `v4.10.0` on merge commit `4dc70337`
-  (PR [#168](https://github.com/Accenture/mercury/pull/168), CI green), release notes
-  delivered, release published 2026-07-22. (Java v4.10.0 shipped/published the same day,
-  tag on merge `af21e6f6`, PR #216; release gate = both parity PRs merged + the live
-  bidirectional interop drives passed — permanent record: the Java docs'
-  `test-reports/event-over-http-interop` page.)
-  Branch `chore/release-4.10.0` (cut from main `1d18883e`, carries the memory-review
-  commit): workspace version 4.9.0→4.10.0 (root `Cargo.toml` only — members inherit;
-  Cargo.lock regenerated), CHANGELOG `## Version 4.10.0, 7/22/2026` covering PR #166
-  (wire format, /api/event service+client, private-by-default, declarative routing, D2/D3
-  fixes) + PR #167 (aliases, log-context default-on, one-record-per-span telemetry, demo
-  pair, zero-trace span-leak fix) with the interop-report link, event-over-http guide
-  links the Java site's Interop Test Report. Gate green at the new version: workspace
-  244 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-0 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: archive-candidate | origin: 2026-07-23-022937.md -->
-
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
 > Vision↔reality gap that closes when delivered. Bottom-up order (foundation → UI). Detailed
@@ -484,114 +467,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `moka` crate (the Rust Caffeine analog) or a small hand-rolled TTL+LRU; the WS dedup
   cache should adopt it and gain bounded eviction. → serves: vision-mercury
   <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
-
-- [x] **(blueprint) Event over HTTP — phase 2, cross-language envelope interop — CLOSED
-  2026-07-23: PR [#167](https://github.com/Accenture/mercury/pull/167) MERGED (merge
-  `c64d0683`) — the parity batch (increment 63) + the one-record-per-span telemetry fixes
-  are on main; everything this thread tracked (increments 59–63) is merged in both
-  repos.** Original thread text: Handoff
-  from the Java session 2026-07-21 (`/tmp/event-envelope-rust-handoff.md`; Java reference
-  PR #212, branch `feature/event-envelope-standard-format`): Java adopted a named-key
-  "standard" wire format matching this port's `to_vec_named` output (D4's revisit clause
-  resolved in the port's favor); normative spec = Java repo
-  `docs/guides/event-envelope-wire-format.md`. Handoff REVIEWED (verdict: sound; findings:
-  the 403 gate assumes a private-function concept the Rust platform lacks — security
-  gate required before /api/event; the vectors never exercise span_id though
-  cross-language trace parenting rides on it — flagged to the Java session; round_trip is
-  vector-required, not optional). **Increment 1 DONE 2026-07-21 (increment 59):** envelope
-  wire-format conformance — body absent-as-nil default (previously FAILED to decode),
-  round_trip field, unset-field omission; the five Java golden vectors (copied verbatim)
-  decode + round-trip; encoder contract locked (fresh envelope = id + headers only).
-  Compact (legacy) format deliberately NOT decoded — v1 standard-only, 400 on compact
-  peers. **Increment 3 DONE 2026-07-21 (increment 61): /api/event service + client** — Java
-  EventApiService + EventEmitter client ported (`automation/event_api.rs`): service
-  registered PRIVATE + in the default rest.yaml (merge_default_endpoints), 403 private
-  gate / 404 / 400 / 408, async 202 ack vs RPC mirror, compact-envelope rejection (v1
-  standard-only), trace propagation via x-trace-id + traceparent; `event_over_http`
-  client returns the reply/ack envelope. E2E test = real HTTP round trip (all paths +
-  service-rejects-itself + client round-trip). New `event-over-http.md` guide; two stale
-  "not ported" notes corrected. Workspace 235/clippy 0/fmt. **ONLY REMAINING: the live
-  cross-language interop pairing with the Java session (composable-example :8100 /
-  lambda-example :8085, both directions, RPC + async, 404/403/408 + trace continuity;
-  interop target = is_private = false).** **Interop Phase A DONE 2026-07-22** (branch
-  `feature/interop-test-service`, UNCOMMITTED — maintainer review pending): hello-world
-  gains a public `hello.world` echo (`{body, headers, instance, origin}`; optional
-  `sleep_ms` body key delays the reply for the 408 case), app live detached on :8086
-  (`-Drest.server.port=8086`; 8085 reserved for the Java lambda-example), all four
-  dispatch paths smoke-verified over real HTTP with hand-rolled standard envelopes
-  (200 echo + trace context, 408 on ttl, 403 private, 404 unknown). **Phase B DONE
-  2026-07-22** (session 2026-07-22-015354): (1) echo binary bug FIXED — the JSON detour
-  dropped MsgPack-bin bodies (Nil-normalization stripped the key); echo now reflects raw
-  `rmpv::Value` (lesson: relay/echo functions must stay in the MsgPack domain);
-  (2) Rust→Java matrix vs the live Java apps: torture echo (unicode + 9007199254740993 +
-  list + BINARY), async 202 ack, in-band 404/403, and IN-BAND trace-continuity proof
-  (Java ran under the sent trace id) all PASS via the production `event_over_http`
-  client; (3) findings — `hello.world`@8085 was still private on the Java side (their
-  item), and a Rust platform-core bug found:
-  `AsyncHttpRequest::timeout_seconds()` rounded x-ttl DOWN (1500ms→1s read timeout) so a
-  peer's in-band 408 lost to the local abort (Java fixed the same bug class during the
-  drive; their in-band 408 proven at raw protocol level). **D2 fix DONE 2026-07-22
-  (Eric-authorized; session 2026-07-22-023009):** `timeout_seconds()` → ceiling division
-  (Java `getTimeoutSeconds` parity), response-timeout site +1s wire grace (Java
-  `AsyncHttpClient` parity), `event_over_http` local wait +100ms grace over x-ttl (Java
-  EventEmitter parity); regression test `remote_timeout_arrives_in_band` (the Rust twin
-  of Java's `EventHttpTest.remoteTimeoutArrivesInBand`); platform-core 162/0, clippy 0;
-  LIVE case-6 re-run vs the Java sleeper now passes through the production client
-  (in-band 408 "Timeout for 1500 ms" @1.505s). NOTE: the Phase-B task chip for this bug
-  was already started by the user — that spun-off session is redundant now.
-  **Declarative Event over HTTP DONE 2026-07-22 (increment 62, maintainer-requested —
-  "zero code at user app level"; session 2026-07-22-025232):** `yaml.event.over.http`
-  (default classpath:/event-over-http.yaml, absent = off) → route→{target, security
-  headers} registry (lazy OnceLock; `${...}` substitution; @instance stripped);
-  PostOffice send/request hooks forward transparently (request = RPC returning the peer
-  reply; send+reply_to = callback dance restoring from/trace/cid; plain send = async 202;
-  `x-event-api` recursion guard; send_later rides send); new
-  `event_over_http_with_headers`, `EventEnvelope::clear_reply_to`, hook-free
-  `request_direct` for the internal HTTP leg (breaks async type recursion +
-  defense-in-depth). Twin tests of Java EventHttpTest (config + declarative round trip);
-  workspace 237/clippy 0/fmt; docs (guide section + configuration-reference entry +
-  INCREMENTS §62; strict docs build deferred to CI — no mkdocs in env). LIVE
-  cross-language proof: zero-code po.request + callback dance reached the JAVA peer
-  (:8299) through a scratch map. Remaining:
-  Eric's review of the interop branch (platform-core fix + declarative feature). Earlier: **Increment 2 (increment 60): private
-  functions, both Java paths** —
-  `#[preload]` is PRIVATE BY DEFAULT with `is_private = false` opt-out (mirrors Java
-  `@PreLoad isPrivate() default true` — a deliberate posture: engine internals become
-  private automatically), `register_private` API + `is_private()` query, engine internals
-  (distributed.tracing, actuators, no.op, async.http.request, ws routes) registered
-  private like Java's EssentialServiceLoader/WsRequestHandler. **Next: increment 3 =
-  /api/event service + client (x-ttl/x-async semantics, 403 via is_private, trace
-  propagation via x-trace-id + traceparent) + live interop pairing with the Java session
-  (both directions, RPC + async, 404/403/408 + trace continuity; the interop target
-  function must be declared `is_private = false`). MAINTAINER DIRECTIVES: private-by-
-  default = the encapsulation boundary is the app instance (functions cross it only via
-  deliberate is_private = false exposure); the /api/event endpoint ships in the DEFAULT
-  rest.yaml (merge_default_endpoints, like the actuators — zero user configuration).**
-  **UPDATE 2026-07-22/23: increments 59–62 MERGED as PR #166 (merge `e36e5dc5`). Increment
-  63 (Java-parity batch pre-4.10) IMPLEMENTED on branch `feature/parity-log-context-aliases`
-  (3 commits `9dd64126`/`91347823`/`98644826`, NOT pushed — Eric pushes/opens the PR):
-  `#[preload]` comma-separated route aliases; app-log-context ON by default (built-in
-  `default-log-context.yaml` via include_str! + `app.log.context` switch — Java 9f9050e1
-  mirror); caller-side RPC `round_trip` record with span lineage (Java 04e5618f mirror —
-  the port previously emitted NO RPC record at all; companion fix: a zero-traced hop no
-  longer leaks a nested reply's span); hello-flow 8086→8100 + the two Event-over-HTTP demo
-  endpoints (declarative `/api/event/http/demo` + programmatic
-  `/api/event/http/programmatic`, loopback e2e + live two-app cross-app span-tree
-  verification); docs walk-through mirrors the Java guide. Workspace 243/clippy 0/fmt.
-  Follow-up candidates: port Java's worker-injected `my_route` header (docs claim scoped
-  honestly meanwhile); the Java demo flows' `output.body.content-type` mapping looks like
-  a typo (flagged to Eric). See session 2026-07-23-005048. **TELEMETRY FIX ROUND
-  2026-07-23 (commit `8328d720`, same branch — Eric's interop drives on PR #167 surfaced
-  three findings, all fixed + span-level acceptance PASSED): I1 exactly ONE record per
-  span (worker suppresses its record for a delivered RPC — Java sendTracingInfo gate;
-  RPC marker = inbox reply address; annotations now ride the reply envelope, a new
-  wire-compatible field, and fold into the caller's record); I2 round_trip span_id only
-  from a DIRECT responder (reply.from == requested route — Java spanIdFromResponder
-  140640d8; relayed flow replies keep parent, omit span); I3 programmatic
-  event_over_http stamps the caller's trace/span on the wire envelope (apply_current_
-  trace at client entry). Workspace 244/clippy 0/fmt. See session 2026-07-23-013514.**
-  → serves: vision-mercury
-  <!-- id: ot-event-over-http | created: 2026-07-21 | last_used: 2026-07-23 | uses: 10 | tier: archive-candidate | origin: 2026-07-21-233234.md -->
 
 - [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
