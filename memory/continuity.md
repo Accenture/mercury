@@ -326,7 +326,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   lock-step with Java PR #228 (merge `fcd4fbc1`); ships in v4.10.4
   ([[thread-release-4-10-4]]) — close with that release.** Relates
   [[inv-telemetry-presentation-parity]], [[thread-configurable-traceparent]].
-  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: active | origin: 2026-07-24-173129.md -->
+  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: archive-candidate | origin: 2026-07-24-173129.md -->
 
 - [x] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb`; the
   ce_traceparent interop matrix verified the custom carrier cross-language; **RELEASED in
@@ -350,7 +350,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   observability (impedance row + "renamed traceparent beats conflation" tip), rest-automation
   grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
   merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
-  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: active | origin: 2026-07-24-160634.md -->
+  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: archive-candidate | origin: 2026-07-24-160634.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
@@ -405,34 +405,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[inv-telemetry-presentation-parity]]. Close when
   merged.
   <!-- id: thread-metadata-injection-hardening | created: 2026-07-23 | last_used: 2026-07-23 | uses: 3 | tier: archive-candidate | origin: 2026-07-23-213440.md -->
-
-- [x] (release — 2026-07-23; CLOSED same day) **v4.10.1 SHIPPED via the normal flow, in
-  lock-step with the Java engine** — tag `v4.10.1` on merge commit `2c4e4066`
-  (PR [#170](https://github.com/Accenture/mercury/pull/170), CI green), release
-  published 2026-07-23; the Java v4.10.1 shipped the same day (tag on `9ae666df`,
-  PR #218). Patch: the telemetry presentation-parity batch.
-  Branch `chore/release-4.10.1` from main `ecec21c5` (PR #169
-  merge): workspace version 4.10.0→4.10.1 (root Cargo.toml only — members inherit;
-  Cargo.lock regenerated; sweep re-verified the surface is just the workspace field),
-  CHANGELOG `## Version 4.10.1, 7/23/2026` led by the presentation-parity story (empty
-  normalized-signature diff in all four directions; polyglot-DevSecOps rationale) with
-  PR #169 stamped on every entry. Gate green at the new version: workspace 245 / clippy
-  0 / fmt.
-  <!-- id: thread-release-4-10-1 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: archive-candidate | origin: 2026-07-23-163133.md -->
-
-- [x] (feature branch — 2026-07-23; MERGED as PR [#169](https://github.com/Accenture/mercury/pull/169),
-  merge `ecec21c5`) **Telemetry presentation-parity batch
-  (increment 64) IMPLEMENTED on branch `feature/event-api-span-and-auth`** (mirror of the
-  Java reference branch of the same name; NOT pushed — Eric gates). rust-to-rust trace =
-  EXACT replica of java-to-java (empty normalized-signature diff, both patterns; signature
-  file /tmp/java-to-java-reference-signature.md). Structural changes: REST automation
-  CALLBACK dispatch + `async.http.response` span (first + response legs are real spans;
-  business cid moved to the `my_correlation_id` header channel), log-context gating
-  (traced lines only — the increment-5 outside-a-trace divergence retired), `my_*`
-  response-header strip, `event.api.auth` demo + session-info forwarding,
-  demo→declarative rename, hello.pojo forward. Workspace 245/clippy 0/fmt; acceptance
-  drive verified (topology/gating/headers/auth). Close when merged.
-  <!-- id: thread-telemetry-parity-batch | created: 2026-07-23 | last_used: 2026-07-23 | uses: 2 | tier: archive-candidate | origin: 2026-07-23-152724.md -->
 
 ### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
