@@ -76,6 +76,17 @@ the design rationale in [`docs/design/`](docs/design/).
    comma-separated routes appears as an `original`, and the declared list is replaced by
    the override's sorted route set. Seven-scenario regression suite mirrors Java's
    `PreloadOverrideTest`.
+2. **The registration-metadata contract, with golden conformance vectors (P2/D5).** The
+   cross-language contract behind `#[preload]` and its family is now a spec page
+   (`docs/guides/registration-metadata-contract.md`, adapted from the Java reference) with
+   **golden vectors shared verbatim** between repositories
+   (`registration-vectors/{core,plugin,feature}.json`, byte-identical to the Java copies)
+   and three conformance suites that declare the same fixture set through the Rust macro
+   carrier and assert declared metadata + boot-resolved registration against the golden
+   entries — including env-instances resolution, marker order-freedom, name derivation
+   (`fn vector_derived` and Java's `class VectorDerived` register the same
+   "vectorDerived") and optional-service gating. ADR-0008 records the decision (the twin
+   of the Java ledger's ADR-0009).
 
 ---
 ## Version 4.10.5, 7/24/2026

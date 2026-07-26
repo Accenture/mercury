@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-013015)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-013851)
 - **last_review:** 2026-07-26 | through 2026-07-26-012817.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (re-verify prompted 2026-07-26 — cadence hit 40; pending Eric via Open Thread thread-reverify-invariants-2026q3)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -77,11 +77,26 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 ## Key Decisions
 
+- **Registration metadata is a cross-language contract; carriers are per-language idioms.
+  (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
+  env_instances resolution; optional-service OR/!/= grammar; order-free marker stacking; one
+  conflict policy — explicit > declarative, duplicates WARN + last-wins; extension-point
+  naming: explicit positional name or same-name derivation from idiomatic declarations;
+  plugins = flow vocabulary never gated, features honor gating; discover → register →
+  override → resolve → validate → route table; loud-failure discovery; misuse is a tested
+  error surface). Spec: docs/guides/registration-metadata-contract.md (adapted from the Java
+  reference page). Conformance: golden vectors shared verbatim
+  (registration-vectors/{core,plugin,feature}.json, byte-identical to the Java copies) —
+  the wire-format golden-vector method applied to the declaration surface. New ports pass
+  the three vector suites before their declaration surface is done. Twin of the Java
+  ledger's ADR-0009.
+  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-013851.md -->
+
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 89 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 90 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -105,7 +120,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 90 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 91 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -118,7 +133,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `port-bottom-up-faithful`, `conventions-rust-baseline`, `inv-never-couple-functions`,
   `inv-telemetry-presentation-parity`; and the **Vision** (`memory/vision.md`). Check off when
   re-confirmed with Eric.
-  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-013015.md -->
+  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: working | origin: 2026-07-26-013015.md -->
 
 - [ ] (in flight — 2026-07-26; **P1 MERGED same day: Rust PR
   [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
@@ -139,8 +154,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   missing-file chain, alias-declared original, non-matched untouched). Docs: config
   reference gains the key (removed from the not-read list), macros-reference +
   event-script/syntax.md "not ported" blocks rewritten, CHANGELOG Unreleased. Gate: 266
-  (265+1) / clippy 0 / fmt. Awaiting the D5 Rust half (spec page + golden vectors +
-  conformance tests + ADR-0008) once the coordinator's Java reference artifacts exist.**) **Annotation→macro consistency P1 (ratified arc; design:
+  (265+1) / clippy 0 / fmt. **P2/D5 DONE 2026-07-26 (2nd+3rd commits on the branch): golden vectors copied
+  VERBATIM from Java 73a0d1be (diff-verified byte-identical, all three); fixtures through
+  the Rust carriers (core kind incl. one marker deliberately ABOVE #[preload] — the
+  conformance fixture itself exercises P1's order-freedom; plugin kind pins BOTH naming
+  halves — explicit positional "vectorEcho" on an unrelated fn name + derived
+  "vectorDerived" from fn vector_derived, the cross-language name-rule proof; feature kind
+  gated-in + gated-out); 3 conformance suites (registration_vectors test binaries, declared
+  metadata read straight from the inventory + resolved registration from the platform);
+  adapted contract page docs/guides/registration-metadata-contract.md (Rust carrier
+  canonical, capability N/As as the port's own note, mkdocs nav under Reference,
+  macros-reference cross-linked both ways); ADR-0008 in the Rust ledger (twin of Java
+  ADR-0009 — cross-ledger numbering note) formalizing the new Key Decision fact
+  [[registration-metadata-contract]].**) **Annotation→macro consistency P1 (ratified arc; design:
   Java repo `draft-design-specs/annotation-macro-interop-design.md`; goal: the Rust macro
   surface reads like the Java annotation surface — the template for future Python/Node
   ports). Java's lock-step half (Platform javadoc + PlaygroundLoader WARN) rides the
@@ -179,7 +205,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
   P1 merged; close when P2 lands (or the arc is re-scoped). Relates
   [[port-bottom-up-faithful]].
-  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: working | origin: 2026-07-26-002157.md -->
+  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: working | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR
@@ -200,7 +226,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (one unidentified single-test failure during the first post-bump compile-storm run; did
   not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
   Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-191554.md -->
+  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: active | origin: 2026-07-24-191554.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
@@ -298,7 +324,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   envelope-header echo = live proof my_* never rides the wire; hello-flow
   log.format=json, PR #175) + playground webapp npm refresh (incl. dependabot #173;
   audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: working | origin: 2026-07-24-025820.md -->
+  <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-025820.md -->
 
 - [x] (release — 2026-07-23; CLOSED same day) **v4.10.2 SHIPPED via the normal flow, in
   lock-step with the Java engine** — tag `v4.10.2` on merge commit `6a39bccc`

@@ -364,4 +364,12 @@ which returns once the application is booted, or build the lifecycle explicitly 
 
 ---
 
+The macro surface is one carrier of the cross-language
+[Registration Metadata Contract](registration-metadata-contract.md) — the metadata model,
+its boot-time semantics, the conflict policy and the naming rules are fixed across
+engines and proven by shared golden vectors; this page documents how THIS engine attaches
+that metadata.
+
+---
+
 *Adapted from the mercury-composable guide `docs/guides/annotations-reference.md`; keys/APIs enumerated from this repository's source.*

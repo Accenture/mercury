@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "description": "Golden registration-metadata vectors for the PLUGIN kind (Event Script f: functions). The name rules ARE the contract: an explicit name declared on the carrier wins; without one, the name derives from the declaration - Java lowercases the first letter of the class simple name, Rust camelCases the snake_case fn name, so idiomatic declarations in every language yield the SAME registered name. Plugins are Event Script capabilities (flow vocabulary): they carry no optional-service gating and are never conditionally on/off.",
+  "assumedConfig": {},
+  "entries": [
+    { "kind": "plugin", "name": "vectorDerived" },
+    { "kind": "plugin", "name": "vectorEcho" }
+  ]
+}

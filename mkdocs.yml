@@ -131,6 +131,7 @@ nav:
   - Reference:
       - Configuration Keys: guides/configuration-reference.md
       - Macros: guides/macros-reference.md
+      - Registration Metadata Contract: guides/registration-metadata-contract.md
       - EventEnvelope: guides/event-envelope-reference.md
       - Platform & PostOffice API: guides/api-overview.md
       - Reserved Names & Headers: guides/reserved-names-and-headers.md
