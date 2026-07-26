@@ -629,7 +629,7 @@ chain validation only (handshake signatures still verified) — mirroring Java's
 `InsecureTrustManagerFactory` escape hatch. `validate_url` accepts `https` (default 443);
 TLS failures surface in-band (500). Tests: `tests/http_client_tls.rs` (local self-signed
 server — trust-all 200 + strict rejection); field-validated end-to-end against the live
-google.com CA chain by companion drive #3 (`docs/AI-companion-test.md`).
+google.com CA chain by companion drive #3 (`docs/test-reports/AI-companion-test.md`).
 
 **Redirect semantics (decision record, 2026-07-20 — Rust redirect story WITHDRAWN).**
 Neither engine follows redirects: Reactor-Netty supports `followRedirect` but

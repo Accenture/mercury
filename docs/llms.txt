@@ -64,7 +64,7 @@ Needed when a flow task or a graph's `graph.task` calls a custom function:
 - `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and
   `ai-companion-sync.md` for the synchronous companion endpoint).
 - `docs/INCREMENTS.md` — the increment ledger.
-- `docs/AI-companion-test.md` — the human+AI collaboration validation log (how these docs were
+- `docs/test-reports/AI-companion-test.md` — the human+AI collaboration validation log (how these docs were
   battle-tested by fresh AI companions).
 
 ## Canonical upstream

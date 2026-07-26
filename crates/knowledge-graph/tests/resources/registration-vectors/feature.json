@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "description": "Golden registration-metadata vectors for the FEATURE kind (graph.api.fetcher features). Feature names are explicit on the carrier, and features honor optional-service gating - a feature whose condition evaluates false at boot is skipped and must be absent from the registry.",
+  "assumedConfig": {
+    "vector.feature.on": "true"
+  },
+  "entries": [
+    { "kind": "feature", "name": "vector-feature", "optionalService": "vector.feature.on" }
+  ],
+  "gatedOut": ["vector-feature-off"]
+}

@@ -61,6 +61,47 @@ the design rationale in [`docs/design/`](docs/design/).
    reachable through `/api/event`).
 
 ---
+## Unreleased
+
+### Added
+
+1. **`yaml.preload.override` is ported (P2 of the annotation→macro consistency arc, D4).**
+   The Java operational surface with identical semantics: config files named by the key
+   rename, fan out, or re-tune the `instances` of any `#[preload]` route at deploy time
+   without recompiling — `original` / `routes` / optional `instances` / optional
+   `keep-original`, comma-separated locations with missing files logged and skipped,
+   multi-file merge (route-set union; the first file to set `instances` wins), applied at
+   boot between inventory collection and registration (after `env_instances` resolution,
+   Java's order). An override entry matches when ANY of a function's declared
+   comma-separated routes appears as an `original`, and the declared list is replaced by
+   the override's sorted route set. Seven-scenario regression suite mirrors Java's
+   `PreloadOverrideTest`.
+2. **The registration-metadata contract, with golden conformance vectors (P2/D5).** The
+   cross-language contract behind `#[preload]` and its family is now a spec page
+   (`docs/guides/registration-metadata-contract.md`, adapted from the Java reference) with
+   **golden vectors shared verbatim** between repositories
+   (`registration-vectors/{core,plugin,feature}.json`, byte-identical to the Java copies)
+   and three conformance suites that declare the same fixture set through the Rust macro
+   carrier and assert declared metadata + boot-resolved registration against the golden
+   entries — including env-instances resolution, marker order-freedom, name derivation
+   (`fn vector_derived` and Java's `class VectorDerived` register the same
+   "vectorDerived") and optional-service gating. ADR-0008 records the decision (the twin
+   of the Java ledger's ADR-0009).
+
+### Changed
+
+1. **The `length` and `substring` string plugins use Unicode scalar values** (maintainer
+   ruling, superseding the earlier UTF-16 retrofit): indexes and counts address whole
+   characters (code points) — modern ports use Unicode-native semantics, and Java's
+   UTF-16 code units are a JVM legacy that must not propagate to future Python/Node/Go
+   ports. Identical for English/Chinese/BMP text (`f:length` of `你好` is 2 in both
+   engines, never the UTF-8 byte count 6); emoji and other supplementary-plane
+   characters count 1 here, 2 in Java. This also retires the retrofit's
+   surrogate-split micro-divergence: with scalar indexing there is no lossy case at all
+   (Rust strings cannot hold unpaired surrogates, so exact Java parity was structurally
+   impossible). Out-of-bounds semantics and error messages unchanged.
+
+---
 ## Version 4.10.5, 7/24/2026
 
 Security patch in lock-step with the Java engine's v4.10.5.

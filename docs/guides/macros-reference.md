@@ -93,9 +93,11 @@ mistakes never reach runtime.
 
 !!! note "Rust port"
     Java's `@PreLoad` classpath scanning becomes a link-time inventory collected by
-    `auto_start_main!()`. The Java `yaml.preload.override` file (route/instance overrides
-    without recompiling) is not ported — use `env_instances` for configuration-driven
-    instance counts.
+    `auto_start_main!()`. The `yaml.preload.override` operational surface is ported:
+    config files named by that key can rename, fan out, or re-tune the `instances` of
+    any preloaded route at deploy time without recompiling — see
+    [Configuration](configuration-reference.md#yamlpreloadoverride). For a simple
+    configuration-driven worker count, `env_instances` remains the lighter knob.
 
 ### Stacked markers
 
@@ -359,6 +361,14 @@ which returns once the application is booted, or build the lifecycle explicitly 
     `@CloudService` (the service mesh is out of scope). Java's standalone `@EventInterceptor`
     and `@ZeroTracing` annotations exist here as stacked markers consumed by `#[preload]`
     (see above), not as independent attributes.
+
+---
+
+The macro surface is one carrier of the cross-language
+[Registration Metadata Contract](registration-metadata-contract.md) — the metadata model,
+its boot-time semantics, the conflict policy and the naming rules are fixed across
+engines and proven by shared golden vectors; this page documents how THIS engine attaches
+that metadata.
 
 ---
 

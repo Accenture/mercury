@@ -1,0 +1,20 @@
+# Test fixture for yaml.preload.override (Java PreloadOverrideTest analog):
+# rename + fan-out with an instances override, keep-original, the first half
+# of the multi-file merge, and an alias-declared original.
+preload:
+  - original: "po.rename.me"
+    routes:
+      - "po.renamed.two"
+      - "po.renamed.one"
+    instances: 8
+  - original: "po.keep.me"
+    routes:
+      - "po.keep.alias"
+    keep-original: true
+  - original: "po.merge.me"
+    routes:
+      - "po.merge.a"
+    instances: 5
+  - original: "po.alias.two"
+    routes:
+      - "po.alias.replaced"

@@ -37,3 +37,4 @@
 - ot-describe-surface-trailing-bracket — `describe graph` trailing-`]` in the derived surface — CLOSED 2026-07-21: Java fix — completed threads swept (completion older than archive_window 20) — 2026-Q3.md
 - ot-reverify-invariants-2026-07-21 — Re-verify invariants — CONFIRMED 2026-07-21 (maintainer ceremony): — completed thread swept (invariants re-confirmed 2026-07-21; completion older than archive_window 20) — 2026-Q3.md
 - bp-companion-sync — (blueprint) Synchronous AI-companion feedback — CLOSED 2026-07-23 (human gate — completed thread swept (gap closed + human gate approved 2026-07-22; completion older than archive_window 20) — 2026-Q3.md
+- ot-parity-remediation — (blueprint) Parity remediation — COMPLETE 2026-07-21 (increments 50–58: all 8 items + the… — completed thread swept (completion older than archive_window 20) — 2026-Q3.md

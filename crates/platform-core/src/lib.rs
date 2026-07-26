@@ -40,6 +40,7 @@ pub(crate) mod inbox;
 pub mod logging;
 pub mod platform;
 pub mod post_office;
+mod preload_override;
 pub mod registry;
 pub mod serializer;
 pub mod telemetry;

@@ -959,7 +959,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   (66-test module suite green). Both engines live-validated by the maintainer.
 - **Upstream:** Java PR [#195](https://github.com/Accenture/mercury-composable/pull/195).
 - **Docs:** `ai-agent-guide.md` caveat → fixed semantics; `minigraph-commands.json`
-  sync_envelope note; rollup #40 → DONE in `docs/AI-companion-test.md`.
+  sync_envelope note; rollup #40 → DONE in `docs/test-reports/AI-companion-test.md`.
 
 ---
 
@@ -1034,7 +1034,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   lists" section (webapp bundle re-released — 124 webapp tests green).
 - **Tests:** workspace **202** (the probe runs inside the orchestrating
   `graph_runtime_end_to_end` test), clippy 0, fmt clean. Rollup #29 → DONE in
-  `docs/AI-companion-test.md`.
+  `docs/test-reports/AI-companion-test.md`.
 
 ---
 
@@ -1178,7 +1178,7 @@ realizes `ot-human-guides-backlog`).** The maintainer approved the toolchain by 
 - **Scaffold:** `mkdocs.yml` (Material, pinned via `docs-requirements.txt`) reusing the
   agent-memory recipe — tabs/sections/indexes navigation, def_list + admonitions + mermaid
   (superfences) + tabbed content + snippets, strict link validation; `docs/` is the docs tree
-  with internal material excluded (`design/`, `INCREMENTS.md`, `AI-companion-test.md`) and the
+  with internal material excluded (`design/`, `INCREMENTS.md`, `AI-companion-test.md` — the test log moved to `docs/test-reports/` and joined the site nav on 2026-07-26) and the
   machine artifacts (`llms.txt`, the two JSON catalogs) kept out of nav; the engine-verified
   **AI docs surface under Reference as-is**; ADR ledger under Background.
 - **Pages:** `docs/index.md` (the three layers with a mermaid overview, why-Rust, port-truth

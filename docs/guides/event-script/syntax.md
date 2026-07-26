@@ -367,11 +367,13 @@ routes exist only to disambiguate flow tasks.
 
 ## Preload overrides
 
-> **Not in this Rust port.** The Java engine can re-route a library function's fixed `@PreLoad`
-> route/instances at deploy time through a `yaml.preload.override` file. This port registers
-> functions by link-time inventory and has no override file. If a route name or concurrency must be
-> deployment-tunable, use the built-in knobs instead: `env_instances = "config.key"` for the worker
-> count, and the unique task `name` in the flow YAML for reuse under different task names.
+Exactly like the Java engine, a library function's fixed `#[preload]` route and instance
+count can be re-routed at deploy time through `yaml.preload.override` config files —
+rename, fan out (several routes served by one function), keep the original alongside, or
+re-tune `instances`, all without recompiling. See the
+[configuration reference](../configuration-reference.md#yamlpreloadoverride) for the file
+format and merge rules. For a simple configuration-driven worker count,
+`env_instances = "config.key"` remains the lighter knob.
 
 ## Hierarchy of flows
 
@@ -1451,6 +1453,16 @@ For example:
 | **Type Conversion** | parseDate       | Parse a date string to ISO, Local or Milliseconds.                                                                    |
 | **Type Conversion** | parseDateTime   | Parse a date-time string to ISO, Local or Milliseconds.                                                               |
 | **Type Conversion** | validate        | Perform simple field validation. See details below.                                                                   |
+
+!!! note "Rust port — `length` and `substring` count Unicode scalar values"
+    String length and substring indexes address **whole characters** (Unicode scalar
+    values / code points) in this port, by maintainer ruling: Java's UTF-16 code units
+    are a JVM legacy that must not propagate to modern ports. The behavior is
+    **identical for English, Chinese and all other BMP text** (`f:length` of `你好` is 2
+    in both engines — never the UTF-8 byte count 6); emoji and other
+    supplementary-plane characters count **1 here, 2 in Java**. Out-of-bounds semantics
+    and error messages are unchanged (bounds measured in scalar values).
+
 
 *DateTime plugins*
 

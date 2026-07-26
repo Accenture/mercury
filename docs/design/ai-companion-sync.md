@@ -3,7 +3,7 @@
 > **Status:** DRAFT (2026-07-18). Rust R&D prototype first; upstream to Java after it proves out.
 > **Serves:** `vision-mercury` (faithful delivery; a fresh agent orients + *operates* from the docs
 > and the tool's own responses). **Blueprint thread:** `bp-companion-sync` in `continuity.md`.
-> **Origin:** the AI-companion validation sweep (`docs/AI-companion-test.md`), Tutorial-4.
+> **Origin:** the AI-companion validation sweep (`docs/test-reports/AI-companion-test.md`), Tutorial-4.
 
 ## The gap
 

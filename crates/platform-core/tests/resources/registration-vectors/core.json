@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "description": "Golden registration-metadata vectors for the FUNCTION kind. Shared verbatim between engine repositories: each engine declares the same fixture set through its own carrier (Java annotations / Rust macros / future Python-Node decorators) and must resolve to exactly these entries at boot. Canonical form: keys sorted alphabetically, entries sorted by first route. assumedConfig lists the configuration the conformance test must provide.",
+  "assumedConfig": {
+    "vector.feature.on": "true",
+    "vector.instances": "25"
+  },
+  "entries": [
+    {
+      "declaredInstances": 5,
+      "envInstances": "vector.instances",
+      "eventInterceptor": false,
+      "isPrivate": true,
+      "kind": "function",
+      "optionalService": null,
+      "resolvedInstances": 25,
+      "routes": ["vector.alias.one", "vector.alias.two"],
+      "zeroTracing": false
+    },
+    {
+      "declaredInstances": 1,
+      "envInstances": "",
+      "eventInterceptor": true,
+      "isPrivate": true,
+      "kind": "function",
+      "optionalService": "vector.feature.on",
+      "resolvedInstances": 1,
+      "routes": ["vector.marked"],
+      "zeroTracing": true
+    }
+  ],
+  "gatedOut": ["vector.gated.out"]
+}

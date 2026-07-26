@@ -26,6 +26,65 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0008 — Registration metadata is a cross-language contract; carriers are per-language idioms {#adr-0008}
+**Status:** Accepted · **Date:** 2026-07-26T01:38:18.000Z · **Serves:** vision-mercury · **Formalizes:** registration-metadata-contract
+<!-- id: adr-0008 | status: accepted | formalizes: registration-metadata-contract -->
+
+**Abstract.** Declarative registration — `#[preload]` and its family (entry points,
+websocket services, Event Script plugins, graph fetch features) — is governed by **one
+canonical metadata model with fixed semantics**, specified in
+`docs/guides/registration-metadata-contract.md` and proven by **golden vectors shared
+verbatim** between engine repositories. How each language *carries* the metadata is an
+idiom — Java annotations discovered by runtime classpath scan, Rust attribute macros
+collected by link-time inventory, Python/Node decorators discovered by explicit
+package/module walks — but the model and its semantics are the contract: attach at
+definition / resolve at boot (`env_instances`); the optional-service condition grammar;
+order-free marker stacking; one conflict policy (explicit wins over declarative;
+duplicates WARN + last-wins); extension-point naming (an explicit positional name, or
+derivation from the declaration such that idiomatic declarations in every language yield
+the same registered name); plugins are Event Script capabilities (flow vocabulary) and are
+never conditionally gated, while features honor gating; the boot sequence
+(discover → register → override → resolve → validate → route table); explicit
+loud-failure discovery; and misuse as a first-class, tested error surface.
+
+**Rationale.** This port's first annotation pass proved that porting the *mechanism*
+without fixing the *semantics* produces drift invisible to any single repository: built-ins
+bypassing the extension points they exemplify, conflict policies diverging (skip-first-wins
+vs last-wins), gating support absent where the reference has it, and an attribute
+stack-order requirement Java never had. Each was individually small; together they meant a
+developer — or an AI agent — could not transfer knowledge between engines, and every future
+port would re-diverge independently. The same problem was already solved once for the wire
+format (spec + golden vectors, v4.10.0): fixing the contract in a language-neutral artifact
+with executable conformance is what made the four-way interop matrix provable. This ADR
+applies that method to the declaration surface. The maintainer's two governing directives
+are part of the decision: developers must see **consistent, decoupled** registration in
+every language, and this Rust port is the **best-practice template** for the Python and
+Node ports.
+
+**Alternatives.** (a) *Per-port judgment calls documented in each repo* — rejected: that is
+the drift this ADR eliminates; N-of-1 documentation cannot be conformance-tested.
+(b) *A shared runtime registry service* (as an external blueprint's open item suggested for
+multi-process parity) — rejected: registration is process-local by design in a
+self-contained composable application; cross-process discovery is the service mesh's
+concern and stays opt-in (out of scope for this port — ADR-0006). (c) *Exporting the full
+live registry for byte comparison* — rejected in favor of a fixed fixture set: engines
+legitimately differ in framework built-ins (no Spring in Rust, no Kafka mesh), so
+whole-registry comparison would pin incidental surface, not contract.
+
+**Consequences.** New ports implement the carrier idiomatically, then pass the three
+golden-vector suites (`registration-vectors/core.json`, `plugin.json`, `feature.json`)
+before their declaration surface is considered done; every capability field a port cannot
+honor is documented as N/A where developers would meet it, never silently dropped. The
+engines accept a small ongoing cost: vector files are maintained verbatim in every
+repository, and semantic changes to registration must update the contract page, the
+vectors, and all engines in lock-step — which is precisely the point.
+
+> **Cross-ledger note.** This entry is the twin of the Java ledger's **ADR-0009** (the
+> reference repository allocated 0008 to its companion-sync decision, which has no Rust
+> counterpart); the numbering differs, the decision is one.
+
+---
+
 ## ADR-0007 — Event Script configuration is preferred over code for orchestration {#adr-0007}
 **Status:** Accepted · **Date:** 2026-06-27T15:45:00.000Z · **Serves:** vision-mercury
 <!-- id: adr-0007 | status: accepted | formalizes: inv-event-script-over-code -->
