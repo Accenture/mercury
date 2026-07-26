@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-24 | agent: Claude Code (2026-07-24-191554)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-002157)
 - **last_review:** 2026-07-24 | through 2026-07-24-025820.md
 - **last_invariant_check:** 2026-07-21 | through 2026-07-21-023208 (confirmed — inv-never-couple-functions + Vision both hold; Vision context refreshed post-graduation)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -111,6 +111,47 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (in flight — 2026-07-26; branch `feature/annotation-macro-consistency`, 1 commit, NOT
+  pushed — Eric gates) **Annotation→macro consistency P1 (ratified arc; design:
+  Java repo `draft-design-specs/annotation-macro-interop-design.md`; goal: the Rust macro
+  surface reads like the Java annotation surface — the template for future Python/Node
+  ports). Java's lock-step half (Platform javadoc + PlaygroundLoader WARN) rides the
+  same-named Java branch.** (D1) The engine dogfoods its extension points: all 46 built-in
+  mapping plugins converted to `#[simple_plugin(name = "...")]` declarations (bodies
+  VERBATIM, twin tests pass unchanged; explicit name= on all 46 — the plugin_* fn prefix
+  means camelCase derivation never matches, and keyword-named plugins never become fn
+  idents); both built-in fetch features converted to `#[fetch_feature]`;
+  builtin_registrations()/register_builtins() deleted; plugins_e8.rs is a proper module
+  (include! retired); `extern crate self as ...` in both crates so the macros' absolute
+  paths resolve in-crate; registry = one link-time inventory fold (OnceLock) + startup
+  count assertions (>= 46 plugins at SimplePluginLoader seq 3, >= 2 features at
+  GraphResources) so linker elision fails the boot loudly. (D2) One conflict policy:
+  explicit register wins over declarative; duplicate name = WARN + last-wins everywhere —
+  Java's exact wordings (Reloading SimplePlugin/FetchFeature {name} - please check
+  duplicated ...); websocket adds the same-style WARN; features flip from skip-if-present
+  to warn+replace; regressions in 2 dedicated test binaries with a capturing logger (incl.
+  user #[simple_plugin] shadowing a built-in — the winner is link-order-dependent like a
+  Java classpath scan, the WARN is the contract). (D3a) #[fetch_feature] accepts a stacked
+  #[optional_service] (platform strip/fold pattern; FetchFeatureEntry.optional_service;
+  is_required at boot; "Skip optional FetchFeature - {name}"); per Eric's ruling
+  #[simple_plugin] takes NO optional_service (plugins are flow vocabulary — stated in
+  macro docs). Stale docs fixed: syntax.md (#[preload] DOES take comma aliases),
+  api-overview.md (public/private IS ported). Docs: macros-reference, design notes,
+  CHANGELOG Unreleased, increment 70. Gate: workspace 262 (260+2) / clippy 0 / fmt.
+  Two Eric-approved addenda folded in: POSITIONAL #[simple_plugin("name")] form (mirrors
+  fetch_feature's grammar; all 46 built-ins flipped; name= stays as alias; no-arg keeps
+  camelCase derivation — one grammar, portable to Python/Node decorators) and
+  ORDER-INSENSITIVE marker stacking (#[zero_tracing]/#[event_interceptor] are real macros
+  via the optional_service self-reattachment pattern — above/below/inline all equivalent,
+  Java annotation semantics; no compile-fail harness in the workspace, behavioral
+  regressions only at first — Eric then upgraded trybuild to THIS round: 3 tests/ui
+  compile-fail suites in the runtime crates, 11 fixtures pinning every deliberate macro
+  compile error, .stderr committed; no rust-toolchain pin, so a diagnostics-reshaping
+  bump regenerates via TRYBUILD=overwrite). Final gate: 265 (262+3) / clippy 0 / fmt.
+  P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
+  Close when merged (+ released). Relates [[port-bottom-up-faithful]].
+  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR

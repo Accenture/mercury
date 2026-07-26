@@ -353,11 +353,17 @@ The above event flow configuration uses "my.first.task" as a named route for "gr
 
 ## Assigning multiple route names to a single function
 
-> **Not in this Rust port.** The Java engine accepts a comma-separated route list in `@PreLoad` to
-> register the same function under several route names; this port's `#[preload]` takes a **single**
-> route. Use the **unique task naming** method above (which the Java docs recommend as more
-> memory-efficient anyway) — or, when separate route names are genuinely needed, declare two thin
-> unit structs that delegate to shared logic, each with its own `#[preload]`.
+Exactly like Java's `@PreLoad(route = "a.b, c.d")`, this port's `#[preload]` accepts a
+**comma-separated route list** — the same function registers under several route names
+(each segment compile-validated; see the hello-world example's alias demo):
+
+```rust
+#[preload(route = "hello.world, hello.alias")]
+struct HelloWorld;
+```
+
+The **unique task naming** method above remains the more memory-efficient choice when the
+routes exist only to disambiguate flow tasks.
 
 ## Preload overrides
 

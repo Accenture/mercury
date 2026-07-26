@@ -1,0 +1,5 @@
+error: #[event_interceptor] must be stacked with #[preload] (or use the inline form #[preload(..., interceptor)])
+ --> tests/ui/event_interceptor_no_primary.rs:4:8
+  |
+4 | struct Fixture;
+  |        ^^^^^^^

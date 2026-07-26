@@ -1,0 +1,5 @@
+error: #[websocket_service] requires a service name, e.g. #[websocket_service("graph")]
+ --> tests/ui/websocket_service_missing_name.rs:3:8
+  |
+3 | struct Fixture;
+  |        ^^^^^^^

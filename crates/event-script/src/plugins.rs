@@ -36,12 +36,19 @@
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
+use event_script_macros::simple_plugin;
 use rmpv::Value;
 
 use crate::conversions::{
     convert_boolean, convert_double, convert_float, convert_integer, convert_long, get_b64,
     get_binary_value, get_length, get_text_value,
 };
+use crate::plugins_e8::value_type_name;
+
+/// The number of built-in `#[simple_plugin]` declarations the engine itself
+/// ships (this module + `plugins_e8`) — the startup floor the
+/// `SimplePluginLoader` asserts against linker elision.
+pub const BUILTIN_PLUGIN_COUNT: usize = 46;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -63,7 +70,32 @@ platform_core::inventory::collect!(SimplePluginEntry);
 
 fn registry() -> &'static RwLock<HashMap<String, Registration>> {
     static PLUGINS: OnceLock<RwLock<HashMap<String, Registration>>> = OnceLock::new();
-    PLUGINS.get_or_init(|| RwLock::new(builtin_registrations()))
+    PLUGINS.get_or_init(|| {
+        // Fold the link-time inventory exactly once. The engine's own 46
+        // built-ins are #[simple_plugin] declarations (the engine dogfoods
+        // its extension point, like Java's @SimplePlugin classes under
+        // com.accenture.services.plugins), collected together with user
+        // plugins. A duplicate name warns + last-wins (the one conflict
+        // policy, D2) — including a user plugin shadowing a built-in. The
+        // SimplePluginLoader hook (before_application sequence 3) forces
+        // this fold before flows compile and asserts the count.
+        let mut map: HashMap<String, Registration> = HashMap::new();
+        for entry in platform_core::inventory::iter::<SimplePluginEntry> {
+            if map
+                .insert(
+                    entry.name.to_string(),
+                    Registration::Implemented(entry.body),
+                )
+                .is_some()
+            {
+                log::warn!(
+                    "Reloading SimplePlugin {} - please check duplicated plugin name",
+                    entry.name
+                );
+            }
+        }
+        RwLock::new(map)
+    })
 }
 
 /// True when a plugin name is registered (Java `containsSimplePlugin`).
@@ -74,12 +106,19 @@ pub fn contains_simple_plugin(name: &str) -> bool {
         .contains_key(name)
 }
 
-/// Register a plugin body (the E-8 `#[simple_plugin]` macro will call this).
+/// Register a plugin body programmatically. Explicit registration wins over
+/// declarative (it runs later and replaces); a duplicate name warns +
+/// last-wins — the one conflict policy (D2), matching Java's
+/// `SimplePluginLoader` wording.
 pub fn register_plugin(name: &str, body: PluginBody) {
-    registry()
+    if registry()
         .write()
         .expect("plugin registry")
-        .insert(name.to_string(), Registration::Implemented(body));
+        .insert(name.to_string(), Registration::Implemented(body))
+        .is_some()
+    {
+        log::warn!("Reloading SimplePlugin {name} - please check duplicated plugin name");
+    }
 }
 
 /// Invoke a plugin by name with evaluated arguments (Java
@@ -92,15 +131,12 @@ pub fn calculate(name: &str, args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// Load every `#[simple_plugin]` from the link-time inventory (Java
-/// `SimplePluginLoader.preloadSimplePlugins`). Returns how many were added.
+/// Force the one-time inventory fold (Java
+/// `SimplePluginLoader.preloadSimplePlugins`) and return how many plugin
+/// names are registered — built-ins and user `#[simple_plugin]` declarations
+/// alike arrive through the same link-time inventory.
 pub fn load_inventory_plugins() -> usize {
-    let mut count = 0;
-    for entry in platform_core::inventory::iter::<SimplePluginEntry> {
-        register_plugin(entry.name, entry.body);
-        count += 1;
-    }
-    count
+    registry().read().expect("plugin registry").len()
 }
 
 /// Java pattern shared by the conversion plugins: one argument converts to a
@@ -119,57 +155,67 @@ fn one_or_list(
     }
 }
 
+#[simple_plugin("text")]
 fn plugin_text(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Text conversion", |v| {
         Ok(Value::from(get_text_value(v)))
     })
 }
 
+#[simple_plugin("int")]
 fn plugin_int(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Integer conversion", |v| {
         Ok(Value::from(convert_integer(v)))
     })
 }
 
+#[simple_plugin("long")]
 fn plugin_long(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Long conversion", |v| {
         Ok(Value::from(convert_long(v)))
     })
 }
 
+#[simple_plugin("float")]
 fn plugin_float(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Float conversion", |v| {
         Ok(Value::F32(convert_float(v)))
     })
 }
 
+#[simple_plugin("double")]
 fn plugin_double(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Double conversion", |v| {
         Ok(Value::F64(convert_double(v)))
     })
 }
 
+#[simple_plugin("boolean")]
 fn plugin_boolean(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Boolean conversion", |v| {
         convert_boolean(v).map(Value::Boolean)
     })
 }
 
+#[simple_plugin("binary")]
 fn plugin_binary(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Binary conversion", |v| {
         Ok(Value::Binary(get_binary_value(v)))
     })
 }
 
+#[simple_plugin("b64")]
 fn plugin_b64(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Base64 conversion", get_b64)
 }
 
+#[simple_plugin("uuid")]
 fn plugin_uuid(_args: &[Value]) -> Result<Value, String> {
     // Java UUIDGenerator ignores its input and returns a fresh v4 uuid
     Ok(Value::from(uuid::Uuid::new_v4().to_string()))
 }
 
+#[simple_plugin("length")]
 fn plugin_length(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(Value::from(get_length(one))),
@@ -177,6 +223,7 @@ fn plugin_length(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("not")]
 fn plugin_not(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(Value::Boolean(!convert_boolean(one)?)),
@@ -184,6 +231,7 @@ fn plugin_not(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("and")]
 fn plugin_and(args: &[Value]) -> Result<Value, String> {
     if args.len() < 2 {
         return Err("Input is required to 'AND' values".to_string());
@@ -196,6 +244,7 @@ fn plugin_and(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(true))
 }
 
+#[simple_plugin("or")]
 fn plugin_or(args: &[Value]) -> Result<Value, String> {
     if args.len() < 2 {
         return Err("Input is required to 'OR' values".to_string());
@@ -208,6 +257,7 @@ fn plugin_or(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(false))
 }
 
+#[simple_plugin("concat")]
 fn plugin_concat(args: &[Value]) -> Result<Value, String> {
     if args.len() < 2 {
         return Err("Input is required for String Concatenation".to_string());
@@ -217,6 +267,7 @@ fn plugin_concat(args: &[Value]) -> Result<Value, String> {
     ))
 }
 
+#[simple_plugin("substring")]
 fn plugin_substring(args: &[Value]) -> Result<Value, String> {
     let [value, rest @ ..] = args else {
         return Err("Input is required for substring".to_string());
@@ -253,6 +304,7 @@ fn plugin_substring(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("isNull")]
 fn plugin_is_null(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(Value::Boolean(matches!(one, Value::Nil))),
@@ -260,6 +312,7 @@ fn plugin_is_null(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("notNull")]
 fn plugin_not_null(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(Value::Boolean(!matches!(one, Value::Nil))),
@@ -267,6 +320,7 @@ fn plugin_not_null(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("eq")]
 fn plugin_eq(args: &[Value]) -> Result<Value, String> {
     let [first, rest @ ..] = args else {
         return Err("Input is required to check for equality".to_string());
@@ -277,6 +331,7 @@ fn plugin_eq(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Boolean(rest.iter().all(|v| v == first)))
 }
 
+#[simple_plugin("ne")]
 fn plugin_ne(args: &[Value]) -> Result<Value, String> {
     let [first, rest @ ..] = args else {
         return Err("Input is required to check for inequality".to_string());
@@ -295,6 +350,7 @@ fn plugin_ne(args: &[Value]) -> Result<Value, String> {
 /// `f:isEmpty(value)` — true when a Collection/Map/String/array has no
 /// elements (Java `IsEmptyOperator`). Null checks belong to `isNull` /
 /// `notNull`: a null input is an error, as is an unsupported type.
+#[simple_plugin("isEmpty")]
 fn plugin_is_empty(args: &[Value]) -> Result<Value, String> {
     let [value] = args else {
         return Err("One input is required to check if value is empty".to_string());
@@ -317,6 +373,7 @@ fn plugin_is_empty(args: &[Value]) -> Result<Value, String> {
 
 /// `f:getFirst(list)` — the first element of a non-empty List (Java
 /// `GetFirstOperator`). Null, non-list or empty input is an error.
+#[simple_plugin("getFirst")]
 fn plugin_get_first(args: &[Value]) -> Result<Value, String> {
     let [value] = args else {
         return Err("One input is required to get first item from list".to_string());
@@ -333,6 +390,7 @@ fn plugin_get_first(args: &[Value]) -> Result<Value, String> {
 
 /// `f:getLast(list)` — the last element of a non-empty List (Java
 /// `GetLastOperator`). Null, non-list or empty input is an error.
+#[simple_plugin("getLast")]
 fn plugin_get_last(args: &[Value]) -> Result<Value, String> {
     let [value] = args else {
         return Err("One input is required to get last item from list".to_string());
@@ -346,74 +404,10 @@ fn plugin_get_last(args: &[Value]) -> Result<Value, String> {
         _ => Err("Input must be a list to get last item".to_string()),
     }
 }
-
-fn builtin_registrations() -> HashMap<String, Registration> {
-    let mut map = HashMap::new();
-    let implemented: &[(&str, PluginBody)] = &[
-        ("text", plugin_text),
-        ("int", plugin_int),
-        ("long", plugin_long),
-        ("float", plugin_float),
-        ("double", plugin_double),
-        ("boolean", plugin_boolean),
-        ("binary", plugin_binary),
-        ("b64", plugin_b64),
-        ("uuid", plugin_uuid),
-        ("length", plugin_length),
-        ("not", plugin_not),
-        ("and", plugin_and),
-        ("or", plugin_or),
-        ("concat", plugin_concat),
-        ("substring", plugin_substring),
-        ("isNull", plugin_is_null),
-        ("notNull", plugin_not_null),
-        ("eq", plugin_eq),
-        ("ne", plugin_ne),
-    ];
-    for (name, body) in implemented {
-        map.insert(name.to_string(), Registration::Implemented(*body));
-    }
-    let completed: &[(&str, PluginBody)] = &[
-        ("add", plugin_add),
-        ("subtract", plugin_subtract),
-        ("multiply", plugin_multiply),
-        ("div", plugin_div),
-        ("mod", plugin_mod),
-        ("increment", plugin_increment),
-        ("decrement", plugin_decrement),
-        ("round", plugin_round),
-        ("now", plugin_now),
-        ("dateTime", plugin_date_time),
-        ("gt", plugin_gt),
-        ("lt", plugin_lt),
-        ("ternary", plugin_ternary),
-        ("startsWith", plugin_starts_with),
-        ("endsWith", plugin_ends_with),
-        ("includes", plugin_includes),
-        ("parseDate", plugin_parse_date),
-        ("parseDateTime", plugin_parse_date_time),
-        ("listOfMap", plugin_list_of_map),
-        ("updateListOfMap", plugin_update_list_of_map),
-        ("removeKey", plugin_remove_key),
-        ("uniqueSet", plugin_unique_set),
-        ("defaultValue", plugin_default_value),
-        ("validate", plugin_validate),
-        // Collection operators (Java PR #220 mirror)
-        ("isEmpty", plugin_is_empty),
-        ("getFirst", plugin_get_first),
-        ("getLast", plugin_get_last),
-    ];
-    for (name, body) in completed {
-        map.insert(name.to_string(), Registration::Implemented(*body));
-    }
-    map
-}
-
-include!("plugins_e8.rs");
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::plugins_e8::java_pattern_to_chrono;
 
     /// Twin of the Java `IsEmptyOperatorTest` (PR #220): positives across
     /// the supported types — incl. the byte-array analog of an empty /

@@ -21,7 +21,7 @@
 //! compile time and resolve at runtime.
 //!
 //! ```ignore
-//! #[simple_plugin(name = "myCalc")]           // name defaults to camelCase
+//! #[simple_plugin("myCalc")]                  // the string is the registered name
 //! fn my_calc(args: &[Value]) -> Result<Value, String> { ... }
 //! ```
 
@@ -31,21 +31,35 @@ use syn::{parse_macro_input, ItemFn, LitStr};
 
 /// Register a plugin function (Java `@SimplePlugin` + `PluginFunction`).
 /// The function must have the signature
-/// `fn(&[rmpv::Value]) -> Result<rmpv::Value, String>`. The plugin name
-/// defaults to the camelCase form of the function name (the Java
-/// class-name-to-camelCase convention); override with `name = "..."`.
+/// `fn(&[rmpv::Value]) -> Result<rmpv::Value, String>`.
+///
+/// The positional string is the registered plugin name — the analog of
+/// overriding Java's `PluginFunction.getName()` — with `name = "..."` as an
+/// equivalent alias; omitting both derives the name as the camelCase form of
+/// the function name (the Java class-name-to-camelCase convention). The
+/// argument grammar is identical to `#[fetch_feature]` where the two macros
+/// overlap (the contract rule: the string is the registered name; omit it to
+/// derive from the declaration).
 #[proc_macro_attribute]
 pub fn simple_plugin(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut name: Option<LitStr> = None;
-    let parser = syn::meta::parser(|meta| {
-        if meta.path.is_ident("name") {
-            name = Some(meta.value()?.parse()?);
-            Ok(())
-        } else {
-            Err(meta.error("unknown simple_plugin parameter (expected name)"))
-        }
-    });
-    parse_macro_input!(args with parser);
+    // positional form: #[simple_plugin("getFirst")] — mirrors #[fetch_feature]
+    if let Ok(positional) = syn::parse::<LitStr>(args.clone()) {
+        name = Some(positional);
+    } else {
+        let parser = syn::meta::parser(|meta| {
+            if meta.path.is_ident("name") {
+                name = Some(meta.value()?.parse()?);
+                Ok(())
+            } else {
+                Err(meta.error(
+                    "unknown simple_plugin parameter (expected a plugin name literal or \
+                     name = \"...\")",
+                ))
+            }
+        });
+        parse_macro_input!(args with parser);
+    }
     let item = parse_macro_input!(input as ItemFn);
     let fn_ident = &item.sig.ident;
     let plugin_name = match name {

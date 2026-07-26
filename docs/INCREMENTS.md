@@ -2084,6 +2084,72 @@ pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branc
 
 ---
 
+## Increment 70 — Annotation→macro consistency: the engine dogfoods its extension points (2026-07-25)
+
+P1 of the ratified annotation→macro arc (design:
+`draft-design-specs/annotation-macro-interop-design.md` in the Java repo, verified by an
+8-agent survey; the Rust port is the template for future Python/Node ports). Java's
+lock-step half (Platform javadoc fix + PlaygroundLoader duplicate WARN) rides the
+same-named Java branch.
+
+- **D1 — dogfooding:** all 46 built-in mapping plugins converted from
+  `builtin_registrations()` to `#[simple_plugin("...")]` declarations (bodies VERBATIM —
+  the isEmpty/getFirst/getLast twin tests pass unchanged; an explicit name on all 46 is
+  necessary: the `plugin_*` fn prefix means camelCase derivation never equals the plugin
+  name, and keyword-named plugins like `mod`/`not`/`and` never become fn idents).
+  **Syntax harmonization (Eric):** `#[simple_plugin]` accepts the positional string form,
+  mirroring `#[fetch_feature]`'s grammar — the string is the registered name (the
+  `getName()` override analog), `name = "..."` stays as an alias, no argument keeps the
+  camelCase derivation; one visual grammar across both extension points, portable
+  verbatim to Python/Node decorators. `plugins_e8.rs` became a proper module (textual `include!` retired);
+  `extern crate self as event_script` lets the macro's `::event_script::` expansion
+  resolve in-crate. Registry = one link-time inventory fold (OnceLock); the
+  `SimplePluginLoader` hook (seq 3) forces the fold before flows compile and asserts
+  `>= BUILTIN_PLUGIN_COUNT (46)`. Both built-in fetch features converted to
+  `#[fetch_feature]`; `register_builtins()` deleted; the GraphResources hook asserts
+  `>= 2`. Linker elision now fails the boot loudly (registration-metadata contract).
+- **D2 — one conflict policy:** explicit register wins over declarative; duplicate name =
+  WARN + last-wins everywhere — plugins + features use Java's exact wording
+  (`Reloading SimplePlugin/FetchFeature {name} - please check duplicated ...`), websocket
+  services gain the same-style WARN, preload routes already had it (F10). Features flip
+  from skip-if-present to warn+replace. Regressions in two dedicated test binaries with a
+  capturing logger: duplicate plugin warns + last-wins, user `#[simple_plugin]` shadowing
+  a built-in warns (link-order decides the winner, like a Java classpath scan), duplicate
+  feature warns + last-wins.
+- **Order-insensitive marker stacking (Eric: "Java does not require stack order of
+  annotations"):** `#[zero_tracing]` / `#[event_interceptor]` promoted to real attribute
+  macros using the `#[optional_service]` self-reattachment pattern — written above the
+  primary they re-attach themselves below where `#[preload]` consumes them; below-order
+  and the inline-args form unchanged; no primary = compile error with a pointer to the
+  inline form. Regressions: above-order zero_tracing twin (telemetry-suppression
+  identical), mixed order (marker above + condition below) registers AND intercepts.
+  **Trybuild adoption (Eric upgraded the flag from P2-candidate to this round):** three
+  `tests/ui` compile-fail suites hosted in the RUNTIME crates (platform-core 8 fixtures,
+  event-script 1, knowledge-graph 2 — no dev-dependency cycles; fixtures need the runtime
+  crates as expansion targets anyway), one `ui()` runner each via
+  `trybuild::TestCases::compile_fail("tests/ui/*.rs")`, `.stderr` files committed. Every
+  deliberate macro compile error is now pinned: preload unknown-param/missing-route/
+  empty-route-segment, optional_service no-primary/empty-condition, the two marker
+  no-primary errors, websocket_service missing-name, simple_plugin unknown-param, and
+  fetch_feature missing-name/unknown-param (the D3a boundary guard: optional_service
+  STACKS, it is not an inline parameter). Toolchain note: the repo pins NO rust-toolchain
+  (CI tracks stable); `.stderr` files track rustc's error formatting, so a toolchain bump
+  that reshapes diagnostics is regenerated with `TRYBUILD=overwrite cargo test --test ui`
+  in each of the three crates.
+- **D3a — fetch_feature parity:** stacked `#[optional_service("condition")]` marker
+  (platform-macro strip/fold pattern) + `optional_service` on `FetchFeatureEntry`,
+  evaluated via `util::feature::is_required` with the `Skip optional FetchFeature - {name}`
+  log; regression: absent key skips, present key loads. Per Eric's ruling
+  `#[simple_plugin]` takes NO optional_service — plugins are flow vocabulary, never
+  conditionally on/off (stated in the macro docs).
+- **Docs:** macros-reference (built-ins-use-the-macros + real examples + conflict policy +
+  the optional_service marker), two stale claims fixed (syntax.md: `#[preload]` DOES take
+  comma-separated aliases; api-overview.md: public/private IS ported), design-doc notes
+  (event-script-port §5h, knowledge-graph-port), CHANGELOG Unreleased.
+  Workspace 262 (260+2) / clippy 0 / fmt.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,

@@ -1,0 +1,5 @@
+error: #[fetch_feature] requires a feature name, e.g. #[fetch_feature("oauth-bearer")]
+ --> tests/ui/fetch_feature_missing_name.rs:4:8
+  |
+4 | struct Fixture;
+  |        ^^^^^^^

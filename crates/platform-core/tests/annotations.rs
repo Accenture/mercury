@@ -31,15 +31,17 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use platform_core::{
-    before_application, main_application, optional_service, overrides, preload, resources, trace,
-    AppError, AutoStart, ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice,
-    TypedFunction,
+    before_application, event_interceptor, main_application, optional_service, overrides, preload,
+    resources, trace, zero_tracing, AppError, AutoStart, ComposableFunction, EntryPoint,
+    EventEnvelope, Platform, PostOffice, TypedFunction,
 };
 
 static JOURNAL: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 static TYPED_HAD_TRACE: AtomicBool = AtomicBool::new(false);
 static ZERO_TRACED_HAD_TRACE: AtomicBool = AtomicBool::new(false);
 static ZERO_TRACED_RAN: AtomicBool = AtomicBool::new(false);
+static ZERO_ABOVE_HAD_TRACE: AtomicBool = AtomicBool::new(false);
+static ZERO_ABOVE_RAN: AtomicBool = AtomicBool::new(false);
 
 fn journal() -> &'static Mutex<Vec<String>> {
     JOURNAL.get_or_init(|| Mutex::new(Vec::new()))
@@ -118,6 +120,61 @@ impl ComposableFunction for ZeroTracedFn {
             Ordering::SeqCst,
         );
         EventEnvelope::new().set_body("ok")
+    }
+}
+
+/// Stacking is ORDER-INSENSITIVE, matching Java annotation semantics: the
+/// same `#[zero_tracing]` marker written ABOVE the primary attribute (a real
+/// proc-macro that re-attaches itself below, where `#[preload]` consumes it
+/// — the `#[optional_service]` self-reattachment pattern).
+#[zero_tracing]
+#[preload(route = "anno.zero.above")]
+struct ZeroTracedAbove;
+
+#[async_trait]
+impl ComposableFunction for ZeroTracedAbove {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        ZERO_ABOVE_RAN.store(true, Ordering::SeqCst);
+        ZERO_ABOVE_HAD_TRACE.store(
+            trace::with_current(|state| !state.zero_traced).unwrap_or(false),
+            Ordering::SeqCst,
+        );
+        EventEnvelope::new().set_body("ok")
+    }
+}
+
+/// Mixed stacking order — one marker ABOVE the primary, one condition BELOW
+/// — must behave exactly like any other order (Java does not require a
+/// stacking order and neither does this port).
+#[event_interceptor]
+#[preload(route = "anno.mixed.order")]
+#[optional_service("profile.indicator=base")]
+struct MixedOrderInterceptor;
+
+#[async_trait]
+impl ComposableFunction for MixedOrderInterceptor {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let (Some(reply_to), Some(cid)) = (input.reply_to(), input.correlation_id()) {
+            let po = PostOffice::new(&Platform::get_instance());
+            po.send(
+                EventEnvelope::new()
+                    .set_to(reply_to)
+                    .set_correlation_id(cid)
+                    .set_body("mixed manual")?,
+            )
+            .await?;
+        }
+        EventEnvelope::new().set_body("ignored by the worker")
     }
 }
 
@@ -415,6 +472,47 @@ async fn annotation_macros_end_to_end() {
     assert!(
         !ZERO_TRACED_HAD_TRACE.load(Ordering::SeqCst),
         "zero-traced route must run with a telemetry-suppressed trace bracket"
+    );
+
+    // stacking is ORDER-INSENSITIVE (Java annotation semantics): the marker
+    // written ABOVE #[preload] behaves identically to the below-order twin
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("anno.zero.above")
+                .set_trace(&trace::new_trace_id(), "TEST /zero/above")
+                .set_body("go")
+                .expect("body"),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("zero-traced (above-order) rpc");
+    assert_eq!(reply.body_as::<String>().expect("zero reply"), "ok");
+    assert!(ZERO_ABOVE_RAN.load(Ordering::SeqCst));
+    assert!(
+        !ZERO_ABOVE_HAD_TRACE.load(Ordering::SeqCst),
+        "the marker above the primary must be consumed identically"
+    );
+
+    // mixed order: #[event_interceptor] above + #[optional_service] below —
+    // the condition registered the route AND the interceptor semantics hold
+    assert!(
+        platform.has_route("anno.mixed.order"),
+        "mixed-order stacking"
+    );
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("anno.mixed.order")
+                .set_body("ping")
+                .expect("body"),
+            Duration::from_secs(2),
+        )
+        .await
+        .expect("mixed-order interceptor manual reply");
+    assert_eq!(
+        reply.body_as::<String>().expect("manual reply"),
+        "mixed manual"
     );
 
     // the stacked #[event_interceptor] marker: the manual reply arrives and

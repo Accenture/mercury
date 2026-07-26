@@ -27,13 +27,19 @@
 //! refreshing an OAuth 2.0 access token and inserting the bearer token into
 //! the outbound request) or explicitly through [`register`]. The two
 //! built-in demonstration features — `log-request-headers` and
-//! `log-response-headers` — are registered by the engine itself.
+//! `log-response-headers` — are themselves `#[fetch_feature]` declarations:
+//! the engine dogfoods its extension point, like Java's `@FetchFeature`
+//! classes. A stacked `#[optional_service("condition")]` marker gates a
+//! declared feature on application configuration (Java `@OptionalService`,
+//! evaluated at boot).
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
 use event_script::mlm::MultiLevelMap;
+use knowledge_graph_macros::fetch_feature;
 use platform_core::automation::AsyncHttpRequest;
+use platform_core::AppConfigReader;
 use rmpv::Value;
 
 /// The observable parts of an HTTP response for after-features.
@@ -57,24 +63,34 @@ pub trait FeatureRunner: Send + Sync {
 }
 
 /// A `#[fetch_feature]`-annotated feature (Java `@FetchFeature`) collected
-/// from the link-time inventory.
+/// from the link-time inventory. `optional_service` carries a stacked
+/// `#[optional_service("condition")]` marker (Java `@OptionalService`),
+/// evaluated at boot by [`load_declared_features`].
 pub struct FetchFeatureEntry {
     pub name: &'static str,
+    pub optional_service: Option<&'static str>,
     pub factory: fn() -> Arc<dyn FeatureRunner>,
 }
 
 platform_core::inventory::collect!(FetchFeatureEntry);
 
 /// Load every `#[fetch_feature]` from the link-time inventory (the Java
-/// `PlaygroundLoader` classpath-scan analog). Runs once at startup;
-/// idempotent — a name already registered explicitly is left untouched, and
-/// a later explicit [`register`] call may still replace any feature.
-pub fn load_declared_features() {
+/// `PlaygroundLoader` classpath-scan analog). Runs at startup, before any
+/// graph executes. An `optional_service` condition that does not hold skips
+/// the feature (Java `Feature.isRequired`); a duplicate name warns +
+/// last-wins (the one conflict policy) — and a later explicit [`register`]
+/// call still replaces any feature (explicit wins over declarative). Returns
+/// how many feature names are registered.
+pub fn load_declared_features() -> usize {
+    let config = AppConfigReader::get_instance();
     for entry in platform_core::inventory::iter::<FetchFeatureEntry> {
-        if get_feature(entry.name).is_none() {
-            register(entry.name, (entry.factory)());
+        if !platform_core::util::feature::is_required(entry.optional_service, config) {
+            log::info!("Skip optional FetchFeature - {}", entry.name);
+            continue;
         }
+        register(entry.name, (entry.factory)());
     }
+    registry().read().expect("feature registry poisoned").len()
 }
 
 fn registry() -> &'static RwLock<HashMap<String, Arc<dyn FeatureRunner>>> {
@@ -82,12 +98,19 @@ fn registry() -> &'static RwLock<HashMap<String, Arc<dyn FeatureRunner>>> {
     FEATURES.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-/// Register a feature by name (the Java `@FetchFeature` value).
+/// Register a feature by name (the Java `@FetchFeature` value). A duplicate
+/// name warns + last-wins (the one conflict policy, D2 — Java
+/// `PlaygroundLoader` wording); explicit registration wins over declarative
+/// because it runs later and replaces.
 pub fn register(name: &str, feature: Arc<dyn FeatureRunner>) {
-    registry()
+    if registry()
         .write()
         .expect("feature registry poisoned")
-        .insert(name.to_string(), feature);
+        .insert(name.to_string(), feature)
+        .is_some()
+    {
+        log::warn!("Reloading FetchFeature {name} - please check duplicated feature name");
+    }
     log::info!("Feature {name} loaded as API fetcher feature");
 }
 
@@ -101,6 +124,7 @@ pub fn get_feature(name: &str) -> Option<Arc<dyn FeatureRunner>> {
 
 /// Java `LogRequestHeaders` (`log-request-headers`): saves outbound request
 /// headers into the state machine under `{node}.header.request.*`.
+#[fetch_feature("log-request-headers")]
 struct LogRequestHeaders;
 
 impl FeatureRunner for LogRequestHeaders {
@@ -128,6 +152,7 @@ impl FeatureRunner for LogRequestHeaders {
 
 /// Java `LogResponseHeaders` (`log-response-headers`): saves response
 /// headers under `{node}.header.response.*`.
+#[fetch_feature("log-response-headers")]
 struct LogResponseHeaders;
 
 impl FeatureRunner for LogResponseHeaders {
@@ -150,15 +175,5 @@ impl FeatureRunner for LogResponseHeaders {
                 );
             }
         }
-    }
-}
-
-/// Register the built-in demonstration features (idempotent).
-pub fn register_builtins() {
-    if get_feature("log-request-headers").is_none() {
-        register("log-request-headers", Arc::new(LogRequestHeaders));
-    }
-    if get_feature("log-response-headers").is_none() {
-        register("log-response-headers", Arc::new(LogResponseHeaders));
     }
 }

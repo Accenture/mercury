@@ -160,7 +160,12 @@ changes).
    > maintainer-directed: the declarative `#[fetch_feature]` macro** (new
    > `knowledge-graph-macros` crate) — Java `@FetchFeature` parity for
    > field-installation cases like OAuth 2.0 bearer injection; proven E2E with the
-   > DemoAuth pattern on the wire. **K-7b shipped 2026-07-17 (increment 28):** the
+   > DemoAuth pattern on the wire. *(Consistency round, 2026-07-25: the two built-in
+   > features are themselves `#[fetch_feature]` declarations — `register_builtins()`
+   > removed; the loader asserts the ≥2 count against linker elision; a stacked
+   > `#[optional_service]` marker now gates a declared feature on configuration,
+   > Java `@OptionalService` parity; duplicate names warn + last-wins with Java's
+   > `PlaygroundLoader` wording.)* **K-7b shipped 2026-07-17 (increment 28):** the
    > Playground — `GraphUserInterface` + `GraphSession`, `GraphCommandService`
    > (`commands.rs`, the 1,494-line grammar), `GraphTraveler`, `JsonPathHandler`,
    > the AI-companion REST hop (`POST /api/companion/{id}`) + the K-6-deferred dev

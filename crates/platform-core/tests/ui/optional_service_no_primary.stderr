@@ -1,0 +1,5 @@
+error: #[optional_service] must be stacked with #[preload], #[websocket_service], #[before_application] or #[main_application]
+ --> tests/ui/optional_service_no_primary.rs:4:8
+  |
+4 | struct Fixture;
+  |        ^^^^^^^

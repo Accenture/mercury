@@ -85,16 +85,23 @@ pub fn register_ws_service(
 }
 
 /// Namespace-aware registration (Java `@WebSocketService(value, namespace)`).
+/// A duplicate `/namespace/name` warns + last-wins — the one conflict policy
+/// shared by every registry (preload routes, simple plugins, fetch features).
 pub fn register_ws_service_with_namespace(
     namespace: &str,
     name: &str,
     factory: impl Fn() -> Arc<dyn ComposableFunction> + Send + Sync + 'static,
 ) {
-    services()
+    let path = format!("/{namespace}/{name}");
+    if services()
         .write()
         .expect("ws service registry poisoned")
-        .insert(format!("/{namespace}/{name}"), Arc::new(factory));
-    log::info!("Websocket service /{namespace}/{name} loaded");
+        .insert(path.clone(), Arc::new(factory))
+        .is_some()
+    {
+        log::warn!("Reloading WebSocketService {path} - please check duplicated service name");
+    }
+    log::info!("Websocket service {path} loaded");
 }
 
 /// True when any websocket service is registered.

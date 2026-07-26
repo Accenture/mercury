@@ -49,7 +49,8 @@ pub mod util;
 pub use app_starter::{AppStarter, AutoStart, EntryPoint};
 // the annotation layer (Java @PreLoad/@BeforeApplication/@MainApplication/@ZeroTracing)
 pub use platform_macros::{
-    before_application, main_application, optional_service, preload, websocket_service,
+    before_application, event_interceptor, main_application, optional_service, preload,
+    websocket_service, zero_tracing,
 };
 // re-exported so the macros' generated `submit!` resolves without the user
 // adding `inventory` as a direct dependency
