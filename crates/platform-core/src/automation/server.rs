@@ -449,38 +449,59 @@ async fn process(
             query.insert(name.clone(), serde_json::Value::String(value.clone()));
         }
     }
-    let body_value = match &parsed {
-        ParsedBody::Value(value) => value.clone(),
-        // a binary body can't ride the JSON shape — substituted as a
-        // MsgPack binary in build_event (Java: byte[] on AsyncHttpRequest)
-        ParsedBody::Form(_) | ParsedBody::Bytes(_) => serde_json::Value::Null,
-    };
-    let binary_body = match &parsed {
-        ParsedBody::Bytes(bytes) => Some(bytes.as_slice()),
-        _ => None,
-    };
-    let mut http_request = serde_json::json!({
-        "method": method,
-        "url": path,
-        "ip": peer.ip().to_string(),
+    // ONE definition of the wire shape: the dataset is constructed through
+    // AsyncHttpRequest's fluent API and rendered by its to_value() — the
+    // same builder/parser pair a typed function deserializes through, so
+    // server↔struct drift is impossible by construction (previously this
+    // was a hand-assembled JSON literal, which is exactly how the server
+    // came to emit keys from_value never parsed).
+    let mut http_request = crate::automation::AsyncHttpRequest::new()
+        .set_method(&method)
+        .set_url(&path)
+        .set_remote_ip(&peer.ip().to_string())
         // Java: setSecure(x-forwarded-proto == "https") — increment 56,
         // parity F14d (previously hardcoded false)
-        "https": headers.get("x-forwarded-proto").map(String::as_str) == Some("https"),
-        "host": headers.get("host").cloned().unwrap_or_default(),
-        "headers": headers,
-        "parameters": {"path": path_params, "query": query},
-        "body": body_value,
+        .set_secure(headers.get("x-forwarded-proto").map(String::as_str) == Some("https"))
+        .set_target_host(&headers.get("host").cloned().unwrap_or_default())
         // Java AsyncHttpRequest.getTimeoutSeconds (the flow adapter derives
         // the flow TTL from it)
-        "timeout": info.timeout.as_secs(),
-    });
+        .set_route_timeout_seconds(info.timeout.as_secs());
+    for (key, value) in &headers {
+        http_request = http_request.set_header(key, value);
+    }
+    for (key, value) in &path_params {
+        http_request = http_request.set_path_parameter(key, value);
+    }
+    for (key, value) in &query {
+        http_request = match value {
+            serde_json::Value::Array(values) => {
+                let values: Vec<&str> = values
+                    .iter()
+                    .map(|v| v.as_str().unwrap_or_default())
+                    .collect();
+                http_request.set_query_parameter_values(key, &values)
+            }
+            serde_json::Value::String(value) => http_request.set_query_parameter(key, value),
+            other => http_request.set_query_parameter(key, &other.to_string()),
+        };
+    }
+    // the request body: a JSON-shaped payload rides as-is; a binary body
+    // (unknown content type) rides as MsgPack binary (Java: byte[] on the
+    // AsyncHttpRequest); a form body already became query parameters, so
+    // the body key stays an explicit null — exactly the previous shape
+    http_request = match &parsed {
+        ParsedBody::Value(value) => http_request
+            .set_body(rmpv::ext::to_value(value).map_err(|e| AppError::new(500, e.to_string()))?),
+        ParsedBody::Bytes(bytes) => http_request.set_body(rmpv::Value::Binary(bytes.clone())),
+        ParsedBody::Form(_) => http_request.set_body(rmpv::Value::Nil),
+    };
     // the raw query string rides as Java's top-level "query" key; cookies
     // appear only when present (Java toMap omits empty)
     if !query_text.is_empty() {
-        http_request["query"] = serde_json::Value::String(query_text.clone());
+        http_request = http_request.set_query_string(&query_text);
     }
-    if !cookies.is_empty() {
-        http_request["cookies"] = serde_json::to_value(&cookies).unwrap_or_default();
+    for (key, value) in &cookies {
+        http_request = http_request.set_cookie(key, value);
     }
     let po = PostOffice::new(&state.platform);
     // Java appends the query string to the trace path (HttpRouter)
@@ -495,7 +516,6 @@ async fn process(
         let auth_event = build_event(
             auth_route,
             &http_request,
-            binary_body,
             &cid,
             &trace_id,
             &trace_path,
@@ -516,13 +536,8 @@ async fn process(
         // headers on the auth verdict become SESSION INFO that rides to the
         // target function as read-only headers (Java HttpRouter parity —
         // e.g. the event.api.auth demo injects `user: demo`)
-        if !verdict.headers().is_empty() {
-            let session: serde_json::Map<String, serde_json::Value> = verdict
-                .headers()
-                .iter()
-                .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
-                .collect();
-            http_request["session"] = serde_json::Value::Object(session);
+        for (key, value) in verdict.headers() {
+            http_request = http_request.set_session_info(key, value);
         }
     }
     // CALLBACK dispatch (Java HttpRouter parity): the endpoint service is
@@ -539,7 +554,6 @@ async fn process(
     let event = build_event(
         &info.service,
         &http_request,
-        binary_body,
         &cid,
         &trace_id,
         &trace_path,
@@ -651,8 +665,7 @@ async fn process(
 
 fn build_event(
     to: &str,
-    http_request: &serde_json::Value,
-    binary_body: Option<&[u8]>,
+    http_request: &crate::automation::AsyncHttpRequest,
     cid: &str,
     trace_id: &Option<String>,
     trace_path: &str,
@@ -667,22 +680,10 @@ fn build_event(
         // the HTTP context id, and the worker injects my_correlation_id into
         // the target function's input copy at delivery (Java parity)
         .add_tag(crate::post_office::BUSINESS_CID_TAG, cid)
-        .set_body(http_request)?;
-    // a binary body (unknown content type) rides as MsgPack binary — the
-    // JSON-shaped request map can't carry bytes (Java: byte[] on the
-    // AsyncHttpRequest), so it is substituted after the map conversion
-    if let Some(bytes) = binary_body {
-        let mut root = event.body().clone();
-        if let rmpv::Value::Map(entries) = &mut root {
-            for (key, value) in entries.iter_mut() {
-                if key.as_str() == Some("body") {
-                    *value = rmpv::Value::Binary(bytes.to_vec());
-                    break;
-                }
-            }
-        }
-        event = event.set_raw_body(root);
-    }
+        // the struct's to_value() IS the wire shape (single source of truth)
+        // — a binary body rides natively as MsgPack binary (Java: byte[] on
+        // the AsyncHttpRequest)
+        .set_raw_body(http_request.to_value());
     if let Some(trace_id) = trace_id {
         event = event.set_trace(trace_id, trace_path);
         if let Some(parent) = parent_span {
@@ -802,31 +803,11 @@ fn url_decode(text: &str) -> String {
 
 /// The built-in default endpoints (Java `default-rest.yaml`): added only when
 /// `rest.yaml` does not already claim the URL — user entries always win.
-/// `/info/lib` and `/info/routes` are deferred (see the actuator module doc).
-const DEFAULT_REST_YAML: &str = r#"
-rest:
-  - service: "event.api.service"
-    methods: ['POST']
-    url: "/api/event"
-    timeout: 60s
-    tracing: true
-  - service: "info.actuator.service"
-    methods: ['GET']
-    url: "/info"
-    timeout: 10s
-  - service: "env.actuator.service"
-    methods: ['GET']
-    url: "/env"
-    timeout: 10s
-  - service: "health.actuator.service"
-    methods: ['GET']
-    url: "/health"
-    timeout: 30s
-  - service: "liveness.actuator.service"
-    methods: ['GET']
-    url: "/livenessprobe"
-    timeout: 10s
-"#;
+/// Shipped as a real resource file embedded at compile time (the
+/// default-log-context.yaml pattern), so it is discoverable where a Java
+/// developer expects it and byte-diffable against the Java repo's copy.
+/// `/info/lib` is the one deferred Java default (see the actuator module doc).
+const DEFAULT_REST_YAML: &str = include_str!("../../resources/default-rest.yaml");
 
 fn merge_default_endpoints(table: &mut RoutingTable) -> Result<(), AppError> {
     let defaults = RoutingTable::from_yaml_text(DEFAULT_REST_YAML)?;
@@ -989,24 +970,26 @@ async fn run_static_filter(
     headers: &HashMap<String, String>,
     peer: SocketAddr,
 ) -> Result<EventEnvelope, AppError> {
-    let mut query: HashMap<String, String> = HashMap::new();
+    // the same single source of truth as the main dispatch: the filter's
+    // request dataset is constructed through AsyncHttpRequest and rendered
+    // by its to_value()
+    let mut request = crate::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_url(path)
+        .set_remote_ip(&peer.ip().to_string())
+        .set_secure(false)
+        .set_target_host(&headers.get("host").cloned().unwrap_or_default())
+        .set_body(rmpv::Value::Nil);
+    for (key, value) in headers {
+        request = request.set_header(key, value);
+    }
     for pair in query_text.split('&').filter(|p| !p.is_empty()) {
         let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
-        query.insert(url_decode(name), url_decode(value));
+        request = request.set_query_parameter(&url_decode(name), &url_decode(value));
     }
-    let request = serde_json::json!({
-        "method": "GET",
-        "url": path,
-        "ip": peer.ip().to_string(),
-        "https": false,
-        "host": headers.get("host").cloned().unwrap_or_default(),
-        "headers": headers,
-        "parameters": {"path": {}, "query": query},
-        "body": serde_json::Value::Null,
-    });
     let event = EventEnvelope::new()
         .set_to(&filter.service)
-        .set_body(&request)?;
+        .set_raw_body(request.to_value());
     let po = PostOffice::new(&state.platform);
     // Java FILTER_TIMEOUT = 10 seconds
     po.request(event, std::time::Duration::from_secs(10)).await
@@ -1048,12 +1031,19 @@ fn render_payload(body: &rmpv::Value, content_type: Option<&str>) -> Bytes {
             // Omit Nil map entries unless serializer.null.transport=true (Java Gson parity).
             let stripped = crate::serializer::strip_nulls(body);
             let json = serde_json::to_value(&stripped).unwrap_or_default();
+            // PRETTY-printed (presentation parity, 2026-07-26): Java renders
+            // map/list bodies through SimpleMapper's default mapper, a
+            // pretty-printing Gson (2-space indent) — interop drives showed
+            // Java echoes multi-line and Rust echoes single-line. serde_json's
+            // pretty writer matches the Gson shape. The HTML shell wraps the
+            // same pretty text (Java AsyncHttpResponse HTML_START + text).
+            let text = serde_json::to_string_pretty(&json).unwrap_or_default();
             if content_type.is_some_and(|t| t.starts_with("text/html"))
                 && matches!(body, rmpv::Value::Map(_) | rmpv::Value::Array(_))
             {
-                Bytes::from(format!("<html><body><pre>\n{json}\n</pre></body></html>"))
+                Bytes::from(format!("<html><body><pre>\n{text}\n</pre></body></html>"))
             } else {
-                Bytes::from(json.to_string())
+                Bytes::from(text)
             }
         }
     }
@@ -1073,7 +1063,11 @@ fn envelope_payload(result: &EventEnvelope) -> (Option<&'static str>, Bytes) {
             // Omit Nil map entries unless serializer.null.transport=true (Java Gson parity).
             let body = crate::serializer::strip_nulls(result.body());
             let json = serde_json::to_value(&body).unwrap_or_default();
-            (Some("application/json"), Bytes::from(json.to_string()))
+            // pretty-printed like render_payload (Java SimpleMapper parity)
+            (
+                Some("application/json"),
+                Bytes::from(serde_json::to_string_pretty(&json).unwrap_or_default()),
+            )
         }
     }
 }

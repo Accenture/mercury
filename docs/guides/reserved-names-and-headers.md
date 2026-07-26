@@ -11,8 +11,8 @@ this port actually registers.
     and service-mesh routes (`cloud.connector`, `presence.*`, `system.service.*`,
     `*.multiplex.*`), the scheduler (`cron.scheduler`, `run.scheduled.job`), the Kafka and
     sync-over-async extensions,
-    `actuator.services` / `lib.actuator.service` / `routes.actuator.service`
-    (`/info/lib` and `/info/routes` are deferred), and `http.auth.handler` — a rest.yaml
+    `actuator.services` / `lib.actuator.service` (`/info/lib` is deferred —
+    `routes.actuator.service` / `/info/routes` IS ported), and `http.auth.handler` — a rest.yaml
     `authentication` entry names your authentication function's route directly here (the
     simple route form; the tag-based auth router is not ported).
 
@@ -25,6 +25,7 @@ this port actually registers.
 | `distributed.tracing` | Telemetry sink — traced executions send their performance-metrics dataset here (a deliberate singleton: serializes trace-record processing to preserve ordering) |
 | `temporary.inbox` | Event listener for RPC — the ONE reserved reply route: every `PostOffice::request` reply resolves through it by correlation id (private, zero-tracing, 500 instances) |
 | `info.actuator.service` | `/info` actuator endpoint |
+| `routes.actuator.service` | `/info/routes` actuator endpoint (the local routing table by visibility) |
 | `env.actuator.service` | `/env` actuator endpoint |
 | `health.actuator.service` | `/health` actuator endpoint |
 | `liveness.actuator.service` | `/livenessprobe` actuator endpoint |

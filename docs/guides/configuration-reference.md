@@ -373,6 +373,21 @@ without failing it. Read by `crates/platform-core` (actuator).
 
 ## Performance and back-pressure
 
+#### `worker.instances.actuator.services`
+
+| Type | Default |
+|---|---|
+| int | `5` |
+
+Worker-instance count for the whole actuator family (`/info`, `/info/routes`, `/env`,
+`/health`, `/livenessprobe`). The default is a rule of thumb; operations teams fine-tune
+it in QA/Perf environments before promoting to production, and `/info/routes` displays the
+effective counts. The key name is shared with the Java engine (whose actuators are one
+aliased class keyed by its primary route `actuator.services` — that route itself is not
+ported), so one runbook line tunes both engines. A non-numeric value falls back to the
+default (`env_instances` semantics). Read by `crates/platform-core` at boot.
+
+
 #### `worker.instances.no.op`
 
 | Type | Default |

@@ -202,15 +202,18 @@ impl AppStarter {
             let context = ActuatorContext::new(&platform);
             let actuators = [
                 (crate::actuator::INFO_ACTUATOR, ActuatorKind::Info),
+                (crate::actuator::ROUTES_ACTUATOR, ActuatorKind::Routes),
                 (crate::actuator::ENV_ACTUATOR, ActuatorKind::Env),
                 (crate::actuator::HEALTH_ACTUATOR, ActuatorKind::Health),
                 (crate::actuator::LIVENESS_ACTUATOR, ActuatorKind::Liveness),
             ];
+            // one ops knob for the whole family (see actuator_instances)
+            let instances = crate::actuator::actuator_instances(config);
             for (route, kind) in actuators {
                 if let Err(e) = platform.register_private(
                     route,
                     Arc::new(ActuatorServices::new(kind, context.clone())),
-                    1,
+                    instances,
                 ) {
                     if !platform.has_route(route) {
                         return Err(e);

@@ -48,6 +48,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use platform_core::automation::AsyncHttpRequest;
 use platform_core::{
     before_application, main_application, preload, trace, AppConfigReader, AppError,
     ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
@@ -104,23 +105,26 @@ impl TypedFunction<GreetingRequest, GreetingResponse> for Greetings {
 
 // ---- the HTTP-facing function (REST automation: /api/greeting/{user}) ----
 
-/// Receives the AsyncHttpRequest event from the HTTP edge, then composes with
-/// the typed greeting.demo function — the edge-started trace propagates
-/// automatically, producing a two-span tree (greeting.api → greeting.demo).
-#[preload(route = "greeting.api", instances = 5)]
+/// Receives the HTTP request from the REST edge as a TYPED
+/// `AsyncHttpRequest` (Java `TypedLambdaFunction<AsyncHttpRequest, Object>`
+/// parity — here without any engine special case: `AsyncHttpRequest`
+/// deserializes from the request dataset, so the ordinary typed adapter
+/// carries it), then composes with the typed greeting.demo function — the
+/// edge-started trace propagates automatically, producing a two-span tree
+/// (greeting.api → greeting.demo).
+#[preload(route = "greeting.api", instances = 5, typed)]
 struct GreetingApi;
 
 #[async_trait]
-impl ComposableFunction for GreetingApi {
+impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingApi {
     async fn handle_event(
         &self,
         _headers: HashMap<String, String>,
-        input: EventEnvelope,
+        request: AsyncHttpRequest,
         _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        let request: serde_json::Value = input.body_as()?;
-        let user = request["parameters"]["path"]["user"]
-            .as_str()
+    ) -> Result<serde_json::Value, AppError> {
+        let user = request
+            .path_parameter("user")
             .unwrap_or("world")
             .to_string();
         let po = PostOffice::new(&Platform::get_instance());
@@ -136,7 +140,7 @@ impl ComposableFunction for GreetingApi {
             )
             .await?;
         let body: GreetingResponse = reply.body_as()?;
-        EventEnvelope::new().set_body(serde_json::json!({
+        Ok(serde_json::json!({
             "message": body.message,
             "handled_by_instance": body.handled_by_instance,
             "trace_id": po.my_trace_id(),
@@ -279,8 +283,17 @@ impl ComposableFunction for HelloPoJo {
 /// to continue (`true`) or reject with HTTP-401 (`false`). Additional headers
 /// on the envelope become **session info** that rides to the target function
 /// as read-only headers — the `user` header in this demo. Replace this
-/// function with your own OAuth 2.0 bearer-token validation for production.
-#[preload(route = "event.api.auth", instances = 10)]
+/// function with your own OAuth 2.0 bearer-token validation for production:
+/// a real deployment verifies the bearer token against an OAuth2 security
+/// authority — an I/O-bound call, hence the higher rule-of-thumb instance
+/// count (30) and the `worker.instances.event.api.auth` ops knob (the same
+/// key the Java demo uses), so operations teams can fine-tune concurrency in
+/// QA/Perf environments before promoting to production.
+#[preload(
+    route = "event.api.auth",
+    instances = 30,
+    env_instances = "worker.instances.event.api.auth"
+)]
 struct EventApiAuth;
 
 #[async_trait]
@@ -311,8 +324,15 @@ impl ComposableFunction for EventApiAuth {
 /// A simple interceptor for static content (`static-content.filter`): inspects
 /// the HTTP headers of matching requests and lets them through (status 200).
 /// A real deployment would handle SSO here — inspect the session cookie and
-/// return 302 + Location to the identity provider when absent.
-#[preload(route = "http.request.filter", instances = 2)]
+/// return 302 + Location to the identity provider when absent. The instance
+/// count (20) is a rule of thumb sized for a static-content front door;
+/// operations teams tune it via `worker.instances.http.request.filter` in
+/// QA/Perf environments before promoting to production.
+#[preload(
+    route = "http.request.filter",
+    instances = 20,
+    env_instances = "worker.instances.http.request.filter"
+)]
 struct HttpRequestFilter;
 
 #[async_trait]

@@ -1,0 +1,36 @@
+#
+# The built-in default REST endpoints (Java platform-core `default-rest.yaml`):
+# merged only when the application's rest.yaml does not already claim the URL —
+# user entries always win. Embedded at compile time (include_str! in
+# automation/server.rs, the default-log-context.yaml pattern), so a library
+# consumer cannot shadow it by classpath accident.
+#
+# /info/lib is the one deferred Java default (a Rust binary has no runtime
+# dependency manifest) — see the actuator module doc.
+#
+rest:
+  - service: "event.api.service"
+    methods: ['POST']
+    url: "/api/event"
+    timeout: 60s
+    tracing: true
+  - service: "info.actuator.service"
+    methods: ['GET']
+    url: "/info"
+    timeout: 10s
+  - service: "routes.actuator.service"
+    methods: ['GET']
+    url: "/info/routes"
+    timeout: 10s
+  - service: "env.actuator.service"
+    methods: ['GET']
+    url: "/env"
+    timeout: 10s
+  - service: "health.actuator.service"
+    methods: ['GET']
+    url: "/health"
+    timeout: 30s
+  - service: "liveness.actuator.service"
+    methods: ['GET']
+    url: "/livenessprobe"
+    timeout: 10s

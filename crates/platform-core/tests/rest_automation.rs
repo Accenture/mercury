@@ -304,6 +304,41 @@ impl ComposableFunction for EchoChainCaller {
     }
 }
 
+/// A TYPED HTTP-facing function (`TypedFunction<AsyncHttpRequest, _>`): the
+/// REST edge's request dataset deserializes into `AsyncHttpRequest` through
+/// the ordinary typed adapter — no engine special case (the Java engine
+/// special-cases `AsyncHttpRequest.class` in `WorkerHandler.getMapBody`;
+/// here the knowledge lives on the type).
+struct TypedHttpProbe;
+
+#[async_trait]
+impl platform_core::TypedFunction<automation::AsyncHttpRequest, serde_json::Value>
+    for TypedHttpProbe
+{
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        request: automation::AsyncHttpRequest,
+        _instance: usize,
+    ) -> Result<serde_json::Value, AppError> {
+        #[derive(serde::Deserialize, Default)]
+        struct Note {
+            note: Option<String>,
+        }
+        Ok(serde_json::json!({
+            "method": request.method(),
+            "url": request.url(),
+            "user": request.path_parameter("user"),
+            "q": request.query_parameter("q"),
+            "q_all": request.query_parameters("q"),
+            "accept": request.header("Accept"),
+            "note": request.body_as::<Note>().unwrap_or_default().note,
+            "ip_present": request.remote_ip().is_some(),
+            "timeout": request.timeout_seconds(),
+        }))
+    }
+}
+
 const REST_YAML: &str = r#"
 rest:
   - service: "http.echo"
@@ -360,6 +395,10 @@ rest:
     methods: ['GET']
     url: "/api/echo/headers"
     timeout: 5s
+  - service: "typed.http.probe"
+    methods: ['POST']
+    url: "/api/typed/{user}"
+    timeout: 7s
   - service: "plain.text"
     methods: ['GET']
     url: "/api/text"
@@ -457,6 +496,13 @@ async fn server() -> TestServer {
         .unwrap();
     platform
         .register("trace.header.echo", Arc::new(TraceHeaderEcho), 1)
+        .unwrap();
+    platform
+        .register(
+            "typed.http.probe",
+            platform_core::TypedAdapter::arc(TypedHttpProbe),
+            1,
+        )
         .unwrap();
     platform
         .register(
@@ -1168,6 +1214,55 @@ async fn async_http_client_stamps_trace_context_under_both_names() {
         json["headers"]["x-trace-context"].as_str(),
         Some(stamped),
         "the same W3C value must be stamped under the custom traceparent header name"
+    );
+}
+
+/// End to end: a typed `AsyncHttpRequest` function behind a rest.yaml route
+/// receives a real HTTP request over the automation server and reads method,
+/// path parameter, query parameters (single + repeated), header, typed body
+/// and the server-side dataset keys through the typed accessors.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn typed_async_http_request_function_serves_a_real_request() {
+    let server = server().await;
+    let (status, _, body) = http(
+        server.port,
+        "POST",
+        "/api/typed/alice?q=a&q=b",
+        &[
+            ("Accept", "application/json"),
+            ("Content-Type", "application/json"),
+        ],
+        "{\"note\": \"hello\"}",
+    )
+    .await;
+    assert_eq!(status, 200, "typed probe body: {body}");
+    // presentation parity: JSON response bodies are PRETTY-printed, matching
+    // Java's SimpleMapper default rendering (interop drives read identically)
+    assert!(
+        body.contains('\n'),
+        "JSON responses must render pretty-printed"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(json["method"], "POST");
+    assert_eq!(json["url"], "/api/typed/alice");
+    assert_eq!(
+        json["user"], "alice",
+        "path parameter through the typed accessor"
+    );
+    assert_eq!(
+        json["q"], "a",
+        "single-value view of a repeated query parameter"
+    );
+    assert_eq!(json["q_all"], serde_json::json!(["a", "b"]));
+    assert_eq!(
+        json["accept"], "application/json",
+        "case-insensitive header"
+    );
+    assert_eq!(json["note"], "hello", "typed body deserialization");
+    assert_eq!(json["ip_present"], true, "server-side dataset key");
+    assert_eq!(
+        json["timeout"], 7,
+        "route timeout via the x-ttl/timeout contract"
     );
 }
 

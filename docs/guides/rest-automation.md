@@ -300,9 +300,16 @@ same shape the Java engine uses:
 ```
 
 Header names arrive lowercase. Path and query parameter values are percent-decoded (`+`
-becomes a space). `timeout` is the endpoint's timeout in seconds. See
-[Write Your First Function](event-driven/write-your-first-function.md) for handling this event
-in Rust.
+becomes a space). `timeout` is the endpoint's timeout in seconds.
+
+The idiomatic way to consume it is a **typed function**: declare
+`#[preload(..., typed)]` + `impl TypedFunction<AsyncHttpRequest, O>` and the dataset
+deserializes into the request model — `request.path_parameter("user")`,
+`request.query_parameter("lang")`, `request.header("accept")`, `request.cookie(...)`,
+`request.body_as::<T>()` (Java `TypedLambdaFunction<AsyncHttpRequest, Object>` parity). An
+untyped `ComposableFunction` sees the same map on the raw envelope. See
+[Write Your First Function](event-driven/write-your-first-function.md) for the full
+example.
 
 ### Content-type dispatch — how the body is parsed
 
