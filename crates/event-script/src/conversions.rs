@@ -90,17 +90,22 @@ fn java_to_string(value: &Value) -> String {
     }
 }
 
-/// Java `getLength`: null → 0; bytes/list → element count; string →
-/// `String.length()` = UTF-16 code units (increment 57, parity F20 — a
-/// non-BMP character such as an emoji counts 2, not 1); everything else →
-/// the UTF-16 length of its display form.
+/// Java `getLength`: null → 0; bytes/list → element count; string → the
+/// number of **Unicode scalar values** (code points); everything else → the
+/// scalar count of its display form. Maintainer ruling (2026-07-26,
+/// superseding the increment-57/F20 UTF-16 retrofit): modern ports use
+/// Unicode-native semantics — Java's `String.length()` counts UTF-16 code
+/// units, a JVM legacy that must not propagate to future Python/Node/Go
+/// ports. Documented divergence, bounded to supplementary-plane characters:
+/// identical for English/Chinese/BMP text (`你好` = 2 in both engines); an
+/// emoji counts 1 here, 2 in Java.
 pub fn get_length(value: &Value) -> i64 {
     match value {
         Value::Nil => 0,
         Value::Binary(b) => b.len() as i64,
-        Value::String(s) => s.as_str().unwrap_or_default().encode_utf16().count() as i64,
+        Value::String(s) => s.as_str().unwrap_or_default().chars().count() as i64,
         Value::Array(list) => list.len() as i64,
-        other => display(other).encode_utf16().count() as i64,
+        other => display(other).chars().count() as i64,
     }
 }
 
@@ -294,12 +299,15 @@ mod tests {
         assert_eq!(get_text_value(&map), "{\"k\":\"v\"}");
     }
 
-    /// Increment 57 (parity F20): string length counts UTF-16 code units —
-    /// an emoji is 2, exactly Java String.length().
+    /// Maintainer ruling (2026-07-26, supersedes the increment-57/F20
+    /// UTF-16 retrofit): string length counts Unicode SCALAR VALUES — an
+    /// emoji is 1 (Java's UTF-16 count would say 2), and CJK text is
+    /// identical in both engines (你好 = 2, never the UTF-8 byte count 6).
     #[test]
-    fn length_counts_utf16_code_units() {
+    fn length_counts_unicode_scalar_values() {
         assert_eq!(get_length(&Value::from("abc")), 3);
-        assert_eq!(get_length(&Value::from("😀")), 2);
-        assert_eq!(get_length(&Value::from("a😀b")), 4);
+        assert_eq!(get_length(&Value::from("😀")), 1);
+        assert_eq!(get_length(&Value::from("a😀b")), 3);
+        assert_eq!(get_length(&Value::from("你好")), 2);
     }
 }

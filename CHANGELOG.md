@@ -88,6 +88,19 @@ the design rationale in [`docs/design/`](docs/design/).
    "vectorDerived") and optional-service gating. ADR-0008 records the decision (the twin
    of the Java ledger's ADR-0009).
 
+### Changed
+
+1. **The `length` and `substring` string plugins use Unicode scalar values** (maintainer
+   ruling, superseding the earlier UTF-16 retrofit): indexes and counts address whole
+   characters (code points) — modern ports use Unicode-native semantics, and Java's
+   UTF-16 code units are a JVM legacy that must not propagate to future Python/Node/Go
+   ports. Identical for English/Chinese/BMP text (`f:length` of `你好` is 2 in both
+   engines, never the UTF-8 byte count 6); emoji and other supplementary-plane
+   characters count 1 here, 2 in Java. This also retires the retrofit's
+   surrogate-split micro-divergence: with scalar indexing there is no lossy case at all
+   (Rust strings cannot hold unpaired surrogates, so exact Java parity was structurally
+   impossible). Out-of-bounds semantics and error messages unchanged.
+
 ---
 ## Version 4.10.5, 7/24/2026
 

@@ -1454,6 +1454,16 @@ For example:
 | **Type Conversion** | parseDateTime   | Parse a date-time string to ISO, Local or Milliseconds.                                                               |
 | **Type Conversion** | validate        | Perform simple field validation. See details below.                                                                   |
 
+!!! note "Rust port — `length` and `substring` count Unicode scalar values"
+    String length and substring indexes address **whole characters** (Unicode scalar
+    values / code points) in this port, by maintainer ruling: Java's UTF-16 code units
+    are a JVM legacy that must not propagate to modern ports. The behavior is
+    **identical for English, Chinese and all other BMP text** (`f:length` of `你好` is 2
+    in both engines — never the UTF-8 byte count 6); emoji and other
+    supplementary-plane characters count **1 here, 2 in Java**. Out-of-bounds semantics
+    and error messages are unchanged (bounds measured in scalar values).
+
+
 *DateTime plugins*
 
 - f:dateTime() will yield a timestamp with local timezone.

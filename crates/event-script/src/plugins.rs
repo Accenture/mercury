@@ -275,14 +275,19 @@ fn plugin_substring(args: &[Value]) -> Result<Value, String> {
     let text = get_text_value(value);
     let start = rest.first().map(convert_integer).unwrap_or(-1);
     let end = rest.get(1).map(convert_integer).unwrap_or(-1);
-    // Java String.substring indexes are UTF-16 code units (increment 57,
-    // parity F20 — previously Unicode scalars, shifting indexes for emoji
-    // and other non-BMP input). Micro-divergence: an index that splits a
-    // surrogate pair yields U+FFFD (Java keeps the unpaired surrogate,
-    // which Rust strings cannot represent).
-    let units: Vec<u16> = text.encode_utf16().collect();
-    let len = units.len() as i64;
+    // Indexes address whole characters — Unicode SCALAR VALUES (maintainer
+    // ruling 2026-07-26, superseding the increment-57/F20 UTF-16 retrofit):
+    // Java's String.substring counts UTF-16 code units, a JVM legacy that
+    // must not propagate to modern ports. Documented divergence bounded to
+    // supplementary-plane characters (identical for English/Chinese/BMP
+    // text) — and with scalar indexing there is no lossy case at all: the
+    // retrofit's surrogate-split-to-U+FFFD note is retired, since exact
+    // Java parity was structurally impossible anyway (Rust strings cannot
+    // hold unpaired surrogates).
+    let scalars: Vec<char> = text.chars().collect();
+    let len = scalars.len() as i64;
     // Java isOutOfBounds: end past the text, start past the text, or flipped
+    // (bounds measured in scalar values; message unchanged)
     let out_of_bounds = (end >= 0 && end > len)
         || (start >= 0 && start > len)
         || (start > end && start >= 0 && end >= 0);
@@ -292,13 +297,15 @@ fn plugin_substring(args: &[Value]) -> Result<Value, String> {
         ));
     }
     if start >= 0 && end >= 0 {
-        Ok(Value::from(String::from_utf16_lossy(
-            &units[start as usize..end as usize],
-        )))
+        Ok(Value::from(
+            scalars[start as usize..end as usize]
+                .iter()
+                .collect::<String>(),
+        ))
     } else if start >= 0 && start < len {
-        Ok(Value::from(String::from_utf16_lossy(
-            &units[start as usize..],
-        )))
+        Ok(Value::from(
+            scalars[start as usize..].iter().collect::<String>(),
+        ))
     } else {
         Ok(Value::from(text))
     }
@@ -864,26 +871,41 @@ mod tests {
         assert_eq!(ms, Value::from(expected + 250));
     }
 
-    /// Increment 57 (parity F20): substring indexes are UTF-16 code units —
-    /// Java "a😀b".substring(3) == "b" (the emoji occupies units 1..3).
+    /// Maintainer ruling (2026-07-26, supersedes the increment-57/F20
+    /// UTF-16 retrofit): substring indexes address whole characters —
+    /// Unicode SCALAR VALUES. The emoji occupies exactly ONE index, and CJK
+    /// slicing is identical in both engines (BMP text has one code unit per
+    /// scalar).
     #[test]
-    fn substring_uses_utf16_code_units() {
+    fn substring_indexes_unicode_scalar_values() {
+        // "a😀b": the emoji is index 1, so index 2 starts at "b"
         assert_eq!(
-            calculate("substring", &[Value::from("a😀b"), Value::from(3)]),
+            calculate("substring", &[Value::from("a😀b"), Value::from(2)]),
             Ok(Value::from("b"))
         );
         assert_eq!(
             calculate(
                 "substring",
-                &[Value::from("a😀b"), Value::from(0), Value::from(1)]
+                &[Value::from("a😀b"), Value::from(0), Value::from(2)]
             ),
-            Ok(Value::from("a"))
+            Ok(Value::from("a😀"))
         );
-        // out-of-bounds uses the UTF-16 length (4), exactly like Java
-        assert!(calculate(
-            "substring",
-            &[Value::from("a😀b"), Value::from(0), Value::from(5)]
-        )
-        .is_err());
+        // the CJK boundary case: whole characters, never UTF-8 bytes
+        assert_eq!(
+            calculate(
+                "substring",
+                &[Value::from("你好世界"), Value::from(0), Value::from(2)]
+            ),
+            Ok(Value::from("你好"))
+        );
+        // out-of-bounds uses the scalar length (3 for "a😀b"); the error
+        // message is unchanged from Java's wording
+        assert_eq!(
+            calculate(
+                "substring",
+                &[Value::from("a😀b"), Value::from(0), Value::from(4)]
+            ),
+            Err("Substring indexes are out of bounds: [0, 4]".to_string())
+        );
     }
 }

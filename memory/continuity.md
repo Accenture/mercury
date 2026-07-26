@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-014908)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-022229)
 - **last_review:** 2026-07-26 | through 2026-07-26-012817.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out flagged to Eric)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -77,6 +77,18 @@ scanning (→ compile-time registration; no runtime scanning in Rust). platform-
 ported — e.g. stateless functions, HTTP-style status codes.)*
 
 ## Key Decisions
+
+- **String plugins use Unicode scalar values, by maintainer ruling (2026-07-26).**
+  `f:length` / `f:substring` count and index WHOLE CHARACTERS (Unicode scalar values /
+  code points) — NOT Java's UTF-16 code units (a JVM legacy that must not propagate to
+  future Python/Node/Go ports) and NOT UTF-8 bytes (你好 = 2, never 6). Supersedes the
+  increment-57/F20 UTF-16 retrofit (code + ledger only — no continuity fact existed to
+  supersede formally). Divergence bounded to supplementary-plane characters (emoji = 1
+  here, 2 in Java; BMP text identical); out-of-bounds semantics + error messages
+  unchanged; the retrofit's surrogate-split micro-divergence is retired (no lossy case
+  under scalar indexing). Do NOT re-retrofit UTF-16 in the name of parity — the ruling
+  is deliberate and Eric-verified. Docs: syntax-guide Rust-port note + CHANGELOG.
+  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-022229.md -->
 
 - **Registration metadata is a cross-language contract; carriers are per-language idioms.
   (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
