@@ -383,6 +383,15 @@ reactive back-pressure.*
   the body carries REAL bytes from `f:binary`, Java `byte[]` parity), string-util,
   parse-date/parse-date-time, input-validation-1/-2; plus a user-defined `shout`
   plugin registered via the macro and resolved through `f:shout(...)`.
+- **Consistency round (2026-07-25, annotation→macro arc):** the E-8
+  `builtin_registrations()` seeding is gone — **all 46 built-ins are themselves
+  `#[simple_plugin]` declarations** (the engine dogfoods its extension point, like
+  Java's `@SimplePlugin` classes), folded from the link-time inventory exactly once;
+  `plugins_e8.rs` became a proper module (no more textual `include!`); the
+  `SimplePluginLoader` hook asserts the registered count against the built-in floor
+  so linker elision fails the boot loudly; a duplicate name — including a user
+  plugin shadowing a built-in — warns with Java's `SimplePluginLoader` wording and
+  the last registration wins (the one conflict policy, D2).
 
 ## 5i. Increment E-9 — HTTP adapter, resilience, mock, hello-flow (implemented 2026-07-17)
 

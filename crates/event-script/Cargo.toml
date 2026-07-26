@@ -29,4 +29,6 @@ event-script-macros = { path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+# compile-fail guards for the macro surfaces (tests/ui)
+trybuild = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

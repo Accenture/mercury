@@ -1,0 +1,5 @@
+error: unknown preload parameter (expected route, instances, env_instances, typed, zero_tracing, interceptor, is_private; a conditional registration is declared with the separate #[optional_service("...")] attribute)
+ --> tests/ui/preload_unknown_param.rs:3:45
+  |
+3 | #[platform_core::preload(route = "ui.test", nonsense = 1)]
+  |                                             ^^^^^^^^

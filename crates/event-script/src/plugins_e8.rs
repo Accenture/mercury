@@ -1,6 +1,30 @@
-// Included by plugins.rs — the increment E-8 built-in plugin bodies
-// (arithmetic, generators, dates, comparisons, list-of-map operations and
-// input validation), each a faithful port of its Java plugin class.
+//
+// Copyright 2018-2026 Accenture Technology
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+//! The increment E-8 built-in plugin bodies (arithmetic, generators, dates,
+//! comparisons, list-of-map operations and input validation), each a faithful
+//! port of its Java plugin class. Every plugin is a `#[simple_plugin]`
+//! declaration collected through the link-time inventory — the engine
+//! dogfoods its own extension point, exactly like Java's `@SimplePlugin`
+//! classes.
+
+use event_script_macros::simple_plugin;
+use rmpv::Value;
+
+use crate::conversions::{convert_boolean, get_text_value};
 
 /// Java-style numeric promotion for the plugin family: whole numbers stay
 /// exact `i64`, floating-point values are `f64`.
@@ -89,14 +113,17 @@ fn fold_numbers(
     }
 }
 
+#[simple_plugin("add")]
 fn plugin_add(args: &[Value]) -> Result<Value, String> {
     fold_numbers(args, "add", |a, b| a + b, |a, b| a + b)
 }
 
+#[simple_plugin("subtract")]
 fn plugin_subtract(args: &[Value]) -> Result<Value, String> {
     fold_numbers(args, "subtract", |a, b| a - b, |a, b| a - b)
 }
 
+#[simple_plugin("multiply")]
 fn plugin_multiply(args: &[Value]) -> Result<Value, String> {
     fold_numbers(args, "multiply", |a, b| a * b, |a, b| a * b)
 }
@@ -110,6 +137,7 @@ fn divide_by_zero_check(divisors: &[Value]) -> Result<(), String> {
     Ok(())
 }
 
+#[simple_plugin("div")]
 fn plugin_div(args: &[Value]) -> Result<Value, String> {
     if args.len() < 2 {
         return Err("Expected at least two Numbers to divide".to_string());
@@ -119,6 +147,7 @@ fn plugin_div(args: &[Value]) -> Result<Value, String> {
     fold_numbers(args, "divide", |a, b| a / b, |a, b| a / b)
 }
 
+#[simple_plugin("mod")]
 fn plugin_mod(args: &[Value]) -> Result<Value, String> {
     if args.len() != 2 {
         return Err("Modulus expects only two values".to_string());
@@ -127,6 +156,7 @@ fn plugin_mod(args: &[Value]) -> Result<Value, String> {
     fold_numbers(args, "modulus", |a, b| a % b, |a, b| a % b)
 }
 
+#[simple_plugin("increment")]
 fn plugin_increment(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(match promote_number(one)? {
@@ -137,6 +167,7 @@ fn plugin_increment(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("decrement")]
 fn plugin_decrement(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => Ok(match promote_number(one)? {
@@ -203,17 +234,14 @@ fn round_half_up(value: f64, dp: usize) -> f64 {
     }
 }
 
+#[simple_plugin("round")]
 fn plugin_round(args: &[Value]) -> Result<Value, String> {
     let (number, dp) = match args {
         [one] => (promote_number(one)?, 0usize),
         [one, two] => {
             let dp = match promote_number(two)? {
                 Number::Long(l) if l >= 0 => l as usize,
-                _ => {
-                    return Err(
-                        "Decimal places for round must be a whole number >= 0".to_string()
-                    )
-                }
+                _ => return Err("Decimal places for round must be a whole number >= 0".to_string()),
             };
             (promote_number(one)?, dp)
         }
@@ -226,6 +254,7 @@ fn plugin_round(args: &[Value]) -> Result<Value, String> {
     })
 }
 
+#[simple_plugin("now")]
 fn plugin_now(args: &[Value]) -> Result<Value, String> {
     let command = args
         .first()
@@ -253,7 +282,7 @@ fn plugin_now(args: &[Value]) -> Result<Value, String> {
 /// render as `+0530` (no minute-less form), `XXX` renders UTC as `+00:00`
 /// where Java prints `Z`; `z` is format-only (chrono cannot parse zone
 /// abbreviations).
-fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
+pub(crate) fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut out = String::new();
     let push_literal = |out: &mut String, c: char| {
@@ -317,8 +346,8 @@ fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
                 ('S', 3) => "%3f",
                 ('S', _) => {
                     return Err(format!(
-                        "Unsupported fractional-second width in '{pattern}' - use SSS (milliseconds)"
-                    ))
+                    "Unsupported fractional-second width in '{pattern}' - use SSS (milliseconds)"
+                ))
                 }
                 ('a', _) => "%p",
                 ('X', 3) => "%:z",
@@ -341,6 +370,7 @@ fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
     Ok(out)
 }
 
+#[simple_plugin("dateTime")]
 fn plugin_date_time(args: &[Value]) -> Result<Value, String> {
     // Java DateGenerator: ZonedDateTime.now(zone).format(pattern) — the
     // optional 2nd argument is the zone (ZoneId.of), previously silently
@@ -380,6 +410,7 @@ fn compare_numbers(a: &Value, b: &Value) -> Result<std::cmp::Ordering, String> {
     }
 }
 
+#[simple_plugin("gt")]
 fn plugin_gt(args: &[Value]) -> Result<Value, String> {
     match args {
         [a, b] => Ok(Value::Boolean(
@@ -389,6 +420,7 @@ fn plugin_gt(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("lt")]
 fn plugin_lt(args: &[Value]) -> Result<Value, String> {
     match args {
         [a, b] => Ok(Value::Boolean(
@@ -398,6 +430,7 @@ fn plugin_lt(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("ternary")]
 fn plugin_ternary(args: &[Value]) -> Result<Value, String> {
     match args {
         [condition, yes, no] => Ok(if convert_boolean(condition)? {
@@ -409,6 +442,7 @@ fn plugin_ternary(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("startsWith")]
 fn plugin_starts_with(args: &[Value]) -> Result<Value, String> {
     match args {
         // case insensitive comparison (Java parity)
@@ -421,6 +455,7 @@ fn plugin_starts_with(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("endsWith")]
 fn plugin_ends_with(args: &[Value]) -> Result<Value, String> {
     match args {
         [source, text] => Ok(Value::Boolean(
@@ -432,6 +467,7 @@ fn plugin_ends_with(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("includes")]
 fn plugin_includes(args: &[Value]) -> Result<Value, String> {
     match args {
         // list membership uses value equality; text search is case-insensitive
@@ -479,6 +515,7 @@ fn parsed_date_output(
     }
 }
 
+#[simple_plugin("parseDate")]
 fn plugin_parse_date(args: &[Value]) -> Result<Value, String> {
     match args {
         [value, rule_text] => {
@@ -498,6 +535,7 @@ fn plugin_parse_date(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("parseDateTime")]
 fn plugin_parse_date_time(args: &[Value]) -> Result<Value, String> {
     match args {
         [value, rule_text] => {
@@ -604,6 +642,7 @@ fn merge_lists(first: &[Value], additional: &[Vec<(Value, Value)>]) -> Value {
     Value::Array(copy)
 }
 
+#[simple_plugin("listOfMap")]
 fn plugin_list_of_map(args: &[Value]) -> Result<Value, String> {
     let Some(Value::Map(data)) = args.first() else {
         return Ok(Value::Array(Vec::new()));
@@ -622,6 +661,7 @@ fn plugin_list_of_map(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("updateListOfMap")]
 fn plugin_update_list_of_map(args: &[Value]) -> Result<Value, String> {
     if args.len() > 1 {
         if let Some(Value::Array(first)) = args.first() {
@@ -650,6 +690,7 @@ fn drop_keys(map: &[(Value, Value)], keys: &[Value]) -> Value {
     Value::Map(dropped)
 }
 
+#[simple_plugin("removeKey")]
 fn plugin_remove_key(args: &[Value]) -> Result<Value, String> {
     if args.len() > 1 {
         match &args[0] {
@@ -670,6 +711,7 @@ fn plugin_remove_key(args: &[Value]) -> Result<Value, String> {
     Ok(Value::Nil)
 }
 
+#[simple_plugin("uniqueSet")]
 fn plugin_unique_set(args: &[Value]) -> Result<Value, String> {
     match args {
         [Value::Array(items)] => {
@@ -686,6 +728,7 @@ fn plugin_unique_set(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+#[simple_plugin("defaultValue")]
 fn plugin_default_value(args: &[Value]) -> Result<Value, String> {
     if args.len() > 1 && matches!(args[0], Value::Nil) {
         return Ok(args[1].clone());
@@ -695,6 +738,7 @@ fn plugin_default_value(args: &[Value]) -> Result<Value, String> {
 
 // ---- input validation (Java InputValidation) ----
 
+#[simple_plugin("validate")]
 fn plugin_validate(args: &[Value]) -> Result<Value, String> {
     let [value, rule_text] = args else {
         return Err("Validation syntax error. Expect 2 arguments where the second one is the validation rule.".to_string());
@@ -713,7 +757,11 @@ fn plugin_validate(args: &[Value]) -> Result<Value, String> {
         // when 'required' is not configured, the field is optional
         let required = rules.iter().any(|r| r.eq_ignore_ascii_case("required"));
         return if !required {
-            Ok(if evaluate { Value::Boolean(true) } else { Value::Nil })
+            Ok(if evaluate {
+                Value::Boolean(true)
+            } else {
+                Value::Nil
+            })
         } else if evaluate {
             Ok(Value::Boolean(false))
         } else {
@@ -753,7 +801,7 @@ fn plugin_validate(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-fn value_type_name(value: &Value) -> &'static str {
+pub(crate) fn value_type_name(value: &Value) -> &'static str {
     match value {
         Value::String(_) => "String",
         Value::Integer(_) => "Integer",

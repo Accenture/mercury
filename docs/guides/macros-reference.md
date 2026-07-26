@@ -99,8 +99,12 @@ mistakes never reach runtime.
 
 ### Stacked markers
 
-Three marker attributes stack **below** `#[preload]`, mirroring Java's annotation stacking;
-`#[preload]` consumes them at expansion time:
+Three marker attributes stack with `#[preload]`, mirroring Java's annotation stacking —
+and, exactly like Java annotations, **stacking is order-insensitive**: a marker may be
+written above or below `#[preload]` (each marker is a real attribute macro that detects
+the primary and re-attaches itself where `#[preload]` consumes it). The inline-args form
+(`#[preload(..., zero_tracing, interceptor)]`) is equivalent. Using a marker with no
+primary attribute on the item is a compile error.
 
 `#[zero_tracing]`
 :   The Java `@ZeroTracing`: this route's executions are excluded from distributed-trace
@@ -112,12 +116,11 @@ Three marker attributes stack **below** `#[preload]`, mirroring Java's annotatio
     automatic reply on success. A failure still routes to `reply_to`.
 
 `#[optional_service("condition")]`
-:   Conditional registration — a first-class attribute in its own right (next section) that
-    also works stacked above.
+:   Conditional registration — a first-class attribute in its own right (next section).
 
 ```rust
+#[zero_tracing]                          // above or below - both work
 #[preload(route = "anno.zero.traced")]
-#[zero_tracing]
 struct QuietService;
 
 #[preload(route = "anno.interceptor")]
@@ -246,8 +249,12 @@ service is registered (Java parity).
 The Java `@SimplePlugin` analog for the flow engine: registers a mapping-language plugin so
 `f:name(...)` expressions validate at flow-compile time and resolve at runtime. The target
 is a **function** with the signature `fn(&[rmpv::Value]) -> Result<rmpv::Value, String>`.
-The plugin name defaults to the camelCase form of the function name; override with
-`name = "..."`.
+The **positional string is the registered plugin name** — the analog of overriding Java's
+`PluginFunction.getName()` — e.g. `#[simple_plugin("getFirst")]`; `name = "..."` is an
+equivalent alias. Omitting the argument derives the name as the camelCase form of the
+function name (the Java class-name-to-camelCase convention). The argument grammar is
+identical to `#[fetch_feature]` where the two macros overlap: the string is the registered
+name; omit it to derive from the declaration.
 
 ```rust
 #[event_script::simple_plugin]
@@ -264,6 +271,21 @@ fn shout(args: &[rmpv::Value]) -> Result<rmpv::Value, String> {
 The plugin loader (a before-application hook at sequence 3) collects every entry before
 flows compile, so a flow mapping `f:shout(model.word)` resolves to this function.
 
+The engine dogfoods this extension point: **all 46 built-in mapping plugins are
+`#[simple_plugin]` declarations** (exactly like Java's 47 `@SimplePlugin` classes),
+collected from the same inventory as user plugins — e.g. the built-in `f:isEmpty`:
+
+```rust
+#[simple_plugin("isEmpty")]
+fn plugin_is_empty(args: &[Value]) -> Result<Value, String> { /* ... */ }
+```
+
+A duplicate plugin name — including a user plugin shadowing a built-in — warns
+(`Reloading SimplePlugin {name} - please check duplicated plugin name`) and the last
+registration wins, the same conflict policy as every other registry. Note:
+`#[simple_plugin]` deliberately takes **no** `#[optional_service]` marker — plugins are
+Event Script capabilities (flow vocabulary), never conditionally on/off.
+
 ## `#[fetch_feature]` (knowledge-graph)
 
 The Java `@FetchFeature(value)` analog: registers an API-fetcher feature for pre/post
@@ -275,6 +297,11 @@ provider node lists the feature by name in its `feature` property.
 | Parameter | Meaning |
 |---|---|
 | `"name"` or `name = "..."` | **Required.** The feature name providers reference. |
+
+A stacked `#[optional_service("condition")]` marker (the Java `@OptionalService` analog —
+same grammar as on the platform macros: comma = OR, `!` = NOT, `key=value`, bare `key`
+means `key=true`) makes the feature conditional on application configuration, evaluated at
+boot; a skipped feature logs `Skip optional FetchFeature - {name}`.
 
 ```rust
 #[knowledge_graph::fetch_feature("demo-auth")]
@@ -297,9 +324,13 @@ impl knowledge_graph::features::FeatureRunner for DemoAuth {
 }
 ```
 
-The engine loads all declared features during startup, before any graph executes. Two
-built-in demonstration features — `log-request-headers` and `log-response-headers` — are
-registered by the engine itself.
+The engine loads all declared features during startup, before any graph executes. The
+engine dogfoods this extension point too: the two built-in demonstration features —
+`log-request-headers` and `log-response-headers` — are themselves `#[fetch_feature]`
+declarations, like Java's `@FetchFeature` classes. A duplicate feature name warns
+(`Reloading FetchFeature {name} - please check duplicated feature name`) and the last
+registration wins; an explicit `features::register()` call wins over a declarative entry
+because it runs later and replaces.
 
 ## `auto_start_main!()`
 

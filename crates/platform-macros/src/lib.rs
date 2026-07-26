@@ -324,6 +324,69 @@ pub fn optional_service(args: TokenStream, input: TokenStream) -> TokenStream {
     quote!(#item).into()
 }
 
+/// The Java `@ZeroTracing` analog as a first-class marker attribute:
+/// suppresses the function's own telemetry (no dataset, no span) while the
+/// trace context still flows through for continuity. Order-insensitive —
+/// Java does not require a stacking order and neither does this port: write
+/// it above or below `#[preload]`, or inline as
+/// `#[preload(..., zero_tracing)]`.
+#[proc_macro_attribute]
+pub fn zero_tracing(args: TokenStream, input: TokenStream) -> TokenStream {
+    marker_attribute(args, input, "zero_tracing")
+}
+
+/// The Java `@EventInterceptor` analog as a first-class marker attribute:
+/// the function receives the raw envelope and replies manually; the worker
+/// ignores its returned envelope. Order-insensitive — write it above or
+/// below `#[preload]`, or inline as `#[preload(..., interceptor)]`.
+#[proc_macro_attribute]
+pub fn event_interceptor(args: TokenStream, input: TokenStream) -> TokenStream {
+    marker_attribute(args, input, "event_interceptor")
+}
+
+/// Shared mechanics for the stackable markers (the `#[optional_service]`
+/// self-reattachment pattern): written ABOVE the primary attribute, the
+/// marker expands first, verifies a primary is still on the item and
+/// re-attaches itself below, where the primary consumes it; written BELOW,
+/// the primary strips it before the compiler ever resolves it, so this macro
+/// never runs. A marker with no primary on the item is a compile error.
+fn marker_attribute(args: TokenStream, input: TokenStream, name: &str) -> TokenStream {
+    if !args.is_empty() {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("#[{name}] takes no arguments"),
+        )
+        .to_compile_error()
+        .into();
+    }
+    let mut item = parse_macro_input!(input as ItemStruct);
+    let has_primary = item.attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .last()
+            .is_some_and(|seg| seg.ident == "preload")
+    });
+    if !has_primary {
+        return syn::Error::new_spanned(
+            &item.ident,
+            format!(
+                "#[{name}] must be stacked with #[preload] \
+                 (or use the inline form #[preload(..., {inline})])",
+                inline = if name == "event_interceptor" {
+                    "interceptor"
+                } else {
+                    name
+                }
+            ),
+        )
+        .to_compile_error()
+        .into();
+    }
+    let marker = syn::Ident::new(name, proc_macro2::Span::call_site());
+    item.attrs.push(syn::parse_quote!(#[#marker]));
+    quote!(#item).into()
+}
+
 fn entry_point_attribute(
     args: TokenStream,
     input: TokenStream,

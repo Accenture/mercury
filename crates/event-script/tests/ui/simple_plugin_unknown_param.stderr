@@ -1,0 +1,5 @@
+error: unknown simple_plugin parameter (expected a plugin name literal or name = "...")
+ --> tests/ui/simple_plugin_unknown_param.rs:3:31
+  |
+3 | #[event_script::simple_plugin(instances = 2)]
+  |                               ^^^^^^^^^

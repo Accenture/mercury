@@ -47,6 +47,12 @@
 //! before-application hook at sequence 5 (essential services 0, plugins 3,
 //! flows 5, user code ≥ 6 — the Java sequence contract).
 
+// The #[simple_plugin] macro expands to `::event_script::...` paths; the
+// engine's own built-in plugins are declared with the same macro (the engine
+// dogfoods its extension point), so the crate must resolve its public name
+// from within.
+extern crate self as event_script;
+
 pub mod adapter;
 pub mod compiler;
 pub mod conversions;
@@ -60,6 +66,7 @@ pub mod mlm;
 pub mod mock;
 pub mod model;
 pub mod plugins;
+mod plugins_e8;
 pub mod resilience;
 pub mod util;
 pub mod validator;
@@ -165,15 +172,32 @@ impl ComposableFunction for SimpleExceptionHandler {
 
 /// The plugin loader (Java `SimplePluginLoader`,
 /// `@BeforeApplication(sequence = 3)` — before flows compile at sequence 5,
-/// so `f:` names in mappings validate against user plugins too).
+/// so `f:` names in mappings validate against user plugins too). Built-in and
+/// user plugins alike are `#[simple_plugin]` declarations collected from the
+/// link-time inventory; this hook forces the one-time fold and asserts the
+/// count, so a linker-elision regression fails the boot loudly instead of
+/// silently compiling flows against an empty registry (the
+/// registration-metadata contract: discovery must fail loudly when a registry
+/// that should be populated is empty).
 #[before_application(sequence = 3)]
 pub struct SimplePluginLoader;
 
 #[async_trait]
 impl EntryPoint for SimplePluginLoader {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
-        let user = plugins::load_inventory_plugins();
-        log::info!("Total {user} user plugin(s) registered");
+        let total = plugins::load_inventory_plugins();
+        if total < plugins::BUILTIN_PLUGIN_COUNT {
+            return Err(AppError::new(
+                500,
+                format!(
+                    "SimplePlugin registry incomplete: {total} plugin(s) collected, expected at \
+                     least the {} built-ins - check that the event-script inventory was not \
+                     elided at link time",
+                    plugins::BUILTIN_PLUGIN_COUNT
+                ),
+            ));
+        }
+        log::info!("Total {total} simple plugin(s) registered");
         Ok(())
     }
 }

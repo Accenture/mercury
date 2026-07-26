@@ -1,0 +1,5 @@
+error: #[preload] requires route = "..."
+ --> tests/ui/preload_missing_route.rs:3:8
+  |
+3 | struct Fixture;
+  |        ^^^^^^^

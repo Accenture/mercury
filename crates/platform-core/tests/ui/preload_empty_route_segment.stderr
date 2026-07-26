@@ -1,0 +1,5 @@
+error: invalid #[preload] route list 'a.b, ,c.d' - each comma-separated route name must be non-empty
+ --> tests/ui/preload_empty_route_segment.rs:3:34
+  |
+3 | #[platform_core::preload(route = "a.b, ,c.d")]
+  |                                  ^^^^^^^^^^^

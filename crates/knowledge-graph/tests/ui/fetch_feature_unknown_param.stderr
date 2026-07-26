@@ -1,0 +1,5 @@
+error: unknown fetch_feature parameter (expected a feature name literal or name/value = "...")
+ --> tests/ui/fetch_feature_unknown_param.rs:4:52
+  |
+4 | #[knowledge_graph::fetch_feature(name = "guarded", optional_service = "app.env=dev")]
+  |                                                    ^^^^^^^^^^^^^^^^

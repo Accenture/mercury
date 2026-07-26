@@ -47,6 +47,12 @@ pub mod skills;
 pub mod traveler;
 pub mod ws_ui;
 
+// The #[fetch_feature] macro expands to `::knowledge_graph::...` paths; the
+// engine's own built-in features are declared with the same macro (the
+// engine dogfoods its extension point), so the crate must resolve its public
+// name from within.
+extern crate self as knowledge_graph;
+
 // the annotation layer (Java @FetchFeature analog)
 pub use knowledge_graph_macros::fetch_feature;
 // re-exported so the macro's generated `submit!` resolves without the user
@@ -75,10 +81,20 @@ impl EntryPoint for GraphResources {
             env!("CARGO_MANIFEST_DIR"),
             "/resources"
         ));
-        // built-in API-fetcher features (Java ships them in the engine jar)
-        features::register_builtins();
-        // declarative #[fetch_feature] entries (the PlaygroundLoader scan analog)
-        features::load_declared_features();
+        // declarative #[fetch_feature] entries (the PlaygroundLoader scan
+        // analog) — the two built-in demonstration features are themselves
+        // #[fetch_feature] declarations, so the count doubles as the
+        // linker-elision guard: discovery must fail loudly when a registry
+        // that should be populated is empty (registration-metadata contract)
+        let features = features::load_declared_features();
+        if features < 2 {
+            return Err(AppError::new(
+                500,
+                format!(
+                    "FetchFeature registry incomplete: {features} feature(s) collected,                      expected at least the 2 built-ins - check that the knowledge-graph                      inventory was not elided at link time"
+                ),
+            ));
+        }
         Ok(())
     }
 }

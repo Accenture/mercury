@@ -1,0 +1,7 @@
+error: #[optional_service] requires a condition string, e.g. #[optional_service("app.env=dev")]
+ --> tests/ui/optional_service_empty_condition.rs:2:1
+  |
+2 | #[platform_core::optional_service("")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `platform_core::optional_service` (in Nightly builds, run with -Z macro-backtrace for more info)

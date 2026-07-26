@@ -30,10 +30,12 @@ let reply = po
     parallel RPC** (`request(List<EventEnvelope>, timeout)`), **event-over-HTTP**
     (`asyncRequest` against a remote instance), the `exists()` multi-route check
     (use `Platform::has_route` per route), journaling helpers, and the `Kv` convenience
-    class. Java `Platform` extras not ported: `waitForProvider`, `setSelf`/personality,
-    and the public/private function distinction (there is no service mesh, so every
-    function is local). The port adds nothing that Java lacks — absent here means
-    deferred or out of scope, never renamed.
+    class. Java `Platform` extras not ported: `waitForProvider` and `setSelf`/personality.
+    The **public/private function distinction IS ported**: functions are private by
+    default (`is_private = true` on `#[preload]`, `register` vs `register_public`), and a
+    private function is not reachable through the `/api/event` endpoint (403), exactly as
+    in Java. The port adds nothing that Java lacks — absent here means deferred or out of
+    scope, never renamed.
 
 ## Platform
 

@@ -37,6 +37,8 @@ inventory = "0.3"
 platform-macros = { path = "../platform-macros" }
 
 [dev-dependencies]
+# compile-fail guards for the macro surfaces (tests/ui)
+trybuild = "1"
 # self-signed certificates for the HTTPS client integration test (increment 48)
 rcgen = "0.13"
 # decode the golden envelope wire-format vectors (increment 59)

@@ -11,6 +11,56 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **The engine dogfoods its extension points (annotation→macro consistency, in lock-step
+   with the Java reference).** All 46 built-in mapping plugins are now `#[simple_plugin]`
+   declarations and both built-in fetch features are `#[fetch_feature]` declarations —
+   discovered through the same link-time inventory as user code, exactly like Java's 47
+   `@SimplePlugin` and 2 `@FetchFeature` classes. The hard-wired
+   `builtin_registrations()` / `register_builtins()` seedings are gone, and the loaders
+   assert the registered counts at startup so a linker-elision regression fails the boot
+   loudly. Behavior is identical: same names, same bodies, same error messages (the
+   existing suites prove it). `#[simple_plugin]` now accepts the positional string form
+   (`#[simple_plugin("getFirst")]`), mirroring `#[fetch_feature]`'s grammar — the string
+   is the registered name, `name = "..."` remains an equivalent alias, and omitting both
+   keeps the camelCase-of-fn-name derivation.
+2. **Marker stacking is order-insensitive, matching Java annotation semantics.**
+   `#[zero_tracing]` and `#[event_interceptor]` are now real attribute macros using the
+   `#[optional_service]` self-reattachment pattern: written above or below `#[preload]`,
+   the behavior is identical (previously they were consumed only when written below — an
+   order requirement Java does not have). The inline-args form
+   (`#[preload(..., zero_tracing, interceptor)]`) is unchanged; a marker with no primary
+   attribute on the item is a compile error with a helpful message.
+3. **Compile-fail guards for the macro surfaces** (`tests/ui`, trybuild): eleven fixtures
+   across the three runtime crates pin every deliberate macro compile error — unknown
+   parameters, missing required names/routes, empty route segments and conditions, and
+   markers with no primary attribute — so error messages are part of the tested contract.
+4. **`#[fetch_feature]` accepts a stacked `#[optional_service("condition")]` marker**
+   (Java `@OptionalService` parity, same grammar as on the platform macros): a declared
+   feature loads only when the configuration condition holds, logged as
+   `Skip optional FetchFeature - {name}` otherwise. `#[simple_plugin]` deliberately takes
+   no such marker — plugins are Event Script capabilities (flow vocabulary), never
+   conditionally on/off.
+
+### Fixed
+
+1. **One conflict policy across every registry** (matching the Java engine's actual
+   `Platform.register` behavior): explicit registration wins over declarative, and a
+   duplicate name warns + last-wins — simple plugins
+   (`Reloading SimplePlugin {name} - please check duplicated plugin name`, including a
+   user plugin shadowing a built-in), fetch features
+   (`Reloading FetchFeature {name} - please check duplicated feature name`, previously
+   first-wins on the declarative path), and websocket services (previously silent
+   replace). Preload routes already warned + reloaded.
+2. **Two stale doc claims corrected**: `#[preload]` DOES accept a comma-separated route
+   list (aliases are compile-validated and used in production), and the public/private
+   function distinction IS ported (private by default; a private function is not
+   reachable through `/api/event`).
+
+---
 ## Version 4.10.5, 7/24/2026
 
 Security patch in lock-step with the Java engine's v4.10.5.
