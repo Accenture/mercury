@@ -15,9 +15,9 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-022229)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-022229, closure note appended)
 - **last_review:** 2026-07-26 | through 2026-07-26-012817.md
-- **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out flagged to Eric)
+- **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -133,6 +133,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
   `resources/` beside its `Cargo.toml` — never cargo examples inside a library crate.
   Event-script and knowledge-graph demos land as sibling `examples/<name>/` crates.
+- **`tests/ui` compile-fail FIXTURES are test resources — no license headers** (Eric,
+  2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
+  `.stderr` line and forces TRYBUILD regeneration; treated like Java's
+  `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 92 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
@@ -161,7 +165,17 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   trajectory. No supersessions required.**
   <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: active | origin: 2026-07-26-013015.md -->
 
-- [ ] (in flight — 2026-07-26; **P1 MERGED same day: Rust PR
+- [x] (2026-07-26; **ARC COMPLETE — P2 MERGED same day: Rust PR
+  [#182](https://github.com/Accenture/mercury/pull/182) (merge `fd4685d5`) in lock-step with
+  Java PR #235 (squash `84c4957f`). The full ratified scope is delivered: D1/D2/D3a in P1,
+  D4 (yaml.preload.override) + D5 (registration-metadata contract page + byte-identical
+  golden vectors + 3 conformance suites + ADR-0008) in P2; D3b/D6 deferred by design. The
+  branch also carried: the scalar-semantics ruling ([[string-plugins-unicode-scalars]] —
+  f:length/f:substring on Unicode scalar values, UTF-16 retrofit superseded, with the
+  anti-re-retrofit guard), the Eric-authorized invariant ceremony (all five never-decay
+  facts CONFIRMED against live code, two header drifts remedied), and the docs
+  housekeeping (AI-companion test log → docs/test-reports/, joined the site nav).**
+  P1 was MERGED earlier the same day: Rust PR
   [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
   first trybuild CI run passed, .stderr matched stable first try) in lock-step with Java
   PR #234 (squash `265f295d`, CI 6m37s). Remaining = P2: D4 yaml.preload.override port +
@@ -229,8 +243,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   compile error, .stderr committed; no rust-toolchain pin, so a diagnostics-reshaping
   bump regenerates via TRYBUILD=overwrite). Final gate: 265 (262+3) / clippy 0 / fmt.
   P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
-  P1 merged; close when P2 lands (or the arc is re-scoped). Relates
-  [[port-bottom-up-faithful]].
+  P1 and P2 both merged — ARC CLOSED. Relates [[port-bottom-up-faithful]],
+  [[registration-metadata-contract]], [[string-plugins-unicode-scalars]].
   <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: working | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
