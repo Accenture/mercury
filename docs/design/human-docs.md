@@ -125,8 +125,11 @@ untouched because only new files are added.
 
 ## 5. What is excluded from the site
 
-`exclude_docs` (internal / working material): `design/`, `INCREMENTS.md`,
-`AI-companion-test.md`. `not_in_nav` (linked, not navigated): `llms.txt`,
+`exclude_docs` (internal / working material): `design/`, `INCREMENTS.md`.
+(`AI-companion-test.md` was originally excluded too; on 2026-07-26 it moved to
+`docs/test-reports/AI-companion-test.md` and joined the site nav beside the interop test
+report — test reports are published, working material is not.) `not_in_nav` (linked, not
+navigated): `llms.txt`,
 `guides/knowledge-graph/minigraph-commands.json`, `guides/event-script/event-script-flow.json`.
 
 ## 6. Source mapping (map, don't mirror)
