@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.6**: re-aligned with the Java repo's version number (its 4.10.6 was the Sonar-remediation patch — contents differ by design, Eric's call); this release = the typed-AsyncHttpRequest arc (typed HTTP functions, single-source dataset, pretty-print parity, /info/routes, ops-tunable worker instances).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-011116, tag note appended)
-- **last_review:** 2026-07-26 | through 2026-07-26-022229.md
+- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-214333, lightweight v4.32.0 upgrade)
+- **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -464,55 +464,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt.
   <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-025820.md -->
 
-- [x] (release — 2026-07-23; CLOSED same day) **v4.10.2 SHIPPED via the normal flow, in
-  lock-step with the Java engine** — tag `v4.10.2` on merge commit `6a39bccc`
-  (PR [#172](https://github.com/Accenture/mercury/pull/172), CI green after the
-  config-race fix `0d09154d`), release published 2026-07-23; the Java v4.10.2 shipped
-  the same day (tag on `61ddb772`, PR #222). Patch: metadata
-  contract + temporary.inbox alignment + the mirrored collection plugins. Branch
-  `chore/release-4.10.2` from main `f86fbec2` (PR #171 merge): collection-plugins
-  feature commit (isEmpty/getFirst/getLast — Java PR #220 mirror, error text verbatim,
-  45 built-ins) + release bump 4.10.1→4.10.2 (root Cargo.toml only; lock regenerated),
-  CHANGELOG `## Version 4.10.2, 7/23/2026` led by the metadata contract + reply-path
-  alignment, four-way empty diff noted, interop report linked, PR #171 stamped, plus
-  the CI-flake fix (the flow_runtime config-snapshot race — latent on main since
-  PR #171; reproduced under load, fixed with the Once setup pattern, 0/80 loaded
-  failures after). Gate: workspace 252 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-2 | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: archive-candidate | origin: 2026-07-23-231506.md -->
-
-- [x] (feature branch — 2026-07-23; MERGED as PR [#171](https://github.com/Accenture/mercury/pull/171),
-  merge `f86fbec2`) **Metadata injection hardening
-  (increment 65) IMPLEMENTED on branch `feature/metadata-injection-hardening`** (mirror
-  of the Java reference branch of the same name; NOT pushed — Eric gates). Eric's design
-  ruling: a function's headers are a COPY with read-only metadata INJECTED at entry and
-  SANITIZED at exit — metadata is never transported in the event. Business cid rides the
-  new engine-managed `my_cid` tag (wire-compatible `tags` envelope field; converted at
-  apply_current_trace, flow task dispatch, REST service events); the worker now injects
-  ALL FOUR my_* keys into the input copy (this port previously injected none — echo demos
-  are now Java replicas), honors + strips the legacy pre-4.10.2 header, scrubs
-  x-event-api and tags from the function's view, and filters my_*/x-event-api at exit.
-  REST response echoes X-Correlation-Id (function-set wins); edge stamps the resolved cid
-  onto the dataset headers (function/model.cid/response all see the SAME id — verified
-  live end-to-end incl. the generated-cid case). Four regression twins + fixture updates.
-  **Second commit (increment 66): temporary.inbox alignment** — ONE reserved reply route
-  keyed by correlation id (the `inbox.*` namespace freed for applications, e.g.
-  inbox.approval); RPC marker = the reserved `rpc` tag; `@origin` never generated,
-  parsed away inbound (Eric: mesh-era syntax only); reply dispatch direct on the
-  sender's runtime; AsyncHttpClientService global-platform reply bug fixed. Workspace
-  250/clippy 0/fmt; span signature UNCHANGED (empty diff re-verified). Serves
-  [[inv-telemetry-presentation-parity]]. Close when
-  merged.
-  <!-- id: thread-metadata-injection-hardening | created: 2026-07-23 | last_used: 2026-07-23 | uses: 3 | tier: archive-candidate | origin: 2026-07-23-213440.md -->
-
-### Blueprint — gaps from Current State (greenfield) to the Vision  (serves: vision-mercury)
+### Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
-> Vision↔reality gap that closes when delivered. Bottom-up order (foundation → UI). Detailed
-> per-layer Designs are TODO — the authoritative behavior spec is the Java mercury-composable
-> project (map, don't mirror); harvest it into per-layer Designs when a local checkout is
-> available and authorized (see the harvest thread below).
+> Vision↔reality gap that closes when delivered. Bottom-up order (foundation → UI). The
+> three in-scope layers are delivered; forward runway is the UI continuation + the
+> connectors/sync-over-async backlog below. The authoritative behavior spec remains the
+> Java mercury-composable project (map, don't mirror).
 
-  **Design drafted 2026-07-17** (`docs/design/knowledge-graph-port.md` v1) — gate pending.
-- [ ] **(blueprint)** Continue **foundation → user interface** once the three layers stand.
+- [ ] **(blueprint)** Continue **foundation → user interface** now that the three core
+  layers stand — reframe into concrete UI-layer increments as they are picked up.
   → serves: vision-mercury
   <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(backlog) Port the lightweight cloud-native connectors + sync-over-async.** Maintainer
@@ -547,6 +507,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   and the canonical version (4.8.6) — folded into vision/instructions/invariants above.
   **Still to harvest** (as each layer is ported): platform-core internals (EventEmitter,
   WorkerHandler, serializers), then event-script and knowledge-graph specs + their ADRs.
+  **Review note (2026-07-27):** the enumerated per-layer harvest is effectively complete —
+  all three in-scope layers are ported/milestone-closed and their specs folded into
+  vision/instructions/invariants/ADRs. Remaining forward scope is the connectors +
+  sync-over-async harvest (rides [[bp-kafka-connectors-backlog]]). **Human gate:** mark
+  this `[x]` (per-layer harvest done) or re-scope it to the connectors harvest — Eric's call.
   → serves: vision-mercury
   <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
 

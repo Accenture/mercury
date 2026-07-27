@@ -42,3 +42,5 @@
 - ot-event-over-http — (blueprint) Event over HTTP — phase 2, cross-language envelope interop — CLOSED — completed thread swept (completion older than archive_window 20) — 2026-Q3.md
 - thread-release-4-10-1 — (release — 2026-07-23; CLOSED same day) v4.10.1 SHIPPED via the normal flow, in — completed release thread swept (completion older than archive_window 20) — 2026-Q3.md
 - thread-telemetry-parity-batch — (feature branch — 2026-07-23; MERGED as PR [#169](https://github.com/Accenture/mercury/pul… — completed thread swept (completion older than archive_window 20) — 2026-Q3.md
+- thread-release-4-10-2 — (release — 2026-07-23; CLOSED same day) v4.10.2 SHIPPED via the normal flow, in — faded (completed release/feature threads, sslu 21 > archive_window 20; archival-safety adversarially confirmed) — 2026-Q3.md
+- thread-metadata-injection-hardening — (feature branch — 2026-07-23; MERGED as PR [#171](https://github.com/Accenture/mercury/pul… — faded (completed release/feature threads, sslu 21 > archive_window 20; archival-safety adversarially confirmed) — 2026-Q3.md
