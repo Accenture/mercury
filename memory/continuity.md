@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.6**: re-aligned with the Java repo's version number (its 4.10.6 was the Sonar-remediation patch — contents differ by design, Eric's call); this release = the typed-AsyncHttpRequest arc (typed HTTP functions, single-source dataset, pretty-print parity, /info/routes, ops-tunable worker instances).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-233047)
+- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-011116)
 - **last_review:** 2026-07-26 | through 2026-07-26-022229.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -137,12 +137,26 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 94 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-27 | uses: 95 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (release in flight — 2026-07-27; branch `chore/release-4.10.6`, 1 commit, pushed —
+  Eric creates the PR via web UI and merges; tag goes on the MERGE commit after merge,
+  verified before pushing per the 4.10.2 tag-race lesson) **v4.10.6 release prep — feature
+  release re-aligning the version number with the Java repo (its 4.10.6 = the Sonar
+  patch; contents differ by design, Eric's ruling).** Contents: the annotation→macro P2
+  leftovers already on main (yaml.preload.override, registration-metadata contract +
+  golden vectors, Unicode-scalar string plugins) + the typed-AsyncHttpRequest arc
+  (PR #183: typed HTTP functions, single-source dataset, pretty-print parity,
+  /info/routes, ops-tunable worker instances). Sweep 4.10.5→4.10.6 (root Cargo.toml —
+  count-asserted, no substring hazards; lock regenerated; continuity status line);
+  CHANGELOG Unreleased → `## Version 4.10.6, 7/26/2026` + release summary. Gate:
+  workspace 273 / clippy 0 / fmt. Close when tagged + published.
+  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: working | origin: 2026-07-27-011116.md -->
 
 - [x] (2026-07-26; **MERGED same day as PR
   [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
@@ -219,7 +233,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Merged — CLOSED. Relates [[registration-metadata-contract]]
   (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
   HTTP-facing half of that story), [[port-bottom-up-faithful]].
-  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-233047.md -->
+  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: active | origin: 2026-07-26-233047.md -->
 
 - [x] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
   40).** Raised by the 2026-07-26 review (cadence); **VERIFIED 2026-07-26 against live code,
@@ -343,7 +357,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (one unidentified single-test failure during the first post-bump compile-storm run; did
   not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
   Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: active | origin: 2026-07-24-191554.md -->
+  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-191554.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
@@ -360,7 +374,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Cargo.toml only — members inherit; lock regenerated; continuity status line); CHANGELOG
   Unreleased → `## Version 4.10.4, 7/24/2026` + release summary. Gate: workspace 260 /
   clippy 0 / fmt. Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: active | origin: 2026-07-24-183956.md -->
+  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: archive-candidate | origin: 2026-07-24-183956.md -->
 
 - [x] (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]])
   **Interop header-hygiene round, mirrored from the Java reference branch of the same
