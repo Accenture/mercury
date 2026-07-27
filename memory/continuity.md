@@ -103,13 +103,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the wire-format golden-vector method applied to the declaration surface. New ports pass
   the three vector suites before their declaration surface is done. Twin of the Java
   ledger's ADR-0009.
-  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-013851.md -->
+  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: active | origin: 2026-07-26-013851.md -->
 
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 92 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 93 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -137,15 +137,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 93 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 94 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (in flight — 2026-07-26; branch `feature/typed-async-http-request`, 1 commit, NOT
-  pushed — Eric gates) **Typed AsyncHttpRequest functions (Eric-ratified fix for the gap
+- [x] (2026-07-26; **MERGED same day as PR
+  [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
+  rode ONE commit (`0b5be4a6`) refined across six review rounds (typed input → fluent
+  builder → single-source router → pretty print → /info/routes + default-rest.yaml
+  relocation → ops-tunable instances), CI green first try (build 17s / test 1m54s). The
+  Java twin PR #236 (worker.instances.actuator.services + truthful docs) still in CI at
+  closeout — the shared family key goes live on both engines once it merges.**)
+  **Typed AsyncHttpRequest functions (Eric-ratified fix for the gap
   report: the Rust port could not type a function's input as AsyncHttpRequest).** Design
   agreed with Eric — idiomatic, NO engine special case: `Serialize`/`Deserialize`
   hand-implemented as thin delegates onto the existing to_value()/from_value(&Value)
@@ -210,7 +216,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the family key to 7 and /info/routes reports 7 for the family. Docs: actuators tuning
   note + configuration-reference family-key entry (demo keys skipped — the page documents
   no example-app keys); CHANGELOG extended.** Gate: workspace 273 / clippy 0 / fmt.
-  Close when merged. Relates [[registration-metadata-contract]]
+  Merged — CLOSED. Relates [[registration-metadata-contract]]
   (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
   HTTP-facing half of that story), [[port-bottom-up-faithful]].
   <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-233047.md -->
