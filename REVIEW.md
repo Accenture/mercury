@@ -21,7 +21,7 @@ Three triggers:
 
 > **The triggers don't rely on the agent remembering.** `memory-lint` surfaces all three as
 > advisories — `[review-overdue]` (cadence) and `[continuity-bloat]` (facts/lines) — so a lapsed
-> review shows up on every lint run + the CI floor, not just when someone thinks to check. (Added
+> review shows up on every lint run + the forge CI floor (GitHub Actions, GitLab CI, or Azure Pipelines), not just when someone thinks to check. (Added
 > v4.24.0, after a real product repo ran 61 sessions and never archived because the cadence
 > trigger only ever fired in the agent's head.)
 

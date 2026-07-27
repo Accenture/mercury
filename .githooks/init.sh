@@ -3,7 +3,9 @@
 # Idempotent + advisory. Closes the fresh-clone gap: a clone has the gitignored skill adapters
 # ABSENT and the git hook UNACTIVATED (git can't auto-run committed hooks on clone — security).
 # This single command sets both up. The agent runs it itself on a first session (see AGENTS.md);
-# this is the human one-command fallback. CI runs server-side regardless, with or without this.
+# this is the human one-command fallback. On GitHub / GitLab.com, CI runs server-side regardless,
+# with or without this (a self-managed GitLab needs an admin-registered runner; an Azure DevOps
+# pipeline runs once its one-time activation is done).
 set -e
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 
@@ -23,4 +25,4 @@ if [ -d .githooks ]; then
   echo "  core.hooksPath = $(git config core.hooksPath)"
 fi
 
-echo "agent-memory init: done — adapters synced + post-commit hook active. (CI runs server-side regardless.)"
+echo "agent-memory init: done — adapters synced + post-commit hook active. (On GitHub / GitLab.com, CI runs server-side regardless.)"

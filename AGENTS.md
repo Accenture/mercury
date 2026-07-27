@@ -132,25 +132,40 @@ expected (the decay math counts log files — `DECAY.md` §4).
      (e.g. `Claude Code`, `Gemini CLI` — not a model version) and remove any harness-injected
      duplicate at the same email.
    - **Never emit both.** One line per collaborator, keyed on email.
-   On a **squash-merge** the forge compounds this — each squashed commit's inline trailers pile up
-   *and* the forge appends its own consolidated one after the `---------` line. Keep the canonical
-   trailer **once** (in the PR-description footer; omit it from per-commit bodies), then trim inline
-   repeats so exactly one line per collaborator survives. Stable identity keeps attribution as one
-   collaborator across releases and vendors.
-   - **Opening a pull request?** Lead the description with two short sections — **What** (the
+   On a **squash-merge** the forges behave **oppositely** — same invariant, opposite failure mode
+   (v4.31.0):
+   - **GitHub compounds trailers** — each squashed commit's inline trailers pile up *and* it appends
+     its own consolidated one after the `---------` line. Keep the canonical trailer **once** (in
+     the PR-description footer; omit it from per-commit bodies), then trim inline repeats so exactly
+     one line per collaborator survives.
+   - **GitLab drops them** — its default squash commit message is the MR title **only**, so trailers
+     are silently lost. Make the trailer *survive*: keep the canonical trailer in the MR-description
+     footer and **re-add it when editing the squash commit message at merge** (the merge widget
+     allows this). A project-level lever is `%{all_commits}` in Settings → Merge requests → squash
+     commit message template — it embeds the full commit messages *including* body trailers
+     (GitHub-like compounding, so the dedup rule above then applies). `%{co_authored_by}` does
+     **not** carry body trailers — it credits other commit *authors* only, so it does nothing for
+     a trailer-only AI collaborator.
+   - **Azure DevOps drops them too** — no auto-append, and no merge-message template mechanism at
+     all. The durable record is the PR-description footer; to carry the trailer into the squash
+     commit, re-add it via "Customize merge commit message" at completion.
+   Stable identity keeps attribution as one collaborator across releases, vendors, and forges.
+   - **Opening a pull/merge request?** Lead the description with two short sections — **What** (the
      change) and **Why** (the intent it serves — the Blueprint gap, decision, or problem behind
      it; substantive intent, *not* a restatement of What) — each 1–2 short paragraphs, drawn from
-     the session log(s) in the PR. Close it with the **same self-identifying `Co-Authored-By:`
-     footer** you use on commits and session logs, so PR authorship is traceable across vendors
-     too. A `.github/pull_request_template.md` seeds all of this; keep it advisory, never a gate.
-     (The *why* is a first-class artifact throughout this protocol, so a PR is no exception.)
+     the session log(s) in the PR/MR. Close it with the **same self-identifying `Co-Authored-By:`
+     footer** you use on commits and session logs, so PR/MR authorship is traceable across vendors
+     too. A seeded description template (`.github/pull_request_template.md` on GitHub;
+     `.gitlab/merge_request_templates/Default.md` on GitLab) carries all of this; keep it advisory,
+     never a gate — on Azure DevOps, `.azuredevops/pull_request_template.md`. (The *why* is a
+     first-class artifact throughout this protocol, so a PR/MR is no exception.)
 
 **After-session checklist** (the ritual is convention — run it each time):
 - [ ] session log written — ran `date -u +%Y-%m-%d-%H%M%S` for the filename (not `currentDate`); includes `## Memory References`
 - [ ] `continuity.md`: `last_session` set, threads checked, new facts have footers
 - [ ] review run if cadence/size triggered (`REVIEW.md`)
 - [ ] reminded the user to commit `memory/` (deliberate, human-initiated, with a self-identifying co-author trailer)
-- [ ] if a PR was opened, its description leads with **What** / **Why** (drawn from the session log)
+- [ ] if a PR/MR was opened, its description leads with **What** / **Why** (drawn from the session log)
 
 > **Lightweight mode — key the write to whether a *tracked* file changed (the *objective* test is the
 > git diff, not any filesystem write — and never a "trivial" judgment; both AI and human misjudge "trivial").**
@@ -179,7 +194,10 @@ expected (the decay math counts log files — `DECAY.md` §4).
 > **Reinforced, not just documented (v4.19.0).** This repo ships vendor-neutral triggers: a committed
 > **`.githooks/post-commit`** (auto-stubs a session log when a commit does real work without one;
 > activated via `git config core.hooksPath .githooks`) + a **CI floor**
-> (`.github/workflows/agent-memory.yml`, zero per-user setup). Treat the session log as part of **done** —
+> (`.github/workflows/agent-memory.yml` on GitHub; `.gitlab-ci.yml` + `.gitlab/agent-memory-ci.yml`
+> on GitLab; `.azuredevops/agent-memory-ci.yml` on Azure DevOps — zero per-user setup on
+> GitHub/GitLab.com; a self-managed GitLab needs an admin-registered runner; an Azure DevOps
+> pipeline needs its one-time activation). Treat the session log as part of **done** —
 > *a task that changed tracked files isn't finished until its log exists.* The triggers are **advisory**
 > (never block) and **no-code** (git/CI run them in your env; the tool runs nothing). See
 > **`.githooks/README.md`** for activation + per-vendor end-of-turn hook extras.
@@ -188,7 +206,8 @@ expected (the decay math counts log files — `DECAY.md` §4).
 > **absent** and the hook **unactivated** (git can't auto-run committed hooks on clone). If you see
 > empty vendor adapter dirs or `git config core.hooksPath` is unset, run **`bash .githooks/init.sh`**
 > once (regenerates adapters + activates the post-commit hook) — do this proactively, before other
-> work. (CI runs server-side regardless.)
+> work. (On GitHub / GitLab.com, CI runs server-side regardless; a self-managed GitLab needs an
+> admin-registered runner; an Azure DevOps pipeline runs once its one-time activation is done.)
 
 > **Long session? Keep state externalized so compaction is safe (v4.23.2).** Compaction (your tool's
 > `/compact`, an auto-compact at a context-usage threshold, or a fresh session) summarizes the

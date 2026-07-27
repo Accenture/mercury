@@ -17,8 +17,12 @@ bash .githooks/init.sh
 It regenerates the vendor skill adapters **and** runs `git config core.hooksPath .githooks`. **The agent
 runs this itself on a first session** (see `AGENTS.md`), so an untrained user does nothing. To activate
 the hook alone: `git config core.hooksPath .githooks` (undo: `git config --unset core.hooksPath`).
-**CI is the zero-config floor** (`.github/workflows/agent-memory.yml`) — it runs server-side on push/PR
-with no per-user setup, so the ritual is enforced even on a clone where the local hook was never activated.
+**CI is the zero-config floor** — `.github/workflows/agent-memory.yml` on GitHub; `.gitlab-ci.yml` +
+`.gitlab/agent-memory-ci.yml` on GitLab (v4.31.0); `.azuredevops/agent-memory-ci.yml` on Azure
+DevOps (v4.32.0) — it runs server-side on every push and, on GitHub/GitLab, every pull/merge
+request (Azure DevOps PR-time runs need the optional Build Validation policy), so the ritual is
+enforced even on a clone where the local hook was never activated. (Honest limits: a self-managed GitLab instance needs an admin-registered runner;
+an Azure DevOps pipeline is inert until its one-time `az pipelines create` binding.)
 
 ## Hooks
 

@@ -1,4 +1,7 @@
 name: agent-memory
+# GitHub member of the forge-aware ritual floor (v4.19.0; forge-aware v4.31.0–v4.32.0) — siblings:
+# .gitlab/agent-memory-ci.yml (GitLab) and .azuredevops/agent-memory-ci.yml (Azure DevOps), both
+# installed from the tool's templates/ on their forges.
 # Vendor-neutral ritual floor (v4.19.0). Runs server-side on every push/PR with ZERO per-user setup —
 # the untrained-user-proof layer (a git hook needs per-clone activation; CI does not). Advisory by
 # default (annotates, never fails the build). Set repo/Actions variable AGENT_MEMORY_STRICT=1 to gate.
@@ -34,7 +37,7 @@ jobs:
         run: |
           base="${{ github.event.pull_request.base.sha }}"
           [ -n "$base" ] || base="${{ github.event.before }}"
-          case "$base" in ''|0000000000000000000000000000000000000000) base="$(git rev-parse HEAD~1 2>/dev/null || echo '')";; esac
+          case "$base" in ''|0000000000000000000000000000000000000000) base="$(git rev-parse --verify --quiet HEAD~1 2>/dev/null || echo '')";; esac
           [ -n "$base" ] || { echo "no base ref; skipping ritual check"; exit 0; }
           changed="$(git diff --name-only "$base" HEAD 2>/dev/null || true)"
           work="$(printf '%s\n' "$changed" | grep -vE '^(memory/|\.agent/)' | grep -v '^$' || true)"
