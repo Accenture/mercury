@@ -137,7 +137,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-26 | uses: 94 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-27 | uses: 95 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -233,7 +233,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Merged — CLOSED. Relates [[registration-metadata-contract]]
   (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
   HTTP-facing half of that story), [[port-bottom-up-faithful]].
-  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-233047.md -->
+  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: active | origin: 2026-07-26-233047.md -->
 
 - [x] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
   40).** Raised by the 2026-07-26 review (cadence); **VERIFIED 2026-07-26 against live code,
@@ -357,7 +357,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (one unidentified single-test failure during the first post-bump compile-storm run; did
   not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
   Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: active | origin: 2026-07-24-191554.md -->
+  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-191554.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
@@ -374,7 +374,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Cargo.toml only — members inherit; lock regenerated; continuity status line); CHANGELOG
   Unreleased → `## Version 4.10.4, 7/24/2026` + release summary. Gate: workspace 260 /
   clippy 0 / fmt. Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: active | origin: 2026-07-24-183956.md -->
+  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: archive-candidate | origin: 2026-07-24-183956.md -->
 
 - [x] (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]])
   **Interop header-hygiene round, mirrored from the Java reference branch of the same
