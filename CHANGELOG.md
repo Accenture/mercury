@@ -11,7 +11,16 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.10.6, 7/26/2026
+
+Feature release. Version number re-aligned with the Java repo's 4.10.6 (whose contents —
+a Sonar-remediation patch — differ by design). Two arcs: the **annotation→macro
+consistency P2 leftovers already on main** (yaml.preload.override, the
+registration-metadata contract with golden conformance vectors, Unicode-scalar string
+plugins) and the **typed-AsyncHttpRequest arc** (typed HTTP functions with no engine
+special case, the single-source request dataset, pretty-printed JSON responses, the
+/info/routes actuator with ops-tunable worker instances) — merged as PR #183 after six
+review rounds on one commit.
 
 ### Added
 
