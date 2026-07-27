@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-214333, lightweight v4.32.0 upgrade)
+- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-223231, harvest closure + ManagedCache design for gate)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -88,7 +88,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   unchanged; the retrofit's surrogate-split micro-divergence is retired (no lossy case
   under scalar indexing). Do NOT re-retrofit UTF-16 in the name of parity — the ruling
   is deliberate and Eric-verified. Docs: syntax-guide Rust-port note + CHANGELOG.
-  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-022229.md -->
+  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: active | origin: 2026-07-26-022229.md -->
 
 - **Registration metadata is a cross-language contract; carriers are per-language idioms.
   (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
@@ -103,13 +103,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the wire-format golden-vector method applied to the declaration surface. New ports pass
   the three vector suites before their declaration surface is done. Twin of the Java
   ledger's ADR-0009.
-  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-26 | uses: 2 | tier: active | origin: 2026-07-26-013851.md -->
+  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-27 | uses: 3 | tier: active | origin: 2026-07-26-013851.md -->
 
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-26 | uses: 93 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-27 | uses: 94 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -137,7 +137,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-27 | uses: 95 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-27 | uses: 96 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -483,22 +483,36 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   bridge over async transports). This is also why HTTP config keys keep their `http.` prefix
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
-  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-21 | uses: 2 | tier: working | origin: 2026-07-20-030615.md -->
+  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-27 | uses: 3 | tier: working | origin: 2026-07-20-030615.md -->
 
-- [ ] **(backlog) Port `ManagedCache` (+ sibling `SimpleCache`).** Java platform-core ships
-  `org.platformlambda.core.util.ManagedCache` — a named, self-managing TTL+size-bounded
-  cache utility (Caffeine: `expireAfterWrite`, `maximumSize`, default 2000 items, min TTL
-  1s; static registry createCache/getInstance/getCacheCollection). NOT ported — Rust
-  platform-core has no cache utility; current stand-ins are ad-hoc (playground WS dedup =
-  unbounded `Mutex<HashMap>` in `commands.rs::is_duplicate`; fetcher provider cache =
-  per-instance state in BOTH engines, so not affected). Needed for: the future connectors
-  port ([[bp-kafka-connectors-backlog]] — minimalist-kafka's schema-registry client is a
-  heavy ManagedCache user) and Java-API-surface completeness for app developers. Candidate:
-  `moka` crate (the Rust Caffeine analog) or a small hand-rolled TTL+LRU; the WS dedup
-  cache should adopt it and gain bounded eviction. → serves: vision-mercury
-  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-21 | uses: 1 | tier: working | origin: 2026-07-21-030938.md -->
+- [ ] **(backlog) Port `ManagedCache` — ONE cache type (Eric's ruling 2026-07-27: do NOT
+  port `SimpleCache`; "just adopt a proper self-expiring in-memory cache").** Java
+  platform-core ships `org.platformlambda.core.util.ManagedCache` — a named, self-managing
+  TTL+size-bounded cache utility (Caffeine: `expireAfterWrite`, `maximumSize`, default
+  2000 items, min TTL 1s; static registry createCache/getInstance/getCacheCollection).
+  NOT ported — Rust platform-core has no cache utility; current stand-ins are ad-hoc
+  (playground WS dedup = unbounded `Mutex<HashMap>` in `commands.rs::is_duplicate`;
+  fetcher provider cache = per-instance state in BOTH engines, so not affected). Any Java
+  `SimpleCache` site ported later (e.g. the actuator's per-dependency `health.info` 5s
+  **info-lookup** cache — Java never caches the /health result itself; a known Rust parity
+  gap) maps onto a `ManagedCache` instance (bounded + self-expiring is a
+  superset of SimpleCache's unbounded lazy-expiry; document the mapping once). Needed for:
+  the future connectors port ([[bp-kafka-connectors-backlog]] — minimalist-kafka's
+  schema-registry client is a heavy ManagedCache user) and Java-API-surface completeness.
+  Engine candidate per the ruling: a maintained self-expiring implementation (`moka`, the
+  Rust Caffeine analog) rather than hand-rolled expiry; the WS dedup cache adopts it and
+  gains bounded eviction. **Design doc DELIVERED 2026-07-27:
+  `docs/design/managed-cache-port.md` (DRAFT v2 — 3-perspective study + 3-lens adversarial
+  critique, all load-bearing claims verified against the Java source and moka
+  docs/changelog) — AWAITING Eric's gate before implementation. Gate questions: engine
+  confirm (moka, bus-factor-1 caveat, swappable wrapper), adopter scope (WS dedup + the
+  actuator info-lookup cache + optional event-script test fixture), crate-private
+  fast-TTL test constructor (new repo pattern).** → serves: vision-mercury
+  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-27 | uses: 2 | tier: working | origin: 2026-07-21-030938.md -->
 
-- [ ] **(knowledge-harvest) Harvest the canonical vision/specs from mercury-composable (Java).**
+- [x] **(knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE;
+  the connectors/sync-over-async harvest rides [[bp-kafka-connectors-backlog]].)
+  Harvest the canonical vision/specs from mercury-composable (Java).**
   **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
   authorized reading it (read-only reference). **Harvested this session:** the north-star
   vision (AKG-is-the-application / AI-assisted Semantic Application Development), the accurate
@@ -513,7 +527,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   sync-over-async harvest (rides [[bp-kafka-connectors-backlog]]). **Human gate:** mark
   this `[x]` (per-layer harvest done) or re-scope it to the connectors harvest — Eric's call.
   → serves: vision-mercury
-  <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-15 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-27 | uses: 3 | tier: active | origin: 2026-07-15-215538.md -->
 
 ## User Preferences
 
