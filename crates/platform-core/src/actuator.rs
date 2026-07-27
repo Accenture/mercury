@@ -17,10 +17,17 @@
 //! Actuator endpoints — Rust port of the Java `ActuatorServices`
 //! (`org.platformlambda.core.services.ActuatorServices`), registered by the
 //! lifecycle's essential-services phase and exposed over REST automation via
-//! the default endpoints (`/info`, `/env`, `/health`, `/livenessprobe`).
+//! the default endpoints (`/info`, `/info/routes`, `/env`, `/health`,
+//! `/livenessprobe`).
 //!
 //! - **`/info`** — application identity (name, version, description), runtime,
 //!   origin, start/current time, uptime.
+//! - **`/info/routes`** — the app block plus the local routing table split by
+//!   visibility (`routing.public` / `routing.private`, route → instance
+//!   count; Java `handleInfoRoute`). Java's optional blocks (`journal`,
+//!   `route_substitution`) and the mesh `network` table are omitted when
+//!   empty — subsystems this port does not have, so the response is
+//!   `{app, routing}` here.
 //! - **`/env`** — selected environment variables (`show.env.variables`) and
 //!   selected base-configuration parameters (`show.application.properties`) —
 //!   opt-in lists, so secrets are never dumped wholesale (Java parity).
@@ -36,8 +43,7 @@
 //! Deferred (maintainer-approved): `/info/lib` — Java lists JAR dependencies
 //! from the archive manifest; a Rust binary has no runtime dependency
 //! manifest (a build-script–embedded cargo metadata could provide it later).
-//! Also deferred: `/info/routes`, XML responses, and the Java per-route info
-//! cache.
+//! Also deferred: XML responses and the Java per-route info cache.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,9 +60,25 @@ use crate::trace;
 use crate::util::app_config_reader::AppConfigReader;
 
 pub const INFO_ACTUATOR: &str = "info.actuator.service";
+pub const ROUTES_ACTUATOR: &str = "routes.actuator.service";
 pub const ENV_ACTUATOR: &str = "env.actuator.service";
 pub const HEALTH_ACTUATOR: &str = "health.actuator.service";
 pub const LIVENESS_ACTUATOR: &str = "liveness.actuator.service";
+
+/// The worker-instance count for the actuator family (default 5 — a rule of
+/// thumb, like every initial instance count): operations teams fine-tune it
+/// via `worker.instances.actuator.services` in QA/Perf environments before
+/// promoting to production. ONE family key covers all five actuator routes —
+/// and it is the SAME key the Java engine carries: its actuators are one
+/// aliased class whose primary route is `actuator.services` (that route
+/// itself is unported here), so a single runbook line tunes both engines.
+/// Numeric value wins, anything else falls back (env_instances semantics).
+pub fn actuator_instances(config: &AppConfigReader) -> usize {
+    config
+        .get_property("worker.instances.actuator.services")
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(5)
+}
 
 const SHOW_ENV: &str = "show.env.variables";
 const SHOW_PROPERTIES: &str = "show.application.properties";
@@ -69,6 +91,7 @@ const OPTIONAL_SERVICES: &str = "optional.health.dependencies";
 #[derive(Clone, Copy)]
 pub enum ActuatorKind {
     Info,
+    Routes,
     Env,
     Health,
     Liveness,
@@ -164,6 +187,32 @@ impl ComposableFunction for ActuatorServices {
                         .set_header("content-type", "text/plain")
                         .set_body("Unhealthy. Please check '/health' endpoint.")?)
                 }
+            }
+            ActuatorKind::Routes => {
+                // Java handleInfoRoute: the app block plus the local routing
+                // table split by visibility, route → instance count. Java's
+                // optional blocks — "journal" (journaling), "route_substitution"
+                // and the mesh "network" table — are omitted when empty, and
+                // none of those subsystems exist in this port, so the response
+                // is exactly {app, routing}. BTreeMap keeps the output
+                // deterministic (Java's HashMap ordering is arbitrary; JSON
+                // object order is not contractual, but stable beats random).
+                let mut public = std::collections::BTreeMap::new();
+                let mut private = std::collections::BTreeMap::new();
+                for route in context.platform.routes() {
+                    let instances = context.platform.instances(&route).unwrap_or(1);
+                    if context.platform.is_private(&route).unwrap_or(true) {
+                        private.insert(route, instances);
+                    } else {
+                        public.insert(route, instances);
+                    }
+                }
+                EventEnvelope::new()
+                    .set_header("content-type", "application/json")
+                    .set_body(serde_json::json!({
+                        "app": context.app_block(),
+                        "routing": {"public": public, "private": private},
+                    }))
             }
             ActuatorKind::Info => {
                 let now = std::time::SystemTime::now();

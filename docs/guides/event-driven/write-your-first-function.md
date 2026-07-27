@@ -58,32 +58,32 @@ impl TypedFunction<GreetingRequest, GreetingResponse> for Greetings {
 }
 ```
 
-**Untyped** — implement `ComposableFunction` to work directly with the raw `EventEnvelope`
-(useful for HTTP-facing functions, pass-through, and free-form payloads). This is the
-example's HTTP-facing function: it receives the request event from the REST edge, composes
-with the typed `greeting.demo` through the `PostOffice` (step 4 explains the call), and
-shapes the JSON response:
+**HTTP-facing** — an HTTP-facing function is a typed function too: its input type is
+`AsyncHttpRequest`, exactly like the Java guide's
+`TypedLambdaFunction<AsyncHttpRequest, Object>` pattern. The REST edge's request dataset
+deserializes straight into the model, so path/query parameters, headers, cookies and the
+typed body arrive through accessors instead of raw `Value` digging. This is the example's
+HTTP-facing function: it receives the request from the REST edge, composes with the typed
+`greeting.demo` through the `PostOffice` (step 4 explains the call), and shapes the JSON
+response:
 
 ```rust
 use std::time::Duration;
-use platform_core::{ComposableFunction, EventEnvelope, Platform, PostOffice};
+use platform_core::automation::AsyncHttpRequest;
+use platform_core::{EventEnvelope, Platform, PostOffice, TypedFunction};
 
-#[preload(route = "greeting.api", instances = 5)]
+#[preload(route = "greeting.api", instances = 5, typed)]
 struct GreetingApi;
 
 #[async_trait]
-impl ComposableFunction for GreetingApi {
+impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingApi {
     async fn handle_event(
         &self,
         _headers: HashMap<String, String>,
-        input: EventEnvelope,
+        request: AsyncHttpRequest,
         _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        let request: serde_json::Value = input.body_as()?;
-        let user = request["parameters"]["path"]["user"]
-            .as_str()
-            .unwrap_or("world")
-            .to_string();
+    ) -> Result<serde_json::Value, AppError> {
+        let user = request.path_parameter("user").unwrap_or("world").to_string();
         let po = PostOffice::new(&Platform::get_instance());
         let reply = po
             .request(
@@ -94,7 +94,7 @@ impl ComposableFunction for GreetingApi {
             )
             .await?;
         let body: GreetingResponse = reply.body_as()?;
-        EventEnvelope::new().set_body(serde_json::json!({
+        Ok(serde_json::json!({
             "message": body.message,
             "handled_by_instance": body.handled_by_instance,
             "trace_id": po.my_trace_id(),
@@ -103,6 +103,10 @@ impl ComposableFunction for GreetingApi {
     }
 }
 ```
+
+**Untyped** — implement `ComposableFunction` to work directly with the raw `EventEnvelope`
+(pass-through, free-form payloads, interceptors, or digging the request map by hand when
+you prefer it).
 
 In both forms, `handle_event` receives the event **headers** (`HashMap<String, String>`),
 the **input**, and the 1-based worker **instance** number. Returning `Err(AppError)` becomes
@@ -160,9 +164,11 @@ rest.server.port: 8085
 ```
 
 The HTTP edge delivers an `AsyncHttpRequest`-shaped event to your function: the body carries
-`method`, `url`, `ip`, `headers`, `parameters.path` / `parameters.query`, and `body` — which
-is how `GreetingApi` above reads its `{user}` path parameter
-(`request["parameters"]["path"]["user"]`).
+`method`, `url`, `ip`, `https`, `headers`, `parameters.path` / `parameters.query`, `body`,
+`timeout` and the raw `query` string. A typed function receives it AS an `AsyncHttpRequest`
+— which is how `GreetingApi` above reads its `{user}` path parameter
+(`request.path_parameter("user")`); an untyped function sees the same map on the raw
+envelope.
 
 ## 4. Call it from another function
 

@@ -73,18 +73,18 @@ rest:
 attribute; the runtime registers it at the route with a pool of worker instances:
 
 ```rust
-#[preload(route = "greeting.api", instances = 5)]
+#[preload(route = "greeting.api", instances = 5, typed)]
 struct GreetingApi;
 
 #[async_trait]
-impl ComposableFunction for GreetingApi {
+impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingApi {
     async fn handle_event(
         &self,
         _headers: HashMap<String, String>,
-        input: EventEnvelope,
+        request: AsyncHttpRequest,
         _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        // …
+    ) -> Result<serde_json::Value, AppError> {
+        // request.path_parameter("user"), request.header("accept"), …
     }
 }
 ```

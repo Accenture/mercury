@@ -36,7 +36,10 @@ Registers a composable function at startup and binds it to a route — the Java
 | `is_private = false` | Opt into **public** visibility — callable from another application instance through Event over HTTP. Preloaded functions are **private by default**, exactly like Java `@PreLoad` (`isPrivate` defaults to `true`); private functions stay reachable by everything inside the instance (REST automation, flows, graphs) and are rejected only at the `/api/event` boundary. The programmatic pair is `platform.register_private(...)` — plain `register(...)` creates public functions (Java parity). |
 
 Without `typed`, the struct must implement `ComposableFunction` (raw `EventEnvelope` in and
-out). With `typed`, it implements `TypedFunction<I, O>` with your own `serde` types and the
+out). With `typed`, it implements `TypedFunction<I, O>` with your own `serde` types — and
+`I` may be **`AsyncHttpRequest`** for an HTTP-facing function (the REST edge's request
+dataset deserializes into the model; Java `TypedLambdaFunction<AsyncHttpRequest, Object>`
+parity, with the knowledge on the type instead of an engine special case) — and the
 platform bridges it with an adapter:
 
 ```rust

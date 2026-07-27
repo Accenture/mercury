@@ -68,6 +68,10 @@ fn setup_config() {
         let holding =
             std::env::temp_dir().join(format!("mercury-actuator-test-{}", std::process::id()));
         overrides::set("transient.data.store", &holding.display().to_string());
+        // the actuator-family ops knob, set BEFORE the config freezes: the
+        // /info/routes e2e asserts the overridden count — proving the knob
+        // live end-to-end through the very endpoint that displays it
+        overrides::set("worker.instances.actuator.services", "7");
         // a rest.yaml with one app endpoint; actuators come from the default merge
         let rest_file =
             std::env::temp_dir().join(format!("rest-actuator-{}.yaml", std::process::id()));
@@ -114,8 +118,16 @@ async fn server(healthy_dep: Option<bool>) -> (u16, Platform) {
     let platform = Platform::new();
     platform.register("noop.demo", Arc::new(Noop), 1).unwrap();
     let context = ActuatorContext::new(&platform);
+    // the same family-key resolution the lifecycle uses (default 5; the
+    // suite-wide override above tunes it to 7)
+    let instances =
+        platform_core::actuator::actuator_instances(platform_core::AppConfigReader::get_instance());
     for (route, kind) in [
         (platform_core::actuator::INFO_ACTUATOR, ActuatorKind::Info),
+        (
+            platform_core::actuator::ROUTES_ACTUATOR,
+            ActuatorKind::Routes,
+        ),
         (platform_core::actuator::ENV_ACTUATOR, ActuatorKind::Env),
         (
             platform_core::actuator::HEALTH_ACTUATOR,
@@ -130,7 +142,7 @@ async fn server(healthy_dep: Option<bool>) -> (u16, Platform) {
             .register(
                 route,
                 Arc::new(ActuatorServices::new(kind, context.clone())),
-                1,
+                instances,
             )
             .unwrap();
     }
@@ -174,12 +186,50 @@ static HEALTH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 // ---- actuator endpoints (default merge puts them on the server) ----
 
+/// `/info/routes` (Java `handleInfoRoute`): the app block + the local
+/// routing table split by visibility, route → instance count, sorted for
+/// deterministic output. The port has no journal / route-substitution /
+/// mesh subsystems, so — with Java's omit-when-empty — the response is
+/// exactly {app, routing}.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn info_routes_reports_the_local_routing_table() {
+    let (port, _platform) = server(None).await;
+    let (status, headers, body) = http_get(port, "/info/routes").await;
+    assert_eq!(status, 200);
+    assert_eq!(headers["content-type"], "application/json");
+    // pretty-printed like every actuator (Java SimpleMapper parity)
+    assert!(
+        body.contains('\n'),
+        "/info/routes must render pretty-printed JSON"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["app"]["name"], "actuator-test", "the shared app block");
+    // a known PUBLIC route with its instance count (this test server
+    // registers noop.demo publicly with 1 instance)
+    assert_eq!(json["routing"]["public"]["noop.demo"], 1);
+    // the ops knob is LIVE end to end: the suite config overrides the
+    // actuator-family key (worker.instances.actuator.services=7, default 5)
+    // and the endpoint reports the tuned count for its whole family
+    assert_eq!(json["routing"]["public"]["routes.actuator.service"], 7);
+    assert_eq!(json["routing"]["public"]["info.actuator.service"], 7);
+    // a known PRIVATE route: the reserved RPC reply listener every platform
+    // carries (500 instances, temporary.inbox)
+    assert_eq!(json["routing"]["private"]["temporary.inbox"], 500);
+    // the port's optional blocks do not exist — Java's omit-when-empty
+    assert!(json.get("journal").is_none());
+    assert!(json.get("route_substitution").is_none());
+    assert!(json.get("network").is_none());
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn info_reports_app_identity_and_uptime() {
     let (port, _platform) = server(None).await;
     let (status, headers, body) = http_get(port, "/info").await;
     assert_eq!(status, 200);
     assert_eq!(headers["content-type"], "application/json");
+    // presentation parity: actuator JSON is PRETTY-printed, exactly like
+    // Java's actuators through the SimpleMapper default (multi-line output)
+    assert!(body.contains('\n'), "/info must render pretty-printed JSON");
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(json["app"]["name"], "actuator-test");
     assert_eq!(json["app"]["description"], "actuator test app");

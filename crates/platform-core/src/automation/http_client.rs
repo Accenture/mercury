@@ -75,21 +75,65 @@ const HEADERS_TO_IGNORE: &[&str] = &[
 
 /// The HTTP request contract (Java `AsyncHttpRequest`): a map-backed model
 /// with `method`, `url`, `host`, `headers`, `body`, `parameters.query`,
-/// `parameters.path`, `cookies` and `session`. Programmatic callers build it
+/// `parameters.path`, `cookies`, `session` and the server-side dataset keys
+/// (`ip`, `https`, `timeout`, raw `query`). Programmatic callers build it
 /// with the fluent setters; declarative callers (flow data mapping) build
-/// the same map shape directly.
+/// the same map shape directly; a **typed function**
+/// (`TypedFunction<AsyncHttpRequest, O>` + `#[preload(..., typed)]`) receives
+/// it deserialized from the REST edge's request dataset — see the
+/// `Deserialize` impl below.
 #[derive(Clone, Debug)]
 pub struct AsyncHttpRequest {
     method: Option<String>,
     url: Option<String>,
     target_host: Option<String>,
     headers: Vec<(String, String)>,
-    body: Value,
+    // Option distinguishes "never set" (key omitted) from "set to null"
+    // (the REST edge emits an explicit null body for byte/form payloads)
+    body: Option<Value>,
     query_parameters: Vec<(String, Value)>,
     path_parameters: Vec<(String, String)>,
     cookies: Vec<(String, String)>,
     session: Vec<(String, String)>,
-    trust_all_cert: bool,
+    // Option: emitted only when explicitly set — a service-target dataset
+    // carries `host` (the Host header) WITHOUT a trust flag, while a relay
+    // caller that sets the flag keeps it on the wire
+    trust_all_cert: Option<bool>,
+    // server-side dataset keys (the REST edge emits them into the function's
+    // body; see automation::server process())
+    ip: Option<String>,
+    https: Option<bool>,
+    timeout: Option<u64>,
+    query_string: Option<String>,
+}
+
+/// Typed-function support (the maintainer-agreed design, 2026-07-26): the
+/// two serde traits are thin delegates onto the existing map-shape parser
+/// and builder, so `#[preload(..., typed)]` +
+/// `TypedFunction<AsyncHttpRequest, O>` flows through the ordinary
+/// `TypedAdapter` (`body_as::<I>()`) with ZERO worker special-casing — the
+/// knowledge lives on the type, not in the engine (Java, by contrast,
+/// special-cases `AsyncHttpRequest.class` inside `WorkerHandler.getMapBody`).
+/// This is the template rule for the Python/Node ports: their request
+/// classes must be constructible from the request map so typed signatures
+/// just work.
+impl<'de> serde::Deserialize<'de> for AsyncHttpRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        Ok(AsyncHttpRequest::from_value(&value))
+    }
+}
+
+impl serde::Serialize for AsyncHttpRequest {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_value().serialize(serializer)
+    }
 }
 
 impl Default for AsyncHttpRequest {
@@ -106,12 +150,16 @@ impl AsyncHttpRequest {
             url: None,
             target_host: None,
             headers: Vec::new(),
-            body: Value::Nil,
+            body: None,
             query_parameters: Vec::new(),
             path_parameters: Vec::new(),
             cookies: Vec::new(),
             session: Vec::new(),
-            trust_all_cert: false,
+            trust_all_cert: None,
+            ip: None,
+            https: None,
+            timeout: None,
+            query_string: None,
         }
     }
 
@@ -131,10 +179,13 @@ impl AsyncHttpRequest {
         request.method = get("method").and_then(|v| v.as_str()).map(str::to_string);
         request.url = get("url").and_then(|v| v.as_str()).map(str::to_string);
         request.target_host = get("host").and_then(|v| v.as_str()).map(str::to_string);
-        request.trust_all_cert = get("trust_all_cert")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        request.body = get("body").cloned().unwrap_or(Value::Nil);
+        request.trust_all_cert = get("trust_all_cert").and_then(|v| v.as_bool());
+        request.body = get("body").cloned();
+        // server-side dataset keys (REST edge → service-target function)
+        request.ip = get("ip").and_then(|v| v.as_str()).map(str::to_string);
+        request.https = get("https").and_then(|v| v.as_bool());
+        request.timeout = get("timeout").and_then(|v| v.as_u64());
+        request.query_string = get("query").and_then(|v| v.as_str()).map(str::to_string);
         if let Some(Value::Map(headers)) = get("headers") {
             for (k, v) in headers {
                 if let Some(key) = k.as_str() {
@@ -193,17 +244,32 @@ impl AsyncHttpRequest {
         }
         if let Some(host) = &self.target_host {
             map.push((Value::from("host"), Value::from(host.as_str())));
+        }
+        if let Some(trust_all_cert) = self.trust_all_cert {
             // Java toMap: trust_all_cert travels with the relay target
-            map.push((
-                Value::from("trust_all_cert"),
-                Value::from(self.trust_all_cert),
-            ));
+            map.push((Value::from("trust_all_cert"), Value::from(trust_all_cert)));
         }
         if !self.headers.is_empty() {
             map.push((Value::from("headers"), string_pairs(&self.headers)));
         }
-        if !matches!(self.body, Value::Nil) {
-            map.push((Value::from("body"), self.body.clone()));
+        if let Some(body) = &self.body {
+            // an explicit null body stays on the wire (the REST edge emits
+            // body: null for byte/form payloads; an UNSET body is omitted)
+            map.push((Value::from("body"), body.clone()));
+        }
+        // server-side dataset keys, emitted when set (round-trip integrity:
+        // to_value emits exactly what from_value parses)
+        if let Some(ip) = &self.ip {
+            map.push((Value::from("ip"), Value::from(ip.as_str())));
+        }
+        if let Some(https) = self.https {
+            map.push((Value::from("https"), Value::from(https)));
+        }
+        if let Some(timeout) = self.timeout {
+            map.push((Value::from("timeout"), Value::from(timeout)));
+        }
+        if let Some(query) = &self.query_string {
+            map.push((Value::from("query"), Value::from(query.as_str())));
         }
         if !self.cookies.is_empty() {
             map.push((Value::from("cookies"), string_pairs(&self.cookies)));
@@ -211,25 +277,26 @@ impl AsyncHttpRequest {
         if !self.session.is_empty() {
             map.push((Value::from("session"), string_pairs(&self.session)));
         }
-        if !self.query_parameters.is_empty() || !self.path_parameters.is_empty() {
-            let query: Vec<(Value, Value)> = self
-                .query_parameters
-                .iter()
-                .map(|(k, v)| (Value::from(k.as_str()), v.clone()))
-                .collect();
-            let path: Vec<(Value, Value)> = self
-                .path_parameters
-                .iter()
-                .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
-                .collect();
-            map.push((
-                Value::from("parameters"),
-                Value::Map(vec![
-                    (Value::from("query"), Value::Map(query)),
-                    (Value::from("path"), Value::Map(path)),
-                ]),
-            ));
-        }
+        // "parameters" is always present with both sub-maps — the REST
+        // edge's dataset shape (a paramless request still carries the empty
+        // maps, exactly like today's server emission)
+        let query: Vec<(Value, Value)> = self
+            .query_parameters
+            .iter()
+            .map(|(k, v)| (Value::from(k.as_str()), v.clone()))
+            .collect();
+        let path: Vec<(Value, Value)> = self
+            .path_parameters
+            .iter()
+            .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
+            .collect();
+        map.push((
+            Value::from("parameters"),
+            Value::Map(vec![
+                (Value::from("query"), Value::Map(query)),
+                (Value::from("path"), Value::Map(path)),
+            ]),
+        ));
         Value::Map(map)
     }
 
@@ -251,7 +318,7 @@ impl AsyncHttpRequest {
     /// Java `setTrustAllCert`: skip certificate-chain validation for an
     /// `https` target (self-signed endpoints). Ignored for plain `http`.
     pub fn set_trust_all_cert(mut self, trust_all_cert: bool) -> Self {
-        self.trust_all_cert = trust_all_cert;
+        self.trust_all_cert = Some(trust_all_cert);
         self
     }
 
@@ -263,19 +330,78 @@ impl AsyncHttpRequest {
     }
 
     pub fn set_body(mut self, body: Value) -> Self {
-        self.body = body;
+        self.body = Some(body);
         self
     }
 
+    /// Set (or replace — Java `setQueryParameter` put semantics) a
+    /// single-value query parameter.
     pub fn set_query_parameter(mut self, key: &str, value: &str) -> Self {
+        self.query_parameters.retain(|(k, _)| k != key);
         self.query_parameters
             .push((key.to_string(), Value::from(value)));
+        self
+    }
+
+    /// Set a REPEATED query parameter (the list shape the REST edge produces
+    /// for `?q=a&q=b` — Java `setQueryParameter` with a List value).
+    pub fn set_query_parameter_values(mut self, key: &str, values: &[&str]) -> Self {
+        self.query_parameters.retain(|(k, _)| k != key);
+        self.query_parameters.push((
+            key.to_string(),
+            Value::Array(values.iter().map(|v| Value::from(*v)).collect()),
+        ));
         self
     }
 
     pub fn set_path_parameter(mut self, key: &str, value: &str) -> Self {
         self.path_parameters
             .push((key.to_string(), value.to_string()));
+        self
+    }
+
+    /// Set (or replace) a cookie (Java `setCookie`).
+    pub fn set_cookie(mut self, key: &str, value: &str) -> Self {
+        self.cookies.retain(|(k, _)| k != key);
+        self.cookies.push((key.to_string(), value.to_string()));
+        self
+    }
+
+    /// Set (or replace) a session-info entry (Java `setSessionInfo`) — on the
+    /// server side these arrive from the authentication service's verdict.
+    pub fn set_session_info(mut self, key: &str, value: &str) -> Self {
+        self.session.retain(|(k, _)| k != key);
+        self.session.push((key.to_string(), value.to_string()));
+        self
+    }
+
+    /// The caller's IP address (Java `setRemoteIp`) — the REST edge stamps it
+    /// on the request dataset.
+    pub fn set_remote_ip(mut self, ip: &str) -> Self {
+        self.ip = Some(ip.to_string());
+        self
+    }
+
+    /// Whether the original request arrived over HTTPS (Java `setSecure`).
+    pub fn set_secure(mut self, https: bool) -> Self {
+        self.https = Some(https);
+        self
+    }
+
+    /// The raw query string (Java `setQueryString`).
+    pub fn set_query_string(mut self, query: &str) -> Self {
+        self.query_string = Some(query.to_string());
+        self
+    }
+
+    /// The ROUTE timeout in seconds — the REST edge's `timeout` dataset key
+    /// (rest.yaml endpoint timeout). Distinct from [`set_timeout_seconds`],
+    /// which writes the caller's TTL as the `x-ttl` header (milliseconds,
+    /// Java `setTimeoutSeconds`); on read, `timeout_seconds()` prefers a
+    /// caller-sent x-ttl and falls back to this field — the ingress
+    /// precedence.
+    pub fn set_route_timeout_seconds(mut self, seconds: u64) -> Self {
+        self.timeout = Some(seconds);
         self
     }
 
@@ -299,7 +425,7 @@ impl AsyncHttpRequest {
     }
 
     pub fn trust_all_cert(&self) -> bool {
-        self.trust_all_cert
+        self.trust_all_cert.unwrap_or(false)
     }
 
     /// All request headers in insertion order.
@@ -322,7 +448,8 @@ impl AsyncHttpRequest {
     }
 
     pub fn body(&self) -> &Value {
-        &self.body
+        static NIL: Value = Value::Nil;
+        self.body.as_ref().unwrap_or(&NIL)
     }
 
     /// Java `AsyncHttpRequest.getTimeoutSeconds()`: the x-ttl header is in
@@ -333,7 +460,95 @@ impl AsyncHttpRequest {
         self.header("x-ttl")
             .and_then(|v| v.parse::<u64>().ok())
             .map(|ms| ms.max(1).div_ceil(1000))
+            // the REST edge also carries the route timeout as the dataset's
+            // "timeout" key (seconds); a caller-sent x-ttl wins, matching
+            // the ingress precedence
+            .or(self.timeout)
             .unwrap_or(DEFAULT_TTL_SECONDS)
+    }
+
+    /// Deserialize the request body into a typed value (Java
+    /// `AsyncHttpRequest.getBody(Class<T>)`).
+    pub fn body_as<T: serde::de::DeserializeOwned>(&self) -> Result<T, AppError> {
+        rmpv::ext::from_value(self.body().clone())
+            .map_err(|e| AppError::new(500, format!("unable to deserialize body: {e}")))
+    }
+
+    /// The caller's IP address (Java `AsyncHttpRequest.getRemoteIp`) — set
+    /// by the REST edge on the request dataset.
+    pub fn remote_ip(&self) -> Option<&str> {
+        self.ip.as_deref()
+    }
+
+    /// Whether the original request arrived over HTTPS (Java
+    /// `AsyncHttpRequest.isSecure`; the REST edge derives it from
+    /// `x-forwarded-proto`).
+    pub fn is_secure(&self) -> bool {
+        self.https.unwrap_or(false)
+    }
+
+    /// The raw query string (Java `AsyncHttpRequest.getQueryString`).
+    pub fn query_string(&self) -> Option<&str> {
+        self.query_string.as_deref()
+    }
+
+    /// One `{path}` parameter by name (Java `getPathParameter`).
+    pub fn path_parameter(&self, key: &str) -> Option<&str> {
+        self.path_parameters
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    }
+
+    /// All `{path}` parameters (Java `getPathParameters`).
+    pub fn path_parameters(&self) -> &[(String, String)] {
+        &self.path_parameters
+    }
+
+    /// One query parameter as text (Java `getQueryParameter`): a repeated
+    /// parameter (list value) yields its FIRST occurrence.
+    pub fn query_parameter(&self, key: &str) -> Option<String> {
+        self.query_parameters
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| match v {
+                Value::Array(values) => values.first().map(display_text).unwrap_or_default(),
+                other => display_text(other),
+            })
+    }
+
+    /// Every value of a query parameter (Java `getQueryParameters`): one
+    /// occurrence is a one-element list, repeats keep every value.
+    pub fn query_parameters(&self, key: &str) -> Vec<String> {
+        self.query_parameters
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| match v {
+                Value::Array(values) => values.iter().map(display_text).collect(),
+                other => vec![display_text(other)],
+            })
+            .unwrap_or_default()
+    }
+
+    /// One cookie by name (Java `getCookie`).
+    pub fn cookie(&self, key: &str) -> Option<&str> {
+        self.cookies
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
+    }
+
+    /// All cookies as parsed by the REST edge (Java `getCookies`).
+    pub fn cookies(&self) -> &[(String, String)] {
+        &self.cookies
+    }
+
+    /// One session-info entry by name (Java `getSessionInfo(String)`).
+    pub fn session_info(&self, key: &str) -> Option<&str> {
+        self.session
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
     }
 
     /// Java `getFinalizedUrl`: substitute `{path}` parameters, merge query
@@ -914,5 +1129,108 @@ impl crate::function::ComposableFunction for AsyncHttpClientService {
         // manual reply must reach THAT platform's temporary.inbox listener
         // (the global instance may live on another runtime in tests)
         handle(&self.platform, headers, input).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The server-side request dataset, FLUENT-BUILT (the maintainer's
+    /// requirement: the test setup creates a new AsyncHttpRequest and sets
+    /// every value through the fluent API — the test doubles as living
+    /// documentation of the builder surface, exercising every setter).
+    fn server_dataset_request() -> AsyncHttpRequest {
+        AsyncHttpRequest::new()
+            .set_method("POST")
+            .set_url("/api/typed/alice")
+            .set_remote_ip("127.0.0.1")
+            .set_secure(true)
+            .set_target_host("localhost:8085")
+            .set_header("accept", "application/json")
+            .set_header("x-api-key", "open-sesame")
+            .set_header("x-ttl", "5000")
+            .set_path_parameter("user", "alice")
+            .set_query_parameter_values("q", &["a", "b"])
+            .set_query_parameter("single", "1")
+            .set_query_string("q=a&q=b&single=1")
+            .set_route_timeout_seconds(30)
+            .set_cookie("first", "alpha")
+            .set_session_info("user_id", "u-1")
+            .set_body(Value::Map(vec![(
+                Value::from("note"),
+                Value::from("hello"),
+            )]))
+    }
+
+    /// Round-trip integrity of the typed contract: every fluent-set field is
+    /// visible through its accessor, survives to_value → from_value, and the
+    /// serde impls delegate to exactly that pair.
+    ///
+    /// Division of labor: this fluent-built round-trip proves INTERNAL
+    /// consistency (builder ↔ accessors ↔ map shape ↔ serde). The REAL
+    /// server-shape contract is pinned by the end-to-end test
+    /// `typed_async_http_request_function_serves_a_real_request` in
+    /// tests/rest_automation.rs (a typed function behind /api/typed/{user}
+    /// over the live automation server) — do not "simplify" that e2e away
+    /// in favor of this unit test.
+    #[test]
+    fn server_dataset_round_trips_through_the_typed_contract() {
+        let request = server_dataset_request();
+        // every field is visible through the typed accessors
+        assert_eq!(request.method(), "POST");
+        assert_eq!(request.url(), "/api/typed/alice");
+        assert_eq!(request.remote_ip(), Some("127.0.0.1"));
+        assert!(request.is_secure());
+        assert_eq!(request.target_host(), Some("localhost:8085"));
+        assert_eq!(request.path_parameter("user"), Some("alice"));
+        assert_eq!(request.query_parameter("single").as_deref(), Some("1"));
+        assert_eq!(request.query_parameter("q").as_deref(), Some("a"));
+        assert_eq!(request.query_parameters("q"), vec!["a", "b"]);
+        assert_eq!(request.query_parameters("single"), vec!["1"]);
+        assert_eq!(request.query_string(), Some("q=a&q=b&single=1"));
+        assert_eq!(
+            request.header("Accept"),
+            Some("application/json"),
+            "case-insensitive"
+        );
+        assert_eq!(request.cookie("first"), Some("alpha"));
+        assert_eq!(request.session_info("user_id"), Some("u-1"));
+        // caller-sent x-ttl (5000 ms -> 5 s) wins over the route timeout (30)
+        assert_eq!(request.timeout_seconds(), 5);
+        #[derive(serde::Deserialize)]
+        struct Note {
+            note: String,
+        }
+        assert_eq!(request.body_as::<Note>().expect("typed body").note, "hello");
+        // to_value emits what from_value parses: a second pass is identical
+        let round = AsyncHttpRequest::from_value(&request.to_value());
+        assert_eq!(round.to_value(), request.to_value());
+        // the serde impls are thin delegates onto the same pair
+        let deserialized: AsyncHttpRequest =
+            rmpv::ext::from_value(request.to_value()).expect("serde deserialize");
+        assert_eq!(deserialized.to_value(), request.to_value());
+        let serialized = rmpv::ext::to_value(&request).expect("serde serialize");
+        assert_eq!(
+            AsyncHttpRequest::from_value(&serialized).to_value(),
+            request.to_value()
+        );
+    }
+
+    /// The route timeout (`set_route_timeout_seconds` / the REST edge's
+    /// "timeout" dataset key) is the fallback when no x-ttl header rides
+    /// the request.
+    #[test]
+    fn route_timeout_is_the_fallback_without_x_ttl() {
+        let request = AsyncHttpRequest::new()
+            .set_method("GET")
+            .set_url("/x")
+            .set_route_timeout_seconds(30);
+        assert_eq!(request.timeout_seconds(), 30);
+        // and it round-trips through the map shape
+        assert_eq!(
+            AsyncHttpRequest::from_value(&request.to_value()).timeout_seconds(),
+            30
+        );
     }
 }

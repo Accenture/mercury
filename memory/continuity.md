@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), same vision, delivered bottom-up. **All three in-scope layers are ported and milestone-closed** — platform-core (2026-07-16; benchmarked: RPC 155K ops/s @ 6µs, ~8.4× the Java record), event-script (2026-07-17; full engine validated on the canonical Java fixtures), active knowledge graph + Playground webapp (2026-07-18). Kafka service mesh + Spring out of scope. 49 increments — ledger: `docs/INCREMENTS.md`; designs: `docs/design/`; AI-companion validation sweep COMPLETE (all 13 tutorials passed, 2026-07-19; AI grammar self-sufficient — 10 consecutive zero-lookup first-attempt passes incl. two post-sweep drives). Companion surface byte-identical in both ports (Java upstream PRs #188–#199 merged). Human docs site COMPLETE (MkDocs, 20 pages, published via gh-deploy). **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs live at accenture.github.io/mercury; Rust CI gates in place) — regular PR process from here on. **Version 4.10.5**: tracks the canonical mercury-composable line (Java 4.10.5 in lock-step — one version, two languages; security patch: playground webapp on react-router 8.3.0, dependabot #16 remediated).
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-024639)
+- **last_session:** 2026-07-26 | agent: Claude Code (2026-07-26-233047)
 - **last_review:** 2026-07-26 | through 2026-07-26-022229.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -143,6 +143,77 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (in flight — 2026-07-26; branch `feature/typed-async-http-request`, 1 commit, NOT
+  pushed — Eric gates) **Typed AsyncHttpRequest functions (Eric-ratified fix for the gap
+  report: the Rust port could not type a function's input as AsyncHttpRequest).** Design
+  agreed with Eric — idiomatic, NO engine special case: `Serialize`/`Deserialize`
+  hand-implemented as thin delegates onto the existing to_value()/from_value(&Value)
+  pair, so `#[preload(..., typed)]` + `TypedFunction<AsyncHttpRequest, O>` flows through
+  the ordinary TypedAdapter (`body_as::<I>`) — the knowledge lives on the type (Java, by
+  contrast, special-cases AsyncHttpRequest.class in WorkerHandler.getMapBody). Template
+  rule for Python/Node ports recorded in the impl comment: request classes constructible
+  from the request map make typed signatures just work. Server-dataset diff closed:
+  from_value/struct gained ip, https, timeout (route seconds; caller x-ttl wins in
+  timeout_seconds()), raw query string — to_value emits what from_value parses
+  (round-trip pinned). Accessor audit to Java parity: path_parameter(s),
+  query_parameter/query_parameters (single/list), cookie(s), session_info, remote_ip,
+  is_secure, query_string, body_as::<T>. hello-world GreetingApi rewritten typed
+  (path_parameter replaces Value digging; behavior identical — its e2e passed unchanged).
+  Regressions: unit round-trip incl. serde-delegate equivalence + e2e typed probe over
+  the real automation server (method/path/query single+list/header/typed body/ip/
+  timeout) + client side unchanged (set_raw_body path green). Docs:
+  write-your-first-function + getting-started + rest-automation show the typed form as
+  canonical (Java SimpleDemoEndpoint pattern), macros-reference typed flag mentions
+  AsyncHttpRequest, CHANGELOG Added #7 (also merged the accidental duplicate
+  `## Unreleased` sections from the P1/P2 rounds into one). **Eric's review round folded
+  in: (1) full fluent-builder symmetry (set_remote_ip/set_secure/set_query_string/
+  set_cookie/set_session_info/set_query_parameter_values +
+  set_route_timeout_seconds — named distinctly from set_timeout_seconds which stays the
+  Java x-ttl mapping; set_query_parameter gains Java put/replace semantics); (2) the
+  unit test fluent-built per Eric's verbatim requirement (no serde_json in setup;
+  division-of-labor comment: the unit round-trip = internal consistency, the e2e = THE
+  server-shape pin); (3) single source of truth: BOTH server dataset-assembly sites
+  (main dispatch + static-content filter) now construct through
+  AsyncHttpRequest::new()+fluent+to_value() — build_event takes the struct, the binary
+  body rides natively (substitution dance deleted), auth session via set_session_info;
+  struct went tri-state where the wire distinguishes set-vs-absent (body
+  Option<Value> for explicit null, https/trust_all_cert Option<bool>, parameters always
+  emitted) so to_value reproduces the server shape EXACTLY — the full suite passed with
+  ZERO test churn (272/272).** **Pretty-print parity folded in (Eric): every JSON response
+  the automation server writes renders PRETTY (serde_json to_string_pretty = Gson's
+  2-space shape) — one shared rule at both render sites (render_payload +
+  envelope_payload), covering function responses AND the /info//health//env actuators by
+  design (Java's actuators go through the same SimpleMapper default); the HTML <pre>
+  shell wraps the same pretty text; /api/event untouched (MsgPack Binary arm). Test churn:
+  NONE — no Rust test pinned compact JSON (the suite parses everywhere); two can't-regress
+  newline assertions added (typed e2e + /info).** **/info/routes actuator PORTED (Eric;
+  his manual typed+pretty test PASSED matching Java's shape): routes.actuator.service
+  (exact Java name) + the default rest.yaml entry (GET /info/routes, 10s); response =
+  {app, routing.public/private route→instances, BTreeMap-sorted for determinism} — Java's
+  optional journal/route_substitution/network blocks omit-when-empty and none of those
+  subsystems exist in the port; /info/lib stays deferred (no dependency manifest in a Rust
+  binary, Eric concurs). E2E: 200 + pretty + app block + noop.demo public/1 +
+  temporary.inbox private/500 + optional blocks absent. Addendum (Eric's review): the
+  inline DEFAULT_REST_YAML const relocated to a real resource file
+  crates/platform-core/resources/default-rest.yaml embedded via include_str! (the
+  default-log-context.yaml pattern — discoverable + byte-diffable vs the Java copy); the
+  const's stale "/info/routes deferred" doc line fixed. Zero churn from the relocation.**
+  **Ops-tunability round (Eric, the endpoint's first payoff): actuator family 1→5 workers
+  with ONE family knob worker.instances.actuator.services (SAME key as Java, whose
+  actuators are one aliased class keyed by actuator.services — unported route; resolver
+  actuator_instances() shared by lifecycle + tests); hello-world event.api.auth 10→30 +
+  worker.instances.event.api.auth (doc: real deployments verify bearer tokens against an
+  OAuth2 authority — I/O-bound, higher rule of thumb) and http.request.filter 2→20 +
+  worker.instances.http.request.filter. Rules of thumb by design — ops teams tune in
+  QA/Perf before production. Knob proven LIVE end-to-end: the actuator suite overrides
+  the family key to 7 and /info/routes reports 7 for the family. Docs: actuators tuning
+  note + configuration-reference family-key entry (demo keys skipped — the page documents
+  no example-app keys); CHANGELOG extended.** Gate: workspace 273 / clippy 0 / fmt.
+  Close when merged. Relates [[registration-metadata-contract]]
+  (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
+  HTTP-facing half of that story), [[port-bottom-up-faithful]].
+  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-26 | uses: 1 | tier: working | origin: 2026-07-26-233047.md -->
 
 - [x] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
   40).** Raised by the 2026-07-26 review (cadence); **VERIFIED 2026-07-26 against live code,

@@ -45,6 +45,63 @@ the design rationale in [`docs/design/`](docs/design/).
    no such marker — plugins are Event Script capabilities (flow vocabulary), never
    conditionally on/off.
 
+5. **`yaml.preload.override` is ported (P2 of the annotation→macro consistency arc, D4).**
+   The Java operational surface with identical semantics: config files named by the key
+   rename, fan out, or re-tune the `instances` of any `#[preload]` route at deploy time
+   without recompiling — `original` / `routes` / optional `instances` / optional
+   `keep-original`, comma-separated locations with missing files logged and skipped,
+   multi-file merge (route-set union; the first file to set `instances` wins), applied at
+   boot between inventory collection and registration (after `env_instances` resolution,
+   Java's order). An override entry matches when ANY of a function's declared
+   comma-separated routes appears as an `original`, and the declared list is replaced by
+   the override's sorted route set. Seven-scenario regression suite mirrors Java's
+   `PreloadOverrideTest`.
+6. **The registration-metadata contract, with golden conformance vectors (P2/D5).** The
+   cross-language contract behind `#[preload]` and its family is now a spec page
+   (`docs/guides/registration-metadata-contract.md`, adapted from the Java reference) with
+   **golden vectors shared verbatim** between repositories
+   (`registration-vectors/{core,plugin,feature}.json`, byte-identical to the Java copies)
+   and three conformance suites that declare the same fixture set through the Rust macro
+   carrier and assert declared metadata + boot-resolved registration against the golden
+   entries — including env-instances resolution, marker order-freedom, name derivation
+   (`fn vector_derived` and Java's `class VectorDerived` register the same
+   "vectorDerived") and optional-service gating. ADR-0008 records the decision (the twin
+   of the Java ledger's ADR-0009).
+
+7. **Typed `AsyncHttpRequest` functions** (field gap report — the Rust port could not type
+   a function's input as `AsyncHttpRequest`): the request model now implements
+   `Serialize` / `Deserialize` as thin delegates onto its own map-shape builder/parser,
+   so `#[preload(..., typed)]` + `TypedFunction<AsyncHttpRequest, O>` flows through the
+   ordinary typed adapter with no engine special case (Java, by contrast, special-cases
+   the class inside `WorkerHandler.getMapBody`) — the template rule for Python/Node
+   ports: a request class constructible from the request map makes typed signatures just
+   work. `from_value` now parses the full SERVER-side dataset (`ip`, `https`, `timeout`,
+   raw `query`) with round-trip integrity, and the accessor surface reaches Java parity
+   (`path_parameter`, `query_parameter`/`query_parameters`, `cookie`, `session_info`,
+   `remote_ip`, `is_secure`, `query_string`, `body_as` — with full fluent-builder
+   symmetry: `set_remote_ip`, `set_secure`, `set_query_string`, `set_cookie`,
+   `set_session_info`, `set_query_parameter_values`, `set_route_timeout_seconds`). The
+   REST automation server now constructs the request dataset THROUGH the struct at both
+   assembly sites (the main dispatch and the static-content filter), so the wire shape
+   has exactly one definition — `AsyncHttpRequest::to_value()` — and server↔struct drift
+   is impossible by construction. The hello-world `greeting.api` is rewritten in the
+   typed form as the living example.
+
+8. **The `/info/routes` actuator is ported** (`routes.actuator.service`, a default
+   rest.yaml endpoint like its siblings): the app block plus the local routing table
+   split by visibility — `routing.public` / `routing.private`, route → instance count,
+   sorted for deterministic output. Java's optional `journal` / `route_substitution` /
+   mesh `network` blocks are omitted when empty, and those subsystems do not exist in
+   this port, so the response is `{app, routing}`. Only `/info/lib` remains deferred
+   (a Rust binary has no runtime dependency manifest). The endpoint's first payoff: the
+   actuator family now runs 5 workers each (rule of thumb) with ONE ops knob —
+   `worker.instances.actuator.services`, the same key as the Java engine — and the
+   hello-world demo sizes its I/O-shaped fixtures accordingly (`event.api.auth` 30 with
+   `worker.instances.event.api.auth` — a real deployment verifies bearer tokens against
+   an OAuth2 authority; `http.request.filter` 20 with
+   `worker.instances.http.request.filter`), so operations teams can fine-tune in QA/Perf
+   before promoting to production.
+
 ### Fixed
 
 1. **One conflict policy across every registry** (matching the Java engine's actual
@@ -60,37 +117,16 @@ the design rationale in [`docs/design/`](docs/design/).
    function distinction IS ported (private by default; a private function is not
    reachable through `/api/event`).
 
----
-## Unreleased
-
-### Added
-
-1. **`yaml.preload.override` is ported (P2 of the annotation→macro consistency arc, D4).**
-   The Java operational surface with identical semantics: config files named by the key
-   rename, fan out, or re-tune the `instances` of any `#[preload]` route at deploy time
-   without recompiling — `original` / `routes` / optional `instances` / optional
-   `keep-original`, comma-separated locations with missing files logged and skipped,
-   multi-file merge (route-set union; the first file to set `instances` wins), applied at
-   boot between inventory collection and registration (after `env_instances` resolution,
-   Java's order). An override entry matches when ANY of a function's declared
-   comma-separated routes appears as an `original`, and the declared list is replaced by
-   the override's sorted route set. Seven-scenario regression suite mirrors Java's
-   `PreloadOverrideTest`.
-2. **The registration-metadata contract, with golden conformance vectors (P2/D5).** The
-   cross-language contract behind `#[preload]` and its family is now a spec page
-   (`docs/guides/registration-metadata-contract.md`, adapted from the Java reference) with
-   **golden vectors shared verbatim** between repositories
-   (`registration-vectors/{core,plugin,feature}.json`, byte-identical to the Java copies)
-   and three conformance suites that declare the same fixture set through the Rust macro
-   carrier and assert declared metadata + boot-resolved registration against the golden
-   entries — including env-instances resolution, marker order-freedom, name derivation
-   (`fn vector_derived` and Java's `class VectorDerived` register the same
-   "vectorDerived") and optional-service gating. ADR-0008 records the decision (the twin
-   of the Java ledger's ADR-0009).
-
 ### Changed
 
-1. **The `length` and `substring` string plugins use Unicode scalar values** (maintainer
+1. **JSON response bodies render pretty-printed** (presentation parity with the Java
+   engine, whose `async.http.response` writes through SimpleMapper's default —
+   pretty-printing — mapper): one shared render rule for every JSON response the REST
+   automation server writes, function responses and the `/info` / `/health` / `/env`
+   actuators alike (2-space indentation; the HTML `<pre>` shell wraps the same pretty
+   text). The Event-over-HTTP `/api/event` path is unaffected — it responds with a
+   MsgPack envelope, not rendered JSON.
+2. **The `length` and `substring` string plugins use Unicode scalar values** (maintainer
    ruling, superseding the earlier UTF-16 retrofit): indexes and counts address whole
    characters (code points) — modern ports use Unicode-native semantics, and Java's
    UTF-16 code units are a JVM legacy that must not propagate to future Python/Node/Go

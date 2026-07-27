@@ -20,11 +20,24 @@ GET /livenessprobe
 ```
 
 !!! note "Rust port"
-    Two Java defaults are not ported: **`/info/lib`** (Java lists JAR dependencies from the
-    archive manifest — a Rust binary has no runtime dependency manifest) and **`/info/routes`**
-    (the route listing). XML actuator responses are also not supported — actuators answer in
-    JSON. **`POST /api/event` (Event over HTTP) IS ported** (increment 61) and ships in the
-    default rest.yaml — see [Event over HTTP](event-over-http.md).
+    One Java default is not ported: **`/info/lib`** (Java lists JAR dependencies from the
+    archive manifest — a Rust binary has no runtime dependency manifest). **`/info/routes`
+    IS ported**: the app block plus the local routing table split by visibility
+    (`routing.public` / `routing.private`, route → instance count, sorted); Java's optional
+    `journal` / `route_substitution` / mesh `network` blocks are omitted when empty, and
+    those subsystems do not exist here. XML actuator responses are not supported —
+    actuators answer in JSON. **`POST /api/event` (Event over HTTP) IS ported**
+    (increment 61) and ships in the default rest.yaml — see
+    [Event over HTTP](event-over-http.md).
+
+#### Tuning worker instances
+
+Each actuator route runs 5 worker instances by default — a **rule of thumb**, like every
+initial instance count in the platform. Operations teams fine-tune it with ONE family key,
+`worker.instances.actuator.services` (the same key the Java engine uses, so one runbook
+line covers both engines), typically in QA/Perf environments before promoting the number
+to production. `/info/routes` displays the effective counts, so the tuning loop is
+observable through the actuators themselves.
 
 #### `GET /info`
 
