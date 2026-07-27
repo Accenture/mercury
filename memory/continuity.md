@@ -144,7 +144,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release — 2026-07-27; **TAGGED: `v4.10.6` on merge commit `9732799e` (PR
+- [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
+  TAGGED: `v4.10.6` on merge commit `9732799e` (PR
   [#184](https://github.com/Accenture/mercury/pull/184)), the commit VERIFIED as carrying
   the release content before the tag pushed (Cargo.toml 4.10.6 at that commit — the
   4.10.2 tag-race lesson applied); publication pending Eric, who has the release notes.**)
@@ -157,7 +158,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   /info/routes, ops-tunable worker instances). Sweep 4.10.5→4.10.6 (root Cargo.toml —
   count-asserted, no substring hazards; lock regenerated; continuity status line);
   CHANGELOG Unreleased → `## Version 4.10.6, 7/26/2026` + release summary. Gate:
-  workspace 273 / clippy 0 / fmt. Tagged — close when the release is published.
+  workspace 273 / clippy 0 / fmt. Tagged + published — CLOSED. Design validation worth
+  keeping (Eric's field observation): the pretty-print single-render-path design means one
+  presentation fix reached EVERY JSON surface — functions, actuators, flows, AND the
+  MiniGraph graph endpoint (live proof: POST /api/graph/tutorial-2 returns pretty JSON) —
+  with zero additional code.
   <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: working | origin: 2026-07-27-011116.md -->
 
 - [x] (2026-07-26; **MERGED same day as PR
