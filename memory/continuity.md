@@ -263,7 +263,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (`vision-mercury`) CONFIRMED — north star unchanged, 2026-07-21 current-state context still
   accurate, the annotation-macro arc directly serves the template-for-future-ports
   trajectory. No supersessions required.**
-  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: active | origin: 2026-07-26-013015.md -->
+  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-013015.md -->
 
 - [x] (2026-07-26; **ARC COMPLETE — P2 MERGED same day: Rust PR
   [#182](https://github.com/Accenture/mercury/pull/182) (merge `fd4685d5`) in lock-step with
@@ -532,7 +532,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   surface — the asymmetry (Rust strictly more predictable) is documented, not closed.
   Revisit trigger: first consumer that truly runs at capacity.**
   → serves: vision-mercury
-  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 3 | tier: active | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 4 | tier: active | origin: 2026-07-21-030938.md -->
 
 - [x] **(knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE;
   the connectors/sync-over-async harvest rides [[bp-kafka-connectors-backlog]].)
