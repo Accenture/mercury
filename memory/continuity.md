@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-27 | agent: Claude Code (2026-07-27-223231, harvest closure + ManagedCache design for gate)
+- **last_session:** 2026-07-28 | agent: Claude Code (2026-07-28-003508, ManagedCache gate approved + increment 71 on branch)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -37,7 +37,9 @@ deliberately not a web framework: rest.yaml IS the router), **chrono 0.4 + chron
 iana-time-zone 0.1** (event-script date/time plugins; chrono-tz = the ZoneId.of analog,
 increment 53), **tokio-rustls 0.26 (ring) +
 rustls-native-certs 0.8** (increment 48 — outbound HTTPS with OS-trust-store verification +
-`trust_all_cert`; rcgen dev-dep for the self-signed TLS test). Stack rationale:
+`trust_all_cert`; rcgen dev-dep for the self-signed TLS test), **moka 0.12 (sync)**
+(increment 71 — the ManagedCache engine, Caffeine's Rust lineage, wrapped as an internal
+detail; built with `EvictionPolicy::lru` per Eric's deterministic-eviction ruling). Stack rationale:
 `platform-core-stack` + design doc D1–D10. `.gitignore` is stack-aware (Rust section:
 `target/`, `**/*.rs.bk`, `*.pdb`; Cargo.lock tracked).
 
@@ -88,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   unchanged; the retrofit's surrogate-split micro-divergence is retired (no lossy case
   under scalar indexing). Do NOT re-retrofit UTF-16 in the name of parity — the ruling
   is deliberate and Eric-verified. Docs: syntax-guide Rust-port note + CHANGELOG.
-  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: active | origin: 2026-07-26-022229.md -->
+  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-28 | uses: 3 | tier: active | origin: 2026-07-26-022229.md -->
 
 - **Registration metadata is a cross-language contract; carriers are per-language idioms.
   (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
@@ -103,13 +105,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the wire-format golden-vector method applied to the declaration surface. New ports pass
   the three vector suites before their declaration surface is done. Twin of the Java
   ledger's ADR-0009.
-  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-27 | uses: 3 | tier: active | origin: 2026-07-26-013851.md -->
+  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-28 | uses: 4 | tier: active | origin: 2026-07-26-013851.md -->
 
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-27 | uses: 94 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-28 | uses: 95 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -137,7 +139,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-27 | uses: 96 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-28 | uses: 97 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -343,7 +345,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
   P1 and P2 both merged — ARC CLOSED. Relates [[port-bottom-up-faithful]],
   [[registration-metadata-contract]], [[string-plugins-unicode-scalars]].
-  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: active | origin: 2026-07-26-002157.md -->
+  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-002157.md -->
 
 - [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
   (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR
@@ -483,9 +485,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   bridge over async transports). This is also why HTTP config keys keep their `http.` prefix
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
-  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-27 | uses: 3 | tier: working | origin: 2026-07-20-030615.md -->
+  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-28 | uses: 4 | tier: working | origin: 2026-07-20-030615.md -->
 
-- [ ] **(backlog) Port `ManagedCache` — ONE cache type (Eric's ruling 2026-07-27: do NOT
+- [x] **(backlog — DELIVERED 2026-07-28: increment 71 MERGED as PR
+  [#185](https://github.com/Accenture/mercury/pull/185), merge commit `6326da2e`, CI green
+  first try (build 25s / test 1m53s). CLOSED.) Port `ManagedCache` — ONE cache type
+  (Eric's ruling 2026-07-27: do NOT
   port `SimpleCache`; "just adopt a proper self-expiring in-memory cache").** Java
   platform-core ships `org.platformlambda.core.util.ManagedCache` — a named, self-managing
   TTL+size-bounded cache utility (Caffeine: `expireAfterWrite`, `maximumSize`, default
@@ -501,14 +506,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   schema-registry client is a heavy ManagedCache user) and Java-API-surface completeness.
   Engine candidate per the ruling: a maintained self-expiring implementation (`moka`, the
   Rust Caffeine analog) rather than hand-rolled expiry; the WS dedup cache adopts it and
-  gains bounded eviction. **Design doc DELIVERED 2026-07-27:
-  `docs/design/managed-cache-port.md` (DRAFT v2 — 3-perspective study + 3-lens adversarial
-  critique, all load-bearing claims verified against the Java source and moka
-  docs/changelog) — AWAITING Eric's gate before implementation. Gate questions: engine
-  confirm (moka, bus-factor-1 caveat, swappable wrapper), adopter scope (WS dedup + the
-  actuator info-lookup cache + optional event-script test fixture), crate-private
-  fast-TTL test constructor (new repo pattern).** → serves: vision-mercury
-  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-27 | uses: 2 | tier: working | origin: 2026-07-21-030938.md -->
+  gains bounded eviction. **GATE APPROVED 2026-07-27 (Eric: moka confirmed, ALL THREE
+  adopters, test constructor ok) + a 4th ruling at approval: DETERMINISTIC EVICTION —
+  moka `EvictionPolicy::lru()`, a documented divergence from Java Caffeine's W-TinyLFU
+  (verified genuinely non-deterministic: frequency admission + deliberate HashDoS jitter,
+  no policy switch; refactoring note handed to the Java session via
+  /tmp/managed-cache-eviction-determinism-handoff.md). Increment 71 IMPLEMENTED on branch
+  `feature/managed-cache` (commit `a2f89856`, NOT pushed): module + registry + lifecycle
+  housekeeper + all 3 adopters (WS dedup anchored-window fix; actuator `health.info`
+  info-lookup cache; ext-state-machine fixture restored to Java's singleton
+  instances=1 — the pre-commit adversarial review caught a CRITICAL lost-update race the
+  old global Mutex had masked, plus the elapsed_time whole-unit divergence [now an exact
+  Utility.elapsedTime port, also fixing /info uptime] and a doubled duplicate debug log;
+  12 confirmed findings, all fixed). Design doc marked APPROVED. Gate: workspace 287 /
+  clippy 0 / fmt; flow_runtime 5/5. MERGED — CLOSED. The connectors-era follow-on
+  (schema-registry adopting ManagedCache) rides [[bp-kafka-connectors-backlog]].**
+  → serves: vision-mercury
+  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 3 | tier: active | origin: 2026-07-21-030938.md -->
 
 - [x] **(knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE;
   the connectors/sync-over-async harvest rides [[bp-kafka-connectors-backlog]].)
