@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-28 | agent: Claude Code (2026-07-28-003508, ManagedCache gate approved + increment 71 on branch)
+- **last_session:** 2026-07-28 | agent: Claude Code (2026-07-28-011855)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -520,7 +520,17 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Utility.elapsedTime port, also fixing /info uptime] and a doubled duplicate debug log;
   12 confirmed findings, all fixed). Design doc marked APPROVED. Gate: workspace 287 /
   clippy 0 / fmt; flow_runtime 5/5. MERGED — CLOSED. The connectors-era follow-on
-  (schema-registry adopting ManagedCache) rides [[bp-kafka-connectors-backlog]].**
+  (schema-registry adopting ManagedCache) rides [[bp-kafka-connectors-backlog]].
+  **Java handoff RESOLVED 2026-07-27: Eric ruled option 1 (accept + document), shipped as
+  Java PR #237 (squash `8a81950c`, CI green) — javadoc on both createCache overloads
+  (size-eviction approximate + non-deterministic under maxItems pressure; expiry exact;
+  never rely on which entry survives; explicit note that the Rust port deliberately
+  differs with strict LRU) + CHANGELOG. Copilot's "frequency aging" remediation ruled a
+  category error (caffeine-3.2.4's FrequencySketch already has reset()/RESET_MASK — aging
+  is built in; it fixes stale popularity, not reproducibility; the admit() jitter is
+  orthogonal). Parity boundary confirmed: eviction is internal state, NOT a presentation
+  surface — the asymmetry (Rust strictly more predictable) is documented, not closed.
+  Revisit trigger: first consumer that truly runs at capacity.**
   → serves: vision-mercury
   <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 3 | tier: active | origin: 2026-07-21-030938.md -->
 
