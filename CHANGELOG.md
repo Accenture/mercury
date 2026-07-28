@@ -11,6 +11,42 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **`ManagedCache`** — the Java `org.platformlambda.core.util.ManagedCache` ported
+   (`platform_core::ManagedCache` / `CacheValue`; design record
+   `docs/design/managed-cache-port.md`, maintainer-gated): a named, self-expiring
+   (expire-after-write, 1 s floor), size-bounded (default 2000) in-memory cache with a
+   process-wide registry and a lifecycle-wired 10-minute housekeeper. Engine: moka
+   (Caffeine's Rust lineage), wrapped as an internal detail and built with
+   **deterministic LRU eviction** (`EvictionPolicy::lru`, maintainer ruling) — a
+   documented divergence from Java Caffeine's approximate W-TinyLFU (which also carries
+   deliberate HashDoS randomness; a refactoring note was handed to the Java team).
+   Java's `SimpleCache` is deliberately NOT ported: one cache type — any Java
+   `SimpleCache` site maps onto a `ManagedCache` instance.
+2. **`/health` per-dependency info cache** (Java parity, previously deferred): the
+   `type=info` lookup is now cached 5 s per dependency (`health.info`, map bodies only —
+   Java `isServiceUnhealthy` semantics); `type=health` still runs on every probe and the
+   `/health` result itself is never cached.
+
+### Fixed
+
+1. **WS duplicate-command suppression window is now ANCHORED like Java's** (knowledge
+   graph): the previous stand-in re-put on every duplicate — a sliding window under
+   which a continuous duplicate stream never let a command through; migrated to the Java
+   `last.ws.message` 1 s `ManagedCache` (no re-put on duplicate, one command per ~1 s,
+   Java's `Duplicated message` debug log — emitted once, at the comparison, like Java),
+   and the dedup memory is now bounded and self-expiring (entries previously survived
+   session close forever).
+2. **`/info` `up_time` renders exactly like Java's `Utility.elapsedTime`**: zero
+   components are omitted ("2 minutes", not "2 minutes 0 seconds"), Java's strict
+   boundary quirks are kept (exactly 1 minute → "60 seconds"), and a sub-second value
+   renders "N ms". The same shared formatter renders the `ManagedCache` create log, so
+   that new Java-parity log line is exact from day one.
+
+---
 ## Version 4.10.6, 7/26/2026
 
 Feature release. Version number re-aligned with the Java repo's 4.10.6 (whose contents —

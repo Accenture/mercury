@@ -235,9 +235,11 @@ async fn info_reports_app_identity_and_uptime() {
     assert_eq!(json["app"]["description"], "actuator test app");
     assert_eq!(json["runtime"]["language"], "rust");
     assert!(json["origin"].as_str().is_some_and(|o| !o.is_empty()));
+    // Java Utility.elapsedTime rendering: a just-started server may report a
+    // sub-second uptime as "N ms" (Java parity), otherwise "N second(s)"
     assert!(json["up_time"]
         .as_str()
-        .is_some_and(|u| u.contains("second")));
+        .is_some_and(|u| u.contains("second") || u.ends_with(" ms")));
     assert!(json["time"]["start"]
         .as_str()
         .is_some_and(|t| t.ends_with('Z')));

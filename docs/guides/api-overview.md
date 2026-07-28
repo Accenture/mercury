@@ -280,6 +280,37 @@ assert_eq!("profile not found", err.message());
 Returning `Err(AppError)` from a function becomes an error reply (`status >= 400`) to the
 caller; on a fire-and-forget delivery it is logged instead.
 
+## Utility: `ManagedCache`
+
+The Java `ManagedCache` ported (design record: `docs/design/managed-cache-port.md`) — a
+named, **self-expiring** (expire-after-write), **size-bounded** in-memory cache with a
+process-wide registry. The engine (moka, Caffeine's Rust lineage) is an internal detail;
+eviction under capacity pressure is **deterministic LRU** — a deliberate, documented
+improvement over the Java original's approximate W-TinyLFU.
+
+```rust
+use platform_core::ManagedCache;
+
+// idempotent by name — the first creation's parameters win
+let cache = ManagedCache::create_cache("my.cache", 5000);              // TTL ms (min 1000), max 2000 items
+let sized = ManagedCache::create_cache_with_limit("big.cache", 60_000, 10_000);
+
+cache.put("key", MyStruct { .. });                 // any Any + Send + Sync value
+let value = cache.get_as::<MyStruct>("key");       // Option<Arc<MyStruct>> — None if absent or wrong type
+let exists = cache.exists("key");
+cache.remove("key");
+cache.clear();
+
+let same = ManagedCache::get_instance("my.cache"); // resolve by name from any module
+let all = ManagedCache::get_cache_collection();    // sorted snapshot for introspection
+```
+
+Values are type-erased `Arc` handles (the Rust carrier of Java's `Object` reference
+semantics) — store one value shape per named cache. For a value that is *already* an
+`Arc`, use `put_arc` (passing an `Arc` to `put` would nest it and `get_as` would miss).
+Expired entries are reclaimed lazily on access plus a 10-minute housekeeper the
+application lifecycle starts automatically; correctness never depends on the sweep.
+
 ---
 
 *Adapted from the mercury-composable guide `docs/guides/api-overview.md`; keys/APIs enumerated from this repository's source.*

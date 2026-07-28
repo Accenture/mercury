@@ -504,8 +504,9 @@ default-endpoint merge + the static-content behavior:
   extension (minimal `MimeTypeResolver` analog). A `/` entry in rest.yaml always wins.
 - **Deferred:** `/info/lib` (maintainer-approved — Java reads the JAR manifest at runtime;
   a Rust binary has no runtime dependency manifest; a `build.rs`-embedded cargo metadata
-  could provide it later), `/info/routes`, XML responses, etag/cache headers,
-  `mime-types.yml` customization, the Java per-route info cache.
+  could provide it later), XML responses, `mime-types.yml` customization. *(Since shipped:
+  etag/cache headers — increment 8; `/info/routes` — the v4.10.6 typed-AsyncHttpRequest
+  arc; the Java per-route info cache — increment 71, `ManagedCache("health.info")`.)*
 
 **Tests:** 10 end-to-end (info identity/uptime, env opt-in-only exposure, liveness default,
 health no-deps hint, health UP with mandatory dep (info-merge asserted), health DOWN → 400 +
@@ -683,13 +684,14 @@ Broadcast delivery · streams (`Flux`/`Mono` → Rust `Stream`) · kernel-thread
 (`spawn_blocking` pool) · Event-over-HTTP · an OTLP forwarder extension (the
 `distributed.trace.forwarder` hook is ready) · trace annotations on the envelope wire ·
 full envelope fields · `yaml.preload.override` · `Utility` grab-bag (ported piecemeal as
-callers need it) · crypto/caches · a lightweight dedicated RPC inbox (Java `AsyncInbox`
+callers need it) · crypto · a lightweight dedicated RPC inbox (Java `AsyncInbox`
 parity). Each becomes
 its own Design increment tracing to `bp-platform-core`. *(Shipped: elastic overflow buffer — increment 3, §5b; lifecycle — §5c; telemetry — §5d;
 REST automation — §5e; actuators/static — §5f; static-content protocol — §5g; RPC inbox +
 benchmark — §5h; annotation macros + `AutoStart` one-liner + OS-signal shutdown — §5i;
 event-interceptor mode + scheduled events (`send_later`/cancel) + rest.yaml `flow:` binding —
-event-script design E-3, `event-script-port.md` §5c.)*
+event-script design E-3, `event-script-port.md` §5c; the cache utility — increment 71,
+`ManagedCache`, design `managed-cache-port.md`.)*
 
 ## 8. Open questions for the maintainer
 

@@ -84,6 +84,10 @@
 | 65 | Metadata injection hardening (Java parity): business cid rides the engine-managed `my_cid` envelope tag (wire-compatible `tags` field), worker injects the four `my_*` read-only keys into the input header copy at entry and sanitizes them (+ `x-event-api`) at exit — metadata is never transported; REST response echoes X-Correlation-Id; edge stamps the resolved cid onto the dataset headers | 2026-07-23 | — | 249 |
 | 66 | `temporary.inbox` alignment (Java parity): ONE reserved RPC reply-listener route keyed by correlation id — the `inbox.*` namespace freed for applications; RPC marker = the reserved `rpc` tag; `@origin` addressing never generated, parsed away inbound; reply dispatch direct on the sender's runtime | 2026-07-23 | — | 250 |
 | 67 | Collection plugins mirror (`isEmpty`/`getFirst`/`getLast` — contributed to the Java engine in mercury-composable PR #220): flows are engine-portable YAML, so plugins + error text behave identically on both engines | 2026-07-23 | — | 252 |
+| 68 | Configurable traceparent header name (field request, lock-step with Java): `http.traceparent.header` global + per-entry rest.yaml override; standard traceparent wins inbound (v4.10.4 ruling), dual-stamp outbound | 2026-07-24 | — | 257 |
+| 69 | Interop header hygiene (lock-step with Java): clean delivered-envelope view (5 engine keys scrubbed for non-interceptors; interceptors keep raw transport), /api/event wire alignment (insert-semantics stamps, Java header set, no x-correlation-id), endpoint timeout rides x-ttl | 2026-07-24 | — | 260 |
+| 70 | Annotation→macro consistency P1: all 46 built-in plugins + both fetch features dogfood `#[simple_plugin]`/`#[fetch_feature]`, one conflict policy (WARN + last-wins), positional grammar, order-free marker stacking, trybuild compile-fail suites | 2026-07-25 | — | 265 |
+| 71 | ManagedCache — the self-expiring in-memory cache (design `managed-cache-port.md`, maintainer-gated): moka engine with deterministic LRU eviction, `Arc<dyn Any>` value carrier, named registry + lifecycle housekeeper; adopters: WS dedup (anchored window fix), actuator `health.info` info-lookup cache, ext-state-machine fixture | 2026-07-27 | — | 287 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -2150,13 +2154,77 @@ same-named Java branch.
 
 ---
 
+## Increment 71 — ManagedCache: the self-expiring in-memory cache (2026-07-27)
+
+Port of `org.platformlambda.core.util.ManagedCache` per the maintainer-gated design
+`docs/design/managed-cache-port.md` (three rulings: ONE cache type — `SimpleCache` is NOT
+ported, any Java `SimpleCache` site maps onto a `ManagedCache` instance; adopt a proper
+self-expiring implementation — moka, the Caffeine-lineage engine, wrapped as an internal
+detail; **deterministic eviction** — `EvictionPolicy::lru()` instead of Java Caffeine's
+approximate W-TinyLFU + HashDoS jitter, a documented divergence in the Rust port's favor
+with a refactoring note filed for the Java team).
+
+- **Module:** `util::managed_cache` (re-exported as `platform_core::{ManagedCache,
+  CacheValue}`): named caches in a process-wide registry (`create_cache` /
+  `create_cache_with_limit` — idempotent by name, first creation's parameters win;
+  `get_instance`; sorted-snapshot `get_cache_collection`); expire-after-write TTL clamped
+  to [1 s, ~100 years] (Java floor; the ceiling keeps moka's builder total); default
+  2000-item bound; values type-erased as `CacheValue = Arc<dyn Any + Send + Sync>` (the
+  Rust carrier of Java `Object` reference semantics) with typed `get_as::<T>()`; the
+  Java telemetry-stamp map exactly (put/remove → last_write incl. remove-on-absent,
+  get/exists → last_read hit-or-miss, clear → last_reset; clear = stamp + invalidate_all
+  + run_pending_tasks); Java log wordings (`Created cache (..)`, `Housekeeper started`,
+  `Cleaning up ..`); 10-minute housekeeper lifecycle-wired in `AppStarter`'s
+  essential-services phase (never spawned from `create_cache` — it runs outside the
+  runtime; correctness never depends on the sweep). `elapsed_time` moved from the
+  actuator to `util` (shared by the create log and `/info` uptime).
+- **Adopter 1 — WS dedup (knowledge-graph):** `commands.rs::is_duplicate` migrated from
+  an unbounded `Mutex<HashMap>` stand-in to the Java `"last.ws.message"`/1 s cache. Two
+  fixes toward Java: bounded self-expiring memory (the session-close arm never removed
+  dedup entries), and the ANCHORED window (a duplicate no longer re-puts — the old
+  sliding window never let a continuous duplicate stream through); Java's
+  `Duplicated message - {} for {}` debug log added. The existing WS double-submit
+  regression passes unchanged; a time-spaced anchored-vs-sliding regression added.
+- **Adopter 2 — actuator info cache:** the per-dependency `type=info` lookup cached 5 s
+  under `info/{route}` (`"health.info"`, map bodies only) — Java `isServiceUnhealthy`
+  parity; `type=health` still runs on every call and the `/health` result is never
+  cached. Dedicated test binary (`tests/health_info_cache.rs` — the cache is
+  process-wide, so the counting test owns its binary and route): two back-to-back
+  `/health` ⇒ info counted once, health twice.
+- **Adopter 3 — event-script test fixture:** `ExternalStateMachine` in
+  `flow_runtime.rs` backed by the Java fixture's `"state.machine"`/10 s cache (values =
+  `Arc<Mutex<Map>>` handles — Java's in-place map mutation reproduced; PUT re-puts the
+  handle, refreshing the window like Java's `store.put`).
+- **Tests:** 12 in-module unit tests (round-trip/downcast/wrong-wrap trap, clamps both
+  ends, lazy TTL expiry via the `#[cfg(test)]` unclamped constructor [design MC8,
+  maintainer-approved] + reset-on-update, deterministic LRU victim, idempotency, registry,
+  telemetry stamps, housekeeping sweep body, concurrency smoke) + the two adopter
+  regressions. Docs: api-overview `ManagedCache` section, actuators guide health-cache
+  note, actuator module doc un-deferred, CHANGELOG Unreleased.
+- **Pre-commit adversarial review round (18-agent 3-lens pass; 12 confirmed findings
+  fixed):** the fixture migration initially kept `instances = 4` — a lost-update race the
+  old global `Mutex` had masked (two concurrent first puts for one trace each built their
+  own map; the flow_runtime suite went ~50% red) — fixed to `instances = 1`, restoring
+  the Java fixture's deliberate singleton semantics; the caller-side duplicate debug log
+  removed (Java logs ONCE, inside the comparison — the double line would have broken
+  log-presentation parity); `elapsed_time` rewritten as an EXACT `Utility.elapsedTime`
+  port (strict `>` boundaries, zero components omitted, sub-second "N ms") — the create
+  log now renders whole-minute TTLs exactly like Java ("2 minutes", not
+  "2 minutes 0 seconds") and `/info` uptime is corrected as a side effect; TTL test
+  margins widened to ≥ 400 ms slow-CI headroom; stale "deferred" claims swept
+  (platform-core-port §5f/§7) and the overview rows 68–71 backfilled.
+  Workspace 287 (273+14) / clippy 0 / fmt.
+
+---
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
 streams, kernel-thread analog, flow binding + HTTP relay + A/B +
 upload + streaming (REST), event-over-HTTP, OTLP forwarder extension, `/info/lib` +
 `/info/routes`, `yaml.preload.override`, etag/cache, the
-`Utility` grab-bag, crypto/caches, a dedicated lightweight RPC inbox.
+`Utility` grab-bag, crypto (the caches landed as increment 71's `ManagedCache`),
+a dedicated lightweight RPC inbox.
 
 **Next layer:** event-script (layer 2) — the YAML flow DSL, unlocking REST automation's
 `flow:` binding and the composable-application programming model.

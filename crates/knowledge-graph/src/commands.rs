@@ -26,7 +26,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 
 use event_script::conversions::display;
 use event_script::converter;
@@ -34,7 +34,7 @@ use event_script::mapping::get_constant_value;
 use event_script::mlm::MultiLevelMap;
 use event_script::util::{split, str2int};
 use platform_core::graph::{MiniGraph, SimpleConnection, SimpleNode};
-use platform_core::{AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
+use platform_core::{AppConfigReader, AppError, EventEnvelope, ManagedCache, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{get_model_ttl, initialize_with_node_properties, invalid};
@@ -149,19 +149,29 @@ fn is_expired(entry: &std::fs::DirEntry, now: i64) -> bool {
     now - modified > EXPIRY_MS
 }
 
-/// Duplicate-command suppression (Java `ManagedCache("last.ws.message", 1000)`).
-fn last_message_cache() -> &'static Mutex<HashMap<String, (String, i64)>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, (String, i64)>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+/// Duplicate-command suppression — the Java
+/// `ManagedCache.createCache("last.ws.message", 1000)` of
+/// `GraphCommandService`, same name + TTL (increment 71: the previous
+/// unbounded `Mutex<HashMap>` stand-in never evicted — the session-close arm
+/// cleans everything except it). The window is ANCHORED like Java's
+/// expire-after-write: a duplicate does NOT re-put, so one command passes per
+/// ~1 s even under a continuous duplicate stream (the old stand-in re-put on
+/// every duplicate — a sliding window that never let one through).
+fn last_message_cache() -> &'static Arc<ManagedCache> {
+    static CACHE: OnceLock<Arc<ManagedCache>> = OnceLock::new();
+    CACHE.get_or_init(|| ManagedCache::create_cache("last.ws.message", 1000))
 }
 
 fn is_duplicate(in_route: &str, command: &str) -> bool {
-    let now = session::now_ms();
-    let mut cache = last_message_cache().lock().expect("message cache");
-    let duplicate = matches!(cache.get(in_route),
-        Some((last, at)) if last == command && now - at < 1000);
-    cache.insert(in_route.to_string(), (command.to_string(), now));
-    duplicate
+    let cache = last_message_cache();
+    if let Some(last) = cache.get_as::<String>(in_route) {
+        if last.as_str() == command {
+            log::debug!("Duplicated message - {command} for {in_route}");
+            return true;
+        }
+    }
+    cache.put(in_route, command.to_string());
+    false
 }
 
 fn counter() -> u64 {
@@ -294,9 +304,10 @@ async fn handle_command(
         return single_or_multi_line(platform, po, command, in_route, out_route).await;
     }
     // the dedup guard protects the WS UI from double-submits; a synchronous
-    // companion RPC (`direct`) is a deliberate request — never dropped (#62)
+    // companion RPC (`direct`) is a deliberate request — never dropped (#62).
+    // The "Duplicated message" debug log lives INSIDE is_duplicate (Java
+    // parity — GraphCommandService logs once, at the comparison)
     if !direct && is_duplicate(in_route, command) {
-        log::debug!("Duplicated message - {command} for {in_route}");
         return Ok(());
     }
     let Some(me) = session::get_session(in_route) else {
@@ -2289,7 +2300,7 @@ pub fn download_graph(id: &str) -> Option<Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{collect_path_tokens, convert_mapping_properties};
+    use super::{collect_path_tokens, convert_mapping_properties, is_duplicate};
     use event_script::mlm::MultiLevelMap;
     use rmpv::Value;
 
@@ -2388,5 +2399,32 @@ mod tests {
         assert!(convert_mapping_properties(&mut bad, Some("Dictionary")).is_err());
         let mut good = map_with("output", &["response.profile.name -> result.name"]);
         convert_mapping_properties(&mut good, Some("Dictionary")).expect("valid mapping ok");
+    }
+
+    #[test]
+    fn duplicate_window_is_anchored_not_sliding() {
+        // Java parity (increment 71): the "last.ws.message" window anchors on
+        // the LAST WRITE — a duplicate does NOT re-put, so a continuous
+        // duplicate stream still lets one command through per ~1 s. The old
+        // stand-in re-put on every duplicate (sliding window: the third send
+        // below would still be dropped, and a steady stream would never get
+        // through). Unique route: the cache is process-wide and unit tests
+        // run in parallel.
+        let route = "ws.anchored.window.test";
+        assert!(!is_duplicate(route, "draw"), "first command passes");
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        assert!(
+            is_duplicate(route, "draw"),
+            "duplicate within the 1 s window dropped"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(900));
+        // ~1.4 s after the ANCHOR write: the anchored window has expired even
+        // though a duplicate arrived mid-window; the sliding window re-put at
+        // ~0.5 s and would still drop this one
+        assert!(
+            !is_duplicate(route, "draw"),
+            "anchored: one command passes per ~1 s"
+        );
+        assert!(!is_duplicate(route, "erase"), "a different command passes");
     }
 }
