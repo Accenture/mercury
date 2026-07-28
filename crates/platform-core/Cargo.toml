@@ -35,6 +35,9 @@ rustls-native-certs = "0.8"
 # --- increment 10: annotation macros (Java @PreLoad/@BeforeApplication/@MainApplication) ---
 inventory = "0.3"
 platform-macros = { path = "../platform-macros" }
+# --- increment 71: ManagedCache (docs/design/managed-cache-port.md — the Caffeine-lineage
+# engine, wrapped; EvictionPolicy::lru per the maintainer's deterministic-eviction ruling) ---
+moka = { version = "0.12", features = ["sync"] }
 
 [dev-dependencies]
 # compile-fail guards for the macro surfaces (tests/ui)

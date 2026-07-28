@@ -50,7 +50,7 @@ use async_trait::async_trait;
 use crate::function::{AppError, ComposableFunction};
 use crate::platform::{FunctionOptions, Platform};
 use crate::util::app_config_reader::AppConfigReader;
-use crate::util::elastic_queue;
+use crate::util::{elastic_queue, managed_cache};
 
 /// Highest allowed hook sequence (Java `MAX_SEQ`); larger values clamp to it.
 const MAX_SEQ: u32 = 999;
@@ -146,6 +146,7 @@ impl AppStarter {
         //    preserve ordering; the event system buffers bursts), the event
         //    API, actuators, no.op and the HTTP client (all idempotent)
         elastic_queue::start_housekeeping();
+        managed_cache::start_housekeeping();
         let platform = Platform::get_instance();
         // the RPC reply listener is registered at Platform construction (so
         // every registry has it from birth); assert it here like the Java

@@ -31,7 +31,7 @@ use event_script::conversions::from_json;
 use event_script::FlowExecutor;
 use platform_core::{
     main_application, preload, trace, AppError, AutoStart, ComposableFunction, EntryPoint,
-    EventEnvelope, Platform, PostOffice,
+    EventEnvelope, ManagedCache, Platform, PostOffice,
 };
 use rmpv::Value;
 
@@ -290,13 +290,30 @@ impl ComposableFunction for AbortRequest {
 /// Java `ExternalStateMachine` (`v1.ext.state.machine`): a trace-scoped
 /// key-value store honoring the ext-state-machine contract — headers
 /// `type` (put/get/remove) + `key`, body `{data}`; the `append` key appends
-/// to a list.
-#[preload(route = "v1.ext.state.machine", instances = 4)]
+/// to a list. A SINGLETON like the Java fixture (`@PreLoad` default
+/// instances=1 — its class doc: the singleton "would guarantee orderly
+/// execution of incoming requests"): serialized execution is the correctness
+/// precondition for the get→mutate→put pattern below — with multiple workers
+/// two concurrent first puts for one trace would each create their own map
+/// and the last re-put would drop the other's write.
+#[preload(route = "v1.ext.state.machine", instances = 1)]
 struct ExternalStateMachine;
 
-static EXT_STORE: std::sync::OnceLock<
-    std::sync::Mutex<HashMap<String, serde_json::Map<String, serde_json::Value>>>,
-> = std::sync::OnceLock::new();
+/// Java parity (increment 71): the Java fixture backs this store with
+/// `ManagedCache.createCache("state.machine", 10000)` — its comment:
+/// "ManagedCache with automatic expiry is used so that memory will be
+/// released" — where the previous Rust stand-in was an unbounded
+/// `OnceLock<Mutex<HashMap>>` whose per-trace entries were never evicted.
+/// Values are `Mutex<serde_json::Map>` handles: the `Arc` reference
+/// semantics mirror Java mutating the cached map in place; a PUT re-puts the
+/// same handle, refreshing the 10 s expire-after-write window exactly like
+/// the Java `store.put(traceId, map)`.
+type TraceState = std::sync::Mutex<serde_json::Map<String, serde_json::Value>>;
+
+fn ext_store() -> &'static std::sync::Arc<ManagedCache> {
+    static STORE: std::sync::OnceLock<std::sync::Arc<ManagedCache>> = std::sync::OnceLock::new();
+    STORE.get_or_init(|| ManagedCache::create_cache("state.machine", 10000))
+}
 
 #[async_trait]
 impl ComposableFunction for ExternalStateMachine {
@@ -310,36 +327,55 @@ impl ComposableFunction for ExternalStateMachine {
         let trace_id = po.my_trace_id().ok_or_else(|| {
             AppError::new(400, "Tracing must be enabled for external state machine")
         })?;
-        let store = EXT_STORE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+        let store = ext_store();
         let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
         let action = headers.get("type").map(String::as_str).unwrap_or("");
         let key = headers.get("key").map(String::as_str).unwrap_or("*");
-        let mut guard = store.lock().expect("ext store");
-        let map = guard.entry(trace_id).or_default();
         match action {
             "put" if key != "*" => {
                 let data = body["data"].clone();
-                if key == "append" {
-                    let list = map
-                        .entry("append")
-                        .or_insert_with(|| serde_json::Value::Array(Vec::new()));
-                    if let serde_json::Value::Array(items) = list {
-                        items.push(data);
+                let state = store.get_as::<TraceState>(&trace_id).unwrap_or_else(|| {
+                    std::sync::Arc::new(std::sync::Mutex::new(serde_json::Map::new()))
+                });
+                {
+                    let mut map = state.lock().expect("ext store");
+                    if key == "append" {
+                        let list = map
+                            .entry("append")
+                            .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+                        if let serde_json::Value::Array(items) = list {
+                            items.push(data);
+                        }
+                    } else {
+                        map.insert(key.to_string(), data);
                     }
-                } else {
-                    map.insert(key.to_string(), data);
                 }
+                // Java parity: re-put refreshes the expire-after-write window
+                store.put_arc(&trace_id, state);
                 EventEnvelope::new().set_body(true)
             }
             "remove" if key != "*" => {
-                map.remove(key);
+                // Java mutates the cached map in place (no re-put) — the Arc
+                // handle gives the same reference semantics
+                if let Some(state) = store.get_as::<TraceState>(&trace_id) {
+                    state.lock().expect("ext store").remove(key);
+                }
                 EventEnvelope::new().set_body(true)
             }
             "get" => {
-                let value = if key == "*" {
-                    serde_json::Value::Object(map.clone())
-                } else {
-                    map.get(key).cloned().unwrap_or(serde_json::Value::Null)
+                let state = store.get_as::<TraceState>(&trace_id);
+                let value = match (&state, key) {
+                    (Some(s), "*") => {
+                        serde_json::Value::Object(s.lock().expect("ext store").clone())
+                    }
+                    (Some(s), k) => s
+                        .lock()
+                        .expect("ext store")
+                        .get(k)
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null),
+                    (None, "*") => serde_json::Value::Object(serde_json::Map::new()),
+                    (None, _) => serde_json::Value::Null,
                 };
                 Ok(EventEnvelope::new().set_raw_body(from_json(&value)))
             }

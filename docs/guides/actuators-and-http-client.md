@@ -82,8 +82,11 @@ optional.health.dependencies: 'other.service.health'
 Each listed route is called twice: header `type=info` (3-second timeout, advisory — whatever
 map the service returns is merged into its dependency entry, typically `service` and `href`),
 then header `type=health` (10-second timeout, decisive — any status ≥ 400 marks the dependency
-down). The response lists every dependency with its `route`, `required` flag, `status_code`,
-and message. The overall verdict:
+down). The `type=info` lookup is cached for 5 seconds per dependency (Java parity: the
+`health.info` cache in `ActuatorServices`; only a map response is cached), so frequent health
+probes do not re-interrogate every dependency for its static identity — the `type=health`
+probe itself always runs and is never cached. The response lists every dependency with its
+`route`, `required` flag, `status_code`, and message. The overall verdict:
 
 - all mandatory dependencies up → `"status": "UP"` with HTTP **200**;
 - any mandatory dependency down → `"status": "DOWN"` with HTTP **400**.

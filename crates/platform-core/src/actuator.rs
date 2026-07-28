@@ -43,11 +43,13 @@
 //! Deferred (maintainer-approved): `/info/lib` — Java lists JAR dependencies
 //! from the archive manifest; a Rust binary has no runtime dependency
 //! manifest (a build-script–embedded cargo metadata could provide it later).
-//! Also deferred: XML responses and the Java per-route info cache.
+//! Also deferred: XML responses. The Java per-route info cache is ported
+//! (increment 71): the `type=info` lookup is cached 5 s per dependency via
+//! `ManagedCache("health.info")` — see `check_services`.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -58,6 +60,8 @@ use crate::platform::Platform;
 use crate::post_office::PostOffice;
 use crate::trace;
 use crate::util::app_config_reader::AppConfigReader;
+use crate::util::elapsed_time;
+use crate::util::managed_cache::ManagedCache;
 
 pub const INFO_ACTUATOR: &str = "info.actuator.service";
 pub const ROUTES_ACTUATOR: &str = "routes.actuator.service";
@@ -301,9 +305,22 @@ impl ComposableFunction for ActuatorServices {
     }
 }
 
-/// Query each health-check function: header `type=info` (3 s) merges its info
-/// map into the dependency entry, then `type=health` (10 s) decides the
-/// status (non-200 = down). Returns whether every service in the list is up.
+/// The per-dependency info-lookup cache (Java parity:
+/// `SimpleCache.createCache("health.info", 5000)` in `ActuatorServices` —
+/// this port maps every Java `SimpleCache` site onto `ManagedCache`, per the
+/// maintainer's one-cache-type ruling; `docs/design/managed-cache-port.md`).
+/// Only the `type=info` lookup is cached — never the `/health` result: the
+/// `type=health` probe re-runs on every call and `/livenessprobe` reads the
+/// atomic health flag.
+fn health_info_cache() -> &'static Arc<ManagedCache> {
+    static CACHE: OnceLock<Arc<ManagedCache>> = OnceLock::new();
+    CACHE.get_or_init(|| ManagedCache::create_cache("health.info", 5000))
+}
+
+/// Query each health-check function: header `type=info` (3 s, cached 5 s per
+/// route — Java `isServiceUnhealthy`) merges its info map into the dependency
+/// entry, then `type=health` (10 s) decides the status (non-200 = down).
+/// Returns whether every service in the list is up.
 async fn check_services(
     po: &PostOffice,
     services: &[String],
@@ -315,14 +332,26 @@ async fn check_services(
         let mut entry = serde_json::Map::new();
         entry.insert("route".into(), serde_json::Value::String(route.clone()));
         entry.insert("required".into(), serde_json::Value::Bool(required));
-        // info is advisory — merge whatever the service reports about itself
-        let info_request = EventEnvelope::new()
-            .set_to(route)
-            .set_header("type", "info");
-        if let Ok(info) = po.request(info_request, Duration::from_secs(3)).await {
-            if let Ok(serde_json::Value::Object(map)) = info.body_as::<serde_json::Value>() {
+        // info is advisory — merge whatever the service reports about itself.
+        // Java parity: the lookup is cached under "info/{route}" and only a
+        // map body is cached (a non-map response is re-requested every call)
+        let cache = health_info_cache();
+        let info_key = format!("info/{route}");
+        if !cache.exists(&info_key) {
+            let info_request = EventEnvelope::new()
+                .set_to(route)
+                .set_header("type", "info");
+            if let Ok(info) = po.request(info_request, Duration::from_secs(3)).await {
+                if let Ok(body @ serde_json::Value::Object(_)) = info.body_as::<serde_json::Value>()
+                {
+                    cache.put(&info_key, body);
+                }
+            }
+        }
+        if let Some(info) = cache.get_as::<serde_json::Value>(&info_key) {
+            if let serde_json::Value::Object(map) = info.as_ref() {
                 for (key, value) in map {
-                    entry.insert(key, value);
+                    entry.insert(key.clone(), value.clone());
                 }
             }
         }
@@ -359,47 +388,5 @@ async fn check_services(
     all_up
 }
 
-/// Human-readable elapsed time (the Java `util.elapsedTime` analog).
-fn elapsed_time(duration: Duration) -> String {
-    let total = duration.as_secs();
-    let (days, hours, minutes, seconds) = (
-        total / 86_400,
-        (total % 86_400) / 3600,
-        (total % 3600) / 60,
-        total % 60,
-    );
-    let mut parts = Vec::new();
-    if days > 0 {
-        parts.push(format!("{days} day{}", if days == 1 { "" } else { "s" }));
-    }
-    if hours > 0 {
-        parts.push(format!("{hours} hour{}", if hours == 1 { "" } else { "s" }));
-    }
-    if minutes > 0 {
-        parts.push(format!(
-            "{minutes} minute{}",
-            if minutes == 1 { "" } else { "s" }
-        ));
-    }
-    parts.push(format!(
-        "{seconds} second{}",
-        if seconds == 1 { "" } else { "s" }
-    ));
-    parts.join(" ")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn elapsed_time_formats() {
-        assert_eq!(elapsed_time(Duration::from_secs(0)), "0 seconds");
-        assert_eq!(elapsed_time(Duration::from_secs(1)), "1 second");
-        assert_eq!(elapsed_time(Duration::from_secs(61)), "1 minute 1 second");
-        assert_eq!(
-            elapsed_time(Duration::from_secs(90_061)),
-            "1 day 1 hour 1 minute 1 second"
-        );
-    }
-}
+// `elapsed_time` moved to `crate::util` (increment 71): it is now shared by
+// the `/info` uptime rendering here and the ManagedCache create log.
