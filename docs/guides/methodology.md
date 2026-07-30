@@ -102,7 +102,7 @@ inferring from examples: the [function guide](event-driven/ai-agent-guide.md), t
 [knowledge-graph guide](knowledge-graph/ai-agent-guide.md).
 
 At the graph layer this becomes live, human-in-the-loop co-authoring. The Playground
-(port **8100**) exposes a **companion endpoint** for AI agents:
+(port **8085**) exposes a **companion endpoint** for AI agents:
 `POST /api/companion/{session-id}/sync` executes one console command and returns the
 outcome **in-band** (`{ok, output, error, result}`), while the same output is teed to the
 human's WebSocket console — the agent builds the graph one validated step at a time, and

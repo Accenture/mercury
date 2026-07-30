@@ -49,7 +49,7 @@ the name of the graph model.
 To make a request to the 'tutorial-1' graph model, enter the following curl command.
 
 ```
-> curl -X POST http://127.0.0.1:8100/api/graph/tutorial-1
+> curl -X POST http://127.0.0.1:8085/api/graph/tutorial-1
 hello world
 ```
 
@@ -59,7 +59,7 @@ Since the "hello world" graph model does not require any input parameter, you ca
 use HTTP GET to execute the graph.
 
 ```
-> curl http://127.0.0.1:8100/api/graph/tutorial-1
+> curl http://127.0.0.1:8085/api/graph/tutorial-1
 hello world
 ```
 
@@ -195,7 +195,7 @@ Restart your application to load the deployed graphs into memory.
 Send the following curl command:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-2 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-2 \
   -H "Content-Type: application/json" \
   -d '{
     "greeting": "Hello",

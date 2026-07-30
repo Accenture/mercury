@@ -11,14 +11,14 @@ minutes. New to the idea? Read [Knowledge Graph as Application](index.md) first.
 cargo run -p minigraph-playground
 ```
 
-Open <http://127.0.0.1:8100> in a browser. The **console** on the left is where you type
+Open <http://127.0.0.1:8085> in a browser. The **console** on the left is where you type
 commands (Enter sends; paste a multi-line block, or use Shift+Enter for new lines); the
 **Graph** tab on the right renders the model live as you build it. The console's
 welcome message shows your session id — you will meet it again in
 [Playground & AI Companion](playground-and-companion.md).
 
 !!! note "Rust port"
-    The shipped `minigraph-playground` example runs on port **8100** (the Java guide's
+    The shipped `minigraph-playground` example runs on port **8085** (the Java guide's
     examples use 8085). Like the Java original, the Playground is dev-only — it registers
     only when `app.env=dev`.
 
@@ -215,7 +215,7 @@ A deployed graph is reachable at the generic endpoint `POST /api/graph/{graph-id
 id is the name you exported:
 
 ```bash
-curl -X POST http://127.0.0.1:8100/api/graph/my-first-graph \
+curl -X POST http://127.0.0.1:8085/api/graph/my-first-graph \
   -H "Content-Type: application/json" \
   -d '{"message": "it is a wonderful day"}'
 ```

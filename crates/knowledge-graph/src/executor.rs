@@ -545,9 +545,10 @@ async fn execute_skill(
             state.get_element("model.cid")
         };
         if let Some(Value::String(text)) = business_cid {
-            // Java parity: tag the RAW value after only a blank rejection —
-            // my_correlation_id / log-context cid must match cross-engine
-            let cid = text.as_str().unwrap_or_default();
+            // tag the TRIMMED value (Java-exact <= U+0020 trim): the business
+            // cid is the store key, so both engines normalize identically —
+            // my_correlation_id / log-context stay one value fleet-wide
+            let cid = crate::common::java_trim(text.as_str().unwrap_or_default());
             if !cid.trim().is_empty() {
                 event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, cid);
             }

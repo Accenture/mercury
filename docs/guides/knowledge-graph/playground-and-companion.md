@@ -17,7 +17,7 @@ a trusted development host. Deployed graphs still run in production through
 cargo run -p minigraph-playground
 ```
 
-Open <http://127.0.0.1:8100>. The page is split into two panels:
+Open <http://127.0.0.1:8085>. The page is split into two panels:
 
 - **The console** (left) — every command and its output, with a command input at the bottom.
   Enter sends; Shift+Enter inserts a new line, and pasting a multi-line block works too. The
@@ -94,7 +94,7 @@ of a live session: `GET /api/graph/session/{session-id}`.
 ```bash
 SESSION="ws-100001-1"   # from the console welcome message
 
-curl -sS -X POST "http://127.0.0.1:8100/api/companion/${SESSION}/sync" \
+curl -sS -X POST "http://127.0.0.1:8085/api/companion/${SESSION}/sync" \
   -H 'Content-Type: text/plain' \
   --data-binary $'create node root\nwith type Root\nwith properties\npurpose=demo'
 ```

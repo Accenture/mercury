@@ -35,9 +35,13 @@ from it should be invisible to the workflow. Three implementation details are
 load-bearing for that guarantee, and each was pinned during the cross-engine consistency
 review before this drive:
 
-- **The correlation ID is used raw** (untrimmed) on both engines — it is the store key,
-  so any normalization difference would make one engine's records unreachable from the
-  other.
+- **The correlation ID is normalized identically on both engines** — it is the store
+  key, so any normalization difference would make one engine's records unreachable from
+  the other. At drive time the shared rule was "use the value raw"; immediately after
+  the drive both engines adopted **trimming** instead (a business correlation ID such
+  as an order number may be entered by an operator in a web UI, and accidental padding
+  would otherwise split the key space) — the invariant is the *identical* normalization,
+  and both engines changed in lock-step.
 - **Reserved model keys never cross the boundary in either direction** — excluded on
   persist and stripped on restore with a *literal* key-level merge, so a record is safe
   external input regardless of its writer.
@@ -50,7 +54,7 @@ review before this drive:
 | Component | Detail |
 |-----------|--------|
 | Java app | `examples/minigraph-playground` from mercury-composable main (`1ed8732a`), port 8085 |
-| Rust app | `examples/minigraph-playground` from mercury main (post PR #186 merge, `d2791b09`), port 8100 |
+| Rust app | `examples/minigraph-playground` from mercury main (post PR #186 merge, `d2791b09`), port 8100 (its default has since been synced to **8085**, same as Java, so manual engine-swap tests reuse one browser URL — for side-by-side runs, override one app's `rest.server.port`) |
 | State store | `helpers/redis-standalone` 4.10.6 (a real embedded Redis as a plain `java -jar` — no Docker), port 6379, shared by both apps |
 | Workflow | `tutorial-14` — three human checkpoints (order → approval → delivery release), four short runs, one correlation ID |
 | Store functions | `v1.redis.persist.model` (SETEX) / `v1.redis.retrieve.model` (GETDEL) — this repo's `extensions/minigraph-state-redis` crate and its Java extension-module twin |

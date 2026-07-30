@@ -168,10 +168,12 @@ fn get_required_correlation_id(
         state.get_element(MODEL_CID)
     };
     if let Some(Value::String(text)) = value {
-        // Java parity: return the RAW value after only a blank rejection —
-        // the untrimmed cid is the store key and the reply value on both
-        // engines (a padded cid must round-trip identically cross-engine)
-        let cid = text.as_str().unwrap_or_default();
+        // trim (Java-exact <= U+0020): a business correlation ID such as an
+        // order number may be entered by an operator in a web UI - padding
+        // would otherwise split the store key space; both engines trim
+        // identically so the mixed-fleet key stays one key. A whitespace-only
+        // cid is still "missing", never an empty key.
+        let cid = crate::common::java_trim(text.as_str().unwrap_or_default());
         if !cid.trim().is_empty() {
             return Ok(cid.to_string());
         }
@@ -621,6 +623,38 @@ fn uuid_simple() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Java `GraphStateSkillTest.businessCorrelationIdIsTrimmed`: a business
+    /// correlation ID (e.g. an order number) may be entered by an operator in
+    /// a web UI with accidental padding — the cid is the store key, and both
+    /// engines trim identically (Java-exact <= U+0020) so the mixed-fleet key
+    /// space stays one key per id; a whitespace-only cid is still "missing".
+    #[test]
+    fn business_correlation_id_is_trimmed() {
+        let instance = GraphInstance::new("unit-test");
+        {
+            let mut state = instance.state.lock().expect("state");
+            state
+                .set_element(MODEL_CID, Value::from("  order-1001  "))
+                .expect("seed cid");
+        }
+        assert_eq!(
+            "order-1001",
+            get_required_correlation_id(&instance, "suspend").expect("trimmed cid")
+        );
+        {
+            let mut state = instance.state.lock().expect("state");
+            state
+                .set_element(MODEL_CID, Value::from("   "))
+                .expect("seed blank cid");
+        }
+        let err = get_required_correlation_id(&instance, "suspend").expect_err("blank is missing");
+        assert!(
+            err.message().contains("requires model.cid"),
+            "unexpected: {}",
+            err.message()
+        );
+    }
 
     /// The shared ttl parser (skill + compile gate): duration syntax, plain
     /// seconds, and the 64-bit overflow guard — Java's int computation

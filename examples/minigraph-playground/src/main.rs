@@ -32,7 +32,7 @@
 //! Run it:
 //! ```text
 //! cargo run -p minigraph-playground
-//! # then open http://127.0.0.1:8100/ in a browser
+//! # then open http://127.0.0.1:8085/ in a browser
 //! ```
 
 use async_trait::async_trait;
@@ -51,7 +51,7 @@ struct PlaygroundApp;
 impl EntryPoint for PlaygroundApp {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
         log::info!(
-            "MiniGraph Playground ready: {} graph(s) compiled — open http://127.0.0.1:8100/ in a browser",
+            "MiniGraph Playground ready: {} graph(s) compiled — open http://127.0.0.1:8085/ in a browser",
             knowledge_graph::graphs::get_all_graphs().len()
         );
         log::info!(

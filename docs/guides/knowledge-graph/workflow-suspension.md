@@ -116,7 +116,7 @@ Run 1 — the customer orders a laptop; the run suspends at the `order` checkpoi
 replies with `"run": "fresh"` (a new transaction):
 
 ```bash
-curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H 'content-type: application/json' -H 'x-correlation-id: order-1001' \
   -d '{"item": "laptop", "amount": 2000}'
 ```
@@ -130,7 +130,7 @@ restores the persisted state and continues past the `order` checkpoint without
 re-executing it — every reply from here on carries `"run": "resume"`:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H 'content-type: application/json' -H 'x-correlation-id: order-1001' \
   -d '{"decision": "approved", "manager": "store-88"}'
 ```
@@ -142,7 +142,7 @@ curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
 Run 3 — the delivery department releases the shipment:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H 'content-type: application/json' -H 'x-correlation-id: order-1001' \
   -d '{"release": true, "courier": "express"}'
 ```
@@ -154,7 +154,7 @@ curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
 Run 4 — shipment confirmation completes the workflow:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H 'content-type: application/json' -H 'x-correlation-id: order-1001' \
   -d '{"tracking": "TRK-12345"}'
 ```
@@ -195,7 +195,7 @@ come first. Three techniques worth stealing from its model:
   than `status`.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H 'content-type: application/json' -H 'x-correlation-id: order-9999' \
   -d '{"decision": "approved"}'
 ```

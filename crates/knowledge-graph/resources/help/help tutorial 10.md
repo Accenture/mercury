@@ -175,7 +175,7 @@ invoked as an extension and that it fetches data from the data provider with the
 
 ```
 Call extension tutorial-3, ttl=30000
-GET http://127.0.0.1:8100/api/mdm/profile/100, with [person_id], ttl=30000
+GET http://127.0.0.1:8085/api/mdm/profile/100, with [person_id], ttl=30000
 ```
 
 This is a small example, but it demonstrates the pattern: a typical main graph model uses one or
@@ -202,7 +202,7 @@ To deploy the graph model, copy "/tmp/graph/tutorial-10.json" to your applicatio
 `resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-10 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-10 \
   -H "Content-Type: application/json" \
   -d '{ 
     "person_id": 100

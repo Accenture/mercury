@@ -9,7 +9,7 @@ application.name: minigraph-playground
 # POST /api/graph/{graph-id}, with the Playground UI/WS/mocks not loaded.
 app.env: ${APP_ENV:dev}
 rest.automation: true
-rest.server.port: 8100
+rest.server.port: 8085
 
 # Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
 location.graph.temp: file:/tmp/graph

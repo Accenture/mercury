@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-040747)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-041930)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -294,7 +294,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   redis-standalone, two four-run interleavings + rejection probes) PASSED 50/50 — all
   six record handoffs crossed the engine boundary; the permanent report is mirrored in
   BOTH repos (docs/test-reports/suspend-resume-interop.md; Rust branch
-  docs/suspend-resume-interop-report, twin of Java fd812f3a — Eric gates both PRs).**
+  docs/suspend-resume-interop-report, twin of Java fd812f3a — Eric gates both PRs).
+  Post-drive touch-ups (Eric, lock-step with Java 11bb7e60): (1) **business cid is
+  TRIMMED again** — reverses the fix-round raw-cid ruling (an operator-entered order
+  number may carry accidental padding; padding would split the store key space); the
+  three cid sites use `java_trim` (Java-exact `<= U+0020`, NOT str::trim — Eric ruled
+  either acceptable, the exact predicate kept as a free one-liner) with the blank check
+  preserved; unit test = the GraphStateSkillTest twin. The interop report's first
+  load-bearing bullet is now "normalized identically" with the adopted-after-the-drive
+  note — the INVARIANT is identical normalization, both engines in lock-step.
+  (2) **playground default port synced to 8085** (same as Java) so manual engine-swap
+  tests reuse one browser URL; swept app config/README/main.rs + 12 help pages + the
+  playground-context guides (hello-flow KEEPS 8100 — it pairs with the Java
+  composable-example; history/design records untouched); webapp bundle rebuilt.**
   → serves vision-mercury (the suspension blueprint).
   <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 

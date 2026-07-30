@@ -34,7 +34,7 @@ flowchart TB
   unchanged.
 
 - **Active knowledge graph** — the semantic layer. A graph model executes behavior through
-  skills embedded on nodes during traversal, with a live **Playground** (port 8100) where
+  skills embedded on nodes during traversal, with a live **Playground** (port 8085) where
   humans and AI agents co-author graphs in real time.
 
 </div>
