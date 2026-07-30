@@ -26,6 +26,104 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0010 — CompileGraph is the mandatory deployment gate for graph models (CompileFlows parity) {#adr-0010}
+**Status:** Proposed · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** compilegraph-mandatory-gate-rust
+<!-- id: adr-0010 | status: proposed | formalizes: compilegraph-mandatory-gate-rust -->
+
+*The twin of the Java engine's ADR-0011 — the decision was made in the reference
+repository and this port adopts it in lock-step; the Rust realization notes are inline.*
+
+**Abstract.** A deployed graph model is executable at `POST /api/graph/{graph-id}` **only**
+when it is listed in the graph manifest (`graph.model.automation`) **and** passes the
+CompileGraph quality gate at startup — a graph that fails the gate, or is not listed,
+answers **HTTP-404 as if the model does not exist**, and the lazy, per-request loading of
+deployed models is removed. Like `flows.yaml`, the manifest carries the location of its
+own models (an optional `location` entry, default `classpath:/graph`) — there is no
+separate application property. Validation follows **two explicit lanes**: *production* =
+models → CompileGraph (`compiler::compile_graphs`) → deployed graphs → the graph executor,
+which **trusts the gate** and drops per-request re-validation of gate-guaranteed rules,
+keeping only data-driven runtime guards (store-record contents, dynamic jump targets, loop
+detection); *dry-run* = drafts in the temp workspace → UI CLI input validation at node
+create/update → the graph traveler with full runtime validation. The gate's whole-graph
+rules live in a reusable `model_validator`, which the playground's `run` command also
+invokes as a **pre-run quality check** — draft authoring deliberately allows partial
+models, but the moment the author asks to run, the contract must hold.
+
+**Rationale.** This is the `CompileFlows` precedent applied to Layer 3: an invalid flow
+never becomes executable, and the graph engine now gives the same guarantee — previously a
+manifest graph that *failed* validation could still be resurrected by the lazy-load
+fallback and executed unvalidated, which is untenable for field production. Compiled-or-404
+(identical for failed and unlisted models) leaks nothing about why a model is absent, and
+turning the deploy folder into a pure data directory removes it as a direct execution
+vector. Startup-time rejection converts an entire class of runtime stalls and mid-run
+errors (missing `end` node, checkpoint without a continuation edge, dead-end suspend node)
+into immediate, logged deployment failures — while the same rules surface to graph authors
+at dry-run `run` time, so the deployment contract is learned in the playground, not
+discovered in the field. The consequences are accepted deliberately: the manifest is now a
+**requirement** (a one-line migration for installations that relied on lazy loading, with
+the `classpath:/graph` default preserving existing layouts and an obsolete-key warning for
+the retired `location.graph.deployed` property), hot-dropping a JSON file into the deploy
+folder no longer works (deployment is an explicit, restart-scoped act — consistent with
+the governance lifecycle the Vision calls for), and the walkers' suspend/resume guards are
+now exercised end-to-end only on the dry-run lane (the static validator carries the
+per-rule coverage). Rust realization note: the port surfaced a corollary worth keeping —
+compiled-or-404 makes the manifest **deployment intent**, so every graph a runtime test
+executes must be listed in the test manifest, and the playground example app carries its
+own `graphs.yaml` (it previously ran tutorials purely through the now-deleted lazy path).
+
+---
+
+## ADR-0009 — Graph workflow suspension: short runs + an external state store, encapsulated in skills {#adr-0009}
+**Status:** Proposed · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** graph-suspend-resume-rust
+<!-- id: adr-0009 | status: proposed | formalizes: graph-suspend-resume-rust -->
+
+*The twin of the Java engine's ADR-0010 — the decision was made in the reference
+repository and this port adopts it in lock-step; the Rust realization notes are inline.*
+
+**Abstract.** A long-running business process with human checkpoints (approval,
+intervention, inbox notification) is expressed as a **sequence of short graph runs**: at a
+suspension point the run persists its workflow state — the `model` namespace plus
+traversal bookkeeping — to an **external state store** keyed by the business correlation
+ID with a designer-chosen TTL, then completes normally; a later request with the same
+correlation ID restores that state and continues past the checkpoint without re-executing
+it. The mechanics are **encapsulated in two skills** — `graph.suspend` and `graph.resume`,
+supersets of `graph.task` that invoke a pluggable store function named by the node's
+`task` property with a fixed put/get contract — so suspension nodes carry **no data
+mapping**. The node alias `suspend` is **reserved** (the `root`/`end` pattern): traversal
+routes to it by name when a node marked with the reserved property `suspend=true`
+completes; node *types* (`Suspend`/`Resume`/`Suspensible`) remain visual convention —
+**the skill defines behavior**. Store retrieval **consumes the record atomically**
+(at-most-once resume); reserved model keys never persist — nor restore, so a forged store
+record cannot overwrite the current run's identity; a suspension point must be the sole
+active branch.
+
+**Rationale.** Parking a live graph instance for a multi-day approval would pin memory,
+defeat the flow ttl, and not survive a restart — the short-run model keeps the engine's
+in-memory instance lifecycle untouched and makes cross-instance resume free (any pod
+sharing the store can continue the workflow). Skill encapsulation was chosen over
+node-level data mapping because the mapping variant required special-casing the mapping
+grammar per node type and left the resume jump-target with no channel; a fixed store
+contract also makes the persistence seam documentable and replaceable (Redis ships as the
+optional `extensions/minigraph-state-redis` crate — never an engine dependency; engine
+tests use a temp-file store). The reserved-alias routing reuses the existing jump-by-name
+directive vocabulary instead of introducing edge classification, at the accepted cost of
+one suspend node per graph. Consume-on-retrieve was preferred over keep-until-TTL so a
+duplicate resume cannot double-execute a continuation; workflows needing stronger crash
+guarantees may implement keep-until-ack semantics in a custom store. Alternatives
+rejected: engine-managed timers or parked instances (memory + restart fragility); reusing
+the Event Script `ext:` fire-and-forget external-state contract (durability requires a
+synchronous acknowledgement); persisting `{node}.result` scratch (the model is the
+workflow's single durable memory — an explicit, teachable rule). Rust realization notes:
+Java's Mono-wrapped eager store request (issued on the worker thread for the thread-keyed
+trace context) maps to a plain `await` — task-scoped trace context yields the same
+observable store-call-under-skill-span topology with no workaround; and porting the
+walkers surfaced a genuine two-lock seen-check race the Java atomicity fix also covered,
+now a single atomic insert-if-absent. This decision **supersedes** the
+knowledge-graph port design record's "session persistence across restarts is out of
+scope" default for *workflow* state (Playground UI sessions remain in-memory).
+
+---
+
 ## ADR-0008 — Registration metadata is a cross-language contract; carriers are per-language idioms {#adr-0008}
 **Status:** Accepted · **Date:** 2026-07-26T01:38:18.000Z · **Serves:** vision-mercury · **Formalizes:** registration-metadata-contract
 <!-- id: adr-0008 | status: accepted | formalizes: registration-metadata-contract -->

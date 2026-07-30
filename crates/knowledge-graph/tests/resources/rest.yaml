@@ -44,6 +44,15 @@ rest:
     timeout: 30s
     tracing: true
 
+  # deployed graph execution over the REAL HTTP stack (Java test rest.yaml
+  # parity) - the x-run response-header assertion drives this route
+  - service: 'http.flow.adapter'
+    methods: ['POST', 'GET']
+    url: '/api/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    tracing: true
+
   - service: 'get.live.graph'
     methods: ['GET']
     url: '/api/graph/session/{id}'

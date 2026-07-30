@@ -1,0 +1,276 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "Purchase workflow with three human checkpoints: a customer orders, the store manager approves, the delivery department releases the shipment, and the parcel ships to the customer - four short runs sharing one correlation ID",
+        "name": "tutorial-14"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.redis.retrieve.model",
+        "purpose": "Restore workflow state if this transaction was suspended earlier"
+      }
+    },
+    {
+      "alias": "check-fresh",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.item}) -> model.order_probe",
+          "IF: {model.order_probe} == '=null'\nTHEN: reject\nELSE: order"
+        ],
+        "purpose": "Input validation: a fresh transaction must be an order submission - any later-stage request without a suspended record is rejected"
+      }
+    },
+    {
+      "alias": "order",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "suspend": true,
+        "mapping": [
+          "input.body -> model.order",
+          "text(order-submitted; waiting for store manager approval) -> output.body.stage",
+          "model.run -> output.body.run",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "Capture the order step, then suspend for the next actor"
+      }
+    },
+    {
+      "alias": "approval",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "suspend": true,
+        "mapping": [
+          "input.body -> model.approval",
+          "text(approved; waiting for the delivery department to release the shipment) -> output.body.stage",
+          "model.run -> output.body.run",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "Capture the approval step, then suspend for the next actor"
+      }
+    },
+    {
+      "alias": "delivery",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "suspend": true,
+        "mapping": [
+          "input.body -> model.delivery",
+          "text(released; waiting for shipment confirmation) -> output.body.stage",
+          "model.run -> output.body.run",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "Capture the delivery step, then suspend for the next actor"
+      }
+    },
+    {
+      "alias": "ship",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(shipped) -> output.body.stage",
+          "model.run -> output.body.run",
+          "model.order -> output.body.order",
+          "model.approval -> output.body.approval",
+          "model.delivery -> output.body.delivery",
+          "input.body -> output.body.shipment",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "Ship to the customer: complete the workflow with the full order history"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(404) -> output.status",
+          "text(rejected) -> output.body.type",
+          "text(Transaction not found. Submit the order first) -> output.body.message",
+          "model.run -> output.body.run"
+        ],
+        "purpose": "Reject a request that has no suspended transaction and is not an order submission"
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.redis.persist.model",
+        "ttl": "1h",
+        "purpose": "Persist workflow state to Redis and wait for the next actor"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "check-fresh",
+      "relations": [
+        {
+          "type": "fresh",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-fresh",
+      "target": "order",
+      "relations": [
+        {
+          "type": "submission",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-fresh",
+      "target": "reject",
+      "relations": [
+        {
+          "type": "no-transaction",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "order",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "order",
+      "target": "approval",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "approval",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "approval",
+      "target": "delivery",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "delivery",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "delivery",
+      "target": "ship",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "ship",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "reject",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

@@ -44,7 +44,6 @@ use crate::session::{self, GraphSession};
 pub const ROUTE: &str = "graph.command.service";
 pub const SINGLETON_COMMAND_HANDLER: &str = "graph.command.singleton";
 const DEFAULT_TEMP_DIR: &str = "/tmp/graph";
-const DEFAULT_DEPLOY_DIR: &str = "classpath:/graph";
 const INVALID_GRAPH_NAME: &str = "Invalid filename - must be a-z, A-Z, 0-9 with optional hyphen";
 const TRY_HELP: &str = "Please try 'help' for details";
 const NODE_NAME: &str = "node ";
@@ -83,14 +82,11 @@ pub fn temp_dir() -> &'static PathBuf {
     })
 }
 
+/// The deployed graph model folder, resolved by the compiler from the graph
+/// manifest's `location` entry (`location.graph.deployed` is obsolete — the
+/// manifest carries the location of its own models, the flows.yaml convention).
 fn deployed_location() -> String {
-    let config = AppConfigReader::get_instance();
-    let location = config.get_property_or("location.graph.deployed", DEFAULT_DEPLOY_DIR);
-    if location.starts_with("file:") || location.starts_with("classpath:") {
-        location
-    } else {
-        DEFAULT_DEPLOY_DIR.to_string()
-    }
+    crate::graphs::deployed_location()
 }
 
 /// Start the temp-graph housekeeping sweep (Java: 10s periodic).
@@ -507,7 +503,30 @@ async fn handle_part_three(
     } else if words.len() > 1 && words[0].eq_ignore_ascii_case("execute") {
         handle_execute(platform, in_route, out_route, words).await
     } else if words.len() == 1 && words[0].eq_ignore_ascii_case("run") {
-        // launch the traveler with the console as the reply path
+        // the deployment gate's whole-graph rules re-checked at the moment the
+        // author asks to execute: draft authoring deliberately allows partial
+        // models, so these rules apply pre-run, not at node create/update
+        if let Ok(instance) = crate::common::get_graph_instance(in_route) {
+            if let Err(reason) = crate::model_validator::validate_suspend_resume(&instance.graph) {
+                say(po, out_route, format!("Unable to run - {reason}")).await;
+                // the uniform end-of-transmission line, matching the traveler's
+                // failure shape so the sync companion's drain stays deterministic
+                let _ = po
+                    .send(
+                        EventEnvelope::new()
+                            .set_to(out_route)
+                            .set_status(400)
+                            .set_raw_body(Value::from("Graph traversal aborted")),
+                    )
+                    .await;
+                return Ok(());
+            }
+        }
+        // launch the traveler with the console as the reply path, minting a
+        // fresh trace for the dry-run (Java PostOffice.trackable parity:
+        // "minigraph.playground", traceId = the run cid, "/graph/playground")
+        // so the traversal — including the suspend/resume skill spans — is
+        // traced end-to-end like a deployed run
         let cid = uuid::Uuid::new_v4().simple().to_string();
         let _ = po
             .send(
@@ -515,7 +534,9 @@ async fn handle_part_three(
                     .set_to(crate::traveler::ROUTE)
                     .set_header("in", in_route)
                     .set_reply_to(out_route)
-                    .set_correlation_id(&cid),
+                    .set_correlation_id(&cid)
+                    .set_from("minigraph.playground")
+                    .set_trace(&cid, "/graph/playground"),
             )
             .await;
         Ok(())
@@ -1507,11 +1528,17 @@ async fn handle_execute(
     let out_route = out_route.to_string();
     tokio::spawn(async move {
         let po = PostOffice::new(&platform);
+        // mint a fresh dry-run trace (Java PostOffice.trackable parity) —
+        // the spawned task has no ambient trace bracket, so the request
+        // itself carries the context
+        let cid = uuid::Uuid::new_v4().simple().to_string();
         let request = EventEnvelope::new()
             .set_to(&skill_route)
             .set_header("in", &in_route)
             .set_header("type", "execute")
-            .set_header("node", &node_name);
+            .set_header("node", &node_name)
+            .set_from("minigraph.playground")
+            .set_trace(&cid, "/graph/playground");
         match po
             .request(
                 request,
@@ -1524,8 +1551,9 @@ async fn handle_execute(
                 say(
                     &po,
                     &out_route,
+                    // {spent:?} keeps the trailing .0 (Java float concat)
                     format!(
-                        "{NODE_NAME}{node_name} run for {spent} ms with exit path '{}'",
+                        "{NODE_NAME}{node_name} run for {spent:?} ms with exit path '{}'",
                         display(response.body())
                     ),
                 )
@@ -2035,6 +2063,35 @@ async fn handle_instantiate(
         state
             .set_element("output", Value::Map(vec![]))
             .map_err(invalid)?;
+    }
+    // the instantiate command is the dry-run's edge: like the REST edge, it
+    // guarantees a business correlation ID - auto-created when the initial
+    // data mapping did not supply one, with a reminder so the user knows
+    let generated_cid = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        let blank = !matches!(
+            state.get_element("model.cid"),
+            Some(Value::String(text)) if !text.as_str().unwrap_or_default().trim().is_empty()
+        );
+        if blank {
+            let generated = uuid::Uuid::new_v4().simple().to_string();
+            state
+                .set_element("model.cid", Value::from(generated.as_str()))
+                .map_err(invalid)?;
+            Some(generated)
+        } else {
+            None
+        }
+    };
+    if let Some(generated) = generated_cid {
+        say(
+            po,
+            out_route,
+            format!(
+                "No business correlation ID given - this dry-run created model.cid = {generated}"
+            ),
+        )
+        .await;
     }
     let timeout = {
         let mut state = instance.state.lock().expect("graph state machine");

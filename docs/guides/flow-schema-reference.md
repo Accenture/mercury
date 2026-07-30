@@ -184,9 +184,10 @@ repeat it. The compiler enforces:
 - a task with any invalid mapping is **dropped** (error-logged) while the flow still loads;
   a rule with a dangling `.` or `:` fails the whole flow;
 - the reserved state-machine keys — `model.cid`, `model.flow`, `model.instance`, `model.ttl`,
-  `model.trace`, `model.none` (including nested paths beneath them), and `model.parent` /
-  `model.root` as whole targets — must never be mapping destinations (writing *beneath*
-  `model.parent.*` is the sub-flow shared-state mechanism and allowed);
+  `model.trace`, `model.none`, `model.run` (including nested paths beneath them), and
+  `model.parent` / `model.root` as whole targets — must never be mapping destinations
+  (writing *beneath* `model.parent.*` is the sub-flow shared-state mechanism and allowed;
+  `model.run` is written only by the knowledge graph's `graph.resume` skill);
 - the `decision` destination is only valid in a `decision` task, and legacy `:type`
   conversion suffixes still parse but are deprecated — they are auto-converted to `f:` plugin
   calls with a warning.

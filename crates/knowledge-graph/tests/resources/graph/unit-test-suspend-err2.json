@@ -1,0 +1,88 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "suspend=true is rejected on graph.math",
+        "name": "unit-test-suspend-err2"
+      }
+    },
+    {
+      "alias": "calc",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "suspend": true,
+        "statement": [
+          "COMPUTE: x -> 1 + 1"
+        ]
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s",
+        "purpose": "Persist workflow state to the external state store"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "calc",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "calc",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "calc",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

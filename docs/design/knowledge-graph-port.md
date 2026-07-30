@@ -204,7 +204,10 @@ changes).
 - Kafka exposure of graphs (the mesh is out of scope repo-wide).
 - The governance lifecycle (certify → stage → approve → promote) — roadmap in Java too,
   not in code.
-- Session persistence across restarts (Java parity: in-memory sessions).
+- Session persistence across restarts (Java parity: in-memory **Playground UI**
+  sessions). *Superseded for workflow state (2026-07-30, ADR-0009): graph runs now
+  suspend/resume through an external state store — see
+  `docs/guides/knowledge-graph/workflow-suspension.md`. UI sessions remain in-memory.*
 
 ## 6. Open questions for the maintainer
 

@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a deployable graph must have an end node",
+        "name": "unit-test-no-end"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body -> output.body"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

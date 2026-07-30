@@ -1,0 +1,19 @@
+flow:
+  id: 'parser-test-32'
+  description: 'test invalid OUTPUT data mapping that overwrites the model.run flag'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+    process: 'greeting.test'
+    output:
+      # invalid: model.run is engine-managed flow metadata (written only by the knowledge
+      # graph's graph.resume skill) - an overwrite would lie to the application logic that
+      # reads the resumed-vs-fresh condition
+      - 'text(fresh) -> model.run'
+      - 'result -> output.body'
+    description: 'Hello World'
+    execution: end

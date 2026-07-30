@@ -1,0 +1,139 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "fresh-vs-expired handling is application logic on the resume forward path",
+        "name": "unit-test-suspend-4"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.file.state.store",
+        "purpose": "Restore workflow state if a suspension record exists"
+      }
+    },
+    {
+      "alias": "gate",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.start}) -> model.start_probe",
+          "IF: {model.start_probe} == '=null'\nTHEN: no-record\nELSE: step-x"
+        ],
+        "purpose": "A fresh transaction must carry the start field - anything else has no active record"
+      }
+    },
+    {
+      "alias": "step-x",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(x) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "result -> output.body"
+        ]
+      }
+    },
+    {
+      "alias": "no-record",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(404) -> output.status",
+          "text(no-record) -> output.body.reason",
+          "model.run -> output.body.run"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "gate",
+      "relations": [
+        {
+          "type": "fresh",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "step-x",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "no-record",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-x",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "no-record",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

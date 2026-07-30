@@ -12,8 +12,8 @@ exported earlier into your application's resources/graph folder.
 cp /tmp/graph/tutorial-1.json ~/sandbox/{your_project}/resources/graph
 ```
 
-The default locations of the temp graph folder and the deployed graph folder are set
-in the application configuration file (application.properties or application.yml):
+The temp graph folder and the graph manifest are set in the application configuration
+file (application.properties or application.yml):
 
 ```properties
 #
@@ -22,11 +22,24 @@ in the application configuration file (application.properties or application.yml
 #
 location.graph.temp=file:/tmp/graph
 #
-# deployed graph model location
-# (deployed graph location may use "file:/" or "classpath:/" because it is READ only)
+# the graph manifest - the quality gate and the only door to deployed execution
 #
-location.graph.deployed=classpath:/graph
+graph.model.automation=classpath:/graphs.yaml
 ```
+
+The deployed graph folder is declared in the graph manifest itself - like flows.yaml, the
+manifest carries the location of its own models. Add your graph ID to the manifest so the
+CompileGraph quality gate validates it at startup; only graphs that pass become executable:
+
+```yaml
+graphs:
+  - 'tutorial-1'
+
+location: 'classpath:/graph'
+```
+
+The 'location' entry is optional (default 'classpath:/graph'; a read-only folder, so
+'file:/' or 'classpath:/' both work).
 
 Invoke the graph API REST endpoint
 ----------------------------------

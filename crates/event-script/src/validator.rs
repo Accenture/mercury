@@ -37,8 +37,10 @@ const CONSTANT_TYPES: &[&str] = &[
 
 /// Reserved state-machine keys a data mapping must never overwrite: the
 /// read-only metadata seeded into each flow instance, the `model.none` null
-/// constant, and the `model.parent` / `model.root` aliases themselves
-/// (writing *beneath* parent/root is the shared-state mechanism and allowed).
+/// constant, the `model.parent` / `model.root` aliases themselves (writing
+/// *beneath* parent/root is the shared-state mechanism and allowed), and the
+/// `model.run` resumed-vs-fresh flag written only by the knowledge graph's
+/// `graph.resume` skill (reading it as a source stays legal).
 const RESERVED_MODEL_KEYS: &[&str] = &[
     "model.cid",
     "model.instance",
@@ -48,6 +50,7 @@ const RESERVED_MODEL_KEYS: &[&str] = &[
     "model.none",
     "model.parent",
     "model.root",
+    "model.run",
 ];
 
 /// Java `CompileFlows.reservedModelKeyViolation`: exact matches rejected for
@@ -232,10 +235,17 @@ mod tests {
             reserved_model_key_violation("model.parent"),
             Some("model.parent")
         );
+        // the engine-managed resumed-vs-fresh flag is write-protected too
+        assert_eq!(reserved_model_key_violation("model.run"), Some("model.run"));
+        assert_eq!(
+            reserved_model_key_violation("model.run.x"),
+            Some("model.run")
+        );
         // shared-state writes beneath parent/root stay valid
         assert_eq!(reserved_model_key_violation("model.parent.x"), None);
         assert_eq!(reserved_model_key_violation("model.root.y"), None);
         assert_eq!(reserved_model_key_violation("model.cidx"), None);
+        assert_eq!(reserved_model_key_violation("model.runner"), None);
     }
 
     #[test]

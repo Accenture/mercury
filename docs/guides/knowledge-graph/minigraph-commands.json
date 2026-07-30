@@ -43,12 +43,14 @@
   "traversal": {
     "fork": "a node with multiple outgoing connections forks traversal into PARALLEL branches (one per connection, executed concurrently)",
     "join": "synchronize parallel branches with a graph.join barrier node; without one, traversal proceeds as each branch completes",
-    "state_safety": "parallel branches must write to DISJOINT state keys (e.g. per-branch model.* variables) to avoid concurrent-write collisions"
+    "state_safety": "parallel branches must write to DISJOINT state keys (e.g. per-branch model.* variables) to avoid concurrent-write collisions",
+    "suspend": "a skilled node with suspend=true routes to the reserved 'suspend' node after its skill and output mapping complete; the run then ends normally and a later run with the same business correlation ID resumes past the checkpoint (see the workflow-suspension guide)"
   },
   "namespaces": [
     { "name": "input.body", "read": true, "write": "seeded at instantiate", "meaning": "incoming request body" },
     { "name": "input.header", "read": true, "write": "seeded at instantiate", "meaning": "incoming request headers" },
     { "name": "model.*", "read": true, "write": true, "meaning": "intermediate working state" },
+    { "name": "model.run", "read": true, "write": "by graph.resume", "meaning": "run-condition flag set by graph.resume: 'resume' when a suspended record was restored, 'fresh' when none existed (absent or expired look the same); set after the model merge and never persisted across suspensions" },
     { "name": "output.body", "read": true, "write": true, "meaning": "response body" },
     { "name": "output.header", "read": true, "write": true, "meaning": "response headers" },
     { "name": "{node}", "read": true, "write": true, "meaning": "a node's own properties" },
@@ -80,7 +82,7 @@
       "notes": ["required before run/execute/inspect", "seed lines optional", "seed keys may be composite (dot-bracket), so nested mock payloads seed directly: text(Peter) -> input.body.profile.name", "issuing instantiate again REPLACES the current instance (fresh state machine, cleared run marks) - the standard idiom for a second dry-run with different input"],
       "example": "instantiate graph\nint(100) -> input.body.profile_id\ntext(application/json) -> input.header.content-type" },
     { "name": "run", "multiline": false, "help": "help run.md",
-      "syntax": "run", "notes": ["traverse from root to end"], "example": "run" },
+      "syntax": "run", "notes": ["traverse from root to end", "pre-run quality check: the suspend/resume contract (the same whole-graph rules the CompileGraph deployment gate enforces) is validated before traversal - a violation reports 'Unable to run - <reason>' and aborts with the uniform terminal line"], "example": "run" },
     { "name": "execute", "multiline": false, "help": "help execute.md",
       "syntax": "execute {node}", "notes": ["run a single node after instantiate"], "example": "execute fetcher" },
     { "name": "inspect", "multiline": false, "help": "help inspect.md",
@@ -122,6 +124,9 @@
     { "type": "End", "structural": true, "name_must_be": "end" },
     { "type": "Dictionary", "structural": false, "role": "external attribute definition (config)" },
     { "type": "Provider", "structural": false, "role": "external endpoint definition (config)" },
+    { "type": "Suspend", "structural": false, "role": "visual label for the suspend node - behavior comes from skill=graph.suspend; the ALIAS 'suspend' is what is reserved" },
+    { "type": "Resume", "structural": false, "role": "visual label for a graph.resume node (alias 'resume' is convention, not enforced)" },
+    { "type": "Suspensible", "structural": false, "role": "visual label for a node carrying the suspend=true property" },
     { "type": "<descriptive>", "structural": false, "role": "label validated by the node's skill, if any" }
   ],
   "skills": [
@@ -188,7 +193,21 @@
       "notes": ["executes only to sink - isolated from traversal, which never continues through it",
                 "CONVENTION: the island is the graph's knowledge layer (its entity-relationship diagram) - REQUIRED whenever the graph has off-path nodes (Dictionary/Provider config, data-entity, or reusable Module nodes): wire every one under it (root -[contains]-> island -[data]-> dictionary -[provider]-> provider; island -[module]-> module), leave no node unconnected; ENCOURAGED for graphs with none (add data-entity nodes documenting the domain model)",
                 "relation labels are descriptive/free-form; contains/data/provider are the shipped conventions"],
-      "example": "skill=graph.island" }
+      "example": "skill=graph.island" },
+    { "route": "graph.suspend", "help": "help graph-suspend.md", "required": ["task", "ttl"], "optional": ["exception"],
+      "notes": ["the node MUST be named 'suspend' - a reserved alias like root/end (one per graph): traversal jumps to it by name when a suspend=true node completes; a plain edge into it is an unconditional suspension point",
+                "superset of graph.task with NO input/output mapping: the skill assembles the persistence envelope {cid, node, ttl, model minus reserved keys, seen, run} and invokes the task= store function (type=put) with a synchronous ack - a failed persist fails the node",
+                "ttl is MANDATORY with no default (duration syntax 20s/5m/2h/2d) - it becomes the store record expiry",
+                "stages a default {\"type\": \"suspended\", \"cid\": ...} reply when output.body is empty",
+                "a suspension point must be the sole active branch - never between a fork and its join; only model.* survives suspension"],
+      "example": "skill=graph.suspend" },
+    { "route": "graph.resume", "help": "help graph-resume.md", "required": ["task"], "optional": ["exception"],
+      "notes": ["restores the model + traversal bookkeeping persisted by graph.suspend for model.cid and jumps past the suspension point WITHOUT re-executing it (downstream joins still see pre-suspension branches)",
+                "superset of graph.task with NO input/output mapping: invokes the task= store function (type=get, body {cid})",
+                "no record = the NORMAL fresh-transaction case: traversal continues along the node's own forward path; either way the skill sets model.run to 'resume' or 'fresh' - the engine does not distinguish absent from expired, so fresh-vs-expired handling is application logic (e.g. a graph.math IF-THEN-ELSE on the forward path)",
+                "the shipped stores consume the record atomically on retrieval - a duplicate resume behaves as a fresh run, never a double execution",
+                "reserved model keys are never restored - the current run's identity is authoritative"],
+      "example": "skill=graph.resume" }
   ],
   "config_nodes": {
     "_role": "Provider/Dictionary nodes configure graph.api.fetcher; they never execute and are referenced BY NAME (dictionary[]=, provider=) - but must NOT be left floating: wire them under a graph.island (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), the graph's entity-relationship knowledge layer. Full spec: command-reference.md#provider-dictionary + #island",
@@ -217,6 +236,7 @@
     "every node in the traversal path must connect to >=1 node or export fails",
     "Dictionary/Provider config nodes are referenced by name and not traversed - but the required convention is NO NODE LEFT UNCONNECTED: wire them under a graph.island (root -[contains]-> island -[data]-> dictionary -[provider]-> provider), the graph's entity-relationship knowledge layer",
     "a node is executed once per run (a graph.math RESET statement is the only escape)",
-    "instantiate graph must precede run/execute/inspect"
+    "instantiate graph must precede run/execute/inspect",
+    "a node with skill=graph.suspend must be named 'suspend' (reserved alias, jump-by-name; one per graph) and needs an outgoing connection so the run completes after the checkpoint; a suspend=true node must draw its checkpoint edge to it, keep a continuation edge, and must not use graph.math/graph.js; 'suspend' is a reserved node property and model.run is an engine-managed state key"
   ]
 }

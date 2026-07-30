@@ -521,21 +521,19 @@ Read by `crates/knowledge-graph`.
 
 | Type | Default |
 |---|---|
-| string (location) | — (unset = skip) |
+| string (location) | — (unset = no deployed graphs) |
 
-Location of the graph manifest listing the graph models to compile and register at startup
-(a `graphs:` list of graph ids, loaded from `location.graph.deployed`). When unset or
-empty, graph compilation is skipped. Read by `crates/knowledge-graph` (compiler).
+Location of the graph manifest — a `graphs:` list of graph ids plus an optional
+`location` entry naming the deployed-graph folder (default `classpath:/graph`; `file:/`
+or `classpath:/`, the flows.yaml convention). The manifest is the **CompileGraph quality
+gate and the only door to deployed execution**: a graph is executable at
+`POST /api/graph/{graph-id}` only when listed here AND passing the gate at startup —
+failed or unlisted graphs answer HTTP-404 as if they do not exist. When unset or empty, a
+startup warning notes that no deployed graph models will be executable (the Playground
+dry-run surface is unaffected). Read by `crates/knowledge-graph` (compiler).
 
-#### `location.graph.deployed`
-
-| Type | Default |
-|---|---|
-| string (location) | `classpath:/graph` |
-
-Where deployed graph models live (`classpath:/` or `file:/`; anything else falls back to
-the default). The Playground `deploy` command writes here and `import graph from
-{deployed}` reads from here. Read by `crates/knowledge-graph`.
+> The former `location.graph.deployed` key is **retired** — the manifest carries the
+> location of its own models. A leftover value logs an obsolete-key startup warning.
 
 #### `location.graph.temp`
 
@@ -566,6 +564,23 @@ the window aborts the traversal. Read by `crates/knowledge-graph`.
 
 How many visits to the same node within `graph.max.loop.interval` count as a runaway loop
 (floor 2). Read by `crates/knowledge-graph`.
+
+#### `redis.*` (the `minigraph-state-redis` extension crate)
+
+| Key | Type | Default |
+|---|---|---|
+| `redis.host` | string | `127.0.0.1` |
+| `redis.port` | int | `6379` |
+| `redis.password` | string | — (blank = no auth; source from the environment, e.g. `${REDIS_PASSWORD:}`) |
+| `redis.ssl` | boolean | `false` |
+| `redis.database` | int | `0` |
+| `redis.timeout.ms` | long (ms) | `5000` |
+
+Connection settings for the graph suspend/resume Redis state store — read lazily on the
+first suspend/resume, so an application boots normally without Redis. The key family is
+shared with the sync-over-async extension in the Java engine, so an application configures
+Redis once. Worker counts are ops-tunable via `worker.instances.v1.redis.persist.model` /
+`worker.instances.v1.redis.retrieve.model`. Read by `extensions/minigraph-state-redis`.
 
 ## Application-defined keys
 

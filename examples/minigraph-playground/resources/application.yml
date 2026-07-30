@@ -14,6 +14,13 @@ rest.server.port: 8100
 # Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
 location.graph.temp: file:/tmp/graph
 
+# The graph manifest — the CompileGraph deployment gate. A deployed graph is
+# executable at POST /api/graph/{graph-id} only when listed in the manifest
+# AND passing the gate ("compiled or 404"); the manifest carries the location
+# of its own models in its 'location' entry (the flows.yaml convention —
+# location.graph.deployed is obsolete).
+graph.model.automation: 'classpath:/graphs.yaml'
+
 # Serializer null handling (Java parity). Default false: null MAP key-values are
 # omitted from JSON and MsgPack output (e.g. a successful /sync response drops the
 # null `error` field), mirroring Gson's default + MsgPack packMap null-skip.

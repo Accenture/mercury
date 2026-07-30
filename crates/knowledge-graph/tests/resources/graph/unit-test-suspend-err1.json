@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a graph.suspend node must be named suspend",
+        "name": "unit-test-suspend-err1"
+      }
+    },
+    {
+      "alias": "parker",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "parker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "parker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

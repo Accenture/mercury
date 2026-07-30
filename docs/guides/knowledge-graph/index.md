@@ -53,7 +53,7 @@ node may carry a `skill` property naming a **composable function**. That node be
 
 Because a skill is just a composable function addressed by route name, the platform's
 defining invariant holds at this layer too: the graph couples to its behavior through
-**names and events**, never direct references. A node has at most **one** skill. Eight
+**names and events**, never direct references. A node has at most **one** skill. Ten
 skills ship with the engine:
 
 | Skill | Use it to… |
@@ -64,6 +64,8 @@ skills ship with the engine:
 | [`graph.api.fetcher`](skills-reference.md#api-fetcher) | call external HTTP APIs declaratively |
 | [`graph.extension`](skills-reference.md#extension) | delegate to a sub-graph or an Event Script flow |
 | [`graph.task`](skills-reference.md#task) | invoke a composable function through its route name |
+| [`graph.suspend`](skills-reference.md#suspend) | persist workflow state at a human checkpoint — the run completes and resumes later |
+| [`graph.resume`](skills-reference.md#resume) | restore persisted state by business correlation ID and continue past the checkpoint |
 | [`graph.join`](skills-reference.md#join) | synchronize parallel traversal branches |
 | [`graph.island`](skills-reference.md#island) | anchor the knowledge layer (see below) |
 

@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-28 | agent: Claude Code (2026-07-28-011855)
-- **last_review:** 2026-07-27 | through 2026-07-27-220108.md
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-024954)
+- **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -111,10 +111,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-28 | uses: 95 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-29 | uses: 96 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
+
+- **The Java repo's helper servers are the standard local test servers for Rust ports
+  (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
+  `kafka-standalone` + the schema-registry-mock when minimalist-kafka is ported. WHY:
+  the helpers embed REAL redis/kafka servers behind a plain `java -jar`, motivated by
+  field reality — many developer machines are Windows, especially VDI environments with
+  no virtualization system, so Docker is unavailable; a jar works everywhere. Tier: unit
+  tests may use fast hermetic in-process doubles (e.g. the RESP2 test double — the
+  double stands in for the SERVER, never the client); the helper is the
+  integration/live-drive tier.
+  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-015038.md -->
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
@@ -139,12 +150,142 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-28 | uses: 97 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-30 | uses: 100 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (feature in flight — 2026-07-29; branch `feature/graph-suspend-resume`, P5-1
+  committed, NOT pushed — Eric gates) **P5: graph suspend/resume Rust lock-step arc**
+  (handoff /tmp/graph-suspend-resume-rust-handoff-p5.md; Java ALL MERGED PRs #238-#241,
+  Java ADR-0010/0011 accepted; FINAL surface only — no missing=<node>, no rejected-graph
+  registry). **P5-1 DONE (engine core):** new `suspend.rs` (graph.suspend/graph.resume as
+  graph.task supersets: shared context ladder, get_required_correlation_id, ONE
+  overflow-guarded ttl parser get_valid_ttl_seconds (64-bit, <1 or >i32::MAX rejected, NO
+  default), persistence envelope {cid,node,ttl,model−reserved,seen,run}, synchronous 2xx
+  durability ack, default `{"type":"suspended","cid"}` reply, warnIfBranchesInFlight,
+  NON_PERSISTED_MODEL_KEYS ×9 both directions, restore: corrupted/unknown-node 500s via
+  record_failure, merge-then-set model.run=resume, restoreMarks truthy-only EXCLUDING
+  suspend, fresh path model.run=fresh at DEBUG); BOTH walkers converted (near-mirror:
+  `resume:<alias>` directive, walk_to_suspend_node — executor trusts the gate, traveler
+  keeps FULL guards incl. math/js + missing/mis-skilled suspend node; resume_traversal
+  marks seen+run without executing; walk_next(after_resume) excludes `suspend` + forged
+  leaf-record dead-end guard in BOTH; atomic putIfAbsent walk seen-check under one lock;
+  traveler per-run reset also clears hits; executeSkill stamps FROM header + business-cid
+  tag from model.cid — interceptor walkers don't auto-propagate; executor
+  execution_complete applies declarative output.status). Registered
+  graph.suspend/graph.resume (instances 300). Fixtures copied VERBATIM from Java
+  (unit-test-suspend-1..5 + err1-7 + no-end; manifest updated). Tests: the
+  GraphSuspendResumeTest twin suite (6 scenarios: envelope shape + no reserved keys
+  persisted, no-re-execution + x-run=resume, multi-checkpoint 3-runs-1-cid,
+  join-across-suspension, fresh-gate 404 + run=fresh + valid pass, 1s-expiry fallback,
+  forged-record reserved-key strip with real-cid identity survival) + ttl parser unit
+  tests (incl. overflow) + temp-file mock store (/tmp/suspend-resume, MsgPack
+  {expires_at,data}, delete-on-read) + counting-step business-cid registry. Gate: 288 /
+  clippy 0 / fmt. **P5-2 DONE (mandatory CompileGraph gate — compiled or 404):**
+  compiler.rs rewritten as the deployment gate (obsolete `location.graph.deployed`
+  startup warning; no-manifest WARN "no deployed graph models will be executable";
+  manifest-carried `location` with prefix validation + fallback, flows.yaml convention,
+  stored in the graphs registry — GraphCommandService reads it from there; per-graph:
+  convert → import → root purpose → mandatory `end` node → validate_suspend_resume →
+  register; rejection = `log::error!("Rejected graph {id} - {reason}")`, NOT registered);
+  **property-aware mapping rejection** (entries without `->` reject the graph for
+  mapping/for_each/output; bare `input` entries are skill vocabulary — fetcher
+  dictionary params — and pass silently; the old blanket error log is gone); NEW
+  `model_validator.rs` (GraphModelValidator twin, exact Java error strings, reuses the
+  shared ttl parser) called by BOTH the gate and the playground `run` command as a
+  pre-run check ("Unable to run - <reason>" + the uniform "Graph traversal aborted"
+  terminal so the sync companion drain stays deterministic; keyed off the INSTANTIATED
+  graph like Java); executor streamlined (deployed_graph_location + lazy per-request
+  loading DELETED — registry-or-404 `"{id} not found"`, no filesystem access; empty-map
+  re-check and per-request end-node check dropped — the gate guarantees); `model.run`
+  joined event-script's RESERVED_MODEL_KEYS (compile + runtime dynamic-target guards via
+  the one shared fn; parser-test-32 fixture twin copied verbatim). Tests: knowledge-graph
+  tests/compiler.rs flipped to the CompileGraphTest twin (7 tests: 39 compiled, err1-7 +
+  no-end rejected, location default, per-err static-validator asserts);
+  rejected_deployed_graph_is_not_executable (8×404 "not found");
+  companion_sync_pre_run_check_rejects_broken_suspend_contract (suspend node without a ttl rejected
+  pre-run + terminal); bare-input vocabulary unit test. **Porting note: the runtime test
+  manifest must now list EVERY graph a test executes** (5 rust-* fixtures had ridden the
+  lazy path; compiled-or-404 exposed them — graphs.yaml is deployment intent). The Rust
+  playground example app gained its graphs.yaml manifest (tutorials 1-12; 13 excluded
+  like Java — it calls an engine-test fixture function; 14 arrives in P5-4) +
+  `graph.model.automation` in application.yml. Gate: workspace 293 / clippy 0 / fmt.
+  **P5-3 DONE (Redis store crate):** NEW workspace member
+  `extensions/minigraph-state-redis` (Java module twin) — `v1.redis.persist.model`
+  (type=put; SETEX graph:state:<cid>, MsgPack bytes, native expiry; 2xx = the durability
+  ack) + `v1.redis.retrieve.model` (type=get; GETDEL atomic consume, Redis 6.2+;
+  absent/expired = empty map = fresh), instances 50 each with the Java-named
+  `worker.instances.v1.redis.*.model` env keys; exact Java error strings (Type must be
+  put/get, Missing cid, Invalid ttl) + log lines. **Crate choice: `redis` (redis-rs)
+  v1.5.0** — the official Rust Redis client; `ConnectionManager` = the Lettuce analog
+  (one shared multiplexed connection, auto-reconnect, lazy first-use via
+  tokio OnceCell get_or_try_init — a failed first connect is NOT cached, retried);
+  explicit cmd("SETEX")/cmd("GETDEL") for exact command parity; features tokio-comp +
+  connection-manager + tokio-rustls-comp (redis.ssl without OpenSSL); every round-trip
+  bounded by redis.timeout.ms via tokio timeout (fred/deadpool rejected: pooling+cluster
+  weight this store doesn't need). `redis.*` config keys shared with the sync-over-async
+  family. **Engine independence held:** imported by examples/minigraph-playground ONLY
+  (Cargo dep + main.rs inventory reference + startup log); live boot proof — gate
+  compiles 12 tutorials, both functions register at 50 instances, no eager Redis
+  connection. **Tests:** the 7-scenario Java RedisStateStoreTest twin in ONE test fn
+  (register/round-trip-with-consume incl. binary fidelity + wire-visible TTL/forged-key
+  checks/absent-normal/1s-expiry/wrong-type/missing-cid/invalid-ttl) driven through the
+  real event system and the REAL redis client over TCP against an in-process **RESP2
+  test double** (~150 lines: SETEX/GETDEL/GET/TTL/DEL/PING + tolerant handshake;
+  ephemeral port + overrides::set for redis.host/port) — this env has no redis-server
+  binary and no Docker daemon, so the double stands in for the server, never the client
+  (the Java suite uses embedded redis-server). README adapted from the Java module.
+  Gate: workspace 294 / clippy 0 / fmt. INCREMENTS.md rows for the P5 arc ride the P5-4
+  docs pass. **P5-4 DONE — THE ARC IS CODE- AND DOCS-COMPLETE (pending the Java-side
+  consistency review + Eric's push gate):** tutorial-14.json VERBATIM (byte-identical
+  shasum) + playground manifest entry; app-level `SuspendResumeTutorialTest` twin
+  (4 runs + fresh + 404-rejection over real HTTP and the real Redis client vs the RESP2
+  double); LIVE four-run drive against the Java repo's redis-standalone helper (Eric's
+  direction — see [[conv-java-helper-servers-for-rust-tests]]) with FULL §10.5 parity
+  evidence: reply shape per run (stage/run/cid; full history run 4; 404+run=fresh),
+  log-context cid = business id on every traced store line, span topology (store calls
+  parented on graph.suspend/graph.resume spans annotated task+cid; NO re-executed
+  checkpoint spans on resume — run 2 shows resume→mapper→suspend, no order/math spans).
+  Docs: workflow-suspension guide, ten-skill tables (skills-reference + index + help.md),
+  help tutorial 14 (incl. interactive dry-run section) + graph-suspend/graph-resume +
+  run pre-run note + tutorial 2 manifest recipe, minigraph-commands.json (2 skills,
+  model.run namespace, run note, suspend invariants — surgical edits, no reformat),
+  syntax.md model.run row, flow-schema reserved list, reserved-names additions, redis.*
+  config family, CHANGELOG (feature + BREAKING gate entry with migration), mkdocs nav,
+  webapp bundle REBUILT (help pages bake at build time). ADR-0009 (suspend/resume) +
+  ADR-0010 (gate) PROPOSED as twins of Java ADR-0010/0011; design-record "session
+  persistence out of scope" line superseded for workflow state. INCREMENTS.md rows
+  72-75. Memory review run at this seam (size-triggered). Gate: workspace 295 /
+  clippy 0 / fmt. **Java-side consistency review COMPLETE (high fidelity; 22 confirmed
+  findings) and the FIX ROUND APPLIED — all 22 addressed:** 4 blockers ([#0] the restore
+  merge is now a LITERAL key-level putAll (Java parity) — a forged composite-path key
+  "cid.x"/"ttl[0]" can no longer descend into and replace model.cid/model.ttl via
+  set_element path interpretation; composite-forge regression added; Java assessed
+  structurally immune (putAll), suggested dotted-key vectors there as immunity
+  documentation; [#6] `instantiate graph` is now the dry-run's edge — auto-creates
+  model.cid + the "No business correlation ID given…" reminder, both cases pinned;
+  [#10] walker seen-marking is insert-if-absent (putIfAbsent parity — never overwrites a
+  join's false barrier flag); [#11] 'suspend' joined RESERVED_PARAMETERS with Java's
+  "ttl deliberately NOT reserved" comment). Should-fixes: [#1] restore_marks truthiness
+  Java-exact (Boolean true | exact "true"); [#7] gate log carries the full path
+  (ConfigError passed through); [#8] dry-run run/execute mint a fresh trace
+  (set_from "minigraph.playground" + set_trace(cid, "/graph/playground") — the
+  trackable twin; VERIFIED live: 22 /graph/playground telemetry records in the
+  playground suite where there were zero); [#12] narration floats keep the trailing .0
+  ({spent:?}); [#15/#16] catalog traversal.suspend + Suspend/Resume/Suspensible
+  node_types; [#17] the span-topology twin test (forwarder capture; store-under-skill
+  parentage + no-suspend-span-on-completed-resume). Nits: cid/ttl raw-untrimmed parity
+  ([#2/#3/#9/#13]); [#4] {node}.error stages the extracted error (getError() port);
+  [#5] consume-on-retrieve assertion; [#19] help-file naming guard; [#20] tutorial-14
+  dry-run wording matches THIS engine's documented repeat-run semantics (+ bundle
+  rebuild); [#21] x-run asserted over the REAL HTTP stack (engine test rest.yaml gained
+  the /api/graph/{graph_id} route, Java test-config parity). Gate: workspace 296 /
+  clippy 0 / fmt. **Remaining: Eric gates the push/PR.** → serves vision-mercury (the
+  suspension blueprint).
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
   TAGGED: `v4.10.6` on merge commit `9732799e` (PR
@@ -165,7 +306,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   presentation fix reached EVERY JSON surface — functions, actuators, flows, AND the
   MiniGraph graph endpoint (live proof: POST /api/graph/tutorial-2 returns pretty JSON) —
   with zero additional code.
-  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: working | origin: 2026-07-27-011116.md -->
+  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: active | origin: 2026-07-27-011116.md -->
 
 - [x] (2026-07-26; **MERGED same day as PR
   [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
@@ -451,20 +592,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
   merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
   <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: archive-candidate | origin: 2026-07-24-160634.md -->
-
-- [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
-  lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
-  (PR [#176](https://github.com/Accenture/mercury/pull/176), CI green, 252 tests),
-  release published; the Java v4.10.3 (the field-deployment artifact) published the
-  same day (tag on squash `bd7e909d`). Field-deployment roll-up — no engine behavior
-  changes; consolidates the 4.10 line for the field: wire format, presentation parity,
-  metadata contract, temporary.inbox, collection plugins. Branch `chore/release-4.10.3`
-  from main `d2048eea` (PR #175 merge): bump 4.10.2→4.10.3 (root Cargo.toml only; lock
-  regenerated), fresh CHANGELOG `## Version 4.10.3, 7/23/2026` — demo hygiene (clean
-  envelope-header echo = live proof my_* never rides the wire; hello-flow
-  log.format=json, PR #175) + playground webapp npm refresh (incl. dependabot #173;
-  audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-025820.md -->
 
 ### Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a

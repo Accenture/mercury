@@ -81,10 +81,19 @@ Registered whenever the knowledge-graph crate is part of the application:
 | `graph.join` | The `graph.join` skill — parallel fan-in |
 | `graph.island` | The `graph.island` skill — the knowledge/entity layer |
 | `graph.extension` | Delegation to another graph or a `flow://` flow |
+| `graph.suspend` | The `graph.suspend` skill — persist workflow state at a checkpoint |
+| `graph.resume` | The `graph.resume` skill — restore state and continue past the checkpoint |
 | `graph.exception.handler` | Graph failure routing |
 | `graph.housekeeper` | Graph instance cleanup |
 | `graph.health` | Health probe for the graph engine |
 | `get.index.html` | The home page (serves `/public` in dev, `/template` otherwise) |
+
+The knowledge graph additionally reserves the node **alias** `suspend` (bound to the
+`graph.suspend` skill — traversal jumps to it by name, the `root`/`end` pattern), the node
+**property** `suspend`, and the engine-managed state key `model.run`. The
+`minigraph-state-redis` extension crate reserves `v1.redis.persist.model` /
+`v1.redis.retrieve.model` when an application links it — see
+[Workflow Suspension](knowledge-graph/workflow-suspension.md).
 
 Routes marked * — and the whole Playground developer surface below — are gated by
 `#[optional_service("app.env=dev")]` and exist only when `app.env` is `dev`:
