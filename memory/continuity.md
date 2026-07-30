@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.0** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-172823)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-174606)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -157,7 +157,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release in flight — 2026-07-30) **v4.11.0 release prep, lock-step with the Java
+- [x] (release — 2026-07-30; **TAGGED: `v4.11.0` on merge commit `cc529071` (PR
+  [#189](https://github.com/Accenture/mercury/pull/189)), the commit VERIFIED as carrying
+  the release content before the tag pushed (Cargo.toml 4.11.0 + the dated CHANGELOG at
+  that exact commit — the 4.10.2 tag-race lesson applied); tag dereference confirmed on
+  origin. Publication pending Eric, who has the drafted release notes (feature framing:
+  workflow suspension lock-step, mandatory gate, minigraph-state-redis, tutorial-14,
+  50/50 interop evidence).**) **v4.11.0 release prep, lock-step with the Java
   repo (Eric's plan; the suspend/resume feature release).** Contents this side: the
   complete suspend/resume arc (PR #186), the interop report + cid trim + 8085 port sync
   (PR #187), the nav consolidation (PR #188), plus the ManagedCache port + health-info
