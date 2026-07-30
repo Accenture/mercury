@@ -187,7 +187,7 @@ async fn begin_traversal(
         .graph
         .get_end_node()
         .ok_or_else(|| invalid("End node does not exist"))?;
-    walk(platform, po, instance, root, parent_span.clone()).await
+    walk(platform, po, instance, root, None, parent_span.clone()).await
 }
 
 async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &EventEnvelope) {
@@ -339,6 +339,7 @@ fn walk<'a>(
     po: &'a PostOffice,
     instance: &'a Arc<GraphInstance>,
     node: Arc<SimpleNode>,
+    from: Option<String>,
     parent_span: Option<String>,
 ) -> Pin<Box<dyn Future<Output = Result<(), AppError>> + Send + 'a>> {
     Box::pin(async move {
@@ -347,19 +348,18 @@ fn walk<'a>(
         }
         let node_name = node.get_alias().to_string();
         let skill = node.get_property(SKILL).map(|v| display(&v));
-        let seen = skill.as_deref() != Some(crate::skills::JOIN_ROUTE)
-            && instance
-                .node_seen
-                .lock()
-                .expect("node seen")
-                .contains_key(&node_name);
-        if !seen {
-            instance
-                .node_seen
-                .lock()
-                .expect("node seen")
-                .insert(node_name, true);
-            walk_to(platform, po, skill, instance, node, parent_span).await?;
+        // atomic mark-and-test under ONE lock acquisition: concurrent
+        // branches converging on the same non-join node must not dispatch it
+        // twice (a join always evaluates — its barrier logic owns the dedup)
+        let is_join = skill.as_deref() == Some(crate::skills::JOIN_ROUTE);
+        let seen = instance
+            .node_seen
+            .lock()
+            .expect("node seen")
+            .insert(node_name, true)
+            .is_some();
+        if is_join || !seen {
+            walk_to(platform, po, skill, instance, node, from, parent_span).await?;
         }
         Ok(())
     })
@@ -371,6 +371,7 @@ async fn walk_to(
     skill: Option<String>,
     instance: &Arc<GraphInstance>,
     node: Arc<SimpleNode>,
+    from: Option<String>,
     parent_span: Option<String>,
 ) -> Result<(), AppError> {
     let is_end = instance
@@ -379,12 +380,104 @@ async fn walk_to(
         .map(|end| end.get_id() == node.get_id())
         .unwrap_or(false);
     match skill {
-        Some(skill) => execute_skill(platform, po, &skill, instance, &node, &parent_span).await,
+        Some(skill) => {
+            execute_skill(platform, po, &skill, instance, &node, &from, &parent_span).await
+        }
         None if is_end => {
             execution_complete(po, instance, &parent_span).await;
             Ok(())
         }
-        None => walk_next(platform, po, instance, &node, &parent_span).await,
+        None if is_suspensible(&node) => {
+            walk_to_suspend_node(platform, po, instance, &node, &parent_span).await;
+            Ok(())
+        }
+        None => walk_next(platform, po, instance, &node, &parent_span, false).await,
+    }
+}
+
+/// A node marked with the reserved property `suspend=true` routes to the
+/// `suspend` node after its skill completes (only on the NEXT directive).
+fn is_suspensible(node: &Arc<SimpleNode>) -> bool {
+    node.get_property(crate::suspend::SUSPEND_ALIAS)
+        .map(|v| display(&v).eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+/// The quality gate already rejected suspension on routing skills, a missing
+/// 'suspend' node and a mis-skilled one — a compiled model needs no re-check
+/// (GraphTraveler keeps these guards: playground drafts never pass the gate).
+async fn walk_to_suspend_node(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    node: &Arc<SimpleNode>,
+    parent_span: &Option<String>,
+) {
+    match instance
+        .graph
+        .find_node_by_alias(crate::suspend::SUSPEND_ALIAS)
+    {
+        Ok(Some(suspend_node)) => {
+            let _ = walk(
+                platform,
+                po,
+                instance,
+                suspend_node,
+                Some(node.get_alias().to_string()),
+                parent_span.clone(),
+            )
+            .await;
+        }
+        _ => {
+            send_error(
+                po,
+                instance,
+                &format!(
+                    "Node '{}' is suspensible but the graph has no '{}' node",
+                    node.get_alias(),
+                    crate::suspend::SUSPEND_ALIAS
+                ),
+                parent_span,
+            )
+            .await;
+        }
+    }
+}
+
+/// A successful resume marks the suspension point as already run — it
+/// executed before suspension — and continues along its forward path.
+async fn resume_traversal(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    alias: &str,
+    parent_span: &Option<String>,
+) {
+    match instance.graph.find_node_by_alias(alias) {
+        Ok(Some(resumed)) => {
+            // the suspension point already ran before suspension - do not
+            // re-execute it
+            instance
+                .node_seen
+                .lock()
+                .expect("node seen")
+                .insert(alias.to_string(), true);
+            instance
+                .skill_run
+                .lock()
+                .expect("skill run")
+                .insert(alias.to_string(), true);
+            let _ = walk_next(platform, po, instance, &resumed, parent_span, true).await;
+        }
+        _ => {
+            send_error(
+                po,
+                instance,
+                &format!("Resumed node '{alias}' does not exist"),
+                parent_span,
+            )
+            .await;
+        }
     }
 }
 
@@ -408,6 +501,19 @@ async fn execution_complete(
     if let Some(span) = parent_span {
         response = response.set_span_id(span);
     }
+    // a graph may stage its own HTTP status declaratively, e.g.
+    // 'int(404) -> output.status' in a rejection node - the surrounding
+    // flow's 'status -> output.status' mapping then carries it to the caller
+    let status = {
+        let state = instance.state.lock().expect("graph state machine");
+        state.get_element(&format!("output.{}", common::STATUS))
+    };
+    if let Some(value) = status {
+        let text = display(&value);
+        if !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()) {
+            response = response.set_status(text.parse().unwrap_or(200));
+        }
+    }
     if let Some(Value::Map(entries)) = headers {
         for (k, v) in &entries {
             response = response.set_header(k.as_str().unwrap_or_default(), &display(v));
@@ -423,6 +529,7 @@ async fn execute_skill(
     skill: &str,
     instance: &Arc<GraphInstance>,
     node: &Arc<SimpleNode>,
+    from: &Option<String>,
     parent_span: &Option<String>,
 ) -> Result<(), AppError> {
     // the graph.js retirement (design K5): explicit failure, never registered
@@ -441,6 +548,23 @@ async fn execute_skill(
             .set_header(NODE, node_name)
             .set_reply_to(ROUTE)
             .set_correlation_id(&composite_id);
+        if let Some(from) = from {
+            event = event.set_header("from", from);
+        }
+        // The walker is an event interceptor, so the business correlation-id
+        // is not auto-propagated by PostOffice. Stamp it from the graph's own
+        // model.cid so every skill (and its downstream calls) sees the
+        // business id in its my_correlation_id and application log context.
+        let business_cid = {
+            let state = instance.state.lock().expect("graph state machine");
+            state.get_element("model.cid")
+        };
+        if let Some(Value::String(text)) = business_cid {
+            let cid = text.as_str().unwrap_or_default().trim().to_string();
+            if !cid.is_empty() {
+                event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, &cid);
+            }
+        }
         if let Some(span) = parent_span {
             event = event.set_span_id(span);
         }
@@ -468,12 +592,26 @@ async fn next_or_jump(
     if next == SINK {
         return;
     }
-    if next == NEXT {
-        let _ = walk_next(platform, po, instance, &node, parent_span).await;
+    if let Some(alias) = next.strip_prefix(crate::suspend::RESUME_PREFIX) {
+        resume_traversal(platform, po, instance, alias, parent_span).await;
+    } else if next == NEXT {
+        if is_suspensible(&node) {
+            walk_to_suspend_node(platform, po, instance, &node, parent_span).await;
+        } else {
+            let _ = walk_next(platform, po, instance, &node, parent_span, false).await;
+        }
     } else {
         match instance.graph.find_node_by_alias(next) {
             Ok(Some(next_node)) => {
-                let _ = walk(platform, po, instance, next_node, parent_span.clone()).await;
+                let _ = walk(
+                    platform,
+                    po,
+                    instance,
+                    next_node,
+                    Some(node.get_alias().to_string()),
+                    parent_span.clone(),
+                )
+                .await;
             }
             _ => {
                 send_error(
@@ -494,13 +632,43 @@ async fn walk_next(
     instance: &Arc<GraphInstance>,
     node: &Arc<SimpleNode>,
     parent_span: &Option<String>,
+    after_resume: bool,
 ) -> Result<(), AppError> {
     if instance.is_complete() {
         return Ok(());
     }
     let nodes = instance.graph.get_forward_links(node.get_alias())?;
+    let mut dead_end = true;
     for next in nodes {
-        walk(platform, po, instance, next, parent_span.clone()).await?;
+        // a resumed traversal continues along the normal path, never back
+        // into suspension
+        if after_resume && next.get_alias() == crate::suspend::SUSPEND_ALIAS {
+            continue;
+        }
+        dead_end = false;
+        walk(
+            platform,
+            po,
+            instance,
+            next,
+            Some(node.get_alias().to_string()),
+            parent_span.clone(),
+        )
+        .await?;
+    }
+    if after_resume && dead_end {
+        // the record is external input: a forged record could name a leaf
+        // node - this guard stays in BOTH walkers
+        send_error(
+            po,
+            instance,
+            &format!(
+                "Resumed node '{}' has no forward path to continue",
+                node.get_alias()
+            ),
+            parent_span,
+        )
+        .await;
     }
     Ok(())
 }

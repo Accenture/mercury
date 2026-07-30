@@ -44,6 +44,7 @@ pub mod rest;
 pub mod services;
 pub mod session;
 pub mod skills;
+pub mod suspend;
 pub mod traveler;
 pub mod ws_ui;
 
@@ -211,6 +212,40 @@ impl ComposableFunction for GraphTask {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         skills::task(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphSuspend` (`graph.suspend`) — persist workflow state at a human
+/// checkpoint and complete the run (workflow suspension).
+#[preload(route = "graph.suspend", instances = 300)]
+pub struct GraphSuspend;
+
+#[async_trait]
+impl ComposableFunction for GraphSuspend {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        suspend::suspend(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphResume` (`graph.resume`) — restore persisted workflow state and
+/// continue past the recorded checkpoint without re-execution.
+#[preload(route = "graph.resume", instances = 300)]
+pub struct GraphResume;
+
+#[async_trait]
+impl ComposableFunction for GraphResume {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        suspend::resume(&Platform::get_instance(), headers, input).await
     }
 }
 

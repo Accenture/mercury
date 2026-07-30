@@ -36,6 +36,174 @@ use rmpv::Value;
 
 // ---- Java-parity test functions ----
 
+/// Java `FileStateStore` (`v1.file.state.store`): the temp-file mock state
+/// store for the suspend/resume engine tests — MsgPack wrapper
+/// `{expires_at, data}` under /tmp/suspend-resume, DELETE-ON-READ
+/// (consume-on-retrieve: at-most-once resume), expiry honored on read.
+#[preload(route = "v1.file.state.store", instances = 10)]
+struct FileStateStore;
+
+const STORE_DIR: &str = "/tmp/suspend-resume";
+
+fn store_file(cid: &str) -> std::path::PathBuf {
+    let safe: String = cid
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    std::path::Path::new(STORE_DIR).join(safe)
+}
+
+fn pack_value(value: &Value) -> Vec<u8> {
+    let mut out = Vec::new();
+    rmpv::encode::write_value(&mut out, value).expect("msgpack encode");
+    out
+}
+
+fn unpack_value(bytes: &[u8]) -> Value {
+    rmpv::decode::read_value(&mut &bytes[..]).unwrap_or(Value::Nil)
+}
+
+fn now_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+#[async_trait]
+impl ComposableFunction for FileStateStore {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        std::fs::create_dir_all(STORE_DIR)
+            .map_err(|e| AppError::new(500, format!("Unable to create {STORE_DIR} - {e}")))?;
+        let request = MultiLevelMap::from_value(input.body().clone());
+        let cid = request
+            .get_element("cid")
+            .map(|v| event_script::conversions::display(&v))
+            .unwrap_or_default();
+        let file = store_file(&cid);
+        match headers.get("type").map(String::as_str) {
+            Some("put") => {
+                let ttl_seconds = match request.get_element("ttl") {
+                    Some(Value::Integer(n)) => n.as_i64().unwrap_or(30),
+                    _ => 30,
+                };
+                let wrapper = Value::Map(vec![
+                    (
+                        Value::from("expires_at"),
+                        Value::from(now_millis() + ttl_seconds * 1000),
+                    ),
+                    (Value::from("data"), input.body().clone()),
+                ]);
+                std::fs::write(&file, pack_value(&wrapper))
+                    .map_err(|e| AppError::new(500, e.to_string()))?;
+                EventEnvelope::new().set_body(serde_json::json!({"stored": true}))
+            }
+            Some("get") => {
+                if !file.exists() {
+                    return Ok(EventEnvelope::new().set_raw_body(Value::Map(vec![])));
+                }
+                let bytes = std::fs::read(&file).map_err(|e| AppError::new(500, e.to_string()))?;
+                std::fs::remove_file(&file).ok();
+                let wrapper = MultiLevelMap::from_value(unpack_value(&bytes));
+                let expiry = match wrapper.get_element("expires_at") {
+                    Some(Value::Integer(n)) => n.as_i64().unwrap_or(0),
+                    _ => 0,
+                };
+                if now_millis() > expiry {
+                    return Ok(EventEnvelope::new().set_raw_body(Value::Map(vec![])));
+                }
+                Ok(EventEnvelope::new()
+                    .set_raw_body(wrapper.get_element("data").unwrap_or(Value::Map(vec![]))))
+            }
+            _ => Err(AppError::new(400, "type must be put or get")),
+        }
+    }
+}
+
+/// Java `CountingStepTask` (`v1.counting.step`): counts executions per
+/// step+cid and records the business correlation id each execution saw
+/// (injected `my_correlation_id`) — the no-re-execution and business-cid
+/// assertions read these registries.
+#[preload(route = "v1.counting.step", instances = 10)]
+struct CountingStepTask;
+
+fn step_counters() -> &'static Mutex<HashMap<String, i64>> {
+    static COUNTERS: std::sync::OnceLock<Mutex<HashMap<String, i64>>> = std::sync::OnceLock::new();
+    COUNTERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn step_business_cids() -> &'static Mutex<HashMap<String, String>> {
+    static CIDS: std::sync::OnceLock<Mutex<HashMap<String, String>>> = std::sync::OnceLock::new();
+    CIDS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn step_count(step: &str, cid: &str) -> i64 {
+    *step_counters()
+        .lock()
+        .unwrap()
+        .get(&format!("{step}:{cid}"))
+        .unwrap_or(&0)
+}
+
+fn step_business_cid(step: &str, cid: &str) -> Option<String> {
+    step_business_cids()
+        .lock()
+        .unwrap()
+        .get(&format!("{step}:{cid}"))
+        .cloned()
+}
+
+#[async_trait]
+impl ComposableFunction for CountingStepTask {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body = MultiLevelMap::from_value(input.body().clone());
+        let display = event_script::conversions::display;
+        let step = body
+            .get_element("step")
+            .map(|v| display(&v))
+            .unwrap_or_default();
+        let cid = body
+            .get_element("cid")
+            .map(|v| display(&v))
+            .unwrap_or_default();
+        // the business correlation ID injected by the platform at delivery -
+        // the suspend/resume tests assert it matches the caller's cid
+        if let Some(my_cid) = headers.get("my_correlation_id") {
+            step_business_cids()
+                .lock()
+                .unwrap()
+                .insert(format!("{step}:{cid}"), my_cid.clone());
+        }
+        let count = {
+            let mut counters = step_counters().lock().unwrap();
+            let entry = counters.entry(format!("{step}:{cid}")).or_insert(0);
+            *entry += 1;
+            *entry
+        };
+        let mut result = serde_json::json!({"step": step, "count": count});
+        if let Some(prior) = body.get_element("prior") {
+            result["prior"] = serde_json::to_value(&prior).unwrap_or_default();
+        }
+        EventEnvelope::new().set_body(result)
+    }
+}
+
 /// Java `DemoTaskFunction` (`v1.demo.task`): echoes the body and the `hello`
 /// request header, doubles `amount`, returns a response header; the
 /// `exception` field triggers the error path.
@@ -228,6 +396,32 @@ async fn run_graph(
     .unwrap_or_else(|e| panic!("graph {graph_id} failed: {} {}", e.status(), e.message()))
 }
 
+/// Like [`run_graph`] but with an explicit business correlation id — the
+/// suspend/resume tests drive several runs sharing ONE cid.
+async fn run_graph_cid(
+    platform: &Platform,
+    graph_id: &str,
+    cid: &str,
+    body: serde_json::Value,
+) -> EventEnvelope {
+    let dataset = serde_json::json!({
+        "body": body,
+        "header": {},
+        "path_parameter": {"graph_id": graph_id},
+        "method": "POST",
+    });
+    FlowExecutor::request(
+        platform,
+        "graph-executor",
+        event_script::conversions::from_json(&dataset),
+        cid,
+        Duration::from_secs(8),
+        Some((&trace::new_trace_id(), &format!("TEST /graph/{graph_id}"))),
+    )
+    .await
+    .unwrap_or_else(|e| panic!("graph {graph_id} failed: {} {}", e.status(), e.message()))
+}
+
 fn body_map(reply: &EventEnvelope) -> MultiLevelMap {
     MultiLevelMap::from_value(reply.body().clone())
 }
@@ -242,6 +436,7 @@ async fn graph_runtime_end_to_end() {
     fetcher_cache_key_uses_dictionary_declared_inputs_only(&platform).await;
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
+    suspend_resume_matches_java_semantics(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
     // server: a second `#[tokio::test]` gets its own runtime, which drops (killing
     // the shared HTTP server task) when the first finishes — the harness flake.
@@ -1597,5 +1792,207 @@ async fn companion_sync_import_fallback_reports_ok(platform: &Platform) {
             .as_str()
             .is_some_and(|e| e.contains("not found")),
         "genuine miss carries the not-found error: {missing}"
+    );
+}
+
+/// The Java `GraphSuspendResumeTest` twin: workflow suspension end to end
+/// against the temp-file mock store — persistence-envelope shape, resume
+/// without re-execution, multi-checkpoint, join-across-suspension,
+/// fresh-vs-expired as application logic, and the forged-record
+/// reserved-key strip.
+async fn suspend_resume_matches_java_semantics(platform: &Platform) {
+    // --- suspend-1: suspend at step-1, resume continues without re-execution
+    let cid = "wf-suspend-basic-001";
+    let first = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(200, first.status(), "run 1: {:?}", first.body());
+    let suspended = body_map(&first);
+    assert_eq!(
+        Some(Value::from("suspended")),
+        suspended.get_element("type")
+    );
+    assert_eq!(Some(Value::from(cid)), suspended.get_element("cid"));
+    assert_eq!(1, step_count("one", cid));
+    assert_eq!(0, step_count("two", cid));
+    // the business correlation ID propagates through the walker's internal
+    // events into every skill and task - not the engine's callback IDs
+    assert_eq!(Some(cid.to_string()), step_business_cid("one", cid));
+    // the persisted record has the documented envelope shape and no reserved
+    // model keys
+    let record = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file(cid)).expect("suspension record file"),
+    ));
+    assert_eq!(Some(Value::from("step-1")), record.get_element("data.node"));
+    assert_eq!(Some(Value::from(cid)), record.get_element("data.cid"));
+    assert_eq!(
+        Some(Value::from(1)),
+        record.get_element("data.model.step1_count")
+    );
+    for reserved in ["cid", "instance", "flow", "trace", "run"] {
+        assert_eq!(
+            None,
+            record.get_element(&format!("data.model.{reserved}")),
+            "reserved model key '{reserved}' must not persist"
+        );
+    }
+    assert_eq!(
+        Some(Value::from(true)),
+        record.get_element("data.run.step-1")
+    );
+    // run 2 with the same correlation ID: resume continues past the checkpoint
+    let second = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(200, second.status(), "run 2: {:?}", second.body());
+    let completed = body_map(&second);
+    assert_eq!(Some(Value::from("two")), completed.get_element("step"));
+    assert_eq!(
+        Some(Value::from(1)),
+        completed.get_element("prior"),
+        "restored model.step1_count must reach step-2"
+    );
+    assert_eq!(
+        1,
+        step_count("one", cid),
+        "the suspension point must not re-execute"
+    );
+    assert_eq!(1, step_count("two", cid));
+    assert_eq!(
+        Some("resume"),
+        second.header("x-run"),
+        "graph.resume must flag the resumed condition"
+    );
+
+    // --- suspend-2: multiple checkpoints, three runs, one cid
+    let cid = "wf-suspend-multi-002";
+    let r1 = run_graph_cid(platform, "unit-test-suspend-2", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r1).get_element("type")
+    );
+    let r2 = run_graph_cid(platform, "unit-test-suspend-2", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r2).get_element("type")
+    );
+    let r3 = run_graph_cid(platform, "unit-test-suspend-2", cid, serde_json::json!({})).await;
+    assert_eq!(200, r3.status(), "run 3: {:?}", r3.body());
+    let completed = body_map(&r3);
+    assert_eq!(Some(Value::from("c")), completed.get_element("step"));
+    assert_eq!(
+        Some(Value::from(1)),
+        completed.get_element("prior"),
+        "model.b_count must survive the second suspension"
+    );
+    for step in ["a", "b", "c"] {
+        assert_eq!(
+            1,
+            step_count(step, cid),
+            "step {step} must run exactly once"
+        );
+    }
+
+    // --- suspend-3: a join barrier is still satisfied after resume
+    let cid = "wf-suspend-join-003";
+    let r1 = run_graph_cid(platform, "unit-test-suspend-3", cid, serde_json::json!({})).await;
+    assert_eq!(200, r1.status(), "join run 1: {:?}", r1.body());
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r1).get_element("type")
+    );
+    // without the restored bookkeeping, the join would never see the
+    // pre-suspension branch and the run would time out
+    let r2 = run_graph_cid(platform, "unit-test-suspend-3", cid, serde_json::json!({})).await;
+    assert_eq!(200, r2.status(), "join run 2: {:?}", r2.body());
+    let completed = body_map(&r2);
+    assert_eq!(Some(Value::from("final")), completed.get_element("step"));
+    assert_eq!(Some(Value::from(1)), completed.get_element("prior"));
+    assert_eq!(
+        1,
+        step_count("gamma", cid),
+        "gamma must not re-execute after resume"
+    );
+
+    // --- suspend-4: fresh-vs-expired is APPLICATION logic on the resume path
+    // (absent and expired records are indistinguishable to the engine: the
+    // graph's own gate rejects an invalid fresh request with a declaratively
+    // staged 404, and the reply carries run=fresh so the caller knows why)
+    let cid = "wf-suspend-fresh-004";
+    let response = run_graph_cid(platform, "unit-test-suspend-4", cid, serde_json::json!({})).await;
+    assert_eq!(404, response.status(), "gate: {:?}", response.body());
+    let body = body_map(&response);
+    assert_eq!(Some(Value::from("no-record")), body.get_element("reason"));
+    assert_eq!(
+        Some(Value::from("fresh")),
+        body.get_element("run"),
+        "graph.resume must flag the fresh condition"
+    );
+    assert_eq!(Some(Value::from(404)), body.get_element("status"));
+    assert_eq!(
+        0,
+        step_count("x", cid),
+        "the gate must not run the normal path"
+    );
+    // a valid fresh request passes the same gate (the probe reads
+    // input.body.start via the null-safe '=' prefix)
+    let accepted = run_graph_cid(
+        platform,
+        "unit-test-suspend-4",
+        cid,
+        serde_json::json!({"start": true}),
+    )
+    .await;
+    assert_eq!(200, accepted.status(), "accepted: {:?}", accepted.body());
+
+    // --- suspend-5: an expired record falls back to a fresh run
+    let cid = "wf-suspend-expire-005";
+    let r1 = run_graph_cid(platform, "unit-test-suspend-5", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r1).get_element("type")
+    );
+    assert_eq!(1, step_count("expiry", cid));
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    // the 1s record has expired: the resume falls back to a fresh run and
+    // suspends again
+    let r2 = run_graph_cid(platform, "unit-test-suspend-5", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r2).get_element("type")
+    );
+    assert_eq!(
+        2,
+        step_count("expiry", cid),
+        "an expired record means a fresh run"
+    );
+
+    // --- forged record: the store is pluggable, so a record is EXTERNAL
+    // input - reserved keys injected by a hostile writer must never reach
+    // the state machine (model.cid is a capability)
+    let cid = "wf-suspend-forge-006";
+    let first = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(200, first.status());
+    let file = store_file(cid);
+    let mut record = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(&file).expect("record to forge"),
+    ));
+    for (key, value) in [
+        ("cid", "stolen-cid"),
+        ("instance", "bogus"),
+        ("flow", "bogus"),
+        ("run", "resume"),
+    ] {
+        record
+            .set_element(&format!("data.model.{key}"), Value::from(value))
+            .expect("forge");
+    }
+    std::fs::write(&file, pack_value(&record.to_value())).expect("write forged record");
+    // resume with the REAL correlation ID: the workflow continues, and none
+    // of the forged reserved keys reach the state machine
+    let second = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(200, second.status(), "forged resume: {:?}", second.body());
+    let completed = body_map(&second);
+    assert_eq!(Some(Value::from("two")), completed.get_element("step"));
+    assert_eq!(
+        Some(cid.to_string()),
+        step_business_cid("two", cid),
+        "the current run's identity must survive a forged record"
     );
 }

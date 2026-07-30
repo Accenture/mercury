@@ -1,0 +1,141 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "an expired suspension record falls back to a fresh run",
+        "name": "unit-test-suspend-5"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.file.state.store",
+        "purpose": "Restore workflow state if a suspension record exists"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(expiry) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "result.count -> model.step1_count"
+        ],
+        "suspend": true
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "1s",
+        "purpose": "Persist workflow state to the external state store"
+      }
+    },
+    {
+      "alias": "step-2",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(after-expiry) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "result -> output.body"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-1",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-1",
+      "target": "step-2",
+      "relations": [
+        {
+          "type": "approved",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-2",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

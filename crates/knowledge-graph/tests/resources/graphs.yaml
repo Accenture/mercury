@@ -29,3 +29,18 @@ graphs:
   - 'rust-join-retry'
   - 'rust-join-chain'
   - 'rust-no-purpose'
+  - 'unit-test-suspend-1'
+  - 'unit-test-suspend-2'
+  - 'unit-test-suspend-3'
+  - 'unit-test-suspend-4'
+  - 'unit-test-suspend-5'
+  # the suspend-err graphs are deliberately invalid: CompileGraph must reject every
+  # one of them, and a rejected graph answers HTTP-404 (compiled or 404)
+  - 'unit-test-suspend-err1'
+  - 'unit-test-suspend-err2'
+  - 'unit-test-suspend-err3'
+  - 'unit-test-suspend-err4'
+  - 'unit-test-suspend-err5'
+  - 'unit-test-suspend-err6'
+  - 'unit-test-suspend-err7'
+  - 'unit-test-no-end'

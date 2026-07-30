@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a suspensible node must draw its checkpoint edge",
+        "name": "unit-test-suspend-err5"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "suspend": true,
+        "input": [
+          "text(no-edge) -> step",
+          "model.cid -> cid"
+        ]
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s",
+        "purpose": "Persist workflow state"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-1",
+      "target": "end",
+      "relations": [
+        {
+          "type": "approved",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

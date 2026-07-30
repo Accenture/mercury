@@ -47,11 +47,13 @@ fn manifest_listed_graphs_are_compiled() {
     // the discovery contract is enforced at compile: a manifest graph whose
     // root node has no 'purpose' is rejected (rust-no-purpose fixture)
     assert!(!graphs::graph_exists("rust-no-purpose"));
-    // every graph in the manifest is valid: 13 tutorials + 16 test fixtures
+    // 13 tutorials + 16 original fixtures + the 13 suspend/no-end fixtures
+    // (P5-1 interim: the deliberately-invalid suspend-err fixtures still
+    // compile until the P5-2 mandatory-gate rules land and reject them)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        29,
+        42,
         all.len(),
         "expected all manifest graphs to compile: {all:?}"
     );

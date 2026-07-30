@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a suspensible node requires a suspend node in the graph",
+        "name": "unit-test-suspend-err3"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "Suspensible"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(orphan) -> step",
+          "model.cid -> cid"
+        ],
+        "suspend": true
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-1",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

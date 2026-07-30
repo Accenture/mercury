@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-28 | agent: Claude Code (2026-07-28-011855)
+- **last_session:** 2026-07-29 | agent: Claude Code (2026-07-29-235442)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -145,6 +145,38 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (feature in flight — 2026-07-29; branch `feature/graph-suspend-resume`, P5-1
+  committed, NOT pushed — Eric gates) **P5: graph suspend/resume Rust lock-step arc**
+  (handoff /tmp/graph-suspend-resume-rust-handoff-p5.md; Java ALL MERGED PRs #238-#241,
+  Java ADR-0010/0011 accepted; FINAL surface only — no missing=<node>, no rejected-graph
+  registry). **P5-1 DONE (engine core):** new `suspend.rs` (graph.suspend/graph.resume as
+  graph.task supersets: shared context ladder, get_required_correlation_id, ONE
+  overflow-guarded ttl parser get_valid_ttl_seconds (64-bit, <1 or >i32::MAX rejected, NO
+  default), persistence envelope {cid,node,ttl,model−reserved,seen,run}, synchronous 2xx
+  durability ack, default `{"type":"suspended","cid"}` reply, warnIfBranchesInFlight,
+  NON_PERSISTED_MODEL_KEYS ×9 both directions, restore: corrupted/unknown-node 500s via
+  record_failure, merge-then-set model.run=resume, restoreMarks truthy-only EXCLUDING
+  suspend, fresh path model.run=fresh at DEBUG); BOTH walkers converted (near-mirror:
+  `resume:<alias>` directive, walk_to_suspend_node — executor trusts the gate, traveler
+  keeps FULL guards incl. math/js + missing/mis-skilled suspend node; resume_traversal
+  marks seen+run without executing; walk_next(after_resume) excludes `suspend` + forged
+  leaf-record dead-end guard in BOTH; atomic putIfAbsent walk seen-check under one lock;
+  traveler per-run reset also clears hits; executeSkill stamps FROM header + business-cid
+  tag from model.cid — interceptor walkers don't auto-propagate; executor
+  execution_complete applies declarative output.status). Registered
+  graph.suspend/graph.resume (instances 300). Fixtures copied VERBATIM from Java
+  (unit-test-suspend-1..5 + err1-7 + no-end; manifest updated). Tests: the
+  GraphSuspendResumeTest twin suite (6 scenarios: envelope shape + no reserved keys
+  persisted, no-re-execution + x-run=resume, multi-checkpoint 3-runs-1-cid,
+  join-across-suspension, fresh-gate 404 + run=fresh + valid pass, 1s-expiry fallback,
+  forged-record reserved-key strip with real-cid identity survival) + ttl parser unit
+  tests (incl. overflow) + temp-file mock store (/tmp/suspend-resume, MsgPack
+  {expires_at,data}, delete-on-read) + counting-step business-cid registry. Gate: 288 /
+  clippy 0 / fmt. **Remaining: P5-2 mandatory gate + GraphModelValidator + manifest
+  location + model.run reserved key; P5-3 Redis crate; P5-4 tutorial-14 + docs + ADR
+  twins + live four-run drive.** → serves vision-mercury (the suspension blueprint).
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-29 | uses: 1 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
   TAGGED: `v4.10.6` on merge commit `9732799e` (PR
