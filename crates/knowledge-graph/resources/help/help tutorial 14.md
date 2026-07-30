@@ -296,7 +296,7 @@ Test the workflow over REST
 Run 1 - the customer orders a laptop:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: order-1001" \
   -d '{"item": "laptop", "amount": 2000}'
@@ -308,7 +308,7 @@ the "run" flag ("fresh" on run 1, "resume" on runs 2 to 4) so the caller always 
 it is looking at a new transaction or a resumed continuation. Run 2 - the store manager approves:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: order-1001" \
   -d '{"decision": "approved", "manager": "store-88"}'
@@ -317,7 +317,7 @@ curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
 Run 3 - the delivery department releases the shipment:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: order-1001" \
   -d '{"release": true, "courier": "express"}'
@@ -326,7 +326,7 @@ curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
 Run 4 - shipment confirmation completes the workflow:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: order-1001" \
   -d '{"tracking": "TRK-12345"}'
@@ -337,7 +337,7 @@ release from run 3 and the shipment from run 4 - proof that the workflow state c
 suspension. Now try a decision with a correlation ID that never ordered:
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: order-9999" \
   -d '{"decision": "approved"}'

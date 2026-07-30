@@ -348,7 +348,7 @@ folder and restart the application. You can then invoke the knowledge graph endp
 with the following curl command.
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-3 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-3 \
   -H "Content-Type: application/json" \
   -d '{
     "person_id": 100
@@ -384,7 +384,7 @@ Well done! You have successfully created a graph model that fetches external dat
 API call optimization
 ---------------------
 If you check the application log, you will notice that each graph instance makes only
-one HTTP call to `http://127.0.0.1:8100/api/mdm/profile/10`.
+one HTTP call to `http://127.0.0.1:8085/api/mdm/profile/10`.
 
 When multiple data dictionary items share the same target URL, method and input
 parameter values, the system avoids making redundant API calls.

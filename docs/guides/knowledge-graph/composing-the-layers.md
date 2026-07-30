@@ -192,7 +192,7 @@ So a request flows `http.flow.adapter` → `graph-executor` flow → `graph.exec
 model by `graph_id`, traverses it) → HTTP response:
 
 ```bash
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-1
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-1
 ```
 
 ```

@@ -137,7 +137,7 @@ to the Java original**, so flow files port unchanged. See the
 cargo run -p minigraph-playground
 ```
 
-Open <http://127.0.0.1:8100> in a browser. The Playground console builds **active knowledge
+Open <http://127.0.0.1:8085> in a browser. The Playground console builds **active knowledge
 graphs** interactively — try:
 
 ```text

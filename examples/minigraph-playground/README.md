@@ -21,15 +21,15 @@ it as static content at `/`.
 
 ```bash
 cargo run -p minigraph-playground
-# then open http://127.0.0.1:8100/ in a browser
+# then open http://127.0.0.1:8085/ in a browser
 ```
 
 The startup log shows the layered boot: the graph/flow compilers → preloaded
-skills → `Playground loaded (app.env=dev)` → REST automation on port **8100**.
+skills → `Playground loaded (app.env=dev)` → REST automation on port **8085**.
 
 ## Test drive
 
-**In the browser** — open `http://127.0.0.1:8100/`. Build a graph on the canvas,
+**In the browser** — open `http://127.0.0.1:8085/`. Build a graph on the canvas,
 run it, and inspect the state machine; the workbench talks to the engine over
 `/ws/graph`.
 
@@ -37,7 +37,7 @@ run it, and inspect the state machine; the workbench talks to the engine over
 client works; the session's `.out` stream echoes results:
 
 ```text
-connect  ws://127.0.0.1:8100/ws/graph/playground
+connect  ws://127.0.0.1:8085/ws/graph/playground
 < session ws-100001-1 started
           Companion endpoint: /api/companion/ws-100001-1
 > create node root
@@ -50,7 +50,7 @@ connect  ws://127.0.0.1:8100/ws/graph/playground
 the output streams to that session's WebSocket console (the field use case):
 
 ```bash
-curl -X POST 'http://127.0.0.1:8100/api/companion/ws-100001-1' \
+curl -X POST 'http://127.0.0.1:8085/api/companion/ws-100001-1' \
      -H 'content-type: text/plain' -d 'list nodes'
 # {"status":"accepted","type":"companion", …}   ← output streams to the WS console
 ```
@@ -59,7 +59,7 @@ curl -X POST 'http://127.0.0.1:8100/api/companion/ws-100001-1' \
 through the `graph-executor` flow:
 
 ```bash
-curl -X POST 'http://127.0.0.1:8100/api/graph/{graph-id}' -H 'content-type: application/json' -d '{...}'
+curl -X POST 'http://127.0.0.1:8085/api/graph/{graph-id}' -H 'content-type: application/json' -d '{...}'
 ```
 
 **Production note** — the Playground is dev-only. Set `app.env` to anything but

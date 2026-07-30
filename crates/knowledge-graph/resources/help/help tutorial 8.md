@@ -330,7 +330,7 @@ To deploy the graph model, copy "/tmp/graph/tutorial-8.json" to your application
 `resources/graph` folder. You can then test the deployed model with a curl command.
 
 ```
-curl -X POST http://127.0.0.1:8100/api/graph/tutorial-8 \
+curl -X POST http://127.0.0.1:8085/api/graph/tutorial-8 \
   -H "Content-Type: application/json" \
   -d '{ 
   "profile": {

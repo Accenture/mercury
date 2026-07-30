@@ -98,6 +98,14 @@ pub fn invalid(message: impl Into<String>) -> AppError {
     AppError::new(400, message)
 }
 
+/// Java-exact `String.trim()`: strip only chars <= U+0020 from both ends.
+/// The business correlation id is the suspend/resume store key, so both
+/// engines must normalize IDENTICALLY (Rust's `str::trim` strips all Unicode
+/// whitespace, e.g. U+00A0 NBSP, which Java's trim does not).
+pub(crate) fn java_trim(text: &str) -> &str {
+    text.trim_matches(|c: char| c <= ' ')
+}
+
 pub fn get_graph_instance(id: &str) -> Result<Arc<GraphInstance>, AppError> {
     model::get_instance(id).ok_or_else(|| invalid(format!("Graph instance {id} not started")))
 }

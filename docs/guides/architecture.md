@@ -252,7 +252,7 @@ At the top layer, a **graph model executes behavior**: skills embedded on nodes 
 traversal, so the common case needs zero imperative code. Node skills execute as ordinary
 function invocations on the Layer-1 bus, and a graph can delegate to a whole Event Script
 flow with `extension=flow://{flow-id}` — composition across all three layers with the same
-envelope end to end. The interactive **Playground** (port **8100**) is where humans and AI
+envelope end to end. The interactive **Playground** (port **8085**) is where humans and AI
 agents co-author graphs live; see the
 [knowledge-graph agent guide](knowledge-graph/ai-agent-guide.md) and the
 [command reference](knowledge-graph/command-reference.md).
