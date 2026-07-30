@@ -168,9 +168,12 @@ fn get_required_correlation_id(
         state.get_element(MODEL_CID)
     };
     if let Some(Value::String(text)) = value {
-        let cid = text.as_str().unwrap_or_default().trim().to_string();
-        if !cid.is_empty() {
-            return Ok(cid);
+        // Java parity: return the RAW value after only a blank rejection —
+        // the untrimmed cid is the store key and the reply value on both
+        // engines (a padded cid must round-trip identically cross-engine)
+        let cid = text.as_str().unwrap_or_default();
+        if !cid.trim().is_empty() {
+            return Ok(cid.to_string());
         }
     }
     Err(invalid(format!(
@@ -189,8 +192,8 @@ fn get_required_correlation_id(
 /// earlier than modeled. There is deliberately NO default — "a workflow step
 /// can be suspended for a minute or a few days"; only the designer knows.
 pub fn get_valid_ttl_seconds(ttl: Option<&Value>, node_alias: &str) -> Result<i64, AppError> {
-    let text = ttl.map(display).unwrap_or_default();
-    let text = text.trim();
+    let raw = ttl.map(display).unwrap_or_default();
+    let text = raw.trim();
     if text.is_empty() {
         return Err(invalid(format!(
             "{NODE_NAME}{node_alias} does not have a 'ttl' property"
@@ -205,11 +208,38 @@ pub fn get_valid_ttl_seconds(ttl: Option<&Value>, node_alias: &str) -> Result<i6
     };
     let seconds = str2long(digits.trim()).saturating_mul(multiplier);
     if seconds < 1 || seconds > i32::MAX as i64 {
+        // Java parity: the message quotes the ORIGINAL property value
+        // (trimming is for parsing only)
         return Err(invalid(format!(
-            "{NODE_NAME}{node_alias} - invalid ttl '{text}'"
+            "{NODE_NAME}{node_alias} - invalid ttl '{raw}'"
         )));
     }
     Ok(seconds)
+}
+
+/// Java `EventEnvelope.getError()`: extract the error message as text when
+/// the standard 3-field composable error signature is detected
+/// (`{type: "error", status: <int>, message: <text>}`), mask byte bodies as
+/// `"***"`, render null as `"null"`, and pass anything else through — so a
+/// graph exception handler or mapping reading `{node}.error` sees the same
+/// value on both engines.
+fn extract_error(body: &Value) -> Value {
+    match body {
+        Value::Nil => Value::from("null"),
+        Value::String(_) => body.clone(),
+        Value::Binary(_) => Value::from("***"),
+        Value::Map(entries) if entries.len() == 3 => {
+            let field = |key: &str| entries.iter().find(|(k, _)| k.as_str() == Some(key));
+            let is_error =
+                matches!(field("type"), Some((_, Value::String(t))) if t.as_str() == Some("error"));
+            let has_status = matches!(field("status"), Some((_, Value::Integer(_))));
+            match field("message") {
+                Some((_, message @ Value::String(_))) if is_error && has_status => message.clone(),
+                _ => body.clone(),
+            }
+        }
+        _ => body.clone(),
+    }
 }
 
 /// Java `GraphStateSkill.setError`: stage the failure onto the state machine
@@ -223,7 +253,7 @@ fn set_error(
     response_headers: &HashMap<String, String>,
 ) -> String {
     let node_name = node.get_alias();
-    let _ = state.set_element(&format!("{node_name}.{ERROR}"), body.clone());
+    let _ = state.set_element(&format!("{node_name}.{ERROR}"), extract_error(&body));
     match node.get_property(EXCEPTION) {
         None => {
             let _ = state.set_element(OUTPUT_BODY, body);
@@ -535,13 +565,25 @@ fn restore_and_jump(
         // per-run reserved keys: graph.suspend does not persist them, and the
         // store is pluggable — a record from a foreign writer or an older
         // build must not override the current run's identity (model.cid is a
-        // capability)
+        // capability). The merge is a LITERAL key-level putAll (Java
+        // GraphResume parity): a composite-path write would let a forged key
+        // like "cid.x" or "ttl[0]" descend into — and replace — the real
+        // model.cid/model.ttl despite passing the literal-name filter above,
+        // and would silently drop keys whose text fails path parsing.
+        let mut model = match state.get_element(MODEL) {
+            Some(Value::Map(entries)) => entries,
+            _ => Vec::new(),
+        };
         for (key, value) in persisted {
             let name = key.as_str().unwrap_or_default();
             if !name.is_empty() && !NON_PERSISTED_MODEL_KEYS.contains(&name) {
-                let _ = state.set_element(&format!("{MODEL}.{name}"), value);
+                match model.iter_mut().find(|(k, _)| k.as_str() == Some(name)) {
+                    Some(entry) => entry.1 = value,
+                    None => model.push((key, value)),
+                }
             }
         }
+        let _ = state.set_element(MODEL, Value::Map(model));
     }
     // set AFTER the merge so a record written by an older build can never
     // resurrect a stale run flag
@@ -560,8 +602,11 @@ fn restore_marks(marks: Option<Value>, target: &std::sync::Mutex<HashMap<String,
         let mut guard = target.lock().expect("bookkeeping marks");
         for (key, value) in entries {
             let name = key.as_str().unwrap_or_default();
-            let truthy = matches!(&value, Value::Boolean(true))
-                || display(&value).eq_ignore_ascii_case("true");
+            // Java-exact truthiness (GraphResume: Boolean.TRUE or the exact
+            // lowercase string "true") — the record is external input, and a
+            // looser match would restore join-barrier marks a foreign-written
+            // record would NOT restore on the Java engine
+            let truthy = matches!(&value, Value::Boolean(true)) || display(&value) == "true";
             if !name.is_empty() && name != SUSPEND_ALIAS && truthy {
                 guard.insert(name.to_string(), true);
             }

@@ -88,6 +88,10 @@ pub const RESERVED_PARAMETERS: &[&str] = &[
     "concurrency",
     "purpose",
     "task",
+    // 'ttl' is deliberately NOT reserved: it is a task parameter of the
+    // suspend node (the data-store expiry timer), not engine-routing
+    // configuration, and it collides with nothing else
+    "suspend",
 ];
 
 pub fn invalid(message: impl Into<String>) -> AppError {

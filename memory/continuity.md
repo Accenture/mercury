@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-015038)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-024954)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -259,8 +259,32 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   ADR-0010 (gate) PROPOSED as twins of Java ADR-0010/0011; design-record "session
   persistence out of scope" line superseded for workflow state. INCREMENTS.md rows
   72-75. Memory review run at this seam (size-triggered). Gate: workspace 295 /
-  clippy 0 / fmt. **Remaining: Java-side consistency review, then Eric gates the
-  push/PR.** → serves vision-mercury (the suspension blueprint).
+  clippy 0 / fmt. **Java-side consistency review COMPLETE (high fidelity; 22 confirmed
+  findings) and the FIX ROUND APPLIED — all 22 addressed:** 4 blockers ([#0] the restore
+  merge is now a LITERAL key-level putAll (Java parity) — a forged composite-path key
+  "cid.x"/"ttl[0]" can no longer descend into and replace model.cid/model.ttl via
+  set_element path interpretation; composite-forge regression added; Java assessed
+  structurally immune (putAll), suggested dotted-key vectors there as immunity
+  documentation; [#6] `instantiate graph` is now the dry-run's edge — auto-creates
+  model.cid + the "No business correlation ID given…" reminder, both cases pinned;
+  [#10] walker seen-marking is insert-if-absent (putIfAbsent parity — never overwrites a
+  join's false barrier flag); [#11] 'suspend' joined RESERVED_PARAMETERS with Java's
+  "ttl deliberately NOT reserved" comment). Should-fixes: [#1] restore_marks truthiness
+  Java-exact (Boolean true | exact "true"); [#7] gate log carries the full path
+  (ConfigError passed through); [#8] dry-run run/execute mint a fresh trace
+  (set_from "minigraph.playground" + set_trace(cid, "/graph/playground") — the
+  trackable twin; VERIFIED live: 22 /graph/playground telemetry records in the
+  playground suite where there were zero); [#12] narration floats keep the trailing .0
+  ({spent:?}); [#15/#16] catalog traversal.suspend + Suspend/Resume/Suspensible
+  node_types; [#17] the span-topology twin test (forwarder capture; store-under-skill
+  parentage + no-suspend-span-on-completed-resume). Nits: cid/ttl raw-untrimmed parity
+  ([#2/#3/#9/#13]); [#4] {node}.error stages the extracted error (getError() port);
+  [#5] consume-on-retrieve assertion; [#19] help-file naming guard; [#20] tutorial-14
+  dry-run wording matches THIS engine's documented repeat-run semantics (+ bundle
+  rebuild); [#21] x-run asserted over the REAL HTTP stack (engine test rest.yaml gained
+  the /api/graph/{graph_id} route, Java test-config parity). Gate: workspace 296 /
+  clippy 0 / fmt. **Remaining: Eric gates the push/PR.** → serves vision-mercury (the
+  suspension blueprint).
   <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.

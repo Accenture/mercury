@@ -138,13 +138,12 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
 /// the raw form the startup compiler shares with the playground's temp
 /// workspace import (Java uses `ConfigReader` in both places).
 pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
-    let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id)).map_err(|e| {
-        if matches!(e, platform_core::ConfigError::NotFound(_)) {
-            format!("{graph_id} not found")
-        } else {
-            e.to_string()
-        }
-    })?;
+    // pass the loader error through untouched (Java parity): a missing model
+    // file logs the FULL normalized path — "Rejected graph g1 -
+    // classpath:/graph/g1.json not found" — so the operator sees which
+    // location was searched
+    let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id))
+        .map_err(|e| e.to_string())?;
     let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
     Ok(event_script::conversions::from_json(&json))
 }

@@ -43,7 +43,8 @@
   "traversal": {
     "fork": "a node with multiple outgoing connections forks traversal into PARALLEL branches (one per connection, executed concurrently)",
     "join": "synchronize parallel branches with a graph.join barrier node; without one, traversal proceeds as each branch completes",
-    "state_safety": "parallel branches must write to DISJOINT state keys (e.g. per-branch model.* variables) to avoid concurrent-write collisions"
+    "state_safety": "parallel branches must write to DISJOINT state keys (e.g. per-branch model.* variables) to avoid concurrent-write collisions",
+    "suspend": "a skilled node with suspend=true routes to the reserved 'suspend' node after its skill and output mapping complete; the run then ends normally and a later run with the same business correlation ID resumes past the checkpoint (see the workflow-suspension guide)"
   },
   "namespaces": [
     { "name": "input.body", "read": true, "write": "seeded at instantiate", "meaning": "incoming request body" },
@@ -123,6 +124,9 @@
     { "type": "End", "structural": true, "name_must_be": "end" },
     { "type": "Dictionary", "structural": false, "role": "external attribute definition (config)" },
     { "type": "Provider", "structural": false, "role": "external endpoint definition (config)" },
+    { "type": "Suspend", "structural": false, "role": "visual label for the suspend node - behavior comes from skill=graph.suspend; the ALIAS 'suspend' is what is reserved" },
+    { "type": "Resume", "structural": false, "role": "visual label for a graph.resume node (alias 'resume' is convention, not enforced)" },
+    { "type": "Suspensible", "structural": false, "role": "visual label for a node carrying the suspend=true property" },
     { "type": "<descriptive>", "structural": false, "role": "label validated by the node's skill, if any" }
   ],
   "skills": [

@@ -438,6 +438,8 @@ async fn graph_runtime_end_to_end() {
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
     suspend_resume_matches_java_semantics(&platform).await;
+    suspend_resume_x_run_over_the_real_http_stack(&platform).await;
+    suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
     // server: a second `#[tokio::test]` gets its own runtime, which drops (killing
@@ -447,6 +449,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_import_fallback_reports_ok(&platform).await;
     companion_sync_contract_gaps_closed(&platform).await;
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
+    companion_sync_instantiate_creates_model_cid(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -1862,6 +1865,10 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         second.header("x-run"),
         "graph.resume must flag the resumed condition"
     );
+    assert!(
+        !store_file(cid).exists(),
+        "the record must be consumed on resume"
+    );
 
     // --- suspend-2: multiple checkpoints, three runs, one cid
     let cid = "wf-suspend-multi-002";
@@ -1976,19 +1983,32 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     let mut record = MultiLevelMap::from_value(unpack_value(
         &std::fs::read(&file).expect("record to forge"),
     ));
-    for (key, value) in [
-        ("cid", "stolen-cid"),
-        ("instance", "bogus"),
-        ("flow", "bogus"),
-        ("run", "resume"),
-    ] {
-        record
-            .set_element(&format!("data.model.{key}"), Value::from(value))
-            .expect("forge");
+    // the forged keys are inserted LITERALLY into the record's model map —
+    // "cid.x" / "ttl[0]" must arrive as single literal keys (a set_element
+    // path write would nest them), because the composite-path shape is
+    // exactly the bypass vector: a path-interpreting merge would descend
+    // into and REPLACE the real model.cid / model.ttl despite the
+    // literal-name reserved-key filter
+    {
+        let mut wrapper = record.to_value();
+        let model = get_map_mut(&mut wrapper, &["data", "model"]).expect("record model map");
+        for (key, value) in [
+            ("cid", "stolen-cid"),
+            ("instance", "bogus"),
+            ("flow", "bogus"),
+            ("run", "resume"),
+            ("cid.x", "path-bypass"),
+            ("ttl[0]", "path-bypass"),
+        ] {
+            model.push((Value::from(key), Value::from(value)));
+        }
+        record = MultiLevelMap::from_value(wrapper);
     }
     std::fs::write(&file, pack_value(&record.to_value())).expect("write forged record");
     // resume with the REAL correlation ID: the workflow continues, and none
-    // of the forged reserved keys reach the state machine
+    // of the forged reserved keys reach the state machine — neither the
+    // flat names nor the composite-path shapes (the merge is a literal
+    // key-level putAll, Java parity)
     let second = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
     assert_eq!(200, second.status(), "forged resume: {:?}", second.body());
     let completed = body_map(&second);
@@ -1998,6 +2018,32 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         step_business_cid("two", cid),
         "the current run's identity must survive a forged record"
     );
+    // the step counter is keyed by the cid DELIVERED through the
+    // `model.cid -> cid` input mapping: a composite-path forgery that
+    // replaced model.cid with a fresh map would break this key
+    assert_eq!(
+        1,
+        step_count("two", cid),
+        "model.cid must survive a composite-path forgery (cid.x / ttl[0])"
+    );
+}
+
+/// Find a mutable reference to a nested map's entry list by literal keys.
+fn get_map_mut<'a>(value: &'a mut Value, path: &[&str]) -> Option<&'a mut Vec<(Value, Value)>> {
+    let mut current = value;
+    for key in path {
+        let Value::Map(entries) = current else {
+            return None;
+        };
+        current = &mut entries
+            .iter_mut()
+            .find(|(k, _)| k.as_str() == Some(*key))?
+            .1;
+    }
+    match current {
+        Value::Map(entries) => Some(entries),
+        _ => None,
+    }
 }
 
 /// Java parity (`GraphSuspendResumeTest.rejectedDeployedGraphIsNotExecutable`):
@@ -2120,5 +2166,288 @@ async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: 
     assert!(
         output.iter().any(|l| l == "Graph traversal aborted"),
         "pre-run rejection must still emit the uniform terminal: {output:?}"
+    );
+}
+
+/// Java parity (`GraphSuspendResumeTest` drives every scenario through the
+/// real HTTP stack): the `model.run -> output.header.x-run` mapping must be
+/// visible on the HTTP RESPONSE headers, not just the flow-reply envelope —
+/// the engine-twin above deliberately drives `FlowExecutor` directly (the
+/// file's convention), so this scenario crosses the HTTP boundary once.
+async fn suspend_resume_x_run_over_the_real_http_stack(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let port = platform_core::automation::server_address()
+        .expect("rest server started by lifecycle")
+        .port();
+    let target = format!("http://127.0.0.1:{port}");
+    let cid = "wf-suspend-http-007";
+    async fn http_run(po: &PostOffice, target: &str, cid: &str) -> EventEnvelope {
+        let request = platform_core::automation::AsyncHttpRequest::new()
+            .set_method("POST")
+            .set_target_host(target)
+            .set_url("/api/graph/unit-test-suspend-1")
+            .set_header("content-type", "application/json")
+            .set_header("accept", "application/json")
+            .set_header("x-correlation-id", cid)
+            .set_body(Value::Map(vec![]));
+        po.request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(request.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("http graph run reply")
+    }
+    let first = http_run(&po, &target, cid).await;
+    assert_eq!(200, first.status(), "http run 1: {:?}", first.body());
+    let second = http_run(&po, &target, cid).await;
+    assert_eq!(200, second.status(), "http run 2: {:?}", second.body());
+    assert_eq!(
+        Some("resume"),
+        second.header("x-run"),
+        "the x-run header must reach the HTTP response (Java parity)"
+    );
+}
+
+/// Java parity (`GraphSpanPropagationTest.suspendResumeStoreCallsChainToTheirSkillSpans`):
+/// the pluggable store function's span chains onto the suspend/resume SKILL
+/// span (the observable topology the ratified task-scoped-trace asymmetry is
+/// conditioned on), and a completed resumed run has NO graph.suspend span
+/// (no-re-execution is visible in trace topology).
+async fn suspend_resume_store_calls_chain_to_their_skill_spans(platform: &Platform) {
+    #[derive(Clone)]
+    struct SpanCapture {
+        records: Arc<Mutex<Vec<serde_json::Value>>>,
+    }
+    #[async_trait]
+    impl ComposableFunction for SpanCapture {
+        async fn handle_event(
+            &self,
+            _headers: HashMap<String, String>,
+            input: EventEnvelope,
+            _instance: usize,
+        ) -> Result<EventEnvelope, AppError> {
+            let record: serde_json::Value = input.body_as()?;
+            self.records.lock().expect("spans").push(record);
+            EventEnvelope::new().set_body("ok")
+        }
+    }
+    let records = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+    platform
+        .register(
+            "distributed.trace.forwarder",
+            Arc::new(SpanCapture {
+                records: records.clone(),
+            }),
+            1,
+        )
+        .expect("register span capture");
+
+    #[derive(Debug, Clone)]
+    struct Span {
+        service: String,
+        span_id: String,
+        parent: String,
+        from: String,
+    }
+    async fn run_and_collect(
+        platform: &Platform,
+        records: &Arc<Mutex<Vec<serde_json::Value>>>,
+        cid: &str,
+    ) -> Vec<Span> {
+        let trace_id = trace::new_trace_id();
+        let dataset = serde_json::json!({
+            "body": {},
+            "header": {},
+            "path_parameter": {"graph_id": "unit-test-suspend-1"},
+            "method": "POST",
+        });
+        let reply = FlowExecutor::request(
+            platform,
+            "graph-executor",
+            event_script::conversions::from_json(&dataset),
+            cid,
+            Duration::from_secs(8),
+            Some((&trace_id, "TEST /graph/span")),
+        )
+        .await
+        .expect("span run reply");
+        assert_eq!(200, reply.status(), "span run: {:?}", reply.body());
+        // telemetry is emitted asynchronously after the reply — poll until
+        // this trace's store span arrived (bounded)
+        for _ in 0..50 {
+            let spans: Vec<Span> = records
+                .lock()
+                .expect("spans")
+                .iter()
+                .filter_map(|r| {
+                    let t = r.get("trace")?;
+                    if t.get("id")?.as_str()? != trace_id {
+                        return None;
+                    }
+                    Some(Span {
+                        service: t.get("service")?.as_str()?.to_string(),
+                        span_id: t.get("span_id")?.as_str().unwrap_or_default().to_string(),
+                        parent: t
+                            .get("parent_span_id")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or_default()
+                            .to_string(),
+                        from: t
+                            .get("from")
+                            .and_then(|f| f.as_str())
+                            .unwrap_or_default()
+                            .to_string(),
+                    })
+                })
+                .collect();
+            if spans.iter().any(|s| s.service == "v1.file.state.store")
+                && spans.iter().any(|s| s.service == "task.executor")
+            {
+                return spans;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        panic!("span records for trace {trace_id} did not arrive");
+    }
+    fn find<'a>(spans: &'a [Span], service: &str, from: &str) -> &'a Span {
+        spans
+            .iter()
+            .find(|s| s.service == service && s.from == from)
+            .unwrap_or_else(|| panic!("span {service} from {from} not found: {spans:?}"))
+    }
+
+    let cid = "wf-suspend-span-008";
+    // run 1: fresh transaction - retrieve (miss), then suspend + persist
+    let run1 = run_and_collect(platform, &records, cid).await;
+    let resume1 = find(&run1, "graph.resume", "graph.executor");
+    let suspend = find(&run1, "graph.suspend", "graph.executor");
+    let retrieve1 = find(&run1, "v1.file.state.store", "graph.resume");
+    let persist = find(&run1, "v1.file.state.store", "graph.suspend");
+    assert_eq!(
+        resume1.span_id, retrieve1.parent,
+        "the retrieve call must chain to graph.resume"
+    );
+    assert_eq!(
+        suspend.span_id, persist.parent,
+        "the persist call must chain to graph.suspend"
+    );
+    // run 2: restore and continue - the retrieve chains to the new resume
+    // span and the suspension point is not re-executed, so no suspend span
+    let run2 = run_and_collect(platform, &records, cid).await;
+    let resume2 = find(&run2, "graph.resume", "graph.executor");
+    let retrieve2 = find(&run2, "v1.file.state.store", "graph.resume");
+    assert_eq!(
+        resume2.span_id, retrieve2.parent,
+        "the restore call must chain to graph.resume"
+    );
+    assert!(
+        run2.iter().all(|s| s.service != "graph.suspend"),
+        "a resumed run that completes must not suspend again: {run2:?}"
+    );
+}
+
+/// Java parity (`CompanionSyncTest`, commit f2107126): the `instantiate
+/// graph` command is the dry-run's edge — like the REST edge, it guarantees
+/// a business correlation ID, auto-created with a reminder when the initial
+/// data mapping did not supply one, and honored silently when it did.
+async fn companion_sync_instantiate_creates_model_cid(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770012-4";
+    let in_route = "ws.770012.4.in";
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+    fn output_lines(reply: &serde_json::Value) -> Vec<String> {
+        reply["output"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|v| v.as_str().unwrap_or_default().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    sync_cmd(platform, sid, "create node root\nwith type Root").await;
+    sync_cmd(platform, sid, "create node end\nwith type End").await;
+    sync_cmd(
+        platform,
+        sid,
+        "create node mapper\nwith type mapper\nwith properties\nskill=graph.data.mapper\nmapping[]=input.body.id -> output.body",
+    )
+    .await;
+    sync_cmd(platform, sid, "connect root to mapper with first").await;
+    sync_cmd(platform, sid, "connect mapper to end with second").await;
+    // no model.cid mapping: the edge auto-creates one with a reminder
+    let instantiated = sync_cmd(
+        platform,
+        sid,
+        "instantiate graph\ntext(hello world) -> input.body.id",
+    )
+    .await;
+    assert_eq!(
+        serde_json::json!(true),
+        instantiated["ok"],
+        "instantiate -> ok:true: {instantiated}"
+    );
+    let init_output = output_lines(&instantiated);
+    assert!(
+        init_output.iter().any(|l| l
+            .starts_with("No business correlation ID given - this dry-run created model.cid = ")),
+        "the dry-run edge must auto-create model.cid with a reminder: {init_output:?}"
+    );
+    // an explicitly mapped model.cid is honored without the reminder
+    let with_cid = sync_cmd(
+        platform,
+        sid,
+        "instantiate graph\ntext(hello world) -> input.body.id\ntext(dry-run-77) -> model.cid",
+    )
+    .await;
+    assert_eq!(
+        serde_json::json!(true),
+        with_cid["ok"],
+        "instantiate with cid -> ok:true: {with_cid}"
+    );
+    let with_cid_output = output_lines(&with_cid);
+    assert!(
+        with_cid_output
+            .iter()
+            .all(|l| !l.contains("created model.cid")),
+        "a supplied model.cid must be honored without the reminder: {with_cid_output:?}"
     );
 }

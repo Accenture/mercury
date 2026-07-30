@@ -169,8 +169,10 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
         .send(
             EventEnvelope::new()
                 .set_to(&reply_to)
+                // {spent:?} — Java Float.toString always keeps the decimal
+                // point ("3.0 ms"), the repo's float-parity rule
                 .set_raw_body(Value::from(format!(
-                    "Executed {node_name} with skill {skill} in {spent} ms"
+                    "Executed {node_name} with skill {skill} in {spent:?} ms"
                 ))),
         )
         .await;
@@ -406,12 +408,16 @@ fn walk<'a>(
         let skill = node.get_property(SKILL).map(|v| display(&v));
         // atomic mark-and-test under ONE lock acquisition (executor mirror)
         let is_join = skill.as_deref() == Some(crate::skills::JOIN_ROUTE);
-        let seen = instance
-            .node_seen
-            .lock()
-            .expect("node seen")
-            .insert(node_name.clone(), true)
-            .is_some();
+        // Java putIfAbsent parity (executor mirror): never overwrite a
+        // join's `false` barrier flag with a transient `true`
+        let seen = {
+            let mut marks = instance.node_seen.lock().expect("node seen");
+            let seen = marks.contains_key(&node_name);
+            if !seen {
+                marks.insert(node_name.clone(), true);
+            }
+            seen
+        };
         if is_join || !seen {
             let _ = po
                 .send(
@@ -538,9 +544,11 @@ async fn execute_skill(
             state.get_element("model.cid")
         };
         if let Some(Value::String(text)) = business_cid {
-            let cid = text.as_str().unwrap_or_default().trim().to_string();
-            if !cid.is_empty() {
-                event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, &cid);
+            // Java parity: tag the RAW value after only a blank rejection —
+            // my_correlation_id / log-context cid must match cross-engine
+            let cid = text.as_str().unwrap_or_default();
+            if !cid.trim().is_empty() {
+                event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, cid);
             }
         }
         po.send(event).await

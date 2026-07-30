@@ -187,8 +187,10 @@ For your convenience, this graph model is preloaded as "tutorial-14".
 Dry-run the workflow interactively
 ----------------------------------
 You can exercise all three checkpoints without leaving the playground. Two things to
-remember: each graph instance runs once, so instantiate before every run; and the SAME
-model.cid must be supplied each time - it is the resume key. Redis must be running.
+remember: instantiate before every run so each round starts with a fresh state machine
+(on this engine 'run' may repeat on one instance and model values persist across runs -
+see 'help run' - which would pollute a short-run simulation); and the SAME model.cid
+must be supplied each time - it is the resume key. Redis must be running.
 
 Import the deployed model as a draft:
 

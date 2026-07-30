@@ -181,3 +181,18 @@ fn config_references_are_resolved_at_compile_time() {
         "unresolved reference"
     );
 }
+
+/// Java parity (`GraphSuspendResumeTest.helpFilesFollowNamingConvention`):
+/// the hyphenated help pages for the two new skills must exist — the
+/// Playground's `describe skill {route}` / `help graph-suspend` topics
+/// resolve route names to these filenames at runtime, so a rename or
+/// packaging regression would silently break the help topic.
+#[test]
+fn help_files_follow_naming_convention() {
+    for file in ["help/help graph-suspend.md", "help/help graph-resume.md"] {
+        assert!(
+            platform_core::resources::resolve_classpath(file).is_some(),
+            "{file} must ship with the engine resources"
+        );
+    }
+}

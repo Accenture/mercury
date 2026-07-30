@@ -331,12 +331,18 @@ fn walk<'a>(
         // branches converging on the same non-join node must not dispatch it
         // twice (a join always evaluates — its barrier logic owns the dedup)
         let is_join = skill.as_deref() == Some(crate::skills::JOIN_ROUTE);
-        let seen = instance
-            .node_seen
-            .lock()
-            .expect("node seen")
-            .insert(node_name, true)
-            .is_some();
+        // Java putIfAbsent parity: never OVERWRITE an existing value — a
+        // join's barrier writes `false` here (its truth), and an overwriting
+        // insert would transiently flip it to `true`, which a concurrently
+        // evaluating chained downstream join reads as "upstream join FIRED"
+        let seen = {
+            let mut marks = instance.node_seen.lock().expect("node seen");
+            let seen = marks.contains_key(&node_name);
+            if !seen {
+                marks.insert(node_name, true);
+            }
+            seen
+        };
         if is_join || !seen {
             walk_to(platform, po, skill, instance, node, from, parent_span).await?;
         }
@@ -539,9 +545,11 @@ async fn execute_skill(
             state.get_element("model.cid")
         };
         if let Some(Value::String(text)) = business_cid {
-            let cid = text.as_str().unwrap_or_default().trim().to_string();
-            if !cid.is_empty() {
-                event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, &cid);
+            // Java parity: tag the RAW value after only a blank rejection —
+            // my_correlation_id / log-context cid must match cross-engine
+            let cid = text.as_str().unwrap_or_default();
+            if !cid.trim().is_empty() {
+                event = event.add_tag(platform_core::post_office::BUSINESS_CID_TAG, cid);
             }
         }
         if let Some(span) = parent_span {
