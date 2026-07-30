@@ -141,3 +141,4 @@ nav:
       - "AI Companion Test Report": test-reports/AI-companion-test.md
       - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md
+      - Release Notes: https://github.com/Accenture/mercury/blob/main/CHANGELOG.md
