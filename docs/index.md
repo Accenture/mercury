@@ -49,19 +49,37 @@ Application Development**, on a lightweight, fast foundation
 (tokio instead of virtual threads, compile-time registration instead of classpath scanning,
 no Kafka service mesh, no Spring).
 
-## Where to go next
+## Explore the docs
 
-- **[Getting Started](guides/getting-started.md)** — build the workspace and run the examples.
-- **[Architecture](guides/architecture.md)** — how the pieces fit, from the actor model up.
-- **Pick your layer:** [event-driven functions](guides/event-driven/index.md) ·
-  [Event Script flows](guides/event-script/index.md) ·
-  [the knowledge graph](guides/knowledge-graph/index.md).
+- **Get started** — [Getting Started](guides/getting-started.md)
+- **Guides** — [Event-driven Functions](guides/event-driven/index.md) ·
+  [Event Script Flows](guides/event-script/index.md) ·
+  [REST Automation](guides/rest-automation.md) · [Event over HTTP](guides/event-over-http.md) ·
+  [Observability](guides/observability.md)
+- **Knowledge Graph** — [Knowledge Graph as Application](guides/knowledge-graph/index.md) ·
+  [Build Your First Graph](guides/knowledge-graph/build-your-first-graph.md) ·
+  [Workflow Suspension](guides/knowledge-graph/workflow-suspension.md) ·
+  [Playground & AI Companion](guides/knowledge-graph/playground-and-companion.md)
+- **Concepts** — [Methodology](guides/methodology.md) · [Architecture Overview](guides/architecture.md) ·
+  [Port Scope & Fidelity](background/port-scope.md) ·
+  [Architecture Decision Records](arch-decisions/ADR.md)
+- **Reference** — [Macros](guides/macros-reference.md) ·
+  [Configuration](guides/configuration-reference.md) · [Event Envelope](guides/event-envelope-reference.md) ·
+  [Flow Schema](guides/flow-schema-reference.md) · [API Overview](guides/api-overview.md)
 - **AI agents** start at [`docs/llms.txt`](llms.txt) — the machine-readable map of the
   agent-optimized documentation set (engine-verified; a fresh agent can build graphs from it
   with zero out-of-band context). Every layer section carries its own AI agent guide.
-- **[Port Scope & Fidelity](background/port-scope.md)** — what is ported, what deliberately
-  is not, and how fidelity is kept honest.
-- **[Architecture Decisions](arch-decisions/ADR.md)** — the durable design record.
+
+## Project
+
+- **Source:** [github.com/Accenture/mercury](https://github.com/Accenture/mercury)
+- **Release notes:** [CHANGELOG](https://github.com/Accenture/mercury/blob/main/CHANGELOG.md)
+- **Contributing:** [CONTRIBUTING](https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md)
+  · [Code of Conduct](https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md)
+- **Java version:** Mercury's canonical Java implementation — same three layers, same flow
+  YAML, behavior-synced with this engine:
+  [github.com/Accenture/mercury-composable](https://github.com/Accenture/mercury-composable)
+  · [documentation](https://accenture.github.io/mercury-composable/)
 
 !!! note "Rust port"
     Throughout this site, boxes like this mark the places where the Rust port deliberately
