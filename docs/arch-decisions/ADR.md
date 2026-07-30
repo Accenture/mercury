@@ -27,8 +27,9 @@ or *Deprecated* (no longer relevant), with its text left in place.
 ---
 
 ## ADR-0010 — CompileGraph is the mandatory deployment gate for graph models (CompileFlows parity) {#adr-0010}
-**Status:** Proposed · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** compilegraph-mandatory-gate-rust
-<!-- id: adr-0010 | status: proposed | formalizes: compilegraph-mandatory-gate-rust -->
+**Status:** Accepted · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** compilegraph-mandatory-gate-rust
+<!-- id: adr-0010 | status: accepted | formalizes: compilegraph-mandatory-gate-rust -->
+<!-- accepted via the PR #186 merge (d2791b09), 2026-07-30 - the ledger-gate precedent -->
 
 *The twin of the Java engine's ADR-0011 — the decision was made in the reference
 repository and this port adopts it in lock-step; the Rust realization notes are inline.*
@@ -74,8 +75,9 @@ own `graphs.yaml` (it previously ran tutorials purely through the now-deleted la
 ---
 
 ## ADR-0009 — Graph workflow suspension: short runs + an external state store, encapsulated in skills {#adr-0009}
-**Status:** Proposed · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** graph-suspend-resume-rust
-<!-- id: adr-0009 | status: proposed | formalizes: graph-suspend-resume-rust -->
+**Status:** Accepted · **Date:** 2026-07-30T01:52:00.000Z · **Serves:** vision-mercury · **Formalizes:** graph-suspend-resume-rust
+<!-- id: adr-0009 | status: accepted | formalizes: graph-suspend-resume-rust -->
+<!-- accepted via the PR #186 merge (d2791b09), 2026-07-30 - the ledger-gate precedent -->
 
 *The twin of the Java engine's ADR-0010 — the decision was made in the reference
 repository and this port adopts it in lock-step; the Rust realization notes are inline.*

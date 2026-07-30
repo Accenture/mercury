@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-024954)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-030642)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -157,7 +157,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (feature in flight — 2026-07-29; branch `feature/graph-suspend-resume`, P5-1
+- [x] (feature — 2026-07-29; **MERGED 2026-07-30 as
+  [PR #186](https://github.com/Accenture/mercury/pull/186), merge commit `d2791b09`
+  — five commits `304fc5a0`→`9326cf55`; Rust ADR-0009/ADR-0010 thereby ACCEPTED (the
+  merge was the ledger gate). The suspend/resume surface is now IDENTICAL on both
+  engines. Likely next arcs: the lock-step official release (Eric planning), then the
+  minimalist-kafka port — kafka-standalone + schema-registry-mock as the local test
+  servers per [[conv-java-helper-servers-for-rust-tests]].**) (was: branch `feature/graph-suspend-resume`, P5-1
   committed, NOT pushed — Eric gates) **P5: graph suspend/resume Rust lock-step arc**
   (handoff /tmp/graph-suspend-resume-rust-handoff-p5.md; Java ALL MERGED PRs #238-#241,
   Java ADR-0010/0011 accepted; FINAL surface only — no missing=<node>, no rejected-graph
@@ -283,8 +289,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   dry-run wording matches THIS engine's documented repeat-run semantics (+ bundle
   rebuild); [#21] x-run asserted over the REAL HTTP stack (engine test rest.yaml gained
   the /api/graph/{graph_id} route, Java test-config parity). Gate: workspace 296 /
-  clippy 0 / fmt. **Remaining: Eric gates the push/PR.** → serves vision-mercury (the
-  suspension blueprint).
+  clippy 0 / fmt. **Pushed on Eric's gate 2026-07-30; PR #186 merged same day — ARC CLOSED.**
+  → serves vision-mercury (the suspension blueprint).
   <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
