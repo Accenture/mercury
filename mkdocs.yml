@@ -142,3 +142,6 @@ nav:
       - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md
       - Release Notes: https://github.com/Accenture/mercury/blob/main/CHANGELOG.md
+      - Contributing: https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md
+      - Code of Conduct: https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md
+      - Inclusivity: https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md
